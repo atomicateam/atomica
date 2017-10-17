@@ -1,3 +1,3 @@
-# Optima Core
+# OPTIMA CORE README
 
 This is Optima Core.
