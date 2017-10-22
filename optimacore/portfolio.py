@@ -10,10 +10,20 @@ from optimacore.system import applyToAllMethods, logUsage
 class Portfolio(object):
     """ The Optima Core portfolio class, a higher-level container for Optima Core projects. """
 
-    def __init__(self):
+    def __init__(self, name = "default"):
         """ Initialize the portfolio. """
-        pass
+        self.name = str()
+        
+        self.setName(name)
+    
+    def setName(self, name):
+        """ Set primary human-readable identifier for the portfolio. """
+        self.name = name
+    
+    def getName(self):
+        """ Get primary human-readable identifier for the portfolio. """
+        return self.name
 
     def __repr__(self):
         """ String representation of the portfolio. """
-        return ''
+        return ""

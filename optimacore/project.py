@@ -15,10 +15,20 @@ class Project(object):
     Almost all Optima Core functionality is provided by this class, including dynamic simulations and optimization analyses.
     """
 
-    def __init__(self):
+    def __init__(self, name = "default"):
         """ Initialize the project. """
-        pass
+        self.name = str()
+        
+        self.setName(name)
+    
+    def setName(self, name):
+        """ Set primary human-readable identifier for the project. """
+        self.name = name
+    
+    def getName(self):
+        """ Get primary human-readable identifier for the project. """
+        return self.name
 
     def __repr__(self):
         """ String representation of the project. """
-        return ''
+        return ""
