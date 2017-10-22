@@ -4,7 +4,7 @@ Optima Core portfolio definition file.
 Implements a container class for Optima projects of all types.
 """
 
-from optimacore.system import applyToAllMethods, logUsage
+from optimacore.system import applyToAllMethods, logUsage, accepts
 
 @applyToAllMethods(logUsage)
 class Portfolio(object):
@@ -16,6 +16,7 @@ class Portfolio(object):
         
         self.setName(name)
     
+    @accepts(str)
     def setName(self, name):
         """ Set primary human-readable identifier for the portfolio. """
         self.name = name
