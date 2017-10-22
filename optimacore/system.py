@@ -11,20 +11,49 @@ import inspect
 class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
+    LOGGER_INCLUDES_DATE = False
     
-    
+
 
 def logUsage(undecoratedFunction):
     """ Logs the usage of a function or method. """
     def decoratedFunction(*args,**kwargs):    
         """ Timestamps and times an undecorated function call. """
-        datetime_before = datetime.datetime.now()  
-        print "%s: Entering function '%s'" % (datetime_before, undecoratedFunction.__name__)                
+        # If the function is unbound, logging information is limited.
+        indent = " - "
+        class_prefix = ""
+        instance_name = ""
+        descriptor = "function"
+        # If the function is actually a method, the first argument is the owning class instance.
+        # Extract class name and instance name, if the latter exists, for logging purposes.
+        if inspect.ismethod(undecoratedFunction):
+            class_prefix = undecoratedFunction.im_class.__name__ + "."
+            try: instance_name = args[0].name       # Method 'getName' avoided due to recursion.
+            except: pass
+            descriptor = "method"
+        # Time and process the undecorated function.
+        time_before = datetime.datetime.now()
+        output_time_before = time_before
+        if not SystemSettings.LOGGER_INCLUDES_DATE:
+            output_time_before = datetime.datetime.time(time_before)
+        print "{0}{1}Entering {2}: {3}".format(output_time_before, indent, descriptor, 
+                                               class_prefix + undecoratedFunction.__name__)
+        if not instance_name == "":
+            print "{0:{1}}{2} instance: {3}".format("", len(str(output_time_before) + indent), 
+                                                    class_prefix.rstrip('.'), instance_name)     
         x = undecoratedFunction(*args,**kwargs)                
-        datetime_after = datetime.datetime.now()                      
-        print "%s: Exiting function '%s'\nTime elapsed: %s" % (datetime_after, 
-                                                               undecoratedFunction.__name__, 
-                                                               datetime_after - datetime_before)      
+        time_after = datetime.datetime.now()
+        time_elapsed = time_after - time_before
+        output_time_after = time_after
+        if not SystemSettings.LOGGER_INCLUDES_DATE:
+            output_time_after = datetime.datetime.time(time_after)
+        print "{0}{1}Exiting {2}:  {3}".format(output_time_after, indent, descriptor, 
+                                               class_prefix + undecoratedFunction.__name__)
+        if not instance_name == "":
+            print "{0:{1}}{2} instance: {3}".format("", len(str(output_time_after) + indent), 
+                                                    class_prefix.rstrip('.'), instance_name)  
+        print "{0:{1}}Time spent in {2}: {3}".format("", len(str(output_time_after) + indent),
+                                                     descriptor, time_elapsed)     
         return x                                             
     return decoratedFunction
     
