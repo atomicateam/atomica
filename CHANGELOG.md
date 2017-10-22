@@ -6,7 +6,8 @@ The format adheres to Semantic Versioning.
 ## 0.1.2 (2017-10-22): Validation Framework
 
 Features
-- 
+- Coded decorator `accepts()` along with `ArgumentValidationError`.
+  This ensures method/function arguments have a specified type.
 
 ## 0.1.1 (2017-10-22): Systematic Decorator Framework
 
