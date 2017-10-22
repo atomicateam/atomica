@@ -5,7 +5,7 @@ Implements a class to investigate a context represented by a complex Markov chai
 The archetypal example is an epidemic within a geographical location, where entities move between disease states.
 """
 
-from optimacore.system import applyToAllMethods, logUsage
+from optimacore.system import applyToAllMethods, logUsage, accepts
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -21,6 +21,7 @@ class Project(object):
         
         self.setName(name)
     
+    @accepts(str)
     def setName(self, name):
         """ Set primary human-readable identifier for the project. """
         self.name = name

@@ -3,7 +3,12 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.1.1 (2017-10-21): Systematic Decorator Framework
+## 0.1.2 (2017-10-22): Validation Framework
+
+Features
+- 
+
+## 0.1.1 (2017-10-22): Systematic Decorator Framework
 
 Features
 - Created class stub files: porfolio.py and project.py

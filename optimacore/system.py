@@ -17,7 +17,7 @@ class SystemSettings(object):
 
 def logUsage(undecoratedFunction):
     """ Logs the usage of a function or method. """
-    def decoratedFunction(*args,**kwargs):    
+    def logUsageDecoratedFunction(*args,**kwargs):    
         """ Timestamps and times an undecorated function call. """
         # If the function is unbound, logging information is limited.
         indent = " - "
@@ -39,7 +39,7 @@ def logUsage(undecoratedFunction):
         print "{0}{1}Entering {2}: {3}".format(output_time_before, indent, descriptor, 
                                                class_prefix + undecoratedFunction.__name__)
         if not instance_name == "":
-            print "{0:{1}}{2} instance: {3}".format("", len(str(output_time_before) + indent), 
+            print "{0:{1}}{2} name: {3}".format("", len(str(output_time_before) + indent), 
                                                     class_prefix.rstrip('.'), instance_name)     
         x = undecoratedFunction(*args,**kwargs)                
         time_after = datetime.datetime.now()
@@ -50,14 +50,49 @@ def logUsage(undecoratedFunction):
         print "{0}{1}Exiting {2}:  {3}".format(output_time_after, indent, descriptor, 
                                                class_prefix + undecoratedFunction.__name__)
         if not instance_name == "":
-            print "{0:{1}}{2} instance: {3}".format("", len(str(output_time_after) + indent), 
+            print "{0:{1}}{2} name: {3}".format("", len(str(output_time_after) + indent), 
                                                     class_prefix.rstrip('.'), instance_name)  
         print "{0:{1}}Time spent in {2}: {3}".format("", len(str(output_time_after) + indent),
                                                      descriptor, time_elapsed)     
         return x                                             
-    return decoratedFunction
+    return logUsageDecoratedFunction
     
+
+class ArgumentValidationError(ValueError):
+    """ Raised when the argument type of a function is incorrect. """
+    def __init__(self, arg_name, func_name, func_sig, accepted_arg_type):
+        self.error = "Value supplied to arg '{0}' in '{1}{2}' was not of type '{3}'.".format(arg_name, func_name, func_sig,
+                                                                                             accepted_arg_type.__name__)
+    def __str__(self):
+        return self.error
     
+def accepts(*types):
+    """
+    Validates that the arguments of a function are of a specified type.
+    Ignores the zeroth argument if it is 'self', i.e. the function is a method.
+    """
+    def checkAccepts(undecoratedFunction):
+        """
+        The true underlying decorator, i.e. with no arguments in the signature, applied to an undecorated function.
+        The types specified by the wrapper propagate into the undecorated function.
+        """
+        def checkAcceptsDecoratedFunction(*args, **kwargs):
+            # Check if the first argument of function signature is 'self', thus denoting a method.
+            # If the undecorated function is a method, skip self when checking arg types.
+            sig = tuple(inspect.getargspec(undecoratedFunction).args)
+            arg_start = int(sig[0] == 'self')
+            arg_count = arg_start
+            for (arg, accepted_type) in zip(args[arg_start:], types):
+                if not isinstance(arg, accepted_type):
+                    raise ArgumentValidationError(sig[arg_count], undecoratedFunction.__name__, 
+                                                  str(sig).replace("'",""), accepted_type)
+                arg_count += 1
+            return undecoratedFunction(*args, **kwargs)
+        checkAcceptsDecoratedFunction.__name__ = undecoratedFunction.__name__
+        return checkAcceptsDecoratedFunction
+    return checkAccepts
+
+
 
 def applyToAllMethods(function):
     """ Decorator that takes a function argument and applies it to all methods of an instantiated class. """
