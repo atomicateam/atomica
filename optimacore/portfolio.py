@@ -21,6 +21,7 @@ class Portfolio(object):
         """ Set primary human-readable identifier for the portfolio. """
         self.name = name
     
+    @returns(str)
     def getName(self):
         """ Get primary human-readable identifier for the portfolio. """
         return self.name
