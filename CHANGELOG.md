@@ -3,11 +3,13 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.1.2 (2017-10-22): Validation Framework
+## 0.1.2 (2017-10-23): Validation Framework
 
 Features
-- Coded decorator `accepts()` along with `ArgumentValidationError`.
-  This ensures method/function arguments have a specified type.
+- Coded decorator `accepts()` along with `ArgumentTypeError`.
+  This ensures method/function arguments have specified types.
+- Coded decorator `returns()` along with `ReturnTypeError`.
+  This ensures method/function returns have a specified type.
 
 ## 0.1.1 (2017-10-22): Systematic Decorator Framework
 
