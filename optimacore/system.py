@@ -5,22 +5,29 @@ Contains important functions that are used throughout Optima Core.
 Examples include logging, type-checking, etc.
 """
 
+import logging.config
 import datetime
 import inspect
+
+#%% Code for setting up a system settings class containing module-wide variables.
 
 class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
-    LOGGER_INCLUDES_DATE = False
+    LOGGER_DEBUG_OUTPUT_PATH = "./previous.log"
     
+#%% Code for setting up a logger.
 
+logging.config.fileConfig("logging.ini", defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
+logger = logging.getLogger("optimacore")
+
+#%% Code for timestamping function and method usage.
 
 def logUsage(undecoratedFunction):
     """ Logs the usage of a function or method. """
     def logUsageDecoratedFunction(*args,**kwargs):    
         """ Timestamps and times an undecorated function call. """
         # If the function is unbound, logging information is limited.
-        indent = " - "
         class_prefix = ""
         instance_name = ""
         descriptor = "function"
@@ -33,27 +40,16 @@ def logUsage(undecoratedFunction):
             descriptor = "method"
         # Time and process the undecorated function.
         time_before = datetime.datetime.now()
-        output_time_before = time_before
-        if not SystemSettings.LOGGER_INCLUDES_DATE:
-            output_time_before = datetime.datetime.time(time_before)
-        print "{0}{1}Entering {2}: {3}".format(output_time_before, indent, descriptor, 
-                                               class_prefix + undecoratedFunction.__name__)
+        logger.debug("Entering {0}: {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
         if not instance_name == "":
-            print "{0:{1}}{2} name: {3}".format("", len(str(output_time_before) + indent), 
-                                                class_prefix.rstrip('.'), instance_name)     
+            logger.debug("{0} name: {1}".format(class_prefix.rstrip('.'), instance_name)) 
         x = undecoratedFunction(*args,**kwargs)                
         time_after = datetime.datetime.now()
         time_elapsed = time_after - time_before
-        output_time_after = time_after
-        if not SystemSettings.LOGGER_INCLUDES_DATE:
-            output_time_after = datetime.datetime.time(time_after)
-        print "{0}{1}Exiting {2}:  {3}".format(output_time_after, indent, descriptor, 
-                                               class_prefix + undecoratedFunction.__name__)
+        logger.debug("Exiting {0}:  {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
         if not instance_name == "":
-            print "{0:{1}}{2} name: {3}".format("", len(str(output_time_after) + indent), 
-                                                class_prefix.rstrip('.'), instance_name)  
-        print "{0:{1}}Time spent in {2}: {3}".format("", len(str(output_time_after) + indent),
-                                                     descriptor, time_elapsed)     
+            logger.debug("{0} name: {1}".format(class_prefix.rstrip('.'), instance_name))
+        logger.debug("Time spent in {0}: {1}".format(descriptor, time_elapsed))
         return x                                             
     return logUsageDecoratedFunction
     
