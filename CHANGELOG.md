@@ -3,7 +3,18 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.1.2 (2017-10-23): Validation Framework
+## 0.1.3 (2017-10-26): Initial Logging Framework
+
+Features
+- Created logging configuration file: logging.ini
+- Generated a logger named 'optimacore' that prints debug statements to file.
+  The file path can be varied with system setting variable `LOGGER_DEBUG_OUTPUT_PATH`.
+- Updated `print` statements in `logUsage()` function as `logger.debug` calls.
+
+Edits
+- Removed date-inclusion system variable as that is currently in the domain of logging.ini.
+
+## 0.1.2 (2017-10-23): Initial Validation Framework
 
 Features
 - Coded decorator `accepts()` along with `ArgumentTypeError`.
