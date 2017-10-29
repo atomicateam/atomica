@@ -79,13 +79,17 @@ def accepts(*arg_types):
             sig = tuple(inspect.getargspec(undecoratedFunction).args)
             arg_start = int(sig[0] == 'self')
             arg_count = arg_start
-            for (arg, accepted_type) in zip(args[arg_start:], arg_types):
-                if not isinstance(arg, accepted_type):
-                    raise ArgumentTypeError(func_name = undecoratedFunction.__name__,
-                                            arg_name = sig[arg_count], 
-                                            accepted_arg_type = accepted_type,
-                                            func_sig = str(sig).replace("'","").replace(",)",")"))
-                arg_count += 1
+            try:
+                for (arg, accepted_type) in zip(args[arg_start:], arg_types):
+                    if not isinstance(arg, accepted_type):
+                        raise ArgumentTypeError(func_name = undecoratedFunction.__name__,
+                                                arg_name = sig[arg_count], 
+                                                accepted_arg_type = accepted_type,
+                                                func_sig = str(sig).replace("'","").replace(",)",")"))
+                    arg_count += 1
+            except ArgumentTypeError as e:
+                logger.exception(e.message)
+                raise
             return undecoratedFunction(*args, **kwargs)
         checkAcceptsDecoratedFunction.__name__ = undecoratedFunction.__name__
         return checkAcceptsDecoratedFunction
@@ -116,10 +120,14 @@ def returns(return_type):
             # If the undecorated function is a method, skip self when checking arg types.
             sig = tuple(inspect.getargspec(undecoratedFunction).args)
             return_value = undecoratedFunction(*args, **kwargs)
-            if not type(return_value) == return_type:
-                raise ReturnTypeError(func_name = undecoratedFunction.__name__,
-                                      accepted_return_type = return_type,
-                                      func_sig = str(sig).replace("'","").replace(",)",")"))
+            try:    
+                if not type(return_value) == return_type:
+                    raise ReturnTypeError(func_name = undecoratedFunction.__name__,
+                                          accepted_return_type = return_type,
+                                          func_sig = str(sig).replace("'","").replace(",)",")"))
+            except ReturnTypeError as e:
+                logger.exception(e.message)
+                raise
             return return_value
         checkReturnsDecoratedFunction.__name__ = undecoratedFunction.__name__
         return checkReturnsDecoratedFunction

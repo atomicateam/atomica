@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.2.0 (2017-10-29): Project Framework Design
+
+Features
+- Created project framework stub file: framework.py
+
 ## 0.1.3 (2017-10-26): Initial Logging Framework
 
 Features
