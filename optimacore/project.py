@@ -6,6 +6,7 @@ The archetypal example is an epidemic within a geographical location, where enti
 """
 
 from optimacore.system import applyToAllMethods, logUsage, accepts, returns
+from optimacore.framework import ProjectFramework
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -18,6 +19,7 @@ class Project(object):
     def __init__(self, name = "default"):
         """ Initialize the project. """
         self.name = str()
+        self.framework = ProjectFramework()
         
         self.setName(name)
     
@@ -30,6 +32,16 @@ class Project(object):
     def getName(self):
         """ Get primary human-readable identifier for the project. """
         return self.name
+    
+    @accepts(ProjectFramework)
+    def setFramework(self, framework):
+        """ Set the underlying context framework for the project. """
+        self.framework = framework
+    
+    @returns(ProjectFramework)
+    def getFramework(self):
+        """ Get the underlying context framework for the project. """
+        return self.framework
 
     def __repr__(self):
         """ String representation of the project. """
