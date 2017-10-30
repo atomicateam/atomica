@@ -6,6 +6,7 @@ Examples include logging, type-checking, etc.
 """
 
 import logging.config
+import os
 import datetime
 import inspect
 
@@ -15,10 +16,25 @@ class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous.log"
-    
+
+#%% Code for determining module installation directory.
+
+def getOptimaCorePath(subdir = None, end_with_sep = True):
+    """
+    Returns the parent path of the Optima module.
+    If subdir is not None, include it in the path.
+    If end_with_sep is True, cap off the path with a separator (i.e. the path is to be appended by a filename).
+    """
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    tojoin = [path]
+    if subdir is not None: tojoin.append(subdir)
+    if end_with_sep: tojoin.append('')
+    path = os.path.join(*tojoin)
+    return path
+
 #%% Code for setting up a logger.
 
-logging.config.fileConfig("logging.ini", defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
+logging.config.fileConfig(getOptimaCorePath(subdir="optimacore")+"logging.ini", defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
 logger = logging.getLogger("optimacore")
 
 #%% Code for timestamping function and method usage.
