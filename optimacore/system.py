@@ -9,6 +9,8 @@ import logging.config
 import os
 import datetime
 import inspect
+import functools
+import decorator
 
 #%% Code for setting up a system settings class containing module-wide variables.
 
@@ -89,11 +91,16 @@ def accepts(*arg_types):
         The true underlying decorator, i.e. with no arguments in the signature, applied to an undecorated function.
         The types specified by the wrapper propagate into the undecorated function.
         """
+        @functools.wraps(undecoratedFunction)
         def checkAcceptsDecoratedFunction(*args, **kwargs):
             # Check if the first argument of function signature is 'self', thus denoting a method.
             # If the undecorated function is a method, skip self when checking arg types.
             sig = tuple(inspect.getargspec(undecoratedFunction).args)
-            arg_start = int(sig[0] == 'self')
+            print undecoratedFunction
+            print inspect.getargspec(undecoratedFunction)
+            arg_start = 0
+            if len(sig) > 0:
+                arg_start = int(sig[0] == 'self')
             arg_count = arg_start
             try:
                 for (arg, accepted_type) in zip(args[arg_start:], arg_types):
@@ -107,7 +114,6 @@ def accepts(*arg_types):
                 logger.exception(e.message)
                 raise
             return undecoratedFunction(*args, **kwargs)
-        checkAcceptsDecoratedFunction.__name__ = undecoratedFunction.__name__
         return checkAcceptsDecoratedFunction
     return checkAccepts
 
@@ -131,6 +137,7 @@ def returns(return_type):
         The true underlying decorator, i.e. with no arguments in the signature, applied to an undecorated function.
         The types specified by the wrapper propagate into the undecorated function.
         """
+        @functools.wraps(undecoratedFunction)
         def checkReturnsDecoratedFunction(*args, **kwargs):
             # Check if the first argument of function signature is 'self', thus denoting a method.
             # If the undecorated function is a method, skip self when checking arg types.
@@ -145,7 +152,6 @@ def returns(return_type):
                 logger.exception(e.message)
                 raise
             return return_value
-        checkReturnsDecoratedFunction.__name__ = undecoratedFunction.__name__
         return checkReturnsDecoratedFunction
     return checkReturns
 
