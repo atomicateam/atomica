@@ -86,35 +86,29 @@ def accepts(*arg_types):
     Validates that the arguments of a function are of a specified type.
     Ignores the zeroth argument if it is 'self', i.e. the function is a method.
     """
-    def checkAccepts(undecoratedFunction):
-        """
-        The true underlying decorator, i.e. with no arguments in the signature, applied to an undecorated function.
-        The types specified by the wrapper propagate into the undecorated function.
-        """
-        @functools.wraps(undecoratedFunction)
-        def checkAcceptsDecoratedFunction(*args, **kwargs):
-            # Check if the first argument of function signature is 'self', thus denoting a method.
-            # If the undecorated function is a method, skip self when checking arg types.
-            sig = tuple(inspect.getargspec(undecoratedFunction).args)
-            print undecoratedFunction
-            print inspect.getargspec(undecoratedFunction)
-            arg_start = 0
-            if len(sig) > 0:
-                arg_start = int(sig[0] == 'self')
-            arg_count = arg_start
-            try:
-                for (arg, accepted_type) in zip(args[arg_start:], arg_types):
-                    if not isinstance(arg, accepted_type):
-                        raise ArgumentTypeError(func_name = undecoratedFunction.__name__,
-                                                arg_name = sig[arg_count], 
-                                                accepted_arg_type = accepted_type,
-                                                func_sig = str(sig).replace("'","").replace(",)",")"))
-                    arg_count += 1
-            except ArgumentTypeError as e:
-                logger.exception(e.message)
-                raise
-            return undecoratedFunction(*args, **kwargs)
-        return checkAcceptsDecoratedFunction
+    @decorator.decorator
+    def checkAccepts(undecoratedFunction, *args, **kwargs):
+        # Check if the first argument of function signature is 'self', thus denoting a method.
+        # If the undecorated function is a method, skip self when checking arg types.
+        sig = tuple(inspect.getargspec(undecoratedFunction).args)
+        print undecoratedFunction
+        print inspect.getargspec(undecoratedFunction)
+        arg_start = 0
+        if len(sig) > 0:
+            arg_start = int(sig[0] == 'self')
+        arg_count = arg_start
+        try:
+            for (arg, accepted_type) in zip(args[arg_start:], arg_types):
+                if not isinstance(arg, accepted_type):
+                    raise ArgumentTypeError(func_name = undecoratedFunction.__name__,
+                                            arg_name = sig[arg_count], 
+                                            accepted_arg_type = accepted_type,
+                                            func_sig = str(sig).replace("'","").replace(",)",")"))
+                arg_count += 1
+        except ArgumentTypeError as e:
+            logger.exception(e.message)
+            raise
+        return undecoratedFunction(*args, **kwargs)
     return checkAccepts
 
 #%% Code for validating function return types.
@@ -132,27 +126,21 @@ def returns(return_type):
     Validates that the returned value of a function is of a specified type.
     Is not particularly useful for tupled multi-variable returns.
     """
-    def checkReturns(undecoratedFunction):
-        """
-        The true underlying decorator, i.e. with no arguments in the signature, applied to an undecorated function.
-        The types specified by the wrapper propagate into the undecorated function.
-        """
-        @functools.wraps(undecoratedFunction)
-        def checkReturnsDecoratedFunction(*args, **kwargs):
-            # Check if the first argument of function signature is 'self', thus denoting a method.
-            # If the undecorated function is a method, skip self when checking arg types.
-            sig = tuple(inspect.getargspec(undecoratedFunction).args)
-            return_value = undecoratedFunction(*args, **kwargs)
-            try:    
-                if not type(return_value) == return_type:
-                    raise ReturnTypeError(func_name = undecoratedFunction.__name__,
-                                          accepted_return_type = return_type,
-                                          func_sig = str(sig).replace("'","").replace(",)",")"))
-            except ReturnTypeError as e:
-                logger.exception(e.message)
-                raise
-            return return_value
-        return checkReturnsDecoratedFunction
+    @decorator.decorator
+    def checkReturns(undecoratedFunction, *args, **kwargs):
+        # Check if the first argument of function signature is 'self', thus denoting a method.
+        # If the undecorated function is a method, skip self when checking arg types.
+        sig = tuple(inspect.getargspec(undecoratedFunction).args)
+        return_value = undecoratedFunction(*args, **kwargs)
+        try:    
+            if not type(return_value) == return_type:
+                raise ReturnTypeError(func_name = undecoratedFunction.__name__,
+                                      accepted_return_type = return_type,
+                                      func_sig = str(sig).replace("'","").replace(",)",")"))
+        except ReturnTypeError as e:
+            logger.exception(e.message)
+            raise
+        return return_value
     return checkReturns
 
 #%% Code for conveniently applying a decorator to each method in a class.
