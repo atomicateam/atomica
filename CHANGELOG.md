@@ -3,11 +3,16 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.2.0 (2017-11-1): Population Types and Compartments
+
+         
+         
 ## 0.2.0 (2017-10-30): Project Framework Design
 
 Features
 - Created project framework stub file: framework.py
-- Created a 'tests' subfolders to store Optima Core unit tests.
+- Created a 'tests' subfolder to store Optima Core unit tests.
+- Created a 'frameworks' subfolder in 'tests' to contain framework file examples.
 
 Edits
 - Coded function `getOptimaCorePath()` to retrieve module installation path.
