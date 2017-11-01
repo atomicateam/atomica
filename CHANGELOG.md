@@ -3,10 +3,16 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.0 (2017-10-29): Project Framework Design
+## 0.2.0 (2017-10-30): Project Framework Design
 
 Features
 - Created project framework stub file: framework.py
+- Created a 'tests' subfolders to store Optima Core unit tests.
+
+Edits
+- Coded function `getOptimaCorePath()` to retrieve module installation path.
+- The logging configuration file is now drawn from a fixed absolute path, regardless of application directory.
+  The logging output file still ends up in the working path.
 
 ## 0.1.3 (2017-10-26): Initial Logging Framework
 
