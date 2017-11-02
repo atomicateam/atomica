@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core project framework file.
+Optima Core project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 
-from optimacore.system import applyToAllMethods, logUsage, accepts, returns
+from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns
 
 @applyToAllMethods(logUsage)
 class ProjectFramework(object):
@@ -13,37 +13,24 @@ class ProjectFramework(object):
     
     def __init__(self):
         """ Initialize the framework. """
-        self.node_specs = dict()
+        self.specs = dict()
     
     def __repr__(self):
         """ String representation of the project framework. """
         return ""
 
-    @accepts(str)
-    @returns(bool)
-    def importFromFile(self, framework_path):
-        """
-        Attempts to load project framework details from a framework Excel file.
-        Returns True/False for process success/failure.
-        """
-        return True
-    
-    @accepts(str)
-    @returns(bool)
-    def exportToFile(self, framework_path):
-        """
-        Attempts to save existing project framework details to a framework Excel file.
-        Returns True/False for process success/failure.
-        """
-        return True
-
-@logUsage
-@accepts(str)
-@returns(bool)
-def createFrameworkTemplate(framework_path):
-    """
-    Creates a template framework Excel file.
-    Returns True/False for process success/failure.
-    """
-    return True
-    
+#    @accepts(str)
+#    @returns(bool)
+#    def importFromFile(self, framework_path):
+#        """
+#        Attempts to load project framework details from a framework Excel file.
+#        """
+#        return
+#    
+#    @accepts(str)
+#    @returns(bool)
+#    def exportToFile(self, framework_path):
+#        """
+#        Attempts to save existing project framework details to a framework Excel file.
+#        """
+#        return

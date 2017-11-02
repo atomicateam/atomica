@@ -7,6 +7,7 @@ Tests the creation, importing and exporting of model framework files.
 import unittest
 
 from optimacore.project import Project
+from optimacore.framework_io import createFrameworkTemplate
 
 class FrameworkTest(unittest.TestCase):
     """  """
@@ -19,9 +20,9 @@ class FrameworkTest(unittest.TestCase):
         
 class MinimalFramework(FrameworkTest):
     """  """
-    def test_truth(self):
+    def test_creation(self):
         """  """
-        self.assertEqual(True, True, "True is not True.")
+        createFrameworkTemplate("./frameworks/framework_template.xlsx")
         return None
         
 if __name__ == '__main__':
