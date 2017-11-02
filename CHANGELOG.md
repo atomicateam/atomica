@@ -3,9 +3,15 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.0 (2017-11-1): Population Types and Compartments
+## 0.2.1 (2017-11-2): Population Types and Compartments
 
+Features
+- Created project framework input/output functions file: framework_io.py
+- Coded initial form of `createFrameworkTemplate()` for creating a framework file with commented headers.
          
+Edits
+- Enforced that the 'decorator' module must be downloaded as part of 'setup.py' installation.
+  This fixes a bug in propagating function/method signatures up chains of decorators.    
          
 ## 0.2.0 (2017-10-30): Project Framework Design
 

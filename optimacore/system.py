@@ -9,7 +9,7 @@ import logging.config
 import os
 import datetime
 import inspect
-import functools
+
 import decorator
 
 #%% Code for setting up a system settings class containing module-wide variables.
@@ -18,6 +18,7 @@ class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous.log"
+    
 
 #%% Code for determining module installation directory.
 
@@ -39,7 +40,7 @@ def getOptimaCorePath(subdir = None, end_with_sep = True):
 logging.config.fileConfig(getOptimaCorePath(subdir="optimacore")+"logging.ini", defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
 logger = logging.getLogger("optimacore")
 
-#%% Code for timestamping function and method usage.
+#%% Code for timestamping function/method usage.
 
 def logUsage(undecoratedFunction):
     """ Logs the usage of a function or method. """
@@ -91,8 +92,6 @@ def accepts(*arg_types):
         # Check if the first argument of function signature is 'self', thus denoting a method.
         # If the undecorated function is a method, skip self when checking arg types.
         sig = tuple(inspect.getargspec(undecoratedFunction).args)
-        print undecoratedFunction
-        print inspect.getargspec(undecoratedFunction)
         arg_start = 0
         if len(sig) > 0:
             arg_start = int(sig[0] == 'self')
