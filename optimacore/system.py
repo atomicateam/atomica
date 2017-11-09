@@ -17,7 +17,14 @@ import decorator
 class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
-    LOGGER_DEBUG_OUTPUT_PATH = "./previous.log"
+    CONFIG_LOGGER_FILENAME = "logging.ini"
+    CONFIG_FRAMEWORK_FILENAME = "template_framework.ini"
+    
+    LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
+    
+    EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
+    EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
+    EXCEL_IO_DEFAULT_COLUMN_WIDTH = 20
     
 
 #%% Code for determining module installation directory.
@@ -37,8 +44,16 @@ def getOptimaCorePath(subdir = None, end_with_sep = True):
 
 #%% Code for setting up a logger.
 
-logging.config.fileConfig(getOptimaCorePath(subdir="optimacore")+"logging.ini", defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
+logging.config.fileConfig(getOptimaCorePath(subdir="optimacore")+SystemSettings.CONFIG_LOGGER_FILENAME, 
+                          defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
 logger = logging.getLogger("optimacore")
+
+#%% Code for an exception specific to Optima.
+
+class OptimaException(Exception):
+    """ A wrapper class to allow for Optima-specific exceptions. Can be expanded. """
+    def __init(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
 
 #%% Code for timestamping function/method usage.
 

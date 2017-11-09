@@ -18,8 +18,8 @@ class FrameworkTest(unittest.TestCase):
     def tearDown(self):
         self.proj = None
         
-class MinimalFramework(FrameworkTest):
-    """  """
+#class MinimalFramework(FrameworkTest):
+#    """  """
     def test_creation(self):
         """  """
         createFrameworkTemplate("./frameworks/framework_template.xlsx")
