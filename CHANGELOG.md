@@ -6,7 +6,7 @@ The format adheres to Semantic Versioning.
 ## 0.2.2 (2017-11-20): Initial Framework File Loading
 
 Features
-- EXISTENTIAL QUESTIONS
+- Began initial pre-filling functionality for template.
 
 Edits
 - Hard-coded the keys for the framework template file via a `FrameworkSettings` class.

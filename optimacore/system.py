@@ -19,7 +19,6 @@ class SystemSettings(object):
     
     CONFIG_LOGGER_FILENAME = "logging.ini"
     CONFIG_FRAMEWORK_FILENAME = "template_framework.ini"
-    CONFIG_FRAMEWORK_SEPARATOR = ","
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     
