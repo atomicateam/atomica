@@ -20,8 +20,27 @@ class FrameworkSettings(object):
     Any changes here risk disrupting framework operations and should be avoided.
     """
     TEMPLATE_KEYS_PAGE_COLUMNS = OrderedDict()
-    TEMPLATE_KEYS_PAGE_COLUMNS["poptype"] = ["classlabel","classname","catlabel","catname"]
+    TEMPLATE_KEYS_PAGE_COLUMNS["poptype"] = ["attlabel","attname","optlabel","optname"]
     TEMPLATE_KEYS_PAGE_COLUMNS["comp"] = ["label","name"]
+    
+@logUsage
+@accepts(xw.worksheet.Worksheet,int,int,int)
+def writeSequenceToExcelColumn(sheet, row_start, col, length, skip_rows = 0, prefix_list = None, cell_format = None):
+    """
+    Writes a consecutive integer sequence into the column of an Excel sheet.
+    Starts from 0 and is of user-prescribed length.
+    If a list of prefix strings is optionally provided, the sequence is repeated for each prefix.
+    In this case, each iteration is prepended by the corresponding prefix.
+    If a user specifies a number of rows to skip, this will be applied between each iteration of the sequence.
+    """
+    if prefix_list is None: prefix_list = [""]
+    
+    row = row_start
+    for prefix in prefix_list:
+        for count in xrange(length):
+            sheet.write(row, col, prefix+str(count), cell_format)
+            row += 1 + skip_rows
+    return
         
 @logUsage
 @accepts(configparser.ConfigParser,str,str)
@@ -47,8 +66,9 @@ def getConfigValue(config, section, option, list_form = False, mute_warnings = F
 @logUsage
 @accepts(str)
 def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE,
-                                            num_pop_attributes = None,
-                                            num_options_per_pop_attribute = None):
+                                            num_pop_attributes = 0,
+                                            num_options_per_pop_attribute = 0,
+                                            num_compartments = 0):
     """
     Creates a template framework Excel file.
     
@@ -65,6 +85,7 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
     if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
         num_pop_attributes = 3
         num_options_per_pop_attribute = 4
+        num_compartments = 10
     
     # Parse through a framework configuration file.
     cp = configparser.ConfigParser()
@@ -76,7 +97,8 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
     # Create a template file and non-variable standard formats.
     logger.info("Creating a template framework file: {0}".format(framework_path))
     framework_file = xw.Workbook(framework_path)
-    format_bold = framework_file.add_format({"bold": True})
+    format_center_bold = framework_file.add_format({"align": "center", "bold": True})
+    format_center = framework_file.add_format({"align": "center"})
     
     # Establish framework-file format defaults by importing them from system settings.
     # Each key requires a corresponding system setting variable or an AttributeError will be thrown.
@@ -117,7 +139,7 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
             except:
                 logger.warn("Skipping column construction for key '{0}' on page '{1}'.".format(column_key, page_name))
                 continue
-            framework_page.write(0, col, header_name, format_bold)
+            framework_page.write(0, col, header_name, format_center_bold)
             
             # Propagate page-wide formats to column-wide formats.
             # Overwrite column-wide formats if specified in config file.
@@ -138,6 +160,31 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
                                              {"x_scale": format_values_colwide["comment_xscale"], 
                                               "y_scale": format_values_colwide["comment_yscale"]})
             except: pass
+        
+            # Fill the column with default values if appropriate, starting in the row after the header.
+            if page_key == "poptype":
+                if column_key == "attlabel":
+                    writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
+                                               length = num_pop_attributes, prefix_list = ["Attribute "], cell_format = format_center)
+                if column_key == "attname":
+                    writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
+                                               length = num_pop_attributes, prefix_list = ["att_"], cell_format = format_center)
+                if column_key == "optlabel":
+                    prefix_list = ["Attribute "+str(x)+" - Option " for x in xrange(num_pop_attributes)]
+                    writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
+                                               length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
+                if column_key == "optname":
+                    prefix_list = ["att_"+str(x)+"_opt_" for x in xrange(num_pop_attributes)]
+                    writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
+                                               length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
+            if page_key == "comp":
+                if column_key == "label":
+                    writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
+                                               length = num_compartments, prefix_list = ["Compartment "], cell_format = format_center)
+                if column_key == "name":
+                    writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
+                                               length = num_compartments, prefix_list = ["comp_"], cell_format = format_center)
+                    
             
             # Adjust column size and continue to the next one.
             framework_page.set_column(col, col, format_values_colwide["column_width"])
