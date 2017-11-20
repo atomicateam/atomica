@@ -19,8 +19,11 @@ class SystemSettings(object):
     
     CONFIG_LOGGER_FILENAME = "logging.ini"
     CONFIG_FRAMEWORK_FILENAME = "template_framework.ini"
+    CONFIG_FRAMEWORK_SEPARATOR = ","
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
+    
+    FRAMEWORK_DEFAULT_TYPE = "minimal"
     
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
@@ -51,7 +54,7 @@ logger = logging.getLogger("optimacore")
 #%% Code for an exception specific to Optima.
 
 class OptimaException(Exception):
-    """ A wrapper class to allow for Optima-specific exceptions. Can be expanded. """
+    """ A wrapper class to allow for Optima-specific exceptions. """
     def __init(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 

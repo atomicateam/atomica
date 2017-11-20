@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.1 (2017-11-9): Framework File Templating
+## 0.2.1 (2017-11-20): Framework File Templating
 
 Features
 - Created project framework input/output functions file: framework_io.py
