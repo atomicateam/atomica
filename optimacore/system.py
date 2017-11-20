@@ -23,7 +23,7 @@ class SystemSettings(object):
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     
-    FRAMEWORK_DEFAULT_TYPE = "minimal"
+    FRAMEWORK_DEFAULT_TYPE = "example"
     
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3

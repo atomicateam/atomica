@@ -3,12 +3,20 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.1 (2017-11-20): Framework File Templating
+## 0.2.2 (2017-11-20): Initial Framework File Loading
+
+Features
+- EXISTENTIAL QUESTIONS
+
+Edits
+- Hard-coded the keys for the framework template file via a `FrameworkSettings` class.
+
+## 0.2.1 (2017-11-20): Initial Framework File Templating
 
 Features
 - Created project framework input/output functions file: framework_io.py
 - Coded initial form of `createFrameworkTemplate()` for creating a framework file with commented headers.
-- Created framework semantics configuration file: template_framework.ini
+- Created basic framework semantics configuration file: template_framework.ini
          
 Edits
 - Enforced that the 'decorator' module must be downloaded as part of 'setup.py' installation.

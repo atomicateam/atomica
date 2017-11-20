@@ -8,9 +8,20 @@ This is primarily referenced by the ProjectFramework object.
 from optimacore.system import logger, logUsage, accepts, getOptimaCorePath
 from optimacore.system import SystemSettings
 
+from collections import OrderedDict
+
 import xlsxwriter as xw
 try: import ConfigParser as configparser    # Python 2.
 except ImportError: import configparser     # Python 3.
+
+class FrameworkSettings(object):
+    """
+    Stores the hard-coded definitions used in creating and reading framework files.
+    Any changes here risk disrupting framework operations and should be avoided.
+    """
+    TEMPLATE_KEYS_PAGE_COLUMNS = OrderedDict()
+    TEMPLATE_KEYS_PAGE_COLUMNS["poptype"] = ["classlabel","classname","catlabel","catname"]
+    TEMPLATE_KEYS_PAGE_COLUMNS["comp"] = ["label","name"]
         
 @logUsage
 @accepts(configparser.ConfigParser,str,str)
@@ -37,7 +48,7 @@ def getConfigValue(config, section, option, list_form = False, mute_warnings = F
 @accepts(str)
 def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE,
                                             num_pop_attributes = None,
-                                            num_categories_per_classification = None):
+                                            num_options_per_pop_attribute = None):
     """
     Creates a template framework Excel file.
     
@@ -50,15 +61,17 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
         num_pop_attributes (int)                - The number of attributes to include in a population-types page.
         num_options_per_pop_attribute (int)     - The number of options to provide for each attribute.
     """
+    # EXAMPLE
+    if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
+        num_pop_attributes = 3
+        num_options_per_pop_attribute = 4
+    
     # Parse through a framework configuration file.
     cp = configparser.ConfigParser()
     cp.read(getOptimaCorePath(subdir="optimacore")+SystemSettings.CONFIG_FRAMEWORK_FILENAME)
     
-    # Get the set of keys that refer to framework-file pages and raise an error for the process if these are unavailable.
-    try: framework_keys = getConfigValue(config = cp, section = "pages", option = "keys", list_form = True)
-    except Exception:
-        logger.exception("Framework template file cannot be constructed.")
-        raise
+    # Get the set of keys that refer to framework-file pages.
+    page_keys = FrameworkSettings.TEMPLATE_KEYS_PAGE_COLUMNS.keys()
     
     # Create a template file and non-variable standard formats.
     logger.info("Creating a template framework file: {0}".format(framework_path))
@@ -73,19 +86,16 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
         exec("format_values_filewide[\"{0}\"] = SystemSettings.EXCEL_IO_DEFAULT_{1}".format(format_key, format_key.upper()))
     
     # Iterate through framework-file keys and generate pages if possible.
-    for framework_key in framework_keys:
-        try: page_name = getConfigValue(config = cp, section = "page_"+framework_key, option = "name")
+    for page_key in page_keys:
+        try: page_name = getConfigValue(config = cp, section = "page_"+page_key, option = "name")
         except:
-            logger.warn("Skipping page construction for key '{0}'.".format(framework_key))
+            logger.warn("Skipping page construction for key '{0}'.".format(page_key))
             continue
         logger.info("Creating page: {0}".format(page_name))
         framework_page = framework_file.add_worksheet(page_name)
         
-        # Check if the page details any columns to construct.
-        try: column_keys = getConfigValue(config = cp, section = "page_"+framework_key, option = "column_keys", list_form = True)
-        except:
-            logger.warn("Accordingly, page '{0}' seems to have no column details. Continuing process.".format(page_name))
-            continue
+        # Get the set of keys that refer to framework-file page columns.
+        column_keys = FrameworkSettings.TEMPLATE_KEYS_PAGE_COLUMNS[page_key]
         
         # Propagate file-wide formats to page-wide formats.
         # Overwrite page-wide formats if specified in config file.
@@ -93,19 +103,19 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
         for format_key in format_keys:
             format_values_pagewide[format_key] = format_values_filewide[format_key]
             try: 
-                value_overwrite = float(getConfigValue(config = cp, section = "page_"+framework_key, option = format_key, mute_warnings = True))
+                value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_key, mute_warnings = True))
                 format_values_pagewide[format_key] = value_overwrite
             except ValueError: logger.warn("Framework configuration file for page-key '{0}' has an entry for '{1}' " 
-                                           "that cannot be converted to a float. Using default.".format(framework_key, format_key))
+                                           "that cannot be converted to a float. Using default.".format(page_key, format_key))
             except: pass
         
         # Iterate through the column keys of a page and generate columns if possible.
         # The bare minimum of a column is a header name.
         col = 0
         for column_key in column_keys:
-            try: header_name = getConfigValue(config = cp, section = "column_"+column_key, option = "name")
+            try: header_name = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "name")
             except:
-                logger.warn("Skipping column construction for key '{0}' in page '{1}'.".format(column_key, page_name))
+                logger.warn("Skipping column construction for key '{0}' on page '{1}'.".format(column_key, page_name))
                 continue
             framework_page.write(0, col, header_name, format_bold)
             
@@ -115,7 +125,7 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
             for format_key in format_keys:
                 format_values_colwide[format_key] = format_values_pagewide[format_key]
                 try: 
-                    value_overwrite = float(getConfigValue(config = cp, section = "column_"+column_key, option = format_key, mute_warnings = True))
+                    value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = format_key, mute_warnings = True))
                     format_values_colwide[format_key] = value_overwrite
                 except ValueError: logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for '{2}' " 
                                                "that cannot be converted to a float. Using default.".format(framework_key, column_key, format_key))
@@ -123,7 +133,7 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
             
             # Comment the column header if a comment is available in the configuration file.
             try: 
-                header_comment = getConfigValue(config = cp, section = "column_"+column_key, option = "comment")
+                header_comment = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "comment")
                 framework_page.write_comment(0, col, header_comment, 
                                              {"x_scale": format_values_colwide["comment_xscale"], 
                                               "y_scale": format_values_colwide["comment_yscale"]})
