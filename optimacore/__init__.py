@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Optima Core module initialization file.
-The module can be imported in the following manner:
+The module can be imported in any of the following ways:
 
     from optimacore import Project
     or
