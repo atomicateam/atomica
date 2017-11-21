@@ -21,7 +21,7 @@ class FrameworkSettings(object):
     """
     TEMPLATE_KEYS_PAGE_COLUMNS = OrderedDict()
     TEMPLATE_KEYS_PAGE_COLUMNS["poptype"] = ["attlabel","attname","optlabel","optname"]
-    TEMPLATE_KEYS_PAGE_COLUMNS["comp"] = ["label","name"]
+    TEMPLATE_KEYS_PAGE_COLUMNS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
     
 @logUsage
 @accepts(xw.worksheet.Worksheet,int,int,int)
@@ -58,7 +58,7 @@ def getConfigValue(config, section, option, list_form = False, mute_warnings = F
         if not mute_warnings: logger.warn("Framework configuration file, section '{0}', has no option with label '{1}'.".format(section,option))
         raise configparser.NoOptionError(section,option)
     if list_form:
-        value = [item.strip() for item in config.get(section, option).strip().split(SystemSettings.CONFIG_FRAMEWORK_SEPARATOR)]
+        value = [item.strip() for item in config.get(section, option).strip().split(SystemSettings.CONFIG_FRAMEWORK_LIST_SEPARATOR)]
     else:
         value = config.get(section, option).strip()
     return value
