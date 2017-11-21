@@ -3,13 +3,17 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.2 (2017-11-20): Initial Framework File Loading
+## 0.2.2 (2017-11-21): Initial Framework File Loading
 
 Features
-- Began initial pre-filling functionality for template.
+- Began initial pre-filling functionality for framework file template.
+- Included Excel validation features to further restrict user input into template files.
 
 Edits
 - Hard-coded the keys for the framework template file via a `FrameworkSettings` class.
+- Set up a configuration-loading decorator and class method for `FrameworkSettings`.
+  This loading will be done upon initial importing.
+- Reorganised: framework_io.py
 
 ## 0.2.1 (2017-11-20): Initial Framework File Templating
 

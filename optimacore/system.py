@@ -17,6 +17,7 @@ import decorator
 class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
+    CODEBASE_DIRNAME = "optimacore"
     CONFIG_LOGGER_FILENAME = "logging.ini"
     CONFIG_FRAMEWORK_FILENAME = "template_framework.ini"
     CONFIG_FRAMEWORK_LIST_SEPARATOR = ","
@@ -47,7 +48,7 @@ def getOptimaCorePath(subdir = None, end_with_sep = True):
 
 #%% Code for setting up a logger.
 
-logging.config.fileConfig(getOptimaCorePath(subdir="optimacore")+SystemSettings.CONFIG_LOGGER_FILENAME, 
+logging.config.fileConfig(getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_LOGGER_FILENAME, 
                           defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
 logger = logging.getLogger("optimacore")
 
@@ -75,18 +76,23 @@ def logUsage(undecoratedFunction):
             try: instance_name = args[0].name       # Method 'getName' avoided due to recursion.
             except: pass
             descriptor = "method"
-        # Time and process the undecorated function.
+        # Time and process the undecorated function, noting whether an exception is raised.
         time_before = datetime.datetime.now()
-        logger.debug("Entering {0}: {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
+        logger.debug("   Entering {0}:   {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
         if not instance_name == "":
-            logger.debug("{0} name: {1}".format(class_prefix.rstrip('.'), instance_name)) 
-        x = undecoratedFunction(*args,**kwargs)                
+            logger.debug("   {0} name: {1}".format(class_prefix.rstrip('.'), instance_name))
+        exception_raised = False
+        try: x = undecoratedFunction(*args,**kwargs)
+        except: exception_raised = True
         time_after = datetime.datetime.now()
         time_elapsed = time_after - time_before
-        logger.debug("Exiting {0}:  {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
+        if exception_raised: logger.debug("   Abandoning {0}: {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
+        else: logger.debug("   Exiting {0}:    {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
         if not instance_name == "":
-            logger.debug("{0} name: {1}".format(class_prefix.rstrip('.'), instance_name))
-        logger.debug("Time spent in {0}: {1}".format(descriptor, time_elapsed))
+            logger.debug("   {0} name: {1}".format(class_prefix.rstrip('.'), instance_name))
+        logger.debug("   Time spent in {0}: {1}".format(descriptor, time_elapsed))
+        # If an exception was raised while processing the function, it should be delayed no longer.
+        if exception_raised: raise
         return x                                             
     return logUsageDecoratedFunction
     
@@ -163,13 +169,13 @@ def returns(return_type):
 #%% Code for conveniently applying a decorator to each method in a class.
 
 def applyToAllMethods(function):
-    """ Decorator that takes a function argument and applies it to all methods of an instantiated class. """
-    def classDecorator(undecorated_class_instance):
+    """ Decorator that takes a function argument and applies it to all methods of a class. """
+    def classDecorator(undecorated_class):
         """
         The true underlying decorator, i.e. with no arguments in the signature, applied to an undecorated class.
         The function argument of the wrapper propagates into the undecorated class.
         """        
-        for method_name, method in inspect.getmembers(undecorated_class_instance, inspect.ismethod):
-            setattr(undecorated_class_instance, method_name, function(method))                
-        return undecorated_class_instance
+        for method_name, method in inspect.getmembers(undecorated_class, inspect.ismethod):
+            setattr(undecorated_class, method_name, function(method))                
+        return undecorated_class
     return classDecorator
