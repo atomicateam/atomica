@@ -65,33 +65,40 @@ class FrameworkSettings(object):
     PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
     PAGE_COLUMN_KEYS["trans"] = []
     
+    COLUMN_ITEM_TYPES = ["label","name"]
+#    ITEM_KEYS = ["attitem","optitem","compitem"]
+    
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
     FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
     PAGE_SPECS = OrderedDict()
     PAGE_COLUMN_SPECS = OrderedDict()
+#    PAGE_ITEM_SPECS = OrderedDict()
     
     @classmethod
+    @logUsage
     def reloadConfigFile(cls):
         """
         Reads a framework configuration file and extends the settings to use the semantics and values provided.
-        Is titled with 'reload' as the method will have already been called once during initial import.
+        Method is titled with 'reload' as the process will have already been called once during initial import.
         Note: Currently references the default configuration file, but can be modified in the future.
         """
         config_path = getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_FRAMEWORK_FILENAME
         logger.info("Attempting to generate Optima Core framework settings from configuration file.")
         logger.info("Location... {0}".format(config_path))
-                                       
-        cp = configparser.ConfigParser()
+        cp = configparser.ConfigParser(allow_no_value=True)
         cp.read(config_path)
-    
+        
+        # Flesh out page details.
         for page_key in cls.PAGE_COLUMN_KEYS:
             if page_key not in cls.PAGE_SPECS: cls.PAGE_SPECS[page_key] = dict()
+            # Read in required page title.
             try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
             except:
                 logger.exception("Framework configuration loading process failed. Every page in a framework file needs a title.")
                 raise
+            # Read in optional page format variables.
             for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
                 try: 
                     value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_variable_key, mute_warnings = True))
@@ -100,15 +107,35 @@ class FrameworkSettings(object):
                                                "that cannot be converted to a float. Using a default value.".format(page_key, format_variable_key))
                 except: pass
             
+            # Flesh out page column details.
             if page_key not in cls.PAGE_COLUMN_SPECS: cls.PAGE_COLUMN_SPECS[page_key] = OrderedDict()
+            column_count = 0
             for column_key in cls.PAGE_COLUMN_KEYS[page_key]:
                 if column_key not in cls.PAGE_COLUMN_SPECS[page_key]: cls.PAGE_COLUMN_SPECS[page_key][column_key] = dict()
+                # Associate each column with a position number for easy reference.
+                # This is a default number for template creation; column positions may be different in loaded framework files.
+                cls.PAGE_COLUMN_SPECS[page_key][column_key]["default_num"] = column_count
+                # Read in required column header.
                 try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["header"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "header")
                 except:
                     logger.exception("Framework configuration loading process failed. Every column in a framework page needs a header.")
                     raise
+                # Read in optional column comment.
                 try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["comment"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "comment")
                 except: pass
+                # Read in optional prefix that will prepend default text written into this column.
+                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["item_prefix"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "item_prefix", mute_warnings = True)
+                except: pass
+                # Read in optional type of item that this column contains.
+                try: 
+                    value = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "item_type", mute_warnings = True)
+                    if value not in cls.COLUMN_ITEM_TYPES:
+                        logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for 'item_type' " 
+                                    "that is not listed in framework settings. It will be noted but have no effect.".format(page_key, column_key))
+                        logger.warn("Valid options: {0}".format(", ".join(cls.COLUMN_ITEM_TYPES)))
+                    cls.PAGE_COLUMN_SPECS[page_key][column_key]["item_type"] = value
+                except: pass
+                # Read in optional column format variables.
                 for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
                     try: 
                         value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = format_variable_key, mute_warnings = True))
@@ -116,6 +143,7 @@ class FrameworkSettings(object):
                     except ValueError: logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for '{2}' " 
                                                    "that cannot be converted to a float. Using a default value.".format(page_key, column_key, format_variable_key))
                     except: pass
+                column_count += 1
         
         logger.info("Optima Core framework settings successfully generated.") 
         return
@@ -166,6 +194,7 @@ def createDefaultFormatVariables():
         exec("format_variables[\"{0}\"] = SystemSettings.EXCEL_IO_DEFAULT_{1}".format(format_variable_key, format_variable_key.upper()))
     return format_variables
 
+
 @logUsage
 @accepts(xw.worksheet.Worksheet,str,dict)
 def createFrameworkPageHeaders(framework_page, page_key, formats, format_variables = None):
@@ -185,8 +214,8 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
     # Get the set of keys that refer to framework-file page columns.
     # Iterate through the keys and construct each corresponding column header.
     column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
-    col = 0
     for column_key in column_keys:
+        col = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["default_num"]
         header_name = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["header"]
         framework_page.write(0, col, header_name, formats["center_bold"])
         
@@ -208,8 +237,66 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
     
         # Adjust column width and continue to the next one.
         framework_page.set_column(col, col, format_variables["column_width"])
-        col += 1
-    return
+    return framework_page
+
+
+@logUsage
+def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, item_number = 0):
+
+    cell_format = formats["center"]
+    orig_row = start_row
+    
+    if page_key == "poptype":
+        if item_key == "attitem":
+            for column_key in ["attlabel","attname"]:
+                pc_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
+                sep = ""
+                try: exec("sep = SystemSettings.DEFAULT_SPACE_{0}".format(pc_specs["item_type"].upper()))
+                except: pass
+                col = pc_specs["default_num"]
+                text = str(item_number)
+                if "item_prefix" in pc_specs:
+                    text = pc_specs["item_prefix"] + sep + text
+                framework_page.write(start_row, col, text, cell_format)
+            for sub_item_number in xrange(4):
+                _, start_row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
+                                                       item_key = "optitem", start_row = start_row, 
+                                                       formats = formats, item_number = sub_item_number)
+            start_row -= 1  # Avoid double increments.
+            
+        if item_key == "optitem":
+            for column_key in ["optlabel","optname"]:
+                pc_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
+                sep = ""
+                try: exec("sep = SystemSettings.DEFAULT_SPACE_{0}".format(pc_specs["item_type"].upper()))
+                except: pass
+                col = pc_specs["default_num"]
+                text = str(item_number)
+                if "item_prefix" in pc_specs:
+                    text = pc_specs["item_prefix"] + sep + text
+                framework_page.write(start_row, col, text, cell_format)
+#        
+#            
+#        if column_key == "attlabel":
+#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
+#                                       length = num_pop_attributes, prefix_list = ["Attribute "], cell_format = format_center)
+#        if column_key == "attname":
+#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
+#                                       length = num_pop_attributes, prefix_list = ["att_"], cell_format = format_center)
+#        if column_key == "optlabel":
+#            prefix_list = ["Attribute "+str(x)+" - Option " for x in xrange(num_pop_attributes)]
+#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
+#                                       length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
+#        if column_key == "optname":
+#            prefix_list = ["att_"+str(x)+"_opt_" for x in xrange(num_pop_attributes)]
+#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
+#                                       length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
+
+
+
+    next_row_after = max(orig_row + 1, start_row)
+    return framework_page, next_row_after
+
 
 @logUsage
 @accepts(xw.Workbook,str)
@@ -246,7 +333,14 @@ def createFrameworkPage(framework_file, page_key, formats = None, format_variabl
     if formats is None: formats = createStandardExcelFormats(framework_file)
     createFrameworkPageHeaders(framework_page = framework_page, page_key = page_key, 
                                formats = formats, format_variables = format_variables)
-    return
+    
+    row = 1
+    for item_number in xrange(3):
+        _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
+                                         item_key = "attitem", start_row = row, 
+                                         formats = formats, item_number = item_number)
+    
+    return framework_file
     
 #    # Iterate through the column keys of a page and generate columns if possible.
 #    # The bare minimum of a column is a header name.
@@ -322,7 +416,7 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
     for page_key in page_keys:
         createFrameworkPage(framework_file = framework_file, page_key = page_key, 
                             formats = formats, format_variables = format_variables)
-    return
+    return framework_file
     
 
 ##%%
