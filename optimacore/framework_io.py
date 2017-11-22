@@ -20,7 +20,7 @@ except ImportError: import configparser     # Python 3.
 @accepts(configparser.ConfigParser,str,str)
 def getConfigValue(config, section, option, list_form = False, mute_warnings = False):
     """
-    Get the value of an option of a section within a parsed configuration file.
+    Returns the value of an option of a section within a parsed configuration file.
     If the list form option is set as true, the return value is a list of strings, otherwise the value is a string.
     Lists are broken apart by a separator set in system settings, with all values being stripped of surrounding whitespace.
     """
@@ -49,7 +49,6 @@ def loadConfigFile(undecorated_class):
         raise ImportError
     return undecorated_class
 
-@applyToAllMethods(logUsage)
 @loadConfigFile
 class FrameworkSettings(object):
     """
@@ -58,14 +57,20 @@ class FrameworkSettings(object):
     The rest is parsed from a framework configuration file during the module import phase.
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
+    # Construct a dictionary with ordered keys representing pages.
+    # Each page-key corresponds to a list of keys representing columns.
+    # These orders describe how a framework template will be constructed.
+    PAGE_COLUMN_KEYS = OrderedDict()
+    PAGE_COLUMN_KEYS["poptype"] = ["attlabel","attname","optlabel","optname"]
+    PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
+    PAGE_COLUMN_KEYS["trans"] = []
     
-    TEMPLATE_KEYS_PAGE_COLUMNS = OrderedDict()
-    TEMPLATE_KEYS_PAGE_COLUMNS["poptype"] = ["attlabel","attname","optlabel","optname"]
-    TEMPLATE_KEYS_PAGE_COLUMNS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
+    # Keys for float-valued variables related in some way to framework-file formatting.
+    # They must have corresponding system-settings defaults.
+    FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
-    FORMAT_VALUE_KEYS = ["column_width","comment_xscale","comment_yscale"]
-    
-    TEMPLATE_PAGE_SPECS = OrderedDict()
+    PAGE_SPECS = OrderedDict()
+    PAGE_COLUMN_SPECS = OrderedDict()
     
     @classmethod
     def reloadConfigFile(cls):
@@ -81,20 +86,36 @@ class FrameworkSettings(object):
         cp = configparser.ConfigParser()
         cp.read(config_path)
     
-        for page_key in cls.TEMPLATE_KEYS_PAGE_COLUMNS:
-            if page_key not in cls.TEMPLATE_PAGE_SPECS:
-                cls.TEMPLATE_PAGE_SPECS[page_key] = dict()
-            try: cls.TEMPLATE_PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
+        for page_key in cls.PAGE_COLUMN_KEYS:
+            if page_key not in cls.PAGE_SPECS: cls.PAGE_SPECS[page_key] = dict()
+            try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
             except:
-                logger.exception("Every page in a framework file needs a title. Framework configuration loading process failed.")
+                logger.exception("Framework configuration loading process failed. Every page in a framework file needs a title.")
                 raise
-            for format_value_key in cls.FORMAT_VALUE_KEYS:
+            for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
                 try: 
-                    value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_value_key, mute_warnings = True))
-                    cls.TEMPLATE_PAGE_SPECS[page_key][format_value_key] = value_overwrite
+                    value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_variable_key, mute_warnings = True))
+                    cls.PAGE_SPECS[page_key][format_variable_key] = value_overwrite
                 except ValueError: logger.warn("Framework configuration file for page-key '{0}' has an entry for '{1}' " 
-                                               "that cannot be converted to a float. Using a default value.".format(page_key, format_value_key))
+                                               "that cannot be converted to a float. Using a default value.".format(page_key, format_variable_key))
                 except: pass
+            
+            if page_key not in cls.PAGE_COLUMN_SPECS: cls.PAGE_COLUMN_SPECS[page_key] = OrderedDict()
+            for column_key in cls.PAGE_COLUMN_KEYS[page_key]:
+                if column_key not in cls.PAGE_COLUMN_SPECS[page_key]: cls.PAGE_COLUMN_SPECS[page_key][column_key] = dict()
+                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["header"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "header")
+                except:
+                    logger.exception("Framework configuration loading process failed. Every column in a framework page needs a header.")
+                    raise
+                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["comment"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "comment")
+                except: pass
+                for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
+                    try: 
+                        value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = format_variable_key, mute_warnings = True))
+                        cls.PAGE_COLUMN_SPECS[page_key][column_key][format_variable_key] = value_overwrite
+                    except ValueError: logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for '{2}' " 
+                                                   "that cannot be converted to a float. Using a default value.".format(page_key, column_key, format_variable_key))
+                    except: pass
         
         logger.info("Optima Core framework settings successfully generated.") 
         return
@@ -120,57 +141,117 @@ def writeSequenceToExcelColumn(sheet, row_start, col, length, skip_rows = 0, pre
             row += 1 + skip_rows
     return
 
+@logUsage
+@accepts(xw.Workbook)
+def createStandardExcelFormats(excel_file):
+    """ 
+    Generates and returns a dictionary of standard excel formats attached to an excel file.
+    Note: Can be modified or expanded as necessary to fit other definitions of 'standard'.
+    """
+    formats = dict()
+    formats["center_bold"] = excel_file.add_format({"align": "center", "bold": True})
+    formats["center"] = excel_file.add_format({"align": "center"})
+    return formats
+
 #%%
 
-def createFrameworkPage(framework_file, page_key, formats, format_values):
-    """  """
-    page_name = FrameworkSettings.TEMPLATE_PAGE_SPECS[page_key]["title"]
+@logUsage
+def createDefaultFormatVariables():
+    """
+    Establishes framework-file default values for format variables in a dictionary and returns it.
+    The keys are in FrameworkSettings and must match corresponding values in SystemSettings, or an AttributeError will be thrown.
+    """
+    format_variables = dict()
+    for format_variable_key in FrameworkSettings.FORMAT_VARIABLE_KEYS:
+        exec("format_variables[\"{0}\"] = SystemSettings.EXCEL_IO_DEFAULT_{1}".format(format_variable_key, format_variable_key.upper()))
+    return format_variables
+
+@logUsage
+@accepts(xw.worksheet.Worksheet,str,dict)
+def createFrameworkPageHeaders(framework_page, page_key, formats, format_variables = None):
+    """
+    Creates headers for a page within a framework file, adding comments and resizing wherever instructed.
+    
+    Inputs:
+        framework_page (xw.worksheet.Worksheet) - The Excel sheet in which to create headers.
+        page_key (str)                          - The key denoting the provided page, as defined in framework settings.
+        formats (dict)                          - A dictionary of standard Excel formats.
+                                                  Is the output of function: createStandardExcelFormats()
+                                                  Each key is a string and each value is an 'xlsxwriter.format.Format' object.
+        format_variables (dict)                 - A dictionary of format variables, such as column width.
+                                                  If left as None, they will be regenerated in this function.
+                                                  The keys are listed in framework settings and the values are floats.
+    """
+    # Get the set of keys that refer to framework-file page columns.
+    # Iterate through the keys and construct each corresponding column header.
+    column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
+    col = 0
+    for column_key in column_keys:
+        header_name = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["header"]
+        framework_page.write(0, col, header_name, formats["center_bold"])
+        
+        # Propagate pagewide format variable values to column-wide format variable values.
+        # Create the format variables if they were not passed in from a page-wide context.
+        # Overwrite the page-wide defaults if column-based specifics are available in framework settings.
+        if format_variables is None: format_variables = createDefaultFormatVariables()
+        else: format_variables = dcp(format_variables)
+        for format_variable_key in format_variables.keys():
+            if format_variable_key in FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]:
+                format_variables[format_variable_key] = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key][format_variable_key]
+        
+        # Comment the column header if a comment was pulled into framework settings from a configuration file.
+        if "comment" in FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]:
+            header_comment = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["comment"]
+            framework_page.write_comment(0, col, header_comment, 
+                                         {"x_scale": format_variables["comment_xscale"], 
+                                          "y_scale": format_variables["comment_yscale"]})
+    
+        # Adjust column width and continue to the next one.
+        framework_page.set_column(col, col, format_variables["column_width"])
+        col += 1
+    return
+
+@logUsage
+@accepts(xw.Workbook,str)
+def createFrameworkPage(framework_file, page_key, formats = None, format_variables = None):
+    """
+    Creates a page within the framework file.
+    
+    Inputs:
+        framework_file (xw.Workbook)            - The Excel file in which to create the page.
+        page_key (str)                          - The key denoting a particular page, as defined in framework settings.
+        formats (dict)                          - A dictionary of standard Excel formats, ideally passed in along with the framework file.
+                                                  If left as None, it will be regenerated in this function.
+                                                  Each key is a string and each value is an 'xlsxwriter.format.Format' object.
+        format_variables (dict)                 - A dictionary of format variables, such as column width.
+                                                  If left as None, they will be regenerated in this function.
+                                                  The keys are listed in framework settings and the values are floats.
+    """
+    # Determine the title of this page and generate it.
+    # This should have been successfully extracted from a configuration file during framework-settings definition.
+    page_name = FrameworkSettings.PAGE_SPECS[page_key]["title"]
     logger.info("Creating page: {0}".format(page_name))
     framework_page = framework_file.add_worksheet(page_name)
     
-    # Get the set of keys that refer to framework-file page columns.
-    column_keys = FrameworkSettings.TEMPLATE_KEYS_PAGE_COLUMNS[page_key]
+    # Propagate file-wide format variable values to page-wide format variable values.
+    # Create the format variables if they were not passed in from a file-wide context.
+    # Overwrite the file-wide defaults if page-based specifics are available in framework settings.
+    if format_variables is None: format_variables = createDefaultFormatVariables()
+    else: format_variables = dcp(format_variables)
+    for format_variable_key in format_variables.keys():
+        if format_variable_key in FrameworkSettings.PAGE_SPECS[page_key]:
+            format_variables[format_variable_key] = FrameworkSettings.PAGE_SPECS[page_key][format_variable_key]
     
-    # Propagate file-wide formats to page-wide formats.
-    # Overwrite page-wide formats if specified in config file.
-    format_values = dcp(format_values)
-    for format_value_key in format_values.keys():
-        if format_value_key in FrameworkSettings.TEMPLATE_PAGE_SPECS[page_key]:
-            format_values[format_value_key] = FrameworkSettings.TEMPLATE_PAGE_SPECS[page_key][format_value_key]
+    # Generate standard formats if they do not exist and construct headers for the page.
+    if formats is None: formats = createStandardExcelFormats(framework_file)
+    createFrameworkPageHeaders(framework_page = framework_page, page_key = page_key, 
+                               formats = formats, format_variables = format_variables)
+    return
     
 #    # Iterate through the column keys of a page and generate columns if possible.
 #    # The bare minimum of a column is a header name.
 #    col = 0
 #    for column_key in column_keys:
-#        try: header_name = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "name")
-#        except:
-#            logger.warn("Skipping column construction for key '{0}' on page '{1}'.".format(column_key, page_name))
-#            continue
-#        framework_page.write(0, col, header_name, format_center_bold)
-#        
-#        # Propagate page-wide formats to column-wide formats.
-#        # Overwrite column-wide formats if specified in config file.
-#        format_values_colwide = {}
-#        for format_key in format_keys:
-#            format_values_colwide[format_key] = format_values_pagewide[format_key]
-#            try: 
-#                value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = format_key, mute_warnings = True))
-#                format_values_colwide[format_key] = value_overwrite
-#            except ValueError: logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for '{2}' " 
-#                                           "that cannot be converted to a float. Using default.".format(framework_key, column_key, format_key))
-#            except: pass
-#        
-#        # Comment the column header if a comment is available in the configuration file.
-#        try: 
-#            header_comment = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "comment")
-#            framework_page.write_comment(0, col, header_comment, 
-#                                         {"x_scale": format_values_colwide["comment_xscale"], 
-#                                          "y_scale": format_values_colwide["comment_yscale"]})
-#        except: pass
-#    
-#    
-#        #
-#    
 #        # Fill the column with default sequences of values if appropriate, starting in the row after the header.
 #        if page_key == "poptype":
 #            if column_key == "attlabel":
@@ -197,7 +278,7 @@ def createFrameworkPage(framework_file, page_key, formats, format_values):
 #                
 #        
 #        # Adjust column size and continue to the next one.
-#        framework_page.set_column(col, col, format_values_colwide["column_width"])
+#        framework_page.set_column(col, col, format_variables_colwide["column_width"])
 #        col += 1
 #        
 #    return
@@ -211,7 +292,7 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
                                             num_options_per_pop_attribute = 0,
                                             num_compartments = 0):
     """
-    Creates a template framework Excel file.
+    Creates a template framework file in Excel.
     
     Inputs:
         framework_path (str)                    - Directory path for intended framework template.
@@ -228,27 +309,19 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
         num_options_per_pop_attribute = 4
         num_compartments = 10
     
-    # Get the set of keys that refer to framework-file pages.
-    page_keys = FrameworkSettings.TEMPLATE_KEYS_PAGE_COLUMNS.keys()
-    
-    # Create a template file and non-variable standard formats.
+    # Create a template file and standard formats attached to this file.
+    # Also generate default-valued format variables as a dictionary.
     logger.info("Creating a template framework file: {0}".format(framework_path))
     framework_file = xw.Workbook(framework_path)
+    formats = createStandardExcelFormats(framework_file)
+    format_variables = createDefaultFormatVariables()
     
-    formats = dict()
-    formats["center_bold"] = framework_file.add_format({"align": "center", "bold": True})
-    formats["center"] = framework_file.add_format({"align": "center"})
-    
-    # Establish framework-file format defaults by importing them from system settings.
-    # Each key requires a corresponding system setting variable or an AttributeError will be thrown.
-    format_values = dict()
-    for format_value_key in FrameworkSettings.FORMAT_VALUE_KEYS:
-        exec("format_values[\"{0}\"] = SystemSettings.EXCEL_IO_DEFAULT_{1}".format(format_value_key, format_value_key.upper()))
-    
-    # Iterate through framework-file keys and generate pages if possible.
+    # Get the set of keys that refer to framework-file pages.
+    # Iterate through them and generate the corresponding pages.
+    page_keys = FrameworkSettings.PAGE_COLUMN_KEYS.keys()
     for page_key in page_keys:
         createFrameworkPage(framework_file = framework_file, page_key = page_key, 
-                            formats = formats, format_values = format_values)
+                            formats = formats, format_variables = format_variables)
     return
     
 

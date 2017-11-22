@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.2 (2017-11-21): Initial Framework File Loading
+## 0.2.2 (2017-11-22): More Framework File Templating
 
 Features
 - Began initial pre-filling functionality for framework file template.
