@@ -26,6 +26,9 @@ class SystemSettings(object):
     
     FRAMEWORK_DEFAULT_TYPE = "example"
     
+    DEFAULT_SPACE_LABEL = " "
+    DEFAULT_SPACE_NAME = "_"
+    
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
     EXCEL_IO_DEFAULT_COLUMN_WIDTH = 20
