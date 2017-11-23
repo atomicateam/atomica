@@ -3,7 +3,15 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.2 (2017-11-23): Framework Templating Pre-filling
+## 0.2.3 (2017-11-23): Improved Framework Templating Pre-filling
+
+Features
+- 
+
+Edits
+- Made tagging columns by type in the configuration file required.
+
+## 0.2.2 (2017-11-23): Initial Framework Templating Pre-filling
 
 Features
 - Began initial pre-filling functionality for framework file template.

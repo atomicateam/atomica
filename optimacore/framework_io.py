@@ -5,8 +5,8 @@ Contains functions to create, import and export framework files.
 This is primarily referenced by the ProjectFramework object.
 """
 
-from optimacore.system import applyToAllMethods, logUsage, accepts
-from optimacore.system import logger, SystemSettings, getOptimaCorePath
+from optimacore.system import applyToAllMethods, logUsage, accepts, returns
+from optimacore.system import logger, SystemSettings, getOptimaCorePath, OptimaException
 
 from collections import OrderedDict
 from copy import deepcopy as dcp
@@ -65,13 +65,13 @@ class FrameworkSettings(object):
     PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
     PAGE_COLUMN_KEYS["trans"] = []
     
-    COLUMN_ITEM_TYPES = ["label","name"]
+    COLUMN_ITEM_TYPES = ["label","name","switch"]
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
     FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
-    # Hard-coded details for generating default page items, made as abstract as possible.
+    # Hard-coded details for generating default page-items, made as abstract as possible.
     PAGE_ITEM_KEYS = OrderedDict()
     PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
     PAGE_ITEM_KEYS["comp"] = ["compitem"]
@@ -79,18 +79,22 @@ class FrameworkSettings(object):
     PAGE_ITEM_ATTRIBUTES = ["label","name"]
     
     # A default dictionary of page-item specifics is constructed first, then overwritten as required.
+    # Warning: These values are considered hard-coded and thus relatively unvalidated.
+    #          Incorrect modifications can result in undesirable behaviour including broken Excel links and subitem recursions.
     PAGE_ITEM_SPECS = OrderedDict()
     for page_key in PAGE_ITEM_KEYS:
         PAGE_ITEM_SPECS[page_key] = dict()
         for item_type in PAGE_ITEM_KEYS[page_key]:
             # Specify whether page-item construction should include or exclude filling out specified columns.
-            # Then specify a list of column keys to be included or excluded when constructing a page item.
-            # Most page-items involve all columns, so the default is to exclude no columns.
+            # Then specify a list of column keys to be included or excluded when constructing a page-item.
+            # Many page-items involve all columns, so the default is to exclude no columns.
             PAGE_ITEM_SPECS[page_key][item_type] = {"inc_not_exc":False, "column_keys":None,
             # Many page-items will have a display label and code name, so appropriate column keys should be recorded.
                                                     "label_key":None, "name_key":None,
             # Some page-items can be divided into columns and other page-items; the keys of the latter should be listed.
-                                                    "subitem_keys":None}
+            # While page-items have no restriction in producing page-items, it is also useful to mark ones that are only ever subitems. 
+                                                    "subitem_keys":None,
+                                                    "is_subitem":False}
     # Define a default population attribute item.
     PAGE_ITEM_SPECS["poptype"]["attitem"]["inc_not_exc"] = True
     PAGE_ITEM_SPECS["poptype"]["attitem"]["column_keys"] = ["attlabel","attname"]
@@ -101,6 +105,7 @@ class FrameworkSettings(object):
     PAGE_ITEM_SPECS["poptype"]["optitem"]["column_keys"] = ["attlabel","attname"]
     PAGE_ITEM_SPECS["poptype"]["optitem"]["label_key"] = "optlabel"
     PAGE_ITEM_SPECS["poptype"]["optitem"]["name_key"] = "optname"
+    PAGE_ITEM_SPECS["poptype"]["optitem"]["is_subitem"] = True
     
     
     PAGE_SPECS = OrderedDict()
@@ -155,17 +160,21 @@ class FrameworkSettings(object):
                 try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["comment"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "comment")
                 except: pass
                 # Read in optional prefix that will prepend default text written into this column.
-                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["item_prefix"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "item_prefix", mute_warnings = True)
+                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "prefix", mute_warnings = True)
                 except: pass
-                # Read in optional type of item that this column contains.
+                # Read in required type of item that this column contains.
                 try: 
-                    value = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "item_type", mute_warnings = True)
+                    value = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "type")
                     if value not in cls.COLUMN_ITEM_TYPES:
-                        logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for 'item_type' " 
-                                    "that is not listed in framework settings. It will be noted but have no effect.".format(page_key, column_key))
-                        logger.warn("Valid options: {0}".format(", ".join(cls.COLUMN_ITEM_TYPES)))
-                    cls.PAGE_COLUMN_SPECS[page_key][column_key]["item_type"] = value
-                except: pass
+                        error_string = ("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for 'type' " 
+                                        "that is not listed in framework settings.".format(page_key, column_key))
+                        logger.error(error_string)
+                        logger.error("Valid options: {0}".format(", ".join(cls.COLUMN_ITEM_TYPES)))
+                        raise OptimaException(error_string)
+                    cls.PAGE_COLUMN_SPECS[page_key][column_key]["type"] = value
+                except: 
+                    logger.exception("Framework configuration loading process failed. Every column in a framework page needs a valid type.")
+                    raise
                 # Read in optional column format variables.
                 for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
                     try: 
@@ -179,26 +188,7 @@ class FrameworkSettings(object):
         logger.info("Optima Core framework settings successfully generated.") 
         return
     
-        
-    
-@logUsage
-@accepts(xw.worksheet.Worksheet,int,int,int)
-def writeSequenceToExcelColumn(sheet, row_start, col, length, skip_rows = 0, prefix_list = None, cell_format = None):
-    """
-    Writes a consecutive integer sequence into the column of an Excel sheet.
-    Starts from 0 and is of user-prescribed length.
-    If a list of prefix strings is optionally provided, the sequence is repeated for each prefix.
-    In this case, each iteration is prepended by the corresponding prefix.
-    If a user specifies a number of rows to skip, this will be applied between each iteration of the sequence.
-    """
-    if prefix_list is None: prefix_list = [""]
-    
-    row = row_start
-    for prefix in prefix_list:
-        for count in xrange(length):
-            sheet.write(row, col, prefix+str(count), cell_format)
-            row += 1 + skip_rows
-    return
+
 
 @logUsage
 @accepts(xw.Workbook)
@@ -212,8 +202,6 @@ def createStandardExcelFormats(excel_file):
     formats["center"] = excel_file.add_format({"align": "center"})
     return formats
 
-#%%
-
 @logUsage
 def createDefaultFormatVariables():
     """
@@ -224,6 +212,26 @@ def createDefaultFormatVariables():
     for format_variable_key in FrameworkSettings.FORMAT_VARIABLE_KEYS:
         exec("format_variables[\"{0}\"] = SystemSettings.EXCEL_IO_DEFAULT_{1}".format(format_variable_key, format_variable_key.upper()))
     return format_variables
+
+@logUsage
+def createEmptyPageItemAttributes():
+    """
+    Generates a dictionary of page-item attributes, e.g. name and label, that is empty of values.
+    The primary key lists the attributes of a page-item.
+    
+    Subkeys:        Values:
+        cell            The location of a page-item attribute in 'A1' format.
+        value           The value of the page-item attribute, possibly in unresolved format, i.e. involving equations and cell references.
+                        Useful so that changing the value of the referenced cell propagates immediately.
+        backup          The value of the page-item attribute in resolved format, i.e. without equations and cell references.
+                        Required in case the resulting Excel file is constructed and loaded without viewing externally.
+                        Opening in an external application is required in order to process the equations and references.
+    """
+    item_attributes = dict()
+    for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+        item_attributes[attribute] = {"cell":None, "value":None, "backup":None}
+    return item_attributes
+
 
 
 @logUsage
@@ -272,82 +280,124 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
 
 
 @logUsage
-def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, item_number = None,
-                            superitem_attributes = None):
-
+@accepts(xw.worksheet.Worksheet,str,str,int,dict)
+def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, 
+                            item_number = None, superitem_attributes = None):
+    """
+    Creates a default item on a page within a framework file, as defined in framework settings.
+    
+    Inputs:
+        framework_page (xw.worksheet.Worksheet) - The Excel sheet in which to create page-items.
+        page_key (str)                          - The key denoting the provided page, as defined in framework settings.
+        item_key (str)                          - The key denoting the page-item to create, as defined in framework settings.
+        start_row (int)                         - The row number of the page at which to generate the default page-item.
+        formats (dict)                          - A dictionary of standard Excel formats.
+                                                  Is the output of function: createStandardExcelFormats()
+                                                  Each key is a string and each value is an 'xlsxwriter.format.Format' object.
+        item_number (int)                       - A number to identify this item, ostensibly within a list, used for default text write-ups.
+        superitem_attributes (dict)             - A dictionary of attribute values relating to the superitem constructing this page-item, if one exists.
+                                                  Is the output of function: createEmptyPageItemAttributes()
+    
+    Outputs:
+        framework_page (xw.worksheet.Worksheet) - The Excel sheet in which page-items were created.
+        next_row (int)                          - The next row number of the page after the page-item.
+                                                  Is useful to provide for page-items that involve subitems and multiple rows.
+    """
+    # Check if specifications for this page-item exist, associated with the appropriate page-key.
     if not item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
         logger.exception("A framework page with key '{0}' was instructed to create a page-item with key '{1}', despite no relevant page-item "
                          "specifications existing in framework settings. Abandoning framework file construction.".format(page_key,item_key))
         raise KeyError(item_key)
-    
-    cell_format = formats["center"]
-    row = start_row
-    
-    if item_number is None: item_number = 0
-    
     item_specs = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]
     
-    # Determine which columns to fill out with default values for this page item.
+    # Initialise requisite values for the upcoming process.
+    cell_format = formats["center"]
+    row = start_row
+    if item_number is None: item_number = 0
+    
+    # Determine which columns will be filled out with default values for this page-item.
+    # Determine if any subitems need to be constructed as well and space out a page-item attribute dictionary for subitems.
     column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
     item_column_keys = []
     if not item_specs["column_keys"] is None: item_column_keys = item_specs["column_keys"]
     if item_specs["inc_not_exc"]: column_keys = item_column_keys
-    
     subitem_keys = []
     if not item_specs["subitem_keys"] is None: subitem_keys = item_specs["subitem_keys"]
-              
-    item_attributes = dict()
-    for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
-        item_attributes[attribute] = {"cell":None, "value":None, "backup":None}
-    if superitem_attributes is None: superitem_attributes = dcp(item_attributes)
+    item_attributes = createEmptyPageItemAttributes()
         
+    # Iterate through page columns if part of a page-item and fill them with default values according to type.
     for column_key in column_keys:
         if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
         column_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
+        column_type = column_specs["type"]
+        col = column_specs["default_num"]
+        rc = xw.utility.xl_rowcol_to_cell(row, col)
+        
+        # Decide what text should be written to each column.
+        text = str(item_number)     # The default is the number of this item.
         space = ""
         sep = ""
-        try:
-            exec("space = SystemSettings.DEFAULT_SPACE_{0}".format(column_specs["item_type"].upper()))
-            exec("sep = SystemSettings.DEFAULT_SEPARATOR_{0}".format(column_specs["item_type"].upper()))
-        except: pass
-        col = column_specs["default_num"]
-        text = str(item_number)
-        if "item_prefix" in column_specs:
-            text = column_specs["item_prefix"] + space + text
+        validation_source = None
+        # Name and label columns can prefix the item number and use fancy separators.
+        if column_type in ["name","label"]:
+            try:
+                exec("space = SystemSettings.DEFAULT_SPACE_{0}".format(column_type.upper()))
+                exec("sep = SystemSettings.DEFAULT_SEPARATOR_{0}".format(column_type.upper()))
+            except: pass
+            if "prefix" in column_specs:
+                text = column_specs["prefix"] + space + text
+        elif column_type in ["switch"]:
+            validation_source = [SystemSettings.DEFAULT_SYMBOL_NO, SystemSettings.DEFAULT_SYMBOL_YES]
+            text = validation_source[0]
         text_backup = text
         
+        # Check if this page-item has a superitem and if the column being constructed is considered an important attribute.
+        # If so, the column text may be improved to reference any corresponding attributes of its superitem.
+        if not superitem_attributes is None:
+            for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+                if column_key == item_specs[attribute+"_key"]:
+                    backup = superitem_attributes[attribute]["backup"]
+                    if not backup is None: 
+                        text_backup = backup + sep + text_backup
+                    cell = superitem_attributes[attribute]["cell"]
+                    value = superitem_attributes[attribute]["value"]
+                    if not cell is None:
+                        text = "=CONCATENATE({0},\"{1}\")".format(cell,sep+text)
+                    elif not value is None:
+                        if value.startswith("="):
+                            text = "=CONCATENATE({0},\"{1}\")".format(value.lstrip("="),sep+text)
+                        else:
+                            text = value + sep + text
+                    else:
+                        pass
+        
+        # Update attribute dictionary if constructing a column that is marked in framework settings as a page-item attribute.
         for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
             if column_key == item_specs[attribute+"_key"]:
-                backup = superitem_attributes[attribute]["backup"]
-                if not backup is None: 
-                    text_backup = backup + sep + text_backup
-                    
-                cell = superitem_attributes[attribute]["cell"]
-                value = superitem_attributes[attribute]["value"]
-                if not cell is None:
-                    text = "=CONCATENATE({0},\"{1}\")".format(cell,sep+text)
-                elif not value is None:
-                    if value.startswith("="):
-                        text = "=CONCATENATE({0},\"{1}\")".format(value.lstrip("="),sep+text)
-                    else:
-                        text = value + sep + text
-                else:
-                    pass
                 item_attributes[attribute]["cell"] = xw.utility.xl_rowcol_to_cell(row, col)
                 item_attributes[attribute]["value"] = text
                 item_attributes[attribute]["backup"] = text_backup
+                               
+        # Write relevant text to each column.
+        # Note: Equations are only calculated when an application explicitly opens Excel files, so a non-zero 'backup' value must be provided.
         if text.startswith("="):
-            framework_page.write_formula(row, col, text, cell_format, text_backup)
+            framework_page.write_formula(rc, text, cell_format, text_backup)
         else:
-            framework_page.write(row, col, text, cell_format)
+            framework_page.write(rc, text, cell_format)
+            
+        # Validate the cell contents if required.
+        if not validation_source is None:
+            framework_page.data_validation(rc, {'validate': 'list',
+                                                'source': validation_source})
     
+    # Generate as many subitems as are required to be attached to this page-item.
     for subitem_key in subitem_keys:
         for subitem_number in xrange(4):
             _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                    item_key = subitem_key, start_row = row, 
                                                    formats = formats, item_number = subitem_number,
                                                    superitem_attributes = item_attributes)
-    next_row = max(start_row + 1, row)
+    next_row = max(start_row + 1, row)  # Make sure that the next row is always at least the row after the row of the current item.
     return framework_page, next_row
 
 
@@ -387,51 +437,16 @@ def createFrameworkPage(framework_file, page_key, formats = None, format_variabl
     createFrameworkPageHeaders(framework_page = framework_page, page_key = page_key, 
                                formats = formats, format_variables = format_variables)
     
+    # Create the number of base items required on this page.
     row = 1
     for item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
-        for item_number in xrange(3):
-            _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                             item_key = item_key, start_row = row, 
-                                             formats = formats, item_number = item_number)
-    
+        if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["is_subitem"]:
+            for item_number in xrange(3):
+                _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
+                                                 item_key = item_key, start_row = row, 
+                                                 formats = formats, item_number = item_number)
     return framework_file
-    
-#    # Iterate through the column keys of a page and generate columns if possible.
-#    # The bare minimum of a column is a header name.
-#    col = 0
-#    for column_key in column_keys:
-#        # Fill the column with default sequences of values if appropriate, starting in the row after the header.
-#        if page_key == "poptype":
-#            if column_key == "attlabel":
-#                writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
-#                                           length = num_pop_attributes, prefix_list = ["Attribute "], cell_format = format_center)
-#            if column_key == "attname":
-#                writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
-#                                           length = num_pop_attributes, prefix_list = ["att_"], cell_format = format_center)
-#            if column_key == "optlabel":
-#                prefix_list = ["Attribute "+str(x)+" - Option " for x in xrange(num_pop_attributes)]
-#                writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
-#                                           length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
-#            if column_key == "optname":
-#                prefix_list = ["att_"+str(x)+"_opt_" for x in xrange(num_pop_attributes)]
-#                writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
-#                                           length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
-#        if page_key == "comp":
-#            if column_key == "label":
-#                writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
-#                                           length = num_compartments, prefix_list = ["Compartment "], cell_format = format_center)
-#            if column_key == "name":
-#                writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
-#                                           length = num_compartments, prefix_list = ["comp_"], cell_format = format_center)
-#                
-#        
-#        # Adjust column size and continue to the next one.
-#        framework_page.set_column(col, col, format_variables_colwide["column_width"])
-#        col += 1
-#        
-#    return
 
-#%%
 
 @logUsage
 @accepts(str)
@@ -471,22 +486,3 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
         createFrameworkPage(framework_file = framework_file, page_key = page_key, 
                             formats = formats, format_variables = format_variables)
     return framework_file
-    
-
-##%%
-#
-#class FrameworkSettings():
-#    page_keys
-#    page_column_keys
-#
-#def createFrameworkPageItem():
-#    ...
-#
-#def createFrameworkPage():
-#    createFrameworkPageHeaders()
-#    for item in items:
-#        createFrameworkPageItem(page_key)
-#
-#def createFrameworkTemplate(framework_path, framework_details):
-#    for page_key in page_keys:
-#        createFrameworkPage(page_key)
