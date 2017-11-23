@@ -66,15 +66,46 @@ class FrameworkSettings(object):
     PAGE_COLUMN_KEYS["trans"] = []
     
     COLUMN_ITEM_TYPES = ["label","name"]
-#    ITEM_KEYS = ["attitem","optitem","compitem"]
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
     FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
+    # Hard-coded details for generating default page items, made as abstract as possible.
+    PAGE_ITEM_KEYS = OrderedDict()
+    PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
+    PAGE_ITEM_KEYS["comp"] = ["compitem"]
+    PAGE_ITEM_KEYS["trans"] = []
+    PAGE_ITEM_ATTRIBUTES = ["label","name"]
+    
+    # A default dictionary of page-item specifics is constructed first, then overwritten as required.
+    PAGE_ITEM_SPECS = OrderedDict()
+    for page_key in PAGE_ITEM_KEYS:
+        PAGE_ITEM_SPECS[page_key] = dict()
+        for item_type in PAGE_ITEM_KEYS[page_key]:
+            # Specify whether page-item construction should include or exclude filling out specified columns.
+            # Then specify a list of column keys to be included or excluded when constructing a page item.
+            # Most page-items involve all columns, so the default is to exclude no columns.
+            PAGE_ITEM_SPECS[page_key][item_type] = {"inc_not_exc":False, "column_keys":None,
+            # Many page-items will have a display label and code name, so appropriate column keys should be recorded.
+                                                    "label_key":None, "name_key":None,
+            # Some page-items can be divided into columns and other page-items; the keys of the latter should be listed.
+                                                    "subitem_keys":None}
+    # Define a default population attribute item.
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["inc_not_exc"] = True
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["column_keys"] = ["attlabel","attname"]
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["label_key"] = "attlabel"
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["name_key"] = "attname"
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["subitem_keys"] = ["optitem"]
+    # Define a default population option item, which is a subitem of a population attribute.
+    PAGE_ITEM_SPECS["poptype"]["optitem"]["column_keys"] = ["attlabel","attname"]
+    PAGE_ITEM_SPECS["poptype"]["optitem"]["label_key"] = "optlabel"
+    PAGE_ITEM_SPECS["poptype"]["optitem"]["name_key"] = "optname"
+    
+    
     PAGE_SPECS = OrderedDict()
     PAGE_COLUMN_SPECS = OrderedDict()
-#    PAGE_ITEM_SPECS = OrderedDict()
+    
     
     @classmethod
     @logUsage
@@ -87,7 +118,7 @@ class FrameworkSettings(object):
         config_path = getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_FRAMEWORK_FILENAME
         logger.info("Attempting to generate Optima Core framework settings from configuration file.")
         logger.info("Location... {0}".format(config_path))
-        cp = configparser.ConfigParser(allow_no_value=True)
+        cp = configparser.ConfigParser()
         cp.read(config_path)
         
         # Flesh out page details.
@@ -241,61 +272,83 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
 
 
 @logUsage
-def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, item_number = 0):
+def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, item_number = None,
+                            superitem_attributes = None):
 
-    cell_format = formats["center"]
-    orig_row = start_row
+    if not item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
+        logger.exception("A framework page with key '{0}' was instructed to create a page-item with key '{1}', despite no relevant page-item "
+                         "specifications existing in framework settings. Abandoning framework file construction.".format(page_key,item_key))
+        raise KeyError(item_key)
     
-    if page_key == "poptype":
-        if item_key == "attitem":
-            for column_key in ["attlabel","attname"]:
-                pc_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
-                sep = ""
-                try: exec("sep = SystemSettings.DEFAULT_SPACE_{0}".format(pc_specs["item_type"].upper()))
-                except: pass
-                col = pc_specs["default_num"]
-                text = str(item_number)
-                if "item_prefix" in pc_specs:
-                    text = pc_specs["item_prefix"] + sep + text
-                framework_page.write(start_row, col, text, cell_format)
-            for sub_item_number in xrange(4):
-                _, start_row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                                       item_key = "optitem", start_row = start_row, 
-                                                       formats = formats, item_number = sub_item_number)
-            start_row -= 1  # Avoid double increments.
-            
-        if item_key == "optitem":
-            for column_key in ["optlabel","optname"]:
-                pc_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
-                sep = ""
-                try: exec("sep = SystemSettings.DEFAULT_SPACE_{0}".format(pc_specs["item_type"].upper()))
-                except: pass
-                col = pc_specs["default_num"]
-                text = str(item_number)
-                if "item_prefix" in pc_specs:
-                    text = pc_specs["item_prefix"] + sep + text
-                framework_page.write(start_row, col, text, cell_format)
-#        
-#            
-#        if column_key == "attlabel":
-#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
-#                                       length = num_pop_attributes, prefix_list = ["Attribute "], cell_format = format_center)
-#        if column_key == "attname":
-#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col, skip_rows = num_options_per_pop_attribute - 1,
-#                                       length = num_pop_attributes, prefix_list = ["att_"], cell_format = format_center)
-#        if column_key == "optlabel":
-#            prefix_list = ["Attribute "+str(x)+" - Option " for x in xrange(num_pop_attributes)]
-#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
-#                                       length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
-#        if column_key == "optname":
-#            prefix_list = ["att_"+str(x)+"_opt_" for x in xrange(num_pop_attributes)]
-#            writeSequenceToExcelColumn(sheet = framework_page, row_start = 1, col = col,
-#                                       length = num_options_per_pop_attribute, prefix_list = prefix_list, cell_format = format_center)
-
-
-
-    next_row_after = max(orig_row + 1, start_row)
-    return framework_page, next_row_after
+    cell_format = formats["center"]
+    row = start_row
+    
+    if item_number is None: item_number = 0
+    
+    item_specs = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]
+    
+    # Determine which columns to fill out with default values for this page item.
+    column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
+    item_column_keys = []
+    if not item_specs["column_keys"] is None: item_column_keys = item_specs["column_keys"]
+    if item_specs["inc_not_exc"]: column_keys = item_column_keys
+    
+    subitem_keys = []
+    if not item_specs["subitem_keys"] is None: subitem_keys = item_specs["subitem_keys"]
+              
+    item_attributes = dict()
+    for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+        item_attributes[attribute] = {"cell":None, "value":None, "backup":None}
+    if superitem_attributes is None: superitem_attributes = dcp(item_attributes)
+        
+    for column_key in column_keys:
+        if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
+        column_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
+        space = ""
+        sep = ""
+        try:
+            exec("space = SystemSettings.DEFAULT_SPACE_{0}".format(column_specs["item_type"].upper()))
+            exec("sep = SystemSettings.DEFAULT_SEPARATOR_{0}".format(column_specs["item_type"].upper()))
+        except: pass
+        col = column_specs["default_num"]
+        text = str(item_number)
+        if "item_prefix" in column_specs:
+            text = column_specs["item_prefix"] + space + text
+        text_backup = text
+        
+        for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+            if column_key == item_specs[attribute+"_key"]:
+                backup = superitem_attributes[attribute]["backup"]
+                if not backup is None: 
+                    text_backup = backup + sep + text_backup
+                    
+                cell = superitem_attributes[attribute]["cell"]
+                value = superitem_attributes[attribute]["value"]
+                if not cell is None:
+                    text = "=CONCATENATE({0},\"{1}\")".format(cell,sep+text)
+                elif not value is None:
+                    if value.startswith("="):
+                        text = "=CONCATENATE({0},\"{1}\")".format(value.lstrip("="),sep+text)
+                    else:
+                        text = value + sep + text
+                else:
+                    pass
+                item_attributes[attribute]["cell"] = xw.utility.xl_rowcol_to_cell(row, col)
+                item_attributes[attribute]["value"] = text
+                item_attributes[attribute]["backup"] = text_backup
+        if text.startswith("="):
+            framework_page.write_formula(row, col, text, cell_format, text_backup)
+        else:
+            framework_page.write(row, col, text, cell_format)
+    
+    for subitem_key in subitem_keys:
+        for subitem_number in xrange(4):
+            _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
+                                                   item_key = subitem_key, start_row = row, 
+                                                   formats = formats, item_number = subitem_number,
+                                                   superitem_attributes = item_attributes)
+    next_row = max(start_row + 1, row)
+    return framework_page, next_row
 
 
 @logUsage
@@ -335,10 +388,11 @@ def createFrameworkPage(framework_file, page_key, formats = None, format_variabl
                                formats = formats, format_variables = format_variables)
     
     row = 1
-    for item_number in xrange(3):
-        _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                         item_key = "attitem", start_row = row, 
-                                         formats = formats, item_number = item_number)
+    for item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
+        for item_number in xrange(3):
+            _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
+                                             item_key = item_key, start_row = row, 
+                                             formats = formats, item_number = item_number)
     
     return framework_file
     
