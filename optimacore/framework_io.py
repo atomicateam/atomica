@@ -279,24 +279,50 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
     return framework_page
 
 
+@applyToAllMethods(logUsage)
+class FrameworkTemplateInstructions(object):
+    """ An object that stores instructions for how many page-items should be created during template framework construction. """
+    
+    def __init__(self, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE):
+        """ Initialize instructions that detail how to construct a template framework. """
+        self.name = str()
+        # Every page-item must be included in a dictionary that lists how many should be created.
+        self.num_items = dict()
+        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
+            for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
+                self.num_items[item_key] = int()
+        self.loadPreset(template_type = template_type)
+        
+    @accepts(str)
+    def loadPreset(self, template_type):
+        """ Based on hard-coded template types, determine how many page-items should be created. """
+        logger.info("Loading template framework instructions of type '{0}'.".format(template_type))
+        if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
+            self.name = template_type       # The name of the object will currently just be the template type.
+            self.num_items["attitem"] = 4
+            self.num_items["optitem"] = 3
+            self.num_items["compitem"] = 10
+
+
 @logUsage
 @accepts(xw.worksheet.Worksheet,str,str,int,dict)
 def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, 
-                            item_number = None, superitem_attributes = None):
+                            instructions = None, item_number = None, superitem_attributes = None):
     """
     Creates a default item on a page within a framework file, as defined in framework settings.
     
     Inputs:
-        framework_page (xw.worksheet.Worksheet) - The Excel sheet in which to create page-items.
-        page_key (str)                          - The key denoting the provided page, as defined in framework settings.
-        item_key (str)                          - The key denoting the page-item to create, as defined in framework settings.
-        start_row (int)                         - The row number of the page at which to generate the default page-item.
-        formats (dict)                          - A dictionary of standard Excel formats.
-                                                  Is the output of function: createStandardExcelFormats()
-                                                  Each key is a string and each value is an 'xlsxwriter.format.Format' object.
-        item_number (int)                       - A number to identify this item, ostensibly within a list, used for default text write-ups.
-        superitem_attributes (dict)             - A dictionary of attribute values relating to the superitem constructing this page-item, if one exists.
-                                                  Is the output of function: createEmptyPageItemAttributes()
+        framework_page (xw.worksheet.Worksheet)         - The Excel sheet in which to create page-items.
+        page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
+        item_key (str)                                  - The key denoting the page-item to create, as defined in framework settings.
+        start_row (int)                                 - The row number of the page at which to generate the default page-item.
+        formats (dict)                                  - A dictionary of standard Excel formats.
+                                                          Is the output of function: createStandardExcelFormats()
+                                                          Each key is a string and each value is an 'xlsxwriter.format.Format' object.
+        instructions (FrameworkTemplateInstructions)    - An object that contains instructions for how many page-items to create.
+        item_number (int)                               - A number to identify this item, ostensibly within a list, used for default text write-ups.
+        superitem_attributes (dict)                     - A dictionary of attribute values relating to the superitem constructing this page-item, if one exists.
+                                                          Is the output of function: createEmptyPageItemAttributes()
     
     Outputs:
         framework_page (xw.worksheet.Worksheet) - The Excel sheet in which page-items were created.
@@ -392,7 +418,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
     
     # Generate as many subitems as are required to be attached to this page-item.
     for subitem_key in subitem_keys:
-        for subitem_number in xrange(4):
+        for subitem_number in xrange(instructions.num_items[subitem_key]):
             _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                    item_key = subitem_key, start_row = row, 
                                                    formats = formats, item_number = subitem_number,
@@ -403,20 +429,23 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
 
 @logUsage
 @accepts(xw.Workbook,str)
-def createFrameworkPage(framework_file, page_key, formats = None, format_variables = None):
+def createFrameworkPage(framework_file, page_key, instructions = None, formats = None, format_variables = None):
     """
     Creates a page within the framework file.
     
     Inputs:
-        framework_file (xw.Workbook)            - The Excel file in which to create the page.
-        page_key (str)                          - The key denoting a particular page, as defined in framework settings.
-        formats (dict)                          - A dictionary of standard Excel formats, ideally passed in along with the framework file.
-                                                  If left as None, it will be regenerated in this function.
-                                                  Each key is a string and each value is an 'xlsxwriter.format.Format' object.
-        format_variables (dict)                 - A dictionary of format variables, such as column width.
-                                                  If left as None, they will be regenerated in this function.
-                                                  The keys are listed in framework settings and the values are floats.
+        framework_file (xw.Workbook)                    - The Excel file in which to create the page.
+        page_key (str)                                  - The key denoting a particular page, as defined in framework settings.
+        instructions (FrameworkTemplateInstructions)    - An object that contains instructions for how many page-items to create.
+        formats (dict)                                  - A dictionary of standard Excel formats, ideally passed in along with the framework file.
+                                                          If left as None, it will be regenerated in this function.
+                                                          Each key is a string and each value is an 'xlsxwriter.format.Format' object.
+        format_variables (dict)                         - A dictionary of format variables, such as column width.
+                                                          If left as None, they will be regenerated in this function.
+                                                          The keys are listed in framework settings and the values are floats.
     """
+    if instructions is None: instructions = FrameworkTemplateInstructions(template_type = template_type)
+    
     # Determine the title of this page and generate it.
     # This should have been successfully extracted from a configuration file during framework-settings definition.
     page_name = FrameworkSettings.PAGE_SPECS[page_key]["title"]
@@ -441,19 +470,16 @@ def createFrameworkPage(framework_file, page_key, formats = None, format_variabl
     row = 1
     for item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
         if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["is_subitem"]:
-            for item_number in xrange(3):
+            for item_number in xrange(instructions.num_items[item_key]):
                 _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                  item_key = item_key, start_row = row, 
-                                                 formats = formats, item_number = item_number)
-    return framework_file
+                                                 instructions = instructions, formats = formats, item_number = item_number)
+    return framework_file            
 
 
 @logUsage
 @accepts(str)
-def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE,
-                                            num_pop_attributes = 0,
-                                            num_options_per_pop_attribute = 0,
-                                            num_compartments = 0):
+def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE):
     """
     Creates a template framework file in Excel.
     
@@ -463,14 +489,8 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
         template_type (str)                     - A string that denotes the type of template, e.g. what pages to include.
                                                   This acts as a preset id, which instructs what default values in file construction should be.
                                                   A user can specify kwargs to overwrite the template defaults, but the template type denotes baseline values.
-        num_pop_attributes (int)                - The number of attributes to include in a population-types page.
-        num_options_per_pop_attribute (int)     - The number of options to provide for each attribute.
     """
-    # EXAMPLE
-    if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
-        num_pop_attributes = 3
-        num_options_per_pop_attribute = 4
-        num_compartments = 10
+    instructions = FrameworkTemplateInstructions(template_type = template_type)
     
     # Create a template file and standard formats attached to this file.
     # Also generate default-valued format variables as a dictionary.
@@ -483,6 +503,6 @@ def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAME
     # Iterate through them and generate the corresponding pages.
     page_keys = FrameworkSettings.PAGE_COLUMN_KEYS.keys()
     for page_key in page_keys:
-        createFrameworkPage(framework_file = framework_file, page_key = page_key, 
+        createFrameworkPage(framework_file = framework_file, page_key = page_key, instructions = instructions, 
                             formats = formats, format_variables = format_variables)
     return framework_file
