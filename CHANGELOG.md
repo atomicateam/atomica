@@ -3,13 +3,13 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.3 (2017-11-24): Improved Framework Templating Pre-filling
+## 0.2.3 (2017-11-26): Improved Framework Templating Pre-filling
 
 Features
 - Coded `FrameworkTemplateInstructions` class to specify how many of each page-item to produce in template.
 
 Edits
-- Made tagging columns by type in the configuration file required.
+- Made page columns tagged by type in the `FrameworkSettings` class.
 
 ## 0.2.2 (2017-11-23): Initial Framework Templating Pre-filling
 

@@ -65,18 +65,47 @@ class FrameworkSettings(object):
     PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
     PAGE_COLUMN_KEYS["trans"] = []
     
-    COLUMN_ITEM_TYPES = ["label","name","switch"]
+    # Likewise construct a key dictionary mapping pages to abstract page-items that appear on these pages.
+    PAGE_ITEM_KEYS = OrderedDict()
+    PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
+    PAGE_ITEM_KEYS["comp"] = ["compitem"]
+    PAGE_ITEM_KEYS["trans"] = []
+    
+    # Create key semantics for types that columns can be.
+    COLUMN_TYPE_KEY_LABEL = "label"
+    COLUMN_TYPE_KEY_NAME = "name"
+    COLUMN_TYPE_KEY_SWITCH = "switch"
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
     FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
-    # Hard-coded details for generating default page-items, made as abstract as possible.
-    PAGE_ITEM_KEYS = OrderedDict()
-    PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
-    PAGE_ITEM_KEYS["comp"] = ["compitem"]
-    PAGE_ITEM_KEYS["trans"] = []
     PAGE_ITEM_ATTRIBUTES = ["label","name"]
+    
+    PAGE_SPECS = OrderedDict()
+    PAGE_COLUMN_SPECS = OrderedDict()
+    for page_key in PAGE_COLUMN_KEYS:
+        PAGE_SPECS[page_key] = dict()  
+        PAGE_COLUMN_SPECS[page_key] = OrderedDict()
+        column_count = 0
+        for column_key in PAGE_COLUMN_KEYS[page_key]:
+            PAGE_COLUMN_SPECS[page_key][column_key] = dict()
+            # Associate each column with a position number for easy reference.
+            # This is a default number for template creation; column positions may be different in loaded framework files.
+            PAGE_COLUMN_SPECS[page_key][column_key]["default_num"] = column_count
+                             
+            PAGE_COLUMN_SPECS[page_key][column_key]["type"] = None
+            column_count += 1
+            
+    PAGE_COLUMN_SPECS["poptype"]["attlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["poptype"]["attname"]["type"] = COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_SPECS["poptype"]["optlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["poptype"]["optname"]["type"] = COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_SPECS["comp"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["comp"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_SPECS["comp"]["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    PAGE_COLUMN_SPECS["comp"]["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    PAGE_COLUMN_SPECS["comp"]["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH
     
     # A default dictionary of page-item specifics is constructed first, then overwritten as required.
     # Warning: These values are considered hard-coded and thus relatively unvalidated.
@@ -93,8 +122,7 @@ class FrameworkSettings(object):
                                                     "label_key":None, "name_key":None,
             # Some page-items can be divided into columns and other page-items; the keys of the latter should be listed.
             # While page-items have no restriction in producing page-items, it is also useful to mark ones that are only ever subitems. 
-                                                    "subitem_keys":None,
-                                                    "is_subitem":False}
+                                                    "subitem_keys":None, "is_subitem":False}
     # Define a default population attribute item.
     PAGE_ITEM_SPECS["poptype"]["attitem"]["inc_not_exc"] = True
     PAGE_ITEM_SPECS["poptype"]["attitem"]["column_keys"] = ["attlabel","attname"]
@@ -106,10 +134,6 @@ class FrameworkSettings(object):
     PAGE_ITEM_SPECS["poptype"]["optitem"]["label_key"] = "optlabel"
     PAGE_ITEM_SPECS["poptype"]["optitem"]["name_key"] = "optname"
     PAGE_ITEM_SPECS["poptype"]["optitem"]["is_subitem"] = True
-    
-    
-    PAGE_SPECS = OrderedDict()
-    PAGE_COLUMN_SPECS = OrderedDict()
     
     
     @classmethod
@@ -128,7 +152,6 @@ class FrameworkSettings(object):
         
         # Flesh out page details.
         for page_key in cls.PAGE_COLUMN_KEYS:
-            if page_key not in cls.PAGE_SPECS: cls.PAGE_SPECS[page_key] = dict()
             # Read in required page title.
             try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
             except:
@@ -144,13 +167,7 @@ class FrameworkSettings(object):
                 except: pass
             
             # Flesh out page column details.
-            if page_key not in cls.PAGE_COLUMN_SPECS: cls.PAGE_COLUMN_SPECS[page_key] = OrderedDict()
-            column_count = 0
             for column_key in cls.PAGE_COLUMN_KEYS[page_key]:
-                if column_key not in cls.PAGE_COLUMN_SPECS[page_key]: cls.PAGE_COLUMN_SPECS[page_key][column_key] = dict()
-                # Associate each column with a position number for easy reference.
-                # This is a default number for template creation; column positions may be different in loaded framework files.
-                cls.PAGE_COLUMN_SPECS[page_key][column_key]["default_num"] = column_count
                 # Read in required column header.
                 try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["header"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "header")
                 except:
@@ -162,19 +179,6 @@ class FrameworkSettings(object):
                 # Read in optional prefix that will prepend default text written into this column.
                 try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "prefix", mute_warnings = True)
                 except: pass
-                # Read in required type of item that this column contains.
-                try: 
-                    value = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "type")
-                    if value not in cls.COLUMN_ITEM_TYPES:
-                        error_string = ("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for 'type' " 
-                                        "that is not listed in framework settings.".format(page_key, column_key))
-                        logger.error(error_string)
-                        logger.error("Valid options: {0}".format(", ".join(cls.COLUMN_ITEM_TYPES)))
-                        raise OptimaException(error_string)
-                    cls.PAGE_COLUMN_SPECS[page_key][column_key]["type"] = value
-                except: 
-                    logger.exception("Framework configuration loading process failed. Every column in a framework page needs a valid type.")
-                    raise
                 # Read in optional column format variables.
                 for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
                     try: 
@@ -183,7 +187,6 @@ class FrameworkSettings(object):
                     except ValueError: logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for '{2}' " 
                                                    "that cannot be converted to a float. Using a default value.".format(page_key, column_key, format_variable_key))
                     except: pass
-                column_count += 1
         
         logger.info("Optima Core framework settings successfully generated.") 
         return
@@ -365,14 +368,14 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         sep = ""
         validation_source = None
         # Name and label columns can prefix the item number and use fancy separators.
-        if column_type in ["name","label"]:
+        if column_type in [FrameworkSettings.COLUMN_TYPE_KEY_LABEL, FrameworkSettings.COLUMN_TYPE_KEY_NAME]:
             try:
                 exec("space = SystemSettings.DEFAULT_SPACE_{0}".format(column_type.upper()))
                 exec("sep = SystemSettings.DEFAULT_SEPARATOR_{0}".format(column_type.upper()))
             except: pass
             if "prefix" in column_specs:
                 text = column_specs["prefix"] + space + text
-        elif column_type in ["switch"]:
+        elif column_type in [FrameworkSettings.COLUMN_TYPE_KEY_SWITCH]:
             validation_source = [SystemSettings.DEFAULT_SYMBOL_NO, SystemSettings.DEFAULT_SYMBOL_YES]
             text = validation_source[0]
         text_backup = text
