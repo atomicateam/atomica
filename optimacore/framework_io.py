@@ -60,16 +60,24 @@ class FrameworkSettings(object):
     # Construct a dictionary with ordered keys representing pages.
     # Each page-key corresponds to a list of keys representing columns.
     # These orders describe how a framework template will be constructed.
+    # There is no restriction in using the same column key for different page keys.
     PAGE_COLUMN_KEYS = OrderedDict()
     PAGE_COLUMN_KEYS["poptype"] = ["attlabel","attname","optlabel","optname"]
     PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
     PAGE_COLUMN_KEYS["trans"] = []
+    PAGE_COLUMN_KEYS["charac"] = ["label","name"]
+    PAGE_COLUMN_KEYS["par"] = ["label","name","trans"]
+    PAGE_COLUMN_KEYS["progtype"] = ["label","name","attlabel","attname"]
     
     # Likewise construct a key dictionary mapping pages to abstract page-items that appear on these pages.
+    # Unlike with page columns, page items need unique keys even if associated with different pages.
     PAGE_ITEM_KEYS = OrderedDict()
+    for page_key in PAGE_COLUMN_KEYS: PAGE_ITEM_KEYS[page_key] = []
     PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
     PAGE_ITEM_KEYS["comp"] = ["compitem"]
-    PAGE_ITEM_KEYS["trans"] = []
+    PAGE_ITEM_KEYS["charac"] = ["characitem"]
+    PAGE_ITEM_KEYS["par"] = ["paritem"]
+    PAGE_ITEM_KEYS["progtype"] = ["progitem","progattitem"]
     
     # Create key semantics for types that columns can be.
     COLUMN_TYPE_KEY_LABEL = "label"
@@ -80,8 +88,8 @@ class FrameworkSettings(object):
     # They must have corresponding system-settings defaults.
     FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
-    PAGE_ITEM_ATTRIBUTES = ["label","name"]
-    
+    # Construct a dictionary of specifications detailing how to construct pages and page columns.
+    # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
     PAGE_SPECS = OrderedDict()
     PAGE_COLUMN_SPECS = OrderedDict()
     for page_key in PAGE_COLUMN_KEYS:
@@ -93,10 +101,8 @@ class FrameworkSettings(object):
             # Associate each column with a position number for easy reference.
             # This is a default number for template creation; column positions may be different in loaded framework files.
             PAGE_COLUMN_SPECS[page_key][column_key]["default_num"] = column_count
-                             
             PAGE_COLUMN_SPECS[page_key][column_key]["type"] = None
             column_count += 1
-            
     PAGE_COLUMN_SPECS["poptype"]["attlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
     PAGE_COLUMN_SPECS["poptype"]["attname"]["type"] = COLUMN_TYPE_KEY_NAME
     PAGE_COLUMN_SPECS["poptype"]["optlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
@@ -106,11 +112,19 @@ class FrameworkSettings(object):
     PAGE_COLUMN_SPECS["comp"]["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH
     PAGE_COLUMN_SPECS["comp"]["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH
     PAGE_COLUMN_SPECS["comp"]["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    PAGE_COLUMN_SPECS["charac"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["charac"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_SPECS["par"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["par"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_SPECS["progtype"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["progtype"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_SPECS["progtype"]["attlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
+    PAGE_COLUMN_SPECS["progtype"]["attname"]["type"] = COLUMN_TYPE_KEY_NAME
     
-    # A default dictionary of page-item specifics is constructed first, then overwritten as required.
-    # Warning: These values are considered hard-coded and thus relatively unvalidated.
-    #          Incorrect modifications can result in undesirable behaviour including broken Excel links and subitem recursions.
-    PAGE_ITEM_SPECS = OrderedDict()
+    # Construct a dictionary of specifications detailing how to construct page-items.
+    # Warning: Incorrect modifications are particularly dangerous here due to the possibility of broken Excel links and subitem recursions.
+    PAGE_ITEM_ATTRIBUTES = ["label","name"]
+    PAGE_ITEM_SPECS = OrderedDict()     # Order is important when running through subitems.
     for page_key in PAGE_ITEM_KEYS:
         PAGE_ITEM_SPECS[page_key] = dict()
         for item_type in PAGE_ITEM_KEYS[page_key]:
@@ -118,22 +132,43 @@ class FrameworkSettings(object):
             # Then specify a list of column keys to be included or excluded when constructing a page-item.
             # Many page-items involve all columns, so the default is to exclude no columns.
             PAGE_ITEM_SPECS[page_key][item_type] = {"inc_not_exc":False, "column_keys":None,
-            # Many page-items will have a display label and code name, so appropriate column keys should be recorded.
-                                                    "label_key":None, "name_key":None,
             # Some page-items can be divided into columns and other page-items; the keys of the latter should be listed.
             # While page-items have no restriction in producing page-items, it is also useful to mark ones that are only ever subitems. 
                                                     "subitem_keys":None, "is_subitem":False}
+            for attribute in PAGE_ITEM_ATTRIBUTES:
+                PAGE_ITEM_SPECS[page_key][item_type]["key_"+attribute] = None
     # Define a default population attribute item.
     PAGE_ITEM_SPECS["poptype"]["attitem"]["inc_not_exc"] = True
     PAGE_ITEM_SPECS["poptype"]["attitem"]["column_keys"] = ["attlabel","attname"]
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["label_key"] = "attlabel"
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["name_key"] = "attname"
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["key_label"] = "attlabel"
+    PAGE_ITEM_SPECS["poptype"]["attitem"]["key_name"] = "attname"
     PAGE_ITEM_SPECS["poptype"]["attitem"]["subitem_keys"] = ["optitem"]
     # Define a default population option item, which is a subitem of a population attribute.
     PAGE_ITEM_SPECS["poptype"]["optitem"]["column_keys"] = ["attlabel","attname"]
-    PAGE_ITEM_SPECS["poptype"]["optitem"]["label_key"] = "optlabel"
-    PAGE_ITEM_SPECS["poptype"]["optitem"]["name_key"] = "optname"
+    PAGE_ITEM_SPECS["poptype"]["optitem"]["key_label"] = "optlabel"
+    PAGE_ITEM_SPECS["poptype"]["optitem"]["key_name"] = "optname"
     PAGE_ITEM_SPECS["poptype"]["optitem"]["is_subitem"] = True
+    # Define a default compartment item.
+    PAGE_ITEM_SPECS["comp"]["compitem"]["key_label"] = "label"
+    PAGE_ITEM_SPECS["comp"]["compitem"]["key_name"] = "name"
+    # Define a default characteristic item.
+    PAGE_ITEM_SPECS["charac"]["characitem"]["key_label"] = "label"
+    PAGE_ITEM_SPECS["charac"]["characitem"]["key_name"] = "name"
+    # Define a default parameter item.
+    PAGE_ITEM_SPECS["par"]["paritem"]["key_label"] = "label"
+    PAGE_ITEM_SPECS["par"]["paritem"]["key_name"] = "name"
+    # Define a default program type item.
+    PAGE_ITEM_SPECS["progtype"]["progitem"]["inc_not_exc"] = True
+    PAGE_ITEM_SPECS["progtype"]["progitem"]["column_keys"] = ["label","name"]
+    PAGE_ITEM_SPECS["progtype"]["progitem"]["key_label"] = "label"
+    PAGE_ITEM_SPECS["progtype"]["progitem"]["key_name"] = "name"
+    PAGE_ITEM_SPECS["progtype"]["progitem"]["subitem_keys"] = ["progattitem"]
+    # Define a default program type attribute item.
+    PAGE_ITEM_SPECS["progtype"]["progattitem"]["inc_not_exc"] = True
+    PAGE_ITEM_SPECS["progtype"]["progattitem"]["column_keys"] = ["attlabel","attname"]
+    PAGE_ITEM_SPECS["progtype"]["progattitem"]["key_label"] = "attlabel"
+    PAGE_ITEM_SPECS["progtype"]["progattitem"]["key_name"] = "attname"
+    PAGE_ITEM_SPECS["progtype"]["progattitem"]["is_subitem"] = True
     
     
     @classmethod
@@ -301,10 +336,14 @@ class FrameworkTemplateInstructions(object):
         """ Based on hard-coded template types, determine how many page-items should be created. """
         logger.info("Loading template framework instructions of type '{0}'.".format(template_type))
         if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
-            self.name = template_type       # The name of the object will currently just be the template type.
+            self.name = template_type       # The name of the object is currently just the template type.
             self.num_items["attitem"] = 4
             self.num_items["optitem"] = 3
             self.num_items["compitem"] = 10
+            self.num_items["characitem"] = 7
+            self.num_items["paritem"] = 20
+            self.num_items["progitem"] = 6
+            self.num_items["progattitem"] = 3
 
 
 @logUsage
@@ -339,7 +378,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         raise KeyError(item_key)
     item_specs = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]
     
-    # Initialise requisite values for the upcoming process.
+    # Initialize requisite values for the upcoming process.
     cell_format = formats["center"]
     row = start_row
     if item_number is None: item_number = 0
@@ -363,12 +402,13 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         rc = xw.utility.xl_rowcol_to_cell(row, col)
         
         # Decide what text should be written to each column.
-        text = str(item_number)     # The default is the number of this item.
+        text = ""
         space = ""
         sep = ""
         validation_source = None
         # Name and label columns can prefix the item number and use fancy separators.
         if column_type in [FrameworkSettings.COLUMN_TYPE_KEY_LABEL, FrameworkSettings.COLUMN_TYPE_KEY_NAME]:
+            text = str(item_number)     # The default is the number of this item.
             try:
                 exec("space = SystemSettings.DEFAULT_SPACE_{0}".format(column_type.upper()))
                 exec("sep = SystemSettings.DEFAULT_SEPARATOR_{0}".format(column_type.upper()))
@@ -384,7 +424,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         # If so, the column text may be improved to reference any corresponding attributes of its superitem.
         if not superitem_attributes is None:
             for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
-                if column_key == item_specs[attribute+"_key"]:
+                if column_key == item_specs["key_"+attribute]:
                     backup = superitem_attributes[attribute]["backup"]
                     if not backup is None: 
                         text_backup = backup + sep + text_backup
@@ -402,7 +442,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         
         # Update attribute dictionary if constructing a column that is marked in framework settings as a page-item attribute.
         for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
-            if column_key == item_specs[attribute+"_key"]:
+            if column_key == item_specs["key_"+attribute]:
                 item_attributes[attribute]["cell"] = xw.utility.xl_rowcol_to_cell(row, col)
                 item_attributes[attribute]["value"] = text
                 item_attributes[attribute]["backup"] = text_backup
