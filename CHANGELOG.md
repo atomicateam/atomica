@@ -11,6 +11,7 @@ Features
 
 Edits
 - Made page columns tagged by type in the `FrameworkSettings` class.
+- Moved `FrameworkSettings` and associated functions to a new file: framework_settings.py
 
 ## 0.2.2 (2017-11-23): Initial Framework Templating Pre-filling
 
