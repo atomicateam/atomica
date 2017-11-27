@@ -3,10 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.2.3 (2017-11-26): Improved Framework Templating Pre-filling
+## 0.2.3 (2017-11-27): Improved Framework Templating Pre-filling
 
 Features
 - Coded `FrameworkTemplateInstructions` class to specify how many of each page-item to produce in template.
+- Hard coded standard page-item definitions in terms of using names and labels.
 
 Edits
 - Made page columns tagged by type in the `FrameworkSettings` class.
@@ -22,7 +23,7 @@ Features
 - Coded up an initial generator for these via `createFrameworkPageItem()`.
 
 Edits
-- Reorganised: framework_io.py
+- Reorganized: framework_io.py
 
 ## 0.2.1 (2017-11-20): Initial Framework File Templating
 
