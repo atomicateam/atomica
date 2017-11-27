@@ -6,6 +6,10 @@ This includes a description of the Markov chain network underlying project dynam
 """
 
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns
+from optimacore.framework_settings import FrameworkSettings
+
+import os
+import xlrd
 
 @applyToAllMethods(logUsage)
 class ProjectFramework(object):
@@ -14,19 +18,29 @@ class ProjectFramework(object):
     def __init__(self):
         """ Initialize the framework. """
         self.specs = dict()
+        self.semantics = dict()
     
-    def __repr__(self):
-        """ String representation of the project framework. """
-        return ""
+#    def __repr__(self):
+#        """ String representation of the project framework. """
+#        return ""
 
-#    @accepts(str)
-#    @returns(bool)
-#    def importFromFile(self, framework_path):
-#        """
-#        Attempts to load project framework details from a framework Excel file.
-#        """
-#        return
-#    
+    @accepts(str)
+    def importFromFile(self, framework_path):
+        """
+        Attempts to load project framework details from a framework Excel file.
+        """
+        framework_path = os.path.abspath(framework_path)
+        logger.info("Attempting to import an Optima Core framework from a file.")
+        logger.info("Location... {0}".format(framework_path))
+        try: framework_file = xlrd.open_workbook(framework_path)
+        except:
+            logger.exception("Framework file was not found.")
+            raise
+            
+        logger.info("Optima Core framework successfully imported.")
+        
+        return
+    
 #    @accepts(str)
 #    @returns(bool)
 #    def exportToFile(self, framework_path):
@@ -34,3 +48,5 @@ class ProjectFramework(object):
 #        Attempts to save existing project framework details to a framework Excel file.
 #        """
 #        return
+    
+    

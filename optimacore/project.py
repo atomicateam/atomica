@@ -43,6 +43,6 @@ class Project(object):
         """ Get the underlying context framework for the project. """
         return self.framework
 
-    def __repr__(self):
-        """ String representation of the project. """
-        return ""
+#    def __repr__(self):
+#        """ String representation of the project. """
+#        return ""

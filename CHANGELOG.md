@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.3.0 (2017-11-27): Initial Framework Loading
+
+Features
+- Began initial coding for `ProjectFramework` method `importFromFile()`.
+  This is simultaneously tested with template creation by: test_framework.py
+
+Edits
+- 
+
 ## 0.2.3 (2017-11-27): Improved Framework Templating Pre-filling
 
 Features

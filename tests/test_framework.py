@@ -14,6 +14,7 @@ class FrameworkTest(unittest.TestCase):
     
     def setUp(self):
         self.proj = Project()
+        self.template_filepath = "./frameworks/framework_template.xlsx"
 
     def tearDown(self):
         self.proj = None
@@ -22,7 +23,12 @@ class FrameworkTest(unittest.TestCase):
 #    """  """
     def test_creation(self):
         """  """
-        createFrameworkTemplate("./frameworks/framework_template.xlsx")
+        createFrameworkTemplate(self.template_filepath)
+        return None
+    
+    def test_import(self):
+        """  """
+        self.proj.getFramework().importFromFile(self.template_filepath)
         return None
         
 if __name__ == '__main__':
