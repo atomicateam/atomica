@@ -10,6 +10,7 @@ from optimacore.system import logger, SystemSettings
 from optimacore.framework_settings import FrameworkSettings
 
 from copy import deepcopy as dcp
+from collections import OrderedDict
 
 import xlsxwriter as xw
     
@@ -112,7 +113,7 @@ class FrameworkTemplateInstructions(object):
         """ Initialize instructions that detail how to construct a template framework. """
         self.name = str()
         # Every page-item must be included in a dictionary that lists how many should be created.
-        self.num_items = dict()
+        self.num_items = OrderedDict()
         for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
             for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
                 self.num_items[item_key] = int()
@@ -299,7 +300,7 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
     # Create the number of base items required on this page.
     row = 1
     for item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
-        if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["is_subitem"]:
+        if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"] is None:
             for item_number in xrange(instructions.num_items[item_key]):
                 _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                  item_key = item_key, start_row = row, 
