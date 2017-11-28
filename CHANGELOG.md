@@ -3,9 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.0 (2017-11-27): Initial Framework Loading
+## 0.3.0 (2017-11-28): Initial GUI Construction
 
 Features
+- Created a file for implementing a graphical user interface: gui.py
+  This is manually run via a script in the 'tests' directory: run_gui.py
 - Began initial coding for `ProjectFramework` method `importFromFile()`.
   This is simultaneously tested with template creation by: test_framework.py
 

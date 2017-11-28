@@ -116,7 +116,8 @@ class ArgumentTypeError(ValueError):
 def accepts(*arg_types):
     """
     Validates that the arguments of a function are of a specified type.
-    Ignores the zeroth argument if it is 'self', i.e. the function is a method.
+    Ignores the zeroth argument if it is 'self', i.e. the function is an instance method.
+    Does not work with class methods due to non-standard zeroth arguments.
     """
     @decorator.decorator
     def checkAccepts(undecoratedFunction, *args, **kwargs):
