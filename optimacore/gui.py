@@ -6,12 +6,13 @@ Note: Callback functions cannot be easily decorated, so logging is applied per m
 """
 
 from optimacore.system import logUsage, accepts, returns, logger
-from optimacore.framework_io import createFrameworkTemplate
+from optimacore.framework_settings import FrameworkSettings
+from optimacore.framework_io import FrameworkTemplateInstructions, createFrameworkTemplate
 
 import sys
 
 def importPyQt():
-    """ Try to import pyqt, either PyQt4 or PyQt5, but allow it to fail. """
+    """ Try to import PyQt, either PyQt4 or PyQt5, but allow it to fail. """
     try:
         from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
         from PyQt5 import QtCore as qtc
@@ -31,6 +32,7 @@ qtc, qtw, FigureCanvasQTAgg = importPyQt()
 def getPathFromUser(instance = None, load_not_save = True, title = None, file_filter = None):
     """
     Get a path from a file dialog, either related to opening or saving a file.
+    The file filter allows control over the file type being saved or loaded, e.g.: "*.xlsx"
     """
     try:
         if load_not_save:
@@ -131,21 +133,68 @@ class GUIFrameworkTemplate(qtw.QWidget):
     @logUsage
     def initUIFrameworkTemplate(self):
         """ Initializes all UI elements for the framework template GUI. """
-
         self.setWindowTitle("Framework Template Construction")
+        self.resetAttributes()
+        try: self.developLayout()
+        except Exception as e: print repr(e)
+        self.show()
+        
+    @logUsage
+    def resetAttributes(self):   
+        """ Resets all attributes related to this GUI; must be called once at initialization. """
+        self.framework_instructions = FrameworkTemplateInstructions()
+
+    @logUsage
+    def developLayout(self):
+        """ Lays out components of the framework template GUI. """
+
+        layout_framework_instructions = qtw.QGridLayout()
+        self.list_label_item_descriptors = []
+        self.list_spinbox_item_numbers = []
+        item_key_number = 0
+        for item_key in self.framework_instructions.num_items:
+            page_key = FrameworkSettings.ITEM_PAGE_KEY_MAP[item_key]
+            descriptor = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]
+            text_extra = "' items: "
+            if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"] is None:
+                superitem_key = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"]
+                page_key_extra = FrameworkSettings.ITEM_PAGE_KEY_MAP[item_key]
+                descriptor_extra = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]
+                text_extra = "' subitems per '" + descriptor_extra + "' item: "
+            text = "Number of '" + descriptor + text_extra
+            self.list_label_item_descriptors.append(qtw.QLabel(text))
+            self.list_spinbox_item_numbers.append(qtw.QSpinBox())
+            self.list_spinbox_item_numbers[-1].setValue(self.framework_instructions.num_items[item_key])
+            layout_framework_instructions.addWidget(self.list_label_item_descriptors[item_key_number],
+                                                    item_key_number, 0)
+            layout_framework_instructions.addWidget(self.list_spinbox_item_numbers[item_key_number],
+                                                    item_key_number, 1)
+            item_key_number += 1
 
         self.button_create = qtw.QPushButton("Create Framework Template", self)
         self.button_create.clicked.connect(self.slotCreateFrameworkTemplate)
 
-        layout = qtw.QVBoxLayout(self)
-        layout.addWidget(self.button_create)
-        self.setLayout(layout)
+        layout_stretch_vertical = qtw.QSpacerItem(0, 0, qtw.QSizePolicy.Minimum, 
+                                                        qtw.QSizePolicy.Expanding)
+        layout_stretch_horizontal = qtw.QSpacerItem(0, 0, qtw.QSizePolicy.Expanding, 
+                                                          qtw.QSizePolicy.Minimum)
 
-        resizeInScreen(self, fraction_width = GUISettings.DEFAULT_SCREEN_FRACTION_WIDTH, 
-                             fraction_height = GUISettings.DEFAULT_SCREEN_FRACTION_HEIGHT)
+        layout_horizontal = qtw.QHBoxLayout()
+        layout_vertical = qtw.QVBoxLayout()
+        layout_vertical.addItem(layout_stretch_vertical)
+        
+        layout_vertical.addLayout(layout_framework_instructions)
+        layout_vertical.addWidget(self.button_create)
+        
+        layout_vertical.addItem(layout_stretch_vertical)
+        layout_horizontal.addItem(layout_stretch_horizontal)
+        layout_horizontal.addLayout(layout_vertical)
+        layout_horizontal.addItem(layout_stretch_horizontal)
+        self.setLayout(layout_horizontal)
+
+#        resizeInScreen(self, fraction_width = GUISettings.DEFAULT_SCREEN_FRACTION_WIDTH, 
+#                             fraction_height = GUISettings.DEFAULT_SCREEN_FRACTION_HEIGHT)
         centerInScreen(self)
-
-        self.show()
         
     def slotCreateFrameworkTemplate(self):
         """ Creates a template framework file at the location specified by the user. """
