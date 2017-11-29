@@ -15,6 +15,43 @@ from collections import OrderedDict
 import xlsxwriter as xw
     
 
+@applyToAllMethods(logUsage)
+class FrameworkTemplateInstructions(object):
+    """ An object that stores instructions for how many page-items should be created during template framework construction. """
+    
+    def __init__(self, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE):
+        """ Initialize instructions that detail how to construct a template framework. """
+        self.name = str()
+        # Every page-item must be included in a dictionary that lists how many should be created.
+        self.num_items = OrderedDict()
+        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
+            for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
+                self.num_items[item_key] = int()
+        self.loadPreset(template_type = template_type)
+        
+    @accepts(str)
+    def loadPreset(self, template_type):
+        """ Based on hard-coded template types, determine how many page-items should be created. """
+        logger.info("Loading template framework instructions of type '{0}'.".format(template_type))
+        if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
+            self.name = template_type       # The name of the object is currently just the template type.
+            self.num_items["attitem"] = 4
+            self.num_items["optitem"] = 3
+            self.num_items["compitem"] = 10
+            self.num_items["characitem"] = 7
+            self.num_items["paritem"] = 20
+            self.num_items["progitem"] = 6
+            self.num_items["progattitem"] = 3
+        return
+                          
+    @accepts(str,int)
+    def updateNumberOfItems(self, item_key, number):
+        """ Overwrite the number of items that this object will instruct a template framework creation to produce. """
+        try: self.num_items[item_key] = number
+        except:
+            logger.exception("An attempted update of framework instructions '{0}' to produce '{1}' instances of item-key '{2}' failed.".format(self.name, number, item_key))
+            raise
+        return
 
 @logUsage
 @accepts(xw.Workbook)
@@ -103,35 +140,6 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
         # Adjust column width and continue to the next one.
         framework_page.set_column(col, col, format_variables["column_width"])
     return framework_page
-
-
-@applyToAllMethods(logUsage)
-class FrameworkTemplateInstructions(object):
-    """ An object that stores instructions for how many page-items should be created during template framework construction. """
-    
-    def __init__(self, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE):
-        """ Initialize instructions that detail how to construct a template framework. """
-        self.name = str()
-        # Every page-item must be included in a dictionary that lists how many should be created.
-        self.num_items = OrderedDict()
-        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
-            for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
-                self.num_items[item_key] = int()
-        self.loadPreset(template_type = template_type)
-        
-    @accepts(str)
-    def loadPreset(self, template_type):
-        """ Based on hard-coded template types, determine how many page-items should be created. """
-        logger.info("Loading template framework instructions of type '{0}'.".format(template_type))
-        if template_type == SystemSettings.FRAMEWORK_DEFAULT_TYPE:
-            self.name = template_type       # The name of the object is currently just the template type.
-            self.num_items["attitem"] = 4
-            self.num_items["optitem"] = 3
-            self.num_items["compitem"] = 10
-            self.num_items["characitem"] = 7
-            self.num_items["paritem"] = 20
-            self.num_items["progitem"] = 6
-            self.num_items["progattitem"] = 3
 
 
 @logUsage
@@ -275,7 +283,7 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
                                                           If left as None, they will be regenerated in this function.
                                                           The keys are listed in framework settings and the values are floats.
     """
-    if instructions is None: instructions = FrameworkTemplateInstructions(template_type = template_type)
+    if instructions is None: instructions = FrameworkTemplateInstructions()
     
     # Determine the title of this page and generate it.
     # This should have been successfully extracted from a configuration file during framework-settings definition.
@@ -300,7 +308,7 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
     # Create the number of base items required on this page.
     row = 1
     for item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
-        if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"] is None:
+        if FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"] is None:
             for item_number in xrange(instructions.num_items[item_key]):
                 _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                  item_key = item_key, start_row = row, 
@@ -310,18 +318,19 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
 
 @logUsage
 @accepts(str)
-def createFrameworkTemplate(framework_path, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE):
+def createFrameworkTemplate(framework_path, instructions = None, template_type = SystemSettings.FRAMEWORK_DEFAULT_TYPE):
     """
     Creates a template framework file in Excel.
     
     Inputs:
-        framework_path (str)                    - Directory path for intended framework template.
-                                                  Must include filename with extension '.xlsx'.
-        template_type (str)                     - A string that denotes the type of template, e.g. what pages to include.
-                                                  This acts as a preset id, which instructs what default values in file construction should be.
-                                                  A user can specify kwargs to overwrite the template defaults, but the template type denotes baseline values.
+        framework_path (str)                            - Directory path for intended framework template.
+                                                          Must include filename with extension '.xlsx'.
+        instructions (FrameworkTemplateInstructions)    - An object that contains instructions for how many page-items to create.
+        template_type (str)                             - A string that denotes the type of template, e.g. how many page items to include.
+                                                          This acts as a preset id fed into a FrameworkTemplateInstructions object upon initialization.
+                                                          It is only used if instructions were not explicitly provided to this method.
     """
-    instructions = FrameworkTemplateInstructions(template_type = template_type)
+    if instructions is None: instructions = FrameworkTemplateInstructions(template_type = template_type)
     
     # Create a template file and standard formats attached to this file.
     # Also generate default-valued format variables as a dictionary.
