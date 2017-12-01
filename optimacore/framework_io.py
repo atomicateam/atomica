@@ -117,7 +117,7 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
     # Iterate through the keys and construct each corresponding column header.
     column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
     for column_key in column_keys:
-        col = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["default_num"]
+        col = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["default_pos"]
         header_name = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["header"]
         framework_page.write(0, col, header_name, formats["center_bold"])
         
@@ -194,7 +194,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
         column_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
         column_type = column_specs["type"]
-        col = column_specs["default_num"]
+        col = column_specs["default_pos"]
         rc = xw.utility.xl_rowcol_to_cell(row, col)
         
         # Decide what text should be written to each column.

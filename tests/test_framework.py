@@ -29,6 +29,7 @@ class FrameworkTest(unittest.TestCase):
     def test_import(self):
         """  """
         self.proj.getFramework().importFromFile(self.template_filepath)
+        print self.proj.framework.specs
         return None
         
 if __name__ == '__main__':

@@ -23,8 +23,8 @@ def importPyQt():
             from PyQt4 import QtCore as qtc
             from PyQt4 import QtGui as qtw
         except Exception as E:
-            errormsg = "PyQt could not be imported: %s" % E.__repr__()
-            raise Exception(errormsg)
+            error_message = "PyQt could not be imported: %s" % E.__repr__()
+            raise Exception(error_message)
     return  qtc, qtw, FigureCanvasQTAgg
 qtc, qtw, FigureCanvasQTAgg = importPyQt()
 

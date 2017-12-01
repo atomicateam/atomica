@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.3.1 (2017-12-01): Initial Framework Loading
+
+Features
+- Developed `importFromFile()` method to generate a dictionary of specifications for page-items.
+
 ## 0.3.0 (2017-11-29): Initial GUI Construction
 
 Features
@@ -12,9 +17,6 @@ Features
   The user can select a number of page-items to create, which updates a GUI-attached `FrameworkTemplateInstructions` object on the fly.
 - Began initial coding for `ProjectFramework` method `importFromFile()`.
   This is simultaneously tested with template creation by: test_framework.py
-
-Edits
-- 
 
 ## 0.2.3 (2017-11-27): Improved Framework Templating Pre-filling
 
