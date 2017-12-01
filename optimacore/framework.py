@@ -5,11 +5,12 @@ Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 
-from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns
+from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
 from optimacore.framework_settings import FrameworkSettings
 
 import os
 import xlrd
+from collections import OrderedDict
 
 @applyToAllMethods(logUsage)
 class ProjectFramework(object):
@@ -17,7 +18,15 @@ class ProjectFramework(object):
     
     def __init__(self):
         """ Initialize the framework. """
+        # Specifications are keyed by pages that have defined page-item types.
+        # Each fundamental page-item and its subitems provide the data to construct specifications.
+        # Each set of specifications associated with a core item type is a dictionary keyed by the code name of an item.
+        # The page-item specification dictionaries are kept in order as defined within the file.
         self.specs = dict()
+        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
+            self.specs[page_key] = OrderedDict()
+        
+        # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
         self.semantics = dict()
     
 #    def __repr__(self):
@@ -36,6 +45,72 @@ class ProjectFramework(object):
         except:
             logger.exception("Framework file was not found.")
             raise
+            
+        # Cycle through framework file pages and read them in.
+        for page_key in FrameworkSettings.PAGE_COLUMN_KEYS:
+            try: 
+                page_title = FrameworkSettings.PAGE_SPECS[page_key]["title"]
+                framework_page = framework_file.sheet_by_name(page_title)
+            except:
+                logger.exception("Framework file does not contain a required page titled '{0}'.".format(page_title))
+                raise
+            
+            # Determine the fundamental page-item associated with this page.
+            try: core_item_key = FrameworkSettings.PAGE_ITEM_KEYS[page_key][0]
+            except:
+                logger.warning("Framework settings do not list a page-item key associated with the page titled '{0}'. "
+                               "Continuing to the next page.".format(page_title))
+                continue
+            
+            # Establish a mapping from column header to column positions.
+            header_positions = dict()
+            for col in xrange(framework_page.ncols):
+                header = str(framework_page.cell_value(0, col))
+                if not header == "":
+                    if header in header_positions:
+                        error_message = "Framework file page '{0}' appears to have multiple columns headed by '{1}'.".format(page_title, header)
+                        logger.exception(error_message)
+                        raise OptimaException(error_message)
+                    header_positions[header] = col
+                             
+            # Check that the fundamental page-item on this page has requisite name and label columns to scan.
+            try: 
+                core_name_key = FrameworkSettings.PAGE_ITEM_SPECS[page_key][core_item_key]["key_name"]
+                core_name_header = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][core_name_key]["header"]
+            except:
+                logger.exception("Cannot locate the column header on framework page '{0}' associated with 'names' "
+                                 "for the page-item keyed by '{1}'.".format(page_title, core_item_key))
+                raise
+            try: 
+                core_label_key = FrameworkSettings.PAGE_ITEM_SPECS[page_key][core_item_key]["key_label"]
+                core_label_header = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][core_label_key]["header"]
+            except:
+                logger.exception("Cannot locate the column header on framework page '{0}' associated with 'labels' "
+                                 "for the page-item keyed by '{1}'.".format(page_title, core_item_key))
+                raise
+                
+            # Scan through the rows of the page and update relevant specification dictionaries.
+            for row in xrange(framework_page.nrows):
+                if row == 0: continue   # Ignore the header row.
+                try:
+                    pos_name = header_positions[core_name_header]
+                    pos_label = header_positions[core_label_header]
+                    name = str(framework_page.cell_value(row, pos_name))
+                    label = str(framework_page.cell_value(row, pos_label))
+                    if name == "" or label == "": continue
+                    for term in [name, label]:
+                        if term in self.semantics:
+                            error_message = ("Framework file has a term '{0}' on page '{1}' that was defined previously. "
+                                             "Duplicate terms are not allowed.".format(term, page_title))
+                            logger.error(error_message)
+                            raise OptimaException(error_message)
+                        self.semantics[term] = dict()
+                    self.specs[page_key][name] = {"label":label}
+                except:
+                    logger.exception("Importing framework file into framework specifications failed on page '{0}.".format(page_title))
+                    raise
+                    
+                    
             
         logger.info("Optima Core framework successfully imported.")
         

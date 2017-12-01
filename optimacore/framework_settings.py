@@ -69,6 +69,7 @@ class FrameworkSettings(object):
     
     # Likewise construct a key dictionary mapping pages to abstract page-items that appear on these pages.
     # Unlike with page columns, page items need unique keys even if associated with different pages.
+    # Note: The order of item keys is also important as importing files will start scans through columns associated with the first, i.e. core, item-key.
     PAGE_ITEM_KEYS = OrderedDict()
     for page_key in PAGE_COLUMN_KEYS: PAGE_ITEM_KEYS[page_key] = []
     PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
@@ -103,9 +104,9 @@ class FrameworkSettings(object):
         column_count = 0
         for column_key in PAGE_COLUMN_KEYS[page_key]:
             PAGE_COLUMN_SPECS[page_key][column_key] = dict()
-            # Associate each column with a position number for easy reference.
+            # Associate each column with a position value for easy reference.
             # This is a default number for template creation; column positions may be different in loaded framework files.
-            PAGE_COLUMN_SPECS[page_key][column_key]["default_num"] = column_count
+            PAGE_COLUMN_SPECS[page_key][column_key]["default_pos"] = column_count
             PAGE_COLUMN_SPECS[page_key][column_key]["type"] = None
             column_count += 1
     PAGE_COLUMN_SPECS["poptype"]["attlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
