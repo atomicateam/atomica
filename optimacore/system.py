@@ -36,6 +36,7 @@ class SystemSettings(object):
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
     EXCEL_IO_DEFAULT_COLUMN_WIDTH = 20
+    EXCEL_FILE_EXTENSION = ".xlsx"
     
 
 #%% Code for determining module installation directory.
