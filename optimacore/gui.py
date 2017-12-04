@@ -5,7 +5,7 @@ Contains back-end GUI wrappers for codebase functionality.
 Note: Callback functions cannot be easily decorated, so logging is applied per method, not per class.
 """
 
-from optimacore.system import logUsage, accepts, returns, logger
+from optimacore.system import logUsage, accepts, returns, logger, SystemSettings
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.framework_io import FrameworkTemplateInstructions, createFrameworkTemplate
 
@@ -220,7 +220,10 @@ class GUIFrameworkTemplate(qtw.QWidget):
         
     def slotCreateFrameworkTemplate(self):
         """ Creates a template framework file at the location specified by the user. """
-        framework_path = getSavePathFromUser(file_filter = "*.xlsx")
+        framework_path = getSavePathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
+        if not framework_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
+            logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
+            return
         try: createFrameworkTemplate(framework_path = framework_path, instructions = self.framework_instructions)
         except:
             logger.exception("Framework template construction has failed.")
