@@ -77,11 +77,11 @@ class ProjectFramework(object):
         row = start_row
         try:
             name_key = FrameworkSettings.ITEM_SPECS[item_key]["key_name"]
-            name_header = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][name_key]["header"]
+            name_header = FrameworkSettings.COLUMN_SPECS[name_key]["header"]
             name_pos = header_positions[name_header]
             name = str(framework_page.cell_value(row, name_pos))
             label_key = FrameworkSettings.ITEM_SPECS[item_key]["key_label"]
-            label_header = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][label_key]["header"]
+            label_header = FrameworkSettings.COLUMN_SPECS[label_key]["header"]
             label_pos = header_positions[label_header]
             label = str(framework_page.cell_value(row, label_pos))
         except:
@@ -131,14 +131,14 @@ class ProjectFramework(object):
             # Check that the fundamental page-item on this page has requisite name and label columns to scan.
             try: 
                 core_name_key = FrameworkSettings.ITEM_SPECS[core_item_key]["key_name"]
-                core_name_header = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][core_name_key]["header"]
+                core_name_header = FrameworkSettings.COLUMN_SPECS[core_name_key]["header"]
             except:
                 logger.exception("Cannot locate the column header on framework page '{0}' associated with 'names' "
                                  "for the page-item keyed by '{1}'.".format(page_title, core_item_key))
                 raise
             try: 
                 core_label_key = FrameworkSettings.ITEM_SPECS[core_item_key]["key_label"]
-                core_label_header = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][core_label_key]["header"]
+                core_label_header = FrameworkSettings.COLUMN_SPECS[core_label_key]["header"]
             except:
                 logger.exception("Cannot locate the column header on framework page '{0}' associated with 'labels' "
                                  "for the page-item keyed by '{1}'.".format(page_title, core_item_key))

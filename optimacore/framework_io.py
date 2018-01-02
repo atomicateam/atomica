@@ -117,8 +117,8 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
     # Iterate through the keys and construct each corresponding column header.
     column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
     for column_key in column_keys:
-        col = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["default_pos"]
-        header_name = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["header"]
+        col = FrameworkSettings.COLUMN_SPECS[column_key]["default_pos"]
+        header_name = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
         framework_page.write(0, col, header_name, formats["center_bold"])
         
         # Propagate pagewide format variable values to column-wide format variable values.
@@ -127,12 +127,12 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
         if format_variables is None: format_variables = createDefaultFormatVariables()
         else: format_variables = dcp(format_variables)
         for format_variable_key in format_variables.keys():
-            if format_variable_key in FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]:
-                format_variables[format_variable_key] = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key][format_variable_key]
+            if format_variable_key in FrameworkSettings.COLUMN_SPECS[column_key]:
+                format_variables[format_variable_key] = FrameworkSettings.COLUMN_SPECS[column_key][format_variable_key]
         
         # Comment the column header if a comment was pulled into framework settings from a configuration file.
-        if "comment" in FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]:
-            header_comment = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]["comment"]
+        if "comment" in FrameworkSettings.COLUMN_SPECS[column_key]:
+            header_comment = FrameworkSettings.COLUMN_SPECS[column_key]["comment"]
             framework_page.write_comment(0, col, header_comment, 
                                          {"x_scale": format_variables["comment_xscale"], 
                                           "y_scale": format_variables["comment_yscale"]})
@@ -192,7 +192,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
     # Iterate through page columns if part of a page-item and fill them with default values according to type.
     for column_key in column_keys:
         if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
-        column_specs = FrameworkSettings.PAGE_COLUMN_SPECS[page_key][column_key]
+        column_specs = FrameworkSettings.COLUMN_SPECS[column_key]
         column_type = column_specs["type"]
         col = column_specs["default_pos"]
         rc = xw.utility.xl_rowcol_to_cell(row, col)
