@@ -9,6 +9,9 @@ Features
 - Developed `importFromFile()` method to generate a dictionary of specifications for page-items in initial form.
 - Developed a `ProjectFramework.semantics` attribute as a basis for linking user-supplied terms to specifications.
 
+Edits
+- Slimmed down FrameworkSettings notation by eliminating page keys for items and columns.
+
 ## 0.3.0 (2017-11-29): Initial GUI Construction
 
 Features

@@ -58,19 +58,18 @@ class FrameworkSettings(object):
     # Construct an ordered list of keys representing pages.
     PAGE_KEYS = ["poptype","comp","trans","charac","par","progtype"]
     
-    # Construct a dictionary mapping each page-key to a list of keys representing columns.
+    # Construct a dictionary mapping each page-key to a list of unique keys representing columns.
     # This ordering describes how a framework template will be constructed.
-    # There is no restriction in using the same column key for different page keys.
     PAGE_COLUMN_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_COLUMN_KEYS[page_key] = []
-    PAGE_COLUMN_KEYS["poptype"] = ["attlabel","attname","optlabel","optname"]
-    PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
-    PAGE_COLUMN_KEYS["charac"] = ["label","name"]
-    PAGE_COLUMN_KEYS["par"] = ["label","name","trans"]
-    PAGE_COLUMN_KEYS["progtype"] = ["label","name","attlabel","attname"]
+    PAGE_COLUMN_KEYS["poptype"] = ["popattlabel","popattname","popoptlabel","popoptname"]
+    PAGE_COLUMN_KEYS["comp"] = ["complabel","compname","sourcetag","sinktag","junctiontag"]
+    PAGE_COLUMN_KEYS["charac"] = ["characlabel","characname"]
+    PAGE_COLUMN_KEYS["par"] = ["parlabel","parname","transid"]
+    PAGE_COLUMN_KEYS["progtype"] = ["progtypelabel","progtypename","progattlabel","progattname"]
     
     # Likewise construct a key dictionary mapping pages to abstract items that appear on these pages.
-    # Unlike with columns, items need unique keys even if associated with different pages.
+    # Like with columns, items need unique keys even if associated with different pages.
     # Note: The order of item keys is also important as importing files will start scans through columns associated with the first, i.e. core, item-key.
     PAGE_ITEM_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_ITEM_KEYS[page_key] = []
@@ -79,13 +78,6 @@ class FrameworkSettings(object):
     PAGE_ITEM_KEYS["charac"] = ["characitem"]
     PAGE_ITEM_KEYS["par"] = ["paritem"]
     PAGE_ITEM_KEYS["progtype"] = ["progitem","progattitem"]
-    
-#    # Reverse the page-item key dictionary.
-#    ITEM_PAGE_KEY = dict()
-#    for page_key in PAGE_ITEM_KEYS:
-#        for item_key in PAGE_ITEM_KEYS[page_key]:
-#            if item_key in ITEM_PAGE_KEY: raise OptimaException("Framework settings use the same key '{0}' for multiple framework items.".format(item_key))
-#            ITEM_PAGE_KEY[item_key] = page_key
     
     # Create key semantics for types that columns can be.
     COLUMN_TYPE_KEY_LABEL = "label"
@@ -100,26 +92,25 @@ class FrameworkSettings(object):
     # Construct a dictionary of specifications detailing how to construct pages and page columns.
     # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
     PAGE_SPECS = OrderedDict()
-    PAGE_COLUMN_SPECS = OrderedDict()
+    COLUMN_SPECS = OrderedDict()
     for page_key in PAGE_KEYS:
         PAGE_SPECS[page_key] = dict()  
-        PAGE_COLUMN_SPECS[page_key] = OrderedDict()
         column_count = 0
         for column_key in PAGE_COLUMN_KEYS[page_key]:
-            PAGE_COLUMN_SPECS[page_key][column_key] = dict()
+            COLUMN_SPECS[column_key] = dict()
             # Associate each column with a position value for easy reference.
             # This is a default number for template creation; column positions may be different in loaded framework files.
-            PAGE_COLUMN_SPECS[page_key][column_key]["default_pos"] = column_count
-            PAGE_COLUMN_SPECS[page_key][column_key]["type"] = None
+            COLUMN_SPECS[column_key]["default_pos"] = column_count
+            COLUMN_SPECS[column_key]["type"] = None
             column_count += 1
             # For convenience, do default typing based on column key here.
             for column_type_key in COLUMN_TYPE_KEYS:
                 if column_key.endswith(column_type_key):
-                     PAGE_COLUMN_SPECS[page_key][column_key]["type"] = column_type_key
+                     COLUMN_SPECS[column_key]["type"] = column_type_key
     # Non-default types should overwrite defaults here.
-    PAGE_COLUMN_SPECS["comp"]["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH
-    PAGE_COLUMN_SPECS["comp"]["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH
-    PAGE_COLUMN_SPECS["comp"]["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    COLUMN_SPECS["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    COLUMN_SPECS["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    COLUMN_SPECS["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH
     
     # A mapping from item descriptors to keys.
     ITEM_DESCRIPTOR_KEY = dict()
@@ -147,35 +138,35 @@ class FrameworkSettings(object):
             ITEM_DESCRIPTOR_KEY[ITEM_SPECS[item_key]["descriptor"]] = item_key   # Map default descriptors to keys.
     # Define a default population attribute item.
     ITEM_SPECS["attitem"]["inc_not_exc"] = True
-    ITEM_SPECS["attitem"]["column_keys"] = ["attlabel","attname"]
-    ITEM_SPECS["attitem"]["key_label"] = "attlabel"
-    ITEM_SPECS["attitem"]["key_name"] = "attname"
+    ITEM_SPECS["attitem"]["column_keys"] = ["popattlabel","popattname"]
+    ITEM_SPECS["attitem"]["key_label"] = "popattlabel"
+    ITEM_SPECS["attitem"]["key_name"] = "popattname"
     ITEM_SPECS["attitem"]["subitem_keys"] = ["optitem"]
     # Define a default population option item, which is a subitem of a population attribute.
-    ITEM_SPECS["optitem"]["column_keys"] = ["attlabel","attname"]
-    ITEM_SPECS["optitem"]["key_label"] = "optlabel"
-    ITEM_SPECS["optitem"]["key_name"] = "optname"
+    ITEM_SPECS["optitem"]["column_keys"] = ["popattlabel","popattname"]
+    ITEM_SPECS["optitem"]["key_label"] = "popoptlabel"
+    ITEM_SPECS["optitem"]["key_name"] = "popoptname"
     ITEM_SPECS["optitem"]["superitem_key"] = "attitem"
     # Define a default compartment item.
-    ITEM_SPECS["compitem"]["key_label"] = "label"
-    ITEM_SPECS["compitem"]["key_name"] = "name"
+    ITEM_SPECS["compitem"]["key_label"] = "complabel"
+    ITEM_SPECS["compitem"]["key_name"] = "compname"
     # Define a default characteristic item.
-    ITEM_SPECS["characitem"]["key_label"] = "label"
-    ITEM_SPECS["characitem"]["key_name"] = "name"
+    ITEM_SPECS["characitem"]["key_label"] = "characlabel"
+    ITEM_SPECS["characitem"]["key_name"] = "characname"
     # Define a default parameter item.
-    ITEM_SPECS["paritem"]["key_label"] = "label"
-    ITEM_SPECS["paritem"]["key_name"] = "name"
+    ITEM_SPECS["paritem"]["key_label"] = "parlabel"
+    ITEM_SPECS["paritem"]["key_name"] = "parname"
     # Define a default program type item.
     ITEM_SPECS["progitem"]["inc_not_exc"] = True
-    ITEM_SPECS["progitem"]["column_keys"] = ["label","name"]
-    ITEM_SPECS["progitem"]["key_label"] = "label"
-    ITEM_SPECS["progitem"]["key_name"] = "name"
+    ITEM_SPECS["progitem"]["column_keys"] = ["progtypelabel","progtypename"]
+    ITEM_SPECS["progitem"]["key_label"] = "progtypelabel"
+    ITEM_SPECS["progitem"]["key_name"] = "progtypename"
     ITEM_SPECS["progitem"]["subitem_keys"] = ["progattitem"]
     # Define a default program type attribute item.
     ITEM_SPECS["progattitem"]["inc_not_exc"] = True
-    ITEM_SPECS["progattitem"]["column_keys"] = ["attlabel","attname"]
-    ITEM_SPECS["progattitem"]["key_label"] = "attlabel"
-    ITEM_SPECS["progattitem"]["key_name"] = "attname"
+    ITEM_SPECS["progattitem"]["column_keys"] = ["progattlabel","progattname"]
+    ITEM_SPECS["progattitem"]["key_label"] = "progattlabel"
+    ITEM_SPECS["progattitem"]["key_name"] = "progattname"
     ITEM_SPECS["progattitem"]["superitem_key"] = "progitem"
     
                    
@@ -212,23 +203,23 @@ class FrameworkSettings(object):
             # Flesh out page column details.
             for column_key in cls.PAGE_COLUMN_KEYS[page_key]:
                 # Read in required column header.
-                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["header"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "header")
+                try: cls.COLUMN_SPECS[column_key]["header"] = getConfigValue(config = cp, section = "_".join(["column",column_key]), option = "header")
                 except:
                     logger.exception("Framework configuration loading process failed. Every column in a framework page needs a header.")
                     raise
                 # Read in optional column comment.
-                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["comment"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "comment")
+                try: cls.COLUMN_SPECS[column_key]["comment"] = getConfigValue(config = cp, section = "_".join(["column",column_key]), option = "comment")
                 except: pass
                 # Read in optional prefix that will prepend default text written into this column.
-                try: cls.PAGE_COLUMN_SPECS[page_key][column_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = "prefix", mute_warnings = True)
+                try: cls.COLUMN_SPECS[column_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["column",column_key]), option = "prefix", mute_warnings = True)
                 except: pass
                 # Read in optional column format variables.
                 for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
                     try: 
-                        value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",page_key,column_key]), option = format_variable_key, mute_warnings = True))
-                        cls.PAGE_COLUMN_SPECS[page_key][column_key][format_variable_key] = value_overwrite
-                    except ValueError: logger.warn("Framework configuration file for page-key '{0}', column-key '{1}', has an entry for '{2}' " 
-                                                   "that cannot be converted to a float. Using a default value.".format(page_key, column_key, format_variable_key))
+                        value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",column_key]), option = format_variable_key, mute_warnings = True))
+                        cls.COLUMN_SPECS[column_key][format_variable_key] = value_overwrite
+                    except ValueError: logger.warn("Framework configuration file for column-key '{0}' has an entry for '{1}' " 
+                                                   "that cannot be converted to a float. Using a default value.".format(column_key, format_variable_key))
                     except: pass
             
         # Flesh out item details.
@@ -241,8 +232,6 @@ class FrameworkSettings(object):
             del cls.ITEM_DESCRIPTOR_KEY[old_descriptor]
             cls.ITEM_SPECS[item_key]["descriptor"] = descriptor
             cls.ITEM_DESCRIPTOR_KEY[descriptor] = item_key
-        
-        print cls.PAGE_SPECS
         
         logger.info("Optima Core framework settings successfully generated.") 
         return
