@@ -91,7 +91,7 @@ def createEmptyPageItemAttributes():
                         Opening in an external application is required in order to process the equations and references.
     """
     item_attributes = dict()
-    for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+    for attribute in FrameworkSettings.ITEM_ATTRIBUTES:
         item_attributes[attribute] = {"cell":None, "value":None, "backup":None}
     return item_attributes
 
@@ -168,11 +168,11 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
                                                   Is useful to provide for page-items that involve subitems and multiple rows.
     """
     # Check if specifications for this page-item exist, associated with the appropriate page-key.
-    if not item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
+    if not item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
         logger.exception("A framework page with key '{0}' was instructed to create a page-item with key '{1}', despite no relevant page-item "
                          "specifications existing in framework settings. Abandoning framework file construction.".format(page_key,item_key))
         raise KeyError(item_key)
-    item_specs = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]
+    item_specs = FrameworkSettings.ITEM_SPECS[item_key]
     
     # Initialize requisite values for the upcoming process.
     cell_format = formats["center"]
@@ -219,7 +219,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         # Check if this page-item has a superitem and if the column being constructed is considered an important attribute.
         # If so, the column text may be improved to reference any corresponding attributes of its superitem.
         if not superitem_attributes is None:
-            for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+            for attribute in FrameworkSettings.ITEM_ATTRIBUTES:
                 if column_key == item_specs["key_"+attribute]:
                     backup = superitem_attributes[attribute]["backup"]
                     if not backup is None: 
@@ -237,7 +237,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
                         pass
         
         # Update attribute dictionary if constructing a column that is marked in framework settings as a page-item attribute.
-        for attribute in FrameworkSettings.PAGE_ITEM_ATTRIBUTES:
+        for attribute in FrameworkSettings.ITEM_ATTRIBUTES:
             if column_key == item_specs["key_"+attribute]:
                 item_attributes[attribute]["cell"] = xw.utility.xl_rowcol_to_cell(row, col)
                 item_attributes[attribute]["value"] = text
@@ -306,9 +306,10 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
                                formats = formats, format_variables = format_variables)
     
     # Create the number of base items required on this page.
+    # Officially, the initial item key per page is that of the core item-type, but this generic code works for all items without superitems.
     row = 1
-    for item_key in FrameworkSettings.PAGE_ITEM_SPECS[page_key]:
-        if FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"] is None:
+    for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
+        if FrameworkSettings.ITEM_SPECS[item_key]["superitem_key"] is None:
             for item_number in xrange(instructions.num_items[item_key]):
                 _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                  item_key = item_key, start_row = row, 
