@@ -5,7 +5,7 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from optimacore.system import logUsage, accepts
+from optimacore.system import logUsage, accepts, OptimaException
 from optimacore.system import logger, SystemSettings, getOptimaCorePath
 
 from collections import OrderedDict
@@ -51,18 +51,20 @@ def loadConfigFile(undecorated_class):
 class FrameworkSettings(object):
     """
     Stores the definitions used in creating and reading framework files.
-    Some of this is hard-coded and any changes risk disrupting framework operations.
-    The rest is parsed from a framework configuration file during the module import phase.
+    Structure is hard-coded and any changes risk disrupting framework operations.
+    Many semantics are parsed from a framework configuration file during the module import phase.
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
-    # Construct a dictionary with ordered keys representing pages.
-    # Each page-key corresponds to a list of keys representing columns.
-    # These orders describe how a framework template will be constructed.
+    # Construct an ordered list of keys representing pages.
+    PAGE_KEYS = ["poptype","comp","trans","charac","par","progtype"]
+    
+    # Construct a dictionary mapping each page-key to a list of keys representing columns.
+    # This ordering describes how a framework template will be constructed.
     # There is no restriction in using the same column key for different page keys.
     PAGE_COLUMN_KEYS = OrderedDict()
+    for page_key in PAGE_KEYS: PAGE_COLUMN_KEYS[page_key] = []
     PAGE_COLUMN_KEYS["poptype"] = ["attlabel","attname","optlabel","optname"]
     PAGE_COLUMN_KEYS["comp"] = ["label","name","sourcetag","sinktag","junctiontag"]
-    PAGE_COLUMN_KEYS["trans"] = []
     PAGE_COLUMN_KEYS["charac"] = ["label","name"]
     PAGE_COLUMN_KEYS["par"] = ["label","name","trans"]
     PAGE_COLUMN_KEYS["progtype"] = ["label","name","attlabel","attname"]
@@ -71,7 +73,7 @@ class FrameworkSettings(object):
     # Unlike with page columns, page items need unique keys even if associated with different pages.
     # Note: The order of item keys is also important as importing files will start scans through columns associated with the first, i.e. core, item-key.
     PAGE_ITEM_KEYS = OrderedDict()
-    for page_key in PAGE_COLUMN_KEYS: PAGE_ITEM_KEYS[page_key] = []
+    for page_key in PAGE_KEYS: PAGE_ITEM_KEYS[page_key] = []
     PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
     PAGE_ITEM_KEYS["comp"] = ["compitem"]
     PAGE_ITEM_KEYS["charac"] = ["characitem"]
@@ -79,16 +81,17 @@ class FrameworkSettings(object):
     PAGE_ITEM_KEYS["progtype"] = ["progitem","progattitem"]
     
     # Reverse the page-item key dictionary.
-    # Is called a 'map' to emphasise the 1-to-1 pairing, rather than referencing lists.
-    ITEM_PAGE_KEY_MAP = dict()
-    for page_key in PAGE_ITEM_KEYS:
+    ITEM_PAGE_KEY = dict()
+    for page_key in PAGE_KEYS:
         for item_key in PAGE_ITEM_KEYS[page_key]:
-            ITEM_PAGE_KEY_MAP[item_key] = page_key
+            if item_key in ITEM_PAGE_KEY: raise OptimaException("Framework settings use the same key '{0}' for multiple framework items.".format(item_key))
+            ITEM_PAGE_KEY[item_key] = page_key
     
     # Create key semantics for types that columns can be.
     COLUMN_TYPE_KEY_LABEL = "label"
     COLUMN_TYPE_KEY_NAME = "name"
     COLUMN_TYPE_KEY_SWITCH = "switch"
+    COLUMN_TYPE_KEYS = [COLUMN_TYPE_KEY_LABEL, COLUMN_TYPE_KEY_NAME, COLUMN_TYPE_KEY_SWITCH]
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
@@ -98,7 +101,7 @@ class FrameworkSettings(object):
     # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
     PAGE_SPECS = OrderedDict()
     PAGE_COLUMN_SPECS = OrderedDict()
-    for page_key in PAGE_COLUMN_KEYS:
+    for page_key in PAGE_KEYS:
         PAGE_SPECS[page_key] = dict()  
         PAGE_COLUMN_SPECS[page_key] = OrderedDict()
         column_count = 0
@@ -109,26 +112,17 @@ class FrameworkSettings(object):
             PAGE_COLUMN_SPECS[page_key][column_key]["default_pos"] = column_count
             PAGE_COLUMN_SPECS[page_key][column_key]["type"] = None
             column_count += 1
-    PAGE_COLUMN_SPECS["poptype"]["attlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["poptype"]["attname"]["type"] = COLUMN_TYPE_KEY_NAME
-    PAGE_COLUMN_SPECS["poptype"]["optlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["poptype"]["optname"]["type"] = COLUMN_TYPE_KEY_NAME
-    PAGE_COLUMN_SPECS["comp"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["comp"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
+            # For convenience, do default typing based on column key here.
+            for column_type_key in COLUMN_TYPE_KEYS:
+                if column_key.endswith(column_type_key):
+                     PAGE_COLUMN_SPECS[page_key][column_key]["type"] = column_type_key
+    # Non-default types should overwrite defaults here.
     PAGE_COLUMN_SPECS["comp"]["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH
     PAGE_COLUMN_SPECS["comp"]["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH
     PAGE_COLUMN_SPECS["comp"]["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH
-    PAGE_COLUMN_SPECS["charac"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["charac"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
-    PAGE_COLUMN_SPECS["par"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["par"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
-    PAGE_COLUMN_SPECS["progtype"]["label"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["progtype"]["name"]["type"] = COLUMN_TYPE_KEY_NAME
-    PAGE_COLUMN_SPECS["progtype"]["attlabel"]["type"] = COLUMN_TYPE_KEY_LABEL
-    PAGE_COLUMN_SPECS["progtype"]["attname"]["type"] = COLUMN_TYPE_KEY_NAME
     
     # A mapping from item descriptors to keys.
-    ITEM_DESCRIPTOR_KEY_MAP = dict()
+    ITEM_DESCRIPTOR_KEY = dict()
                      
     # Construct a dictionary of specifications detailing how to construct page-items.
     # Warning: Incorrect modifications are particularly dangerous here due to the possibility of broken Excel links and subitem recursions.
@@ -151,7 +145,7 @@ class FrameworkSettings(object):
                                                    "superitem_key":None}
             for attribute in PAGE_ITEM_ATTRIBUTES:
                 PAGE_ITEM_SPECS[page_key][item_key]["key_"+attribute] = None
-            ITEM_DESCRIPTOR_KEY_MAP[PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]] = item_key   # Map default descriptors to keys.
+            ITEM_DESCRIPTOR_KEY[PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]] = item_key   # Map default descriptors to keys.
     # Define a default population attribute item.
     PAGE_ITEM_SPECS["poptype"]["attitem"]["inc_not_exc"] = True
     PAGE_ITEM_SPECS["poptype"]["attitem"]["column_keys"] = ["attlabel","attname"]
@@ -201,7 +195,7 @@ class FrameworkSettings(object):
         cp.read(config_path)
         
         # Flesh out page details.
-        for page_key in cls.PAGE_COLUMN_KEYS:
+        for page_key in cls.PAGE_KEYS:
             # Read in required page title.
             try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
             except:
@@ -239,16 +233,18 @@ class FrameworkSettings(object):
                     except: pass
             
         # Flesh out item details.
-        for item_key in cls.ITEM_PAGE_KEY_MAP:
+        for item_key in cls.ITEM_PAGE_KEY:
             try: descriptor = getConfigValue(config = cp, section = "item_"+item_key, option = "descriptor")
             except:
                 logger.warning("Framework configuration file cannot find a descriptor for item-key '{0}', so the descriptor will be the key itself.".format(item_key))
                 continue
-            page_key = cls.ITEM_PAGE_KEY_MAP[item_key]
+            page_key = cls.ITEM_PAGE_KEY[item_key]
             old_descriptor = cls.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]
-            del cls.ITEM_DESCRIPTOR_KEY_MAP[old_descriptor]
+            del cls.ITEM_DESCRIPTOR_KEY[old_descriptor]
             cls.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"] = descriptor
-            cls.ITEM_DESCRIPTOR_KEY_MAP[descriptor] = item_key
+            cls.ITEM_DESCRIPTOR_KEY[descriptor] = item_key
+        
+        print cls.PAGE_SPECS
         
         logger.info("Optima Core framework settings successfully generated.") 
         return
