@@ -69,8 +69,8 @@ class FrameworkSettings(object):
     PAGE_COLUMN_KEYS["par"] = ["label","name","trans"]
     PAGE_COLUMN_KEYS["progtype"] = ["label","name","attlabel","attname"]
     
-    # Likewise construct a key dictionary mapping pages to abstract page-items that appear on these pages.
-    # Unlike with page columns, page items need unique keys even if associated with different pages.
+    # Likewise construct a key dictionary mapping pages to abstract items that appear on these pages.
+    # Unlike with columns, items need unique keys even if associated with different pages.
     # Note: The order of item keys is also important as importing files will start scans through columns associated with the first, i.e. core, item-key.
     PAGE_ITEM_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_ITEM_KEYS[page_key] = []
@@ -80,12 +80,12 @@ class FrameworkSettings(object):
     PAGE_ITEM_KEYS["par"] = ["paritem"]
     PAGE_ITEM_KEYS["progtype"] = ["progitem","progattitem"]
     
-    # Reverse the page-item key dictionary.
-    ITEM_PAGE_KEY = dict()
-    for page_key in PAGE_KEYS:
-        for item_key in PAGE_ITEM_KEYS[page_key]:
-            if item_key in ITEM_PAGE_KEY: raise OptimaException("Framework settings use the same key '{0}' for multiple framework items.".format(item_key))
-            ITEM_PAGE_KEY[item_key] = page_key
+#    # Reverse the page-item key dictionary.
+#    ITEM_PAGE_KEY = dict()
+#    for page_key in PAGE_ITEM_KEYS:
+#        for item_key in PAGE_ITEM_KEYS[page_key]:
+#            if item_key in ITEM_PAGE_KEY: raise OptimaException("Framework settings use the same key '{0}' for multiple framework items.".format(item_key))
+#            ITEM_PAGE_KEY[item_key] = page_key
     
     # Create key semantics for types that columns can be.
     COLUMN_TYPE_KEY_LABEL = "label"
@@ -124,60 +124,59 @@ class FrameworkSettings(object):
     # A mapping from item descriptors to keys.
     ITEM_DESCRIPTOR_KEY = dict()
                      
-    # Construct a dictionary of specifications detailing how to construct page-items.
+    # Construct a dictionary of specifications detailing framework page-item IO.
     # Warning: Incorrect modifications are particularly dangerous here due to the possibility of broken Excel links and subitem recursions.
-    PAGE_ITEM_ATTRIBUTES = ["label","name"]
-    PAGE_ITEM_SPECS = OrderedDict()     # Order is important when running through subitems.
+    ITEM_ATTRIBUTES = ["label","name"]
+    ITEM_SPECS = OrderedDict()     # Order is important when running through subitems.
     for page_key in PAGE_ITEM_KEYS:
-        PAGE_ITEM_SPECS[page_key] = dict()
         for item_key in PAGE_ITEM_KEYS[page_key]:
-            # Mark the page-item with a string-valued descriptor.
-            # This is technically the user-interface label of an item type, but is called a descriptor to avoid confusion with labels of item instances.
-            PAGE_ITEM_SPECS[page_key][item_key] = {"descriptor":item_key,
-            # Specify whether page-item construction should include or exclude filling out specified columns.
-            # Then specify a list of column keys to be included or excluded when constructing a page-item.
+            # Map item key back to page key and also provide a string-valued descriptor.
+            # This is technically the user-interface label of an item 'type', but is called a descriptor to avoid confusion with labels of item 'instances'.
+            ITEM_SPECS[item_key] = {"page_key":page_key, "descriptor":item_key,
+            # Specify whether page-item IO should include or exclude specified columns.
+            # Then specify a list of column keys to be included or excluded when reading or writing a page-item.
             # Many page-items involve all columns, so the default is to exclude no columns.
-                                                   "inc_not_exc":False, "column_keys":None,
+                                    "inc_not_exc":False, "column_keys":None,
             # Some page-items can be divided into columns and other page-items; the keys of the latter should be listed.
-                                                   "subitem_keys":None, 
+                                    "subitem_keys":None, 
             # In principle page-items have no restriction in producing other page-items.
             # But factory methods will only generate core page-items; all subitems should mark the key of its superitem.
-                                                   "superitem_key":None}
-            for attribute in PAGE_ITEM_ATTRIBUTES:
-                PAGE_ITEM_SPECS[page_key][item_key]["key_"+attribute] = None
-            ITEM_DESCRIPTOR_KEY[PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]] = item_key   # Map default descriptors to keys.
+                                    "superitem_key":None}
+            for attribute in ITEM_ATTRIBUTES:
+                ITEM_SPECS[item_key]["key_"+attribute] = None
+            ITEM_DESCRIPTOR_KEY[ITEM_SPECS[item_key]["descriptor"]] = item_key   # Map default descriptors to keys.
     # Define a default population attribute item.
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["inc_not_exc"] = True
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["column_keys"] = ["attlabel","attname"]
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["key_label"] = "attlabel"
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["key_name"] = "attname"
-    PAGE_ITEM_SPECS["poptype"]["attitem"]["subitem_keys"] = ["optitem"]
+    ITEM_SPECS["attitem"]["inc_not_exc"] = True
+    ITEM_SPECS["attitem"]["column_keys"] = ["attlabel","attname"]
+    ITEM_SPECS["attitem"]["key_label"] = "attlabel"
+    ITEM_SPECS["attitem"]["key_name"] = "attname"
+    ITEM_SPECS["attitem"]["subitem_keys"] = ["optitem"]
     # Define a default population option item, which is a subitem of a population attribute.
-    PAGE_ITEM_SPECS["poptype"]["optitem"]["column_keys"] = ["attlabel","attname"]
-    PAGE_ITEM_SPECS["poptype"]["optitem"]["key_label"] = "optlabel"
-    PAGE_ITEM_SPECS["poptype"]["optitem"]["key_name"] = "optname"
-    PAGE_ITEM_SPECS["poptype"]["optitem"]["superitem_key"] = "attitem"
+    ITEM_SPECS["optitem"]["column_keys"] = ["attlabel","attname"]
+    ITEM_SPECS["optitem"]["key_label"] = "optlabel"
+    ITEM_SPECS["optitem"]["key_name"] = "optname"
+    ITEM_SPECS["optitem"]["superitem_key"] = "attitem"
     # Define a default compartment item.
-    PAGE_ITEM_SPECS["comp"]["compitem"]["key_label"] = "label"
-    PAGE_ITEM_SPECS["comp"]["compitem"]["key_name"] = "name"
+    ITEM_SPECS["compitem"]["key_label"] = "label"
+    ITEM_SPECS["compitem"]["key_name"] = "name"
     # Define a default characteristic item.
-    PAGE_ITEM_SPECS["charac"]["characitem"]["key_label"] = "label"
-    PAGE_ITEM_SPECS["charac"]["characitem"]["key_name"] = "name"
+    ITEM_SPECS["characitem"]["key_label"] = "label"
+    ITEM_SPECS["characitem"]["key_name"] = "name"
     # Define a default parameter item.
-    PAGE_ITEM_SPECS["par"]["paritem"]["key_label"] = "label"
-    PAGE_ITEM_SPECS["par"]["paritem"]["key_name"] = "name"
+    ITEM_SPECS["paritem"]["key_label"] = "label"
+    ITEM_SPECS["paritem"]["key_name"] = "name"
     # Define a default program type item.
-    PAGE_ITEM_SPECS["progtype"]["progitem"]["inc_not_exc"] = True
-    PAGE_ITEM_SPECS["progtype"]["progitem"]["column_keys"] = ["label","name"]
-    PAGE_ITEM_SPECS["progtype"]["progitem"]["key_label"] = "label"
-    PAGE_ITEM_SPECS["progtype"]["progitem"]["key_name"] = "name"
-    PAGE_ITEM_SPECS["progtype"]["progitem"]["subitem_keys"] = ["progattitem"]
+    ITEM_SPECS["progitem"]["inc_not_exc"] = True
+    ITEM_SPECS["progitem"]["column_keys"] = ["label","name"]
+    ITEM_SPECS["progitem"]["key_label"] = "label"
+    ITEM_SPECS["progitem"]["key_name"] = "name"
+    ITEM_SPECS["progitem"]["subitem_keys"] = ["progattitem"]
     # Define a default program type attribute item.
-    PAGE_ITEM_SPECS["progtype"]["progattitem"]["inc_not_exc"] = True
-    PAGE_ITEM_SPECS["progtype"]["progattitem"]["column_keys"] = ["attlabel","attname"]
-    PAGE_ITEM_SPECS["progtype"]["progattitem"]["key_label"] = "attlabel"
-    PAGE_ITEM_SPECS["progtype"]["progattitem"]["key_name"] = "attname"
-    PAGE_ITEM_SPECS["progtype"]["progattitem"]["superitem_key"] = "progitem"
+    ITEM_SPECS["progattitem"]["inc_not_exc"] = True
+    ITEM_SPECS["progattitem"]["column_keys"] = ["attlabel","attname"]
+    ITEM_SPECS["progattitem"]["key_label"] = "attlabel"
+    ITEM_SPECS["progattitem"]["key_name"] = "attname"
+    ITEM_SPECS["progattitem"]["superitem_key"] = "progitem"
     
                    
     @classmethod
@@ -233,15 +232,14 @@ class FrameworkSettings(object):
                     except: pass
             
         # Flesh out item details.
-        for item_key in cls.ITEM_PAGE_KEY:
+        for item_key in cls.ITEM_SPECS:
             try: descriptor = getConfigValue(config = cp, section = "item_"+item_key, option = "descriptor")
             except:
                 logger.warning("Framework configuration file cannot find a descriptor for item-key '{0}', so the descriptor will be the key itself.".format(item_key))
                 continue
-            page_key = cls.ITEM_PAGE_KEY[item_key]
-            old_descriptor = cls.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]
+            old_descriptor = cls.ITEM_SPECS[item_key]["descriptor"]
             del cls.ITEM_DESCRIPTOR_KEY[old_descriptor]
-            cls.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"] = descriptor
+            cls.ITEM_SPECS[item_key]["descriptor"] = descriptor
             cls.ITEM_DESCRIPTOR_KEY[descriptor] = item_key
         
         print cls.PAGE_SPECS
