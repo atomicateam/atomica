@@ -38,7 +38,7 @@ class ProjectFramework(object):
         # Each set of specifications associated with a core item type is a dictionary keyed by the code name of an item.
         # The page-item specification dictionaries are kept in order as defined within the file.
         self.specs = dict()
-        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
+        for page_key in FrameworkSettings.PAGE_KEYS:
             self.specs[page_key] = OrderedDict()
         
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.

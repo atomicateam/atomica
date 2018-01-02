@@ -161,12 +161,12 @@ class GUIFrameworkTemplate(qtw.QWidget):
         # Develop appropriate text for label widgets that describe each page-item type..
         item_key_number = 0
         for item_key in self.framework_instructions.num_items:
-            page_key = FrameworkSettings.ITEM_PAGE_KEY_MAP[item_key]
+            page_key = FrameworkSettings.ITEM_PAGE_KEY[item_key]
             descriptor = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["descriptor"]
             text_extra = "' items: "
             if not FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"] is None:
                 superitem_key = FrameworkSettings.PAGE_ITEM_SPECS[page_key][item_key]["superitem_key"]
-                page_key_extra = FrameworkSettings.ITEM_PAGE_KEY_MAP[superitem_key]
+                page_key_extra = FrameworkSettings.ITEM_PAGE_KEY[superitem_key]
                 descriptor_extra = FrameworkSettings.PAGE_ITEM_SPECS[page_key_extra][superitem_key]["descriptor"]
                 text_extra = "' subitems per '" + descriptor_extra + "' item: "
             text = "Number of '" + descriptor + text_extra
