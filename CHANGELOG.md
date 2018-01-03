@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.1 (2017-12-04): Initial Framework Loading
+## 0.3.1 (2018-01-03): Initial Framework Loading
 
 Features
 - Developed `importFromFile()` method to generate a dictionary of specifications for page-items in initial form.
