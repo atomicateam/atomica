@@ -97,6 +97,7 @@ class FrameworkSettings(object):
         PAGE_SPECS[page_key] = dict()  
         column_count = 0
         for column_key in PAGE_COLUMN_KEYS[page_key]:
+            if column_key in COLUMN_SPECS: raise OptimaException("Key uniqueness failure. Framework settings specify the same key '{0}' for more than one column.".format(column_key))
             COLUMN_SPECS[column_key] = dict()
             # Associate each column with a position value for easy reference.
             # This is a default number for template creation; column positions may be different in loaded framework files.
@@ -121,6 +122,7 @@ class FrameworkSettings(object):
     ITEM_SPECS = OrderedDict()     # Order is important when running through subitems.
     for page_key in PAGE_ITEM_KEYS:
         for item_key in PAGE_ITEM_KEYS[page_key]:
+            if item_key in ITEM_SPECS: raise OptimaException("Key uniqueness failure. Framework settings specify the same key '{0}' for more than one item type.".format(item_key))
             # Map item key back to page key and also provide a string-valued descriptor.
             # This is technically the user-interface label of an item 'type', but is called a descriptor to avoid confusion with labels of item 'instances'.
             ITEM_SPECS[item_key] = {"page_key":page_key, "descriptor":item_key,

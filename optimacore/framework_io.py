@@ -126,7 +126,7 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
         # Overwrite the page-wide defaults if column-based specifics are available in framework settings.
         if format_variables is None: format_variables = createDefaultFormatVariables()
         else: format_variables = dcp(format_variables)
-        for format_variable_key in format_variables.keys():
+        for format_variable_key in format_variables:
             if format_variable_key in FrameworkSettings.COLUMN_SPECS[column_key]:
                 format_variables[format_variable_key] = FrameworkSettings.COLUMN_SPECS[column_key][format_variable_key]
         
@@ -296,7 +296,7 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
     # Overwrite the file-wide defaults if page-based specifics are available in framework settings.
     if format_variables is None: format_variables = createDefaultFormatVariables()
     else: format_variables = dcp(format_variables)
-    for format_variable_key in format_variables.keys():
+    for format_variable_key in format_variables:
         if format_variable_key in FrameworkSettings.PAGE_SPECS[page_key]:
             format_variables[format_variable_key] = FrameworkSettings.PAGE_SPECS[page_key][format_variable_key]
     
@@ -342,8 +342,7 @@ def createFrameworkTemplate(framework_path, instructions = None, template_type =
     
     # Get the set of keys that refer to framework-file pages.
     # Iterate through them and generate the corresponding pages.
-    page_keys = FrameworkSettings.PAGE_COLUMN_KEYS.keys()
-    for page_key in page_keys:
+    for page_key in FrameworkSettings.PAGE_KEYS:
         createFrameworkPage(framework_file = framework_file, page_key = page_key, instructions = instructions, 
                             formats = formats, format_variables = format_variables)
     return framework_file

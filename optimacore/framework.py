@@ -110,7 +110,7 @@ class ProjectFramework(object):
             raise
             
         # Cycle through framework file pages and read them in.
-        for page_key in FrameworkSettings.PAGE_COLUMN_KEYS:
+        for page_key in FrameworkSettings.PAGE_KEYS:
             try: 
                 page_title = FrameworkSettings.PAGE_SPECS[page_key]["title"]
                 framework_page = framework_file.sheet_by_name(page_title)
