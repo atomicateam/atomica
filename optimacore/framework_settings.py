@@ -52,7 +52,7 @@ class FrameworkSettings(object):
     """
     Stores the definitions used in creating and reading framework files.
     Structure is hard-coded and any changes risk disrupting framework operations.
-    Many semantics are parsed from a framework configuration file during the module import phase.
+    UI semantics are parsed from a framework configuration file during the module import phase.
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
     # Construct an ordered list of keys representing pages.
@@ -82,8 +82,10 @@ class FrameworkSettings(object):
     # Create key semantics for types that columns can be.
     COLUMN_TYPE_KEY_LABEL = "label"
     COLUMN_TYPE_KEY_NAME = "name"
-    COLUMN_TYPE_KEY_SWITCH = "switch"
-    COLUMN_TYPE_KEYS = [COLUMN_TYPE_KEY_LABEL, COLUMN_TYPE_KEY_NAME, COLUMN_TYPE_KEY_SWITCH]
+    COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF = "switch_off"
+    COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON = "switch_on"
+    COLUMN_TYPE_KEYS = [COLUMN_TYPE_KEY_LABEL, COLUMN_TYPE_KEY_NAME, 
+                        COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON]
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
@@ -109,9 +111,9 @@ class FrameworkSettings(object):
                 if column_key.endswith(column_type_key):
                      COLUMN_SPECS[column_key]["type"] = column_type_key
     # Non-default types should overwrite defaults here.
-    COLUMN_SPECS["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH
-    COLUMN_SPECS["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH
-    COLUMN_SPECS["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH
+    COLUMN_SPECS["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
+    COLUMN_SPECS["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
+    COLUMN_SPECS["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
     
     # A mapping from item descriptors to keys.
     ITEM_DESCRIPTOR_KEY = dict()
