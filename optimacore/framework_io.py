@@ -211,8 +211,9 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
             except: pass
             if "prefix" in column_specs:
                 text = column_specs["prefix"] + space + text
-        elif column_type in [FrameworkSettings.COLUMN_TYPE_KEY_SWITCH]:
+        elif column_type in [FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON]:
             validation_source = [SystemSettings.DEFAULT_SYMBOL_NO, SystemSettings.DEFAULT_SYMBOL_YES]
+            if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON: validation_source.reverse()
             text = validation_source[0]
         text_backup = text
         

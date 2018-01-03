@@ -6,6 +6,7 @@ This includes a description of the Markov chain network underlying project dynam
 """
 
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
+from optimacore.system import SystemSettings
 from optimacore.framework_settings import FrameworkSettings
 
 import os
@@ -74,13 +75,15 @@ class ProjectFramework(object):
         """
         if header_positions is None: header_positions = extractHeaderPositionMapping(framework_page)
         
+        item_specs = FrameworkSettings.ITEM_SPECS[item_key]
+        
         row = start_row
         try:
-            name_key = FrameworkSettings.ITEM_SPECS[item_key]["key_name"]
+            name_key = item_specs["key_name"]
             name_header = FrameworkSettings.COLUMN_SPECS[name_key]["header"]
             name_pos = header_positions[name_header]
             name = str(framework_page.cell_value(row, name_pos))
-            label_key = FrameworkSettings.ITEM_SPECS[item_key]["key_label"]
+            label_key = item_specs["key_label"]
             label_header = FrameworkSettings.COLUMN_SPECS[label_key]["header"]
             label_pos = header_positions[label_header]
             label = str(framework_page.cell_value(row, label_pos))
@@ -94,6 +97,35 @@ class ProjectFramework(object):
             for term in [name, label]:
                 self.addTermToSemantics(term = term)
             self.specs[page_key][name] = {"label":label}
+            
+            column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
+            item_column_keys = []
+            if not item_specs["column_keys"] is None: item_column_keys = item_specs["column_keys"]
+            if item_specs["inc_not_exc"]: column_keys = item_column_keys
+        
+            for column_key in column_keys:
+                if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
+                if column_key not in [name_key, label_key]:
+                    column_header = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
+                    column_pos = header_positions[column_header]
+                    value = str(framework_page.cell_value(row, column_pos))
+                    column_type = FrameworkSettings.COLUMN_SPECS[column_key]["type"]
+                    if value == "": continue
+                    if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF:
+                        if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
+                        else:
+                            if not value == SystemSettings.DEFAULT_SYMBOL_NO:
+                                logger.warn("Did not recognize symbol '{0}' used for switch-based column with header '{1}' on page with key '{2}'. "
+                                            "Assuming a default of '{3}'.".format(value, column_header, page_key, SystemSettings.DEFAULT_SYMBOL_NO))
+                            continue
+                    if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON:
+                        if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
+                        else:
+                            if not value == SystemSettings.DEFAULT_SYMBOL_YES:
+                                logger.warn("Did not recognize symbol '{0}' used for switch-based column with header '{1}' on page with key '{2}'. "
+                                            "Assuming a default of '{3}'.".format(value, column_header, page_key, SystemSettings.DEFAULT_SYMBOL_YES))
+                            continue
+                    self.specs[page_key][name][column_key] = value
             
         next_row = row + 1 #max(start_row + 1, row)
         return framework_page, next_row

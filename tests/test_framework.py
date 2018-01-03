@@ -15,22 +15,26 @@ class FrameworkTest(unittest.TestCase):
     def setUp(self):
         self.proj = Project()
         self.template_filepath = "./frameworks/framework_template.xlsx"
+        self.example_filepath = "./frameworks/framework_example.xlsx"
 
     def tearDown(self):
         self.proj = None
         
-#class MinimalFramework(FrameworkTest):
-#    """  """
     def test_creation(self):
         """  """
         createFrameworkTemplate(self.template_filepath)
         return None
     
-    def test_import(self):
+    def test_import_template(self):
         """  """
         self.proj.getFramework().importFromFile(self.template_filepath)
-        print self.proj.framework.specs
-        print self.proj.framework.semantics
+        print self.proj.getFramework().specs
+        return None
+    
+    def test_import_example(self):
+        """  """
+        self.proj.getFramework().importFromFile(self.example_filepath)
+#        print self.proj.getFramework().specs["comp"]
         return None
         
 if __name__ == '__main__':
