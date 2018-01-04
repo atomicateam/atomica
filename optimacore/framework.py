@@ -56,7 +56,7 @@ class ProjectFramework(object):
         self.semantics[term] = dict()   # TODO: UPDATE THE VALUE WITH REFERENCES ONCE THE SPECS DICT IS COMPLETE.
 
     @accepts(xlrd.sheet.Sheet,str,str,int)
-    def extractItemSpecsFromPage(self, framework_page, page_key, item_key, start_row, header_positions = None):
+    def extractItemSpecsFromPage(self, framework_page, page_key, item_key, start_row, stop_row = None, header_positions = None, destination_specs = None):
         """
         Extracts specifications for an item from a page in a framework file.
         
@@ -65,8 +65,12 @@ class ProjectFramework(object):
             page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
             item_key (str)                                  - The key denoting the page-item to extract, as defined in framework settings.
             start_row (int)                                 - The row number of the page from which to read the page-item.
+            stop_row (int)                                  - The row number of the page at which page-item extraction is no longer read.
+                                                              This is useful for cutting off subitems of subitems that have overflowed into the rows of the next superitem.
             header_positions (dict)                         - A dictionary mapping column headers to column numbers in the Excel page.
                                                               Is the output of function: extractHeaderPositionMapping()
+            destination_specs (OrderedDict)                 - A reference to a level of the ProjectFramework specifications dictionary.
+                                                              This allows for subitems to be extracted into child branches of the superitem specifications dictionary.
         
         Outputs:
             framework_page (xlrd.sheet.Sheet)       - The Excel sheet from which page-item specifications were extracted.
@@ -74,6 +78,7 @@ class ProjectFramework(object):
                                                       Is useful to provide for page-items that involve subitems and multiple rows.
         """
         if header_positions is None: header_positions = extractHeaderPositionMapping(framework_page)
+        if destination_specs is None: destination_specs = self.specs[page_key]
         
         item_specs = FrameworkSettings.ITEM_SPECS[item_key]
         
@@ -96,12 +101,14 @@ class ProjectFramework(object):
         if not name == "":
             for term in [name, label]:
                 self.addTermToSemantics(term = term)
-            self.specs[page_key][name] = {"label":label}
+            destination_specs[name] = {"label":label}
             
             column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
             item_column_keys = []
             if not item_specs["column_keys"] is None: item_column_keys = item_specs["column_keys"]
             if item_specs["inc_not_exc"]: column_keys = item_column_keys
+            subitem_keys = []
+            if not item_specs["subitem_keys"] is None: subitem_keys = item_specs["subitem_keys"]
         
             for column_key in column_keys:
                 if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
@@ -125,9 +132,25 @@ class ProjectFramework(object):
                                 logger.warn("Did not recognize symbol '{0}' used for switch-based column with header '{1}' on page with key '{2}'. "
                                             "Assuming a default of '{3}'.".format(value, column_header, page_key, SystemSettings.DEFAULT_SYMBOL_YES))
                             continue
-                    self.specs[page_key][name][column_key] = value
+                    destination_specs[name][column_key] = value
             
-        next_row = row + 1 #max(start_row + 1, row)
+            if stop_row is None: stop_row = framework_page.nrows
+            row_after_item = stop_row
+            for row_extra in xrange(stop_row-(start_row+1)):
+                row_check = start_row + 1 + row_extra
+                if not str(framework_page.cell_value(row_check, name_pos)) == "":
+                    row_after_item = row_check
+                    break
+            stop_row = row_after_item
+                
+            for subitem_key in subitem_keys:
+                if not subitem_key in destination_specs[name]: destination_specs[name][subitem_key] = OrderedDict()
+                row_subitem = start_row
+                while row_subitem < row_after_item:
+                    _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_key = subitem_key, start_row = row_subitem, stop_row = row_after_item,
+                                                                   header_positions = header_positions, destination_specs = destination_specs[name][subitem_key])
+            
+        next_row = row_after_item
         return framework_page, next_row
 
     @accepts(str)
