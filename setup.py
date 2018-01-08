@@ -42,6 +42,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'six>=1.11.0',
         'matplotlib>=1.4.2',
         'numpy>=1.10.1',
         'decorator>=4.1.2'

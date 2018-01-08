@@ -13,12 +13,14 @@ import os
 import xlrd
 from collections import OrderedDict
 
+import six.moves as sm
+
 @accepts(xlrd.sheet.Sheet)
 @returns(dict)
 def extractHeaderPositionMapping(excel_page):
     """ Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found. """
     header_positions = dict()
-    for col in xrange(excel_page.ncols):
+    for col in sm.range(excel_page.ncols):
         header = str(excel_page.cell_value(0, col))
         if not header == "":
             if header in header_positions:
@@ -136,7 +138,7 @@ class ProjectFramework(object):
             
             if stop_row is None: stop_row = framework_page.nrows
             row_after_item = stop_row
-            for row_extra in xrange(stop_row-(start_row+1)):
+            for row_extra in sm.range(stop_row-(start_row+1)):
                 row_check = start_row + 1 + row_extra
                 if not str(framework_page.cell_value(row_check, name_pos)) == "":
                     row_after_item = row_check

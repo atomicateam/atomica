@@ -12,6 +12,7 @@ from optimacore.framework_settings import FrameworkSettings
 from copy import deepcopy as dcp
 from collections import OrderedDict
 
+import six.moves as sm
 import xlsxwriter as xw
     
 
@@ -69,11 +70,12 @@ def createStandardExcelFormats(excel_file):
 def createDefaultFormatVariables():
     """
     Establishes framework-file default values for format variables in a dictionary and returns it.
-    The keys are in FrameworkSettings and must match corresponding values in SystemSettings, or an AttributeError will be thrown.
+    Note: Once used exec function here but it is now avoided for Python3 compatibility.
     """
     format_variables = dict()
-    for format_variable_key in FrameworkSettings.FORMAT_VARIABLE_KEYS:
-        exec("format_variables[\"{0}\"] = SystemSettings.EXCEL_IO_DEFAULT_{1}".format(format_variable_key, format_variable_key.upper()))
+    format_variables["column_width"] = SystemSettings.EXCEL_IO_DEFAULT_COLUMN_WIDTH
+    format_variables["comment_xscale"] = SystemSettings.EXCEL_IO_DEFAULT_COMMENT_XSCALE
+    format_variables["comment_yscale"] = SystemSettings.EXCEL_IO_DEFAULT_COMMENT_YSCALE
     return format_variables
 
 @logUsage
@@ -205,10 +207,13 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         # Name and label columns can prefix the item number and use fancy separators.
         if column_type in [FrameworkSettings.COLUMN_TYPE_KEY_LABEL, FrameworkSettings.COLUMN_TYPE_KEY_NAME]:
             text = str(item_number)     # The default is the number of this item.
-            try:
-                exec("space = SystemSettings.DEFAULT_SPACE_{0}".format(column_type.upper()))
-                exec("sep = SystemSettings.DEFAULT_SEPARATOR_{0}".format(column_type.upper()))
-            except: pass
+            # Note: Once used exec function here but it is now avoided for Python3 compatibility.
+            if column_type == FrameworkSettings.COLUMN_TYPE_KEY_LABEL:
+                space = SystemSettings.DEFAULT_SPACE_LABEL
+                sep = SystemSettings.DEFAULT_SEPARATOR_LABEL
+            else:
+                space = SystemSettings.DEFAULT_SPACE_NAME
+                sep = SystemSettings.DEFAULT_SEPARATOR_NAME
             if "prefix" in column_specs:
                 text = column_specs["prefix"] + space + text
         elif column_type in [FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON]:
@@ -258,7 +263,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
     
     # Generate as many subitems as are required to be attached to this page-item.
     for subitem_key in subitem_keys:
-        for subitem_number in xrange(instructions.num_items[subitem_key]):
+        for subitem_number in sm.range(instructions.num_items[subitem_key]):
             _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                    item_key = subitem_key, start_row = row, 
                                                    formats = formats, item_number = subitem_number,
@@ -311,7 +316,7 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
     row = 1
     for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
         if FrameworkSettings.ITEM_SPECS[item_key]["superitem_key"] is None:
-            for item_number in xrange(instructions.num_items[item_key]):
+            for item_number in sm.range(instructions.num_items[item_key]):
                 _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
                                                  item_key = item_key, start_row = row, 
                                                  instructions = instructions, formats = formats, item_number = item_number)
