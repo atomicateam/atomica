@@ -11,6 +11,7 @@ Features
 
 Edits
 - Slimmed down FrameworkSettings notation by eliminating page keys for items and columns.
+- Made codebase compatible with Python3 by importing module `six` and removing `exec` functions.
 
 ## 0.3.0 (2017-11-29): Initial GUI Construction
 
