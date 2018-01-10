@@ -14,6 +14,7 @@ import xlrd
 from collections import OrderedDict
 
 import six.moves as sm
+import xlsxwriter as xw
 
 @accepts(xlrd.sheet.Sheet)
 @returns(dict)
@@ -29,6 +30,37 @@ def extractHeaderPositionMapping(excel_page):
                 raise OptimaException(error_message)
             header_positions[header] = col
     return header_positions
+
+@accepts(xlrd.sheet.Sheet,int,int)
+def extractExcelSheetValue(excel_page, row, col, filter = None):
+    """
+    Returns a value extracted from an Excel page, but converted to type according to a filter.
+    Empty-string values are always equivalent to a value of None being returned.
+    """
+    value = str(excel_page.cell_value(row, col))
+    rc = xw.utility.xl_rowcol_to_cell(row, col)
+    # Convert to boolean values if specified by filter.
+    # Empty strings and unidentified symbols are considered default values, which are treated as None to ensure sparse data sstorage.
+    # Note: This relies on subsequent functionality being indistinguishable for empty and default values.
+    if not value == "":
+        if filter == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF:
+            if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
+            else:
+                if not value == SystemSettings.DEFAULT_SYMBOL_NO:
+                    logger.warn("Did not recognize symbol on page '{0}', at cell '{1}'. "
+                                "Assuming a default of '{2}'.".format(excel_page, rc, SystemSettings.DEFAULT_SYMBOL_NO))
+                value = ""
+        if filter == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON:
+            if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
+            else:
+                if not value == SystemSettings.DEFAULT_SYMBOL_NO:
+                    logger.warn("Did not recognize symbol on page '{0}', at cell '{1}'. "
+                                "Assuming a default of '{2}'.".format(excel_page, rc, SystemSettings.DEFAULT_SYMBOL_YES))
+                value = ""
+    if value == "": value = None
+    return value
+
+
 
 @applyToAllMethods(logUsage)
 class ProjectFramework(object):
@@ -116,25 +148,11 @@ class ProjectFramework(object):
                 if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
                 if column_key not in [name_key, label_key]:
                     column_header = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
-                    column_pos = header_positions[column_header]
-                    value = str(framework_page.cell_value(row, column_pos))
                     column_type = FrameworkSettings.COLUMN_SPECS[column_key]["type"]
-                    if value == "": continue
-                    if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF:
-                        if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
-                        else:
-                            if not value == SystemSettings.DEFAULT_SYMBOL_NO:
-                                logger.warn("Did not recognize symbol '{0}' used for switch-based column with header '{1}' on page with key '{2}'. "
-                                            "Assuming a default of '{3}'.".format(value, column_header, page_key, SystemSettings.DEFAULT_SYMBOL_NO))
-                            continue
-                    if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON:
-                        if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
-                        else:
-                            if not value == SystemSettings.DEFAULT_SYMBOL_YES:
-                                logger.warn("Did not recognize symbol '{0}' used for switch-based column with header '{1}' on page with key '{2}'. "
-                                            "Assuming a default of '{3}'.".format(value, column_header, page_key, SystemSettings.DEFAULT_SYMBOL_YES))
-                            continue
-                    destination_specs[name][column_key] = value
+                    column_pos = header_positions[column_header]
+                    value = extractExcelSheetValue(excel_page = framework_page, row = row, col = column_pos, filter = column_type)
+                    if not value is None:
+                        destination_specs[name][column_key] = value
             
             if stop_row is None: stop_row = framework_page.nrows
             row_after_item = stop_row
