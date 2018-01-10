@@ -48,15 +48,17 @@ def extractExcelSheetValue(excel_page, row, col, filter = None):
             else:
                 if not value == SystemSettings.DEFAULT_SYMBOL_NO:
                     logger.warn("Did not recognize symbol on page '{0}', at cell '{1}'. "
-                                "Assuming a default of '{2}'.".format(excel_page, rc, SystemSettings.DEFAULT_SYMBOL_NO))
+                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_NO))
                 value = ""
         if filter == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON:
             if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
             else:
                 if not value == SystemSettings.DEFAULT_SYMBOL_NO:
                     logger.warn("Did not recognize symbol on page '{0}', at cell '{1}'. "
-                                "Assuming a default of '{2}'.".format(excel_page, rc, SystemSettings.DEFAULT_SYMBOL_YES))
+                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_YES))
                 value = ""
+        if filter == FrameworkSettings.COLUMN_TYPE_KEY_LIST_COMP_CHARAC:
+            value = [item.strip() for item in value.strip().split(SystemSettings.EXCEL_LIST_SEPARATOR)]
     if value == "": value = None
     return value
 
@@ -93,6 +95,8 @@ class ProjectFramework(object):
     def extractItemSpecsFromPage(self, framework_page, page_key, item_key, start_row, stop_row = None, header_positions = None, destination_specs = None):
         """
         Extracts specifications for an item from a page in a framework file.
+        The name and label of an item must exist on the start row, but all other related specifications details can exist in subsequent 'unnamed' rows.
+        Likewise, specifications relating to a column header can exist in subsequent columns unmarked by headers.
         
         Inputs:
             framework_page (xlrd.sheet.Sheet)               - The Excel sheet from which to extract page-item specifications.
@@ -116,6 +120,7 @@ class ProjectFramework(object):
         
         item_specs = FrameworkSettings.ITEM_SPECS[item_key]
         
+        # Every item needs a label and name on its starting row; check to see if corresponding columns exist.
         row = start_row
         try:
             name_key = item_specs["key_name"]
@@ -131,7 +136,18 @@ class ProjectFramework(object):
                              "on page with key '{1}'. ".format(page_key, item_key))
             logger.error(error_message)
             raise OptimaException(error_message)
+
+        # Work out the row at which the next named item exists, if any.
+        if stop_row is None: stop_row = framework_page.nrows
+        row_test = row + 1
+        while row_test < stop_row:
+            if str(framework_page.cell_value(row_test, name_pos)) == "":
+                row_test += 1
+            else:
+                stop_row = row_test
+                break
             
+        # Provided that the item has a code name, extract other specifications details from other appropriate sections.
         if not name == "":
             for term in [name, label]:
                 self.addTermToSemantics(term = term)
@@ -143,34 +159,56 @@ class ProjectFramework(object):
             if item_specs["inc_not_exc"]: column_keys = item_column_keys
             subitem_keys = []
             if not item_specs["subitem_keys"] is None: subitem_keys = item_specs["subitem_keys"]
-        
+
+            # Iterate through all item-related columns when extracting specifications values.
             for column_key in column_keys:
                 if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
                 if column_key not in [name_key, label_key]:
                     column_header = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
                     column_type = FrameworkSettings.COLUMN_SPECS[column_key]["type"]
-                    column_pos = header_positions[column_header]
-                    value = extractExcelSheetValue(excel_page = framework_page, row = row, col = column_pos, filter = column_type)
+                    col = header_positions[column_header]
+                    old_value = None
+                    # If columns without headers follow this column in the Excel page, scan through them.
+                    # Ditto with rows without item names that follow this row in the Excel page.
+                    while row < stop_row:
+                        while col < framework_page.ncols:
+                            value = extractExcelSheetValue(excel_page = framework_page, row = row, col = col, filter = column_type)
+                            if (not old_value is None) and (not value is None) and value != old_value:
+                                # Expand lists with additional cell contents if appropriate.
+                                if column_type == FrameworkSettings.COLUMN_TYPE_KEY_LIST_COMP_CHARAC:
+                                    value = old_value + value
+                                # Otherwise, overwrite with a warning.
+                                else:
+                                    rc = xw.utility.xl_rowcol_to_cell(row, col)
+                                    logger.warn("A value at cell '{0}' on page '{1}' is still considered part of item '{2}', with header '{3}'. "
+                                                "It will overwrite the previous value.".format(rc, framework_page.name, name, column_header))
+                            if col + 1 == framework_page.ncols:
+                                break
+                            elif extractExcelSheetValue(excel_page = framework_page, row = 0, col = col + 1) is None:
+                                if not value is None: old_value = value
+                                col += 1
+                            else: break
+                        if row + 1 == framework_page.nrows:
+                            break
+                        elif extractExcelSheetValue(excel_page = framework_page, row = row + 1, col = name_pos) is None:
+                            if not value is None: old_value = value
+                            col = header_positions[column_header]
+                            row += 1
+                        else:
+                            stop_row = row + 1
+                            break
                     if not value is None:
                         destination_specs[name][column_key] = value
             
-            if stop_row is None: stop_row = framework_page.nrows
-            row_after_item = stop_row
-            for row_extra in sm.range(stop_row-(start_row+1)):
-                row_check = start_row + 1 + row_extra
-                if not str(framework_page.cell_value(row_check, name_pos)) == "":
-                    row_after_item = row_check
-                    break
-            stop_row = row_after_item
-                
+            # Parse the specifications of any subitems that exist within the rows attributed to this item.
             for subitem_key in subitem_keys:
                 if not subitem_key in destination_specs[name]: destination_specs[name][subitem_key] = OrderedDict()
                 row_subitem = start_row
-                while row_subitem < row_after_item:
-                    _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_key = subitem_key, start_row = row_subitem, stop_row = row_after_item,
+                while row_subitem < stop_row:
+                    _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_key = subitem_key, start_row = row_subitem, stop_row = stop_row,
                                                                    header_positions = header_positions, destination_specs = destination_specs[name][subitem_key])
             
-        next_row = row_after_item
+        next_row = stop_row
         return framework_page, next_row
 
     @accepts(str)
