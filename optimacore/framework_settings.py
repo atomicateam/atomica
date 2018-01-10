@@ -55,18 +55,35 @@ class FrameworkSettings(object):
     UI semantics are parsed from a framework configuration file during the module import phase.
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
+    # TODO: Work out how to reference the keys here within the configuration file, so as to keep the two aligned.
     # Construct an ordered list of keys representing pages.
-    PAGE_KEYS = ["poptype","comp","trans","charac","par","progtype"]
+    KEY_COMPARTMENT = "comp"
+    KEY_CHARACTERISTIC = "charac"
+    PAGE_KEYS = ["poptype", KEY_COMPARTMENT, "trans", KEY_CHARACTERISTIC, "par", "progtype"]
+
+    # Create key semantics for types that columns can be.
+    COLUMN_TYPE_KEY_LABEL = "label"
+    COLUMN_TYPE_KEY_NAME = "name"
+    COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF = "switch_off"
+    COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON = "switch_on"
+    COLUMN_TYPE_KEY_LIST_COMP_CHARAC = "list_comp_charac"
+    COLUMN_TYPE_KEYS = [COLUMN_TYPE_KEY_LABEL, COLUMN_TYPE_KEY_NAME, 
+                        COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON,
+                        COLUMN_TYPE_KEY_LIST_COMP_CHARAC]
     
     # Construct a dictionary mapping each page-key to a list of unique keys representing columns.
     # This ordering describes how a framework template will be constructed.
     PAGE_COLUMN_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_COLUMN_KEYS[page_key] = []
-    PAGE_COLUMN_KEYS["poptype"] = ["popattlabel","popattname","popoptlabel","popoptname"]
-    PAGE_COLUMN_KEYS["comp"] = ["complabel","compname","sourcetag","sinktag","junctiontag"]
-    PAGE_COLUMN_KEYS["charac"] = ["characlabel","characname"]
-    PAGE_COLUMN_KEYS["par"] = ["parlabel","parname","transid"]
-    PAGE_COLUMN_KEYS["progtype"] = ["progtypelabel","progtypename","progattlabel","progattname"]
+    PAGE_COLUMN_KEYS["poptype"] = ["popattlabel", "popattname", "popoptlabel", "popoptname"]
+    KEY_COMPARTMENT_LABEL = KEY_COMPARTMENT + COLUMN_TYPE_KEY_LABEL
+    KEY_COMPARTMENT_NAME = KEY_COMPARTMENT + COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_KEYS[KEY_COMPARTMENT] = [KEY_COMPARTMENT_LABEL, KEY_COMPARTMENT_NAME, "sourcetag", "sinktag", "junctiontag"]
+    KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_LABEL
+    KEY_CHARACTERISTIC_NAME = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_NAME
+    PAGE_COLUMN_KEYS[KEY_CHARACTERISTIC] = [KEY_CHARACTERISTIC_LABEL, KEY_CHARACTERISTIC_NAME, "characincludes"]
+    PAGE_COLUMN_KEYS["par"] = ["parlabel", "parname", "transid"]
+    PAGE_COLUMN_KEYS["progtype"] = ["progtypelabel", "progtypename", "progattlabel", "progattname"]
     
     # Likewise construct a key dictionary mapping pages to abstract items that appear on these pages.
     # Like with columns, items need unique keys even if associated with different pages.
@@ -74,18 +91,10 @@ class FrameworkSettings(object):
     PAGE_ITEM_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_ITEM_KEYS[page_key] = []
     PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
-    PAGE_ITEM_KEYS["comp"] = ["compitem"]
-    PAGE_ITEM_KEYS["charac"] = ["characitem"]
+    PAGE_ITEM_KEYS[KEY_COMPARTMENT] = ["compitem"]
+    PAGE_ITEM_KEYS[KEY_CHARACTERISTIC] = ["characitem"]
     PAGE_ITEM_KEYS["par"] = ["paritem"]
     PAGE_ITEM_KEYS["progtype"] = ["progitem","progattitem"]
-    
-    # Create key semantics for types that columns can be.
-    COLUMN_TYPE_KEY_LABEL = "label"
-    COLUMN_TYPE_KEY_NAME = "name"
-    COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF = "switch_off"
-    COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON = "switch_on"
-    COLUMN_TYPE_KEYS = [COLUMN_TYPE_KEY_LABEL, COLUMN_TYPE_KEY_NAME, 
-                        COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON]
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
@@ -114,6 +123,7 @@ class FrameworkSettings(object):
     COLUMN_SPECS["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
     COLUMN_SPECS["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
     COLUMN_SPECS["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
+    COLUMN_SPECS["characincludes"]["type"] = COLUMN_TYPE_KEY_LIST_COMP_CHARAC
     
     # A mapping from item descriptors to keys.
     ITEM_DESCRIPTOR_KEY = dict()
@@ -152,11 +162,11 @@ class FrameworkSettings(object):
     ITEM_SPECS["optitem"]["key_name"] = "popoptname"
     ITEM_SPECS["optitem"]["superitem_key"] = "attitem"
     # Define a default compartment item.
-    ITEM_SPECS["compitem"]["key_label"] = "complabel"
-    ITEM_SPECS["compitem"]["key_name"] = "compname"
+    ITEM_SPECS["compitem"]["key_label"] = KEY_COMPARTMENT_LABEL
+    ITEM_SPECS["compitem"]["key_name"] = KEY_COMPARTMENT_NAME
     # Define a default characteristic item.
-    ITEM_SPECS["characitem"]["key_label"] = "characlabel"
-    ITEM_SPECS["characitem"]["key_name"] = "characname"
+    ITEM_SPECS["characitem"]["key_label"] = KEY_CHARACTERISTIC_LABEL
+    ITEM_SPECS["characitem"]["key_name"] = KEY_CHARACTERISTIC_NAME
     # Define a default parameter item.
     ITEM_SPECS["paritem"]["key_label"] = "parlabel"
     ITEM_SPECS["paritem"]["key_name"] = "parname"
@@ -182,7 +192,7 @@ class FrameworkSettings(object):
         Method is titled with 'reload' as the process will have already been called once during initial import.
         Note: Currently references the default configuration file, but can be modified in the future.
         """
-        config_path = getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_FRAMEWORK_FILENAME
+        config_path = getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME) + SystemSettings.CONFIG_FRAMEWORK_FILENAME
         logger.info("Attempting to generate Optima Core framework settings from configuration file.")
         logger.info("Location... {0}".format(config_path))
         cp = configparser.ConfigParser()

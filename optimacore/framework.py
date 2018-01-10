@@ -13,7 +13,7 @@ import os
 import xlrd
 from collections import OrderedDict
 
-import six.moves as sm
+from six import moves as sm
 import xlsxwriter as xw
 
 @accepts(xlrd.sheet.Sheet)
