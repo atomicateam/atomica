@@ -12,7 +12,7 @@ from optimacore.framework_settings import FrameworkSettings
 from copy import deepcopy as dcp
 from collections import OrderedDict
 
-import six.moves as sm
+from six import moves as sm
 import xlsxwriter as xw
     
 
@@ -216,11 +216,29 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
                 sep = SystemSettings.DEFAULT_SEPARATOR_NAME
             if "prefix" in column_specs:
                 text = column_specs["prefix"] + space + text
+        # Switch columns display and Excel-validate symbols corresponding to boolean values of True and False.
         elif column_type in [FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON]:
             validation_source = [SystemSettings.DEFAULT_SYMBOL_NO, SystemSettings.DEFAULT_SYMBOL_YES]
             if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON: validation_source.reverse()
             text = validation_source[0]
         text_backup = text
+
+        # A compartment-characteristic list column specially references names of previously-defined compartments and characteristics.
+        # Note: These references are somewhat hardcoded.
+        if column_type == FrameworkSettings.COLUMN_TYPE_KEY_LIST_COMP_CHARAC:
+            title_comp = FrameworkSettings.PAGE_SPECS[FrameworkSettings.KEY_COMPARTMENT]["title"]
+            col_comp = FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_COMPARTMENT_NAME]["default_pos"]
+            rc_comp = xw.utility.xl_rowcol_to_cell(row, col_comp)
+            text = "=CONCATENATE('{0}'!{1}".format(title_comp,rc_comp)
+            text_backup = FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_COMPARTMENT_NAME]["prefix"] + SystemSettings.DEFAULT_SPACE_NAME + str(item_number)
+            if row > 1:
+                col_charac = FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_CHARACTERISTIC_NAME]["default_pos"]
+                rc_charac = xw.utility.xl_rowcol_to_cell(row-1, col_charac)
+                text += ",\", \",{0}".format(rc_charac)
+                text_backup += (SystemSettings.EXCEL_LIST_SEPARATOR + " " + 
+                         FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_CHARACTERISTIC_NAME]["prefix"] + SystemSettings.DEFAULT_SPACE_NAME + str(item_number-1))
+        
+            text += ")"
         
         # Check if this page-item has a superitem and if the column being constructed is considered an important attribute.
         # If so, the column text may be improved to reference any corresponding attributes of its superitem.
