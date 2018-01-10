@@ -9,6 +9,9 @@ import unittest
 from optimacore.project import Project
 from optimacore.framework_io import createFrameworkTemplate
 
+import sys
+import pprint
+
 class FrameworkTest(unittest.TestCase):
     """  """
     
@@ -28,13 +31,13 @@ class FrameworkTest(unittest.TestCase):
     def test_import_template(self):
         """  """
         self.proj.getFramework().importFromFile(self.template_filepath)
-        print(self.proj.getFramework().specs)
+        pprint.pprint(self.proj.getFramework().specs)
         return None
     
     def test_import_example(self):
         """  """
         self.proj.getFramework().importFromFile(self.example_filepath)
-        print(self.proj.getFramework().specs["comp"])
+        pprint.pprint(self.proj.getFramework().specs["comp"])
         return None
         
 if __name__ == '__main__':
