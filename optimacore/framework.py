@@ -148,6 +148,7 @@ class ProjectFramework(object):
                 break
             
         # Provided that the item has a code name, extract other specifications details from other appropriate sections.
+
         if not name == "":
             for term in [name, label]:
                 self.addTermToSemantics(term = term)
