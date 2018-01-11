@@ -3,10 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.1 (2018-01-10): Initial Framework Loading
+## 0.3.1 (2018-01-11): Initial Framework Loading
 
 Features
 - Developed `importFromFile()` method to generate a dictionary of specifications for page-items in initial form.
+- Ensured that item specifications other than 'name' and 'label' can be drawn from subsequent appropriate rows and columns.
 - Developed a `ProjectFramework.semantics` attribute as a basis for linking user-supplied terms to specifications.
 
 Edits

@@ -34,10 +34,11 @@ class FrameworkTest(unittest.TestCase):
         pprint.pprint(self.proj.getFramework().specs)
         return None
     
-    #def test_import_example(self):
-    #    """  """
-    #    self.proj.getFramework().importFromFile(self.example_filepath)
-    #    return None
+    def test_import_example(self):
+        """  """
+        self.proj.getFramework().importFromFile(self.example_filepath)
+        pprint.pprint(self.proj.getFramework().specs)
+        return None
         
 if __name__ == '__main__':
     unittest.main()

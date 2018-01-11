@@ -24,10 +24,10 @@ def getConfigValue(config, section, option, list_form = False, mute_warnings = F
     """
     value = None
     if not config.has_section(section):
-        if not mute_warnings: logger.warn("Framework configuration file has no section with label '{0}'.".format(section))
+        if not mute_warnings: logger.warning("Framework configuration file has no section with label '{0}'.".format(section))
         raise configparser.NoSectionError(section)
     if not config.has_option(section, option):
-        if not mute_warnings: logger.warn("Framework configuration file, section '{0}', has no option with label '{1}'.".format(section,option))
+        if not mute_warnings: logger.warning("Framework configuration file, section '{0}', has no option with label '{1}'.".format(section,option))
         raise configparser.NoOptionError(section,option)
     if list_form:
         value = [item.strip() for item in config.get(section, option).strip().split(SystemSettings.CONFIG_FRAMEWORK_LIST_SEPARATOR)]
@@ -210,8 +210,8 @@ class FrameworkSettings(object):
                 try: 
                     value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_variable_key, mute_warnings = True))
                     cls.PAGE_SPECS[page_key][format_variable_key] = value_overwrite
-                except ValueError: logger.warn("Framework configuration file for page-key '{0}' has an entry for '{1}' " 
-                                               "that cannot be converted to a float. Using a default value.".format(page_key, format_variable_key))
+                except ValueError: logger.warning("Framework configuration file for page-key '{0}' has an entry for '{1}' " 
+                                                  "that cannot be converted to a float. Using a default value.".format(page_key, format_variable_key))
                 except: pass
             
             # Flesh out page column details.
@@ -232,8 +232,8 @@ class FrameworkSettings(object):
                     try: 
                         value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",column_key]), option = format_variable_key, mute_warnings = True))
                         cls.COLUMN_SPECS[column_key][format_variable_key] = value_overwrite
-                    except ValueError: logger.warn("Framework configuration file for column-key '{0}' has an entry for '{1}' " 
-                                                   "that cannot be converted to a float. Using a default value.".format(column_key, format_variable_key))
+                    except ValueError: logger.warning("Framework configuration file for column-key '{0}' has an entry for '{1}' " 
+                                                      "that cannot be converted to a float. Using a default value.".format(column_key, format_variable_key))
                     except: pass
             
         # Flesh out item details.
