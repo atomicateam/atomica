@@ -29,6 +29,7 @@ class SystemSettings(object):
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     
     FRAMEWORK_DEFAULT_TYPE = "example"
+    DATABOOK_DEFAULT_TYPE = "standard"
     
     DEFAULT_SPACE_LABEL = " "
     DEFAULT_SPACE_NAME = "_"

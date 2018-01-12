@@ -73,14 +73,15 @@ class FrameworkSettings(object):
     
     # Construct a dictionary mapping each page-key to a list of unique keys representing columns.
     # This ordering describes how a framework template will be constructed.
+    KEY_COMPARTMENT_LABEL = KEY_COMPARTMENT + COLUMN_TYPE_KEY_LABEL
+    KEY_COMPARTMENT_NAME = KEY_COMPARTMENT + COLUMN_TYPE_KEY_NAME
+    KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_LABEL
+    KEY_CHARACTERISTIC_NAME = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_NAME
+
     PAGE_COLUMN_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_COLUMN_KEYS[page_key] = []
     PAGE_COLUMN_KEYS["poptype"] = ["popattlabel", "popattname", "popoptlabel", "popoptname"]
-    KEY_COMPARTMENT_LABEL = KEY_COMPARTMENT + COLUMN_TYPE_KEY_LABEL
-    KEY_COMPARTMENT_NAME = KEY_COMPARTMENT + COLUMN_TYPE_KEY_NAME
     PAGE_COLUMN_KEYS[KEY_COMPARTMENT] = [KEY_COMPARTMENT_LABEL, KEY_COMPARTMENT_NAME, "sourcetag", "sinktag", "junctiontag"]
-    KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_LABEL
-    KEY_CHARACTERISTIC_NAME = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_NAME
     PAGE_COLUMN_KEYS[KEY_CHARACTERISTIC] = [KEY_CHARACTERISTIC_LABEL, KEY_CHARACTERISTIC_NAME, "characincludes"]
     PAGE_COLUMN_KEYS["par"] = ["parlabel", "parname", "transid"]
     PAGE_COLUMN_KEYS["progtype"] = ["progtypelabel", "progtypename", "progattlabel", "progattname"]
