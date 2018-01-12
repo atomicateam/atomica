@@ -6,7 +6,9 @@ The archetypal example is an epidemic within a geographical location, where enti
 """
 
 from optimacore.system import applyToAllMethods, logUsage, accepts, returns
+from optimacore.system import logger, SystemSettings
 from optimacore.framework import ProjectFramework
+from optimacore.databook import createDatabookFunc
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -22,6 +24,11 @@ class Project(object):
         self.framework = ProjectFramework()
         
         self.setName(name)
+
+    def createDatabook(self, databook_path = None):
+        """ Generate a data-input Excel spreadsheet corresponding the framework of this project. """
+        if databook_path is None: databook_path = "./databook_" + self.name + SystemSettings.EXCEL_FILE_EXTENSION
+        createDatabookFunc(framework = self.getFramework(), databook_path = databook_path)
     
     @accepts(str)
     def setName(self, name):

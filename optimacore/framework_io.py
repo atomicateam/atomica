@@ -5,8 +5,8 @@ Contains functions to create, import and export framework files.
 This is primarily referenced by the ProjectFramework object.
 """
 
-from optimacore.system import applyToAllMethods, logUsage, accepts
-from optimacore.system import logger, SystemSettings
+from optimacore.system import applyToAllMethods, logUsage, accepts, returns
+from optimacore.system import logger, SystemSettings, prepareFilePath
 from optimacore.framework_settings import FrameworkSettings
 
 from copy import deepcopy as dcp
@@ -101,6 +101,7 @@ def createEmptyPageItemAttributes():
 
 @logUsage
 @accepts(xw.worksheet.Worksheet,str,dict)
+@returns(xw.worksheet.Worksheet)
 def createFrameworkPageHeaders(framework_page, page_key, formats, format_variables = None):
     """
     Creates headers for a page within a framework file, adding comments and resizing wherever instructed.
@@ -292,6 +293,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
 
 @logUsage
 @accepts(xw.Workbook,str)
+@returns(xw.Workbook)
 def createFrameworkPage(framework_file, page_key, instructions = None, formats = None, format_variables = None):
     """
     Creates a page within the framework file.
@@ -360,6 +362,7 @@ def createFrameworkTemplate(framework_path, instructions = None, template_type =
     # Create a template file and standard formats attached to this file.
     # Also generate default-valued format variables as a dictionary.
     logger.info("Creating a template framework file: {0}".format(framework_path))
+    prepareFilePath(framework_path)
     framework_file = xw.Workbook(framework_path)
     formats = createStandardExcelFormats(framework_file)
     format_variables = createDefaultFormatVariables()
@@ -369,4 +372,4 @@ def createFrameworkTemplate(framework_path, instructions = None, template_type =
     for page_key in FrameworkSettings.PAGE_KEYS:
         createFrameworkPage(framework_file = framework_file, page_key = page_key, instructions = instructions, 
                             formats = formats, format_variables = format_variables)
-    return framework_file
+    framework_file.close()

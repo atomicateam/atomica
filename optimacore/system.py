@@ -11,6 +11,10 @@ import datetime
 import inspect
 
 import decorator
+import six
+
+if six.PY2: from inspect import getargspec as argspec   # Python 2 arg inspection.
+else: from inspect import getfullargspec as argspec     # Python 3 arg inspection.
 
 #%% Code for setting up a system settings class containing module-wide variables.
 
@@ -54,6 +58,18 @@ def getOptimaCorePath(subdir = None, end_with_sep = True):
     if end_with_sep: tojoin.append('')
     path = os.path.join(*tojoin)
     return path
+
+#%% Code for creating a directory if it does not exist.
+
+def prepareFilePath(file_path):
+    """
+    If a file path specifies directories that do not exist, an error will be thrown.
+    This function ensures that a file can be created in the desired location.
+    """
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        logger.warning("Directory '{0}' does not exist and is being constructed.".format(directory))
+        os.makedirs(directory)
 
 #%% Code for setting up a logger.
 
@@ -125,7 +141,7 @@ def accepts(*arg_types):
     def checkAccepts(undecoratedFunction, *args, **kwargs):
         # Check if the first argument of function signature is 'self', thus denoting a method.
         # If the undecorated function is a method, skip self when checking arg types.
-        sig = tuple(inspect.getargspec(undecoratedFunction).args)
+        sig = tuple(argspec(undecoratedFunction).args)
         arg_start = 0
         if len(sig) > 0:
             arg_start = int(sig[0] == 'self')
@@ -163,7 +179,7 @@ def returns(return_type):
     def checkReturns(undecoratedFunction, *args, **kwargs):
         # Check if the first argument of function signature is 'self', thus denoting a method.
         # If the undecorated function is a method, skip self when checking arg types.
-        sig = tuple(inspect.getargspec(undecoratedFunction).args)
+        sig = tuple(argspec(undecoratedFunction).args)
         return_value = undecoratedFunction(*args, **kwargs)
         try:    
             if not type(return_value) == return_type:
