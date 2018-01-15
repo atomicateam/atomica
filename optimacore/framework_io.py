@@ -354,7 +354,7 @@ def createFrameworkTemplate(framework_path, instructions = None, template_type =
                                                           Must include filename with extension '.xlsx'.
         instructions (FrameworkTemplateInstructions)    - An object that contains instructions for how many page-items to create.
         template_type (str)                             - A string that denotes the type of template, e.g. how many page items to include.
-                                                          This acts as a preset id fed into a FrameworkTemplateInstructions object upon initialization.
+                                                          This acts as a preset ID fed into a FrameworkTemplateInstructions object upon initialization.
                                                           It is only used if instructions were not explicitly provided to this method.
     """
     if instructions is None: instructions = FrameworkTemplateInstructions(template_type = template_type)

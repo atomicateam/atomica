@@ -25,10 +25,13 @@ class Project(object):
         
         self.setName(name)
 
-    def createDatabook(self, databook_path = None):
-        """ Generate a data-input Excel spreadsheet corresponding the framework of this project. """
+    def createDatabook(self, databook_path = None, instructions = None, databook_type = SystemSettings.DATABOOK_DEFAULT_TYPE):
+        """
+        Generate a data-input Excel spreadsheet corresponding to the framework of this project.
+        An object in the form of DatabookInstructions can optionally be passed in to describe how many databook items should be templated.
+        """
         if databook_path is None: databook_path = "./databook_" + self.name + SystemSettings.EXCEL_FILE_EXTENSION
-        createDatabookFunc(framework = self.getFramework(), databook_path = databook_path)
+        createDatabookFunc(framework = self.getFramework(), databook_path = databook_path, instructions = instructions, databook_type = databook_type)
     
     @accepts(str)
     def setName(self, name):

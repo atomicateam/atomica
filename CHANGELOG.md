@@ -7,6 +7,7 @@ The format adheres to Semantic Versioning.
 
 Features
 - Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
+- Coded `DatabookInstructions` class to specify how many of each item, e.g. population and program, to produce in a databook.
 
 Edits
 - Overhauled semantics to distinguish between a `ProjectFramework` 'item' and its 'item type' detailed in `FrameworkSettings`.
@@ -35,7 +36,7 @@ Features
 ## 0.2.3 (2017-11-27): Improved Framework Templating Pre-filling
 
 Features
-- Coded `FrameworkTemplateInstructions` class to specify how many of each page-item to produce in template.
+- Coded `FrameworkTemplateInstructions` class to specify how many of each page-item to produce in the template.
 - Hard coded standard page-item definitions in terms of using names and labels.
 
 Edits

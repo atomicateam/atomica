@@ -108,8 +108,11 @@ def logUsage(undecoratedFunction):
         if not instance_name == "":
             logger.debug("   {0} name: {1}".format(class_prefix.rstrip('.'), instance_name))
         exception_raised = False
+        e_saved = None
         try: x = undecoratedFunction(*args,**kwargs)
-        except: exception_raised = True
+        except Exception as e:
+            exception_raised = True
+            e_saved = e     # Make the exception persist beyond the try-except block.
         time_after = datetime.datetime.now()
         time_elapsed = time_after - time_before
         if exception_raised: logger.debug("   Abandoning {0}: {1}".format(descriptor, class_prefix + undecoratedFunction.__name__))
@@ -118,7 +121,7 @@ def logUsage(undecoratedFunction):
             logger.debug("   {0} name: {1}".format(class_prefix.rstrip('.'), instance_name))
         logger.debug("   Time spent in {0}: {1}".format(descriptor, time_elapsed))
         # If an exception was raised while processing the function, it should be delayed no longer.
-        if exception_raised: raise
+        if exception_raised: raise e_saved
         return x                                             
     return logUsageDecoratedFunction
     

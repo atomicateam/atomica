@@ -113,7 +113,7 @@ class GUIDemo(qtw.QWidget):
         self.setWindowTitle("GUI Demo")
 
         self.button_framework_template = qtw.QPushButton("Create Framework Template", self)
-        self.button_framework_template.clicked.connect(self.slotRunGUIFrameworkTemplate)
+        self.button_framework_template.clicked.connect(self.slotRunGUIFrameworkFileCreation)
 
         layout = qtw.QVBoxLayout(self)
         layout.addWidget(self.button_framework_template)
@@ -123,21 +123,21 @@ class GUIDemo(qtw.QWidget):
 
         self.show()
         
-    def slotRunGUIFrameworkTemplate(self):
+    def slotRunGUIFrameworkFileCreation(self):
         """ Launches the sub-GUI for constructing a framework template. """
-        self.subgui = GUIFrameworkTemplate()
+        self.subgui = GUIFrameworkFileCreation()
         
-class GUIFrameworkTemplate(qtw.QWidget):
+class GUIFrameworkFileCreation(qtw.QWidget):
     """ A widget for constructing an Excel-based template framework file. """
 
     @logUsage
     def __init__(self):
         """ Initializes the framework template GUI. """
-        super(GUIFrameworkTemplate, self).__init__()
-        self.initUIFrameworkTemplate()
+        super(GUIFrameworkFileCreation, self).__init__()
+        self.initUIFrameworkFileCreation()
 
     @logUsage
-    def initUIFrameworkTemplate(self):
+    def initUIFrameworkFileCreation(self):
         """ Initializes all UI elements for the framework template GUI. """
         self.setWindowTitle("Framework Template Construction")
         self.resetAttributes()
@@ -226,6 +226,103 @@ class GUIFrameworkTemplate(qtw.QWidget):
         except:
             logger.exception("Framework template construction has failed.")
             raise
+
+#class GUIDatabookCreation(qtw.QWidget):
+#    """ A widget for constructing an Excel-based databook file from a project framework. """
+
+#    @logUsage
+#    def __init__(self):
+#        """ Initializes the databook creation GUI. """
+#        super(GUIDatabookCreation, self).__init__()
+#        self.initUIDatabookCreation()
+
+#    @logUsage
+#    def initUIDatabookCreation(self):
+#        """ Initializes all UI elements for the databook creation GUI. """
+#        self.setWindowTitle("Databook Construction")
+#        self.resetAttributes()
+#        self.developLayout()
+#        self.show()
+        
+#    @logUsage
+#    def resetAttributes(self):   
+#        """ Resets all attributes related to this GUI; must be called once at initialization. """
+#        # This widget is attached to an instructions object that the user can modify prior to producing a databook.
+#        self.databook_instructions = DatabookInstructions()
+
+#    @logUsage
+#    def developLayout(self):
+#        """ Lays out components of the databook creation GUI. """
+#        # Produce a layout and memory space to store GUI components related to modifying instructions.
+#        layout_databook_instructions = qtw.QGridLayout()
+#        self.list_label_item_descriptors = []
+#        self.list_spinbox_item_numbers = []
+#        # Cycle through all page-item types referenced in the instructions object.
+#        # Develop appropriate text for label widgets that describe each page-item type..
+#        item_type_number = 0
+#        for item_type in self.databook_instructions.num_items:
+#            # STOP HERE.
+#            descriptor = FrameworkSettings.ITEM_TYPE_SPECS[item_type]["descriptor"]
+#            text_extra = "' items: "
+#            if not FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
+#                superitem_type = FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"]
+#                descriptor_extra = FrameworkSettings.ITEM_TYPE_SPECS[superitem_type]["descriptor"]
+#                text_extra = "' subitems per '" + descriptor_extra + "' item: "
+#            text = "Number of '" + descriptor + text_extra
+#            self.list_label_item_descriptors.append(qtw.QLabel(text))
+#            # Generate integer-input spinboxes and give them default values associated with the instructions object.
+#            self.list_spinbox_item_numbers.append(qtw.QSpinBox())
+#            self.list_spinbox_item_numbers[-1].setValue(self.framework_instructions.num_items[item_type])
+#            # Ensure that user value changes are immediately propagated to the callback that updates the instructions object.
+#            # Note: The lambda must include item_type definition to avoid closure issues, i.e. all spinboxes referencing the last page-item.
+#            self.list_spinbox_item_numbers[-1].valueChanged.connect(lambda number, item_type=item_type: 
+#                                                                    self.slotUpdateFrameworkInstructions(item_type=item_type, number=number))
+#            # Arrange the label and spinbox components into the appropriate grid layout.
+#            layout_framework_instructions.addWidget(self.list_label_item_descriptors[item_type_number],
+#                                                    item_type_number, 0)
+#            layout_framework_instructions.addWidget(self.list_spinbox_item_numbers[item_type_number],
+#                                                    item_type_number, 1)
+#            item_type_number += 1
+
+#        # Create a template framework creation button and link it to the correct callback.
+#        self.button_create = qtw.QPushButton("Create Framework Template", self)
+#        self.button_create.clicked.connect(self.slotCreateFrameworkTemplate)
+
+#        # Arrange the instruction-related components and the button in a layout surrounded by spacers.
+#        # This ensures the widget is maximally compressed.
+#        layout_stretch_vertical = qtw.QSpacerItem(0, 0, qtw.QSizePolicy.Minimum, 
+#                                                        qtw.QSizePolicy.Expanding)
+#        layout_stretch_horizontal = qtw.QSpacerItem(0, 0, qtw.QSizePolicy.Expanding, 
+#                                                          qtw.QSizePolicy.Minimum)
+#        layout_horizontal = qtw.QHBoxLayout()
+#        layout_vertical = qtw.QVBoxLayout()
+#        layout_vertical.addItem(layout_stretch_vertical)
+        
+#        layout_vertical.addLayout(layout_framework_instructions)
+#        layout_vertical.addWidget(self.button_create)
+        
+#        layout_vertical.addItem(layout_stretch_vertical)
+#        layout_horizontal.addItem(layout_stretch_horizontal)
+#        layout_horizontal.addLayout(layout_vertical)
+#        layout_horizontal.addItem(layout_stretch_horizontal)
+#        self.setLayout(layout_horizontal)
+
+#        centerInScreen(self)
+        
+#    def slotUpdateFrameworkInstructions(self, item_type, number):
+#        """ Updates instructions relating to the amount of default framework items to produce in a template. """
+#        self.framework_instructions.updateNumberOfItems(item_type = item_type, number = number)
+        
+#    def slotCreateFrameworkTemplate(self):
+#        """ Creates a template framework file at the location specified by the user. """
+#        framework_path = getSavePathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
+#        if not framework_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
+#            logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
+#            return
+#        try: createFrameworkTemplate(framework_path = framework_path, instructions = self.framework_instructions)
+#        except:
+#            logger.exception("Framework template construction has failed.")
+#            raise
 
 @logUsage
 @returns(qtw.QWidget)
