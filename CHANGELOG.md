@@ -3,10 +3,13 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.2 (2018-01-12): Initial Databook Construction
+## 0.3.2 (2018-01-15): Initial Databook Construction
 
 Features
 - Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
+
+Edits
+- Overhauled semantics to distinguish between a `ProjectFramework` 'item' and its 'item type' detailed in `FrameworkSettings`.
 
 ## 0.3.1 (2018-01-11): Initial Framework Loading
 

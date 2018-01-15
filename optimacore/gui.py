@@ -159,29 +159,29 @@ class GUIFrameworkTemplate(qtw.QWidget):
         self.list_spinbox_item_numbers = []
         # Cycle through all page-item types referenced in the instructions object.
         # Develop appropriate text for label widgets that describe each page-item type..
-        item_key_number = 0
-        for item_key in self.framework_instructions.num_items:
-            descriptor = FrameworkSettings.ITEM_SPECS[item_key]["descriptor"]
+        item_type_number = 0
+        for item_type in self.framework_instructions.num_items:
+            descriptor = FrameworkSettings.ITEM_TYPE_SPECS[item_type]["descriptor"]
             text_extra = "' items: "
-            if not FrameworkSettings.ITEM_SPECS[item_key]["superitem_key"] is None:
-                superitem_key = FrameworkSettings.ITEM_SPECS[item_key]["superitem_key"]
-                descriptor_extra = FrameworkSettings.ITEM_SPECS[superitem_key]["descriptor"]
+            if not FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
+                superitem_type = FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"]
+                descriptor_extra = FrameworkSettings.ITEM_TYPE_SPECS[superitem_type]["descriptor"]
                 text_extra = "' subitems per '" + descriptor_extra + "' item: "
             text = "Number of '" + descriptor + text_extra
             self.list_label_item_descriptors.append(qtw.QLabel(text))
             # Generate integer-input spinboxes and give them default values associated with the instructions object.
             self.list_spinbox_item_numbers.append(qtw.QSpinBox())
-            self.list_spinbox_item_numbers[-1].setValue(self.framework_instructions.num_items[item_key])
+            self.list_spinbox_item_numbers[-1].setValue(self.framework_instructions.num_items[item_type])
             # Ensure that user value changes are immediately propagated to the callback that updates the instructions object.
-            # Note: The lambda must include item_key definition to avoid closure issues, i.e. all spinboxes referencing the last page-item.
-            self.list_spinbox_item_numbers[-1].valueChanged.connect(lambda number, item_key=item_key: 
-                                                                    self.slotUpdateFrameworkInstructions(item_key=item_key, number=number))
+            # Note: The lambda must include item_type definition to avoid closure issues, i.e. all spinboxes referencing the last page-item.
+            self.list_spinbox_item_numbers[-1].valueChanged.connect(lambda number, item_type=item_type: 
+                                                                    self.slotUpdateFrameworkInstructions(item_type=item_type, number=number))
             # Arrange the label and spinbox components into the appropriate grid layout.
-            layout_framework_instructions.addWidget(self.list_label_item_descriptors[item_key_number],
-                                                    item_key_number, 0)
-            layout_framework_instructions.addWidget(self.list_spinbox_item_numbers[item_key_number],
-                                                    item_key_number, 1)
-            item_key_number += 1
+            layout_framework_instructions.addWidget(self.list_label_item_descriptors[item_type_number],
+                                                    item_type_number, 0)
+            layout_framework_instructions.addWidget(self.list_spinbox_item_numbers[item_type_number],
+                                                    item_type_number, 1)
+            item_type_number += 1
 
         # Create a template framework creation button and link it to the correct callback.
         self.button_create = qtw.QPushButton("Create Framework Template", self)
@@ -212,9 +212,9 @@ class GUIFrameworkTemplate(qtw.QWidget):
 #                             fraction_height = GUISettings.DEFAULT_SCREEN_FRACTION_HEIGHT)
         centerInScreen(self)
         
-    def slotUpdateFrameworkInstructions(self, item_key, number):
+    def slotUpdateFrameworkInstructions(self, item_type, number):
         """ Updates instructions relating to the amount of default framework items to produce in a template. """
-        self.framework_instructions.updateNumberOfItems(item_key = item_key, number = number)
+        self.framework_instructions.updateNumberOfItems(item_type = item_type, number = number)
         
     def slotCreateFrameworkTemplate(self):
         """ Creates a template framework file at the location specified by the user. """

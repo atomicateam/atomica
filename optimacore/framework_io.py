@@ -25,9 +25,9 @@ class FrameworkTemplateInstructions(object):
         self.name = str()
         # Every page-item must be included in a dictionary that lists how many should be created.
         self.num_items = OrderedDict()
-        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
-            for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
-                self.num_items[item_key] = int()
+        for page_key in FrameworkSettings.PAGE_ITEM_TYPES:
+            for item_type in FrameworkSettings.PAGE_ITEM_TYPES[page_key]:
+                self.num_items[item_type] = int()
         self.loadPreset(template_type = template_type)
         
     @accepts(str)
@@ -46,11 +46,11 @@ class FrameworkTemplateInstructions(object):
         return
                           
     @accepts(str,int)
-    def updateNumberOfItems(self, item_key, number):
+    def updateNumberOfItems(self, item_type, number):
         """ Overwrite the number of items that this object will instruct a template framework creation to produce. """
-        try: self.num_items[item_key] = number
+        try: self.num_items[item_type] = number
         except:
-            logger.exception("An attempted update of framework instructions '{0}' to produce '{1}' instances of item-key '{2}' failed.".format(self.name, number, item_key))
+            logger.exception("An attempted update of framework instructions '{0}' to produce '{1}' instances of item type '{2}' failed.".format(self.name, number, item_type))
             raise
         return
 
@@ -93,7 +93,7 @@ def createEmptyPageItemAttributes():
                         Opening in an external application is required in order to process the equations and references.
     """
     item_attributes = dict()
-    for attribute in FrameworkSettings.ITEM_ATTRIBUTES:
+    for attribute in FrameworkSettings.ITEM_TYPE_ATTRIBUTES:
         item_attributes[attribute] = {"cell":None, "value":None, "backup":None}
     return item_attributes
 
@@ -147,7 +147,7 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
 
 @logUsage
 @accepts(xw.worksheet.Worksheet,str,str,int,dict)
-def createFrameworkPageItem(framework_page, page_key, item_key, start_row, formats, 
+def createFrameworkPageItem(framework_page, page_key, item_type, start_row, formats, 
                             instructions = None, item_number = None, superitem_attributes = None):
     """
     Creates a default item on a page within a framework file, as defined in framework settings.
@@ -155,7 +155,7 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
     Inputs:
         framework_page (xw.worksheet.Worksheet)         - The Excel sheet in which to create page-items.
         page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
-        item_key (str)                                  - The key denoting the page-item to create, as defined in framework settings.
+        item_type (str)                                 - The key denoting the type of item to create, as defined in framework settings.
         start_row (int)                                 - The row number of the page at which to generate the default page-item.
         formats (dict)                                  - A dictionary of standard Excel formats.
                                                           Is the output of function: createStandardExcelFormats()
@@ -171,11 +171,11 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
                                                   Is useful to provide for page-items that involve subitems and multiple rows.
     """
     # Check if specifications for this page-item exist, associated with the appropriate page-key.
-    if not item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
-        logger.exception("A framework page with key '{0}' was instructed to create a page-item with key '{1}', despite no relevant page-item "
-                         "specifications existing in framework settings. Abandoning framework file construction.".format(page_key,item_key))
-        raise KeyError(item_key)
-    item_specs = FrameworkSettings.ITEM_SPECS[item_key]
+    if not item_type in FrameworkSettings.PAGE_ITEM_TYPES[page_key]:
+        logger.exception("A framework page with key '{0}' was instructed to create an item of type '{1}', despite no relevant page-item "
+                         "specifications existing in framework settings. Abandoning framework file construction.".format(page_key,item_type))
+        raise KeyError(item_type)
+    item_type_specs = FrameworkSettings.ITEM_TYPE_SPECS[item_type]
     
     # Initialize requisite values for the upcoming process.
     cell_format = formats["center"]
@@ -185,16 +185,16 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
     # Determine which columns will be filled out with default values for this page-item.
     # Determine if any subitems need to be constructed as well and space out a page-item attribute dictionary for subitems.
     column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
-    item_column_keys = []
-    if not item_specs["column_keys"] is None: item_column_keys = item_specs["column_keys"]
-    if item_specs["inc_not_exc"]: column_keys = item_column_keys
-    subitem_keys = []
-    if not item_specs["subitem_keys"] is None: subitem_keys = item_specs["subitem_keys"]
+    item_type_column_keys = []
+    if not item_type_specs["column_keys"] is None: item_type_column_keys = item_type_specs["column_keys"]
+    if item_type_specs["inc_not_exc"]: column_keys = item_type_column_keys
+    subitem_types = []
+    if not item_type_specs["subitem_types"] is None: subitem_types = item_type_specs["subitem_types"]
     item_attributes = createEmptyPageItemAttributes()
         
     # Iterate through page columns if part of a page-item and fill them with default values according to type.
     for column_key in column_keys:
-        if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
+        if (not item_type_specs["inc_not_exc"]) and column_key in item_type_column_keys: continue
         column_specs = FrameworkSettings.COLUMN_SPECS[column_key]
         column_type = column_specs["type"]
         col = column_specs["default_pos"]
@@ -206,10 +206,10 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         sep = ""
         validation_source = None
         # Name and label columns can prefix the item number and use fancy separators.
-        if column_type in [FrameworkSettings.COLUMN_TYPE_KEY_LABEL, FrameworkSettings.COLUMN_TYPE_KEY_NAME]:
+        if column_type in [FrameworkSettings.COLUMN_TYPE_LABEL, FrameworkSettings.COLUMN_TYPE_NAME]:
             text = str(item_number)     # The default is the number of this item.
             # Note: Once used exec function here but it is now avoided for Python3 compatibility.
-            if column_type == FrameworkSettings.COLUMN_TYPE_KEY_LABEL:
+            if column_type == FrameworkSettings.COLUMN_TYPE_LABEL:
                 space = SystemSettings.DEFAULT_SPACE_LABEL
                 sep = SystemSettings.DEFAULT_SEPARATOR_LABEL
             else:
@@ -218,15 +218,15 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
             if "prefix" in column_specs:
                 text = column_specs["prefix"] + space + text
         # Switch columns display and Excel-validate symbols corresponding to boolean values of True and False.
-        elif column_type in [FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON]:
+        elif column_type in [FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_OFF, FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON]:
             validation_source = [SystemSettings.DEFAULT_SYMBOL_NO, SystemSettings.DEFAULT_SYMBOL_YES]
-            if column_type == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON: validation_source.reverse()
+            if column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON: validation_source.reverse()
             text = validation_source[0]
         text_backup = text
 
         # A compartment-characteristic list column specially references names of previously-defined compartments and characteristics.
         # Note: These references are somewhat hardcoded.
-        if column_type == FrameworkSettings.COLUMN_TYPE_KEY_LIST_COMP_CHARAC:
+        if column_type == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC:
             title_comp = FrameworkSettings.PAGE_SPECS[FrameworkSettings.KEY_COMPARTMENT]["title"]
             col_comp = FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_COMPARTMENT_NAME]["default_pos"]
             rc_comp = xw.utility.xl_rowcol_to_cell(row, col_comp)
@@ -244,8 +244,8 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
         # Check if this page-item has a superitem and if the column being constructed is considered an important attribute.
         # If so, the column text may be improved to reference any corresponding attributes of its superitem.
         if not superitem_attributes is None:
-            for attribute in FrameworkSettings.ITEM_ATTRIBUTES:
-                if column_key == item_specs["key_"+attribute]:
+            for attribute in FrameworkSettings.ITEM_TYPE_ATTRIBUTES:
+                if column_key == item_type_specs["key_"+attribute]:
                     backup = superitem_attributes[attribute]["backup"]
                     if not backup is None: 
                         text_backup = backup + sep + text_backup
@@ -262,8 +262,8 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
                         pass
         
         # Update attribute dictionary if constructing a column that is marked in framework settings as a page-item attribute.
-        for attribute in FrameworkSettings.ITEM_ATTRIBUTES:
-            if column_key == item_specs["key_"+attribute]:
+        for attribute in FrameworkSettings.ITEM_TYPE_ATTRIBUTES:
+            if column_key == item_type_specs["key_"+attribute]:
                 item_attributes[attribute]["cell"] = xw.utility.xl_rowcol_to_cell(row, col)
                 item_attributes[attribute]["value"] = text
                 item_attributes[attribute]["backup"] = text_backup
@@ -281,10 +281,10 @@ def createFrameworkPageItem(framework_page, page_key, item_key, start_row, forma
                                                 'source': validation_source})
     
     # Generate as many subitems as are required to be attached to this page-item.
-    for subitem_key in subitem_keys:
-        for subitem_number in sm.range(instructions.num_items[subitem_key]):
+    for subitem_type in subitem_types:
+        for subitem_number in sm.range(instructions.num_items[subitem_type]):
             _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                                   item_key = subitem_key, start_row = row, 
+                                                   item_type = subitem_type, start_row = row, 
                                                    formats = formats, item_number = subitem_number,
                                                    superitem_attributes = item_attributes)
     next_row = max(start_row + 1, row)  # Make sure that the next row is always at least the row after the row of the current item.
@@ -334,11 +334,11 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
     # Create the number of base items required on this page.
     # Officially, the initial item key per page is that of the core item-type, but this generic code works for all items without superitems.
     row = 1
-    for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
-        if FrameworkSettings.ITEM_SPECS[item_key]["superitem_key"] is None:
-            for item_number in sm.range(instructions.num_items[item_key]):
+    for item_type in FrameworkSettings.PAGE_ITEM_TYPES[page_key]:
+        if FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
+            for item_number in sm.range(instructions.num_items[item_type]):
                 _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                                 item_key = item_key, start_row = row, 
+                                                 item_type = item_type, start_row = row, 
                                                  instructions = instructions, formats = formats, item_number = item_number)
     return framework_file            
 

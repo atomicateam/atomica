@@ -53,5 +53,7 @@ class EverythingTest(unittest.TestCase):
         return None
         
 if __name__ == '__main__':
-    unittest.defaultTestLoader.sortTestMethodsUsing = None   # Disable test case sorting so that state persists in definitional order.
+    # Disable test case sorting so that state persists in definitional order.
+    # TODO: Check if this actually works rigorously, i.e. that there are no multi-threaded race conditions.
+    unittest.defaultTestLoader.sortTestMethodsUsing = None
     unittest.main()

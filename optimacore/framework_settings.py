@@ -56,46 +56,76 @@ class FrameworkSettings(object):
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
     # TODO: Work out how to reference the keys here within the configuration file, so as to keep the two aligned.
-    # Construct an ordered list of keys representing pages.
+    # Define simple key semantics.
     KEY_COMPARTMENT = "comp"
     KEY_CHARACTERISTIC = "charac"
-    PAGE_KEYS = ["poptype", KEY_COMPARTMENT, "trans", KEY_CHARACTERISTIC, "par", "progtype"]
+    KEY_PARAMETER = "par"
+    KEY_POPULATION = "pop"
+    KEY_PROGRAM = "prog"
+
+    TERM_ITEM = "item"
+    TERM_TYPE = "type"
+    TERM_ATTRIBUTE = "att"
+    TERM_OPTION = "opt"
+
+    # Define compound key semantics.
+    KEY_POPULATION_ATTRIBUTE = KEY_POPULATION + TERM_ATTRIBUTE
+    KEY_POPULATION_OPTION = KEY_POPULATION + TERM_OPTION
+    KEY_PROGRAM_TYPE = KEY_PROGRAM + TERM_TYPE
+    KEY_PROGRAM_ATTRIBUTE = KEY_PROGRAM + TERM_ATTRIBUTE
+
+    # Construct an ordered list of keys representing pages.
+    PAGE_KEYS = [KEY_POPULATION_ATTRIBUTE, KEY_COMPARTMENT, "trans", KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE]
 
     # Create key semantics for types that columns can be.
-    COLUMN_TYPE_KEY_LABEL = "label"
-    COLUMN_TYPE_KEY_NAME = "name"
-    COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF = "switch_off"
-    COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON = "switch_on"
-    COLUMN_TYPE_KEY_LIST_COMP_CHARAC = "list_comp_charac"
-    COLUMN_TYPE_KEYS = [COLUMN_TYPE_KEY_LABEL, COLUMN_TYPE_KEY_NAME, 
-                        COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF, COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON,
-                        COLUMN_TYPE_KEY_LIST_COMP_CHARAC]
+    COLUMN_TYPE_LABEL = "label"
+    COLUMN_TYPE_NAME = "name"
+    COLUMN_TYPE_SWITCH_DEFAULT_OFF = "switch_off"
+    COLUMN_TYPE_SWITCH_DEFAULT_ON = "switch_on"
+    COLUMN_TYPE_LIST_COMP_CHARAC = "list_comp_charac"
+    COLUMN_TYPES = [COLUMN_TYPE_LABEL, COLUMN_TYPE_NAME, 
+                    COLUMN_TYPE_SWITCH_DEFAULT_OFF, COLUMN_TYPE_SWITCH_DEFAULT_ON,
+                    COLUMN_TYPE_LIST_COMP_CHARAC]
     
     # Construct a dictionary mapping each page-key to a list of unique keys representing columns.
     # This ordering describes how a framework template will be constructed.
-    KEY_COMPARTMENT_LABEL = KEY_COMPARTMENT + COLUMN_TYPE_KEY_LABEL
-    KEY_COMPARTMENT_NAME = KEY_COMPARTMENT + COLUMN_TYPE_KEY_NAME
-    KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_LABEL
-    KEY_CHARACTERISTIC_NAME = KEY_CHARACTERISTIC + COLUMN_TYPE_KEY_NAME
+    KEY_POPULATION_ATTRIBUTE_LABEL = KEY_POPULATION_ATTRIBUTE + COLUMN_TYPE_LABEL
+    KEY_POPULATION_ATTRIBUTE_NAME = KEY_POPULATION_ATTRIBUTE + COLUMN_TYPE_NAME
+    KEY_POPULATION_OPTION_LABEL = KEY_POPULATION_OPTION + COLUMN_TYPE_LABEL
+    KEY_POPULATION_OPTION_NAME = KEY_POPULATION_OPTION + COLUMN_TYPE_NAME
+    KEY_COMPARTMENT_LABEL = KEY_COMPARTMENT + COLUMN_TYPE_LABEL
+    KEY_COMPARTMENT_NAME = KEY_COMPARTMENT + COLUMN_TYPE_NAME
+    KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + COLUMN_TYPE_LABEL
+    KEY_CHARACTERISTIC_NAME = KEY_CHARACTERISTIC + COLUMN_TYPE_NAME
+    KEY_PARAMETER_LABEL = KEY_PARAMETER + COLUMN_TYPE_LABEL
+    KEY_PARAMETER_NAME = KEY_PARAMETER + COLUMN_TYPE_NAME
+    KEY_POPULATION_ATTRIBUTE_LABEL = KEY_POPULATION_ATTRIBUTE + COLUMN_TYPE_LABEL
+    KEY_POPULATION_ATTRIBUTE_NAME = KEY_POPULATION_ATTRIBUTE + COLUMN_TYPE_NAME
+    KEY_PROGRAM_TYPE_LABEL = KEY_PROGRAM_TYPE + COLUMN_TYPE_LABEL
+    KEY_PROGRAM_TYPE_NAME = KEY_PROGRAM_TYPE + COLUMN_TYPE_NAME
+    KEY_PROGRAM_ATTRIBUTE_LABEL = KEY_PROGRAM_ATTRIBUTE + COLUMN_TYPE_LABEL
+    KEY_PROGRAM_ATTRIBUTE_NAME = KEY_PROGRAM_ATTRIBUTE + COLUMN_TYPE_NAME
 
     PAGE_COLUMN_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_COLUMN_KEYS[page_key] = []
-    PAGE_COLUMN_KEYS["poptype"] = ["popattlabel", "popattname", "popoptlabel", "popoptname"]
+    PAGE_COLUMN_KEYS[KEY_POPULATION_ATTRIBUTE] = [KEY_POPULATION_ATTRIBUTE_LABEL, KEY_POPULATION_ATTRIBUTE_NAME, 
+                                                  KEY_POPULATION_OPTION_LABEL, KEY_POPULATION_OPTION_NAME]
     PAGE_COLUMN_KEYS[KEY_COMPARTMENT] = [KEY_COMPARTMENT_LABEL, KEY_COMPARTMENT_NAME, "sourcetag", "sinktag", "junctiontag"]
     PAGE_COLUMN_KEYS[KEY_CHARACTERISTIC] = [KEY_CHARACTERISTIC_LABEL, KEY_CHARACTERISTIC_NAME, "characincludes"]
-    PAGE_COLUMN_KEYS["par"] = ["parlabel", "parname", "transid"]
-    PAGE_COLUMN_KEYS["progtype"] = ["progtypelabel", "progtypename", "progattlabel", "progattname"]
+    PAGE_COLUMN_KEYS[KEY_PARAMETER] = [KEY_PARAMETER_LABEL, KEY_PARAMETER_NAME, "transid"]
+    PAGE_COLUMN_KEYS[KEY_PROGRAM_TYPE] = [KEY_PROGRAM_TYPE_LABEL, KEY_PROGRAM_TYPE_NAME,
+                                          KEY_PROGRAM_ATTRIBUTE_LABEL, KEY_PROGRAM_ATTRIBUTE_NAME]
     
-    # Likewise construct a key dictionary mapping pages to abstract items that appear on these pages.
-    # Like with columns, items need unique keys even if associated with different pages.
-    # Note: The order of item keys is also important as importing files will start scans through columns associated with the first, i.e. core, item-key.
-    PAGE_ITEM_KEYS = OrderedDict()
-    for page_key in PAGE_KEYS: PAGE_ITEM_KEYS[page_key] = []
-    PAGE_ITEM_KEYS["poptype"] = ["attitem","optitem"]
-    PAGE_ITEM_KEYS[KEY_COMPARTMENT] = ["compitem"]
-    PAGE_ITEM_KEYS[KEY_CHARACTERISTIC] = ["characitem"]
-    PAGE_ITEM_KEYS["par"] = ["paritem"]
-    PAGE_ITEM_KEYS["progtype"] = ["progitem","progattitem"]
+    # Likewise construct a key dictionary mapping pages to types of items that appear on these pages.
+    # As with columns, item types need unique keys even if associated with different pages.
+    # Note: The order of item-type keys is also important as importing files will start scans through columns associated with the first, i.e. core, item-type key.
+    PAGE_ITEM_TYPES = OrderedDict()
+    for page_key in PAGE_KEYS: PAGE_ITEM_TYPES[page_key] = []
+    PAGE_ITEM_TYPES[KEY_POPULATION_ATTRIBUTE] = ["attitem","optitem"]
+    PAGE_ITEM_TYPES[KEY_COMPARTMENT] = ["compitem"]
+    PAGE_ITEM_TYPES[KEY_CHARACTERISTIC] = ["characitem"]
+    PAGE_ITEM_TYPES[KEY_PARAMETER] = ["paritem"]
+    PAGE_ITEM_TYPES[KEY_PROGRAM_TYPE] = ["progitem","progattitem"]
     
     # Keys for float-valued variables related in some way to framework-file formatting.
     # They must have corresponding system-settings defaults.
@@ -117,72 +147,71 @@ class FrameworkSettings(object):
             COLUMN_SPECS[column_key]["type"] = None
             column_count += 1
             # For convenience, do default typing based on column key here.
-            for column_type_key in COLUMN_TYPE_KEYS:
-                if column_key.endswith(column_type_key):
-                     COLUMN_SPECS[column_key]["type"] = column_type_key
+            for column_type in COLUMN_TYPES:
+                if column_key.endswith(column_type):
+                     COLUMN_SPECS[column_key]["type"] = column_type
     # Non-default types should overwrite defaults here.
-    COLUMN_SPECS["sourcetag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
-    COLUMN_SPECS["sinktag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
-    COLUMN_SPECS["junctiontag"]["type"] = COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF
-    COLUMN_SPECS["characincludes"]["type"] = COLUMN_TYPE_KEY_LIST_COMP_CHARAC
+    COLUMN_SPECS["sourcetag"]["type"] = COLUMN_TYPE_SWITCH_DEFAULT_OFF
+    COLUMN_SPECS["sinktag"]["type"] = COLUMN_TYPE_SWITCH_DEFAULT_OFF
+    COLUMN_SPECS["junctiontag"]["type"] = COLUMN_TYPE_SWITCH_DEFAULT_OFF
+    COLUMN_SPECS["characincludes"]["type"] = COLUMN_TYPE_LIST_COMP_CHARAC
     
-    # A mapping from item descriptors to keys.
-    ITEM_DESCRIPTOR_KEY = dict()
+    # A mapping from item type descriptors to type-key.
+    ITEM_TYPE_DESCRIPTOR_KEY = dict()
                      
-    # Construct a dictionary of specifications detailing framework page-item IO.
+    # Construct a dictionary of specifications detailing framework-page item types.
     # Warning: Incorrect modifications are particularly dangerous here due to the possibility of broken Excel links and subitem recursions.
-    ITEM_ATTRIBUTES = ["label","name"]
-    ITEM_SPECS = OrderedDict()     # Order is important when running through subitems.
-    for page_key in PAGE_ITEM_KEYS:
-        for item_key in PAGE_ITEM_KEYS[page_key]:
-            if item_key in ITEM_SPECS: raise OptimaException("Key uniqueness failure. Framework settings specify the same key '{0}' for more than one item type.".format(item_key))
-            # Map item key back to page key and also provide a string-valued descriptor.
-            # This is technically the user-interface label of an item 'type', but is called a descriptor to avoid confusion with labels of item 'instances'.
-            ITEM_SPECS[item_key] = {"page_key":page_key, "descriptor":item_key,
-            # Specify whether page-item IO should include or exclude specified columns.
-            # Then specify a list of column keys to be included or excluded when reading or writing a page-item.
-            # Many page-items involve all columns, so the default is to exclude no columns.
+    ITEM_TYPE_ATTRIBUTES = ["label","name"]
+    ITEM_TYPE_SPECS = OrderedDict()     # Order is important when running through subitems.
+    for page_key in PAGE_ITEM_TYPES:
+        for item_type in PAGE_ITEM_TYPES[page_key]:
+            if item_type in ITEM_TYPE_SPECS: raise OptimaException("Key uniqueness failure. Framework settings specify the same key '{0}' for more than one item type.".format(item_type))
+            # Map item type back to page key and also provide a string-valued descriptor, i.e. a user-interface label for the type.
+            ITEM_TYPE_SPECS[item_type] = {"page_key":page_key, "descriptor":item_type,
+            # Specify whether item type should include or exclude specified columns.
+            # Then specify a list of column keys to be included or excluded when reading or writing an item of this type.
+            # Many item types involve all columns, so the default is to exclude no columns.
                                     "inc_not_exc":False, "column_keys":None,
-            # Some page-items can be divided into columns and other page-items; the keys of the latter should be listed.
-                                    "subitem_keys":None, 
-            # In principle page-items have no restriction in producing other page-items.
-            # But factory methods will only generate core page-items; all subitems should mark the key of its superitem.
-                                    "superitem_key":None}
-            for attribute in ITEM_ATTRIBUTES:
-                ITEM_SPECS[item_key]["key_"+attribute] = None
-            ITEM_DESCRIPTOR_KEY[ITEM_SPECS[item_key]["descriptor"]] = item_key   # Map default descriptors to keys.
-    # Define a default population attribute item.
-    ITEM_SPECS["attitem"]["inc_not_exc"] = True
-    ITEM_SPECS["attitem"]["column_keys"] = ["popattlabel","popattname"]
-    ITEM_SPECS["attitem"]["key_label"] = "popattlabel"
-    ITEM_SPECS["attitem"]["key_name"] = "popattname"
-    ITEM_SPECS["attitem"]["subitem_keys"] = ["optitem"]
-    # Define a default population option item, which is a subitem of a population attribute.
-    ITEM_SPECS["optitem"]["column_keys"] = ["popattlabel","popattname"]
-    ITEM_SPECS["optitem"]["key_label"] = "popoptlabel"
-    ITEM_SPECS["optitem"]["key_name"] = "popoptname"
-    ITEM_SPECS["optitem"]["superitem_key"] = "attitem"
-    # Define a default compartment item.
-    ITEM_SPECS["compitem"]["key_label"] = KEY_COMPARTMENT_LABEL
-    ITEM_SPECS["compitem"]["key_name"] = KEY_COMPARTMENT_NAME
-    # Define a default characteristic item.
-    ITEM_SPECS["characitem"]["key_label"] = KEY_CHARACTERISTIC_LABEL
-    ITEM_SPECS["characitem"]["key_name"] = KEY_CHARACTERISTIC_NAME
-    # Define a default parameter item.
-    ITEM_SPECS["paritem"]["key_label"] = "parlabel"
-    ITEM_SPECS["paritem"]["key_name"] = "parname"
-    # Define a default program type item.
-    ITEM_SPECS["progitem"]["inc_not_exc"] = True
-    ITEM_SPECS["progitem"]["column_keys"] = ["progtypelabel","progtypename"]
-    ITEM_SPECS["progitem"]["key_label"] = "progtypelabel"
-    ITEM_SPECS["progitem"]["key_name"] = "progtypename"
-    ITEM_SPECS["progitem"]["subitem_keys"] = ["progattitem"]
-    # Define a default program type attribute item.
-    ITEM_SPECS["progattitem"]["inc_not_exc"] = True
-    ITEM_SPECS["progattitem"]["column_keys"] = ["progattlabel","progattname"]
-    ITEM_SPECS["progattitem"]["key_label"] = "progattlabel"
-    ITEM_SPECS["progattitem"]["key_name"] = "progattname"
-    ITEM_SPECS["progattitem"]["superitem_key"] = "progitem"
+            # Some item types can be divided into columns and other subitem types; the keys of the latter should be listed.
+                                    "subitem_types":None, 
+            # Factory methods will only generate core page-items; all subitem types to be produced should mark the key of their superitem type.
+            # This chain of references should lead back to a core page item type.
+                                    "superitem_type":None}
+            for attribute in ITEM_TYPE_ATTRIBUTES:
+                ITEM_TYPE_SPECS[item_type]["key_"+attribute] = None
+            ITEM_TYPE_DESCRIPTOR_KEY[ITEM_TYPE_SPECS[item_type]["descriptor"]] = item_type   # Map default descriptors to keys.
+    # Define a default population attribute item type.
+    ITEM_TYPE_SPECS["attitem"]["inc_not_exc"] = True
+    ITEM_TYPE_SPECS["attitem"]["column_keys"] = [KEY_POPULATION_ATTRIBUTE_LABEL, KEY_POPULATION_ATTRIBUTE_NAME]
+    ITEM_TYPE_SPECS["attitem"]["key_label"] = KEY_POPULATION_ATTRIBUTE_LABEL
+    ITEM_TYPE_SPECS["attitem"]["key_name"] = KEY_POPULATION_ATTRIBUTE_NAME
+    ITEM_TYPE_SPECS["attitem"]["subitem_types"] = ["optitem"]
+    # Define a default population option item type.
+    ITEM_TYPE_SPECS["optitem"]["column_keys"] = [KEY_POPULATION_ATTRIBUTE_LABEL, KEY_POPULATION_ATTRIBUTE_NAME]
+    ITEM_TYPE_SPECS["optitem"]["key_label"] = KEY_POPULATION_OPTION_LABEL
+    ITEM_TYPE_SPECS["optitem"]["key_name"] = KEY_POPULATION_OPTION_NAME
+    ITEM_TYPE_SPECS["optitem"]["superitem_type"] = "attitem"
+    # Define a default compartment item type.
+    ITEM_TYPE_SPECS["compitem"]["key_label"] = KEY_COMPARTMENT_LABEL
+    ITEM_TYPE_SPECS["compitem"]["key_name"] = KEY_COMPARTMENT_NAME
+    # Define a default characteristic item type.
+    ITEM_TYPE_SPECS["characitem"]["key_label"] = KEY_CHARACTERISTIC_LABEL
+    ITEM_TYPE_SPECS["characitem"]["key_name"] = KEY_CHARACTERISTIC_NAME
+    # Define a default parameter item type.
+    ITEM_TYPE_SPECS["paritem"]["key_label"] = KEY_PARAMETER_LABEL
+    ITEM_TYPE_SPECS["paritem"]["key_name"] = KEY_PARAMETER_NAME
+    # Define a default program type item type.
+    ITEM_TYPE_SPECS["progitem"]["inc_not_exc"] = True
+    ITEM_TYPE_SPECS["progitem"]["column_keys"] = [KEY_PROGRAM_TYPE_LABEL, KEY_PROGRAM_TYPE_NAME]
+    ITEM_TYPE_SPECS["progitem"]["key_label"] = KEY_PROGRAM_TYPE_LABEL
+    ITEM_TYPE_SPECS["progitem"]["key_name"] = KEY_PROGRAM_TYPE_NAME
+    ITEM_TYPE_SPECS["progitem"]["subitem_types"] = ["progattitem"]
+    # Define a default program type attribute item type.
+    ITEM_TYPE_SPECS["progattitem"]["inc_not_exc"] = True
+    ITEM_TYPE_SPECS["progattitem"]["column_keys"] = [KEY_PROGRAM_ATTRIBUTE_LABEL, KEY_PROGRAM_ATTRIBUTE_NAME]
+    ITEM_TYPE_SPECS["progattitem"]["key_label"] = KEY_PROGRAM_ATTRIBUTE_LABEL
+    ITEM_TYPE_SPECS["progattitem"]["key_name"] = KEY_PROGRAM_ATTRIBUTE_NAME
+    ITEM_TYPE_SPECS["progattitem"]["superitem_type"] = "progitem"
     
                    
     @classmethod
@@ -237,16 +266,16 @@ class FrameworkSettings(object):
                                                       "that cannot be converted to a float. Using a default value.".format(column_key, format_variable_key))
                     except: pass
             
-        # Flesh out item details.
-        for item_key in cls.ITEM_SPECS:
-            try: descriptor = getConfigValue(config = cp, section = "item_"+item_key, option = "descriptor")
+        # Flesh out item-type details.
+        for item_type in cls.ITEM_TYPE_SPECS:
+            try: descriptor = getConfigValue(config = cp, section = "itemtype_"+item_type, option = "descriptor")
             except:
-                logger.warning("Framework configuration file cannot find a descriptor for item-key '{0}', so the descriptor will be the key itself.".format(item_key))
+                logger.warning("Framework configuration file cannot find a descriptor for item type '{0}', so the descriptor will be the key itself.".format(item_type))
                 continue
-            old_descriptor = cls.ITEM_SPECS[item_key]["descriptor"]
-            del cls.ITEM_DESCRIPTOR_KEY[old_descriptor]
-            cls.ITEM_SPECS[item_key]["descriptor"] = descriptor
-            cls.ITEM_DESCRIPTOR_KEY[descriptor] = item_key
+            old_descriptor = cls.ITEM_TYPE_SPECS[item_type]["descriptor"]
+            del cls.ITEM_TYPE_DESCRIPTOR_KEY[old_descriptor]
+            cls.ITEM_TYPE_SPECS[item_type]["descriptor"] = descriptor
+            cls.ITEM_TYPE_DESCRIPTOR_KEY[descriptor] = item_type
         
         logger.info("Optima Core framework settings successfully generated.") 
         return

@@ -22,8 +22,8 @@ import xlsxwriter as xw
 #        self.name = str()
 #        # Every page-item must be included in a dictionary that lists how many should be created.
 #        self.num_items = OrderedDict()
-#        for page_key in FrameworkSettings.PAGE_ITEM_KEYS:
-#            for item_key in FrameworkSettings.PAGE_ITEM_KEYS[page_key]:
+#        for page_key in FrameworkSettings.PAGE_ITEM_TYPES:
+#            for item_key in FrameworkSettings.PAGE_ITEM_TYPES[page_key]:
 #                self.num_items[item_key] = int()
 #        self.loadPreset(template_type = template_type)
         

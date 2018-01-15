@@ -52,7 +52,7 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
             value = str(excel_page.cell_value(row, col))
             if value == "":
                 value = None
-            elif filter == FrameworkSettings.COLUMN_TYPE_KEY_LIST_COMP_CHARAC:
+            elif filter == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC:
                 value = [item.strip() for item in value.strip().split(SystemSettings.EXCEL_LIST_SEPARATOR)]
 
             if (not old_value is None):     # If there is an old value, this is not the first important cell examined.
@@ -60,7 +60,7 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
                     value = old_value       # If the new value is not important, maintain the old value.
                 else:
                     # Expand lists with additional cell contents if appropriate.
-                    if filter == FrameworkSettings.COLUMN_TYPE_KEY_LIST_COMP_CHARAC:
+                    if filter == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC:
                         value = old_value + value
                     # Otherwise, overwrite with a warning.
                     else:
@@ -74,14 +74,14 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
 
     # Convert to boolean values if specified by filter.
     # Empty strings and unidentified symbols are considered default values.
-    if filter == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_OFF:
+    if filter == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_OFF:
         if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
         else:
             if not value == SystemSettings.DEFAULT_SYMBOL_NO:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_NO))
             value = ""
-    if filter == FrameworkSettings.COLUMN_TYPE_KEY_SWITCH_DEFAULT_ON:
+    if filter == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON:
         if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
         else:
             if not value == SystemSettings.DEFAULT_SYMBOL_YES:
@@ -121,7 +121,7 @@ class ProjectFramework(object):
         self.semantics[term] = dict()   # TODO: UPDATE THE VALUE WITH REFERENCES ONCE THE SPECS DICT IS COMPLETE.
 
     @accepts(xlrd.sheet.Sheet,str,str,int)
-    def extractItemSpecsFromPage(self, framework_page, page_key, item_key, start_row, stop_row = None, header_positions = None, destination_specs = None):
+    def extractItemSpecsFromPage(self, framework_page, page_key, item_type, start_row, stop_row = None, header_positions = None, destination_specs = None):
         """
         Extracts specifications for an item from a page in a framework file.
         The name and label of an item must exist on the start row, but all other related specifications details can exist in subsequent 'unnamed' rows.
@@ -130,7 +130,7 @@ class ProjectFramework(object):
         Inputs:
             framework_page (xlrd.sheet.Sheet)               - The Excel sheet from which to extract page-item specifications.
             page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
-            item_key (str)                                  - The key denoting the page-item to extract, as defined in framework settings.
+            item_type (str)                                 - The key denoting the type of item to extract, as defined in framework settings.
             start_row (int)                                 - The row number of the page from which to read the page-item.
             stop_row (int)                                  - The row number of the page at which page-item extraction is no longer read.
                                                               This is useful for cutting off subitems of subitems that have overflowed into the rows of the next superitem.
@@ -147,22 +147,22 @@ class ProjectFramework(object):
         if header_positions is None: header_positions = extractHeaderPositionMapping(framework_page)
         if destination_specs is None: destination_specs = self.specs[page_key]
         
-        item_specs = FrameworkSettings.ITEM_SPECS[item_key]
+        item_type_specs = FrameworkSettings.ITEM_TYPE_SPECS[item_type]
         
         # Every item needs a label and name on its starting row; check to see if corresponding columns exist.
         row = start_row
         try:
-            name_key = item_specs["key_name"]
+            name_key = item_type_specs["key_name"]
             name_header = FrameworkSettings.COLUMN_SPECS[name_key]["header"]
             name_pos = header_positions[name_header]
             name = str(framework_page.cell_value(row, name_pos))
-            label_key = item_specs["key_label"]
+            label_key = item_type_specs["key_label"]
             label_header = FrameworkSettings.COLUMN_SPECS[label_key]["header"]
             label_pos = header_positions[label_header]
             label = str(framework_page.cell_value(row, label_pos))
         except:
-            error_message = ("Problem encountered when extracting a name and label for page-item with key '{0}' "
-                             "on page with key '{1}'. ".format(item_key, page_key))
+            error_message = ("Problem encountered when extracting a name and label for item type '{0}' "
+                             "on page with key '{1}'. ".format(item_type, page_key))
             logger.error(error_message)
             raise OptimaException(error_message)
 
@@ -179,8 +179,8 @@ class ProjectFramework(object):
         # Provided that the item has a code name, extract other specifications details from other appropriate sections.
         if not name == "":
             if label == "":
-                error_message = ("A page-item of type '{0}', on page with key '{1}', was encountered with name '{2}' "
-                                 "but no label specified on the same row.".format(item_key, page_key, name))
+                error_message = ("An item of type '{0}', on page with key '{1}', was encountered with name '{2}' "
+                                 "but no label specified on the same row.".format(item_type, page_key, name))
                 logger.error(error_message)
                 raise OptimaException(error_message)
             for term in [name, label]:
@@ -188,15 +188,15 @@ class ProjectFramework(object):
             destination_specs[name] = {"label":label}
             
             column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
-            item_column_keys = []
-            if not item_specs["column_keys"] is None: item_column_keys = item_specs["column_keys"]
-            if item_specs["inc_not_exc"]: column_keys = item_column_keys
-            subitem_keys = []
-            if not item_specs["subitem_keys"] is None: subitem_keys = item_specs["subitem_keys"]
+            item_type_column_keys = []
+            if not item_type_specs["column_keys"] is None: item_type_column_keys = item_type_specs["column_keys"]
+            if item_type_specs["inc_not_exc"]: column_keys = item_type_column_keys
+            subitem_types = []
+            if not item_type_specs["subitem_types"] is None: subitem_types = item_type_specs["subitem_types"]
 
             # Iterate through all item-related columns when extracting specifications values.
             for column_key in column_keys:
-                if (not item_specs["inc_not_exc"]) and column_key in item_column_keys: continue
+                if (not item_type_specs["inc_not_exc"]) and column_key in item_type_column_keys: continue
                 if column_key not in [name_key, label_key]:
                     column_header = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
                     column_type = FrameworkSettings.COLUMN_SPECS[column_key]["type"]
@@ -218,12 +218,12 @@ class ProjectFramework(object):
                         destination_specs[name][column_key] = value
             
             # Parse the specifications of any subitems that exist within the rows attributed to this item.
-            for subitem_key in subitem_keys:
-                if not subitem_key in destination_specs[name]: destination_specs[name][subitem_key] = OrderedDict()
+            for subitem_type in subitem_types:
+                if not subitem_type in destination_specs[name]: destination_specs[name][subitem_type] = OrderedDict()
                 row_subitem = start_row
                 while row_subitem < stop_row:
-                    _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_key = subitem_key, start_row = row_subitem, stop_row = stop_row,
-                                                                   header_positions = header_positions, destination_specs = destination_specs[name][subitem_key])
+                    _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = subitem_type, start_row = row_subitem, stop_row = stop_row,
+                                                                   header_positions = header_positions, destination_specs = destination_specs[name][subitem_type])
             
         next_row = stop_row
         return framework_page, next_row
@@ -252,7 +252,7 @@ class ProjectFramework(object):
             header_positions = extractHeaderPositionMapping(framework_page)
             
             # Determine the fundamental page-item associated with this page.
-            try: core_item_key = FrameworkSettings.PAGE_ITEM_KEYS[page_key][0]
+            try: core_item_type = FrameworkSettings.PAGE_ITEM_TYPES[page_key][0]
             except:
                 logger.warning("Framework settings do not list a page-item key associated with the page titled '{0}'. "
                                "Continuing to the next page.".format(page_title))
@@ -260,24 +260,24 @@ class ProjectFramework(object):
                              
             # Check that the fundamental page-item on this page has requisite name and label columns to scan.
             try: 
-                core_name_key = FrameworkSettings.ITEM_SPECS[core_item_key]["key_name"]
+                core_name_key = FrameworkSettings.ITEM_TYPE_SPECS[core_item_type]["key_name"]
                 core_name_header = FrameworkSettings.COLUMN_SPECS[core_name_key]["header"]
             except:
                 logger.exception("Cannot locate the column header on framework page '{0}' associated with 'names' "
-                                 "for the page-item keyed by '{1}'.".format(page_title, core_item_key))
+                                 "for item of type '{1}'.".format(page_title, core_item_type))
                 raise
             try: 
-                core_label_key = FrameworkSettings.ITEM_SPECS[core_item_key]["key_label"]
+                core_label_key = FrameworkSettings.ITEM_TYPE_SPECS[core_item_type]["key_label"]
                 core_label_header = FrameworkSettings.COLUMN_SPECS[core_label_key]["header"]
             except:
                 logger.exception("Cannot locate the column header on framework page '{0}' associated with 'labels' "
-                                 "for the page-item keyed by '{1}'.".format(page_title, core_item_key))
+                                 "for item of type '{1}'.".format(page_title, core_item_type))
                 raise
                 
             # Scan through the rows of the page and update relevant specification dictionaries.
             row = 1
             while row < framework_page.nrows:
-                _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_key = core_item_key, start_row = row, header_positions = header_positions)                                        
+                _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = core_item_type, start_row = row, header_positions = header_positions)                                        
             
         logger.info("Optima Core framework successfully imported.")
         
