@@ -23,8 +23,9 @@ class SystemSettings(object):
     
     CODEBASE_DIRNAME = "optimacore"
     CONFIG_LOGGER_FILENAME = "logging.ini"
-    CONFIG_FRAMEWORK_FILENAME = "template_framework.ini"
-    CONFIG_FRAMEWORK_LIST_SEPARATOR = ","
+    CONFIG_FRAMEWORK_FILENAME = "format_framework.ini"
+    CONFIG_DATABOOK_FILENAME = "format_databook.ini"
+    CONFIG_LIST_SEPARATOR = ","
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     

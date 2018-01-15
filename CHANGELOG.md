@@ -8,9 +8,14 @@ The format adheres to Semantic Versioning.
 Features
 - Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
 - Coded `DatabookInstructions` class to specify how many of each item, e.g. population and program, to produce in a databook.
+- Hard-coded the keys for the databook file via a `DatabookSettings` class.
+  Set up a configuration-loading decorator and class method for `DatabookSettings`.
+  This loading is done upon initial importing.
 
 Edits
 - Overhauled semantics to distinguish between a `ProjectFramework` 'item' and its 'item type' detailed in `FrameworkSettings`.
+- Moved configuration-loading functionality into separate file: parser.py
+  This allows it to be used by both `FrameworkSettings` and `DatabookSettings`.
 
 ## 0.3.1 (2018-01-11): Initial Framework Loading
 

@@ -7,6 +7,7 @@ Contains functions for creating databooks from project frameworks and then impor
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, prepareFilePath, SystemSettings
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.framework import ProjectFramework
+from optimacore.databook_settings import DatabookSettings
 
 from collections import OrderedDict
 
@@ -26,7 +27,7 @@ class DatabookInstructions(object):
         self.name = str()
         # Every databook item must be included in a dictionary that lists how many should be created.
         self.num_items = OrderedDict()
-        for item_type in [FrameworkSettings.KEY_POPULATION, FrameworkSettings.KEY_PROGRAM]:
+        for item_type in DatabookSettings.ITEM_TYPES:
             self.num_items[item_type] = int()
         self.loadPreset(databook_type = databook_type)
         
