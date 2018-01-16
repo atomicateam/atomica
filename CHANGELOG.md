@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.2 (2018-01-15): Initial Databook Construction
+## 0.3.2 (2018-01-16): Initial Databook Construction
 
 Features
 - Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
@@ -11,6 +11,8 @@ Features
 - Hard-coded the keys for the databook file via a `DatabookSettings` class.
   Set up a configuration-loading decorator and class method for `DatabookSettings`.
   This loading is done upon initial importing.
+- Created sub-GUI class named `GUIDatabookCreation` to generate databooks from project frameworks.
+  The user can select a number of databook items to create, which updates a GUI-attached `DatabookInstructions` object on the fly.
 
 Edits
 - Overhauled semantics to distinguish between a `ProjectFramework` 'item' and its 'item type' detailed in `FrameworkSettings`.

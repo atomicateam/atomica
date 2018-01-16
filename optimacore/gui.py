@@ -8,6 +8,7 @@ Note: Callback functions cannot be easily decorated, so logging is applied per m
 from optimacore.system import logUsage, accepts, returns, logger, SystemSettings
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.framework_io import FrameworkTemplateInstructions, createFrameworkTemplate
+from optimacore.framework import ProjectFramework
 from optimacore.databook_settings import DatabookSettings
 from optimacore.databook import DatabookInstructions, createDatabookFunc
 
@@ -39,6 +40,8 @@ class GUISettings(object):
     SCREEN_HEIGHT = 0
     DEFAULT_SCREEN_FRACTION_WIDTH = 0.9
     DEFAULT_SCREEN_FRACTION_HEIGHT = 0.9
+
+    PIXEL_BUFFER_WIDTH = 20
     
     @classmethod
     @logUsage
@@ -96,6 +99,15 @@ def centerInScreen(widget):
     widget.setGeometry((GUISettings.SCREEN_WIDTH - widget.width())/2,
                        (GUISettings.SCREEN_HEIGHT - widget.height())/2,
                        widget.width(), widget.height())
+
+@logUsage
+@accepts(qtw.QLineEdit)
+def resizeLineEditToContents(line_edit):
+    """ Convenience function that resizes a line-edit text box to its contents. """
+    font_metrics = line_edit.fontMetrics()
+    line_edit.setMinimumWidth(font_metrics.boundingRect(line_edit.text()).width()+GUISettings.PIXEL_BUFFER_WIDTH)
+    #line_edit.setFixedSize(font_metrics.boundingRect(line_edit.text()).width(), font_metrics.height())
+
 
 #%% Code for GUIs.
 
@@ -259,6 +271,7 @@ class GUIDatabookCreation(qtw.QWidget):
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a databook.
         self.databook_instructions = DatabookInstructions()
+        self.framework = ProjectFramework()
 
     @logUsage
     def developLayout(self):
@@ -289,6 +302,24 @@ class GUIDatabookCreation(qtw.QWidget):
                                                     item_type_number, 1)
             item_type_number += 1
 
+        # Create a framework loading button and link it to the correct callback.
+        # Also create a read-only line-edit label for the framework name, as well as an appropriate label.
+        self.button_import_framework = qtw.QPushButton("Import Framework", self)
+        self.button_import_framework.clicked.connect(self.slotImportFramework)
+        self.label_framework_name = qtw.QLabel("Framework: ")
+        self.label_framework_name.setVisible(self.framework.getName()!="")
+        self.edit_framework_name = qtw.QLineEdit()
+        self.edit_framework_name.setReadOnly(True)
+        self.edit_framework_name.setAlignment(qtc.Qt.AlignCenter)
+        self.edit_framework_name.setText(self.framework.getName())
+        self.edit_framework_name.setVisible(self.framework.getName()!="")
+        layout_import_framework = qtw.QVBoxLayout()
+        layout_framework_name = qtw.QHBoxLayout()
+        layout_framework_name.addWidget(self.label_framework_name)
+        layout_framework_name.addWidget(self.edit_framework_name)
+        layout_import_framework.addWidget(self.button_import_framework)
+        layout_import_framework.addLayout(layout_framework_name)
+            
         # Create a databook creation button and link it to the correct callback.
         self.button_create = qtw.QPushButton("Create Databook", self)
         self.button_create.clicked.connect(self.slotCreateDatabook)
@@ -303,6 +334,7 @@ class GUIDatabookCreation(qtw.QWidget):
         layout_vertical = qtw.QVBoxLayout()
         layout_vertical.addItem(layout_stretch_vertical)
         
+        layout_vertical.addLayout(layout_import_framework)
         layout_vertical.addLayout(layout_databook_instructions)
         layout_vertical.addWidget(self.button_create)
         
@@ -317,15 +349,30 @@ class GUIDatabookCreation(qtw.QWidget):
     def slotUpdateDatabookInstructions(self, item_type, number):
         """ Updates instructions relating to the amount of default items to produce in a databook. """
         self.databook_instructions.updateNumberOfItems(item_type = item_type, number = number)
+
+    def slotImportFramework(self):
+        """ Imports a framework file from the location specified by the user. """
+        framework_path = getLoadPathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
+        if not framework_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
+            logger.warning("Abandoning framework file import due to provided framework path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
+            return
+        try:
+            self.framework.importFromFile(framework_path = framework_path)
+            self.edit_framework_name.setText(self.framework.getName())
+            resizeLineEditToContents(self.edit_framework_name)
+            self.label_framework_name.setVisible(self.framework.getName()!="")
+            self.edit_framework_name.setVisible(self.framework.getName()!="")
+        except:
+            logger.exception("Framework file import has failed.")
+            raise
         
-    def slotCreateDatabookTemplate(self):
+    def slotCreateDatabook(self):
         """ Creates a databook at the location specified by the user. """
         databook_path = getSavePathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
         if not databook_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
             logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
             return
-        # TODO: FRAMEWORK FILE!
-        try: createDatabookFunc(databook_path = databook_path, instructions = self.databook_instructions)
+        try: createDatabookFunc(framework = self.framework, databook_path = databook_path, instructions = self.databook_instructions)
         except:
             logger.exception("Databook construction has failed.")
             raise

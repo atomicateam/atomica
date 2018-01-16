@@ -60,8 +60,6 @@ class DatabookSettings(object):
             del cls.ITEM_TYPE_DESCRIPTOR_KEY[old_descriptor]
             cls.ITEM_TYPE_SPECS[item_type]["descriptor"] = descriptor
             cls.ITEM_TYPE_DESCRIPTOR_KEY[descriptor] = item_type
-
-        print(cls.ITEM_TYPE_SPECS)
         
         logger.info("Optima Core databook settings successfully generated.") 
         return

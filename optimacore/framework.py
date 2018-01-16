@@ -99,6 +99,7 @@ class ProjectFramework(object):
     
     def __init__(self):
         """ Initialize the framework. """
+        self.name = str()
         # Specifications are keyed by pages that have defined page-item types.
         # Each fundamental page-item and its subitems provide the data to construct specifications.
         # Each set of specifications associated with a core item type is a dictionary keyed by the code name of an item.
@@ -238,6 +239,9 @@ class ProjectFramework(object):
         except:
             logger.exception("Framework file was not found.")
             raise
+
+        # Reset the framework contents.
+        self.__init__()
             
         # Cycle through framework file pages and read them in.
         for page_key in FrameworkSettings.PAGE_KEYS:
@@ -278,10 +282,22 @@ class ProjectFramework(object):
             row = 1
             while row < framework_page.nrows:
                 _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = core_item_type, start_row = row, header_positions = header_positions)                                        
-            
+        
+        # TODO: Have a better naming scheme for the object rather than the path of its imported file.
+        self.setName(framework_path)
         logger.info("Optima Core framework successfully imported.")
         
         return
+
+    @accepts(str)
+    def setName(self, name):
+        """ Set primary human-readable identifier for the project framework. """
+        self.name = name
+    
+    @returns(str)
+    def getName(self):
+        """ Get primary human-readable identifier for the project framework. """
+        return self.name
     
 #    @accepts(str)
 #    @returns(bool)
