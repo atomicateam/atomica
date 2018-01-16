@@ -11,6 +11,7 @@ from optimacore.databook_settings import DatabookSettings
 
 from collections import OrderedDict
 
+from six import moves as sm
 import xlsxwriter as xw
 
 @applyToAllMethods(logUsage)
@@ -68,8 +69,34 @@ def createDatabookFunc(framework, databook_path, instructions = None, databook_t
 
     logger.info("Creating a project databook: {0}".format(databook_path))
     prepareFilePath(databook_path)
-    workbook = xw.Workbook(databook_path)
+    databook = xw.Workbook(databook_path)
 
-    ws_pops = workbook.add_worksheet("Populations")
+    # Create population sheet.
+    page_title = "Populations"
+    ws_pops = databook.add_worksheet(page_title)
 
-    workbook.close()
+    ws_pops.write(0, 0, "Full Name")        # This is technically the 'label' column.
+    ws_pops.write(0, 1, "Abbreviation")     # This is technically the 'name' column.
+
+    # While writing default population labels and names, they are stored for future reference as well.
+    pop_labels_default = []
+    pop_names_default = []
+    for pop_id in sm.range(instructions.num_items[FrameworkSettings.KEY_POPULATION]):
+        pop_label = "Population " + str(pop_id + 1)
+        pop_name = pop_label[0:3] + str(pop_id + 1)
+        pop_labels_default.append(pop_label)
+        pop_names_default.append(pop_name)
+        rc_pop_label = xw.utility.xl_rowcol_to_cell(pop_id + 1, 0)
+        ws_pops.write(pop_id + 1, 0, pop_label)
+        ws_pops.write(pop_id + 1, 1, "=LEFT({0},3)&\"{1}\"".format(rc_pop_label, pop_id + 1), None, pop_name)
+
+    # Excel formulae strings that point to population names and labels are likewise stored.
+    pop_labels_formula = []
+    pop_names_formula = []
+    for pop_id in sm.range(instructions.num_items[FrameworkSettings.KEY_POPULATION]):
+        rc_pop_label = xw.utility.xl_rowcol_to_cell(pop_id + 1, 0, True, True)
+        rc_pop_name = xw.utility.xl_rowcol_to_cell(pop_id + 1, 1, True, True)
+        pop_labels_formula.append("='{0}'!{1}".format(page_title, rc_pop_label))
+        pop_names_formula.append("='{0}'!{1}".format(page_title, rc_pop_name))
+
+    databook.close()

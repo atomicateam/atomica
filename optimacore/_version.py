@@ -4,5 +4,5 @@ Optima Core version file.
 Standard location for module version number and date.
 """
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 __updated__ = "2018-01-16"
