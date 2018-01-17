@@ -11,6 +11,7 @@ from optimacore.framework_io import FrameworkTemplateInstructions, createFramewo
 from optimacore.framework import ProjectFramework
 from optimacore.databook_settings import DatabookSettings
 from optimacore.databook import DatabookInstructions, createDatabookFunc
+from optimacore.excel import ExcelSettings
 
 import sys
 
@@ -240,9 +241,9 @@ class GUIFrameworkFileCreation(qtw.QWidget):
         
     def slotCreateFrameworkTemplate(self):
         """ Creates a template framework file at the location specified by the user. """
-        framework_path = getSavePathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
-        if not framework_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
-            logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
+        framework_path = getSavePathFromUser(file_filter = "*"+ExcelSettings.FILE_EXTENSION)
+        if not framework_path.endswith(ExcelSettings.FILE_EXTENSION):
+            logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(ExcelSettings.FILE_EXTENSION))
             return
         try: createFrameworkTemplate(framework_path = framework_path, instructions = self.framework_instructions)
         except:
@@ -352,9 +353,9 @@ class GUIDatabookCreation(qtw.QWidget):
 
     def slotImportFramework(self):
         """ Imports a framework file from the location specified by the user. """
-        framework_path = getLoadPathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
-        if not framework_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
-            logger.warning("Abandoning framework file import due to provided framework path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
+        framework_path = getLoadPathFromUser(file_filter = "*"+ExcelSettings.FILE_EXTENSION)
+        if not framework_path.endswith(ExcelSettings.FILE_EXTENSION):
+            logger.warning("Abandoning framework file import due to provided framework path not ending in '{0}'.".format(ExcelSettings.FILE_EXTENSION))
             return
         try:
             self.framework.importFromFile(framework_path = framework_path)
@@ -368,9 +369,9 @@ class GUIDatabookCreation(qtw.QWidget):
         
     def slotCreateDatabook(self):
         """ Creates a databook at the location specified by the user. """
-        databook_path = getSavePathFromUser(file_filter = "*"+SystemSettings.EXCEL_FILE_EXTENSION)
-        if not databook_path.endswith(SystemSettings.EXCEL_FILE_EXTENSION):
-            logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(SystemSettings.EXCEL_FILE_EXTENSION))
+        databook_path = getSavePathFromUser(file_filter = "*"+ExcelSettings.FILE_EXTENSION)
+        if not databook_path.endswith(ExcelSettings.FILE_EXTENSION):
+            logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(ExcelSettings.FILE_EXTENSION))
             return
         try: createDatabookFunc(framework = self.framework, databook_path = databook_path, instructions = self.databook_instructions)
         except:

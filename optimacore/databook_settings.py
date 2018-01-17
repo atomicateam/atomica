@@ -9,6 +9,7 @@ from optimacore.system import logUsage, accepts, OptimaException
 from optimacore.system import logger, SystemSettings, getOptimaCorePath
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.parser import loadConfigFile, getConfigValue, configparser
+from optimacore.excel import ExcelSettings
 
 from collections import OrderedDict
 
@@ -21,9 +22,22 @@ class DatabookSettings(object):
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
     # TODO: Work out how to reference the keys here within the configuration file, so as to keep the two aligned.
-    
+    # Define simple key semantics, copying from framework settings were required to maintain consistency.
+    KEY_POPULATION = FrameworkSettings.KEY_POPULATION
+    KEY_PROGRAM = FrameworkSettings.KEY_PROGRAM
+
+    # Construct an ordered list of keys representing standard pages.
+    PAGE_KEYS = [KEY_POPULATION, KEY_PROGRAM]
+
+    # Construct a dictionary of specifications detailing how to construct pages.
+    # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
+    PAGE_SPECS = OrderedDict()
+    for page_key in PAGE_KEYS:
+        PAGE_SPECS[page_key] = dict()
+
     # Construct an ordered list of keys representing items defined in a databook.
-    ITEM_TYPES = [FrameworkSettings.KEY_POPULATION, FrameworkSettings.KEY_PROGRAM]
+    # These tend to extend over multiple pages.
+    ITEM_TYPES = [KEY_POPULATION, KEY_PROGRAM]
 
     # A mapping from item type descriptors to type-key.
     ITEM_TYPE_DESCRIPTOR_KEY = dict()
@@ -49,6 +63,22 @@ class DatabookSettings(object):
         logger.info("Location... {0}".format(config_path))
         cp = configparser.ConfigParser()
         cp.read(config_path)
+
+        # Flesh out page details.
+        for page_key in cls.PAGE_KEYS:
+            # Read in required page title.
+            try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
+            except:
+                logger.exception("Databook configuration loading process failed. Every page in a databook needs a title.")
+                raise
+            # Read in optional page format variables.
+            for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
+                try: 
+                    value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_variable_key, mute_warnings = True))
+                    cls.PAGE_SPECS[page_key][format_variable_key] = value_overwrite
+                except ValueError: logger.warning("Databook configuration file for page-key '{0}' has an entry for '{1}' " 
+                                                  "that cannot be converted to a float. Using a default value.".format(page_key, format_variable_key))
+                except: pass
             
         # Flesh out item-type details.
         for item_type in cls.ITEM_TYPE_SPECS:

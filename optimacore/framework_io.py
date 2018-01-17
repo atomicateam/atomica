@@ -5,9 +5,9 @@ Contains functions to create, import and export framework files.
 This is primarily referenced by the ProjectFramework object.
 """
 
-from optimacore.system import applyToAllMethods, logUsage, accepts, returns
-from optimacore.system import logger, SystemSettings, prepareFilePath
+from optimacore.system import SystemSettings, logger, applyToAllMethods, logUsage, accepts, returns, prepareFilePath
 from optimacore.framework_settings import FrameworkSettings
+from optimacore.excel import ExcelSettings, createStandardExcelFormats, createDefaultFormatVariables
 
 from copy import deepcopy as dcp
 from collections import OrderedDict
@@ -53,30 +53,6 @@ class FrameworkTemplateInstructions(object):
             logger.exception("An attempted update of framework instructions '{0}' to produce '{1}' instances of item type '{2}' failed.".format(self.name, number, item_type))
             raise
         return
-
-@logUsage
-@accepts(xw.Workbook)
-def createStandardExcelFormats(excel_file):
-    """ 
-    Generates and returns a dictionary of standard excel formats attached to an excel file.
-    Note: Can be modified or expanded as necessary to fit other definitions of 'standard'.
-    """
-    formats = dict()
-    formats["center_bold"] = excel_file.add_format({"align": "center", "bold": True})
-    formats["center"] = excel_file.add_format({"align": "center"})
-    return formats
-
-@logUsage
-def createDefaultFormatVariables():
-    """
-    Establishes framework-file default values for format variables in a dictionary and returns it.
-    Note: Once used exec function here but it is now avoided for Python3 compatibility.
-    """
-    format_variables = dict()
-    format_variables["column_width"] = SystemSettings.EXCEL_IO_DEFAULT_COLUMN_WIDTH
-    format_variables["comment_xscale"] = SystemSettings.EXCEL_IO_DEFAULT_COMMENT_XSCALE
-    format_variables["comment_yscale"] = SystemSettings.EXCEL_IO_DEFAULT_COMMENT_YSCALE
-    return format_variables
 
 @logUsage
 def createEmptyPageItemAttributes():
@@ -137,11 +113,11 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
         if "comment" in FrameworkSettings.COLUMN_SPECS[column_key]:
             header_comment = FrameworkSettings.COLUMN_SPECS[column_key]["comment"]
             framework_page.write_comment(0, col, header_comment, 
-                                         {"x_scale": format_variables["comment_xscale"], 
-                                          "y_scale": format_variables["comment_yscale"]})
+                                         {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
+                                          "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
     
         # Adjust column width and continue to the next one.
-        framework_page.set_column(col, col, format_variables["column_width"])
+        framework_page.set_column(col, col, format_variables[ExcelSettings.KEY_COLUMN_WIDTH])
     return framework_page
 
 
@@ -236,7 +212,7 @@ def createFrameworkPageItem(framework_page, page_key, item_type, start_row, form
                 col_charac = FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_CHARACTERISTIC_NAME]["default_pos"]
                 rc_charac = xw.utility.xl_rowcol_to_cell(row-1, col_charac)
                 text += ",\", \",{0}".format(rc_charac)
-                text_backup += (SystemSettings.EXCEL_LIST_SEPARATOR + " " + 
+                text_backup += (ExcelSettings.LIST_SEPARATOR + " " + 
                          FrameworkSettings.COLUMN_SPECS[FrameworkSettings.KEY_CHARACTERISTIC_NAME]["prefix"] + SystemSettings.DEFAULT_SPACE_NAME + str(item_number-1))
         
             text += ")"

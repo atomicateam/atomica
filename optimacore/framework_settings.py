@@ -8,6 +8,7 @@ The definitions are hard-coded, while interface semantics are drawn from a confi
 from optimacore.system import logUsage, accepts, OptimaException
 from optimacore.system import logger, SystemSettings, getOptimaCorePath
 from optimacore.parser import loadConfigFile, getConfigValue, configparser
+from optimacore.excel import ExcelSettings
 
 from collections import OrderedDict
 
@@ -90,10 +91,6 @@ class FrameworkSettings(object):
     PAGE_ITEM_TYPES[KEY_CHARACTERISTIC] = ["characitem"]
     PAGE_ITEM_TYPES[KEY_PARAMETER] = ["paritem"]
     PAGE_ITEM_TYPES[KEY_PROGRAM_TYPE] = ["progitem","progattitem"]
-    
-    # Keys for float-valued variables related in some way to framework-file formatting.
-    # They must have corresponding system-settings defaults.
-    FORMAT_VARIABLE_KEYS = ["column_width","comment_xscale","comment_yscale"]
     
     # Construct a dictionary of specifications detailing how to construct pages and page columns.
     # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
@@ -200,7 +197,7 @@ class FrameworkSettings(object):
                 logger.exception("Framework configuration loading process failed. Every page in a framework file needs a title.")
                 raise
             # Read in optional page format variables.
-            for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
+            for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
                 try: 
                     value_overwrite = float(getConfigValue(config = cp, section = "page_"+page_key, option = format_variable_key, mute_warnings = True))
                     cls.PAGE_SPECS[page_key][format_variable_key] = value_overwrite
@@ -222,7 +219,7 @@ class FrameworkSettings(object):
                 try: cls.COLUMN_SPECS[column_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["column",column_key]), option = "prefix", mute_warnings = True)
                 except: pass
                 # Read in optional column format variables.
-                for format_variable_key in cls.FORMAT_VARIABLE_KEYS:
+                for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
                     try: 
                         value_overwrite = float(getConfigValue(config = cp, section = "_".join(["column",column_key]), option = format_variable_key, mute_warnings = True))
                         cls.COLUMN_SPECS[column_key][format_variable_key] = value_overwrite

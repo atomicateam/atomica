@@ -9,6 +9,7 @@ from optimacore.system import applyToAllMethods, logUsage, accepts, returns
 from optimacore.system import logger, SystemSettings
 from optimacore.framework import ProjectFramework
 from optimacore.databook import createDatabookFunc
+from optimacore.excel import ExcelSettings
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -30,7 +31,7 @@ class Project(object):
         Generate a data-input Excel spreadsheet corresponding to the framework of this project.
         An object in the form of DatabookInstructions can optionally be passed in to describe how many databook items should be templated.
         """
-        if databook_path is None: databook_path = "./databook_" + self.name + SystemSettings.EXCEL_FILE_EXTENSION
+        if databook_path is None: databook_path = "./databook_" + self.name + ExcelSettings.FILE_EXTENSION
         createDatabookFunc(framework = self.getFramework(), databook_path = databook_path, instructions = instructions, databook_type = databook_type)
     
     @accepts(str)

@@ -8,6 +8,7 @@ This includes a description of the Markov chain network underlying project dynam
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
 from optimacore.system import SystemSettings
 from optimacore.framework_settings import FrameworkSettings
+from optimacore.excel import ExcelSettings
 
 import os
 import xlrd
@@ -53,7 +54,7 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
             if value == "":
                 value = None
             elif filter == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC:
-                value = [item.strip() for item in value.strip().split(SystemSettings.EXCEL_LIST_SEPARATOR)]
+                value = [item.strip() for item in value.strip().split(ExcelSettings.LIST_SEPARATOR)]
 
             if (not old_value is None):     # If there is an old value, this is not the first important cell examined.
                 if value is None:

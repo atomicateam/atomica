@@ -3,10 +3,14 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.3 (2018-01-16): Basic Databook Items
+## 0.3.3 (2018-01-17): Basic Databook Items
 
 Features
 - Improved wrapped `createDatabookFunc()` to produce a list of populations in a databook.
+
+Edits
+- Pulled Excel-based functionality and format variables into file: excel.py
+  Variables specifically are stored in object `ExcelSettings`.
 
 ## 0.3.2 (2018-01-16): Initial Databook Construction
 
