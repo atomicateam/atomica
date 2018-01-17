@@ -90,7 +90,7 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
                                                   Each key is a string and each value is an 'xlsxwriter.format.Format' object.
         format_variables (dict)                 - A dictionary of format variables, such as column width.
                                                   If left as None, they will be regenerated in this function.
-                                                  The keys are listed in framework settings and the values are floats.
+                                                  The keys are listed in Excel settings and the values are floats.
     """
     # Get the set of keys that refer to framework-file page columns.
     # Iterate through the keys and construct each corresponding column header.
@@ -100,7 +100,7 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
         header_name = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
         framework_page.write(0, col, header_name, formats["center_bold"])
         
-        # Propagate pagewide format variable values to column-wide format variable values.
+        # Propagate page-wide format variable values to column-wide format variable values.
         # Create the format variables if they were not passed in from a page-wide context.
         # Overwrite the page-wide defaults if column-based specifics are available in framework settings.
         if format_variables is None: format_variables = createDefaultFormatVariables()
@@ -123,8 +123,8 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
 
 @logUsage
 @accepts(xw.worksheet.Worksheet,str,str,int,dict)
-def createFrameworkPageItem(framework_page, page_key, item_type, start_row, formats, 
-                            instructions = None, item_number = None, superitem_attributes = None):
+def createFrameworkItem(framework_page, page_key, item_type, start_row, formats, 
+                        instructions = None, item_number = None, superitem_attributes = None):
     """
     Creates a default item on a page within a framework file, as defined in framework settings.
     
@@ -259,10 +259,10 @@ def createFrameworkPageItem(framework_page, page_key, item_type, start_row, form
     # Generate as many subitems as are required to be attached to this page-item.
     for subitem_type in subitem_types:
         for subitem_number in sm.range(instructions.num_items[subitem_type]):
-            _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                                   item_type = subitem_type, start_row = row, 
-                                                   formats = formats, item_number = subitem_number,
-                                                   superitem_attributes = item_attributes)
+            _, row = createFrameworkItem(framework_page = framework_page, page_key = page_key,
+                                         item_type = subitem_type, start_row = row, 
+                                         formats = formats, item_number = subitem_number,
+                                         superitem_attributes = item_attributes)
     next_row = max(start_row + 1, row)  # Make sure that the next row is always at least the row after the row of the current item.
     return framework_page, next_row
 
@@ -313,9 +313,9 @@ def createFrameworkPage(framework_file, page_key, instructions = None, formats =
     for item_type in FrameworkSettings.PAGE_ITEM_TYPES[page_key]:
         if FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
             for item_number in sm.range(instructions.num_items[item_type]):
-                _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-                                                 item_type = item_type, start_row = row, 
-                                                 instructions = instructions, formats = formats, item_number = item_number)
+                _, row = createFrameworkItem(framework_page = framework_page, page_key = page_key,
+                                             item_type = item_type, start_row = row, 
+                                             instructions = instructions, formats = formats, item_number = item_number)
     return framework_file            
 
 

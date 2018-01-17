@@ -8,7 +8,7 @@ from optimacore.system import logger, applyToAllMethods, logUsage, accepts, retu
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.framework import ProjectFramework
 from optimacore.databook_settings import DatabookSettings
-from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables
+from optimacore.excel import ExcelSettings, createStandardExcelFormats, createDefaultFormatVariables
 
 from copy import deepcopy as dcp
 
@@ -55,6 +55,72 @@ class DatabookInstructions(object):
         return
 
 @logUsage
+@accepts(xw.worksheet.Worksheet,str,str,int,int,dict)
+def createDatabookSection(datapage, page_key, section_key, start_row, start_col, formats, instructions = None, format_variables = None):
+    """
+    Creates a default section on a page within a databook, as defined in databook settings.
+    
+    Inputs:
+        datapage (xw.worksheet.Worksheet)               - The Excel sheet in which to create databook sections.
+        page_key (str)                                  - The key denoting the provided page, as defined in databook settings.
+        section_key (str)                               - The key denoting the type of section to create, as defined in databook settings.
+        start_row (int)                                 - The row number of the page at which to generate the default section.
+        start_col (int)                                 - The column number of the page at which to generate the default section.
+        formats (dict)                                  - A dictionary of standard Excel formats.
+                                                          Is the output of function: createStandardExcelFormats()
+                                                          Each key is a string and each value is an 'xlsxwriter.format.Format' object.
+        instructions (DatabookInstructions)             - An object that contains instructions for how many databook items to create.
+        format_variables (dict)                         - A dictionary of format variables, such as column width.
+                                                          If left as None, they will be regenerated in this function.
+                                                          The keys are listed in Excel settings and the values are floats.
+    
+    Outputs:
+        datapage (xw.worksheet.Worksheet)       - The Excel sheet in which databook sections were created.
+        next_section_row (int)                  - The row number of the page at which the next section should be created.
+                                                  Warning: This is not necessarily the row following the current section.
+        next_section_col (int)                  - The column number of the page at which the next section should be created.
+                                                  Warning: This is not necessarily the column following the current section.
+    """
+    # Check if specifications for this section exist, associated with the appropriate page-key.
+    if not section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
+        logger.exception("A databook page with key '{0}' was instructed to create a section with key '{1}', despite no relevant section "
+                         "specifications existing in databook settings. Abandoning databook construction.".format(page_key,section_key))
+        raise KeyError(section_key)
+    section_specs = DatabookSettings.SECTION_SPECS[section_key]
+    
+    # Initialize requisite values for the upcoming process.
+    cell_format = formats["center"]
+    row = start_row
+    col = start_col
+    
+    # Create header if required.
+    header_name = section_specs["header"]
+    datapage.write(row, col, header_name, formats["center_bold"])
+        
+    # Propagate page-wide format variable values to column-wide format variable values.
+    # Create the format variables if they were not passed in from a page-wide context.
+    # Overwrite the page-wide defaults if section-based specifics are available in framework settings.
+    if format_variables is None: format_variables = createDefaultFormatVariables()
+    else: format_variables = dcp(format_variables)
+    for format_variable_key in format_variables:
+        if format_variable_key in DatabookSettings.SECTION_SPECS[section_key]:
+            format_variables[format_variable_key] = DatabookSettings.SECTION_SPECS[section_key][format_variable_key]
+        
+        # Comment the column header if a comment was pulled into framework settings from a configuration file.
+        if "comment" in DatabookSettings.SECTION_SPECS[section_key]:
+            header_comment = DatabookSettings.SECTION_SPECS[section_key]["comment"]
+            datapage.write_comment(0, col, header_comment, 
+                                   {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
+                                    "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
+    
+        # Adjust column width and continue to the next one.
+        datapage.set_column(col, col, format_variables[ExcelSettings.KEY_COLUMN_WIDTH])
+
+    next_section_row = start_row
+    next_section_col = start_col + 1
+    return datapage, next_section_row, next_section_col
+
+@logUsage
 @accepts(xw.Workbook,str)
 @returns(xw.Workbook)
 def createDatabookPage(databook, page_key, instructions = None, formats = None, format_variables = None):
@@ -89,20 +155,16 @@ def createDatabookPage(databook, page_key, instructions = None, formats = None, 
         if format_variable_key in DatabookSettings.PAGE_SPECS[page_key]:
             format_variables[format_variable_key] = DatabookSettings.PAGE_SPECS[page_key][format_variable_key]
     
-    # Generate standard formats if they do not exist and construct headers for the page.
+    # Generate standard formats if they do not exist.
     if formats is None: formats = createStandardExcelFormats(databook)
-    #createFrameworkPageHeaders(framework_page = framework_page, page_key = page_key, 
-    #                           formats = formats, format_variables = format_variables)
     
-    ## Create the number of base items required on this page.
-    ## Officially, the initial item key per page is that of the core item-type, but this generic code works for all items without superitems.
-    #row = 1
-    #for item_type in FrameworkSettings.PAGE_ITEM_TYPES[page_key]:
-    #    if FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
-    #        for item_number in sm.range(instructions.num_items[item_type]):
-    #            _, row = createFrameworkPageItem(framework_page = framework_page, page_key = page_key,
-    #                                             item_type = item_type, start_row = row, 
-    #                                             instructions = instructions, formats = formats, item_number = item_number)
+    # Create the sections required on this page.
+    row = 0
+    col = 0
+    for section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
+        _, row, col = createDatabookSection(datapage = datapage, page_key = page_key,
+                                            section_key = section_key, start_row = row, start_col = col,
+                                            instructions = instructions, formats = formats, format_variables = format_variables)
     return databook      
 
 @logUsage

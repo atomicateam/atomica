@@ -29,14 +29,47 @@ class DatabookSettings(object):
     # Construct an ordered list of keys representing standard pages.
     PAGE_KEYS = [KEY_POPULATION, KEY_PROGRAM]
 
-    # Construct a dictionary of specifications detailing how to construct pages.
+    # Each databook page consists of 'sections'.
+    # These can be columns in the simplest case, but also include sets of complex data-entry units. 
+    # Create key semantics for types that sections can be.
+    SECTION_TYPE_COLUMN_LABEL = FrameworkSettings.COLUMN_TYPE_LABEL
+    SECTION_TYPE_COLUMN_NAME = FrameworkSettings.COLUMN_TYPE_NAME
+    SECTION_TYPES = [SECTION_TYPE_COLUMN_LABEL, SECTION_TYPE_COLUMN_NAME]
+    
+    # Construct a dictionary mapping each page-key to a list of unique keys representing sections.
+    # This ordering describes how a databook will be constructed.
+    KEY_POPULATION_LABEL = KEY_POPULATION + SECTION_TYPE_COLUMN_LABEL
+    KEY_POPULATION_NAME = KEY_POPULATION + SECTION_TYPE_COLUMN_NAME
+
+    PAGE_SECTION_KEYS = OrderedDict()
+    for page_key in PAGE_KEYS: PAGE_SECTION_KEYS[page_key] = []
+    PAGE_SECTION_KEYS[KEY_POPULATION] = [KEY_POPULATION_LABEL, KEY_POPULATION_NAME]
+
+    # Construct a dictionary of specifications detailing how to construct pages and page sections.
     # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
+    # Note: For databooks, this dictionary does the heavy lifting; sections are iteratively created for all items.
     PAGE_SPECS = OrderedDict()
+    SECTION_SPECS = OrderedDict()
     for page_key in PAGE_KEYS:
         PAGE_SPECS[page_key] = dict()
+        section_count = 0
+        for section_key in PAGE_SECTION_KEYS[page_key]:
+            if section_key in SECTION_SPECS: raise OptimaException("Key uniqueness failure. Databook settings specify the same key '{0}' for more than one section.".format(section_key))
+            SECTION_SPECS[section_key] = dict()
+            # Associate each section with a position value for easy reference.
+            # Note: Given that not all sections are columns, output-based interpretation of this number may vary.
+            SECTION_SPECS[section_key]["default_pos"] = section_count
+            SECTION_SPECS[section_key]["type"] = None
+            section_count += 1
+            # For convenience, do default typing based on section key here.
+            for section_type in SECTION_TYPES:
+                if section_key.endswith(section_type):
+                     SECTION_SPECS[section_key]["type"] = section_type
+    # Non-default types should overwrite defaults here.
+    pass
 
     # Construct an ordered list of keys representing items defined in a databook.
-    # These tend to extend over multiple pages.
+    # Unlike with frameworks, these tend to extend over multiple pages, leading to significant differences in input and output.
     ITEM_TYPES = [KEY_POPULATION, KEY_PROGRAM]
 
     # A mapping from item type descriptors to type-key.
@@ -49,12 +82,12 @@ class DatabookSettings(object):
         # Provide a string-valued descriptor, i.e. a user-interface label for the type.
         ITEM_TYPE_SPECS[item_type] = {"descriptor":item_type}
         ITEM_TYPE_DESCRIPTOR_KEY[ITEM_TYPE_SPECS[item_type]["descriptor"]] = item_type   # Map default descriptors to keys.
-    
+
     @classmethod
     @logUsage
     def reloadConfigFile(cls):
         """
-        Reads a framework configuration file and extends the settings to use the semantics and values provided.
+        Reads a databook configuration file and extends the settings to use the semantics and values provided.
         Method is titled with 'reload' as the process will have already been called once during initial import.
         Note: Currently references the default configuration file, but can be modified in the future.
         """
@@ -79,6 +112,29 @@ class DatabookSettings(object):
                 except ValueError: logger.warning("Databook configuration file for page-key '{0}' has an entry for '{1}' " 
                                                   "that cannot be converted to a float. Using a default value.".format(page_key, format_variable_key))
                 except: pass
+
+            # Flesh out page section details.
+            # TODO: Generalise beyond columns.
+            for section_key in cls.PAGE_SECTION_KEYS[page_key]:
+                # Read in required column header.
+                try: cls.SECTION_SPECS[section_key]["header"] = getConfigValue(config = cp, section = "_".join(["section",section_key]), option = "header")
+                except:
+                    logger.exception("Databook configuration loading process failed. Every section in a framework page needs a header.")
+                    raise
+                # Read in optional section comment.
+                try: cls.SECTION_SPECS[section_key]["comment"] = getConfigValue(config = cp, section = "_".join(["section",section_key]), option = "comment")
+                except: pass
+                # Read in optional prefix that will prepend default text written into this section.
+                try: cls.SECTION_SPECS[section_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["section",section_key]), option = "prefix", mute_warnings = True)
+                except: pass
+                # Read in optional section format variables.
+                for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
+                    try: 
+                        value_overwrite = float(getConfigValue(config = cp, section = "_".join(["section",section_key]), option = format_variable_key, mute_warnings = True))
+                        cls.SECTION_SPECS[section_key][format_variable_key] = value_overwrite
+                    except ValueError: logger.warning("Databook configuration file for section-key '{0}' has an entry for '{1}' " 
+                                                      "that cannot be converted to a float. Using a default value.".format(section_key, format_variable_key))
+                    except: pass
             
         # Flesh out item-type details.
         for item_type in cls.ITEM_TYPE_SPECS:

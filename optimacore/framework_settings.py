@@ -121,6 +121,7 @@ class FrameworkSettings(object):
     ITEM_TYPE_DESCRIPTOR_KEY = dict()
                      
     # Construct a dictionary of specifications detailing framework-page item types.
+    # Note: For framework files, this dictionary does the heavy lifting; items are iteratively created across columns.
     # Warning: Incorrect modifications are particularly dangerous here due to the possibility of broken Excel links and subitem recursions.
     ITEM_TYPE_ATTRIBUTES = ["label","name"]
     ITEM_TYPE_SPECS = OrderedDict()     # Order is important when running through subitems.
