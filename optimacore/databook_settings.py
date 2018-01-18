@@ -35,6 +35,10 @@ class DatabookSettings(object):
     SECTION_TYPE_COLUMN_LABEL = FrameworkSettings.COLUMN_TYPE_LABEL
     SECTION_TYPE_COLUMN_NAME = FrameworkSettings.COLUMN_TYPE_NAME
     SECTION_TYPES = [SECTION_TYPE_COLUMN_LABEL, SECTION_TYPE_COLUMN_NAME]
+
+    # Construct an ordered list of keys representing items defined in a databook.
+    # Unlike with frameworks, these tend to extend over multiple pages, leading to significant differences in input and output.
+    ITEM_TYPES = [KEY_POPULATION, KEY_PROGRAM]
     
     # Construct a dictionary mapping each page-key to a list of unique keys representing sections.
     # This ordering describes how a databook will be constructed.
@@ -56,21 +60,25 @@ class DatabookSettings(object):
         for section_key in PAGE_SECTION_KEYS[page_key]:
             if section_key in SECTION_SPECS: raise OptimaException("Key uniqueness failure. Databook settings specify the same key '{0}' for more than one section.".format(section_key))
             SECTION_SPECS[section_key] = dict()
-            # Associate each section with a position value for easy reference.
-            # Note: Given that not all sections are columns, output-based interpretation of this number may vary.
-            SECTION_SPECS[section_key]["default_pos"] = section_count
+
+            ## Associate each section with a position value for easy reference.
+            ## Note: Given that not all sections are columns, output-based interpretation of this number may vary.
+            #SECTION_SPECS[section_key]["default_pos"] = section_count
+
+            # Attach a reference to an item type that is associated with this section, for input-output purposes.
+            SECTION_SPECS[section_key]["item_type"] = None
+            # Also determine the type this section is, as listed earlier.
             SECTION_SPECS[section_key]["type"] = None
             section_count += 1
-            # For convenience, do default typing based on section key here.
+            # For convenience, do default referencing and typing based on section key here.
+            for item_type in ITEM_TYPES:
+                if page_key.startswith(item_type):
+                    SECTION_SPECS[section_key]["item_type"] = item_type
             for section_type in SECTION_TYPES:
                 if section_key.endswith(section_type):
-                     SECTION_SPECS[section_key]["type"] = section_type
+                    SECTION_SPECS[section_key]["type"] = section_type
     # Non-default types should overwrite defaults here.
     pass
-
-    # Construct an ordered list of keys representing items defined in a databook.
-    # Unlike with frameworks, these tend to extend over multiple pages, leading to significant differences in input and output.
-    ITEM_TYPES = [KEY_POPULATION, KEY_PROGRAM]
 
     # A mapping from item type descriptors to type-key.
     ITEM_TYPE_DESCRIPTOR_KEY = dict()
@@ -127,6 +135,25 @@ class DatabookSettings(object):
                 # Read in optional prefix that will prepend default text written into this section.
                 try: cls.SECTION_SPECS[section_key]["prefix"] = getConfigValue(config = cp, section = "_".join(["section",section_key]), option = "prefix", mute_warnings = True)
                 except: pass
+                
+                # Read in optional reference to another section that will be used to prepend default text written into this section.
+                # This is typically used to have text reference other columns via Excel formula; it will override standard 'prefix' instructions.
+                try: cls.SECTION_SPECS[section_key]["ref_section"] = getConfigValue(config = cp, section = "_".join(["section",section_key]), option = "ref_section", mute_warnings = True)
+                except: pass
+                if "ref_section" in cls.SECTION_SPECS[section_key]:
+                    ref_section = cls.SECTION_SPECS[section_key]["ref_section"]
+                    if not ref_section in cls.SECTION_SPECS:
+                        raise OptimaException("Databook configuration file specifies non-existent section '{0}' as a 'referenced section' for "
+                                              "section '{1}'.".format(ref_section, section_key))
+                    else:
+                        if not cls.SECTION_SPECS[section_key]["item_type"] == cls.SECTION_SPECS[ref_section]["item_type"]:
+                            raise OptimaException("Databook configuration file states that section with key '{0}' and item type '{1}' references section with key '{2}' "
+                                                 "and item type '{3}'. Different item types are not allowed, "
+                                                 "in case there is no one-to-one mapping from item to item.".format(section_key, cls.SECTION_SPECS[section_key]["item_type"],
+                                                                                                                    ref_section, cls.SECTION_SPECS[ref_section]["item_type"]))
+                        # Note that the referenced section is a reference, i.e. its values must persist during the entire databook construction process.
+                        cls.SECTION_SPECS[ref_section]["is_ref"] = True
+
                 # Read in optional section format variables.
                 for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
                     try: 
@@ -146,6 +173,9 @@ class DatabookSettings(object):
             del cls.ITEM_TYPE_DESCRIPTOR_KEY[old_descriptor]
             cls.ITEM_TYPE_SPECS[item_type]["descriptor"] = descriptor
             cls.ITEM_TYPE_DESCRIPTOR_KEY[descriptor] = item_type
+
+        import pprint
+        pprint.pprint(cls.SECTION_SPECS)
         
         logger.info("Optima Core databook settings successfully generated.") 
         return

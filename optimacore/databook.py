@@ -55,8 +55,8 @@ class DatabookInstructions(object):
         return
 
 @logUsage
-@accepts(xw.worksheet.Worksheet,str,str,int,int,dict)
-def createDatabookSection(datapage, page_key, section_key, start_row, start_col, formats, instructions = None, format_variables = None):
+@accepts(xw.worksheet.Worksheet,str,str,int,int)
+def createDatabookSection(datapage, page_key, section_key, start_row, start_col, instructions = None, formats = None, format_variables = None, temp_storage = None):
     """
     Creates a default section on a page within a databook, as defined in databook settings.
     
@@ -66,13 +66,15 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
         section_key (str)                               - The key denoting the type of section to create, as defined in databook settings.
         start_row (int)                                 - The row number of the page at which to generate the default section.
         start_col (int)                                 - The column number of the page at which to generate the default section.
+        instructions (DatabookInstructions)             - An object that contains instructions for how many databook items to create.
         formats (dict)                                  - A dictionary of standard Excel formats.
                                                           Is the output of function: createStandardExcelFormats()
                                                           Each key is a string and each value is an 'xlsxwriter.format.Format' object.
-        instructions (DatabookInstructions)             - An object that contains instructions for how many databook items to create.
         format_variables (dict)                         - A dictionary of format variables, such as column width.
                                                           If left as None, they will be regenerated in this function.
                                                           The keys are listed in Excel settings and the values are floats.
+        temp_storage (dict)                             - A container for databook values and formulae that should persist between sections.
+                                                          The keys are databook section keys and the values are dictionaries.
     
     Outputs:
         datapage (xw.worksheet.Worksheet)       - The Excel sheet in which databook sections were created.
@@ -87,6 +89,9 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
                          "specifications existing in databook settings. Abandoning databook construction.".format(page_key,section_key))
         raise KeyError(section_key)
     section_specs = DatabookSettings.SECTION_SPECS[section_key]
+
+    # Generate standard formats if they do not exist.
+    if formats is None: formats = createStandardExcelFormats(databook)
     
     # Initialize requisite values for the upcoming process.
     cell_format = formats["center"]
@@ -97,7 +102,7 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
     header_name = section_specs["header"]
     datapage.write(row, col, header_name, formats["center_bold"])
         
-    # Propagate page-wide format variable values to column-wide format variable values.
+    # Propagate page-wide format variable values to section-wide format variable values.
     # Create the format variables if they were not passed in from a page-wide context.
     # Overwrite the page-wide defaults if section-based specifics are available in framework settings.
     if format_variables is None: format_variables = createDefaultFormatVariables()
@@ -116,6 +121,59 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
         # Adjust column width and continue to the next one.
         datapage.set_column(col, col, format_variables[ExcelSettings.KEY_COLUMN_WIDTH])
 
+    # Check if the section specifies any items to list out within its contents.
+    if "item_type" in section_specs and not section_specs["item_type"] is None:
+        item_key = section_specs["item_type"]
+        num_items = instructions.num_items[item_key]
+        for item_number in sm.range(num_items):
+
+            section_type = section_specs["type"]
+            row += 1
+            rc = xw.utility.xl_rowcol_to_cell(row, col)
+        
+            # Decide what text should be written to each column.
+            text = ""
+            space = ""
+            sep = ""
+            validation_source = None
+            # Name and label columns can prefix the item number and use fancy separators.
+            if section_type in [DatabookSettings.SECTION_TYPE_COLUMN_LABEL, DatabookSettings.SECTION_TYPE_COLUMN_NAME]:
+                text = str(item_number)     # The default is the number of this item.
+                # Note: Once used exec function here but it is now avoided for Python3 compatibility.
+                if section_type == DatabookSettings.SECTION_TYPE_COLUMN_LABEL:
+                    space = SystemSettings.DEFAULT_SPACE_LABEL
+                    sep = SystemSettings.DEFAULT_SEPARATOR_LABEL
+                else:
+                    space = SystemSettings.DEFAULT_SPACE_NAME
+                    sep = SystemSettings.DEFAULT_SEPARATOR_NAME
+                if "prefix" in section_specs:
+                    text = section_specs["prefix"] + space + text
+            text_backup = text
+
+            # Store the contents of this section for referencing by other sections if required.
+            if "is_ref" in section_specs and section_specs["is_ref"] is True:
+                if not section_key in temp_storage: temp_storage[section_key] = {"list_text":[],"list_text_backup":[],"list_cell":[]}
+                temp_storage[section_key]["page_label"] = datapage.name
+                temp_storage[section_key]["list_text"].append(text)
+                temp_storage[section_key]["list_text_backup"].append(text_backup)
+                temp_storage[section_key]["list_cell"].append(rc)
+                               
+            # Write relevant text to the section cell.
+            # Note: Equations are only calculated when an application explicitly opens Excel files, so a non-zero 'backup' value must be provided.
+            if text.startswith("="):
+                datapage.write_formula(rc, text, cell_format, text_backup)
+            else:
+                datapage.write(rc, text, cell_format)
+            
+            # Validate the cell contents if required.
+            if not validation_source is None:
+                datapage.data_validation(rc, {"validate": "list",
+                                              "source": validation_source})
+
+    else:
+        logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'item type', "
+                       "so its contents will be left blank.".format(section_key,page_key))
+
     next_section_row = start_row
     next_section_col = start_col + 1
     return datapage, next_section_row, next_section_col
@@ -123,7 +181,7 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
 @logUsage
 @accepts(xw.Workbook,str)
 @returns(xw.Workbook)
-def createDatabookPage(databook, page_key, instructions = None, formats = None, format_variables = None):
+def createDatabookPage(databook, page_key, instructions = None, formats = None, format_variables = None, temp_storage = None):
     """
     Creates a page within the databook.
     
@@ -137,8 +195,12 @@ def createDatabookPage(databook, page_key, instructions = None, formats = None, 
         format_variables (dict)                         - A dictionary of format variables, such as column width.
                                                           If left as None, they will be regenerated in this function.
                                                           The keys are listed in databook settings and the values are floats.
+        temp_storage (dict)                             - A container for databook values and formulae that should persist between sections.
+                                                          If left as None, it will be created in this function.
+                                                          The keys are databook section keys and the values are dictionaries.
     """
     if instructions is None: instructions = DatabookInstructions()
+    if temp_storage is None: temp_storage = dict()
     
     # Determine the title of this page and generate it.
     # This should have been successfully extracted from a configuration file during databook-settings definition.
@@ -164,7 +226,8 @@ def createDatabookPage(databook, page_key, instructions = None, formats = None, 
     for section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
         _, row, col = createDatabookSection(datapage = datapage, page_key = page_key,
                                             section_key = section_key, start_row = row, start_col = col,
-                                            instructions = instructions, formats = formats, format_variables = format_variables)
+                                            instructions = instructions, formats = formats, 
+                                            format_variables = format_variables, temp_storage = temp_storage)
     return databook      
 
 @logUsage
@@ -183,44 +246,21 @@ def createDatabookFunc(framework, databook_path, instructions = None, databook_t
     """
     if instructions is None: instructions = DatabookInstructions(databook_type = databook_type)
 
+    # Create an empty databook and standard formats attached to this file.
+    # Also generate default-valued format variables as a dictionary.
     logger.info("Creating a project databook: {0}".format(databook_path))
     prepareFilePath(databook_path)
     databook = xw.Workbook(databook_path)
     formats = createStandardExcelFormats(databook)
     format_variables = createDefaultFormatVariables()
+
+    # Create a storage dictionary for values and formulae that may persist between sections.
+    temp_storage = dict()
     
     # Get the set of keys that refer to databook pages.
     # Iterate through them and generate the corresponding pages.
     for page_key in DatabookSettings.PAGE_KEYS:
         createDatabookPage(databook = databook, page_key = page_key, instructions = instructions, 
-                           formats = formats, format_variables = format_variables)
-
-    ## Create population sheet.
-    #page_title = "Populations"
-    #ws_pops = databook.add_worksheet(page_title)
-
-    #ws_pops.write(0, 0, "Full Name")        # This is technically the 'label' column.
-    #ws_pops.write(0, 1, "Abbreviation")     # This is technically the 'name' column.
-
-    ## While writing default population labels and names, they are stored for future reference as well.
-    #pop_labels_default = []
-    #pop_names_default = []
-    #for pop_id in sm.range(instructions.num_items[DatabookSettings.KEY_POPULATION]):
-    #    pop_label = "Population " + str(pop_id + 1)
-    #    pop_name = pop_label[0:3] + str(pop_id + 1)
-    #    pop_labels_default.append(pop_label)
-    #    pop_names_default.append(pop_name)
-    #    rc_pop_label = xw.utility.xl_rowcol_to_cell(pop_id + 1, 0)
-    #    ws_pops.write(pop_id + 1, 0, pop_label)
-    #    ws_pops.write(pop_id + 1, 1, "=LEFT({0},3)&\"{1}\"".format(rc_pop_label, pop_id + 1), None, pop_name)
-
-    ## Excel formulae strings that point to population names and labels are likewise stored.
-    #pop_labels_formula = []
-    #pop_names_formula = []
-    #for pop_id in sm.range(instructions.num_items[DatabookSettings.KEY_POPULATION]):
-    #    rc_pop_label = xw.utility.xl_rowcol_to_cell(pop_id + 1, 0, True, True)
-    #    rc_pop_name = xw.utility.xl_rowcol_to_cell(pop_id + 1, 1, True, True)
-    #    pop_labels_formula.append("='{0}'!{1}".format(page_title, rc_pop_label))
-    #    pop_names_formula.append("='{0}'!{1}".format(page_title, rc_pop_name))
+                           formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
     databook.close()

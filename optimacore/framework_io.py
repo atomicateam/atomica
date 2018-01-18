@@ -76,9 +76,9 @@ def createEmptyPageItemAttributes():
 
 
 @logUsage
-@accepts(xw.worksheet.Worksheet,str,dict)
+@accepts(xw.worksheet.Worksheet,str)
 @returns(xw.worksheet.Worksheet)
-def createFrameworkPageHeaders(framework_page, page_key, formats, format_variables = None):
+def createFrameworkPageHeaders(framework_page, page_key, formats = None, format_variables = None):
     """
     Creates headers for a page within a framework file, adding comments and resizing wherever instructed.
     
@@ -92,6 +92,13 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
                                                   If left as None, they will be regenerated in this function.
                                                   The keys are listed in Excel settings and the values are floats.
     """
+    # Generate standard formats if they do not exist.
+    if formats is None: formats = createStandardExcelFormats(databook)
+
+    # Create the format variables if they were not passed in from a page-wide context.
+    if format_variables is None: format_variables = createDefaultFormatVariables()
+    else: format_variables = dcp(format_variables)
+
     # Get the set of keys that refer to framework-file page columns.
     # Iterate through the keys and construct each corresponding column header.
     column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
@@ -101,10 +108,7 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
         framework_page.write(0, col, header_name, formats["center_bold"])
         
         # Propagate page-wide format variable values to column-wide format variable values.
-        # Create the format variables if they were not passed in from a page-wide context.
         # Overwrite the page-wide defaults if column-based specifics are available in framework settings.
-        if format_variables is None: format_variables = createDefaultFormatVariables()
-        else: format_variables = dcp(format_variables)
         for format_variable_key in format_variables:
             if format_variable_key in FrameworkSettings.COLUMN_SPECS[column_key]:
                 format_variables[format_variable_key] = FrameworkSettings.COLUMN_SPECS[column_key][format_variable_key]
@@ -122,9 +126,9 @@ def createFrameworkPageHeaders(framework_page, page_key, formats, format_variabl
 
 
 @logUsage
-@accepts(xw.worksheet.Worksheet,str,str,int,dict)
-def createFrameworkItem(framework_page, page_key, item_type, start_row, formats, 
-                        instructions = None, item_number = None, superitem_attributes = None):
+@accepts(xw.worksheet.Worksheet,str,str,int)
+def createFrameworkItem(framework_page, page_key, item_type, start_row, 
+                        instructions = None, formats = None, item_number = None, superitem_attributes = None):
     """
     Creates a default item on a page within a framework file, as defined in framework settings.
     
@@ -133,10 +137,10 @@ def createFrameworkItem(framework_page, page_key, item_type, start_row, formats,
         page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
         item_type (str)                                 - The key denoting the type of item to create, as defined in framework settings.
         start_row (int)                                 - The row number of the page at which to generate the default page-item.
+        instructions (FrameworkTemplateInstructions)    - An object that contains instructions for how many page-items to create.
         formats (dict)                                  - A dictionary of standard Excel formats.
                                                           Is the output of function: createStandardExcelFormats()
                                                           Each key is a string and each value is an 'xlsxwriter.format.Format' object.
-        instructions (FrameworkTemplateInstructions)    - An object that contains instructions for how many page-items to create.
         item_number (int)                               - A number to identify this item, ostensibly within a list, used for default text write-ups.
         superitem_attributes (dict)                     - A dictionary of attribute values relating to the superitem constructing this page-item, if one exists.
                                                           Is the output of function: createEmptyPageItemAttributes()
@@ -152,6 +156,9 @@ def createFrameworkItem(framework_page, page_key, item_type, start_row, formats,
                          "specifications existing in framework settings. Abandoning framework file construction.".format(page_key,item_type))
         raise KeyError(item_type)
     item_type_specs = FrameworkSettings.ITEM_TYPE_SPECS[item_type]
+
+    # Generate standard formats if they do not exist.
+    if formats is None: formats = createStandardExcelFormats(databook)
     
     # Initialize requisite values for the upcoming process.
     cell_format = formats["center"]
@@ -253,8 +260,8 @@ def createFrameworkItem(framework_page, page_key, item_type, start_row, formats,
             
         # Validate the cell contents if required.
         if not validation_source is None:
-            framework_page.data_validation(rc, {'validate': 'list',
-                                                'source': validation_source})
+            framework_page.data_validation(rc, {"validate": "list",
+                                                "source": validation_source})
     
     # Generate as many subitems as are required to be attached to this page-item.
     for subitem_type in subitem_types:
