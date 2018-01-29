@@ -29,20 +29,11 @@ class EverythingTest(unittest.TestCase):
         """  """
         self.proj.createDatabook(databook_path = self.databook_empty_filepath)
         return None
-        
-    def test_framework_template_creation(self):
+
+    def test_template_process(self):
         """  """
         createFrameworkTemplate(framework_path = self.framework_template_filepath)
-        return None
-    
-    def test_framework_template_import(self):
-        """  """
         self.proj.getFramework().importFromFile(framework_path = self.framework_template_filepath)
-        #pprint.pprint(self.proj.getFramework().specs)
-        return None
-
-    def test_databook_template_creation(self):
-        """  """
         self.proj.createDatabook(databook_path = self.databook_template_filepath)
         return None
     
@@ -53,7 +44,4 @@ class EverythingTest(unittest.TestCase):
         return None
         
 if __name__ == '__main__':
-    # Disable test case sorting so that state persists in definitional order.
-    # TODO: Check if this actually works rigorously, i.e. that there are no multi-threaded race conditions.
-    unittest.defaultTestLoader.sortTestMethodsUsing = None
     unittest.main()

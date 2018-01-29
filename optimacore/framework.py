@@ -8,11 +8,13 @@ This includes a description of the Markov chain network underlying project dynam
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
 from optimacore.system import SystemSettings
 from optimacore.framework_settings import FrameworkSettings
+from optimacore.databook_settings import DatabookSettings
 from optimacore.excel import ExcelSettings
 
 import os
 import xlrd
 from collections import OrderedDict
+from copy import deepcopy as dcp
 
 from six import moves as sm
 import xlsxwriter as xw
@@ -108,6 +110,9 @@ class ProjectFramework(object):
         self.specs = dict()
         for page_key in FrameworkSettings.PAGE_KEYS:
             self.specs[page_key] = OrderedDict()
+
+        # Construct specifications for constructing a databook beyond the information contained in default databook settings.
+        self.specs["datapage"] = OrderedDict()
         
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
         self.semantics = dict()
@@ -284,6 +289,18 @@ class ProjectFramework(object):
             while row < framework_page.nrows:
                 _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = core_item_type, start_row = row, header_positions = header_positions)                                        
         
+        # Update databook instructions specifically.
+        # Start off by assuming all characteristics will be displayed on the default page.
+        self.specs["datapage"][DatabookSettings.KEY_CHARACTERISTIC] = OrderedDict()
+        for charac_key in self.specs[FrameworkSettings.KEY_CHARACTERISTIC]:
+            core_section_key = DatabookSettings.PAGE_SECTION_KEYS[DatabookSettings.KEY_CHARACTERISTIC][0]
+            self.specs["datapage"][DatabookSettings.KEY_CHARACTERISTIC][charac_key] = dcp(DatabookSettings.SECTION_SPECS[core_section_key])
+            # TODO: Use semantic referencing here.
+            self.specs["datapage"][DatabookSettings.KEY_CHARACTERISTIC][charac_key]["header"] = self.specs[FrameworkSettings.KEY_CHARACTERISTIC][charac_key]["label"]
+        
+        #from pprint import pprint
+        #pprint(self.specs)
+
         # TODO: Have a better naming scheme for the object rather than the path of its imported file.
         self.setName(framework_path)
         logger.info("Optima Core framework successfully imported.")

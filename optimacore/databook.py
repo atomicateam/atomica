@@ -4,7 +4,7 @@ Optima Core databook file.
 Contains functions for creating databooks from project frameworks and then importing them.
 """
 
-from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, prepareFilePath, SystemSettings
+from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, prepareFilePath, SystemSettings, OptimaException
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.framework import ProjectFramework
 from optimacore.databook_settings import DatabookSettings
@@ -55,12 +55,13 @@ class DatabookInstructions(object):
         return
 
 @logUsage
-@accepts(xw.worksheet.Worksheet,str,str,int,int)
-def createDatabookSection(datapage, page_key, section_key, start_row, start_col, instructions = None, formats = None, format_variables = None, temp_storage = None):
+@accepts(ProjectFramework,xw.worksheet.Worksheet,str,str,int,int)
+def createDatabookSection(framework, datapage, page_key, section_key, start_row, start_col, instructions = None, formats = None, format_variables = None, temp_storage = None):
     """
     Creates a default section on a page within a databook, as defined in databook settings.
     
     Inputs:
+        framework (ProjectFramework)                    - The project framework and associated specifications for databook construction.
         datapage (xw.worksheet.Worksheet)               - The Excel sheet in which to create databook sections.
         page_key (str)                                  - The key denoting the provided page, as defined in databook settings.
         section_key (str)                               - The key denoting the type of section to create, as defined in databook settings.
@@ -84,11 +85,15 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
                                                   Warning: This is not necessarily the column following the current section.
     """
     # Check if specifications for this section exist, associated with the appropriate page-key.
-    if not section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
+    try:
+        if page_key in framework.specs["datapage"] and section_key in framework.specs["datapage"][page_key]:
+            section_specs = framework.specs["datapage"][page_key][section_key]
+        else:
+            section_specs = DatabookSettings.SECTION_SPECS[section_key]
+    except:
         logger.exception("A databook page with key '{0}' was instructed to create a section with key '{1}', despite no relevant section "
-                         "specifications existing in databook settings. Abandoning databook construction.".format(page_key,section_key))
+                         "specifications existing in default databook or derived framework settings. Abandoning databook construction.".format(page_key,section_key))
         raise KeyError(section_key)
-    section_specs = DatabookSettings.SECTION_SPECS[section_key]
 
     # Generate standard formats if they do not exist.
     if formats is None: formats = createStandardExcelFormats(databook)
@@ -100,7 +105,8 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
     
     # Create header if required.
     header_name = section_specs["header"]
-    datapage.write(row, col, header_name, formats["center_bold"])
+    if not header_name is None:
+        datapage.write(row, col, header_name, formats["center_bold"])
         
     # Propagate page-wide format variable values to section-wide format variable values.
     # Create the format variables if they were not passed in from a page-wide context.
@@ -108,13 +114,13 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
     if format_variables is None: format_variables = createDefaultFormatVariables()
     else: format_variables = dcp(format_variables)
     for format_variable_key in format_variables:
-        if format_variable_key in DatabookSettings.SECTION_SPECS[section_key]:
-            format_variables[format_variable_key] = DatabookSettings.SECTION_SPECS[section_key][format_variable_key]
+        if format_variable_key in section_specs:
+            format_variables[format_variable_key] = section_specs[format_variable_key]
         
         # Comment the column header if a comment was pulled into framework settings from a configuration file.
-        if "comment" in DatabookSettings.SECTION_SPECS[section_key]:
-            header_comment = DatabookSettings.SECTION_SPECS[section_key]["comment"]
-            datapage.write_comment(0, col, header_comment, 
+        if "comment" in section_specs:
+            header_comment = section_specs["comment"]
+            datapage.write_comment(row, col, header_comment, 
                                    {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
                                     "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
     
@@ -122,8 +128,8 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
         datapage.set_column(col, col, format_variables[ExcelSettings.KEY_COLUMN_WIDTH])
 
     # Check if the section specifies any items to list out within its contents.
-    if "item_type" in section_specs and not section_specs["item_type"] is None:
-        item_key = section_specs["item_type"]
+    if "iterated_type" in section_specs and not section_specs["iterated_type"] is None:
+        item_key = section_specs["iterated_type"]
         num_items = instructions.num_items[item_key]
         for item_number in sm.range(num_items):
 
@@ -150,6 +156,18 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
                     text = section_specs["prefix"] + space + text
             text_backup = text
 
+            # If this section references another, overwrite every text value with that of the other section.
+            if "ref_section" in section_specs:
+                ref_section = section_specs["ref_section"]
+                try: stored_refs = temp_storage[ref_section]
+                except: raise OptimaException("Databook construction failed when section with key '{0}' referenced a nonexistent section with key '{1}'. "
+                                                "It is possible the nonexistent section is erroneously scheduled to be created later.".format(section_key, ref_section))
+                text_page = ""
+                if not stored_refs["page_label"] == datapage.name:
+                    text_page = "'{0}'!".format(stored_refs["page_label"])
+                text = "={0}{1}".format(text_page, stored_refs["list_cell"][item_number])
+                text_backup = stored_refs["list_text_backup"][item_number]
+
             # Store the contents of this section for referencing by other sections if required.
             if "is_ref" in section_specs and section_specs["is_ref"] is True:
                 if not section_key in temp_storage: temp_storage[section_key] = {"list_text":[],"list_text_backup":[],"list_cell":[]}
@@ -174,18 +192,23 @@ def createDatabookSection(datapage, page_key, section_key, start_row, start_col,
         logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'item type', "
                        "so its contents will be left blank.".format(section_key,page_key))
 
-    next_section_row = start_row
-    next_section_col = start_col + 1
+    if section_specs["row_not_col"]:
+        next_section_row = row + 2
+        next_section_col = start_col
+    else:
+        next_section_row = start_row
+        next_section_col = start_col + 1
     return datapage, next_section_row, next_section_col
 
 @logUsage
-@accepts(xw.Workbook,str)
+@accepts(ProjectFramework,xw.Workbook,str)
 @returns(xw.Workbook)
-def createDatabookPage(databook, page_key, instructions = None, formats = None, format_variables = None, temp_storage = None):
+def createDatabookPage(framework, databook, page_key, instructions = None, formats = None, format_variables = None, temp_storage = None):
     """
     Creates a page within the databook.
     
     Inputs:
+        framework (ProjectFramework)                    - The project framework and associated specifications for databook construction.
         databook (xw.Workbook)                          - The Excel file in which to create the page.
         page_key (str)                                  - The key denoting a particular page, as defined in databook settings.
         instructions (DatabookInstructions)             - An object that contains instructions for how many databook items to create.
@@ -223,8 +246,12 @@ def createDatabookPage(databook, page_key, instructions = None, formats = None, 
     # Create the sections required on this page.
     row = 0
     col = 0
-    for section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
-        _, row, col = createDatabookSection(datapage = datapage, page_key = page_key,
+    if page_key in framework.specs["datapage"]:
+        section_keys = framework.specs["datapage"][page_key].keys()     # Explicitly grabbing keys for iteration just to be safe.
+    else:
+        section_keys = DatabookSettings.PAGE_SECTION_KEYS[page_key]
+    for section_key in section_keys:
+        _, row, col = createDatabookSection(framework = framework, datapage = datapage, page_key = page_key,
                                             section_key = section_key, start_row = row, start_col = col,
                                             instructions = instructions, formats = formats, 
                                             format_variables = format_variables, temp_storage = temp_storage)
@@ -237,6 +264,7 @@ def createDatabookFunc(framework, databook_path, instructions = None, databook_t
     Generate a data-input Excel spreadsheet corresponding to a project framework.
 
     Inputs:
+        framework (ProjectFramework)                    - The project framework and associated specifications for databook construction.
         databook_path (str)                             - Directory path for intended databook.
                                                           Must include filename with extension '.xlsx'.
         instructions (DatabookInstructions)             - An object that contains instructions for how many databook items to create.
@@ -260,7 +288,7 @@ def createDatabookFunc(framework, databook_path, instructions = None, databook_t
     # Get the set of keys that refer to databook pages.
     # Iterate through them and generate the corresponding pages.
     for page_key in DatabookSettings.PAGE_KEYS:
-        createDatabookPage(databook = databook, page_key = page_key, instructions = instructions, 
+        createDatabookPage(framework = framework, databook = databook, page_key = page_key, instructions = instructions, 
                            formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
     databook.close()
