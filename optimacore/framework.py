@@ -289,14 +289,8 @@ class ProjectFramework(object):
             while row < framework_page.nrows:
                 _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = core_item_type, start_row = row, header_positions = header_positions)                                        
         
-        # Update databook instructions specifically.
-        # Start off by assuming all characteristics will be displayed on the default page.
-        self.specs["datapage"][DatabookSettings.KEY_CHARACTERISTIC] = OrderedDict()
-        for charac_key in self.specs[FrameworkSettings.KEY_CHARACTERISTIC]:
-            core_section_key = DatabookSettings.PAGE_SECTION_KEYS[DatabookSettings.KEY_CHARACTERISTIC][0]
-            self.specs["datapage"][DatabookSettings.KEY_CHARACTERISTIC][charac_key] = dcp(DatabookSettings.SECTION_SPECS[core_section_key])
-            # TODO: Use semantic referencing here.
-            self.specs["datapage"][DatabookSettings.KEY_CHARACTERISTIC][charac_key]["header"] = self.specs[FrameworkSettings.KEY_CHARACTERISTIC][charac_key]["label"]
+        # Generate specific databook settings that are a fusion of default databook settings and framework specifics.
+        self.createDatabookSpecs()
         
         #from pprint import pprint
         #pprint(self.specs)
@@ -306,6 +300,33 @@ class ProjectFramework(object):
         logger.info("Optima Core framework successfully imported.")
         
         return
+
+    def createDatabookSpecs(self):
+        """
+        Generate framework-dependent databook settings that are a fusion of static databook settings and dynamic framework specifics.
+        These are the ones that databook construction processes use when deciding layout.
+        """
+        # Copy default page keys over.
+        for page_key in DatabookSettings.PAGE_KEYS:
+            self.specs["datapage"][page_key] = OrderedDict()
+
+            # Copy default section keys over.
+            # To conserve space, a boolean tag named 'refer to default' indicates that processes should look to default databook settings for details.
+            # This tag is set to false, technically excluded for space considerations, if the section specifications are to be derived directly from this dictionary.
+            for section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
+                instance_type = DatabookSettings.SECTION_SPECS[section_key]["instance_type"]
+                if not instance_type is None:
+                    if instance_type in self.specs:
+                        for item_name in self.specs[instance_type]:
+                            self.specs["datapage"][page_key][item_name] = dcp(DatabookSettings.SECTION_SPECS[section_key])
+                            # TODO: Use semantic referencing here.
+                            self.specs["datapage"][page_key][item_name]["header"] = self.specs[instance_type][item_name]["label"]
+                            del self.specs["datapage"][page_key][item_name]["instance_type"]  # No further need for this attribute once instantiated.
+                    else:
+                        raise OptimaException("Databook settings specify that section with key '{0}' should be instantiated for framework objects of type '{1}'. "
+                                              "However, framework specifications contain no item with this type.".format(section_key, instance_type))
+                else:
+                    self.specs["datapage"][page_key][section_key] = {"refer_to_default":True}
 
     @accepts(str)
     def setName(self, name):

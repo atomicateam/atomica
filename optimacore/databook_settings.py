@@ -69,9 +69,10 @@ class DatabookSettings(object):
             ## Note: Given that not all sections are columns, output-based interpretation of this number may vary.
             #SECTION_SPECS[section_key]["default_pos"] = section_count
 
-            ## If this section is a template to be instantiated, attach a reference to the framework item type that instantiates it.
-            ## For example, there should be one instance of a value entry section per parameter. 
-            #SECTION_SPECS[section_key]["instance_type"] = None
+            # If this section is a template to be instantiated, attach a reference to the page key of the core framework item type that instantiates it.
+            # For example, there should be one instance of a value entry section per parameter.
+            # TODO: Consider refining instance type concept so that developers do not get confused why it refers to a framework page key rather than item type.
+            SECTION_SPECS[section_key]["instance_type"] = None
             # Attach a reference to a databook item type that this section iterates over, for input-output purposes.
             # For example, a parameter value entry section should produce one row per population.
             SECTION_SPECS[section_key]["iterated_type"] = None
@@ -89,7 +90,7 @@ class DatabookSettings(object):
                 if section_key.endswith(section_type):
                     SECTION_SPECS[section_key]["type"] = section_type
     # Non-default types should overwrite defaults here.
-    #SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["instance_type"] = KEY_CHARACTERISTIC
+    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["instance_type"] = KEY_CHARACTERISTIC
     SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["iterated_type"] = KEY_POPULATION
     SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["type"] = SECTION_TYPE_COLUMN_LABEL
     SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["row_not_col"] = True

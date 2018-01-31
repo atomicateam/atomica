@@ -86,13 +86,15 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
     """
     # Check if specifications for this section exist, associated with the appropriate page-key.
     try:
-        if page_key in framework.specs["datapage"] and section_key in framework.specs["datapage"][page_key]:
-            section_specs = framework.specs["datapage"][page_key][section_key]
-        else:
+        # Decide whether the details for this section are drawn from static databook settings or dynamic framework specifications.
+        # The relevant boolean tag should have been set appropriately during framework loading.
+        if "refer_to_default" in framework.specs["datapage"][page_key][section_key] and framework.specs["datapage"][page_key][section_key]["refer_to_default"] is True:
             section_specs = DatabookSettings.SECTION_SPECS[section_key]
+        else:
+            section_specs = framework.specs["datapage"][page_key][section_key]
     except:
         logger.exception("A databook page with key '{0}' was instructed to create a section with key '{1}', despite no relevant section "
-                         "specifications existing in default databook or derived framework settings. Abandoning databook construction.".format(page_key,section_key))
+                         "specifications existing in default databook settings or derived framework specifications. Abandoning databook construction.".format(page_key,section_key))
         raise KeyError(section_key)
 
     # Generate standard formats if they do not exist.
@@ -189,7 +191,7 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
                                               "source": validation_source})
 
     else:
-        logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'item type', "
+        logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type', "
                        "so its contents will be left blank.".format(section_key,page_key))
 
     if section_specs["row_not_col"]:
@@ -246,11 +248,7 @@ def createDatabookPage(framework, databook, page_key, instructions = None, forma
     # Create the sections required on this page.
     row = 0
     col = 0
-    if page_key in framework.specs["datapage"]:
-        section_keys = framework.specs["datapage"][page_key].keys()     # Explicitly grabbing keys for iteration just to be safe.
-    else:
-        section_keys = DatabookSettings.PAGE_SECTION_KEYS[page_key]
-    for section_key in section_keys:
+    for section_key in framework.specs["datapage"][page_key]:
         _, row, col = createDatabookSection(framework = framework, datapage = datapage, page_key = page_key,
                                             section_key = section_key, start_row = row, start_col = col,
                                             instructions = instructions, formats = formats, 
@@ -287,8 +285,12 @@ def createDatabookFunc(framework, databook_path, instructions = None, databook_t
     
     # Get the set of keys that refer to databook pages.
     # Iterate through them and generate the corresponding pages.
-    for page_key in DatabookSettings.PAGE_KEYS:
+    count = 0
+    for page_key in framework.specs["datapage"]:
         createDatabookPage(framework = framework, databook = databook, page_key = page_key, instructions = instructions, 
                            formats = formats, format_variables = format_variables, temp_storage = temp_storage)
+        count += 1
+    if count == 0: logger.warning("No instructions for databook page construction were found in framework specifications, "
+                                  "suggesting that the referenced ProjectFramework is entirely empty. The resulting databook is correspondingly blank.")
 
     databook.close()
