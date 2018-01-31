@@ -17,6 +17,22 @@ from collections import OrderedDict
 from six import moves as sm
 import xlsxwriter as xw
 
+
+
+def makeValueEntryBlock(worksheet, start_row, start_col, item_count, time_vector = None, formats = None):
+    # Generate standard formats if they do not exist.
+    if formats is None: formats = createStandardExcelFormats(databook)
+
+    row = start_row
+    col = start_col
+    worksheet.write(row, col, "Assumption", formats["center_bold"])
+    row = item_count
+    last_row = row
+    last_col = col
+    return worksheet, last_row, last_col
+
+
+
 @applyToAllMethods(logUsage)
 class DatabookInstructions(object):
     """
@@ -104,97 +120,101 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
     cell_format = formats["center"]
     row = start_row
     col = start_col
-    
-    # Create header if required.
-    header_name = section_specs["header"]
-    if not header_name is None:
-        datapage.write(row, col, header_name, formats["center_bold"])
-        
-    # Propagate page-wide format variable values to section-wide format variable values.
-    # Create the format variables if they were not passed in from a page-wide context.
-    # Overwrite the page-wide defaults if section-based specifics are available in framework settings.
-    if format_variables is None: format_variables = createDefaultFormatVariables()
-    else: format_variables = dcp(format_variables)
-    for format_variable_key in format_variables:
-        if format_variable_key in section_specs:
-            format_variables[format_variable_key] = section_specs[format_variable_key]
-        
-    # Comment the section header if a comment was pulled into framework settings from a configuration file.
-    if "comment" in section_specs:
-        header_comment = section_specs["comment"]
-        datapage.write_comment(row, col, header_comment, 
-                                {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
-                                "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
-    
+
     # Determine if this section will be creating subsections.
     subsection_keys = []
     if not section_specs["subsection_keys"] is None: subsection_keys = section_specs["subsection_keys"]
-
-    # Check if the section specifies any items to list out within its contents.
-    if "iterated_type" in section_specs and not section_specs["iterated_type"] is None:
-        item_key = section_specs["iterated_type"]
-        num_items = instructions.num_items[item_key]
-        for item_number in sm.range(num_items):
-
-            section_type = section_specs["type"]
-            row += 1
-            rc = xw.utility.xl_rowcol_to_cell(row, col)
-        
-            # Decide what text should be written to each column.
-            text = ""
-            space = ""
-            sep = ""
-            validation_source = None
-            # Name and label columns can prefix the item number and use fancy separators.
-            if section_type in [DatabookSettings.SECTION_TYPE_COLUMN_LABEL, DatabookSettings.SECTION_TYPE_COLUMN_NAME]:
-                text = str(item_number)     # The default is the number of this item.
-                # Note: Once used exec function here but it is now avoided for Python3 compatibility.
-                if section_type == DatabookSettings.SECTION_TYPE_COLUMN_LABEL:
-                    space = SystemSettings.DEFAULT_SPACE_LABEL
-                    sep = SystemSettings.DEFAULT_SEPARATOR_LABEL
-                else:
-                    space = SystemSettings.DEFAULT_SPACE_NAME
-                    sep = SystemSettings.DEFAULT_SEPARATOR_NAME
-                if "prefix" in section_specs:
-                    text = section_specs["prefix"] + space + text
-            text_backup = text
-
-            # If this section references another, overwrite every text value with that of the other section.
-            if "ref_section" in section_specs:
-                ref_section = section_specs["ref_section"]
-                try: stored_refs = temp_storage[ref_section]
-                except: raise OptimaException("Databook construction failed when section with key '{0}' referenced a nonexistent section with key '{1}'. "
-                                                "It is possible the nonexistent section is erroneously scheduled to be created later.".format(section_key, ref_section))
-                text_page = ""
-                if not stored_refs["page_label"] == datapage.name:
-                    text_page = "'{0}'!".format(stored_refs["page_label"])
-                text = "={0}{1}".format(text_page, stored_refs["list_cell"][item_number])
-                text_backup = stored_refs["list_text_backup"][item_number]
-
-            # Store the contents of this section for referencing by other sections if required.
-            if "is_ref" in section_specs and section_specs["is_ref"] is True:
-                if not section_key in temp_storage: temp_storage[section_key] = {"list_text":[],"list_text_backup":[],"list_cell":[]}
-                temp_storage[section_key]["page_label"] = datapage.name
-                temp_storage[section_key]["list_text"].append(text)
-                temp_storage[section_key]["list_text_backup"].append(text_backup)
-                temp_storage[section_key]["list_cell"].append(rc)
-                               
-            # Write relevant text to the section cell.
-            # Note: Equations are only calculated when an application explicitly opens Excel files, so a non-zero 'backup' value must be provided.
-            if text.startswith("="):
-                datapage.write_formula(rc, text, cell_format, text_backup)
-            else:
-                datapage.write(rc, text, cell_format)
-            
-            # Validate the cell contents if required.
-            if not validation_source is None:
-                datapage.data_validation(rc, {"validate": "list",
-                                              "source": validation_source})
-
+    
+    # CONTINUE HERE AND AT FUNCTION
+    if section_specs["type"] == DatabookSettings.SECTION_TYPE_ENTRY:
+        _, row, col = makeValueEntryBlock(worksheet = datapage, start_row = row, start_col = col, item_count = 0, time_vector = None, formats = formats)
     else:
-        if len(subsection_keys) == 0:
-            logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type' or any 'subsection keys', "
-                           "so its contents will be left blank.".format(section_key,page_key))
+        # Create header if required.
+        header_name = section_specs["header"]
+        if not header_name is None:
+            datapage.write(row, col, header_name, formats["center_bold"])
+        
+        # Propagate page-wide format variable values to section-wide format variable values.
+        # Create the format variables if they were not passed in from a page-wide context.
+        # Overwrite the page-wide defaults if section-based specifics are available in framework settings.
+        if format_variables is None: format_variables = createDefaultFormatVariables()
+        else: format_variables = dcp(format_variables)
+        for format_variable_key in format_variables:
+            if format_variable_key in section_specs:
+                format_variables[format_variable_key] = section_specs[format_variable_key]
+        
+        # Comment the section header if a comment was pulled into framework settings from a configuration file.
+        if "comment" in section_specs:
+            header_comment = section_specs["comment"]
+            datapage.write_comment(row, col, header_comment, 
+                                    {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
+                                    "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
+
+        # Check if the section specifies any items to list out within its contents.
+        if "iterated_type" in section_specs and not section_specs["iterated_type"] is None:
+            item_key = section_specs["iterated_type"]
+            num_items = instructions.num_items[item_key]
+            for item_number in sm.range(num_items):
+
+                section_type = section_specs["type"]
+                row += 1
+                rc = xw.utility.xl_rowcol_to_cell(row, col)
+        
+                # Decide what text should be written to each column.
+                text = ""
+                space = ""
+                sep = ""
+                validation_source = None
+                # Name and label columns can prefix the item number and use fancy separators.
+                if section_type in [DatabookSettings.SECTION_TYPE_COLUMN_LABEL, DatabookSettings.SECTION_TYPE_COLUMN_NAME]:
+                    text = str(item_number)     # The default is the number of this item.
+                    # Note: Once used exec function here but it is now avoided for Python3 compatibility.
+                    if section_type == DatabookSettings.SECTION_TYPE_COLUMN_LABEL:
+                        space = SystemSettings.DEFAULT_SPACE_LABEL
+                        sep = SystemSettings.DEFAULT_SEPARATOR_LABEL
+                    else:
+                        space = SystemSettings.DEFAULT_SPACE_NAME
+                        sep = SystemSettings.DEFAULT_SEPARATOR_NAME
+                    if "prefix" in section_specs:
+                        text = section_specs["prefix"] + space + text
+                text_backup = text
+
+                # If this section references another, overwrite every text value with that of the other section.
+                if "ref_section" in section_specs:
+                    ref_section = section_specs["ref_section"]
+                    try: stored_refs = temp_storage[ref_section]
+                    except: raise OptimaException("Databook construction failed when section with key '{0}' referenced a nonexistent section with key '{1}'. "
+                                                    "It is possible the nonexistent section is erroneously scheduled to be created later.".format(section_key, ref_section))
+                    text_page = ""
+                    if not stored_refs["page_label"] == datapage.name:
+                        text_page = "'{0}'!".format(stored_refs["page_label"])
+                    text = "={0}{1}".format(text_page, stored_refs["list_cell"][item_number])
+                    text_backup = stored_refs["list_text_backup"][item_number]
+
+                # Store the contents of this section for referencing by other sections if required.
+                if "is_ref" in section_specs and section_specs["is_ref"] is True:
+                    if not section_key in temp_storage: temp_storage[section_key] = {"list_text":[],"list_text_backup":[],"list_cell":[]}
+                    temp_storage[section_key]["page_label"] = datapage.name
+                    temp_storage[section_key]["list_text"].append(text)
+                    temp_storage[section_key]["list_text_backup"].append(text_backup)
+                    temp_storage[section_key]["list_cell"].append(rc)
+                               
+                # Write relevant text to the section cell.
+                # Note: Equations are only calculated when an application explicitly opens Excel files, so a non-zero 'backup' value must be provided.
+                if text.startswith("="):
+                    datapage.write_formula(rc, text, cell_format, text_backup)
+                else:
+                    datapage.write(rc, text, cell_format)
+            
+                # Validate the cell contents if required.
+                if not validation_source is None:
+                    datapage.data_validation(rc, {"validate": "list",
+                                                  "source": validation_source})
+
+        else:
+            if len(subsection_keys) == 0:
+                logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type' or any 'subsection keys', "
+                               "so its contents will be left blank.".format(section_key,page_key))
 
     # Adjust width of section columns.
     # Note: Column width for a supersection is propagated to all subsections, unless there are specific subsection column width values in the databook format configuration file.
@@ -206,9 +226,8 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
     #          This means subsections may overwrite all or part contents written by the supersection.
     max_row = row
     max_col = col
-
+    sub_row, sub_col = start_row, start_col
     for subsection_key in subsection_keys:
-        sub_row, sub_col = start_row, start_col
         _, sub_row, sub_col, sub_last_row, sub_last_col = createDatabookSection(framework = framework, datapage = datapage, 
                                                                                 page_key = page_key, section_key = subsection_key, 
                                                                                 start_row = sub_row, start_col = sub_col, instructions = instructions, 

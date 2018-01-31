@@ -37,7 +37,7 @@ class DatabookSettings(object):
     SECTION_TYPE_COLUMN_LABEL = FrameworkSettings.COLUMN_TYPE_LABEL
     SECTION_TYPE_COLUMN_NAME = FrameworkSettings.COLUMN_TYPE_NAME
     SECTION_TYPE_ENTRY = "entry"
-    SECTION_TYPES = [SECTION_TYPE_COLUMN_LABEL, SECTION_TYPE_COLUMN_NAME]#, SECTION_TYPE_ENTRY]
+    SECTION_TYPES = [SECTION_TYPE_COLUMN_LABEL, SECTION_TYPE_COLUMN_NAME, SECTION_TYPE_ENTRY]
 
     # Construct an ordered list of keys representing items defined in a databook.
     # Unlike with frameworks, these tend to extend over multiple pages, leading to significant differences in input and output.
@@ -47,16 +47,16 @@ class DatabookSettings(object):
     # This ordering describes how a databook will be constructed.
     KEY_POPULATION_LABEL = KEY_POPULATION + SECTION_TYPE_COLUMN_LABEL
     KEY_POPULATION_NAME = KEY_POPULATION + SECTION_TYPE_COLUMN_NAME
-    KEY_CHARACTERISTIC_ENTRY = KEY_CHARACTERISTIC + SECTION_TYPE_ENTRY
     KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + SECTION_TYPE_COLUMN_LABEL
-    KEY_PARAMETER_ENTRY = KEY_PARAMETER + SECTION_TYPE_ENTRY
+    KEY_CHARACTERISTIC_ENTRY = KEY_CHARACTERISTIC + SECTION_TYPE_ENTRY
     KEY_PARAMETER_LABEL = KEY_PARAMETER + SECTION_TYPE_COLUMN_LABEL
+    KEY_PARAMETER_ENTRY = KEY_PARAMETER + SECTION_TYPE_ENTRY
 
     PAGE_SECTION_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_SECTION_KEYS[page_key] = []
     PAGE_SECTION_KEYS[KEY_POPULATION] = [KEY_POPULATION_LABEL, KEY_POPULATION_NAME]
-    PAGE_SECTION_KEYS[KEY_CHARACTERISTIC] = [KEY_CHARACTERISTIC_ENTRY, KEY_CHARACTERISTIC_LABEL]
-    PAGE_SECTION_KEYS[KEY_PARAMETER] = [KEY_PARAMETER_ENTRY, KEY_PARAMETER_LABEL]
+    PAGE_SECTION_KEYS[KEY_CHARACTERISTIC] = ["characblock", KEY_CHARACTERISTIC_LABEL, KEY_CHARACTERISTIC_ENTRY]
+    PAGE_SECTION_KEYS[KEY_PARAMETER] = ["parblock", KEY_PARAMETER_LABEL, KEY_PARAMETER_ENTRY]
 
     # Construct a dictionary of specifications detailing how to construct pages and page sections.
     # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
@@ -93,21 +93,26 @@ class DatabookSettings(object):
                 if section_key.endswith(section_type):
                     SECTION_SPECS[section_key]["type"] = section_type
     # Non-default types should overwrite defaults here.
-    # Define a section for characteristic data entry.
-    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["row_not_col"] = True
-    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["instance_type"] = FrameworkSettings.KEY_CHARACTERISTIC     # Module reference unnecessary but made explicit.
-    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["subsection_keys"] = [KEY_CHARACTERISTIC_LABEL]
+    # Define a compound section for characteristic data entry.
+    SECTION_SPECS["characblock"]["row_not_col"] = True
+    SECTION_SPECS["characblock"]["instance_type"] = FrameworkSettings.KEY_CHARACTERISTIC     # Module reference unnecessary but made explicit.
+    SECTION_SPECS["characblock"]["subsection_keys"] = [KEY_CHARACTERISTIC_LABEL, KEY_CHARACTERISTIC_ENTRY]
     # Define a characteristic data entry subsection for displaying labels.
     SECTION_SPECS[KEY_CHARACTERISTIC_LABEL]["iterated_type"] = KEY_POPULATION
     SECTION_SPECS[KEY_CHARACTERISTIC_LABEL]["supersection_key"] = KEY_CHARACTERISTIC_ENTRY
-    # Define a section for parameter data entry.
-    SECTION_SPECS[KEY_PARAMETER_ENTRY]["row_not_col"] = True
-    SECTION_SPECS[KEY_PARAMETER_ENTRY]["instance_type"] = FrameworkSettings.KEY_PARAMETER       # Module reference unnecessary but made explicit.
-    SECTION_SPECS[KEY_PARAMETER_ENTRY]["subsection_keys"] = [KEY_PARAMETER_LABEL]
+    # Define a characteristic data entry subsection for time-dependent value entry.
+    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["iterated_type"] = KEY_POPULATION
+    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["supersection_key"] = KEY_CHARACTERISTIC_ENTRY
+    # Define a compound section for parameter data entry.
+    SECTION_SPECS["parblock"]["row_not_col"] = True
+    SECTION_SPECS["parblock"]["instance_type"] = FrameworkSettings.KEY_PARAMETER       # Module reference unnecessary but made explicit.
+    SECTION_SPECS["parblock"]["subsection_keys"] = [KEY_PARAMETER_LABEL, KEY_PARAMETER_ENTRY]
     # Define a parameter data entry subsection for displaying labels.
-    # Is redundant with respect to characteristic label section, but made distinct to be explicit anyway.
     SECTION_SPECS[KEY_PARAMETER_LABEL]["iterated_type"] = KEY_POPULATION
     SECTION_SPECS[KEY_PARAMETER_LABEL]["supersection_key"] = KEY_PARAMETER_ENTRY
+    # Define a characteristic data entry subsection for time-dependent value entry.
+    SECTION_SPECS[KEY_PARAMETER_ENTRY]["iterated_type"] = KEY_POPULATION
+    SECTION_SPECS[KEY_PARAMETER_ENTRY]["supersection_key"] = KEY_PARAMETER_ENTRY
 
     # A mapping from item type descriptors to type-key.
     ITEM_TYPE_DESCRIPTOR_KEY = dict()
