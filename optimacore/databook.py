@@ -119,15 +119,16 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
         if format_variable_key in section_specs:
             format_variables[format_variable_key] = section_specs[format_variable_key]
         
-        # Comment the column header if a comment was pulled into framework settings from a configuration file.
-        if "comment" in section_specs:
-            header_comment = section_specs["comment"]
-            datapage.write_comment(row, col, header_comment, 
-                                   {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
-                                    "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
+    # Comment the section header if a comment was pulled into framework settings from a configuration file.
+    if "comment" in section_specs:
+        header_comment = section_specs["comment"]
+        datapage.write_comment(row, col, header_comment, 
+                                {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
+                                "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
     
-        # Adjust column width and continue to the next one.
-        datapage.set_column(col, col, format_variables[ExcelSettings.KEY_COLUMN_WIDTH])
+    # Determine if this section will be creating subsections.
+    subsection_keys = []
+    if not section_specs["subsection_keys"] is None: subsection_keys = section_specs["subsection_keys"]
 
     # Check if the section specifies any items to list out within its contents.
     if "iterated_type" in section_specs and not section_specs["iterated_type"] is None:
@@ -191,16 +192,39 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
                                               "source": validation_source})
 
     else:
-        logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type', "
-                       "so its contents will be left blank.".format(section_key,page_key))
+        if len(subsection_keys) == 0:
+            logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type' or any 'subsection keys', "
+                           "so its contents will be left blank.".format(section_key,page_key))
 
+    # Adjust width of section columns.
+    # Note: Column width for a supersection is propagated to all subsections, unless there are specific subsection column width values in the databook format configuration file.
+    datapage.set_column(start_col, col, format_variables[ExcelSettings.KEY_COLUMN_WIDTH])
+
+    # Generate as many subsections as are required.
+    # Track bounding box of section and subsections, in terms of last row and column, so that the next supersection does not overwrite awkward arrangements.
+    # WARNING: Databook supersections are assumed to delegate all content creation to subsections, with subsections building from the start row and column of the supersection.
+    #          This means subsections may overwrite all or part contents written by the supersection.
+    max_row = row
+    max_col = col
+
+    for subsection_key in subsection_keys:
+        sub_row, sub_col = start_row, start_col
+        _, sub_row, sub_col, sub_last_row, sub_last_col = createDatabookSection(framework = framework, datapage = datapage, 
+                                                                                page_key = page_key, section_key = subsection_key, 
+                                                                                start_row = sub_row, start_col = sub_col, instructions = instructions, 
+                                                                                formats = formats, format_variables = format_variables, temp_storage = temp_storage)
+        max_row = max(max_row, sub_last_row)
+        max_col = max(max_col, sub_last_col)
+
+    # Store the last row and column reached by this section.
+    last_row, last_col = max_row, max_col
     if section_specs["row_not_col"]:
-        next_section_row = row + 2
+        next_section_row = max_row + 2
         next_section_col = start_col
     else:
         next_section_row = start_row
-        next_section_col = start_col + 1
-    return datapage, next_section_row, next_section_col
+        next_section_col = max_col + 1
+    return datapage, next_section_row, next_section_col, last_row, last_col
 
 @logUsage
 @accepts(ProjectFramework,xw.Workbook,str)
@@ -245,14 +269,21 @@ def createDatabookPage(framework, databook, page_key, instructions = None, forma
     # Generate standard formats if they do not exist.
     if formats is None: formats = createStandardExcelFormats(databook)
     
-    # Create the sections required on this page.
+    # Create the sections required on this page, excluding subsections.
     row = 0
     col = 0
     for section_key in framework.specs["datapage"][page_key]:
-        _, row, col = createDatabookSection(framework = framework, datapage = datapage, page_key = page_key,
-                                            section_key = section_key, start_row = row, start_col = col,
-                                            instructions = instructions, formats = formats, 
-                                            format_variables = format_variables, temp_storage = temp_storage)
+        # Extract the supersection key from section specifics, whether back in static databook settings or carried across to framework specifications.
+        if "refer_to_default" in framework.specs["datapage"][page_key][section_key] and framework.specs["datapage"][page_key][section_key]["refer_to_default"] is True:
+            supersection_key = DatabookSettings.SECTION_SPECS[section_key]["supersection_key"]
+        else:
+            supersection_key = framework.specs["datapage"][page_key][section_key]["supersection_key"]
+        # Highest-level sections do not have supersections, so they can be constructed in the databook.
+        if supersection_key is None:
+            _, row, col, _, _ = createDatabookSection(framework = framework, datapage = datapage, page_key = page_key,
+                                                      section_key = section_key, start_row = row, start_col = col,
+                                                      instructions = instructions, formats = formats, 
+                                                      format_variables = format_variables, temp_storage = temp_storage)
     return databook      
 
 @logUsage

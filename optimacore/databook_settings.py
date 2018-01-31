@@ -26,9 +26,10 @@ class DatabookSettings(object):
     KEY_POPULATION = FrameworkSettings.KEY_POPULATION
     KEY_PROGRAM = FrameworkSettings.KEY_PROGRAM
     KEY_CHARACTERISTIC = FrameworkSettings.KEY_CHARACTERISTIC
+    KEY_PARAMETER = FrameworkSettings.KEY_PARAMETER
 
     # Construct an ordered list of keys representing standard pages.
-    PAGE_KEYS = [KEY_POPULATION, KEY_PROGRAM, KEY_CHARACTERISTIC]
+    PAGE_KEYS = [KEY_POPULATION, KEY_PROGRAM, KEY_CHARACTERISTIC, KEY_PARAMETER]
 
     # Each databook page consists of 'sections'.
     # These can be columns in the simplest case, but also include sets of complex data-entry units. 
@@ -36,7 +37,7 @@ class DatabookSettings(object):
     SECTION_TYPE_COLUMN_LABEL = FrameworkSettings.COLUMN_TYPE_LABEL
     SECTION_TYPE_COLUMN_NAME = FrameworkSettings.COLUMN_TYPE_NAME
     SECTION_TYPE_ENTRY = "entry"
-    SECTION_TYPES = [SECTION_TYPE_COLUMN_LABEL, SECTION_TYPE_COLUMN_NAME, SECTION_TYPE_ENTRY]
+    SECTION_TYPES = [SECTION_TYPE_COLUMN_LABEL, SECTION_TYPE_COLUMN_NAME]#, SECTION_TYPE_ENTRY]
 
     # Construct an ordered list of keys representing items defined in a databook.
     # Unlike with frameworks, these tend to extend over multiple pages, leading to significant differences in input and output.
@@ -47,11 +48,15 @@ class DatabookSettings(object):
     KEY_POPULATION_LABEL = KEY_POPULATION + SECTION_TYPE_COLUMN_LABEL
     KEY_POPULATION_NAME = KEY_POPULATION + SECTION_TYPE_COLUMN_NAME
     KEY_CHARACTERISTIC_ENTRY = KEY_CHARACTERISTIC + SECTION_TYPE_ENTRY
+    KEY_CHARACTERISTIC_LABEL = KEY_CHARACTERISTIC + SECTION_TYPE_COLUMN_LABEL
+    KEY_PARAMETER_ENTRY = KEY_PARAMETER + SECTION_TYPE_ENTRY
+    KEY_PARAMETER_LABEL = KEY_PARAMETER + SECTION_TYPE_COLUMN_LABEL
 
     PAGE_SECTION_KEYS = OrderedDict()
     for page_key in PAGE_KEYS: PAGE_SECTION_KEYS[page_key] = []
     PAGE_SECTION_KEYS[KEY_POPULATION] = [KEY_POPULATION_LABEL, KEY_POPULATION_NAME]
-    PAGE_SECTION_KEYS[KEY_CHARACTERISTIC] = [KEY_CHARACTERISTIC_ENTRY]
+    PAGE_SECTION_KEYS[KEY_CHARACTERISTIC] = [KEY_CHARACTERISTIC_ENTRY, KEY_CHARACTERISTIC_LABEL]
+    PAGE_SECTION_KEYS[KEY_PARAMETER] = [KEY_PARAMETER_ENTRY, KEY_PARAMETER_LABEL]
 
     # Construct a dictionary of specifications detailing how to construct pages and page sections.
     # Everything here is hard-coded and abstract, with semantics drawn from a configuration file later.
@@ -63,21 +68,19 @@ class DatabookSettings(object):
         section_count = 0
         for section_key in PAGE_SECTION_KEYS[page_key]:
             if section_key in SECTION_SPECS: raise OptimaException("Key uniqueness failure. Databook settings specify the same key '{0}' for more than one section.".format(section_key))
-            SECTION_SPECS[section_key] = dict()
-
-            ## Associate each section with a position value for easy reference.
-            ## Note: Given that not all sections are columns, output-based interpretation of this number may vary.
-            #SECTION_SPECS[section_key]["default_pos"] = section_count
-
+            # Determine the type this section is, as listed earlier.
+            SECTION_SPECS[section_key] = {"type":None,
             # If this section is a template to be instantiated, attach a reference to the page key of the core framework item type that instantiates it.
             # For example, there should be one instance of a value entry section per parameter.
             # TODO: Consider refining instance type concept so that developers do not get confused why it refers to a framework page key rather than item type.
-            SECTION_SPECS[section_key]["instance_type"] = None
+                                          "instance_type":None,
             # Attach a reference to a databook item type that this section iterates over, for input-output purposes.
             # For example, a parameter value entry section should produce one row per population.
-            SECTION_SPECS[section_key]["iterated_type"] = None
-            # Also determine the type this section is, as listed earlier.
-            SECTION_SPECS[section_key]["type"] = None
+                                          "iterated_type":None,
+            # Some sections are actually combinations of other sections; the keys of the subsections should be listed.
+                                          "subsection_keys":None, 
+            # Factory methods will only generate highest-level sections; all subsections to be produced should mark the key of their supersection.
+                                          "supersection_key":None}
             # Establish whether the next section should be in a following row or a following column.
             # If the following setting is set True, there will also be a blank buffer row between adjacent sections.
             SECTION_SPECS[section_key]["row_not_col"] = False
@@ -90,10 +93,21 @@ class DatabookSettings(object):
                 if section_key.endswith(section_type):
                     SECTION_SPECS[section_key]["type"] = section_type
     # Non-default types should overwrite defaults here.
-    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["instance_type"] = KEY_CHARACTERISTIC
-    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["iterated_type"] = KEY_POPULATION
-    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["type"] = SECTION_TYPE_COLUMN_LABEL
+    # Define a section for characteristic data entry.
     SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["row_not_col"] = True
+    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["instance_type"] = FrameworkSettings.KEY_CHARACTERISTIC     # Module reference unnecessary but made explicit.
+    SECTION_SPECS[KEY_CHARACTERISTIC_ENTRY]["subsection_keys"] = [KEY_CHARACTERISTIC_LABEL]
+    # Define a characteristic data entry subsection for displaying labels.
+    SECTION_SPECS[KEY_CHARACTERISTIC_LABEL]["iterated_type"] = KEY_POPULATION
+    SECTION_SPECS[KEY_CHARACTERISTIC_LABEL]["supersection_key"] = KEY_CHARACTERISTIC_ENTRY
+    # Define a section for parameter data entry.
+    SECTION_SPECS[KEY_PARAMETER_ENTRY]["row_not_col"] = True
+    SECTION_SPECS[KEY_PARAMETER_ENTRY]["instance_type"] = FrameworkSettings.KEY_PARAMETER       # Module reference unnecessary but made explicit.
+    SECTION_SPECS[KEY_PARAMETER_ENTRY]["subsection_keys"] = [KEY_PARAMETER_LABEL]
+    # Define a parameter data entry subsection for displaying labels.
+    # Is redundant with respect to characteristic label section, but made distinct to be explicit anyway.
+    SECTION_SPECS[KEY_PARAMETER_LABEL]["iterated_type"] = KEY_POPULATION
+    SECTION_SPECS[KEY_PARAMETER_LABEL]["supersection_key"] = KEY_PARAMETER_ENTRY
 
     # A mapping from item type descriptors to type-key.
     ITEM_TYPE_DESCRIPTOR_KEY = dict()
@@ -162,8 +176,8 @@ class DatabookSettings(object):
                                               "section '{1}'.".format(ref_section, section_key))
                     else:
                         if not cls.SECTION_SPECS[section_key]["iterated_type"] == cls.SECTION_SPECS[ref_section]["iterated_type"]:
-                            raise OptimaException("Databook configuration file states that section with key '{0}' and item type '{1}' references section with key '{2}' "
-                                                 "and item type '{3}'. Different item types are not allowed, "
+                            raise OptimaException("Databook configuration file states that section with key '{0}' and iterated item type '{1}' references section with key '{2}' "
+                                                 "and iterated item type '{3}'. Different iterated types are not allowed, "
                                                  "in case there is no one-to-one mapping from item to item.".format(section_key, cls.SECTION_SPECS[section_key]["iterated_type"],
                                                                                                                     ref_section, cls.SECTION_SPECS[ref_section]["iterated_type"]))
                         # Note that the referenced section is a reference, i.e. its values must persist during the entire databook construction process.
