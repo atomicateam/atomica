@@ -9,7 +9,7 @@ from optimacore.system import logger, applyToAllMethods, logUsage, accepts, retu
 from optimacore.system import SystemSettings
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.databook_settings import DatabookSettings
-from optimacore.excel import ExcelSettings
+from optimacore.excel import ExcelSettings, extractHeaderPositionMapping, extractExcelSheetValue 
 
 import os
 import xlrd
@@ -18,82 +18,6 @@ from copy import deepcopy as dcp
 
 from six import moves as sm
 import xlsxwriter as xw
-
-@accepts(xlrd.sheet.Sheet)
-@returns(dict)
-def extractHeaderPositionMapping(excel_page):
-    """ Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found. """
-    header_positions = dict()
-    for col in sm.range(excel_page.ncols):
-        header = str(excel_page.cell_value(0, col))
-        if not header == "":
-            if header in header_positions:
-                error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
-                logger.error(error_message)
-                raise OptimaException(error_message)
-            header_positions[header] = col
-    return header_positions
-
-@accepts(xlrd.sheet.Sheet,int,int)
-def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, stop_col = None, filter = None):
-    """
-    Returns a value extracted from an Excel page, but converted to type according to a filter.
-    The value will be pulled from rows starting at 'start_row' and terminating before 'stop_row'; a similar restriction holds for columns.
-    Empty-string values are always equivalent to a value of None being returned.
-    """
-    old_value = None
-    row = start_row
-    col = start_col
-    if stop_row is None: stop_row = row + 1
-    if stop_col is None: stop_col = col + 1
-    rc_start = xw.utility.xl_rowcol_to_cell(start_row, start_col)
-    rc = rc_start
-    # If columns without headers follow this column in the Excel page, scan through them.
-    # Ditto with rows without item names that follow this row in the Excel page.
-    while row < stop_row:
-        while col < stop_col:
-            value = str(excel_page.cell_value(row, col))
-            if value == "":
-                value = None
-            elif filter == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC:
-                value = [item.strip() for item in value.strip().split(ExcelSettings.LIST_SEPARATOR)]
-
-            if (not old_value is None):     # If there is an old value, this is not the first important cell examined.
-                if value is None:
-                    value = old_value       # If the new value is not important, maintain the old value.
-                else:
-                    # Expand lists with additional cell contents if appropriate.
-                    if filter == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC:
-                        value = old_value + value
-                    # Otherwise, overwrite with a warning.
-                    else:
-                        rc = xw.utility.xl_rowcol_to_cell(row, col)
-                        logger.warning("Value '{0}' at cell '{1}' on page '{2}' is still considered part of the item and specification (i.e. header) located at cell '{3}'. "
-                                       "It will overwrite the previous value of '{4}'.".format(value, rc, excel_page.name, rc_start, old_value))
-            old_value = value
-            col += 1
-        col = start_col
-        row += 1
-
-    # Convert to boolean values if specified by filter.
-    # Empty strings and unidentified symbols are considered default values.
-    if filter == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_OFF:
-        if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
-        else:
-            if not value == SystemSettings.DEFAULT_SYMBOL_NO:
-                logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
-                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_NO))
-            value = ""
-    if filter == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON:
-        if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
-        else:
-            if not value == SystemSettings.DEFAULT_SYMBOL_YES:
-                logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
-                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_YES))
-            value = ""
-    if value == "": value = None
-    return value
-
 
 
 @applyToAllMethods(logUsage)
@@ -218,9 +142,13 @@ class ProjectFramework(object):
                         else:
                             stop_col = col_test
                             break
-
+                    
+                    filter = None
+                    if column_type == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC: filter = ExcelSettings.FILTER_KEY_LIST
+                    elif column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_OFF: filter = ExcelSettings.FILTER_KEY_BOOLEAN_YES
+                    elif column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON: filter = ExcelSettings.FILTER_KEY_BOOLEAN_NO
                     value = extractExcelSheetValue(excel_page = framework_page, start_row = row, stop_row = stop_row, 
-                                                                                start_col = col, stop_col = stop_col, filter = column_type)
+                                                                                start_col = col, stop_col = stop_col, filter = filter)
                     if not value is None:
                         destination_specs[name][column_key] = value
             

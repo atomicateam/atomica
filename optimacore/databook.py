@@ -8,7 +8,7 @@ from optimacore.system import logger, applyToAllMethods, logUsage, accepts, retu
 from optimacore.framework_settings import FrameworkSettings
 from optimacore.framework import ProjectFramework
 from optimacore.databook_settings import DatabookSettings
-from optimacore.excel import ExcelSettings, createStandardExcelFormats, createDefaultFormatVariables
+from optimacore.excel import ExcelSettings, createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
 
 from copy import deepcopy as dcp
 
@@ -16,20 +16,6 @@ from collections import OrderedDict
 
 from six import moves as sm
 import xlsxwriter as xw
-
-
-
-def makeValueEntryBlock(worksheet, start_row, start_col, item_count, time_vector = None, formats = None):
-    # Generate standard formats if they do not exist.
-    if formats is None: formats = createStandardExcelFormats(databook)
-
-    row = start_row
-    col = start_col
-    worksheet.write(row, col, "Assumption", formats["center_bold"])
-    row = item_count
-    last_row = row
-    last_col = col
-    return worksheet, last_row, last_col
 
 
 
@@ -124,36 +110,36 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
     # Determine if this section will be creating subsections.
     subsection_keys = []
     if not section_specs["subsection_keys"] is None: subsection_keys = section_specs["subsection_keys"]
-    
-    # CONTINUE HERE AND AT FUNCTION
-    if section_specs["type"] == DatabookSettings.SECTION_TYPE_ENTRY:
-        _, row, col = makeValueEntryBlock(worksheet = datapage, start_row = row, start_col = col, item_count = 0, time_vector = None, formats = formats)
-    else:
-        # Create header if required.
-        header_name = section_specs["header"]
-        if not header_name is None:
-            datapage.write(row, col, header_name, formats["center_bold"])
-        
-        # Propagate page-wide format variable values to section-wide format variable values.
-        # Create the format variables if they were not passed in from a page-wide context.
-        # Overwrite the page-wide defaults if section-based specifics are available in framework settings.
-        if format_variables is None: format_variables = createDefaultFormatVariables()
-        else: format_variables = dcp(format_variables)
-        for format_variable_key in format_variables:
-            if format_variable_key in section_specs:
-                format_variables[format_variable_key] = section_specs[format_variable_key]
-        
-        # Comment the section header if a comment was pulled into framework settings from a configuration file.
-        if "comment" in section_specs:
-            header_comment = section_specs["comment"]
-            datapage.write_comment(row, col, header_comment, 
-                                    {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
-                                    "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
 
-        # Check if the section specifies any items to list out within its contents.
-        if "iterated_type" in section_specs and not section_specs["iterated_type"] is None:
-            item_key = section_specs["iterated_type"]
-            num_items = instructions.num_items[item_key]
+    # Create header if required.
+    header_name = section_specs["header"]
+    if not header_name is None:
+        datapage.write(row, col, header_name, formats["center_bold"])
+        
+    # Propagate page-wide format variable values to section-wide format variable values.
+    # Create the format variables if they were not passed in from a page-wide context.
+    # Overwrite the page-wide defaults if section-based specifics are available in framework settings.
+    if format_variables is None: format_variables = createDefaultFormatVariables()
+    else: format_variables = dcp(format_variables)
+    for format_variable_key in format_variables:
+        if format_variable_key in section_specs:
+            format_variables[format_variable_key] = section_specs[format_variable_key]
+        
+    # Comment the section header if a comment was pulled into framework settings from a configuration file.
+    if "comment" in section_specs:
+        header_comment = section_specs["comment"]
+        datapage.write_comment(row, col, header_comment, 
+                                {"x_scale": format_variables[ExcelSettings.KEY_COMMENT_XSCALE], 
+                                "y_scale": format_variables[ExcelSettings.KEY_COMMENT_YSCALE]})
+    
+    # Check if the section specifies any items to list out within its contents.
+    if "iterated_type" in section_specs and not section_specs["iterated_type"] is None:
+        item_key = section_specs["iterated_type"]
+        num_items = instructions.num_items[item_key]
+        # Handle a data entry section if needed, otherwise build up other section types iteratively.
+        if section_specs["type"] == DatabookSettings.SECTION_TYPE_ENTRY:
+            _, row, col = createValueEntryBlock(excel_page = datapage, start_row = row, start_col = col, item_count = num_items, time_vector = None)#, formats = formats)
+        else:
             for item_number in sm.range(num_items):
 
                 section_type = section_specs["type"]
@@ -210,11 +196,10 @@ def createDatabookSection(framework, datapage, page_key, section_key, start_row,
                 if not validation_source is None:
                     datapage.data_validation(rc, {"validate": "list",
                                                   "source": validation_source})
-
-        else:
-            if len(subsection_keys) == 0:
-                logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type' or any 'subsection keys', "
-                               "so its contents will be left blank.".format(section_key,page_key))
+    else:
+        if len(subsection_keys) == 0:
+            logger.warning("Section with key '{0}' on page '{1}' of the databook does not specify an 'iterated type' or any 'subsection keys', "
+                            "so its contents will be left blank.".format(section_key,page_key))
 
     # Adjust width of section columns.
     # Note: Column width for a supersection is propagated to all subsections, unless there are specific subsection column width values in the databook format configuration file.

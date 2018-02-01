@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.3 (2018-01-31): Basic Databook Items
+## 0.3.3 (2018-02-01): Basic Databook Items
 
 Features
 - Improved wrapped `createDatabookFunc()` to produce a list of populations in a databook.

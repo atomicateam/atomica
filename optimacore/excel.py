@@ -4,15 +4,22 @@ Optima Core Excel utilities file.
 Contains functionality specific to Excel input and output.
 """
 
-from optimacore.system import logUsage, accepts
+from optimacore.system import logUsage, accepts, returns, SystemSettings
 
+from six import moves as sm
 import xlsxwriter as xw
+import xlrd
 
 class ExcelSettings(object):
     """ Stores settings relevant to Excel file input and output. """
 
     FILE_EXTENSION = ".xlsx"
     LIST_SEPARATOR = ","
+
+    # Filter keys that denote special extraction rules when reading in Excel sheets.
+    FILTER_KEY_LIST = "filter_list"
+    FILTER_KEY_BOOLEAN_YES = "boolean_yes"  # Extracted value is True for a yes symbol and False for anything else.
+    FILTER_KEY_BOOLEAN_NO = "boolean_no"    # Extracted value is False for a no symbol and True for anything else.
 
     # Keys for float-valued variables related in some way to Excel file formatting.
     # They must have corresponding default values.
@@ -25,6 +32,8 @@ class ExcelSettings(object):
     EXCEL_IO_DEFAULT_COLUMN_WIDTH = 20
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
+
+#%% Utility functions for writing.
 
 @logUsage
 @accepts(xw.Workbook)
@@ -49,3 +58,94 @@ def createDefaultFormatVariables():
     format_variables[ExcelSettings.KEY_COMMENT_XSCALE] = ExcelSettings.EXCEL_IO_DEFAULT_COMMENT_XSCALE
     format_variables[ExcelSettings.KEY_COMMENT_YSCALE] = ExcelSettings.EXCEL_IO_DEFAULT_COMMENT_YSCALE
     return format_variables
+
+@accepts(xw.worksheet.Worksheet,int,int,int)
+def createValueEntryBlock(excel_page, start_row, start_col, item_count, time_vector = None):#, formats = None):
+    """ Create a block where users enter values in a 'constant' column or as time-dependent array. """
+    # Generate standard formats if they do not exist.
+    #if formats is None: formats = createStandardExcelFormats(databook)
+
+    row = start_row
+    col = start_col
+    #excel_page.write(row, col, "Assumption", formats["center_bold"])
+    row = item_count
+    last_row = row
+    last_col = col
+    return excel_page, last_row, last_col
+
+#%% Utility functions for reading.
+
+@accepts(xlrd.sheet.Sheet)
+@returns(dict)
+def extractHeaderPositionMapping(excel_page):
+    """ Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found. """
+    header_positions = dict()
+    for col in sm.range(excel_page.ncols):
+        header = str(excel_page.cell_value(0, col))
+        if not header == "":
+            if header in header_positions:
+                error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
+                logger.error(error_message)
+                raise OptimaException(error_message)
+            header_positions[header] = col
+    return header_positions
+
+@accepts(xlrd.sheet.Sheet,int,int)
+def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, stop_col = None, filter = None):
+    """
+    Returns a value extracted from an Excel page, but converted to type according to a filter.
+    The value will be pulled from rows starting at 'start_row' and terminating before 'stop_row'; a similar restriction holds for columns.
+    Empty-string values are always equivalent to a value of None being returned.
+    """
+    old_value = None
+    row = start_row
+    col = start_col
+    if stop_row is None: stop_row = row + 1
+    if stop_col is None: stop_col = col + 1
+    rc_start = xw.utility.xl_rowcol_to_cell(start_row, start_col)
+    rc = rc_start
+    # If columns without headers follow this column in the Excel page, scan through them.
+    # Ditto with rows without item names that follow this row in the Excel page.
+    while row < stop_row:
+        while col < stop_col:
+            value = str(excel_page.cell_value(row, col))
+            if value == "":
+                value = None
+            elif filter == ExcelSettings.FILTER_KEY_LIST:
+                value = [item.strip() for item in value.strip().split(ExcelSettings.LIST_SEPARATOR)]
+
+            if (not old_value is None):     # If there is an old value, this is not the first important cell examined.
+                if value is None:
+                    value = old_value       # If the new value is not important, maintain the old value.
+                else:
+                    # Expand lists with additional cell contents if appropriate.
+                    if filter == ExcelSettings.FILTER_KEY_LIST:
+                        value = old_value + value
+                    # Otherwise, overwrite with a warning.
+                    else:
+                        rc = xw.utility.xl_rowcol_to_cell(row, col)
+                        logger.warning("Value '{0}' at cell '{1}' on page '{2}' is still considered part of the item and specification (i.e. header) located at cell '{3}'. "
+                                       "It will overwrite the previous value of '{4}'.".format(value, rc, excel_page.name, rc_start, old_value))
+            old_value = value
+            col += 1
+        col = start_col
+        row += 1
+
+    # Convert to boolean values if specified by filter.
+    # Empty strings and unidentified symbols are considered default values.
+    if filter == ExcelSettings.FILTER_KEY_BOOLEAN_YES:
+        if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
+        else:
+            if not value == SystemSettings.DEFAULT_SYMBOL_NO:
+                logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
+                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_NO))
+            value = ""
+    if filter == ExcelSettings.FILTER_KEY_BOOLEAN_NO:
+        if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
+        else:
+            if not value == SystemSettings.DEFAULT_SYMBOL_YES:
+                logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
+                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_YES))
+            value = ""
+    if value == "": value = None
+    return value

@@ -25,23 +25,23 @@ class EverythingTest(unittest.TestCase):
     def tearDown(self):
         self.proj = None
 
-    def test_databook_empty_creation(self):
-        """  """
-        self.proj.createDatabook(databook_path = self.databook_empty_filepath)
-        return None
+    #def test_databook_empty_creation(self):
+    #    """  """
+    #    self.proj.createDatabook(databook_path = self.databook_empty_filepath)
+    #    return None
 
     def test_template_process(self):
         """  """
         createFrameworkTemplate(framework_path = self.framework_template_filepath)
         self.proj.getFramework().importFromFile(framework_path = self.framework_template_filepath)
         self.proj.createDatabook(databook_path = self.databook_template_filepath)
-        return None
-    
-    def test_framework_example_import(self):
-        """  """
-        self.proj.getFramework().importFromFile(framework_path = self.framework_example_filepath)
         #pprint.pprint(self.proj.getFramework().specs)
         return None
+    
+    #def test_framework_example_import(self):
+    #    """  """
+    #    self.proj.getFramework().importFromFile(framework_path = self.framework_example_filepath)
+    #    return None
         
 if __name__ == '__main__':
     unittest.main()
