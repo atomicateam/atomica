@@ -5,6 +5,8 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
+from optimacore.system import SystemSettings as SS
+
 from optimacore.system import logUsage, accepts, OptimaException
 from optimacore.system import logger, SystemSettings, getOptimaCorePath
 from optimacore.parser import loadConfigFile, getConfigValue, configparser
@@ -12,21 +14,174 @@ from optimacore.excel import ExcelSettings
 
 from collections import OrderedDict
 
+class KeyUniquenessException(OptimaException):
+    def __init__(self, key, object_type, **kwargs):
+        message = ("Key uniqueness failure. Settings specify the same key '{0}' for more than one '{1}'.".format(key, object_type))
+        return super().__init__(message, **kwargs)
+
+#class BaseStructuralSettings(object):
+#    """
+#    A base class for both framework and databook settings, maintaining consistent terminology relating to model structure.
+
+#    """
+#    # Define key semantics.
+#    KEY_COMPARTMENT = "comp"
+#    KEY_CHARACTERISTIC = "charac"
+#    KEY_PARAMETER = "par"
+#    KEY_POPULATION = "pop"
+#    KEY_PROGRAM = "prog"
+#    KEY_DATAPAGE = "datapage"
+
+#    TERM_ITEM = "item"
+#    TERM_TYPE = "type"
+#    TERM_ATTRIBUTE = "att"
+#    TERM_OPTION = "opt"
+
+#    # An item is a distinct structural object; it may be of type population, program, parameter, etc.
+#    # A section is a matrix of cells within a workbook; it may be of type column, row, tag matrix, etc.
+#    SECTION_TYPES = []
+#    ITEM_TYPES = []
+
+#    # A workbook
+#    PAGE_KEYS = []
+#    PAGE_SECTION_KEYS = []
+
 @loadConfigFile
-class FrameworkSettings(object):
+class WorkbookSettings():
+    KEY_COMPARTMENT = "comp"
+    KEY_CHARACTERISTIC = "charac"
+    KEY_PARAMETER = "par"
+    KEY_POPULATION = "pop"
+    KEY_PROGRAM = "prog"
+    KEY_DATAPAGE = "datapage"
+
+    TERM_ITEM = "item"
+    TERM_TYPE = "type"
+    TERM_ATTRIBUTE = "att"
+    TERM_OPTION = "opt"
+
+    KEY_POPULATION_ATTRIBUTE = KEY_POPULATION + TERM_ATTRIBUTE
+    KEY_POPULATION_OPTION = KEY_POPULATION + TERM_OPTION
+    KEY_PROGRAM_TYPE = KEY_PROGRAM + TERM_TYPE
+    KEY_PROGRAM_ATTRIBUTE = KEY_PROGRAM + TERM_ATTRIBUTE
+
+    ITEM_TYPES = [KEY_POPULATION_ATTRIBUTE, KEY_POPULATION_OPTION, KEY_COMPARTMENT, KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE, KEY_PROGRAM_ATTRIBUTE]
+
+    class DetailColumns(object):
+        """ Lightweight structure to associate a workbook table of detail columns with a specific item type. """
+        def __init__(self, item_type): self.item_type = item_type
+
+    PAGE_KEYS = [KEY_POPULATION_ATTRIBUTE, KEY_COMPARTMENT, "trans", KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE]
+    PAGE_SPECS = OrderedDict()
+    for page_key in PAGE_KEYS:
+        PAGE_SPECS[page_key] = {"title":page_key.title()}
+        PAGE_SPECS[page_key]["table_types"] = []
+    # Certain workbook pages are bijectively associated with an item type, thus sharing a key.
+    # Hence, for convenience, link these pages with appropriate detail-column tables.
+    for item_type in ITEM_TYPES:
+        if item_type in PAGE_SPECS:
+            PAGE_SPECS[item_type]["table_types"].append(DetailColumns(item_type))
+
+    ITEM_TYPE_SPECS = OrderedDict()
+    ITEM_TYPE_DESCRIPTOR_KEY = dict()       # A mapping from item type descriptors to type-key.
+    def createItemTypeDescriptor(item_type_specs, item_type, descriptor, reverse_map):
+        if "descriptor" in item_type_specs[item_type]:
+            old_descriptor = item_type_specs[item_type]["descriptor"]
+            del reverse_map[old_descriptor]
+        item_type_specs[item_type]["descriptor"] = descriptor
+        reverse_map[descriptor] = item_type
+    def createItemTypeAttribute(item_type_specs, item_type, attribute_keys):
+        for attribute_key in attribute_keys:
+            attribute_dict = {"header":SS.DEFAULT_SPACE_LABEL.join([item_type, attribute_key]).title(),
+                              "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute_key, item_type)}
+            item_type_specs[item_type]["attributes"][attribute_key] = attribute_dict
+    def createItemTypeSubitemTypes(item_type_specs, item_type, subitem_types):
+        for subitem_type in subitem_types:
+            attribute_dict = {"ref_item_type":subitem_type}
+            item_type_specs[item_type]["attributes"][subitem_type + SS.DEFAULT_SUFFIX_PLURAL] = attribute_dict
+    for item_type in ITEM_TYPES:
+        ITEM_TYPE_SPECS[item_type] = dict()
+        ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
+        ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
+        createItemTypeDescriptor(ITEM_TYPE_SPECS, item_type = item_type, descriptor = item_type, reverse_map = ITEM_TYPE_DESCRIPTOR_KEY)
+        createItemTypeAttribute(ITEM_TYPE_SPECS, item_type, ["name","label"])
+    createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_COMPARTMENT, ["is_source","is_sink","is_junction"])
+    createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_CHARACTERISTIC, ["includes"])
+    createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_PARAMETER, ["tag_link"])
+    createItemTypeSubitemTypes(ITEM_TYPE_SPECS, KEY_POPULATION_ATTRIBUTE, [KEY_POPULATION_OPTION])
+    createItemTypeSubitemTypes(ITEM_TYPE_SPECS, KEY_PROGRAM_TYPE, [KEY_PROGRAM_ATTRIBUTE])
+
+    @classmethod
+    @logUsage
+    def reloadConfigFile(cls):
+        """
+        Reads a configuration file to flesh out user-interface semantics and formats for the hard-coded structures.
+        Method is titled with 'reload' as the process will have already been called once during initial import.
+        Note: Currently references the default configuration file, but can be modified in the future.
+        """
+        config_path = getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME) + SystemSettings.CONFIG_FRAMEWORK_FILENAME
+        logger.info("Attempting to generate Optima Core workbook settings from configuration file.")
+        logger.info("Location... {0}".format(config_path))
+        cp = configparser.ConfigParser()
+        cp.read(config_path)
+        
+        # Flesh out page details.
+        for page_key in cls.PAGE_KEYS:
+            # Read in required page title.
+            try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
+            except:
+                logger.error("Configuration loading process failed. Every page in a workbook needs a title.")
+                raise
+            
+        # Flesh out item-type details.
+        for item_type in cls.ITEM_TYPE_SPECS:
+            try: cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int(getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["itemtype",item_type]), option = "default_amount"))
+            except: logger.warning("Configuration file cannot find a valid 'default_amount' for item type '{0}', so these items will not be constructed in templates by default.".format(item_type))
+            try: descriptor = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["itemtype",item_type]), option = "descriptor")
+            except:
+                logger.warning("Configuration file cannot find a 'descriptor' for item type '{0}', so the descriptor will be the key itself.".format(item_type))
+                continue
+            cls.createItemTypeDescriptor(cls.ITEM_TYPE_SPECS, item_type = item_type, descriptor = descriptor, reverse_map = cls.ITEM_TYPE_DESCRIPTOR_KEY)
+        
+            for attribute in cls.ITEM_TYPE_SPECS[item_type]["attributes"]:
+                # Read in attribute header.
+                try: cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]["header"] = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]), option = "header")
+                except: pass
+                # Read in attribute comment.
+                try: cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]["comment"] = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]), option = "comment")
+                except: pass
+                # Read in optional prefix for writing default attribute content.
+                try: cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]["prefix"] = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]), option = "prefix", mute_warnings = True)
+                except: pass
+                # Read in optional format variables for writing default attribute content.
+                for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
+                    try: 
+                        value_overwrite = float(getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]), option = format_variable_key, mute_warnings = True))
+                        cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute][format_variable_key] = value_overwrite
+                    except ValueError: logger.warning("Configuration file for attribute '{0}', item type '{1}', has an entry for '{2}' " 
+                                                      "that cannot be converted to a float. Using a default value.".format(attribute, item_type, format_variable_key))
+                    except: pass
+
+        logger.info("Optima Core workbook settings successfully generated.") 
+        return
+
+
+#@loadConfigFile
+class FrameworkSettings():#BaseStructuralSettings):
     """
     Stores the definitions used in creating and reading framework files.
     Structure is hard-coded and any changes risk disrupting framework operations.
     UI semantics are parsed from a framework configuration file during the module import phase.
     Note: As a codebase-specific settings class, there is no need to instantiate it as an object.
     """
-    # TODO: Work out how to reference the keys here within the configuration file, so as to keep the two aligned.
-    # Define simple key semantics.
+    #BSS = BaseStructuralSettings    # Abbreviation for convenience.
+    # Define key semantics.
     KEY_COMPARTMENT = "comp"
     KEY_CHARACTERISTIC = "charac"
     KEY_PARAMETER = "par"
     KEY_POPULATION = "pop"
     KEY_PROGRAM = "prog"
+    KEY_DATAPAGE = "datapage"
 
     TERM_ITEM = "item"
     TERM_TYPE = "type"

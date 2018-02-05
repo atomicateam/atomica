@@ -29,6 +29,9 @@ class SystemSettings(object):
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     
+    WORKBOOK_KEY_DATA = "databook"
+    WORKBOOK_KEY_FRAMEWORK = "framework_file"
+
     FRAMEWORK_DEFAULT_TYPE = "example"
     DATABOOK_DEFAULT_TYPE = "standard"
     
@@ -38,6 +41,7 @@ class SystemSettings(object):
     DEFAULT_SEPARATOR_NAME = "_"
     DEFAULT_SYMBOL_YES = "y"
     DEFAULT_SYMBOL_NO = "n"
+    DEFAULT_SUFFIX_PLURAL = "s"
     
 
 #%% Code for determining module installation directory.

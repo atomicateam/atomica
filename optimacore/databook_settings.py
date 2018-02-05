@@ -14,7 +14,7 @@ from optimacore.excel import ExcelSettings
 from collections import OrderedDict
 
 @loadConfigFile
-class DatabookSettings(object):
+class DatabookSettings():#BaseStructuralSettings):
     """
     Stores the definitions used in creating and reading databook files.
     Structure is hard-coded and any changes risk disrupting databook IO operations.
