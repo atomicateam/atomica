@@ -1,6 +1,7 @@
 from optimacore.system import SystemSettings as SS
 from optimacore.framework_settings import WorkbookSettings as FS
 from optimacore.databook_settings import DatabookSettings as DS
+from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables
@@ -44,78 +45,182 @@ class WorkbookInstructions(object):
             logger.error("An attempted update of workbook instructions to produce '{0}' instances of item type '{1}' failed.".format(number, item_type))
             raise
 
-def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None):
+def writeHeaders(worksheet, item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, formats = None, format_variables = None):
+    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
+    #table_types = FS.PAGE_TABLE_TYPES[page_key]
+#elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    else: raise WorkbookTypeException(workbook_type)
 
-    def writeHeaders(item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None):
-        if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
-        #table_types = FS.PAGE_TABLE_TYPES[page_key]
-    #elif workbook_type == SS.WORKBOOK_KEY_DATA:
-        else: raise WorkbookTypeException(workbook_type)
-        row, col, header_column_map = start_row, start_col, dict()
+    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    if format_variables is None: format_variables = createDefaultFormatVariables()
+    orig_format_variables = dcp(format_variables)
+    format_variables = dcp(orig_format_variables)
+    revert_format_variables = False
+
+    row, col, header_column_map = start_row, start_col, dict()
+    for attribute in item_type_spec["attributes"]:
+        attribute_spec = item_type_spec["attributes"][attribute]
+        if "ref_item_type" in attribute_spec:
+            _, col, sub_map = writeHeaders(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                                           start_row = row, start_col = col,
+                                           framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                                           formats = formats, format_variables = format_variables)
+            len_map = len(header_column_map)
+            len_sub_map = len(sub_map)
+            header_column_map.update(sub_map)
+            if not len(header_column_map) == len_map + len_sub_map: raise KeyUniquenessException(None, "header-column map")
+        else:
+            for format_variable_key in format_variables:
+                if format_variable_key in attribute_spec:
+                    revert_format_variables = True
+                    format_variables[format_variable_key] = attribute_spec[format_variable_key]
+            header = attribute_spec["header"]
+            if header in header_column_map: raise KeyUniquenessException(header, "header-column map")
+            header_column_map[header] = col
+            worksheet.write(row, col, header, formats["center_bold"])
+            if "comment" in attribute_spec:
+                header_comment = attribute_spec["comment"]
+                worksheet.write_comment(row, col, header_comment, 
+                                        {"x_scale": format_variables[ES.KEY_COMMENT_XSCALE], 
+                                            "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
+            worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
+            if revert_format_variables:
+                format_variables = dcp(orig_format_variables)
+                revert_format_variables = False
+            col += 1
+    row += 1
+    next_row, next_col = row, col
+    return next_row, next_col, header_column_map
+
+def writeContents(worksheet, item_type, start_row, header_column_map, framework = None, data = None, instructions = None, workbook_type = None,
+                  formats = None, temp_storage = None):
+    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: 
+        item_type_specs = FS.ITEM_TYPE_SPECS
+        item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
+        if framework is None:
+            if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
+        else:
+            print('WHOOPS')
+    #table_types = FS.PAGE_TABLE_TYPES[page_key]
+#elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    else: raise WorkbookTypeException(workbook_type)
+
+    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    cell_format = formats["center"]
+
+    if temp_storage is None: temp_storage = dict()
+
+    row, new_row = start_row, start_row
+    for item_number in sm.range(instructions.num_items[item_type]):
         for attribute in item_type_spec["attributes"]:
-            if "ref_item_type" in item_type_spec["attributes"][attribute]:
-                _, col, sub_map = writeHeaders(item_type = item_type_spec["attributes"][attribute]["ref_item_type"],
-                                               start_row = row, start_col = col,
-                                               framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-                len_map = len(header_column_map)
-                len_sub_map = len(sub_map)
-                header_column_map.update(sub_map)
-                if not len(header_column_map) == len_map + len_sub_map: raise KeyUniquenessException(None, "header-column map")
+            attribute_spec = item_type_spec["attributes"][attribute]
+            if "ref_item_type" in attribute_spec:
+                sub_row = writeContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                                           start_row = row, header_column_map = header_column_map,
+                                           framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                                           formats = formats, temp_storage = temp_storage)
+                new_row = max(new_row, sub_row)
             else:
-                header = item_type_spec["attributes"][attribute]["header"]
-                if header in header_column_map: raise KeyUniquenessException(header, "header-column map")
-                header_column_map[header] = col
-                worksheet.write(row, col, header)
-                col += 1
-        row += 1
-        next_row, next_col = row, col
-        return next_row, next_col, header_column_map
+                col = header_column_map[attribute_spec["header"]]
+                rc = xw.utility.xl_rowcol_to_cell(row, col)
 
-    def writeContents(item_type, start_row, header_column_map, framework = None, data = None, instructions = None, workbook_type = None):
-        if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: 
-            item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
-            if framework is None:
-                if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
-            else:
-                print('WHOOPS')
-        #table_types = FS.PAGE_TABLE_TYPES[page_key]
-    #elif workbook_type == SS.WORKBOOK_KEY_DATA:
-        else: raise WorkbookTypeException(workbook_type)
-        row, col, new_row = start_row, start_col, start_row
-        for num_item in sm.range(instructions.num_items[item_type]):
-            for attribute in item_type_spec["attributes"]:
-                if "ref_item_type" in item_type_spec["attributes"][attribute]:
-                    sub_row, _ = writeContents(item_type = item_type_spec["attributes"][attribute]["ref_item_type"],
-                                               start_row = row, header_column_map = header_column_map,
-                                               framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-                    new_row = max(new_row, sub_row)
+                content = ""
+                space = ""
+                sep = ""
+                validation_source = None
+
+                reference_type = None
+                content_type = attribute_spec["content_type"]
+                if isinstance(content_type, FS.SuperReference):
+                    reference_type = dcp(content_type)
+                    content_type = item_type_specs[reference_type.item_type]["attributes"][reference_type.attribute]["content_type"]
+                if isinstance(content_type, FS.LabelType) or isinstance(content_type, FS.NameType):
+                    content = str(item_number)     # The default is the number of this item.
+                    if isinstance(content_type, FS.LabelType):
+                        space = SS.DEFAULT_SPACE_LABEL
+                        sep = SS.DEFAULT_SEPARATOR_LABEL
+                    else:
+                        space = SS.DEFAULT_SPACE_NAME
+                        sep = SS.DEFAULT_SEPARATOR_NAME
+                    if "prefix" in attribute_spec:
+                        content = attribute_spec["prefix"] + space + content
+                content_backup = content
+
+                if not reference_type is None:
+                    # 'Super' references link subitem attributes to corresponding superitem attributes.
+                    # Because subitem displays are created instantly after superitems, the superitem referenced is the last one stored.
+                    list_id = item_number
+                    if isinstance(reference_type, FS.SuperReference): list_id = -1
+                    try: stored_refs = temp_storage[reference_type.item_type][reference_type.attribute]
+                    except:
+                        logger.error("Workbook construction failed when item '{0}', attribute '{1}', attempt to reference nonexistent values, specifically item '{2}', attribute '{3}'. "
+                                     "It is possible the referenced attribute values are erroneously scheduled to be created later.".format(item_type, attribute, reference_type.item_type, reference_type.attribute))
+                        raise
+                    content_page = ""
+                    if not stored_refs["page_label"] == worksheet.name:
+                        content_page = "'{0}'!".format(stored_refs["page_label"])
+                    ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
+                    ref_content_backup = stored_refs["list_content_backup"][list_id]
+                    if isinstance(reference_type, FS.SuperReference):
+                        content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
+                        content_backup = ref_content_backup + sep + content_backup
+                    else:
+                        content = ref_content
+                        content_backup = content_backup
+
+                # Store the contents of this attribute for referencing by other attributes if required.
+                if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
+                    if not item_type in temp_storage: temp_storage[item_type] = {}
+                    if not attribute in temp_storage[item_type]: temp_storage[item_type][attribute] = {"list_content":[],"list_content_backup":[],"list_cell":[]}
+                    # Make sure the attribute does not already have stored values associated with it.
+                    if not len(temp_storage[item_type][attribute]["list_content"]) > item_number:
+                        temp_storage[item_type][attribute]["list_content"].append(content)
+                        temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
+                        temp_storage[item_type][attribute]["list_cell"].append(rc)
+                        temp_storage[item_type][attribute]["page_label"] = worksheet.name
+
+                if content.startswith("="):
+                    worksheet.write_formula(rc, content, cell_format, content_backup)
                 else:
-                    content = num_item
-                    col = header_column_map[item_type_spec["attributes"][attribute]["header"]]
-                    worksheet.write(row, col, content)
-            row = max(new_row, row + 1)
-        next_row, next_col = row, col
-        return next_row, next_col
+                    worksheet.write(rc, content, cell_format)
+
+                if not validation_source is None:
+                    framework_page.data_validation(rc, {"validate": "list",
+                                                        "source": validation_source})
+        row = max(new_row, row + 1)
+    next_row = row
+    return next_row
+
+def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+                       formats = None, format_variables = None, temp_storage = None):
+
+    if temp_storage is None: temp_storage = dict()
 
     row, col = start_row, start_col
-    row, _, header_column_map = writeHeaders(item_type = core_item_type, start_row = row, start_col = col,
-                          framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-    row, _ = writeContents(item_type = core_item_type, start_row = row, header_column_map = header_column_map,
-                           framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+    row, _, header_column_map = writeHeaders(worksheet = worksheet, item_type = core_item_type, start_row = row, start_col = col,
+                          framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                          formats = formats, format_variables = format_variables)
+    row = writeContents(worksheet = worksheet, item_type = core_item_type, start_row = row, header_column_map = header_column_map,
+                           framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                           formats = formats, temp_storage = temp_storage)
     next_row, next_col = row, col
     return next_row, next_col
 
 
-def writeTable(worksheet, table_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None):
-    
+def writeTable(worksheet, table_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+               formats = None, format_variables = None, temp_storage = None):
+
     # Check workbook type. Gather relevant details.
     if workbook_type not in [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]:
         raise WorkbookTypeException(workbook_type)
 
+    if temp_storage is None: temp_storage = dict()
+
     if isinstance(table_type, FS.DetailColumns):
         core_item_type = table_type.item_type
         row, col = writeDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = start_row, start_col = start_col,
-                                      framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+                                      framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                                      formats = formats, format_variables = format_variables, temp_storage = temp_storage)
     
     next_row, next_col = row, col
     return next_row, next_col
@@ -124,7 +229,8 @@ def writeTable(worksheet, table_type, start_row, start_col, framework = None, da
 
 
 
-def writeWorksheet(workbook, page_key, framework = None, data = None, instructions = None, workbook_type = None, formats = None, format_variables = None):
+def writeWorksheet(workbook, page_key, framework = None, data = None, instructions = None, workbook_type = None, 
+                   formats = None, format_variables = None, temp_storage = None):
 
     # Check workbook type. Gather relevant details.
     if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
@@ -151,11 +257,14 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
     # Generate standard formats if they do not exist and construct headers for the page.
     if formats is None: formats = createStandardExcelFormats(workbook)
 
+    if temp_storage is None: temp_storage = dict()
+
     # Iteratively construct tables.
     row, col = 0, 0
     for table_type in page_spec["table_types"]:
         row, col = writeTable(worksheet = worksheet, table_type = table_type, start_row = row, start_col = col,
-                              framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+                              framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                              formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
 @accepts(str)
 def writeWorkbook(workbook_path, framework = None, data = None, instructions = None, workbook_type = None):
@@ -177,11 +286,14 @@ def writeWorkbook(workbook_path, framework = None, data = None, instructions = N
     workbook = xw.Workbook(workbook_path)
     formats = createStandardExcelFormats(workbook)
     format_variables = createDefaultFormatVariables()
+
+    # Create a storage dictionary for values and formulae that may persist between sections.
+    temp_storage = dict()
     
     # Iteratively construct worksheets.
     for page_key in page_keys:
         writeWorksheet(workbook = workbook, page_key = page_key, 
                        framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
-                       formats = formats, format_variables = format_variables)
+                       formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
     workbook.close()

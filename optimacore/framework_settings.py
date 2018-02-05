@@ -71,6 +71,19 @@ class WorkbookSettings():
         """ Lightweight structure to associate a workbook table of detail columns with a specific item type. """
         def __init__(self, item_type): self.item_type = item_type
 
+    class LabelType(object):
+        """ Lightweight structure to associate the contents of an item attribute with display label formats. """
+        def __init__(self): pass
+    class NameType(object):
+        """ Lightweight structure to associate the contents of an item attribute with code name formats. """
+        def __init__(self): pass
+    class SuperReference(object):
+        """ Lightweight structure to have the contents of an item attribute reference those of a superitem attribute. """
+        def __init__(self, item_type, attribute):
+            self.item_type = item_type
+            self.attribute = attribute
+
+
     PAGE_KEYS = [KEY_POPULATION_ATTRIBUTE, KEY_COMPARTMENT, "trans", KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE]
     PAGE_SPECS = OrderedDict()
     for page_key in PAGE_KEYS:
@@ -90,24 +103,30 @@ class WorkbookSettings():
             del reverse_map[old_descriptor]
         item_type_specs[item_type]["descriptor"] = descriptor
         reverse_map[descriptor] = item_type
-    def createItemTypeAttribute(item_type_specs, item_type, attribute_keys):
+    def createItemTypeAttribute(item_type_specs, item_type, attribute_keys, content_type = None):
         for attribute_key in attribute_keys:
             attribute_dict = {"header":SS.DEFAULT_SPACE_LABEL.join([item_type, attribute_key]).title(),
-                              "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute_key, item_type)}
+                              "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute_key, item_type),
+                              "content_type":content_type}
             item_type_specs[item_type]["attributes"][attribute_key] = attribute_dict
-    def createItemTypeSubitemTypes(item_type_specs, item_type, subitem_types):
+    def createItemTypeSubitemTypes(item_type_specs, item_type, subitem_types, reference_type = SuperReference):
         for subitem_type in subitem_types:
             attribute_dict = {"ref_item_type":subitem_type}
             item_type_specs[item_type]["attributes"][subitem_type + SS.DEFAULT_SUFFIX_PLURAL] = attribute_dict
+            for attribute in ["name","label"]:
+                item_type_specs[item_type]["attributes"][attribute]["is_ref"] = True
+                item_type_specs[subitem_type]["attributes"][attribute]["content_type"] = reference_type(item_type = item_type, attribute = attribute)
     for item_type in ITEM_TYPES:
         ITEM_TYPE_SPECS[item_type] = dict()
         ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
         ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
         createItemTypeDescriptor(ITEM_TYPE_SPECS, item_type = item_type, descriptor = item_type, reverse_map = ITEM_TYPE_DESCRIPTOR_KEY)
-        createItemTypeAttribute(ITEM_TYPE_SPECS, item_type, ["name","label"])
+        createItemTypeAttribute(ITEM_TYPE_SPECS, item_type, ["name"], content_type = NameType())
+        createItemTypeAttribute(ITEM_TYPE_SPECS, item_type, ["label"], content_type = LabelType())
     createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_COMPARTMENT, ["is_source","is_sink","is_junction"])
     createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_CHARACTERISTIC, ["includes"])
     createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_PARAMETER, ["tag_link"])
+    # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
     createItemTypeSubitemTypes(ITEM_TYPE_SPECS, KEY_POPULATION_ATTRIBUTE, [KEY_POPULATION_OPTION])
     createItemTypeSubitemTypes(ITEM_TYPE_SPECS, KEY_PROGRAM_TYPE, [KEY_PROGRAM_ATTRIBUTE])
 
@@ -124,14 +143,28 @@ class WorkbookSettings():
         logger.info("Location... {0}".format(config_path))
         cp = configparser.ConfigParser()
         cp.read(config_path)
+
+        def transferFormatVariables(specs, config_section):
+            """
+            Read in optional format variables for writing default attribute content.
+            This can be defined across a page or specifically for an attribute.
+            """
+            for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
+                try: 
+                    value_overwrite = float(getConfigValue(config = cp, section = config_section, option = format_variable_key, mute_warnings = True))
+                    specs[format_variable_key] = value_overwrite
+                except ValueError: logger.warning("Configuration file has an entry for '{0}' in section '{1}' that cannot be converted to a float. "
+                                                  "Using a default value.".format(format_variable_key, config_section))
+                except: pass
         
         # Flesh out page details.
         for page_key in cls.PAGE_KEYS:
             # Read in required page title.
-            try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = "page_"+page_key, option = "title")
+            try: cls.PAGE_SPECS[page_key]["title"] = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["page",page_key]), option = "title")
             except:
                 logger.error("Configuration loading process failed. Every page in a workbook needs a title.")
                 raise
+            transferFormatVariables(specs = cls.PAGE_SPECS[page_key], config_section = SS.DEFAULT_SPACE_NAME.join(["page",page_key]))
             
         # Flesh out item-type details.
         for item_type in cls.ITEM_TYPE_SPECS:
@@ -153,14 +186,7 @@ class WorkbookSettings():
                 # Read in optional prefix for writing default attribute content.
                 try: cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]["prefix"] = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]), option = "prefix", mute_warnings = True)
                 except: pass
-                # Read in optional format variables for writing default attribute content.
-                for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
-                    try: 
-                        value_overwrite = float(getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]), option = format_variable_key, mute_warnings = True))
-                        cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute][format_variable_key] = value_overwrite
-                    except ValueError: logger.warning("Configuration file for attribute '{0}', item type '{1}', has an entry for '{2}' " 
-                                                      "that cannot be converted to a float. Using a default value.".format(attribute, item_type, format_variable_key))
-                    except: pass
+                transferFormatVariables(specs = cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute], config_section = SS.DEFAULT_SPACE_NAME.join(["attribute",item_type,attribute]))
 
         logger.info("Optima Core workbook settings successfully generated.") 
         return
