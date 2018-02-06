@@ -9,7 +9,7 @@ import unittest
 from optimacore.project import Project
 from optimacore.framework_io import createFrameworkTemplate
 
-from optimacore.workbook import writeWorkbook
+from optimacore.workbook import writeWorkbook, readWorkbook
 from optimacore.system import SystemSettings as SS
 from optimacore.framework_settings import WorkbookSettings as FS
 
@@ -37,11 +37,14 @@ class EverythingTest(unittest.TestCase):
     def test_template_process(self):
         """  """
         writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
+        pprint.pprint(self.proj.framework.specs)
+        readWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = self.proj.framework, data = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
         #createFrameworkTemplate(framework_path = self.framework_template_filepath)
         #self.proj.getFramework().importFromFile(framework_path = self.framework_template_filepath)
         #self.proj.createDatabook(databook_path = self.databook_template_filepath)
-        pprint.pprint(FS.PAGE_SPECS)
-        pprint.pprint(FS.ITEM_TYPE_SPECS)
+        #pprint.pprint(FS.PAGE_SPECS)
+        #pprint.pprint(FS.ITEM_TYPE_SPECS)
+        pprint.pprint(self.proj.framework.specs)
         return None
     
     #def test_framework_example_import(self):

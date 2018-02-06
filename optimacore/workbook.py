@@ -4,13 +4,15 @@ from optimacore.databook_settings import DatabookSettings as DS
 from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath
-from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables
+from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, extractHeaderColumnMapping, extractExcelSheetValue
 from optimacore.framework import ProjectFramework
 
+import os
 from collections import OrderedDict
 from copy import deepcopy as dcp
 from six import moves as sm
 import xlsxwriter as xw
+import xlrd
 
 class WorkbookTypeException(OptimaException):
     def __init__(self, workbook_type, **kwargs):
@@ -207,7 +209,7 @@ def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framewor
     return next_row, next_col
 
 
-def writeTable(worksheet, table_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+def writeTable(worksheet, table, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                formats = None, format_variables = None, temp_storage = None):
 
     # Check workbook type. Gather relevant details.
@@ -216,8 +218,8 @@ def writeTable(worksheet, table_type, start_row, start_col, framework = None, da
 
     if temp_storage is None: temp_storage = dict()
 
-    if isinstance(table_type, FS.DetailColumns):
-        core_item_type = table_type.item_type
+    if isinstance(table, FS.DetailColumns):
+        core_item_type = table.item_type
         row, col = writeDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = start_row, start_col = start_col,
                                       framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                       formats = formats, format_variables = format_variables, temp_storage = temp_storage)
@@ -261,8 +263,8 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
 
     # Iteratively construct tables.
     row, col = 0, 0
-    for table_type in page_spec["table_types"]:
-        row, col = writeTable(worksheet = worksheet, table_type = table_type, start_row = row, start_col = col,
+    for table in page_spec["tables"]:
+        row, col = writeTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
                               framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                               formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
@@ -270,7 +272,6 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
 def writeWorkbook(workbook_path, framework = None, data = None, instructions = None, workbook_type = None):
 
     # Check workbook type. Gather relevant details.
-    available_workbook_types = [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]
     if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
         page_keys = FS.PAGE_KEYS
     #elif workbook_type == SS.WORKBOOK_KEY_DATA:
@@ -297,3 +298,118 @@ def writeWorkbook(workbook_path, framework = None, data = None, instructions = N
                        formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
     workbook.close()
+
+
+def readContents(worksheet, item_type, start_row, header_column_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
+    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: 
+        item_type_specs = FS.ITEM_TYPE_SPECS
+        item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
+        if item_type not in framework.specs: framework.specs[item_type] = OrderedDict()
+        if structure is None: structure = framework.specs[item_type]
+        #if framework is None:
+        #    print('OOPS')
+        #else:
+        #    print('WHOOPS')
+    #table_types = FS.PAGE_TABLE_TYPES[page_key]
+#elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    else: raise WorkbookTypeException(workbook_type)
+
+    row = start_row
+    item_name = ""
+    if stop_row is None: stop_row = worksheet.nrows
+    while row < stop_row:
+        name_col = header_column_map[item_type_spec["attributes"]["name"]["header"]]
+        test_name = str(worksheet.cell_value(row, name_col))
+        if not test_name == "": item_name = test_name
+        if not item_name == "":
+            if not item_name in structure: structure[item_name] = dict()
+            for attribute in item_type_spec["attributes"]:
+                if attribute == "name": continue
+                attribute_spec = item_type_spec["attributes"][attribute]
+                if "ref_item_type" in attribute_spec:
+                    if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
+                    readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                                               start_row = row, header_column_map = header_column_map, stop_row = row + 1,
+                                               framework = framework, data = data, workbook_type = workbook_type,
+                                               structure = structure[item_name][attribute])
+                else:
+                    col = header_column_map[attribute_spec["header"]]
+                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = col)
+                    if not value is None: structure[item_name][attribute] = value
+            row += 1
+    next_row = row
+    return next_row
+
+def readDetailColumns(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
+
+    row = start_row
+    header_column_map = extractHeaderColumnMapping(worksheet, row = row)
+    row += 1
+    row = readContents(worksheet = worksheet, item_type = core_item_type, start_row = row, header_column_map = header_column_map,
+                           framework = framework, data = data, workbook_type = workbook_type)
+    next_row = row
+    return next_row
+
+
+def readTable(worksheet, table, start_row, start_col, framework = None, data = None, workbook_type = None):
+
+    # Check workbook type. Gather relevant details.
+    if workbook_type not in [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]:
+        raise WorkbookTypeException(workbook_type)
+
+    row, col = start_row, start_col
+    if isinstance(table, FS.DetailColumns):
+        core_item_type = table.item_type
+        row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = start_row,
+                                     framework = framework, data = data, workbook_type = workbook_type)
+    
+    next_row, next_col = row, col
+    return next_row, next_col
+
+def readWorksheet(workbook, page_key, framework = None, data = None, workbook_type = None):
+
+    # Check workbook type. Gather relevant details.
+    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
+        page_spec = FS.PAGE_SPECS[page_key]
+        #table_types = FS.PAGE_TABLE_TYPES[page_key]
+    #elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    else:
+        raise WorkbookTypeException(workbook_type)
+
+    try: 
+        page_title = page_spec["title"]
+        worksheet = workbook.sheet_by_name(page_title)
+    except:
+        logger.error("Workbook does not contain a required page titled '{0}'.".format(page_title))
+        raise
+
+    # Iteratively parse tables.
+    row, col = 0, 0
+    for table in page_spec["tables"]:
+        row, col = readTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
+                             framework = framework, data = data, workbook_type = workbook_type)
+
+@accepts(str)
+def readWorkbook(workbook_path, framework = None, data = None, workbook_type = None):
+
+    # Check workbook type. Gather relevant details.
+    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
+        page_keys = FS.PAGE_KEYS
+    #elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    #    if framework is None:
+    #        logger.warning("Databook construction cannot proceed without a ProjectFramework being provided. An empty workbook has been produced.")
+    #        return
+    #    page_keys = framework[FS.KEY_DATAPAGE].keys()
+    else:
+        raise WorkbookTypeException(workbook_type)
+
+    workbook_path = os.path.abspath(workbook_path)
+    try: workbook = xlrd.open_workbook(workbook_path)
+    except:
+        logger.error("Workbook was not found.")
+        raise
+
+    # Iteratively parse worksheets.
+    for page_key in page_keys:
+        readWorksheet(workbook = workbook, page_key = page_key, 
+                      framework = framework, data = data, workbook_type = workbook_type)

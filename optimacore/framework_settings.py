@@ -88,12 +88,12 @@ class WorkbookSettings():
     PAGE_SPECS = OrderedDict()
     for page_key in PAGE_KEYS:
         PAGE_SPECS[page_key] = {"title":page_key.title()}
-        PAGE_SPECS[page_key]["table_types"] = []
+        PAGE_SPECS[page_key]["tables"] = []
     # Certain workbook pages are bijectively associated with an item type, thus sharing a key.
     # Hence, for convenience, link these pages with appropriate detail-column tables.
     for item_type in ITEM_TYPES:
         if item_type in PAGE_SPECS:
-            PAGE_SPECS[item_type]["table_types"].append(DetailColumns(item_type))
+            PAGE_SPECS[item_type]["tables"].append(DetailColumns(item_type))
 
     ITEM_TYPE_SPECS = OrderedDict()
     ITEM_TYPE_DESCRIPTOR_KEY = dict()       # A mapping from item type descriptors to type-key.

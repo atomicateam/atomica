@@ -77,18 +77,18 @@ def createValueEntryBlock(excel_page, start_row, start_col, item_count, time_vec
 
 @accepts(xlrd.sheet.Sheet)
 @returns(dict)
-def extractHeaderPositionMapping(excel_page):
+def extractHeaderColumnMapping(excel_page, row = 0):
     """ Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found. """
-    header_positions = dict()
+    header_column_map = dict()
     for col in sm.range(excel_page.ncols):
-        header = str(excel_page.cell_value(0, col))
+        header = str(excel_page.cell_value(row, col))
         if not header == "":
-            if header in header_positions:
+            if header in header_column_map:
                 error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
                 logger.error(error_message)
                 raise OptimaException(error_message)
-            header_positions[header] = col
-    return header_positions
+            header_column_map[header] = col
+    return header_column_map
 
 @accepts(xlrd.sheet.Sheet,int,int)
 def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, stop_col = None, filter = None):
