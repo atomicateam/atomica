@@ -5,6 +5,7 @@ from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, extractHeaderColumnMapping, extractExcelSheetValue
+from optimacore.framework_settings import DetailColumns, LabelType, NameType, AttributeReference, SuperReference, ExtraSelfReference
 from optimacore.framework import ProjectFramework
 
 import os
@@ -25,6 +26,12 @@ class KeyUniquenessException(OptimaException):
     def __init__(self, key, dict_type, **kwargs):
         if key is None: message = ("Key uniqueness failure. A key is used more than once in '{0}'.".format(dict_type))
         else: message = ("Key uniqueness failure. Key '{0}' is used more than once in '{1}'.".format(key, dict_type))
+        return super().__init__(message, **kwargs)
+
+class InvalidReferenceException(OptimaException):
+    def __init__(self, item_type, attribute, ref_item_type, ref_attribute, **kwargs):
+        message = ("Workbook construction failed when item '{0}', attribute '{1}', attempted to reference nonexistent values, specifically item '{2}', attribute '{3}'. "
+                   "It is possible the referenced attribute values are erroneously scheduled to be created later.".format(item_type, attribute, ref_item_type, ref_attribute))
         return super().__init__(message, **kwargs)
 
 class WorkbookInstructions(object):
@@ -133,12 +140,13 @@ def writeContents(worksheet, item_type, start_row, header_column_map, framework 
 
                 reference_type = None
                 content_type = attribute_spec["content_type"]
-                if isinstance(content_type, FS.SuperReference):
-                    reference_type = dcp(content_type)
-                    content_type = item_type_specs[reference_type.item_type]["attributes"][reference_type.attribute]["content_type"]
-                if isinstance(content_type, FS.LabelType) or isinstance(content_type, FS.NameType):
+                if isinstance(content_type, AttributeReference): reference_type = dcp(content_type)
+                # Content types that are references to superitem attributes copy their content type.
+                if isinstance(content_type, SuperReference):
+                    content_type = item_type_specs[reference_type.other_item_type]["attributes"][reference_type.other_attribute]["content_type"]
+                if isinstance(content_type, LabelType) or isinstance(content_type, NameType):
                     content = str(item_number)     # The default is the number of this item.
-                    if isinstance(content_type, FS.LabelType):
+                    if isinstance(content_type, LabelType):
                         space = SS.DEFAULT_SPACE_LABEL
                         sep = SS.DEFAULT_SEPARATOR_LABEL
                     else:
@@ -152,23 +160,22 @@ def writeContents(worksheet, item_type, start_row, header_column_map, framework 
                     # 'Super' references link subitem attributes to corresponding superitem attributes.
                     # Because subitem displays are created instantly after superitems, the superitem referenced is the last one stored.
                     list_id = item_number
-                    if isinstance(reference_type, FS.SuperReference): list_id = -1
-                    try: stored_refs = temp_storage[reference_type.item_type][reference_type.attribute]
-                    except:
-                        logger.error("Workbook construction failed when item '{0}', attribute '{1}', attempt to reference nonexistent values, specifically item '{2}', attribute '{3}'. "
-                                     "It is possible the referenced attribute values are erroneously scheduled to be created later.".format(item_type, attribute, reference_type.item_type, reference_type.attribute))
-                        raise
-                    content_page = ""
-                    if not stored_refs["page_label"] == worksheet.name:
-                        content_page = "'{0}'!".format(stored_refs["page_label"])
-                    ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
-                    ref_content_backup = stored_refs["list_content_backup"][list_id]
-                    if isinstance(reference_type, FS.SuperReference):
-                        content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
-                        content_backup = ref_content_backup + sep + content_backup
-                    else:
-                        content = ref_content
-                        content_backup = content_backup
+                    if isinstance(reference_type, SuperReference): list_id = -1
+                    try: stored_refs = temp_storage[reference_type.other_item_type][reference_type.other_attribute]
+                    except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.item_type, ref_attribute = reference_type.attribute)
+                    # For one-to-one referencing, do not create content for tables that extent beyond the length of the referenced table.
+                    if len(stored_refs["list_content"]) > list_id:
+                        content_page = ""
+                        if not stored_refs["page_label"] == worksheet.name:
+                            content_page = "'{0}'!".format(stored_refs["page_label"])
+                        ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
+                        ref_content_backup = stored_refs["list_content_backup"][list_id]
+                        if isinstance(reference_type, SuperReference):
+                            content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
+                            content_backup = ref_content_backup + sep + content_backup
+                        else:
+                            content = ref_content
+                            content_backup = content_backup
 
                 # Store the contents of this attribute for referencing by other attributes if required.
                 if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
@@ -218,7 +225,7 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, data = 
 
     if temp_storage is None: temp_storage = dict()
 
-    if isinstance(table, FS.DetailColumns):
+    if isinstance(table, DetailColumns):
         core_item_type = table.item_type
         row, col = writeDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = start_row, start_col = start_col,
                                       framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
@@ -358,7 +365,7 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
         raise WorkbookTypeException(workbook_type)
 
     row, col = start_row, start_col
-    if isinstance(table, FS.DetailColumns):
+    if isinstance(table, DetailColumns):
         core_item_type = table.item_type
         row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = start_row,
                                      framework = framework, data = data, workbook_type = workbook_type)

@@ -46,6 +46,40 @@ class KeyUniquenessException(OptimaException):
 #    PAGE_KEYS = []
 #    PAGE_SECTION_KEYS = []
 
+class DetailColumns(object):
+    """ Lightweight structure to associate a workbook table of detail columns with a specific item type. """
+    def __init__(self, item_type): self.item_type = item_type
+
+class ContentType(object):
+    """ Lightweight structure to associate the contents of an item attribute with rules for IO. """
+    def __init__(self, is_list = False): self.is_list = is_list
+class LabelType(ContentType):
+    """ Lightweight structure to associate the contents of an item attribute with display label formats. """
+    def __init__(self): super(LabelType,self).__init__()
+class NameType(ContentType):
+    """ Lightweight structure to associate the contents of an item attribute with code name formats. """
+    def __init__(self): super(NameType,self).__init__()
+class AttributeReference(ContentType):
+    """ Lightweight structure to have the contents of an item type attribute reference those of another item type attribute. """
+    def __init__(self, item_type_specs, other_item_type, other_attribute, **kwargs):
+        super(AttributeReference,self).__init__(**kwargs)
+        self.other_item_type = other_item_type
+        self.other_attribute = other_attribute
+        item_type_specs[other_item_type]["attributes"][other_attribute]["is_ref"] = True
+class SuperReference(AttributeReference):
+    """ Lightweight structure to have the contents of an item type attribute reference those of a superitem type attribute. """
+    def __init__(self, **kwargs): super(SuperReference,self).__init__(**kwargs)
+class ExtraSelfReference(AttributeReference):
+    """
+    Lightweight structure to have the contents of an item type attribute reference those of another item type attribute.
+    It can also reference another attribute of the same item.
+    """
+    def __init__(self, item_type_specs, own_item_type, own_attribute, **kwargs):
+        super(ExtraSelfReference,self).__init__(item_type_specs = item_type_specs, **kwargs)
+        self.own_item_type = own_item_type
+        self.own_attribute = own_attribute
+        item_type_specs[own_item_type]["attributes"][own_attribute]["is_ref"] = True
+
 @loadConfigFile
 class WorkbookSettings():
     KEY_COMPARTMENT = "comp"
@@ -66,38 +100,6 @@ class WorkbookSettings():
     KEY_PROGRAM_ATTRIBUTE = KEY_PROGRAM + TERM_ATTRIBUTE
 
     ITEM_TYPES = [KEY_POPULATION_ATTRIBUTE, KEY_POPULATION_OPTION, KEY_COMPARTMENT, KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE, KEY_PROGRAM_ATTRIBUTE]
-
-    class DetailColumns(object):
-        """ Lightweight structure to associate a workbook table of detail columns with a specific item type. """
-        def __init__(self, item_type): self.item_type = item_type
-
-    class ContentType(object):
-        """ Lightweight structure to associate the contents of an item attribute with rules for IO. """
-        def __init__(self, is_list = False): self.is_list = is_list
-    class LabelType(ContentType):
-        """ Lightweight structure to associate the contents of an item attribute with display label formats. """
-        def __init__(self): super(LabelType,self).__init__()
-    class NameType(ContentType):
-        """ Lightweight structure to associate the contents of an item attribute with code name formats. """
-        def __init__(self): super(NameType,self).__init__()
-    class AttributeReference(ContentType):
-        """ Lightweight structure to have the contents of an item type attribute reference those of another item type attribute. """
-        def __init__(self, item_type, attribute, **kwargs):
-            super(AttributeReference,self).__init__(**kwargs)
-            self.item_type = item_type
-            self.attribute = attribute
-    class SuperReference(AttributeReference):
-        """ Lightweight structure to have the contents of an item type attribute reference those of a superitem type attribute. """
-        def __init__(self, **kwargs): super(SuperReference,self).__init__(**kwargs)
-    class ExtraSelfReference(AttributeReference):
-        """
-        Lightweight structure to have the contents of an item type attribute reference those of another item type attribute.
-        It can also reference another attribute of the same item.
-        """
-        def __init__(self, own_attribute, **kwargs):
-            super(ExtraSelfReference,self).__init__(**kwargs)
-            self.own_attribute = own_attribute
-
 
     PAGE_KEYS = [KEY_POPULATION_ATTRIBUTE, KEY_COMPARTMENT, "trans", KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE]
     PAGE_SPECS = OrderedDict()
@@ -129,8 +131,7 @@ class WorkbookSettings():
             attribute_dict = {"ref_item_type":subitem_type}
             item_type_specs[item_type]["attributes"][subitem_type + SS.DEFAULT_SUFFIX_PLURAL] = attribute_dict
             for attribute in ["name","label"]:
-                item_type_specs[item_type]["attributes"][attribute]["is_ref"] = True
-                item_type_specs[subitem_type]["attributes"][attribute]["content_type"] = reference_type(item_type = item_type, attribute = attribute)
+                item_type_specs[subitem_type]["attributes"][attribute]["content_type"] = reference_type(item_type_specs = item_type_specs, other_item_type = item_type, other_attribute = attribute)
     for item_type in ITEM_TYPES:
         ITEM_TYPE_SPECS[item_type] = dict()
         ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
@@ -140,7 +141,8 @@ class WorkbookSettings():
         createItemTypeAttribute(ITEM_TYPE_SPECS, item_type, ["label"], content_type = LabelType())
     createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_COMPARTMENT, ["is_source","is_sink","is_junction"])
     createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_CHARACTERISTIC, ["includes"], 
-                            content_type = ExtraSelfReference(item_type = KEY_COMPARTMENT, attribute = "name", own_attribute = "name", is_list = True))
+                            content_type = ExtraSelfReference(ITEM_TYPE_SPECS, other_item_type = KEY_COMPARTMENT, other_attribute = "name", 
+                                                              own_item_type = KEY_CHARACTERISTIC, own_attribute = "name", is_list = True))
     createItemTypeAttribute(ITEM_TYPE_SPECS, KEY_PARAMETER, ["tag_link"])
     # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
     createItemTypeSubitemTypes(ITEM_TYPE_SPECS, KEY_POPULATION_ATTRIBUTE, [KEY_POPULATION_OPTION])
