@@ -7,9 +7,10 @@ The archetypal example is an epidemic within a geographical location, where enti
 
 from optimacore.system import applyToAllMethods, logUsage, accepts, returns
 from optimacore.system import logger, SystemSettings
-from optimacore.framework import ProjectFramework
-from optimacore.databook import createDatabookFunc
 from optimacore.excel import ExcelSettings
+from optimacore.framework import ProjectFramework
+from optimacore.data import ProjectData
+from optimacore.databook import createDatabookFunc
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -23,6 +24,7 @@ class Project(object):
         """ Initialize the project. """
         self.name = str()
         self.framework = ProjectFramework()
+        self.data = ProjectData()
         
         self.setName(name)
 

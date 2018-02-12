@@ -77,26 +77,34 @@ def createValueEntryBlock(excel_page, start_row, start_col, item_count, time_vec
 
 @accepts(xlrd.sheet.Sheet)
 @returns(dict)
-def extractHeaderColumnMapping(excel_page, row = 0):
-    """ Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found. """
-    header_column_map = dict()
+def extractHeaderColumnsMapping(excel_page, row = 0):
+    """
+    Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found.
+    The columns must be contiguous and are returned as a two-element list of first and last column.
+    """
+    header_columns_map = dict()
+    current_header = None
     for col in sm.range(excel_page.ncols):
         header = str(excel_page.cell_value(row, col))
         if not header == "":
-            if header in header_column_map:
+            if not header in header_columns_map: header_columns_map[header] = [col, col]
+            elif not current_header == header:
                 error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
                 logger.error(error_message)
                 raise OptimaException(error_message)
-            header_column_map[header] = col
-    return header_column_map
+            current_header = header
+        if not current_header is None: header_columns_map[current_header][-1] = col
+    return header_columns_map
 
 @accepts(xlrd.sheet.Sheet,int,int)
-def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, stop_col = None, filter = None):
+def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, stop_col = None, filters = None):
     """
-    Returns a value extracted from an Excel page, but converted to type according to a filter.
-    The value will be pulled from rows starting at 'start_row' and terminating before 'stop_row'; a similar restriction holds for columns.
+    Returns a value extracted from an Excel page, but converted to type according to a list of filters.
+    The value will be pulled from rows starting at 'start_row' and terminating before reading 'stop_row'; a similar restriction holds for columns.
+    Note that 'stop_row' and its column equivalent is one further along than a 'last_row' and its equivalent.
     Empty-string values are always equivalent to a value of None being returned.
     """
+    if filters is None: filters = []
     old_value = None
     row = start_row
     col = start_col
@@ -111,7 +119,7 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
             value = str(excel_page.cell_value(row, col))
             if value == "":
                 value = None
-            elif filter == ExcelSettings.FILTER_KEY_LIST:
+            elif ExcelSettings.FILTER_KEY_LIST in filters:
                 value = [item.strip() for item in value.strip().split(ExcelSettings.LIST_SEPARATOR)]
 
             if (not old_value is None):     # If there is an old value, this is not the first important cell examined.
@@ -119,7 +127,7 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
                     value = old_value       # If the new value is not important, maintain the old value.
                 else:
                     # Expand lists with additional cell contents if appropriate.
-                    if filter == ExcelSettings.FILTER_KEY_LIST:
+                    if ExcelSettings.FILTER_KEY_LIST in filters:
                         value = old_value + value
                     # Otherwise, overwrite with a warning.
                     else:
@@ -133,14 +141,14 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
 
     # Convert to boolean values if specified by filter.
     # Empty strings and unidentified symbols are considered default values.
-    if filter == ExcelSettings.FILTER_KEY_BOOLEAN_YES:
+    if ExcelSettings.FILTER_KEY_BOOLEAN_YES in filters:
         if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
         else:
             if not value == SystemSettings.DEFAULT_SYMBOL_NO:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_NO))
             value = ""
-    if filter == ExcelSettings.FILTER_KEY_BOOLEAN_NO:
+    if ExcelSettings.FILTER_KEY_BOOLEAN_NO in filters:
         if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
         else:
             if not value == SystemSettings.DEFAULT_SYMBOL_YES:

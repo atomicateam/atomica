@@ -1,11 +1,11 @@
 from optimacore.system import SystemSettings as SS
-from optimacore.framework_settings import WorkbookSettings as FS
-from optimacore.databook_settings import DatabookSettings as DS
+from optimacore.framework_settings import FrameworkSettings as FS
+from optimacore.framework_settings import DatabookSettings as DS
 from optimacore.excel import ExcelSettings as ES
 
-from optimacore.system import logger, OptimaException, accepts, prepareFilePath
-from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, extractHeaderColumnMapping, extractExcelSheetValue
-from optimacore.framework_settings import DetailColumns, LabelType, NameType, AttributeReference, SuperReference, ExtraSelfReference
+from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
+from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, extractHeaderColumnsMapping, extractExcelSheetValue
+from optimacore.framework_settings import DetailColumns, LabelType, NameType, SwitchType, AttributeReference, SuperReference, ExtraSelfReference
 from optimacore.framework import ProjectFramework
 
 import os
@@ -20,6 +20,12 @@ class WorkbookTypeException(OptimaException):
         available_workbook_types = [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]
         message = ("Unable to operate read and write processes for a workbook of type '{0}'. "
                    "Available options are: '{1}'".format(workbook_type, "' or '".join(available_workbook_types)))
+        return super().__init__(message, **kwargs)
+
+class WorkbookRequirementException(OptimaException):
+    def __init__(self, workbook_type, requirement_type, **kwargs):
+        available_workbook_types = [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]
+        message = ("{0} construction cannot proceed without a '{1}' being provided. Abandoning workbook construction.".format(displayName(workbook_type, as_title = True), requirement_type))
         return super().__init__(message, **kwargs)
 
 class KeyUniquenessException(OptimaException):
@@ -53,6 +59,17 @@ class WorkbookInstructions(object):
         except:
             logger.error("An attempted update of workbook instructions to produce '{0}' instances of item type '{1}' failed.".format(number, item_type))
             raise
+
+def getWorkbookPageKeys(framework = None, workbook_type = None):
+    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
+        page_keys = FS.PAGE_KEYS
+    elif workbook_type == SS.WORKBOOK_KEY_DATA:
+        if framework is None:
+            raise WorkbookRequirementException(workbook_type = SS.WORKBOOK_KEY_DATA, requirement_type = "ProjectFramework")
+        page_keys = framework.specs[FS.KEY_DATAPAGE].keys()
+    else:
+        raise WorkbookTypeException(workbook_type)
+    return page_keys
 
 def writeHeaders(worksheet, item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, formats = None, format_variables = None):
     if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
@@ -154,6 +171,10 @@ def writeContents(worksheet, item_type, start_row, header_column_map, framework 
                         sep = SS.DEFAULT_SEPARATOR_NAME
                     if "prefix" in attribute_spec:
                         content = attribute_spec["prefix"] + space + content
+                elif isinstance(content_type, SwitchType):
+                    validation_source = [SS.DEFAULT_SYMBOL_NO, SS.DEFAULT_SYMBOL_YES]
+                    if content_type.default_on: validation_source.reverse()
+                    content = validation_source[0]
                 content_backup = content
 
                 if not reference_type is None:
@@ -166,8 +187,7 @@ def writeContents(worksheet, item_type, start_row, header_column_map, framework 
                     # For one-to-one referencing, do not create content for tables that extent beyond the length of the referenced table.
                     if len(stored_refs["list_content"]) > list_id:
                         content_page = ""
-                        if not stored_refs["page_label"] == worksheet.name:
-                            content_page = "'{0}'!".format(stored_refs["page_label"])
+                        if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
                         ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
                         ref_content_backup = stored_refs["list_content_backup"][list_id]
                         if isinstance(reference_type, SuperReference):
@@ -175,7 +195,25 @@ def writeContents(worksheet, item_type, start_row, header_column_map, framework 
                             content_backup = ref_content_backup + sep + content_backup
                         else:
                             content = ref_content
-                            content_backup = content_backup
+                            content_backup = ref_content_backup
+                    # Append a self-reference to the content, which should be to an attribute of the same item a row ago.
+                    if isinstance(reference_type, ExtraSelfReference) and reference_type.is_list is True and item_number > 0: 
+                        list_id = item_number - 1
+                        try: stored_refs = temp_storage[reference_type.own_item_type][reference_type.own_attribute]
+                        except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.own_item_type, ref_attribute = reference_type.own_attribute)
+                        content_page = ""
+                        if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
+                        ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
+                        ref_content_backup = stored_refs["list_content_backup"][list_id]
+                        if content == "":
+                            content = ref_content
+                            content_backup = ref_content_backup
+                        else:
+                            if content.startswith("="): content = content.lstrip("=")
+                            else: content = "\"" + content + "\""
+                            content = "=CONCATENATE({0},\"{1}\",{2})".format(content, ES.LIST_SEPARATOR, ref_content.lstrip("="))
+                            content_backup = content_backup + ES.LIST_SEPARATOR + ref_content_backup
+
 
                 # Store the contents of this attribute for referencing by other attributes if required.
                 if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
@@ -194,15 +232,13 @@ def writeContents(worksheet, item_type, start_row, header_column_map, framework 
                     worksheet.write(rc, content, cell_format)
 
                 if not validation_source is None:
-                    framework_page.data_validation(rc, {"validate": "list",
-                                                        "source": validation_source})
+                    worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
         row = max(new_row, row + 1)
     next_row = row
     return next_row
 
 def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
-
     if temp_storage is None: temp_storage = dict()
 
     row, col = start_row, start_col
@@ -278,16 +314,9 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
 @accepts(str)
 def writeWorkbook(workbook_path, framework = None, data = None, instructions = None, workbook_type = None):
 
-    # Check workbook type. Gather relevant details.
-    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
-        page_keys = FS.PAGE_KEYS
-    #elif workbook_type == SS.WORKBOOK_KEY_DATA:
-    #    if framework is None:
-    #        logger.warning("Databook construction cannot proceed without a ProjectFramework being provided. An empty workbook has been produced.")
-    #        return
-    #    page_keys = framework[FS.KEY_DATAPAGE].keys()
-    else:
-        raise WorkbookTypeException(workbook_type)
+    page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
+
+    logger.info("Constructing a {0}: {1}".format(displayName(workbook_type), workbook_path))
 
     # Construct workbook and related formats.
     prepareFilePath(workbook_path)
@@ -297,17 +326,18 @@ def writeWorkbook(workbook_path, framework = None, data = None, instructions = N
 
     # Create a storage dictionary for values and formulae that may persist between sections.
     temp_storage = dict()
-    
+
     # Iteratively construct worksheets.
     for page_key in page_keys:
         writeWorksheet(workbook = workbook, page_key = page_key, 
                        framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                        formats = formats, format_variables = format_variables, temp_storage = temp_storage)
-
     workbook.close()
 
+    logger.info("{0} construction complete.".format(displayName(workbook_type, as_title = True)))
 
-def readContents(worksheet, item_type, start_row, header_column_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
+
+def readContents(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
     if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: 
         item_type_specs = FS.ITEM_TYPE_SPECS
         item_type_spec = FS.ITEM_TYPE_SPECS[item_type]
@@ -325,7 +355,7 @@ def readContents(worksheet, item_type, start_row, header_column_map, stop_row = 
     item_name = ""
     if stop_row is None: stop_row = worksheet.nrows
     while row < stop_row:
-        name_col = header_column_map[item_type_spec["attributes"]["name"]["header"]]
+        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]    # Only the first column matters for a name.
         test_name = str(worksheet.cell_value(row, name_col))
         if not test_name == "": item_name = test_name
         if not item_name == "":
@@ -336,12 +366,20 @@ def readContents(worksheet, item_type, start_row, header_column_map, stop_row = 
                 if "ref_item_type" in attribute_spec:
                     if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
                     readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
-                                               start_row = row, header_column_map = header_column_map, stop_row = row + 1,
+                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
                                                framework = framework, data = data, workbook_type = workbook_type,
                                                structure = structure[item_name][attribute])
                 else:
-                    col = header_column_map[attribute_spec["header"]]
-                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = col)
+                    start_col, last_col = header_columns_map[attribute_spec["header"]]
+                    content_type = attribute_spec["content_type"]
+                    filters = []
+                    if not content_type is None:
+                        if content_type.is_list: filters.append(ES.FILTER_KEY_LIST)
+                        if isinstance(content_type, SwitchType): 
+                            if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
+                            else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
+                    # Reading currently allows extended columns but not rows.
+                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
                     if not value is None: structure[item_name][attribute] = value
             row += 1
     next_row = row
@@ -350,10 +388,10 @@ def readContents(worksheet, item_type, start_row, header_column_map, stop_row = 
 def readDetailColumns(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
 
     row = start_row
-    header_column_map = extractHeaderColumnMapping(worksheet, row = row)
+    header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
     row += 1
-    row = readContents(worksheet = worksheet, item_type = core_item_type, start_row = row, header_column_map = header_column_map,
-                           framework = framework, data = data, workbook_type = workbook_type)
+    row = readContents(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
+                       framework = framework, data = data, workbook_type = workbook_type)
     next_row = row
     return next_row
 
@@ -399,16 +437,7 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
 @accepts(str)
 def readWorkbook(workbook_path, framework = None, data = None, workbook_type = None):
 
-    # Check workbook type. Gather relevant details.
-    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
-        page_keys = FS.PAGE_KEYS
-    #elif workbook_type == SS.WORKBOOK_KEY_DATA:
-    #    if framework is None:
-    #        logger.warning("Databook construction cannot proceed without a ProjectFramework being provided. An empty workbook has been produced.")
-    #        return
-    #    page_keys = framework[FS.KEY_DATAPAGE].keys()
-    else:
-        raise WorkbookTypeException(workbook_type)
+    page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
 
     workbook_path = os.path.abspath(workbook_path)
     try: workbook = xlrd.open_workbook(workbook_path)

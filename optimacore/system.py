@@ -208,3 +208,11 @@ def applyToAllMethods(function):
             setattr(undecorated_class, method_name, function(method))                
         return undecorated_class
     return classDecorator
+
+#%% String utility functions.
+
+def displayName(name, as_title = False):
+    """ Minor function to convert name into text display format. """
+    text = name
+    if as_title: text = text.title()
+    return text.replace(SystemSettings.DEFAULT_SPACE_NAME, SystemSettings.DEFAULT_SPACE_LABEL)

@@ -7,9 +7,9 @@ This includes a description of the Markov chain network underlying project dynam
 
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
 from optimacore.system import SystemSettings
-from optimacore.framework_settings import FrameworkSettings
-from optimacore.databook_settings import DatabookSettings
-from optimacore.excel import ExcelSettings, extractHeaderColumnMapping, extractExcelSheetValue 
+from optimacore.framework_settings import FrameworkSettings, DatabookSettings
+#from optimacore.databook_settings import DatabookSettings
+from optimacore.excel import ExcelSettings, extractHeaderColumnsMapping, extractExcelSheetValue 
 
 import os
 import xlrd
@@ -32,8 +32,8 @@ class ProjectFramework(object):
         # Each set of specifications associated with a core item type is a dictionary keyed by the code name of an item.
         # The page-item specification dictionaries are kept in order as defined within the file.
         self.specs = dict()
-        for page_key in FrameworkSettings.PAGE_KEYS:
-            self.specs[page_key] = OrderedDict()
+        #for page_key in FrameworkSettings.PAGE_KEYS:
+        #    self.specs[page_key] = OrderedDict()
 
         # Construct specifications for constructing a databook beyond the information contained in default databook settings.
         self.specs["datapage"] = OrderedDict()
@@ -66,7 +66,7 @@ class ProjectFramework(object):
             stop_row (int)                                  - The row number of the page at which page-item extraction is no longer read.
                                                               This is useful for cutting off subitems of subitems that have overflowed into the rows of the next superitem.
             header_positions (dict)                         - A dictionary mapping column headers to column numbers in the Excel page.
-                                                              Is the output of function: extractHeaderColumnMapping()
+                                                              Is the output of function: extractHeaderColumnsMapping()
             destination_specs (OrderedDict)                 - A reference to a level of the ProjectFramework specifications dictionary.
                                                               This allows for subitems to be extracted into child branches of the superitem specifications dictionary.
         
@@ -75,7 +75,7 @@ class ProjectFramework(object):
             next_row (int)                          - The next row number of the page after the rows containing page-item details.
                                                       Is useful to provide for page-items that involve subitems and multiple rows.
         """
-        if header_positions is None: header_positions = extractHeaderColumnMapping(framework_page)
+        if header_positions is None: header_positions = extractHeaderColumnsMapping(framework_page)
         if destination_specs is None: destination_specs = self.specs[page_key]
         
         item_type_specs = FrameworkSettings.ITEM_TYPE_SPECS[item_type]
@@ -187,7 +187,7 @@ class ProjectFramework(object):
                 raise
             
             # Establish a mapping from column header to column positions.
-            header_positions = extractHeaderColumnMapping(framework_page)
+            header_positions = extractHeaderColumnsMapping(framework_page)
             
             # Determine the fundamental page-item associated with this page.
             try: core_item_type = FrameworkSettings.PAGE_ITEM_TYPES[page_key][0]

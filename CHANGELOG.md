@@ -3,13 +3,14 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.4 (2018-02-06): Workbook Construction Consolidation
+## 0.3.4 (2018-02-12): Workbook Construction Consolidation
 
 Features
 - Templated out a `ProjectData` structure to store model values for a corresponding `ProjectFramework` structure.
 
 Edits
 - Major change applied, with `FrameworkSettings` and `DatabookSettings` now deriving from new class `BaseStructuralSettings`.
+- Detail-column tables in a framework file allow values to be extended across columns, but no longer allows this for rows.
 
 ## 0.3.3 (2018-02-01): Basic Databook Items
 
