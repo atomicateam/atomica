@@ -5,11 +5,13 @@ Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 
+from optimacore.system import SystemSettings as SS
+from optimacore.framework_settings import FrameworkSettings as FS
+from optimacore.framework_settings import DatabookSettings as DS
+from optimacore.excel import ExcelSettings as ES
+
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
-from optimacore.system import SystemSettings
-from optimacore.framework_settings import FrameworkSettings, DatabookSettings
-#from optimacore.databook_settings import DatabookSettings
-from optimacore.excel import ExcelSettings, extractHeaderColumnsMapping, extractExcelSheetValue 
+from optimacore.excel import extractHeaderColumnsMapping, extractExcelSheetValue 
 
 import os
 import xlrd
@@ -36,7 +38,8 @@ class ProjectFramework(object):
         #    self.specs[page_key] = OrderedDict()
 
         # Construct specifications for constructing a databook beyond the information contained in default databook settings.
-        self.specs["datapage"] = OrderedDict()
+        self.specs[FS.KEY_DATAPAGE] = OrderedDict()
+        self.createDatabookSpecs()
         
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
         self.semantics = dict()
@@ -51,210 +54,211 @@ class ProjectFramework(object):
             raise OptimaException(error_message)
         self.semantics[term] = dict()   # TODO: UPDATE THE VALUE WITH REFERENCES ONCE THE SPECS DICT IS COMPLETE.
 
-    @accepts(xlrd.sheet.Sheet,str,str,int)
-    def extractItemSpecsFromPage(self, framework_page, page_key, item_type, start_row, stop_row = None, header_positions = None, destination_specs = None):
-        """
-        Extracts specifications for an item from a page in a framework file.
-        The name and label of an item must exist on the start row, but all other related specifications details can exist in subsequent 'unnamed' rows.
-        Likewise, specifications relating to a column header can exist in subsequent columns unmarked by headers.
-        
-        Inputs:
-            framework_page (xlrd.sheet.Sheet)               - The Excel sheet from which to extract page-item specifications.
-            page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
-            item_type (str)                                 - The key denoting the type of item to extract, as defined in framework settings.
-            start_row (int)                                 - The row number of the page from which to read the page-item.
-            stop_row (int)                                  - The row number of the page at which page-item extraction is no longer read.
-                                                              This is useful for cutting off subitems of subitems that have overflowed into the rows of the next superitem.
-            header_positions (dict)                         - A dictionary mapping column headers to column numbers in the Excel page.
-                                                              Is the output of function: extractHeaderColumnsMapping()
-            destination_specs (OrderedDict)                 - A reference to a level of the ProjectFramework specifications dictionary.
-                                                              This allows for subitems to be extracted into child branches of the superitem specifications dictionary.
-        
-        Outputs:
-            framework_page (xlrd.sheet.Sheet)       - The Excel sheet from which page-item specifications were extracted.
-            next_row (int)                          - The next row number of the page after the rows containing page-item details.
-                                                      Is useful to provide for page-items that involve subitems and multiple rows.
-        """
-        if header_positions is None: header_positions = extractHeaderColumnsMapping(framework_page)
-        if destination_specs is None: destination_specs = self.specs[page_key]
-        
-        item_type_specs = FrameworkSettings.ITEM_TYPE_SPECS[item_type]
-        
-        # Every item needs a label and name on its starting row; check to see if corresponding columns exist.
-        row = start_row
-        try:
-            name_key = item_type_specs["key_name"]
-            name_header = FrameworkSettings.COLUMN_SPECS[name_key]["header"]
-            name_pos = header_positions[name_header]
-            name = str(framework_page.cell_value(row, name_pos))
-            label_key = item_type_specs["key_label"]
-            label_header = FrameworkSettings.COLUMN_SPECS[label_key]["header"]
-            label_pos = header_positions[label_header]
-            label = str(framework_page.cell_value(row, label_pos))
-        except:
-            error_message = ("Problem encountered when extracting a name and label for item type '{0}' "
-                             "on page with key '{1}'. ".format(item_type, page_key))
-            logger.error(error_message)
-            raise OptimaException(error_message)
-
-        # Work out the row at which the next named item exists, if any.
-        if stop_row is None: stop_row = framework_page.nrows
-        row_test = row + 1
-        while row_test < stop_row:
-            if str(framework_page.cell_value(row_test, name_pos)) == "":
-                row_test += 1
-            else:
-                stop_row = row_test
-                break
-            
-        # Provided that the item has a code name, extract other specifications details from other appropriate sections.
-        if not name == "":
-            if label == "":
-                error_message = ("An item of type '{0}', on page with key '{1}', was encountered with name '{2}' "
-                                 "but no label specified on the same row.".format(item_type, page_key, name))
-                logger.error(error_message)
-                raise OptimaException(error_message)
-            for term in [name, label]:
-                self.addTermToSemantics(term = term)
-            destination_specs[name] = {"label":label}
-            
-            column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
-            item_type_column_keys = []
-            if not item_type_specs["column_keys"] is None: item_type_column_keys = item_type_specs["column_keys"]
-            if item_type_specs["inc_not_exc"]: column_keys = item_type_column_keys
-            subitem_types = []
-            if not item_type_specs["subitem_types"] is None: subitem_types = item_type_specs["subitem_types"]
-
-            # Iterate through all item-related columns when extracting specifications values.
-            for column_key in column_keys:
-                if (not item_type_specs["inc_not_exc"]) and column_key in item_type_column_keys: continue
-                if column_key not in [name_key, label_key]:
-                    column_header = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
-                    column_type = FrameworkSettings.COLUMN_SPECS[column_key]["type"]
-                    col = header_positions[column_header]
-
-                    # Work out the next column for which a header exists, if any.
-                    stop_col = framework_page.ncols
-                    col_test = col + 1
-                    while col_test < stop_col:
-                        if str(framework_page.cell_value(0, col_test)) == "":
-                            col_test += 1
-                        else:
-                            stop_col = col_test
-                            break
-                    
-                    filter = None
-                    if column_type == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC: filter = ExcelSettings.FILTER_KEY_LIST
-                    elif column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_OFF: filter = ExcelSettings.FILTER_KEY_BOOLEAN_YES
-                    elif column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON: filter = ExcelSettings.FILTER_KEY_BOOLEAN_NO
-                    value = extractExcelSheetValue(excel_page = framework_page, start_row = row, stop_row = stop_row, 
-                                                                                start_col = col, stop_col = stop_col, filter = filter)
-                    if not value is None:
-                        destination_specs[name][column_key] = value
-            
-            # Parse the specifications of any subitems that exist within the rows attributed to this item.
-            for subitem_type in subitem_types:
-                if not subitem_type in destination_specs[name]: destination_specs[name][subitem_type] = OrderedDict()
-                row_subitem = start_row
-                while row_subitem < stop_row:
-                    _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = subitem_type, start_row = row_subitem, stop_row = stop_row,
-                                                                   header_positions = header_positions, destination_specs = destination_specs[name][subitem_type])
-            
-        next_row = stop_row
-        return framework_page, next_row
-
-    @accepts(str)
-    def importFromFile(self, framework_path):
-        """ Attempts to load project framework details from a framework Excel file. """
-        framework_path = os.path.abspath(framework_path)
-        logger.info("Attempting to import an Optima Core framework from a file.")
-        logger.info("Location... {0}".format(framework_path))
-        try: framework_file = xlrd.open_workbook(framework_path)
-        except:
-            logger.exception("Framework file was not found.")
-            raise
-
-        # Reset the framework contents.
-        self.__init__()
-            
-        # Cycle through framework file pages and read them in.
-        for page_key in FrameworkSettings.PAGE_KEYS:
-            try: 
-                page_title = FrameworkSettings.PAGE_SPECS[page_key]["title"]
-                framework_page = framework_file.sheet_by_name(page_title)
-            except:
-                logger.exception("Framework file does not contain a required page titled '{0}'.".format(page_title))
-                raise
-            
-            # Establish a mapping from column header to column positions.
-            header_positions = extractHeaderColumnsMapping(framework_page)
-            
-            # Determine the fundamental page-item associated with this page.
-            try: core_item_type = FrameworkSettings.PAGE_ITEM_TYPES[page_key][0]
-            except:
-                logger.warning("Framework settings do not list a page-item key associated with the page titled '{0}'. "
-                               "Continuing to the next page.".format(page_title))
-                continue
-                             
-            # Check that the fundamental page-item on this page has requisite name and label columns to scan.
-            try: 
-                core_name_key = FrameworkSettings.ITEM_TYPE_SPECS[core_item_type]["key_name"]
-                core_name_header = FrameworkSettings.COLUMN_SPECS[core_name_key]["header"]
-            except:
-                logger.exception("Cannot locate the column header on framework page '{0}' associated with 'names' "
-                                 "for item of type '{1}'.".format(page_title, core_item_type))
-                raise
-            try: 
-                core_label_key = FrameworkSettings.ITEM_TYPE_SPECS[core_item_type]["key_label"]
-                core_label_header = FrameworkSettings.COLUMN_SPECS[core_label_key]["header"]
-            except:
-                logger.exception("Cannot locate the column header on framework page '{0}' associated with 'labels' "
-                                 "for item of type '{1}'.".format(page_title, core_item_type))
-                raise
-                
-            # Scan through the rows of the page and update relevant specification dictionaries.
-            row = 1
-            while row < framework_page.nrows:
-                _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = core_item_type, start_row = row, header_positions = header_positions)                                        
-        
-        # Generate specific databook settings that are a fusion of default databook settings and framework specifics.
-        self.createDatabookSpecs()
-        
-        #from pprint import pprint
-        #pprint(self.specs)
-
-        # TODO: Have a better naming scheme for the object rather than the path of its imported file.
-        self.setName(framework_path)
-        logger.info("Optima Core framework successfully imported.")
-        
-        return
-
     def createDatabookSpecs(self):
         """
         Generate framework-dependent databook settings that are a fusion of static databook settings and dynamic framework specifics.
         These are the ones that databook construction processes use when deciding layout.
         """
         # Copy default page keys over.
-        for page_key in DatabookSettings.PAGE_KEYS:
-            self.specs["datapage"][page_key] = OrderedDict()
+        for page_key in DS.PAGE_KEYS:
+            self.specs[FS.KEY_DATAPAGE][page_key] = dict()
+            self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
 
-            # Copy default section keys over.
-            # To conserve space, a boolean tag named 'refer to default' indicates that processes should look to default databook settings for details.
-            # This tag is set to false, technically excluded for space considerations, if the section specifications are to be derived directly from this dictionary.
-            for section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
-                instance_type = DatabookSettings.SECTION_SPECS[section_key]["instance_type"]
-                if not instance_type is None:
-                    if instance_type in self.specs:
-                        for item_name in self.specs[instance_type]:
-                            self.specs["datapage"][page_key][item_name] = dcp(DatabookSettings.SECTION_SPECS[section_key])
-                            # TODO: Use semantic referencing here.
-                            self.specs["datapage"][page_key][item_name]["header"] = self.specs[instance_type][item_name]["label"]
-                            del self.specs["datapage"][page_key][item_name]["instance_type"]  # No further need for this attribute once instantiated.
-                    else:
-                        raise OptimaException("Databook settings specify that section with key '{0}' should be instantiated for framework objects of type '{1}'. "
-                                              "However, framework specifications contain no item with this type.".format(section_key, instance_type))
-                else:
-                    self.specs["datapage"][page_key][section_key] = {"refer_to_default":True}
+            ## Copy default section keys over.
+            ## To conserve space, a boolean tag named 'refer to default' indicates that processes should look to default databook settings for details.
+            ## This tag is set to false, technically excluded for space considerations, if the section specifications are to be derived directly from this dictionary.
+            #for section_key in DatabookSettings.PAGE_SECTION_KEYS[page_key]:
+            #    instance_type = DatabookSettings.SECTION_SPECS[section_key]["instance_type"]
+            #    if not instance_type is None:
+            #        if instance_type in self.specs:
+            #            for item_name in self.specs[instance_type]:
+            #                self.specs["datapage"][page_key][item_name] = dcp(DatabookSettings.SECTION_SPECS[section_key])
+            #                # TODO: Use semantic referencing here.
+            #                self.specs["datapage"][page_key][item_name]["header"] = self.specs[instance_type][item_name]["label"]
+            #                del self.specs["datapage"][page_key][item_name]["instance_type"]  # No further need for this attribute once instantiated.
+            #        else:
+            #            raise OptimaException("Databook settings specify that section with key '{0}' should be instantiated for framework objects of type '{1}'. "
+            #                                  "However, framework specifications contain no item with this type.".format(section_key, instance_type))
+            #    else:
+            #        self.specs["datapage"][page_key][section_key] = {"refer_to_default":True}
+
+    #@accepts(xlrd.sheet.Sheet,str,str,int)
+    #def extractItemSpecsFromPage(self, framework_page, page_key, item_type, start_row, stop_row = None, header_positions = None, destination_specs = None):
+    #    """
+    #    Extracts specifications for an item from a page in a framework file.
+    #    The name and label of an item must exist on the start row, but all other related specifications details can exist in subsequent 'unnamed' rows.
+    #    Likewise, specifications relating to a column header can exist in subsequent columns unmarked by headers.
+        
+    #    Inputs:
+    #        framework_page (xlrd.sheet.Sheet)               - The Excel sheet from which to extract page-item specifications.
+    #        page_key (str)                                  - The key denoting the provided page, as defined in framework settings.
+    #        item_type (str)                                 - The key denoting the type of item to extract, as defined in framework settings.
+    #        start_row (int)                                 - The row number of the page from which to read the page-item.
+    #        stop_row (int)                                  - The row number of the page at which page-item extraction is no longer read.
+    #                                                          This is useful for cutting off subitems of subitems that have overflowed into the rows of the next superitem.
+    #        header_positions (dict)                         - A dictionary mapping column headers to column numbers in the Excel page.
+    #                                                          Is the output of function: extractHeaderColumnsMapping()
+    #        destination_specs (OrderedDict)                 - A reference to a level of the ProjectFramework specifications dictionary.
+    #                                                          This allows for subitems to be extracted into child branches of the superitem specifications dictionary.
+        
+    #    Outputs:
+    #        framework_page (xlrd.sheet.Sheet)       - The Excel sheet from which page-item specifications were extracted.
+    #        next_row (int)                          - The next row number of the page after the rows containing page-item details.
+    #                                                  Is useful to provide for page-items that involve subitems and multiple rows.
+    #    """
+    #    if header_positions is None: header_positions = extractHeaderColumnsMapping(framework_page)
+    #    if destination_specs is None: destination_specs = self.specs[page_key]
+        
+    #    item_type_specs = FrameworkSettings.ITEM_TYPE_SPECS[item_type]
+        
+    #    # Every item needs a label and name on its starting row; check to see if corresponding columns exist.
+    #    row = start_row
+    #    try:
+    #        name_key = item_type_specs["key_name"]
+    #        name_header = FrameworkSettings.COLUMN_SPECS[name_key]["header"]
+    #        name_pos = header_positions[name_header]
+    #        name = str(framework_page.cell_value(row, name_pos))
+    #        label_key = item_type_specs["key_label"]
+    #        label_header = FrameworkSettings.COLUMN_SPECS[label_key]["header"]
+    #        label_pos = header_positions[label_header]
+    #        label = str(framework_page.cell_value(row, label_pos))
+    #    except:
+    #        error_message = ("Problem encountered when extracting a name and label for item type '{0}' "
+    #                         "on page with key '{1}'. ".format(item_type, page_key))
+    #        logger.error(error_message)
+    #        raise OptimaException(error_message)
+
+    #    # Work out the row at which the next named item exists, if any.
+    #    if stop_row is None: stop_row = framework_page.nrows
+    #    row_test = row + 1
+    #    while row_test < stop_row:
+    #        if str(framework_page.cell_value(row_test, name_pos)) == "":
+    #            row_test += 1
+    #        else:
+    #            stop_row = row_test
+    #            break
+            
+    #    # Provided that the item has a code name, extract other specifications details from other appropriate sections.
+    #    if not name == "":
+    #        if label == "":
+    #            error_message = ("An item of type '{0}', on page with key '{1}', was encountered with name '{2}' "
+    #                             "but no label specified on the same row.".format(item_type, page_key, name))
+    #            logger.error(error_message)
+    #            raise OptimaException(error_message)
+    #        for term in [name, label]:
+    #            self.addTermToSemantics(term = term)
+    #        destination_specs[name] = {"label":label}
+            
+    #        column_keys = FrameworkSettings.PAGE_COLUMN_KEYS[page_key]
+    #        item_type_column_keys = []
+    #        if not item_type_specs["column_keys"] is None: item_type_column_keys = item_type_specs["column_keys"]
+    #        if item_type_specs["inc_not_exc"]: column_keys = item_type_column_keys
+    #        subitem_types = []
+    #        if not item_type_specs["subitem_types"] is None: subitem_types = item_type_specs["subitem_types"]
+
+    #        # Iterate through all item-related columns when extracting specifications values.
+    #        for column_key in column_keys:
+    #            if (not item_type_specs["inc_not_exc"]) and column_key in item_type_column_keys: continue
+    #            if column_key not in [name_key, label_key]:
+    #                column_header = FrameworkSettings.COLUMN_SPECS[column_key]["header"]
+    #                column_type = FrameworkSettings.COLUMN_SPECS[column_key]["type"]
+    #                col = header_positions[column_header]
+
+    #                # Work out the next column for which a header exists, if any.
+    #                stop_col = framework_page.ncols
+    #                col_test = col + 1
+    #                while col_test < stop_col:
+    #                    if str(framework_page.cell_value(0, col_test)) == "":
+    #                        col_test += 1
+    #                    else:
+    #                        stop_col = col_test
+    #                        break
+                    
+    #                filter = None
+    #                if column_type == FrameworkSettings.COLUMN_TYPE_LIST_COMP_CHARAC: filter = ExcelSettings.FILTER_KEY_LIST
+    #                elif column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_OFF: filter = ExcelSettings.FILTER_KEY_BOOLEAN_YES
+    #                elif column_type == FrameworkSettings.COLUMN_TYPE_SWITCH_DEFAULT_ON: filter = ExcelSettings.FILTER_KEY_BOOLEAN_NO
+    #                value = extractExcelSheetValue(excel_page = framework_page, start_row = row, stop_row = stop_row, 
+    #                                                                            start_col = col, stop_col = stop_col, filter = filter)
+    #                if not value is None:
+    #                    destination_specs[name][column_key] = value
+            
+    #        # Parse the specifications of any subitems that exist within the rows attributed to this item.
+    #        for subitem_type in subitem_types:
+    #            if not subitem_type in destination_specs[name]: destination_specs[name][subitem_type] = OrderedDict()
+    #            row_subitem = start_row
+    #            while row_subitem < stop_row:
+    #                _, row_subitem = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = subitem_type, start_row = row_subitem, stop_row = stop_row,
+    #                                                               header_positions = header_positions, destination_specs = destination_specs[name][subitem_type])
+            
+    #    next_row = stop_row
+    #    return framework_page, next_row
+
+    #@accepts(str)
+    #def importFromFile(self, framework_path):
+    #    """ Attempts to load project framework details from a framework Excel file. """
+    #    framework_path = os.path.abspath(framework_path)
+    #    logger.info("Attempting to import an Optima Core framework from a file.")
+    #    logger.info("Location... {0}".format(framework_path))
+    #    try: framework_file = xlrd.open_workbook(framework_path)
+    #    except:
+    #        logger.exception("Framework file was not found.")
+    #        raise
+
+    #    # Reset the framework contents.
+    #    self.__init__()
+            
+    #    # Cycle through framework file pages and read them in.
+    #    for page_key in FrameworkSettings.PAGE_KEYS:
+    #        try: 
+    #            page_title = FrameworkSettings.PAGE_SPECS[page_key]["title"]
+    #            framework_page = framework_file.sheet_by_name(page_title)
+    #        except:
+    #            logger.exception("Framework file does not contain a required page titled '{0}'.".format(page_title))
+    #            raise
+            
+    #        # Establish a mapping from column header to column positions.
+    #        header_positions = extractHeaderColumnsMapping(framework_page)
+            
+    #        # Determine the fundamental page-item associated with this page.
+    #        try: core_item_type = FrameworkSettings.PAGE_ITEM_TYPES[page_key][0]
+    #        except:
+    #            logger.warning("Framework settings do not list a page-item key associated with the page titled '{0}'. "
+    #                           "Continuing to the next page.".format(page_title))
+    #            continue
+                             
+    #        # Check that the fundamental page-item on this page has requisite name and label columns to scan.
+    #        try: 
+    #            core_name_key = FrameworkSettings.ITEM_TYPE_SPECS[core_item_type]["key_name"]
+    #            core_name_header = FrameworkSettings.COLUMN_SPECS[core_name_key]["header"]
+    #        except:
+    #            logger.exception("Cannot locate the column header on framework page '{0}' associated with 'names' "
+    #                             "for item of type '{1}'.".format(page_title, core_item_type))
+    #            raise
+    #        try: 
+    #            core_label_key = FrameworkSettings.ITEM_TYPE_SPECS[core_item_type]["key_label"]
+    #            core_label_header = FrameworkSettings.COLUMN_SPECS[core_label_key]["header"]
+    #        except:
+    #            logger.exception("Cannot locate the column header on framework page '{0}' associated with 'labels' "
+    #                             "for item of type '{1}'.".format(page_title, core_item_type))
+    #            raise
+                
+    #        # Scan through the rows of the page and update relevant specification dictionaries.
+    #        row = 1
+    #        while row < framework_page.nrows:
+    #            _, row = self.extractItemSpecsFromPage(framework_page = framework_page, page_key = page_key, item_type = core_item_type, start_row = row, header_positions = header_positions)                                        
+        
+    #    # Generate specific databook settings that are a fusion of default databook settings and framework specifics.
+    #    self.createDatabookSpecs()
+        
+    #    #from pprint import pprint
+    #    #pprint(self.specs)
+
+    #    # TODO: Have a better naming scheme for the object rather than the path of its imported file.
+    #    self.setName(framework_path)
+    #    logger.info("Optima Core framework successfully imported.")
+        
+    #    return
 
     @accepts(str)
     def setName(self, name):

@@ -44,8 +44,11 @@ class EverythingTest(unittest.TestCase):
         #self.proj.getFramework().importFromFile(framework_path = self.framework_template_filepath)
         #self.proj.createDatabook(databook_path = self.databook_template_filepath)
         #pprint.pprint(FS.PAGE_SPECS)
-        pprint.pprint(FS.ITEM_TYPE_SPECS)
-        #pprint.pprint(self.proj.framework.specs)
+        print("-"*100)
+        pprint.pprint(self.proj.framework.specs)
+        print("-"*100)
+        pprint.pprint(self.proj.data.specs)
+        print("-"*100)
         return None
     
     #def test_framework_example_import(self):
