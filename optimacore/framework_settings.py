@@ -20,9 +20,29 @@ class KeyUniquenessException(OptimaException):
         message = ("Key uniqueness failure. Settings specify the same key '{0}' for more than one '{1}'.".format(key, object_type))
         return super().__init__(message, **kwargs)
 
-class DetailColumns(object):
-    """ Lightweight structure to associate a workbook table of detail columns with a specific item type. """
-    def __init__(self, item_type): self.item_type = item_type
+class TableType(object):
+    """ Lightweight structure to define a table for workbook IO. """
+    def __init__(self): pass
+class DetailColumns(TableType):
+    """ Structure to associate a workbook table of detail columns with a specific item type. """
+    def __init__(self, item_type):
+        super(DetailColumns,self).__init__()
+        self.item_type = item_type
+class TableTemplate(TableType):
+    """
+    Structure indicating a table should be duplicated for each existing instance of an item type.
+    In settings, item key should always be left as None, with the template to be instantiated by other external functions.
+    Because instances of an item only exist after a framework file is read in, this table type only appears in a databook.
+    """
+    def __init__(self, item_type, item_key = None):
+        super(TableTemplate,self).__init__()
+        self.item_type = item_type
+        self.item_key = item_key
+class TimeDependentValuesEntry(TableTemplate):
+    """ Template table requesting time-dependent values, with each instantiation iterating over an item type. """
+    def __init__(self, iterated_type, **kwargs):
+        super(TimeDependentValuesEntry,self).__init__(**kwargs)
+        self.iterated_type = iterated_type
 
 class ContentType(object):
     """ Lightweight structure to associate the contents of an item attribute with rules for IO. """
@@ -180,11 +200,11 @@ class BaseStructuralSettings():
         for item_type in cls.ITEM_TYPE_SPECS:
             try: cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int(getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["itemtype",item_type]), option = "default_amount"))
             except: logger.warning("Configuration file cannot find a valid 'default_amount' for item type '{0}', so these items will not be constructed in templates by default.".format(item_type))
-            try: descriptor = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["itemtype",item_type]), option = "descriptor")
+            try:
+                descriptor = getConfigValue(config = cp, section = SS.DEFAULT_SPACE_NAME.join(["itemtype",item_type]), option = "descriptor")
+                cls.createItemTypeDescriptor(item_type = item_type, descriptor = descriptor)
             except:
-                logger.warning("Configuration file cannot find a 'descriptor' for item type '{0}', so the descriptor will be the key itself.".format(item_type))
-                continue
-            cls.createItemTypeDescriptor(item_type = item_type, descriptor = descriptor)
+                logger.warning("Configuration file cannot find a valid 'descriptor' for item type '{0}', so the descriptor will be the key itself.".format(item_type))
         
             for attribute in cls.ITEM_TYPE_SPECS[item_type]["attributes"]:
                 if not "ref_item_type" in cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]:
@@ -271,5 +291,7 @@ class DatabookSettings(BaseStructuralSettings):
     @classmethod
     @logUsage
     def elaborateStructure(cls):
-        cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(cls.KEY_POPULATION))
-        cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(cls.KEY_PROGRAM))
+        cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
+        cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
+        cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
+                                                                                         iterated_type = cls.KEY_POPULATION))

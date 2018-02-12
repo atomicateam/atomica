@@ -11,7 +11,8 @@ from optimacore.framework_settings import DatabookSettings as DS
 from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
-from optimacore.excel import extractHeaderColumnsMapping, extractExcelSheetValue 
+from optimacore.excel import extractHeaderColumnsMapping, extractExcelSheetValue
+from optimacore.framework_settings import TimeDependentValuesEntry
 
 import os
 import xlrd
@@ -36,13 +37,19 @@ class ProjectFramework(object):
         self.specs = dict()
         #for page_key in FrameworkSettings.PAGE_KEYS:
         #    self.specs[page_key] = OrderedDict()
+        
+        # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
+        self.semantics = dict()
+
+    def completeSpecs(self):
+        """
+        A method for completing specifications that is called at the end of a file import.
+        This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
+        """
 
         # Construct specifications for constructing a databook beyond the information contained in default databook settings.
         self.specs[FS.KEY_DATAPAGE] = OrderedDict()
         self.createDatabookSpecs()
-        
-        # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
-        self.semantics = dict()
         
     @accepts(str)
     def addTermToSemantics(self, term):
@@ -62,7 +69,31 @@ class ProjectFramework(object):
         # Copy default page keys over.
         for page_key in DS.PAGE_KEYS:
             self.specs[FS.KEY_DATAPAGE][page_key] = dict()
-            self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
+            
+            # Do a scan over page tables in default databook settings.
+            # If any are templated, i.e. are duplicated per instance of an item type, all tables must be copied over and duplicated where necessary.
+            copy_over = False
+            for table in DS.PAGE_SPECS[page_key]["tables"]:
+                if isinstance(table, TimeDependentValuesEntry):
+                    copy_over = True
+                    break
+
+            if copy_over:
+                for page_attribute in DS.PAGE_SPECS[page_key]:
+                    if not page_attribute == "tables": self.specs[FS.KEY_DATAPAGE][page_key][page_attribute] = DS.PAGE_SPECS[page_key][page_attribute]
+                    else:
+                        self.specs[FS.KEY_DATAPAGE][page_key]["tables"] = []
+                        for table in DS.PAGE_SPECS[page_key]["tables"]:
+                            if isinstance(table, TimeDependentValuesEntry):
+                                item_type = table.item_type
+                                for item_key in self.specs[item_type]:
+                                    instantiated_table = dcp(table)
+                                    instantiated_table.item_key = item_key
+                                    self.specs[FS.KEY_DATAPAGE][page_key]["tables"].append(instantiated_table)
+                            else:
+                                self.specs[FS.KEY_DATAPAGE][page_key]["tables"].append(table)
+
+            else: self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
 
             ## Copy default section keys over.
             ## To conserve space, a boolean tag named 'refer to default' indicates that processes should look to default databook settings for details.

@@ -14,3 +14,10 @@ class ProjectData(object):
         """ Initialize the data container. """
         self.name = str()
         self.specs = dict()
+
+    def completeSpecs(self):
+        """
+        A method for completing specifications that is called at the end of a file import.
+        This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
+        """
+        pass
