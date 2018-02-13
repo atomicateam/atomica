@@ -251,7 +251,6 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     if not validation_source is None:
         worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
 
-
 def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
     
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
@@ -297,7 +296,6 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
     row += 1
     next_row, next_col = row, col
     return next_row, next_col, header_column_map
-
 
 def writeContentsDC(worksheet, item_type, start_row, header_column_map, framework = None, data = None, instructions = None, workbook_type = None,
                   formats = None, temp_storage = None):
@@ -423,7 +421,6 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     next_row, next_col = row, col
     return next_row, next_col
 
-
 def writeTable(worksheet, table, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                formats = None, format_variables = None, temp_storage = None):
 
@@ -451,10 +448,6 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, data = 
     
     next_row, next_col = row, col
     return next_row, next_col
-
-
-
-
 
 def writeWorksheet(workbook, page_key, framework = None, data = None, instructions = None, workbook_type = None, 
                    formats = None, format_variables = None, temp_storage = None):
@@ -513,15 +506,17 @@ def writeWorkbook(workbook_path, framework = None, data = None, instructions = N
     logger.info("{0} construction complete.".format(displayName(workbook_type, as_title = True)))
 
 
-def readContents(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
+def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, superitem_type_name_pairs = None):
     
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
-    if structure is None:
-        top_structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-        if item_type not in top_structure.specs: top_structure.specs[item_type] = OrderedDict()
-        structure = top_structure.specs[item_type]
+    top_structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
+    #if structure is None:
+    #    if item_type not in top_structure.specs: top_structure.specs[item_type] = OrderedDict()
+    #    structure = top_structure.specs[item_type]
+    if superitem_type_name_pairs is None: superitem_type_name_pairs = []
+    #else: superitem_type_name_pairs = dcp(superitem_type_name_pairs)
 
     row = start_row
     item_name = ""
@@ -531,16 +526,20 @@ def readContents(worksheet, item_type, start_row, header_columns_map, stop_row =
         test_name = str(worksheet.cell_value(row, name_col))
         if not test_name == "": item_name = test_name
         if not item_name == "":
-            if not item_name in structure: structure[item_name] = dict()
+            try: getSpecs(item_name)
+            except: top_structure.createItem(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
             for attribute in item_type_spec["attributes"]:
                 if attribute == "name": continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
-                    if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
-                    readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                    new_superitem_type_name_pairs = dcp(superitem_type_name_pairs)
+                    new_superitem_type_name_pairs.append([item_type, item_name])
+                    #if attribute not in structure[item_name]: 
+                    #    structure[item_name][attribute] = OrderedDict()
+                    readContentsDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
                                                start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
                                                framework = framework, data = data, workbook_type = workbook_type,
-                                               structure = structure[item_name][attribute])
+                                               superitem_type_name_pairs = new_superitem_type_name_pairs)
                 else:
                     start_col, last_col = header_columns_map[attribute_spec["header"]]
                     content_type = attribute_spec["content_type"]
@@ -552,7 +551,7 @@ def readContents(worksheet, item_type, start_row, header_columns_map, stop_row =
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # Reading currently allows extended columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if not value is None: structure[item_name][attribute] = value
+                    if not value is None: top_structure.getSpec(item_name)[attribute] = value
             row += 1
     next_row = row
     return next_row
@@ -562,11 +561,68 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
     row = start_row
     header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
     row += 1
-    row = readContents(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
+    row = readContentsDC(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
                        framework = framework, data = data, workbook_type = workbook_type)
     next_row = row
     return next_row
 
+#def readContentsTDVE(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
+    
+#    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
+#    item_type_spec = item_type_specs[item_type]
+
+#    if structure is None:
+#        top_structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
+#        if item_type not in top_structure.specs: top_structure.specs[item_type] = OrderedDict()
+#        structure = top_structure.specs[item_type]
+
+#    row, label_col = start_row, 0
+#    item_name = ""
+#    keep_scanning = True
+#    while keep_scanning and row < worksheet.nrows:
+#        label = str(worksheet.cell_value(row, label_col))
+#        if label == item_key:
+#        row += 1
+
+#        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]    # Only the first column matters for a name.
+#        test_name = str(worksheet.cell_value(row, name_col))
+#        if not test_name == "": item_name = test_name
+#        if not item_name == "":
+#            if not item_name in structure: structure[item_name] = dict()
+#            for attribute in item_type_spec["attributes"]:
+#                if attribute == "name": continue
+#                attribute_spec = item_type_spec["attributes"][attribute]
+#                if "ref_item_type" in attribute_spec:
+#                    if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
+#                    readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+#                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
+#                                               framework = framework, data = data, workbook_type = workbook_type,
+#                                               structure = structure[item_name][attribute])
+#                else:
+#                    start_col, last_col = header_columns_map[attribute_spec["header"]]
+#                    content_type = attribute_spec["content_type"]
+#                    filters = []
+#                    if not content_type is None:
+#                        if content_type.is_list: filters.append(ES.FILTER_KEY_LIST)
+#                        if isinstance(content_type, SwitchType): 
+#                            if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
+#                            else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
+#                    # Reading currently allows extended columns but not rows.
+#                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
+#                    if not value is None: structure[item_name][attribute] = value
+#        row += 1
+#    next_row = row
+#    return next_row
+
+def readTimeDependentValuesEntry(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
+
+    row = start_row
+    header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
+    row += 1
+    row = readContentsTDVE(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
+                       framework = framework, data = data, workbook_type = workbook_type)
+    next_row = row
+    return next_row
 
 def readTable(worksheet, table, start_row, start_col, framework = None, data = None, workbook_type = None):
 
@@ -576,8 +632,12 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
         core_item_type = table.item_type
-        row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = start_row,
+        row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row,
                                      framework = framework, data = data, workbook_type = workbook_type)
+    #if isinstance(table, TimeDependentValuesEntry):
+    #    core_item_type = table.item_type
+    #    row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row,
+    #                                 framework = framework, data = data, workbook_type = workbook_type)
     
     next_row, next_col = row, col
     return next_row, next_col

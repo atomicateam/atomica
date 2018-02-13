@@ -3,13 +3,22 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.4.0 (2018-02-14): Structure-Workbook Interfacing
+
+Features
+- Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py
+  Fleshed out the semantics dictionary for easier access to specifications.
+
 ## 0.3.4 (2018-02-13): Workbook Construction Consolidation
 
 Features
 - Templated out a `ProjectData` structure to store model values for a corresponding `ProjectFramework` structure.
 
 Edits
-- Major change applied, with `FrameworkSettings` and `DatabookSettings` now deriving from new class `BaseStructuralSettings`.
+- Major changes applied, with `FrameworkSettings` and `DatabookSettings` now deriving from new class `BaseStructuralSettings`.
+  Many features from previous versions have been upturned during this refactoring, such as the GUI process.
+- Consolidated workbook IO into file: workbook.py
+- Classes have been introduced as key wrappers to denote table type and content type during workbook construction.
 - Detail-column tables in a framework file allow values to be extended across columns, but no longer allows this for rows.
 
 ## 0.3.3 (2018-02-01): Basic Databook Items
