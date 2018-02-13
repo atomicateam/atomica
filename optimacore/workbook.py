@@ -136,6 +136,122 @@ def getTargetStructure(framework = None, data = None, workbook_type = None):
 
 
 
+
+def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_type_specs, item_number, formats = None, temp_storage = None):
+
+    # Determine attribute information and prepare for content production.
+    attribute_spec = item_type_specs[item_type]["attributes"][attribute]
+    if temp_storage is None: temp_storage = dict()
+    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    cell_format = formats["center"]
+
+    # Default content is blank.
+    content = ""
+    space = ""
+    sep = ""
+    validation_source = None
+    rc = xw.utility.xl_rowcol_to_cell(row, col)
+
+    # Determine if this cell content references another cell.
+    content_type = None
+    reference_type = None
+    other_item_type = None
+    other_attribute = None
+    if "content_type" in attribute_spec: content_type = attribute_spec["content_type"]
+    if isinstance(content_type, AttributeReference): reference_type = dcp(content_type)
+    # Content types that are references to superitem attributes copy their content type.
+    # This is so that they can produce their own content which is then prepended by superitem attributes.
+    if isinstance(content_type, SuperReference):
+        content_type = item_type_specs[reference_type.other_item_type]["attributes"][reference_type.other_attribute]["content_type"]
+                    
+    # Content associated with standard content types is set up here.
+    if isinstance(content_type, LabelType) or isinstance(content_type, NameType):
+        # Name and label attributes reference early constructions of themselves if possible.
+        # However, this only the case if the attribute content is not already a reference type.
+        # Refactoring the code to allow for compound referencing is deemed unnecessary for now.
+        if (reference_type is None and item_type in temp_storage and 
+            attribute in temp_storage[item_type] and len(temp_storage[item_type][attribute]["list_content"]) > item_number):
+            reference_type = "passkey"  # Is not a reference type object but will allow one-to-one referencing to take place.
+            other_item_type = item_type
+            other_attribute = attribute
+        else:
+            content = str(item_number)     # The default is the number of this item.
+            if isinstance(content_type, LabelType):
+                space = SS.DEFAULT_SPACE_LABEL
+                sep = SS.DEFAULT_SEPARATOR_LABEL
+            else:
+                space = SS.DEFAULT_SPACE_NAME
+                sep = SS.DEFAULT_SEPARATOR_NAME
+            if "prefix" in attribute_spec:
+                content = attribute_spec["prefix"] + space + content
+    elif isinstance(content_type, SwitchType):
+        validation_source = [SS.DEFAULT_SYMBOL_NO, SS.DEFAULT_SYMBOL_YES]
+        if content_type.default_on: validation_source.reverse()
+        content = validation_source[0]
+    content_backup = content
+
+    # References to other content are constructed here.
+    if not reference_type is None:
+        list_id = item_number
+        # Super-based references link subitem attributes to corresponding superitem attributes.
+        # Because subitem displays are meant to be created instantly after superitems, the superitem referenced is the last one stored.
+        if isinstance(reference_type, SuperReference): list_id = -1
+        if other_item_type is None: other_item_type = reference_type.other_item_type
+        if other_attribute is None: other_attribute = reference_type.other_attribute
+        try: stored_refs = temp_storage[other_item_type][other_attribute]
+        except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = other_item_type, ref_attribute = other_attribute)
+        # For one-to-one referencing, do not create content for tables that extend beyond the length of the referenced table.
+        if len(stored_refs["list_content"]) > list_id:
+            content_page = ""
+            if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
+            ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
+            ref_content_backup = stored_refs["list_content_backup"][list_id]
+            if isinstance(reference_type, SuperReference):
+                content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
+                content_backup = ref_content_backup + sep + content_backup
+            else:
+                content = ref_content
+                content_backup = ref_content_backup
+        # Append a self-based reference to the content, which should be to an attribute of the same item a row ago.
+        if isinstance(reference_type, ExtraSelfReference) and reference_type.is_list is True and item_number > 0: 
+            list_id = item_number - 1
+            try: stored_refs = temp_storage[reference_type.own_item_type][reference_type.own_attribute]
+            except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.own_item_type, ref_attribute = reference_type.own_attribute)
+            content_page = ""
+            if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
+            ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
+            ref_content_backup = stored_refs["list_content_backup"][list_id]
+            if content == "":
+                content = ref_content
+                content_backup = ref_content_backup
+            else:
+                if content.startswith("="): content = content.lstrip("=")
+                else: content = "\"" + content + "\""
+                content = "=CONCATENATE({0},\"{1}\",{2})".format(content, ES.LIST_SEPARATOR, ref_content.lstrip("="))
+                content_backup = content_backup + ES.LIST_SEPARATOR + ref_content_backup
+
+    # Store the contents of this attribute for referencing by other attributes if required.
+    if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
+        if not item_type in temp_storage: temp_storage[item_type] = {}
+        if not attribute in temp_storage[item_type]: temp_storage[item_type][attribute] = {"list_content":[],"list_content_backup":[],"list_cell":[]}
+        # Make sure the attribute does not already have stored values associated with it.
+        if not len(temp_storage[item_type][attribute]["list_content"]) > item_number:
+            temp_storage[item_type][attribute]["list_content"].append(content)
+            temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
+            temp_storage[item_type][attribute]["list_cell"].append(rc)
+            temp_storage[item_type][attribute]["page_label"] = worksheet.name
+
+    # Actually write the content, using a backup value where the content is an equation and may not be calculated.
+    # This lack of calculation occurs when Excel files are not opened before writing and reading phases.
+    # Also validate that the cell only allows certain values.
+    if content.startswith("="):
+        worksheet.write_formula(rc, content, cell_format, content_backup)
+    else:
+        worksheet.write(rc, content, cell_format)
+    if not validation_source is None:
+        worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
+
+
 def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
     
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
@@ -182,15 +298,13 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
     next_row, next_col = row, col
     return next_row, next_col, header_column_map
 
+
 def writeContentsDC(worksheet, item_type, start_row, header_column_map, framework = None, data = None, instructions = None, workbook_type = None,
                   formats = None, temp_storage = None):
 
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
-    cell_format = formats["center"]
 
     if temp_storage is None: temp_storage = dict()
 
@@ -207,91 +321,9 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
                     new_row = max(new_row, sub_row)
                 else:
                     col = header_column_map[attribute_spec["header"]]
-                    rc = xw.utility.xl_rowcol_to_cell(row, col)
-
-                    content = ""
-                    space = ""
-                    sep = ""
-                    validation_source = None
-
-                    reference_type = None
-                    content_type = attribute_spec["content_type"]
-                    if isinstance(content_type, AttributeReference): reference_type = dcp(content_type)
-                    # Content types that are references to superitem attributes copy their content type.
-                    if isinstance(content_type, SuperReference):
-                        content_type = item_type_specs[reference_type.other_item_type]["attributes"][reference_type.other_attribute]["content_type"]
-                    if isinstance(content_type, LabelType) or isinstance(content_type, NameType):
-                        content = str(item_number)     # The default is the number of this item.
-                        if isinstance(content_type, LabelType):
-                            space = SS.DEFAULT_SPACE_LABEL
-                            sep = SS.DEFAULT_SEPARATOR_LABEL
-                        else:
-                            space = SS.DEFAULT_SPACE_NAME
-                            sep = SS.DEFAULT_SEPARATOR_NAME
-                        if "prefix" in attribute_spec:
-                            content = attribute_spec["prefix"] + space + content
-                    elif isinstance(content_type, SwitchType):
-                        validation_source = [SS.DEFAULT_SYMBOL_NO, SS.DEFAULT_SYMBOL_YES]
-                        if content_type.default_on: validation_source.reverse()
-                        content = validation_source[0]
-                    content_backup = content
-
-                    if not reference_type is None:
-                        # 'Super' references link subitem attributes to corresponding superitem attributes.
-                        # Because subitem displays are created instantly after superitems, the superitem referenced is the last one stored.
-                        list_id = item_number
-                        if isinstance(reference_type, SuperReference): list_id = -1
-                        try: stored_refs = temp_storage[reference_type.other_item_type][reference_type.other_attribute]
-                        except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.item_type, ref_attribute = reference_type.attribute)
-                        # For one-to-one referencing, do not create content for tables that extent beyond the length of the referenced table.
-                        if len(stored_refs["list_content"]) > list_id:
-                            content_page = ""
-                            if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
-                            ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
-                            ref_content_backup = stored_refs["list_content_backup"][list_id]
-                            if isinstance(reference_type, SuperReference):
-                                content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
-                                content_backup = ref_content_backup + sep + content_backup
-                            else:
-                                content = ref_content
-                                content_backup = ref_content_backup
-                        # Append a self-reference to the content, which should be to an attribute of the same item a row ago.
-                        if isinstance(reference_type, ExtraSelfReference) and reference_type.is_list is True and item_number > 0: 
-                            list_id = item_number - 1
-                            try: stored_refs = temp_storage[reference_type.own_item_type][reference_type.own_attribute]
-                            except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.own_item_type, ref_attribute = reference_type.own_attribute)
-                            content_page = ""
-                            if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
-                            ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
-                            ref_content_backup = stored_refs["list_content_backup"][list_id]
-                            if content == "":
-                                content = ref_content
-                                content_backup = ref_content_backup
-                            else:
-                                if content.startswith("="): content = content.lstrip("=")
-                                else: content = "\"" + content + "\""
-                                content = "=CONCATENATE({0},\"{1}\",{2})".format(content, ES.LIST_SEPARATOR, ref_content.lstrip("="))
-                                content_backup = content_backup + ES.LIST_SEPARATOR + ref_content_backup
-
-
-                    # Store the contents of this attribute for referencing by other attributes if required.
-                    if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
-                        if not item_type in temp_storage: temp_storage[item_type] = {}
-                        if not attribute in temp_storage[item_type]: temp_storage[item_type][attribute] = {"list_content":[],"list_content_backup":[],"list_cell":[]}
-                        # Make sure the attribute does not already have stored values associated with it.
-                        if not len(temp_storage[item_type][attribute]["list_content"]) > item_number:
-                            temp_storage[item_type][attribute]["list_content"].append(content)
-                            temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
-                            temp_storage[item_type][attribute]["list_cell"].append(rc)
-                            temp_storage[item_type][attribute]["page_label"] = worksheet.name
-
-                    if content.startswith("="):
-                        worksheet.write_formula(rc, content, cell_format, content_backup)
-                    else:
-                        worksheet.write(rc, content, cell_format)
-
-                    if not validation_source is None:
-                        worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
+                    createAttributeCellContent(worksheet = worksheet, row = row, col = col, 
+                                               attribute = attribute, item_type = item_type, item_type_specs = item_type_specs, 
+                                               item_number = item_number, formats = formats, temp_storage = temp_storage)
             row = max(new_row, row + 1)
     next_row = row
     return next_row
@@ -342,106 +374,19 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
 
 def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, formats = None, temp_storage = None):
     
-    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    iterated_type_spec = item_type_specs[iterated_type]
-    label_spec = iterated_type_spec["attributes"]["label"]
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
-    cell_format = formats["center"]
 
     if temp_storage is None: temp_storage = dict()
 
     row, col = start_row, start_col
     if use_instructions:
         for item_number in sm.range(instructions.num_items[iterated_type]):
-            attribute_spec = iterated_type_spec["attributes"]["label"]
-            rc = xw.utility.xl_rowcol_to_cell(row, col)
-
-            content = ""
-            space = ""
-            sep = ""
-            validation_source = None
-
-            reference_type = None
-            content_type = attribute_spec["content_type"]
-            if isinstance(content_type, AttributeReference): reference_type = dcp(content_type)
-            # Content types that are references to superitem attributes copy their content type.
-            if isinstance(content_type, LabelType) or isinstance(content_type, NameType):
-                content = str(item_number)     # The default is the number of this item.
-                if isinstance(content_type, LabelType):
-                    space = SS.DEFAULT_SPACE_LABEL
-                    sep = SS.DEFAULT_SEPARATOR_LABEL
-                else:
-                    space = SS.DEFAULT_SPACE_NAME
-                    sep = SS.DEFAULT_SEPARATOR_NAME
-                if "prefix" in attribute_spec:
-                    content = attribute_spec["prefix"] + space + content
-            elif isinstance(content_type, SwitchType):
-                validation_source = [SS.DEFAULT_SYMBOL_NO, SS.DEFAULT_SYMBOL_YES]
-                if content_type.default_on: validation_source.reverse()
-                content = validation_source[0]
-            content_backup = content
-
-            if not reference_type is None:
-                # 'Super' references link subitem attributes to corresponding superitem attributes.
-                # Because subitem displays are created instantly after superitems, the superitem referenced is the last one stored.
-                list_id = item_number
-                if isinstance(reference_type, SuperReference): list_id = -1
-                try: stored_refs = temp_storage[reference_type.other_item_type][reference_type.other_attribute]
-                except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.item_type, ref_attribute = reference_type.attribute)
-                # For one-to-one referencing, do not create content for tables that extent beyond the length of the referenced table.
-                if len(stored_refs["list_content"]) > list_id:
-                    content_page = ""
-                    if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
-                    ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
-                    ref_content_backup = stored_refs["list_content_backup"][list_id]
-                    if isinstance(reference_type, SuperReference):
-                        content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
-                        content_backup = ref_content_backup + sep + content_backup
-                    else:
-                        content = ref_content
-                        content_backup = ref_content_backup
-                # Append a self-reference to the content, which should be to an attribute of the same item a row ago.
-                if isinstance(reference_type, ExtraSelfReference) and reference_type.is_list is True and item_number > 0: 
-                    list_id = item_number - 1
-                    try: stored_refs = temp_storage[reference_type.own_item_type][reference_type.own_attribute]
-                    except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.own_item_type, ref_attribute = reference_type.own_attribute)
-                    content_page = ""
-                    if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
-                    ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
-                    ref_content_backup = stored_refs["list_content_backup"][list_id]
-                    if content == "":
-                        content = ref_content
-                        content_backup = ref_content_backup
-                    else:
-                        if content.startswith("="): content = content.lstrip("=")
-                        else: content = "\"" + content + "\""
-                        content = "=CONCATENATE({0},\"{1}\",{2})".format(content, ES.LIST_SEPARATOR, ref_content.lstrip("="))
-                        content_backup = content_backup + ES.LIST_SEPARATOR + ref_content_backup
-
-
-            # Store the contents of this attribute for referencing by other attributes if required.
-            if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
-                if not item_type in temp_storage: temp_storage[item_type] = {}
-                if not attribute in temp_storage[item_type]: temp_storage[item_type][attribute] = {"list_content":[],"list_content_backup":[],"list_cell":[]}
-                # Make sure the attribute does not already have stored values associated with it.
-                if not len(temp_storage[item_type][attribute]["list_content"]) > item_number:
-                    temp_storage[item_type][attribute]["list_content"].append(content)
-                    temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
-                    temp_storage[item_type][attribute]["list_cell"].append(rc)
-                    temp_storage[item_type][attribute]["page_label"] = worksheet.name
-
-            if content.startswith("="):
-                worksheet.write_formula(rc, content, cell_format, content_backup)
-            else:
-                worksheet.write(rc, content, cell_format)
-
-            if not validation_source is None:
-                worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
+            createAttributeCellContent(worksheet = worksheet, row = row, col = col, 
+                                       attribute = "label", item_type = iterated_type, item_type_specs = item_type_specs, 
+                                       item_number = item_number, formats = formats, temp_storage = temp_storage)
             row += 1
-    row += 1
+    row += 1    # Extra row to space out following tables.
     next_row = row
     return next_row
 

@@ -48,29 +48,40 @@ class ContentType(object):
     """ Lightweight structure to associate the contents of an item attribute with rules for IO. """
     def __init__(self, is_list = False): self.is_list = is_list
 class LabelType(ContentType):
-    """ Lightweight structure to associate the contents of an item attribute with display label formats. """
+    """
+    Structure to associate the contents of an item attribute with display label formats.
+    Indicates to the associated attribute that repeat sections in a workbook should reference the initial section.
+    Any attribute with this content type should be marked with a True value for "is_ref" to utilize referencing rules.
+    """
     def __init__(self): super(LabelType,self).__init__()
 class NameType(ContentType):
-    """ Lightweight structure to associate the contents of an item attribute with code name formats. """
+    """
+    Structure to associate the contents of an item attribute with code name formats.
+    Indicates to the associated attribute that repeat sections in a workbook should reference the initial section.
+    Any attribute with this content type should be marked with a True value for "is_ref" to utilize referencing rules.
+    """
     def __init__(self): super(NameType,self).__init__()
 class SwitchType(ContentType):
-    """ Lightweight structure to associate the contents of an item attribute with boolean flags. """
+    """ Structure to associate the contents of an item attribute with boolean flags. """
     def __init__(self, default_on = False, **kwargs):
         super(SwitchType,self).__init__(**kwargs)
         self.default_on = default_on
 class AttributeReference(ContentType):
-    """ Lightweight structure to have the contents of an item type attribute reference those of another item type attribute. """
+    """ Structure to have the contents of an item type attribute reference those of another item type attribute. """
     def __init__(self, item_type_specs, other_item_type, other_attribute, **kwargs):
         super(AttributeReference,self).__init__(**kwargs)
         self.other_item_type = other_item_type
         self.other_attribute = other_attribute
         item_type_specs[other_item_type]["attributes"][other_attribute]["is_ref"] = True
 class SuperReference(AttributeReference):
-    """ Lightweight structure to have the contents of an item type attribute reference those of a superitem type attribute. """
+    """
+    Structure to have the contents of an item type attribute reference those of a superitem type attribute.
+    Contents for the attribute will be produced as usual, but prepended by values of the superitem type attribute.
+    """
     def __init__(self, **kwargs): super(SuperReference,self).__init__(**kwargs)
 class ExtraSelfReference(AttributeReference):
     """
-    Lightweight structure to have the contents of an item type attribute reference those of another item type attribute.
+    Structure to have the contents of an item type attribute reference those of another item type attribute.
     It can also reference another attribute of the same item.
     """
     def __init__(self, item_type_specs, own_item_type, own_attribute, **kwargs):
@@ -132,11 +143,12 @@ class BaseStructuralSettings():
 
     @classmethod
     @logUsage
-    def createItemTypeAttribute(cls, item_type, attributes, content_type = None):
+    def createItemTypeAttribute(cls, item_type, attributes, content_type = None, is_ref = False):
         for attribute in attributes:
             attribute_dict = {"header":SS.DEFAULT_SPACE_LABEL.join([item_type, attribute]).title(),
                               "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute, item_type),
                               "content_type":content_type}
+            if is_ref: attribute_dict["is_ref"] = True
             cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute] = attribute_dict
     
     @classmethod
@@ -157,8 +169,10 @@ class BaseStructuralSettings():
             cls.ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
             cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
             cls.createItemTypeDescriptor(item_type = item_type, descriptor = item_type)
-            cls.createItemTypeAttribute(item_type = item_type, attributes = ["label"], content_type = LabelType())
-            cls.createItemTypeAttribute(item_type = item_type, attributes = ["name"], content_type = NameType())
+            # All items have a code name and display label.
+            # As they are frequently used multiple times in workbooks as table keys, they must be marked as references so that initial content is linked to by cloned content.
+            cls.createItemTypeAttribute(item_type = item_type, attributes = ["label"], content_type = LabelType(), is_ref = True)
+            cls.createItemTypeAttribute(item_type = item_type, attributes = ["name"], content_type = NameType(), is_ref = True)
 
     @classmethod
     @logUsage
@@ -295,3 +309,5 @@ class DatabookSettings(BaseStructuralSettings):
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
                                                                                          iterated_type = cls.KEY_POPULATION))
+        cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_PARAMETER,
+                                                                                    iterated_type = cls.KEY_POPULATION))

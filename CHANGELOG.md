@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.3.4 (2018-02-12): Workbook Construction Consolidation
+## 0.3.4 (2018-02-13): Workbook Construction Consolidation
 
 Features
 - Templated out a `ProjectData` structure to store model values for a corresponding `ProjectFramework` structure.
