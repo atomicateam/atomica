@@ -41,6 +41,7 @@ class SystemSettings(object):
     DEFAULT_SEPARATOR_NAME = "_"
     DEFAULT_SYMBOL_YES = "y"
     DEFAULT_SYMBOL_NO = "n"
+    DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
     DEFAULT_SUFFIX_PLURAL = "s"
     
 

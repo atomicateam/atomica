@@ -4,7 +4,7 @@ from optimacore.framework_settings import DatabookSettings as DS
 from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
-from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, extractHeaderColumnsMapping, extractExcelSheetValue
+from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock, extractHeaderColumnsMapping, extractExcelSheetValue
 from optimacore.framework_settings import DetailColumns, TimeDependentValuesEntry, LabelType, NameType, SwitchType, AttributeReference, SuperReference, ExtraSelfReference
 from optimacore.framework import ProjectFramework
 
@@ -354,19 +354,25 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
     
     row, col = start_row, start_col
 
-    attribute_spec = item_type_specs[item_type]["attributes"]["label"]
-    for format_variable_key in format_variables:
-        if format_variable_key in attribute_spec:
-            format_variables[format_variable_key] = attribute_spec[format_variable_key]
-    try: header = item_specs[item_type][item_key]["label"]
-    except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
-    worksheet.write(row, col, header, formats["center_bold"])
-    if "comment" in attribute_spec:
-        header_comment = attribute_spec["comment"]
-        worksheet.write_comment(row, col, header_comment, 
-                                {"x_scale": format_variables[ES.KEY_COMMENT_XSCALE], 
-                                 "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
-    worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
+    for attribute in ["label","assumption"]:
+        if attribute in item_type_specs[item_type]["attributes"]:
+            attribute_spec = item_type_specs[item_type]["attributes"][attribute]
+            for format_variable_key in format_variables:
+                if format_variable_key in attribute_spec:
+                    format_variables[format_variable_key] = attribute_spec[format_variable_key]
+            if attribute == "label":
+                try: header = item_specs[item_type][item_key][attribute]
+                except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
+            else:
+                header = attribute_spec["header"]
+            worksheet.write(row, col, header, formats["center_bold"])
+            if "comment" in attribute_spec:
+                header_comment = attribute_spec["comment"]
+                worksheet.write_comment(row, col, header_comment, 
+                                        {"x_scale": format_variables[ES.KEY_COMMENT_XSCALE], 
+                                         "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
+            worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
+            col += 1
 
     row += 1
     next_row = row
@@ -395,6 +401,17 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     if temp_storage is None: temp_storage = dict()
 
     row, col = start_row, start_col
+
+    # Create the standard value entry block, extracting the number of items from instructions.
+    # This is done first so that headers and formatting can be overwritten if required.
+    # TODO: Adjust this for when writing existing values to workbook.
+    # TODO: Decide what to do about time.
+    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+    num_items = 0
+    if use_instructions: num_items = instructions.num_items[iterated_type]
+    createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
+                          num_items = num_items, time_vector = [x for x in sm.range(2000,2019)], formats = formats)
+
     row = writeHeadersTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key,
                                              start_row = row, start_col = col, 
                                              framework = framework, data = data, workbook_type = workbook_type,

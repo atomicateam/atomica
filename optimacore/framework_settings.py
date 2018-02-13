@@ -305,6 +305,8 @@ class DatabookSettings(BaseStructuralSettings):
     @classmethod
     @logUsage
     def elaborateStructure(cls):
+        cls.createItemTypeAttribute(cls.KEY_CHARACTERISTIC, ["assumption"])
+
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,

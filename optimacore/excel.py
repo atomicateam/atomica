@@ -4,7 +4,8 @@ Optima Core Excel utilities file.
 Contains functionality specific to Excel input and output.
 """
 
-from optimacore.system import logUsage, accepts, returns, SystemSettings
+from optimacore.system import SystemSettings as SS
+from optimacore.system import logger, logUsage, accepts, returns
 
 from six import moves as sm
 import xlsxwriter as xw
@@ -60,18 +61,35 @@ def createDefaultFormatVariables():
     return format_variables
 
 @accepts(xw.worksheet.Worksheet,int,int,int)
-def createValueEntryBlock(excel_page, start_row, start_col, item_count, time_vector = None):#, formats = None):
+def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vector = None, default_values = None, formats = None):
     """ Create a block where users enter values in a 'constant' column or as time-dependent array. """
     # Generate standard formats if they do not exist.
-    #if formats is None: formats = createStandardExcelFormats(databook)
+    if formats is None:
+        logger.warning("Formats were not passed to worksheet value-entry block construction.")
+        formats = {"center_bold":None, "center":None}
 
-    row = start_row
-    col = start_col
-    #excel_page.write(row, col, "Assumption", formats["center_bold"])
-    row = item_count
-    last_row = row
-    last_col = col
-    return excel_page, last_row, last_col
+    if time_vector is None: time_vector = []
+    if default_values is None: default_values = [0.0]*num_items
+
+    row, col = start_row, start_col
+    excel_page.write(row, col, "Assumption", formats["center_bold"])
+    if len(time_vector) > 0:
+        col += 2
+        for t_val in time_vector:
+            excel_page.write(row, col, t_val, formats["center_bold"])
+            col += 1
+    for item_number in sm.range(num_items):
+        row += 1
+        col = start_col
+        rc_start = xw.utility.xl_rowcol_to_cell(row, col + 1 + 1)
+        rc_end = xw.utility.xl_rowcol_to_cell(row, col + 1 + len(time_vector))
+        if len(time_vector) > 0:
+            excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), default_values[item_number])
+            excel_page.write(row, col + 1, 'OR', formats["center"])
+        else: excel_page.write(row, col, default_values[item_number])
+
+    last_row, last_col = row, start_col + 1 + len(time_vector)
+    return last_row, last_col
 
 #%% Utility functions for reading.
 
@@ -142,18 +160,18 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
     # Convert to boolean values if specified by filter.
     # Empty strings and unidentified symbols are considered default values.
     if ExcelSettings.FILTER_KEY_BOOLEAN_YES in filters:
-        if value == SystemSettings.DEFAULT_SYMBOL_YES: value = True
+        if value == SS.DEFAULT_SYMBOL_YES: value = True
         else:
-            if not value == SystemSettings.DEFAULT_SYMBOL_NO:
+            if not value == SS.DEFAULT_SYMBOL_NO:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
-                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_NO))
+                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SS.DEFAULT_SYMBOL_NO))
             value = ""
     if ExcelSettings.FILTER_KEY_BOOLEAN_NO in filters:
-        if value == SystemSettings.DEFAULT_SYMBOL_NO: value = False
+        if value == SS.DEFAULT_SYMBOL_NO: value = False
         else:
-            if not value == SystemSettings.DEFAULT_SYMBOL_YES:
+            if not value == SS.DEFAULT_SYMBOL_YES:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
-                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SystemSettings.DEFAULT_SYMBOL_YES))
+                               "Assuming a default of '{2}'.".format(excel_page.name, rc, SS.DEFAULT_SYMBOL_YES))
             value = ""
     if value == "": value = None
     return value
