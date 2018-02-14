@@ -4,6 +4,12 @@ from optimacore.system import applyToAllMethods, logUsage, accepts, OptimaExcept
 
 from collections import OrderedDict
 
+class SemanticUnknownException(OptimaException):
+    def __init__(self, term, attribute = None, **kwargs):
+        if not attribute is None: extra_message = ", attribute {0},".format(attribute)
+        message = "Term '{0}'{1} is not recognised by the project.".format(term, extra_message)
+        return super().__init__(message, **kwargs)
+
 @applyToAllMethods(logUsage)
 class CoreProjectStructure(object):
     """ A base object that contains details relating to instantiated items of types defined in relevant settings classes. """
@@ -37,23 +43,52 @@ class CoreProjectStructure(object):
         key_list = [elem for pair in superitem_type_name_pairs for elem in pair]
         if key_list is None: key_list = []
         key_list.extend([item_type,item_name])
-        self.semantics[item_name] = {"item_name":item_name, "attribute":"name", "key_list":key_list}
-        #import pprint
-        #print(item_type)
-        #print(item_name)
-        #pprint.pprint(self.specs)
-        #pprint.pprint(self.semantics)
+        self.createSemantic(term = item_name, item_name = item_name, attribute = "name", key_list = key_list)
+        
+    def addSpecAttribute(self, term, attribute, value):
+        item_name = self.getSpecName(term)
+        self.getSpec(term)[attribute] = value
+        if attribute in ["label"]:
+            self.createSemantic(term = value, item_name = item_name, attribute = attribute)
+
+    def getSpecName(self, term):
+        return self.getSemanticValue(term = term, attribute = "name")
 
     def getSpec(self, term):
+        semantic = self.getSemantic(self.getSpecName(term))
         try:
-            key_list = self.semantics[term]["key_list"]
+            key_list = semantic["key_list"]
             spec = self.specs
             for key in key_list:
                 spec = spec[key]
             return spec
-        except:
-            raise OptimaException("Specifications for term '{0}' cannot be found.".format(term))
+        except: raise OptimaException("The item corresponding to term '{0}' could not be located in the semantics dictionary.".format(term))
 
+    def createSemantic(self, term, item_name, attribute, key_list = None):
+        if term in self.semantics:
+            other_attribute = self.semantics[term]["attribute"]
+            other_name = self.semantics[term]["name"]
+            raise OptimaException("The term '{0}' has been defined previously as the '{1}' of item '{2}'."
+                                  "Duplicate terms are not allowed.".format(term, other_attribute, other_name))
+        else:
+            self.semantics[term] = {"name":item_name, "attribute":attribute}
+            if attribute == "name":
+                if not term == item_name:
+                    raise OptimaException("Term '{0}' has been declared as the name of item with name '{1}'. "
+                                          "This is a contradiction.".format(term, item_name))
+                if key_list is None:
+                    raise OptimaException("Term '{0}' is an item name. It must be associated with a key list in a semantics "
+                                          "dictionary that points to where the item sits in a specifications dictionary.".format(term))
+                else: self.semantics[term]["key_list"] = key_list
+
+    def getSemantic(self, term):
+        try: return self.semantics[term]
+        except: raise SemanticUnknownException(term = term)
+
+    def getSemanticValue(self, term, attribute):
+        semantic = self.getSemantic(term)
+        try: return semantic[attribute]
+        except: raise SemanticUnknownException(term = term, attribute = attribute)
 
     @accepts(str)
     def addTermToSemantics(self, term):

@@ -49,6 +49,10 @@ class EverythingTest(unittest.TestCase):
         print("-"*100)
         pprint.pprint(self.proj.data.specs)
         print("-"*100)
+        pprint.pprint(self.proj.framework.semantics)
+        print("-"*100)
+        pprint.pprint(self.proj.data.semantics)
+        print("-"*100)
         return None
     
     #def test_framework_example_import(self):

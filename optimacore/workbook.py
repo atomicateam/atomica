@@ -511,12 +511,8 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
-    top_structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-    #if structure is None:
-    #    if item_type not in top_structure.specs: top_structure.specs[item_type] = OrderedDict()
-    #    structure = top_structure.specs[item_type]
+    structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
     if superitem_type_name_pairs is None: superitem_type_name_pairs = []
-    #else: superitem_type_name_pairs = dcp(superitem_type_name_pairs)
 
     row = start_row
     item_name = ""
@@ -526,16 +522,14 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
         test_name = str(worksheet.cell_value(row, name_col))
         if not test_name == "": item_name = test_name
         if not item_name == "":
-            try: getSpecs(item_name)
-            except: top_structure.createItem(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
+            try: structure.getSpec(item_name)
+            except: structure.createItem(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
             for attribute in item_type_spec["attributes"]:
                 if attribute == "name": continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
                     new_superitem_type_name_pairs = dcp(superitem_type_name_pairs)
                     new_superitem_type_name_pairs.append([item_type, item_name])
-                    #if attribute not in structure[item_name]: 
-                    #    structure[item_name][attribute] = OrderedDict()
                     readContentsDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
                                                start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
                                                framework = framework, data = data, workbook_type = workbook_type,
@@ -551,7 +545,7 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # Reading currently allows extended columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if not value is None: top_structure.getSpec(item_name)[attribute] = value
+                    if not value is None: structure.addSpecAttribute(term = item_name, attribute = attribute, value = value)
             row += 1
     next_row = row
     return next_row
