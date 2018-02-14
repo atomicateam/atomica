@@ -9,6 +9,9 @@ Features
 - Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py
   Fleshed out the semantics dictionary for easier access to specifications.
 
+Edits
+- Unnecessary files have been deleted due to workbook IO consolidation.
+
 ## 0.3.4 (2018-02-13): Workbook Construction Consolidation
 
 Features

@@ -4,7 +4,7 @@ Optima Core data file.
 Sets out a structure to store context-specific values relating to a model, all imported from a databook.
 """
 
-from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
+from optimacore.system import applyToAllMethods, logUsage
 from optimacore.structure import CoreProjectStructure
 
 @applyToAllMethods(logUsage)

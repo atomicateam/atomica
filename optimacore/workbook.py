@@ -1,11 +1,11 @@
 from optimacore.system import SystemSettings as SS
-from optimacore.framework_settings import FrameworkSettings as FS
-from optimacore.framework_settings import DatabookSettings as DS
+from optimacore.structure_settings import FrameworkSettings as FS
+from optimacore.structure_settings import DatabookSettings as DS
 from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock, extractHeaderColumnsMapping, extractExcelSheetValue
-from optimacore.framework_settings import DetailColumns, TimeDependentValuesEntry, LabelType, NameType, SwitchType, AttributeReference, SuperReference, ExtraSelfReference
+from optimacore.structure_settings import DetailColumns, TimeDependentValuesEntry, LabelType, NameType, SwitchType, AttributeReference, SuperReference, ExtraSelfReference
 from optimacore.framework import ProjectFramework
 
 import os

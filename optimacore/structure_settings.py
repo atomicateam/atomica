@@ -263,6 +263,7 @@ def createSpecs(undecorated_class):
         raise ImportError
     return undecorated_class
 
+
 @createSpecs
 class FrameworkSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings

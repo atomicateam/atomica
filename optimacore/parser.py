@@ -4,8 +4,9 @@ Optima Core parser file.
 Contains functionality for parsing configuration files.
 """
 
-from optimacore.system import logUsage, accepts
-from optimacore.system import logger, SystemSettings
+from optimacore.system import SystemSettings as SS
+
+from optimacore.system import logUsage, accepts, logger
 
 import six
 
@@ -29,7 +30,7 @@ def getConfigValue(config, section, option, list_form = False, mute_warnings = F
         if not mute_warnings: logger.warning("Configuration file, section '{0}', has no option with label '{1}'.".format(section,option))
         raise configparser.NoOptionError(section,option)
     if list_form:
-        value = [item.strip() for item in config.get(section, option).strip().split(SystemSettings.CONFIG_LIST_SEPARATOR)]
+        value = [item.strip() for item in config.get(section, option).strip().split(SS.CONFIG_LIST_SEPARATOR)]
     else:
         value = config.get(section, option).strip()
     return value

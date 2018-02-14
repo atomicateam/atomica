@@ -6,14 +6,14 @@ This includes a description of the Markov chain network underlying project dynam
 """
 
 from optimacore.system import SystemSettings as SS
-from optimacore.framework_settings import FrameworkSettings as FS
-from optimacore.framework_settings import DatabookSettings as DS
+from optimacore.structure_settings import FrameworkSettings as FS
+from optimacore.structure_settings import DatabookSettings as DS
 from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
 from optimacore.structure import CoreProjectStructure
 from optimacore.excel import extractHeaderColumnsMapping, extractExcelSheetValue
-from optimacore.framework_settings import TimeDependentValuesEntry
+from optimacore.structure_settings import TimeDependentValuesEntry
 
 import os
 import xlrd
