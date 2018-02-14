@@ -543,7 +543,7 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
                         if isinstance(content_type, SwitchType): 
                             if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
-                    # Reading currently allows extended columns but not rows.
+                    # For ease of coding, values for this table can span multiple columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
                     if not value is None: structure.addSpecAttribute(term = item_name, attribute = attribute, value = value)
             row += 1

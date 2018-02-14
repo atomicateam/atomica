@@ -147,11 +147,12 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
                     # Expand lists with additional cell contents if appropriate.
                     if ExcelSettings.FILTER_KEY_LIST in filters:
                         value = old_value + value
-                    # Otherwise, overwrite with a warning.
+                    # Otherwise, ignore with a warning.
                     else:
                         rc = xw.utility.xl_rowcol_to_cell(row, col)
                         logger.warning("Value '{0}' at cell '{1}' on page '{2}' is still considered part of the item and specification (i.e. header) located at cell '{3}'. "
-                                       "It will overwrite the previous value of '{4}'.".format(value, rc, excel_page.name, rc_start, old_value))
+                                       "It will be ignored for the previous value of '{4}'.".format(value, rc, excel_page.name, rc_start, old_value))
+                        value = old_value
             old_value = value
             col += 1
         col = start_col
@@ -162,14 +163,14 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
     if ExcelSettings.FILTER_KEY_BOOLEAN_YES in filters:
         if value == SS.DEFAULT_SYMBOL_YES: value = True
         else:
-            if not value == SS.DEFAULT_SYMBOL_NO:
+            if not value in [SS.DEFAULT_SYMBOL_NO, ""]:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SS.DEFAULT_SYMBOL_NO))
             value = ""
     if ExcelSettings.FILTER_KEY_BOOLEAN_NO in filters:
         if value == SS.DEFAULT_SYMBOL_NO: value = False
         else:
-            if not value == SS.DEFAULT_SYMBOL_YES:
+            if not value in [SS.DEFAULT_SYMBOL_YES, ""]:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SS.DEFAULT_SYMBOL_YES))
             value = ""

@@ -37,7 +37,7 @@ class CoreProjectStructure(object):
             raise OptimaException("Item creation of type '{0}', name '{1}', was supplied the following chain of keys, "
                                   "which does not exist in specifications: '{2}'".format(item_type, item_name, "', '".join([elem for pair in superitem_type_name_pairs for elem in pair])))
         if depth > 0: item_type += SS.DEFAULT_SUFFIX_PLURAL
-        if item_type not in self.specs: target_specs[item_type] = OrderedDict()
+        if item_type not in target_specs: target_specs[item_type] = OrderedDict()
         target_specs[item_type][item_name] = dict()
 
         key_list = [elem for pair in superitem_type_name_pairs for elem in pair]
