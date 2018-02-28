@@ -43,16 +43,34 @@ class CoreProjectStructure(object):
         key_list = [elem for pair in superitem_type_name_pairs for elem in pair]
         if key_list is None: key_list = []
         key_list.extend([item_type,item_name])
-        self.createSemantic(term = item_name, item_name = item_name, attribute = "name", key_list = key_list)
+        self.createSemantic(term = item_name, item_type = item_type, item_name = item_name, attribute = "name", key_list = key_list)
         
-    def addSpecAttribute(self, term, attribute, value):
-        item_name = self.getSpecName(term)
+    def addSpecAttribute(self, term, attribute, value, subkey = None):
         self.getSpec(term)[attribute] = value
         if attribute in ["label"]:
+            item_name = self.getSpecName(term)
             self.createSemantic(term = value, item_name = item_name, attribute = attribute)
+
+    def extendSpecAttribute(self, term, attribute, value, subkey = None):
+        """
+        Creates a list for a specification attribute if currently nonexistent, then extends or appends it by a value.
+        """
+        if attribute not in self.getSpec(term): self.getSpec(term)[attribute] = []
+        try: self.getSpec(term)[attribute].extend(value)
+        except:
+            try: self.getSpec(term)[attribute].append(value)
+            except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
+                                          "can be neither extended nor appended by value '{2}'.".format(attribute, term, value))
 
     def getSpecName(self, term):
         return self.getSemanticValue(term = term, attribute = "name")
+
+    def getSpecType(self, term):
+        """
+        Return the type of item that this specification belongs to.
+        Item type, like the referencing key list, is stored only in semantic structures keyed with item names.
+        """
+        return self.getSemanticValue(term = self.getSpecName(term), attribute = "type")
 
     def getSpec(self, term):
         semantic = self.getSemantic(self.getSpecName(term))
@@ -64,7 +82,7 @@ class CoreProjectStructure(object):
             return spec
         except: raise OptimaException("The item corresponding to term '{0}' could not be located in the semantics dictionary.".format(term))
 
-    def createSemantic(self, term, item_name, attribute, key_list = None):
+    def createSemantic(self, term, item_name, attribute, item_type = None, key_list = None):
         if term in self.semantics:
             other_attribute = self.semantics[term]["attribute"]
             other_name = self.semantics[term]["name"]
@@ -76,6 +94,10 @@ class CoreProjectStructure(object):
                 if not term == item_name:
                     raise OptimaException("Term '{0}' has been declared as the name of item with name '{1}'. "
                                           "This is a contradiction.".format(term, item_name))
+                if item_type is None:
+                    raise OptimaException("Term '{0}' is an item name. It must be associated with an item type in a semantics "
+                                          "dictionary for quick-reference purposes.".format(term))
+                else: self.semantics[term]["type"] = item_type
                 if key_list is None:
                     raise OptimaException("Term '{0}' is an item name. It must be associated with a key list in a semantics "
                                           "dictionary that points to where the item sits in a specifications dictionary.".format(term))
@@ -89,15 +111,6 @@ class CoreProjectStructure(object):
         semantic = self.getSemantic(term)
         try: return semantic[attribute]
         except: raise SemanticUnknownException(term = term, attribute = attribute)
-
-    @accepts(str)
-    def addTermToSemantics(self, term):
-        """ Insert a user-provided term into the semantics dictionary maintained by the project framework and ensure it is unique. """
-        if term in self.semantics:
-            error_message = ("Optima Core notes a term '{0}' that was defined previously. "
-                             "Duplicate terms are not allowed.".format(term))
-            raise OptimaException(error_message)
-        self.semantics[term] = dict()   # TODO: UPDATE THE VALUE WITH REFERENCES ONCE THE SPECS DICT IS COMPLETE.
 
     def completeSpecs(self):
         """

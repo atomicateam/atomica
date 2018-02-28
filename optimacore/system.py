@@ -42,6 +42,7 @@ class SystemSettings(object):
     DEFAULT_SYMBOL_YES = "y"
     DEFAULT_SYMBOL_NO = "n"
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
+    DEFAULT_SYMBOL_OR = "OR"
     DEFAULT_SUFFIX_PLURAL = "s"
     
 

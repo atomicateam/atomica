@@ -455,9 +455,9 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
 
     # Construct worksheet.
-    page_name = page_spec["title"]
-    logger.info("Creating page: {0}".format(page_name))
-    worksheet = workbook.add_worksheet(page_name)
+    page_title = page_spec["title"]
+    logger.info("Creating page: {0}".format(page_title))
+    worksheet = workbook.add_worksheet(page_title)
 
     # Propagate file-wide format variable values to page-wide format variable values.
     # Create the format variables if they were not passed in from a file-wide context.
@@ -560,53 +560,70 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
     next_row = row
     return next_row
 
-#def readContentsTDVE(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
+def readContentsTDVE(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
     
-#    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-#    item_type_spec = item_type_specs[item_type]
+    structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
+    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
+    assumption_header = "assumption".title()
+    if "assumption" in item_type_specs[structure.getSpecType(item_key)]["attributes"]: assumption_header = item_type_specs[structure.getSpecType(item_key)]["attributes"]["assumption"]["header"]
 
-#    if structure is None:
-#        top_structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-#        if item_type not in top_structure.specs: top_structure.specs[item_type] = OrderedDict()
-#        structure = top_structure.specs[item_type]
+    row, id_col = start_row, 0
+    keep_scanning = True
+    header_row = None
+    while keep_scanning and row < worksheet.nrows:
+        label = str(worksheet.cell_value(row, id_col))
+        if not label == "":
+            # The first label encounter is of the item that heads this table; verify it matches the item name associated with the table.
+            if header_row is None:
+                if not item_key == structure.getSpecName(label):
+                    raise OptimaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
+                                          "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name, item_key, label))
+                header_row = row
+            # All other label encounters are of an iterated type.
+            else:
+                col = id_col + 1
+                while col < worksheet.ncols:
+                    val = str(worksheet.cell_value(row, col))
+                    if not val in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
+                        try: val = float(val)
+                        except: raise OptimaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
+                        header = str(worksheet.cell_value(header_row, col))
+                        if header == assumption_header:
+                            structure. #OH NO ASSUMPTION
 
-#    row, label_col = start_row, 0
-#    item_name = ""
-#    keep_scanning = True
-#    while keep_scanning and row < worksheet.nrows:
-#        label = str(worksheet.cell_value(row, label_col))
-#        if label == item_key:
-#        row += 1
+                
 
-#        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]    # Only the first column matters for a name.
-#        test_name = str(worksheet.cell_value(row, name_col))
-#        if not test_name == "": item_name = test_name
-#        if not item_name == "":
-#            if not item_name in structure: structure[item_name] = dict()
-#            for attribute in item_type_spec["attributes"]:
-#                if attribute == "name": continue
-#                attribute_spec = item_type_spec["attributes"][attribute]
-#                if "ref_item_type" in attribute_spec:
-#                    if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
-#                    readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
-#                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
-#                                               framework = framework, data = data, workbook_type = workbook_type,
-#                                               structure = structure[item_name][attribute])
-#                else:
-#                    start_col, last_col = header_columns_map[attribute_spec["header"]]
-#                    content_type = attribute_spec["content_type"]
-#                    filters = []
-#                    if not content_type is None:
-#                        if content_type.is_list: filters.append(ES.FILTER_KEY_LIST)
-#                        if isinstance(content_type, SwitchType): 
-#                            if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
-#                            else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
-#                    # Reading currently allows extended columns but not rows.
-#                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-#                    if not value is None: structure[item_name][attribute] = value
-#        row += 1
-#    next_row = row
-#    return next_row
+        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]    # Only the first column matters for a name.
+        test_name = str(worksheet.cell_value(row, name_col))
+        if not test_name == "": item_name = test_name
+        if not item_name == "":
+            if not item_name in structure: structure[item_name] = dict()
+            for attribute in item_type_spec["attributes"]:
+                if attribute == "name": continue
+                attribute_spec = item_type_spec["attributes"][attribute]
+                if "ref_item_type" in attribute_spec:
+                    if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
+                    readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
+                                               framework = framework, data = data, workbook_type = workbook_type,
+                                               structure = structure[item_name][attribute])
+                else:
+                    start_col, last_col = header_columns_map[attribute_spec["header"]]
+                    content_type = attribute_spec["content_type"]
+                    filters = []
+                    if not content_type is None:
+                        if content_type.is_list: filters.append(ES.FILTER_KEY_LIST)
+                        if isinstance(content_type, SwitchType): 
+                            if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
+                            else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
+                    # Reading currently allows extended columns but not rows.
+                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
+                    if not value is None: structure[item_name][attribute] = value
+        else:
+            if not spec is None: keep_scanning = False
+            row += 1
+    next_row = row
+    return next_row
 
 def readTimeDependentValuesEntry(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
 
@@ -628,10 +645,11 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
         core_item_type = table.item_type
         row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row,
                                      framework = framework, data = data, workbook_type = workbook_type)
-    #if isinstance(table, TimeDependentValuesEntry):
-    #    core_item_type = table.item_type
-    #    row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row,
-    #                                 framework = framework, data = data, workbook_type = workbook_type)
+    if isinstance(table, TimeDependentValuesEntry):
+        item_key = table.item_key
+        iterated_type = table.iterated_type
+        row = readDetailColumns(worksheet = worksheet, item_key = item_key, iterated_type = iterated_type, start_row = row,
+                                     framework = framework, data = data, workbook_type = workbook_type)
     
     next_row, next_col = row, col
     return next_row, next_col
@@ -642,6 +660,7 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
 
     try: 
         page_title = page_spec["title"]
+        logger.info("Importing page: {0}".format(page_title))
         worksheet = workbook.sheet_by_name(page_title)
     except:
         logger.error("Workbook does not contain a required page titled '{0}'.".format(page_title))
@@ -657,6 +676,8 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
 def readWorkbook(workbook_path, framework = None, data = None, workbook_type = None):
 
     page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
+
+    logger.info("Importing a {0}: {1}".format(displayName(workbook_type), workbook_path))
 
     workbook_path = os.path.abspath(workbook_path)
     try: workbook = xlrd.open_workbook(workbook_path)

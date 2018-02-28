@@ -5,4 +5,4 @@ Standard location for module version number and date.
 """
 
 __version__ = "0.4.0"
-__updated__ = "2018-02-14"
+__updated__ = "2018-02-28"

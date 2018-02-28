@@ -72,7 +72,7 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
     if default_values is None: default_values = [0.0]*num_items
 
     row, col = start_row, start_col
-    excel_page.write(row, col, "Assumption", formats["center_bold"])
+    excel_page.write(row, col, "assumption".title(), formats["center_bold"])
     if len(time_vector) > 0:
         col += 2
         for t_val in time_vector:
@@ -85,7 +85,7 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
         rc_end = xw.utility.xl_rowcol_to_cell(row, col + 1 + len(time_vector))
         if len(time_vector) > 0:
             excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), default_values[item_number])
-            excel_page.write(row, col + 1, 'OR', formats["center"])
+            excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats["center"])
         else: excel_page.write(row, col, default_values[item_number])
 
     last_row, last_col = row, start_col + 1 + len(time_vector)

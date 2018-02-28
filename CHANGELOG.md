@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.0 (2018-02-14): Structure-Workbook Interfacing
+## 0.4.0 (2018-02-28): Structure-Workbook Interfacing
 
 Features
 - Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py
