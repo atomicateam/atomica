@@ -34,6 +34,22 @@ class ExcelSettings(object):
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
 
+    # Details for the value entry block function.
+    # TODO: Consider shifting this to table specs in structure settings.
+    ASSUMPTION_HEADER = "constant".title()
+    ASSUMPTION_COLUMN_WIDTH = 10
+    ASSUMPTION_COMMENT_XSCALE = 3
+    ASSUMPTION_COMMENT_YSCALE = 3
+    ASSUMPTION_COMMENT = ("This column should be filled with default values used by the model.\n"
+                          "If the option to provide time-dependent values exists, then "
+                          "this can be considered a time-independent assumption.\n"
+                          "In this case, if any time-dependent values are entered, the "
+                          "Excel sheet will attempt to explicitly mark the corresponding "
+                          "cell as inapplicable.\n"
+                          "Alternatively, the user can leave the cell blank.\n"
+                          "However, any other value will override the time-dependent "
+                          "values during a model run.")
+
 #%% Utility functions for writing.
 
 @logUsage
@@ -72,7 +88,11 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
     if default_values is None: default_values = [0.0]*num_items
 
     row, col = start_row, start_col
-    excel_page.write(row, col, "assumption".title(), formats["center_bold"])
+    excel_page.write(row, col, ExcelSettings.ASSUMPTION_HEADER, formats["center_bold"])
+    excel_page.write_comment(row, col, ExcelSettings.ASSUMPTION_COMMENT, 
+                             {"x_scale": ExcelSettings.ASSUMPTION_COMMENT_XSCALE, 
+                              "y_scale": ExcelSettings.ASSUMPTION_COMMENT_YSCALE})
+    excel_page.set_column(col, col, ExcelSettings.ASSUMPTION_COLUMN_WIDTH)
     if len(time_vector) > 0:
         col += 2
         for t_val in time_vector:

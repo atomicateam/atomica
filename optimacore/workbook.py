@@ -352,25 +352,20 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
     
     row, col = start_row, start_col
 
-    for attribute in ["label","assumption"]:
-        if attribute in item_type_specs[item_type]["attributes"]:
-            attribute_spec = item_type_specs[item_type]["attributes"][attribute]
-            for format_variable_key in format_variables:
-                if format_variable_key in attribute_spec:
-                    format_variables[format_variable_key] = attribute_spec[format_variable_key]
-            if attribute == "label":
-                try: header = item_specs[item_type][item_key][attribute]
-                except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
-            else:
-                header = attribute_spec["header"]
-            worksheet.write(row, col, header, formats["center_bold"])
-            if "comment" in attribute_spec:
-                header_comment = attribute_spec["comment"]
-                worksheet.write_comment(row, col, header_comment, 
-                                        {"x_scale": format_variables[ES.KEY_COMMENT_XSCALE], 
-                                         "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
-            worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
-            col += 1
+    attribute = "label"
+    attribute_spec = item_type_specs[item_type]["attributes"][attribute]
+    for format_variable_key in format_variables:
+        if format_variable_key in attribute_spec:
+            format_variables[format_variable_key] = attribute_spec[format_variable_key]
+    try: header = item_specs[item_type][item_key][attribute]
+    except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
+    worksheet.write(row, col, header, formats["center_bold"])
+    if "comment" in attribute_spec:
+        header_comment = attribute_spec["comment"]
+        worksheet.write_comment(row, col, header_comment, 
+                                {"x_scale": format_variables[ES.KEY_COMMENT_XSCALE], 
+                                 "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
+    worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
 
     row += 1
     next_row = row
@@ -401,7 +396,6 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     row, col = start_row, start_col
 
     # Create the standard value entry block, extracting the number of items from instructions.
-    # This is done first so that headers and formatting can be overwritten if required.
     # TODO: Adjust this for when writing existing values to workbook.
     # TODO: Decide what to do about time.
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
@@ -560,12 +554,10 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
     next_row = row
     return next_row
 
-def readContentsTDVE(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, structure = None):
+def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None, data = None, workbook_type = None):
     
+    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    assumption_header = "assumption".title()
-    if "assumption" in item_type_specs[structure.getSpecType(item_key)]["attributes"]: assumption_header = item_type_specs[structure.getSpecType(item_key)]["attributes"]["assumption"]["header"]
 
     row, id_col = start_row, 0
     keep_scanning = True
@@ -575,9 +567,12 @@ def readContentsTDVE(worksheet, item_type, start_row, header_columns_map, stop_r
         if not label == "":
             # The first label encounter is of the item that heads this table; verify it matches the item name associated with the table.
             if header_row is None:
-                if not item_key == structure.getSpecName(label):
+                if not label == item_specs[item_type][item_key]["label"]:
                     raise OptimaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
                                           "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name, item_key, label))
+                else:
+                    structure.createItem(item_name = item_key, item_type = item_type)
+                    structure.addSpecAttribute(term = item_key, attribute = "label", value = label)
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
@@ -588,50 +583,21 @@ def readContentsTDVE(worksheet, item_type, start_row, header_columns_map, stop_r
                         try: val = float(val)
                         except: raise OptimaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         header = str(worksheet.cell_value(header_row, col))
-                        if header == assumption_header:
-                            structure. #OH NO ASSUMPTION
-
-                
-
-        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]    # Only the first column matters for a name.
-        test_name = str(worksheet.cell_value(row, name_col))
-        if not test_name == "": item_name = test_name
-        if not item_name == "":
-            if not item_name in structure: structure[item_name] = dict()
-            for attribute in item_type_spec["attributes"]:
-                if attribute == "name": continue
-                attribute_spec = item_type_spec["attributes"][attribute]
-                if "ref_item_type" in attribute_spec:
-                    if attribute not in structure[item_name]: structure[item_name][attribute] = OrderedDict()
-                    readContents(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
-                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
-                                               framework = framework, data = data, workbook_type = workbook_type,
-                                               structure = structure[item_name][attribute])
-                else:
-                    start_col, last_col = header_columns_map[attribute_spec["header"]]
-                    content_type = attribute_spec["content_type"]
-                    filters = []
-                    if not content_type is None:
-                        if content_type.is_list: filters.append(ES.FILTER_KEY_LIST)
-                        if isinstance(content_type, SwitchType): 
-                            if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
-                            else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
-                    # Reading currently allows extended columns but not rows.
-                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if not value is None: structure[item_name][attribute] = value
+                        if header == ES.ASSUMPTION_HEADER:
+                            structure.addSpecAttribute(term = item_key, attribute = "assumption", value = val, subkey = structure.getSpecName(label))
+                            break
         else:
-            if not spec is None: keep_scanning = False
-            row += 1
+            if not header_row is None: keep_scanning = False
+        row += 1
     next_row = row
     return next_row
 
-def readTimeDependentValuesEntry(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
+def readTimeDependentValuesEntry(worksheet, item_type, item_key, start_row, framework = None, data = None, workbook_type = None):
+    """ TODO: Decide if necessary. """
 
     row = start_row
-    header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
-    row += 1
-    row = readContentsTDVE(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
-                       framework = framework, data = data, workbook_type = workbook_type)
+    row = readContentsTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key, start_row = start_row, 
+                           framework = framework, data = data, workbook_type = workbook_type)
     next_row = row
     return next_row
 
@@ -646,10 +612,10 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
         row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row,
                                      framework = framework, data = data, workbook_type = workbook_type)
     if isinstance(table, TimeDependentValuesEntry):
+        item_type = table.item_type
         item_key = table.item_key
-        iterated_type = table.iterated_type
-        row = readDetailColumns(worksheet = worksheet, item_key = item_key, iterated_type = iterated_type, start_row = row,
-                                     framework = framework, data = data, workbook_type = workbook_type)
+        row = readTimeDependentValuesEntry(worksheet = worksheet, item_type = item_type, item_key = item_key, start_row = start_row, 
+                                           framework = framework, data = data, workbook_type = workbook_type)
     
     next_row, next_col = row, col
     return next_row, next_col

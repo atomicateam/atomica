@@ -6,6 +6,7 @@ from collections import OrderedDict
 
 class SemanticUnknownException(OptimaException):
     def __init__(self, term, attribute = None, **kwargs):
+        extra_message = ""
         if not attribute is None: extra_message = ", attribute {0},".format(attribute)
         message = "Term '{0}'{1} is not recognised by the project.".format(term, extra_message)
         return super().__init__(message, **kwargs)
@@ -46,7 +47,11 @@ class CoreProjectStructure(object):
         self.createSemantic(term = item_name, item_type = item_type, item_name = item_name, attribute = "name", key_list = key_list)
         
     def addSpecAttribute(self, term, attribute, value, subkey = None):
-        self.getSpec(term)[attribute] = value
+        spec = self.getSpec(term)
+        if subkey is None: spec[attribute] = value
+        else:
+            if not attribute in spec: spec[attribute] = dict()
+            spec[attribute][subkey] = value
         if attribute in ["label"]:
             item_name = self.getSpecName(term)
             self.createSemantic(term = value, item_name = item_name, attribute = attribute)
@@ -54,13 +59,25 @@ class CoreProjectStructure(object):
     def extendSpecAttribute(self, term, attribute, value, subkey = None):
         """
         Creates a list for a specification attribute if currently nonexistent, then extends or appends it by a value.
+        Attribute can be treated as a dictionary with key 'subkey'.
         """
-        if attribute not in self.getSpec(term): self.getSpec(term)[attribute] = []
-        try: self.getSpec(term)[attribute].extend(value)
-        except:
-            try: self.getSpec(term)[attribute].append(value)
-            except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
-                                          "can be neither extended nor appended by value '{2}'.".format(attribute, term, value))
+        spec = self.getSpec(term)
+        if subkey is None: 
+            if attribute not in spec: spec[attribute] = []
+            try: spec[attribute].extend(value)
+            except:
+                try: spec[attribute].append(value)
+                except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
+                                              "can neither be extended nor appended by value '{2}'.".format(attribute, term, value))
+        else:
+            if not attribute in spec: spec[attribute] = dict()
+            if not subkey in spec[attribute]: spec[attribute][subkey] = []
+            try: spec[attribute][subkey].extend(value)
+            except:
+                try: spec[attribute][subkey].append(value)
+                except: raise OptimaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
+                                              "can neither be extended nor appended by value '{3}'.".format(attribute, subkey, term, value))
+
 
     def getSpecName(self, term):
         return self.getSemanticValue(term = term, attribute = "name")
