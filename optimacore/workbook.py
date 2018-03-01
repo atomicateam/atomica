@@ -5,7 +5,7 @@ from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock, extractHeaderColumnsMapping, extractExcelSheetValue
-from optimacore.structure_settings import DetailColumns, TimeDependentValuesEntry, LabelType, NameType, SwitchType, AttributeReference, SuperReference, ExtraSelfReference
+from optimacore.structure_settings import DetailColumns, TimeDependentValuesEntry, IDType, IDRefListType, SwitchType
 from optimacore.framework import ProjectFramework
 
 import os
@@ -152,36 +152,43 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     validation_source = None
     rc = xw.utility.xl_rowcol_to_cell(row, col)
 
-    # Determine if this cell content references another cell.
+    # Set up default content type and reference information.
     content_type = None
-    reference_type = None
+    do_reference = False
     other_item_type = None
     other_attribute = None
+
+    # Determine content type and prepare for referencing if appropriate.
     if "content_type" in attribute_spec: content_type = attribute_spec["content_type"]
-    if isinstance(content_type, AttributeReference): reference_type = dcp(content_type)
-    # Content types that are references to superitem attributes copy their content type.
-    # This is so that they can produce their own content which is then prepended by superitem attributes.
-    if isinstance(content_type, SuperReference):
-        content_type = item_type_specs[reference_type.other_item_type]["attributes"][reference_type.other_attribute]["content_type"]
-                    
+    if isinstance(content_type, IDRefListType):
+        do_reference = True
+        if not content_type.other_item_types is None:
+            other_item_type = content_type.other_item_types[0]
+            other_attribute = content_type.attribute
+                  
     # Content associated with standard content types is set up here.
-    if isinstance(content_type, LabelType) or isinstance(content_type, NameType):
-        # Name and label attributes reference early constructions of themselves if possible.
-        # However, this only the case if the attribute content is not already a reference type.
-        # Refactoring the code to allow for compound referencing is deemed unnecessary for now.
-        if (reference_type is None and item_type in temp_storage and 
-            attribute in temp_storage[item_type] and len(temp_storage[item_type][attribute]["list_content"]) > item_number):
-            reference_type = "passkey"  # Is not a reference type object but will allow one-to-one referencing to take place.
+    if isinstance(content_type, IDType):
+        # Prepare for referencing if this attribute has a superitem type.
+        if not content_type.superitem_type is None:
+            do_reference = True
+            other_item_type = content_type.superitem_type
+            other_attribute = attribute
+        # Name and label attributes, i.e. those of ID type, reference earlier constructions of themselves if possible.
+        # This is excluded for subitems due to their complicated form of content construction.
+        if (not do_reference and item_type in temp_storage 
+            and attribute in temp_storage[item_type] and len(temp_storage[item_type][attribute]["list_content"]) > item_number):
+            do_reference = True       # Is not a reference type object but will allow one-to-one referencing to take place.
             other_item_type = item_type
             other_attribute = attribute
+        # Otherwise construct content with a prefix if provided.
         else:
-            content = str(item_number)     # The default is the number of this item.
-            if isinstance(content_type, LabelType):
-                space = SS.DEFAULT_SPACE_LABEL
-                sep = SS.DEFAULT_SEPARATOR_LABEL
-            else:
+            content = str(item_number)     # The default content is the number of this item.
+            if content_type.name_not_label:
                 space = SS.DEFAULT_SPACE_NAME
                 sep = SS.DEFAULT_SEPARATOR_NAME
+            else:
+                space = SS.DEFAULT_SPACE_LABEL
+                sep = SS.DEFAULT_SEPARATOR_LABEL
             if "prefix" in attribute_spec:
                 content = attribute_spec["prefix"] + space + content
     elif isinstance(content_type, SwitchType):
@@ -191,34 +198,40 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     content_backup = content
 
     # References to other content are constructed here.
-    if not reference_type is None:
+    if do_reference is True:
         list_id = item_number
-        # Super-based references link subitem attributes to corresponding superitem attributes.
+
+        # Superitem-based references link subitem attributes to corresponding superitem attributes.
         # Because subitem displays are meant to be created instantly after superitems, the superitem referenced is the last one stored.
-        if isinstance(reference_type, SuperReference): list_id = -1
-        if other_item_type is None: other_item_type = reference_type.other_item_type
-        if other_attribute is None: other_attribute = reference_type.other_attribute
-        try: stored_refs = temp_storage[other_item_type][other_attribute]
-        except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = other_item_type, ref_attribute = other_attribute)
-        # For one-to-one referencing, do not create content for tables that extend beyond the length of the referenced table.
-        if len(stored_refs["list_content"]) > list_id:
-            content_page = ""
-            if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
-            ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
-            ref_content_backup = stored_refs["list_content_backup"][list_id]
-            if isinstance(reference_type, SuperReference):
-                content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
-                content_backup = ref_content_backup + sep + content_backup
-            else:
-                content = ref_content
-                content_backup = ref_content_backup
-        # Append a self-based reference to the content, which should be to an attribute of the same item a row ago.
-        if isinstance(reference_type, ExtraSelfReference) and reference_type.is_list is True and item_number > 0: 
+        if isinstance(content_type, IDType) and not content_type.superitem_type is None: list_id = -1
+
+        # If there is another item type to reference, proceed with referencing its ID.
+        if not other_item_type is None:
+            try: stored_refs = temp_storage[other_item_type][other_attribute]
+            except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = other_item_type, ref_attribute = other_attribute)
+        
+            # For one-to-one referencing, do not create content for tables that extend beyond the length of the referenced table.
+            if len(stored_refs["list_content"]) > list_id:
+                content_page = ""
+                if not stored_refs["page_title"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_title"])
+                ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
+                ref_content_backup = stored_refs["list_content_backup"][list_id]
+
+                if isinstance(content_type, IDType) and not content_type.superitem_type is None:
+                    content = "=CONCATENATE({0},\"{1}\")".format(ref_content.lstrip("="), sep + content)
+                    content_backup = ref_content_backup + sep + content_backup
+                else:
+                    content = ref_content
+                    content_backup = ref_content_backup
+
+        # If the content is marked to reference its own item type, append the ID to current content.
+        # This reference should be to an ID of the same item a row ago.
+        if isinstance(content_type, IDRefListType) and content_type.self_referencing and item_number > 0: 
             list_id = item_number - 1
-            try: stored_refs = temp_storage[reference_type.own_item_type][reference_type.own_attribute]
-            except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = reference_type.own_item_type, ref_attribute = reference_type.own_attribute)
+            try: stored_refs = temp_storage[item_type][content_type.attribute]
+            except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = item_type, ref_attribute = content_type.attribute)
             content_page = ""
-            if not stored_refs["page_label"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_label"])
+            if not stored_refs["page_title"] == worksheet.name: content_page = "'{0}'!".format(stored_refs["page_title"])
             ref_content = "={0}{1}".format(content_page, stored_refs["list_cell"][list_id])
             ref_content_backup = stored_refs["list_content_backup"][list_id]
             if content == "":
@@ -230,8 +243,8 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
                 content = "=CONCATENATE({0},\"{1}\",{2})".format(content, ES.LIST_SEPARATOR, ref_content.lstrip("="))
                 content_backup = content_backup + ES.LIST_SEPARATOR + ref_content_backup
 
-    # Store the contents of this attribute for referencing by other attributes if required.
-    if "is_ref" in attribute_spec and attribute_spec["is_ref"] is True:
+    # If content is of ID type, store it for referencing by other relevant attributes later.
+    if isinstance(content_type, IDType):
         if not item_type in temp_storage: temp_storage[item_type] = {}
         if not attribute in temp_storage[item_type]: temp_storage[item_type][attribute] = {"list_content":[],"list_content_backup":[],"list_cell":[]}
         # Make sure the attribute does not already have stored values associated with it.
@@ -239,7 +252,7 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
             temp_storage[item_type][attribute]["list_content"].append(content)
             temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
             temp_storage[item_type][attribute]["list_cell"].append(rc)
-            temp_storage[item_type][attribute]["page_label"] = worksheet.name
+            temp_storage[item_type][attribute]["page_title"] = worksheet.name
 
     # Actually write the content, using a backup value where the content is an equation and may not be calculated.
     # This lack of calculation occurs when Excel files are not opened before writing and reading phases.
@@ -586,6 +599,10 @@ def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None
                         if header == ES.ASSUMPTION_HEADER:
                             structure.addSpecAttribute(term = item_key, attribute = "assumption", value = val, subkey = structure.getSpecName(label))
                             break
+                        else:
+                            try: time = float(header)
+                            except: raise OptimaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
+
         else:
             if not header_row is None: keep_scanning = False
         row += 1

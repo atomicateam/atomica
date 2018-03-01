@@ -32,7 +32,7 @@ class TableTemplate(TableType):
     """
     Structure indicating a table should be duplicated for each existing instance of an item type.
     In settings, item key should always be left as None, with the template to be instantiated by other external functions.
-    Because instances of an item only exist after a framework file is read in, this table type only appears in a databook.
+    Because instances of an item only exist after a framework file is read in, this table type should only appear in a databook.
     """
     def __init__(self, item_type, item_key = None):
         super(TableTemplate,self).__init__()
@@ -45,50 +45,65 @@ class TimeDependentValuesEntry(TableTemplate):
         self.iterated_type = iterated_type
 
 class ContentType(object):
-    """ Lightweight structure to associate the contents of an item attribute with rules for IO. """
+    """ Structure to describe the contents of an item attribute. """
     def __init__(self, is_list = False): self.is_list = is_list
-class LabelType(ContentType):
+class IDType(ContentType):
     """
-    Structure to associate the contents of an item attribute with display label formats.
+    Structure to associate the contents of an item attribute with code name or display label formats.
     Indicates to the associated attribute that repeat sections in a workbook should reference the initial section.
-    Any attribute with this content type should be marked with a True value for "is_ref" to utilize referencing rules.
+    Can store a reference to a 'superitem_type' so that ID is prepended by the ID of the superitem during template-writing operations.
     """
-    def __init__(self): super(LabelType,self).__init__()
-class NameType(ContentType):
+    def __init__(self, name_not_label = True, superitem_type = None): 
+        super(IDType,self).__init__(is_list = False)
+        self.name_not_label = name_not_label
+        self.superitem_type = superitem_type
+class IDRefListType(ContentType):
     """
-    Structure to associate the contents of an item attribute with code name formats.
-    Indicates to the associated attribute that repeat sections in a workbook should reference the initial section.
-    Any attribute with this content type should be marked with a True value for "is_ref" to utilize referencing rules.
+    Structure to associate the contents of an item attribute with lists of IDs belonging to items of specified types.
+    Argument 'other_item_types' should be a list of other item types that the contents can reference.
+    Argument 'attribute' should, assuming standard terminology, be 'name' or 'label'.
+    If argument 'self_referencing' is True, the item type of the attribute is also included with other item types. 
     """
-    def __init__(self): super(NameType,self).__init__()
+    def __init__(self, attribute, item_types = None, self_referencing = False):
+        super(IDRefListType,self).__init__(is_list = True)
+        self.attribute = attribute
+        self.other_item_types = item_types
+        self.self_referencing = self_referencing
 class SwitchType(ContentType):
-    """ Structure to associate the contents of an item attribute with boolean flags. """
-    def __init__(self, default_on = False, **kwargs):
-        super(SwitchType,self).__init__(**kwargs)
+    """
+    Structure to associate the contents of an item attribute with boolean flags.
+    Content with no value defaults to the value of argument 'default_on'.
+    """
+    def __init__(self, default_on = False):
+        super(SwitchType,self).__init__(is_list = False)
         self.default_on = default_on
-class AttributeReference(ContentType):
-    """ Structure to have the contents of an item type attribute reference those of another item type attribute. """
-    def __init__(self, item_type_specs, other_item_type, other_attribute, **kwargs):
-        super(AttributeReference,self).__init__(**kwargs)
-        self.other_item_type = other_item_type
-        self.other_attribute = other_attribute
-        item_type_specs[other_item_type]["attributes"][other_attribute]["is_ref"] = True
-class SuperReference(AttributeReference):
-    """
-    Structure to have the contents of an item type attribute reference those of a superitem type attribute.
-    Contents for the attribute will be produced as usual, but prepended by values of the superitem type attribute.
-    """
-    def __init__(self, **kwargs): super(SuperReference,self).__init__(**kwargs)
-class ExtraSelfReference(AttributeReference):
-    """
-    Structure to have the contents of an item type attribute reference those of another item type attribute.
-    It can also reference another attribute of the same item.
-    """
-    def __init__(self, item_type_specs, own_item_type, own_attribute, **kwargs):
-        super(ExtraSelfReference,self).__init__(item_type_specs = item_type_specs, **kwargs)
-        self.own_item_type = own_item_type
-        self.own_attribute = own_attribute
-        item_type_specs[own_item_type]["attributes"][own_attribute]["is_ref"] = True
+
+
+# TODO: INTRODUCE TUPLE CLASS. KEY AT THIS LEVEL.
+
+#class AttributeReference(ContentType):
+#    """ Structure to have the contents of an item type attribute reference those of another item type attribute. """
+#    def __init__(self, item_type_specs, other_item_type, other_attribute, **kwargs):
+#        super(AttributeReference,self).__init__(**kwargs)
+#        self.other_item_type = other_item_type
+#        self.other_attribute = other_attribute
+#        item_type_specs[other_item_type]["attributes"][other_attribute]["is_ref"] = True
+#class SuperRefIDType(IDType): #AttributeReference):
+#    """
+#    Structure to have the contents of an item type attribute reference those of a superitem type attribute.
+#    Intended implementation: is to have contents for the attribute will be produced as usual, but prepended by values of the superitem type attribute.
+#    """
+#    def __init__(self, **kwargs): super(SuperReference,self).__init__(**kwargs)
+#class ExtraSelfReference(AttributeReference):
+#    """
+#    Structure to have the contents of an item type attribute reference those of another item type attribute.
+#    It can also reference another attribute of the same item.
+#    """
+#    def __init__(self, item_type_specs, own_item_type, own_attribute, **kwargs):
+#        super(ExtraSelfReference,self).__init__(item_type_specs = item_type_specs, **kwargs)
+#        self.own_item_type = own_item_type
+#        self.own_attribute = own_attribute
+#        item_type_specs[own_item_type]["attributes"][own_attribute]["is_ref"] = True
 
 class BaseStructuralSettings():
     NAME = "general_workbook"
@@ -121,16 +136,16 @@ class BaseStructuralSettings():
 
     @classmethod
     @logUsage
-    def createPageTable(cls, item_type, table):
-        cls.PAGE_SPECS[item_type]["tables"].append(table)
-
-    @classmethod
-    @logUsage
     def createPageSpecs(cls):
         cls.PAGE_SPECS = OrderedDict()
         for page_key in cls.PAGE_KEYS:
             cls.PAGE_SPECS[page_key] = {"title":page_key.title()}
             cls.PAGE_SPECS[page_key]["tables"] = []
+
+    @classmethod
+    @logUsage
+    def createPageTable(cls, item_type, table):
+        cls.PAGE_SPECS[item_type]["tables"].append(table)
 
     @classmethod
     @logUsage
@@ -143,22 +158,12 @@ class BaseStructuralSettings():
 
     @classmethod
     @logUsage
-    def createItemTypeAttribute(cls, item_type, attributes, content_type = None, is_ref = False):
+    def createItemTypeAttributes(cls, item_type, attributes, content_type = None):
         for attribute in attributes:
             attribute_dict = {"header":SS.DEFAULT_SPACE_LABEL.join([item_type, attribute]).title(),
                               "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute, item_type),
                               "content_type":content_type}
-            if is_ref: attribute_dict["is_ref"] = True
             cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute] = attribute_dict
-    
-    @classmethod
-    @logUsage
-    def createItemTypeSubitemTypes(cls, item_type, subitem_types):
-        for subitem_type in subitem_types:
-            attribute_dict = {"ref_item_type":subitem_type}
-            cls.ITEM_TYPE_SPECS[item_type]["attributes"][subitem_type + SS.DEFAULT_SUFFIX_PLURAL] = attribute_dict
-            for attribute in ["name","label"]:
-                cls.ITEM_TYPE_SPECS[subitem_type]["attributes"][attribute]["content_type"] = SuperReference(item_type_specs = cls.ITEM_TYPE_SPECS, other_item_type = item_type, other_attribute = attribute)
     
     @classmethod
     @logUsage
@@ -170,9 +175,19 @@ class BaseStructuralSettings():
             cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
             cls.createItemTypeDescriptor(item_type = item_type, descriptor = item_type)
             # All items have a code name and display label.
-            # As they are frequently used multiple times in workbooks as table keys, they must be marked as references so that initial content is linked to by cloned content.
-            cls.createItemTypeAttribute(item_type = item_type, attributes = ["label"], content_type = LabelType(), is_ref = True)
-            cls.createItemTypeAttribute(item_type = item_type, attributes = ["name"], content_type = NameType(), is_ref = True)
+            cls.createItemTypeAttributes(item_type = item_type, attributes = ["name"], content_type = IDType(name_not_label = True))
+            cls.createItemTypeAttributes(item_type = item_type, attributes = ["label"], content_type = IDType(name_not_label = False))
+
+    @classmethod
+    @logUsage
+    def createItemTypeSubitemTypes(cls, item_type, subitem_types):
+        for subitem_type in subitem_types:
+            attribute_dict = {"ref_item_type":subitem_type}
+            cls.ITEM_TYPE_SPECS[item_type]["attributes"][subitem_type + SS.DEFAULT_SUFFIX_PLURAL] = attribute_dict
+            # Item type specs and ID type contents should have been created and declared before this function.
+            # The subitem ID attributes should only need to update references to a superitem.
+            for attribute in ["name","label"]:
+                cls.ITEM_TYPE_SPECS[subitem_type]["attributes"][attribute]["content_type"].superitem_type = item_type
 
     @classmethod
     @logUsage
@@ -258,7 +273,7 @@ def createSpecs(undecorated_class):
         undecorated_class.elaborateStructure()
         loadConfigFile(undecorated_class)
     except:
-        logger.error("Class '{0}' is unable to access required base class methods for creating specifications. "
+        logger.error("Class '{0}' is unable to process required base class methods for creating specifications. "
                      "Import failed.".format(undecorated_class.__name__))
         raise ImportError
     return undecorated_class
@@ -282,11 +297,10 @@ class FrameworkSettings(BaseStructuralSettings):
             if item_type in cls.PAGE_SPECS:
                 cls.PAGE_SPECS[item_type]["tables"].append(DetailColumns(item_type))
 
-        cls.createItemTypeAttribute(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
-        cls.createItemTypeAttribute(cls.KEY_CHARACTERISTIC, ["includes"], 
-                                    content_type = ExtraSelfReference(cls.ITEM_TYPE_SPECS, other_item_type = cls.KEY_COMPARTMENT, other_attribute = "name", 
-                                                                      own_item_type = cls.KEY_CHARACTERISTIC, own_attribute = "name", is_list = True))
-        cls.createItemTypeAttribute(cls.KEY_PARAMETER, ["tag_link"])
+        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
+        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
+                                     content_type = IDRefListType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True))
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["tag_link"])
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
         cls.createItemTypeSubitemTypes(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
@@ -306,8 +320,8 @@ class DatabookSettings(BaseStructuralSettings):
     @classmethod
     @logUsage
     def elaborateStructure(cls):
-        cls.createItemTypeAttribute(cls.KEY_CHARACTERISTIC, ["val"])
-        cls.createItemTypeAttribute(cls.KEY_PARAMETER, ["val"])
+        #cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["val"])
+        #cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["val"])
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))

@@ -103,7 +103,7 @@ class CoreProjectStructure(object):
         if term in self.semantics:
             other_attribute = self.semantics[term]["attribute"]
             other_name = self.semantics[term]["name"]
-            raise OptimaException("The term '{0}' has been defined previously as the '{1}' of item '{2}'."
+            raise OptimaException("The term '{0}' has been defined previously as the '{1}' of item '{2}'. "
                                   "Duplicate terms are not allowed.".format(term, other_attribute, other_name))
         else:
             self.semantics[term] = {"name":item_name, "attribute":attribute}

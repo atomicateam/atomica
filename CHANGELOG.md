@@ -3,14 +3,16 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.0 (2018-02-28): Structure-Workbook Interfacing
+## 0.4.0 (2018-03-01): Structure-Workbook Interfacing
 
 Features
 - Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py
   Fleshed out the semantics dictionary for easier access to specifications.
+- Developed table IO for time-dependent values.
 
 Edits
 - Unnecessary files have been deleted due to workbook IO consolidation.
+- `ContentType` classes have been refactored and renamed.
 
 ## 0.3.4 (2018-02-13): Workbook Construction Consolidation
 
