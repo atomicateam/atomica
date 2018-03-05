@@ -7,6 +7,7 @@ from optimacore.system import logger, OptimaException, accepts, prepareFilePath,
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock, extractHeaderColumnsMapping, extractExcelSheetValue
 from optimacore.structure_settings import DetailColumns, TimeDependentValuesEntry, IDType, IDRefListType, SwitchType
 from optimacore.framework import ProjectFramework
+from optimacore.structure import TimeSeries
 
 import os
 from collections import OrderedDict
@@ -567,7 +568,7 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
     next_row = row
     return next_row
 
-def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None, data = None, workbook_type = None):
+def readContentsTDVE(worksheet, item_type, item_key, iterated_type, value_attribute, start_row, framework = None, data = None, workbook_type = None):
     
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
@@ -575,6 +576,7 @@ def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None
     row, id_col = start_row, 0
     keep_scanning = True
     header_row = None
+    time_series = None
     while keep_scanning and row < worksheet.nrows:
         label = str(worksheet.cell_value(row, id_col))
         if not label == "":
@@ -584,8 +586,19 @@ def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None
                     raise OptimaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
                                           "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name, item_key, label))
                 else:
+                    # Do a quick scan of all row headers to determine keys for a TimeSeries object.
+                    quick_scan = True
+                    quick_row = row + 1
+                    keys = []
+                    while quick_scan and quick_row < worksheet.nrows:
+                        quick_label = str(worksheet.cell_value(quick_row, id_col))
+                        if quick_label == "": quick_scan = False
+                        else: keys.append(structure.getSpecName(quick_label))
+                        quick_row += 1
                     structure.createItem(item_name = item_key, item_type = item_type)
                     structure.addSpecAttribute(term = item_key, attribute = "label", value = label)
+                    time_series = TimeSeries(keys = keys)
+                    structure.addSpecAttribute(term = item_key, attribute = value_attribute, value = time_series)
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
@@ -597,11 +610,13 @@ def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None
                         except: raise OptimaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         header = str(worksheet.cell_value(header_row, col))
                         if header == ES.ASSUMPTION_HEADER:
-                            structure.addSpecAttribute(term = item_key, attribute = "assumption", value = val, subkey = structure.getSpecName(label))
+                            structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val)
                             break
                         else:
                             try: time = float(header)
                             except: raise OptimaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
+                            structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val, t = time)
+                    col += 1
 
         else:
             if not header_row is None: keep_scanning = False
@@ -609,11 +624,12 @@ def readContentsTDVE(worksheet, item_type, item_key, start_row, framework = None
     next_row = row
     return next_row
 
-def readTimeDependentValuesEntry(worksheet, item_type, item_key, start_row, framework = None, data = None, workbook_type = None):
+def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, value_attribute, start_row, framework = None, data = None, workbook_type = None):
     """ TODO: Decide if necessary. """
 
     row = start_row
-    row = readContentsTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key, start_row = start_row, 
+    row = readContentsTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key, 
+                           iterated_type = iterated_type, value_attribute = value_attribute, start_row = start_row, 
                            framework = framework, data = data, workbook_type = workbook_type)
     next_row = row
     return next_row
@@ -631,7 +647,10 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
     if isinstance(table, TimeDependentValuesEntry):
         item_type = table.item_type
         item_key = table.item_key
-        row = readTimeDependentValuesEntry(worksheet = worksheet, item_type = item_type, item_key = item_key, start_row = start_row, 
+        iterated_type = table.iterated_type
+        value_attribute = table.value_attribute
+        row = readTimeDependentValuesEntry(worksheet = worksheet, item_type = item_type, item_key = item_key,
+                                           iterated_type = iterated_type, value_attribute = value_attribute, start_row = start_row, 
                                            framework = framework, data = data, workbook_type = workbook_type)
     
     next_row, next_col = row, col

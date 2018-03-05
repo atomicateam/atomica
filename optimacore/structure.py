@@ -11,6 +11,41 @@ class SemanticUnknownException(OptimaException):
         message = "Term '{0}'{1} is not recognised by the project.".format(term, extra_message)
         return super().__init__(message, **kwargs)
 
+class TimeSeries(object):
+    """ A custom object for storing values associated with time points. """
+    def __init__(self, keys = None):
+        self.keys = ["t"]
+        self.values = list()
+
+        self.key_id_map = {"t":0}
+        if not keys is None:
+            for id, key in enumerate(keys):
+                if key == "t": raise OptimaException("The symbol 't' is already a reserved key for a TimeSeries object. "
+                                                     "It cannot be in the following list provided during construction: '{0}'".format("', '".join(keys)))
+                self.keys.append(key)
+                self.key_id_map[key] = id + 1
+
+        # Make an assumption tuple for the object, associated with a 't' value of 'None'.
+        self.values.append([None]*len(self.key_id_map))
+        self.t_id_map = {None:0}
+
+    def getValue(self, key, t = None):
+        try: return self.values[self.t_id_map[t]][self.key_id_map[key]]
+        except: raise OptimaException("Cannot locate value for '{0}' at time '{1}'.".format(key,t))
+
+    def setValue(self, key, value, t = None):
+        if not key in self.key_id_map: raise OptimaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
+        if t not in self.t_id_map:
+            self.values.append([t]+[None]*(len(self.key_id_map)-1))
+            self.t_id_map[t] = len(self.t_id_map)    
+        self.values[self.t_id_map[t]][self.key_id_map[key]] = value
+
+    def __repr__(self, **kwargs):
+        return "<TimeSeries Object, Keys: " + self.keys.__repr__(**kwargs) + ", Values: " + self.values.__repr__(**kwargs) + ">"
+
+
+
+
 @applyToAllMethods(logUsage)
 class CoreProjectStructure(object):
     """ A base object that contains details relating to instantiated items of types defined in relevant settings classes. """

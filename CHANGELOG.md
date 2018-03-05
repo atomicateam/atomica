@@ -3,12 +3,12 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.0 (2018-03-01): Structure-Workbook Interfacing
+## 0.4.0 (2018-03-06): Time-Dependent Databook Interfacing
 
 Features
 - Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py
   Fleshed out the semantics dictionary for easier access to specifications.
-- Developed table IO for time-dependent values.
+- Developed table IO for time-dependent values, including a TimeSeries object.
 
 Edits
 - Unnecessary files have been deleted due to workbook IO consolidation.

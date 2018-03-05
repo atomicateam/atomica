@@ -39,10 +39,14 @@ class TableTemplate(TableType):
         self.item_type = item_type
         self.item_key = item_key
 class TimeDependentValuesEntry(TableTemplate):
-    """ Template table requesting time-dependent values, with each instantiation iterating over an item type. """
-    def __init__(self, iterated_type, **kwargs):
+    """
+    Template table requesting time-dependent values, with each instantiation iterating over an item type.
+    Argument 'value_attribute' specifies which attribute within item specs should contain values.
+    """
+    def __init__(self, iterated_type, value_attribute, **kwargs):
         super(TimeDependentValuesEntry,self).__init__(**kwargs)
         self.iterated_type = iterated_type
+        self.value_attribute = value_attribute
 
 class ContentType(object):
     """ Structure to describe the contents of an item attribute. """
@@ -77,33 +81,15 @@ class SwitchType(ContentType):
     def __init__(self, default_on = False):
         super(SwitchType,self).__init__(is_list = False)
         self.default_on = default_on
+# TODO: Determine if type is necessary and, if so, implement restrictions.
+class TimeSeriesType(ContentType):
+    """
+    Structure to associate the contents of an item attribute with a TimeSeries object.
+    """
+    def __init__(self):
+        super(TimeSeriesType,self).__init__(is_list = False)
 
 
-# TODO: INTRODUCE TUPLE CLASS. KEY AT THIS LEVEL.
-
-#class AttributeReference(ContentType):
-#    """ Structure to have the contents of an item type attribute reference those of another item type attribute. """
-#    def __init__(self, item_type_specs, other_item_type, other_attribute, **kwargs):
-#        super(AttributeReference,self).__init__(**kwargs)
-#        self.other_item_type = other_item_type
-#        self.other_attribute = other_attribute
-#        item_type_specs[other_item_type]["attributes"][other_attribute]["is_ref"] = True
-#class SuperRefIDType(IDType): #AttributeReference):
-#    """
-#    Structure to have the contents of an item type attribute reference those of a superitem type attribute.
-#    Intended implementation: is to have contents for the attribute will be produced as usual, but prepended by values of the superitem type attribute.
-#    """
-#    def __init__(self, **kwargs): super(SuperReference,self).__init__(**kwargs)
-#class ExtraSelfReference(AttributeReference):
-#    """
-#    Structure to have the contents of an item type attribute reference those of another item type attribute.
-#    It can also reference another attribute of the same item.
-#    """
-#    def __init__(self, item_type_specs, own_item_type, own_attribute, **kwargs):
-#        super(ExtraSelfReference,self).__init__(item_type_specs = item_type_specs, **kwargs)
-#        self.own_item_type = own_item_type
-#        self.own_attribute = own_attribute
-#        item_type_specs[own_item_type]["attributes"][own_attribute]["is_ref"] = True
 
 class BaseStructuralSettings():
     NAME = "general_workbook"
@@ -300,7 +286,6 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
                                      content_type = IDRefListType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True))
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["tag_link"])
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
         cls.createItemTypeSubitemTypes(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
@@ -320,12 +305,14 @@ class DatabookSettings(BaseStructuralSettings):
     @classmethod
     @logUsage
     def elaborateStructure(cls):
-        #cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["val"])
-        #cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["val"])
+        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["values"], TimeSeriesType())
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["values"], TimeSeriesType())
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
-                                                                                         iterated_type = cls.KEY_POPULATION))
+                                                                                         iterated_type = cls.KEY_POPULATION,
+                                                                                         value_attribute = "values"))
         cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_PARAMETER,
-                                                                                    iterated_type = cls.KEY_POPULATION))
+                                                                                    iterated_type = cls.KEY_POPULATION,
+                                                                                    value_attribute = "values"))
