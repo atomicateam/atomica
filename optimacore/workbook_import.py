@@ -208,4 +208,6 @@ def readWorkbook(workbook_path, framework = None, data = None, workbook_type = N
         readWorksheet(workbook = workbook, page_key = page_key, 
                       framework = framework, data = data, workbook_type = workbook_type)
 
-    getTargetStructure(framework = framework, data = data, workbook_type = workbook_type).completeSpecs()
+    structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
+    structure.completeSpecs()
+    structure.name = workbook_path

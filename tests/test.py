@@ -12,6 +12,7 @@ from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
 from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
+from optimacore.structure_settings import DatabookSettings as DS
 
 import sys
 import pprint
@@ -49,6 +50,7 @@ class EverythingTest(unittest.TestCase):
         #print("-"*100)
         #pprint.pprint(self.proj.data.semantics)
         #print("-"*100)
+        #pprint.pprint(DS.ITEM_TYPE_SPECS)
         return None
     
     #def test_framework_example_import(self):

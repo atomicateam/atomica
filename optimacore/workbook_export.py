@@ -38,7 +38,8 @@ class WorkbookInstructions(object):
         elif workbook_type == SS.WORKBOOK_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
         else: raise WorkbookTypeException(workbook_type)
         for item_type in item_type_specs:
-            self.num_items[item_type] = item_type_specs[item_type]["default_amount"]
+            if item_type_specs[item_type]["instruction_allowed"]:
+                self.num_items[item_type] = item_type_specs[item_type]["default_amount"]
                           
     @accepts(str,int)
     def updateNumberOfItems(self, item_type, number):

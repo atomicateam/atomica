@@ -170,6 +170,8 @@ class BaseStructuralSettings():
             cls.ITEM_TYPE_SPECS[item_type] = dict()
             cls.ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
             cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
+            cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = False   # This key notes whether the item type appears in workbook instructions.
+            cls.ITEM_TYPE_SPECS[item_type]["superitem_type"] = None         # If this item type is a subitem of another item type, this key notes the superitem.
             cls.createItemTypeDescriptor(item_type = item_type, descriptor = item_type)
             # All items have a code name and display label.
             cls.createItemTypeAttributes(item_type = item_type, attributes = ["name"], content_type = IDType(name_not_label = True))
@@ -181,8 +183,10 @@ class BaseStructuralSettings():
         for subitem_type in subitem_types:
             attribute_dict = {"ref_item_type":subitem_type}
             cls.ITEM_TYPE_SPECS[item_type]["attributes"][subitem_type + SS.DEFAULT_SUFFIX_PLURAL] = attribute_dict
+            cls.ITEM_TYPE_SPECS[subitem_type]["superitem_type"] = item_type
             # Item type specs and ID type contents should have been created and declared before this function.
             # The subitem ID attributes should only need to update references to a superitem.
+            # TODO: Decide whether attributes should reference superitem type if item type already does.
             for attribute in ["name","label"]:
                 cls.ITEM_TYPE_SPECS[subitem_type]["attributes"][attribute]["content_type"].superitem_type = item_type
 
@@ -282,7 +286,8 @@ class FrameworkSettings(BaseStructuralSettings):
     NAME = SS.WORKBOOK_KEY_FRAMEWORK
     CONFIG_PATH = getOptimaCorePath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
-    PAGE_KEYS = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION, 
+    # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
+    PAGE_KEYS = [BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION, 
                  BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_PROGRAM_TYPE]
 
     @classmethod
@@ -290,7 +295,9 @@ class FrameworkSettings(BaseStructuralSettings):
     def elaborateStructure(cls):
         # Certain framework pages are bijectively associated with an item type, thus sharing a key.
         # Hence, for convenience, link these pages with appropriate detail-column tables.
+        # Also make sure all item types appear in framework instructions.
         for item_type in cls.ITEM_TYPES:
+            cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = True
             if item_type in cls.PAGE_SPECS:
                 cls.PAGE_SPECS[item_type]["tables"].append(DetailColumns(item_type))
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(cls.KEY_COMPARTMENT))
@@ -317,6 +324,9 @@ class DatabookSettings(BaseStructuralSettings):
     @classmethod
     @logUsage
     def elaborateStructure(cls):
+        cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
+        cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
+
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["values"], TimeSeriesType())
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["values"], TimeSeriesType())
 
