@@ -30,6 +30,9 @@ class ExcelSettings(object):
     KEY_COMMENT_YSCALE = "comment_yscale"
     FORMAT_VARIABLE_KEYS = [KEY_COLUMN_WIDTH, KEY_COMMENT_XSCALE, KEY_COMMENT_YSCALE]
 
+    FORMAT_KEY_CENTER = "center"
+    FORMAT_KEY_CENTER_BOLD = "center_bold"
+
     EXCEL_IO_DEFAULT_COLUMN_WIDTH = 20
     EXCEL_IO_DEFAULT_COMMENT_XSCALE = 3
     EXCEL_IO_DEFAULT_COMMENT_YSCALE = 3
@@ -60,8 +63,8 @@ def createStandardExcelFormats(excel_file):
     Note: Can be modified or expanded as necessary to fit other definitions of 'standard'.
     """
     formats = dict()
-    formats["center_bold"] = excel_file.add_format({"align": "center", "bold": True})
-    formats["center"] = excel_file.add_format({"align": "center"})
+    formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD] = excel_file.add_format({"align": "center", "bold": True})
+    formats[ExcelSettings.FORMAT_KEY_CENTER] = excel_file.add_format({"align": "center"})
     return formats
 
 @logUsage
@@ -82,13 +85,13 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
     # Generate standard formats if they do not exist.
     if formats is None:
         logger.warning("Formats were not passed to worksheet value-entry block construction.")
-        formats = {"center_bold":None, "center":None}
+        formats = {ExcelSettings.FORMAT_KEY_CENTER_BOLD:None, ExcelSettings.FORMAT_KEY_CENTER:None}
 
     if time_vector is None: time_vector = []
     if default_values is None: default_values = [0.0]*num_items
 
     row, col = start_row, start_col
-    excel_page.write(row, col, ExcelSettings.ASSUMPTION_HEADER, formats["center_bold"])
+    excel_page.write(row, col, ExcelSettings.ASSUMPTION_HEADER, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
     excel_page.write_comment(row, col, ExcelSettings.ASSUMPTION_COMMENT, 
                              {"x_scale": ExcelSettings.ASSUMPTION_COMMENT_XSCALE, 
                               "y_scale": ExcelSettings.ASSUMPTION_COMMENT_YSCALE})
@@ -96,7 +99,7 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
     if len(time_vector) > 0:
         col += 2
         for t_val in time_vector:
-            excel_page.write(row, col, t_val, formats["center_bold"])
+            excel_page.write(row, col, t_val, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
             col += 1
     for item_number in sm.range(num_items):
         row += 1
@@ -105,7 +108,7 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
         rc_end = xw.utility.xl_rowcol_to_cell(row, col + 1 + len(time_vector))
         if len(time_vector) > 0:
             excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), default_values[item_number])
-            excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats["center"])
+            excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats[ExcelSettings.FORMAT_KEY_CENTER])
         else: excel_page.write(row, col, default_values[item_number])
 
     last_row, last_col = row, start_col + 1 + len(time_vector)

@@ -3,7 +3,12 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.0 (2018-03-06): Time-Dependent Databook Interfacing
+## 0.4.1 (2018-03-06): Workbook Matrix Interfacing
+
+Features
+- Developed table IO for matrices.
+
+## 0.4.0 (2018-03-06): Databook Time-Dependent Value Interfacing
 
 Features
 - Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py

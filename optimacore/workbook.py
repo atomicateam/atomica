@@ -5,7 +5,7 @@ from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock, extractHeaderColumnsMapping, extractExcelSheetValue
-from optimacore.structure_settings import DetailColumns, TimeDependentValuesEntry, IDType, IDRefListType, SwitchType
+from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefListType, SwitchType
 from optimacore.framework import ProjectFramework
 from optimacore.structure import TimeSeries
 
@@ -138,13 +138,15 @@ def getTargetStructure(framework = None, data = None, workbook_type = None):
 
 
 
-def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_type_specs, item_number, formats = None, temp_storage = None):
+def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_type_specs, item_number, formats = None, format_key = None, temp_storage = None):
+    """ Write default content into the cell of a worksheet corresponding to an attribute of an item. """
 
     # Determine attribute information and prepare for content production.
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
     if temp_storage is None: temp_storage = dict()
     if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
-    cell_format = formats["center"]
+    if format_key is None: format_key = ES.FORMAT_KEY_CENTER
+    cell_format = formats[format_key]
 
     # Default content is blank.
     content = ""
@@ -296,7 +298,7 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
             header = attribute_spec["header"]
             if header in header_column_map: raise KeyUniquenessException(header, "header-column map")
             header_column_map[header] = col
-            worksheet.write(row, col, header, formats["center_bold"])
+            worksheet.write(row, col, header, formats[ES.FORMAT_KEY_CENTER_BOLD])
             if "comment" in attribute_spec:
                 header_comment = attribute_spec["comment"]
                 worksheet.write_comment(row, col, header_comment, 
@@ -354,6 +356,32 @@ def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framewor
     next_row, next_col = row, col
     return next_row, next_col
 
+def writeConnectionMatrix(worksheet, source_item_type, target_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+                       formats = None, format_variables = None, temp_storage = None):
+    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
+    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+
+    if temp_storage is None: temp_storage = dict()
+
+    row, col = start_row, start_col
+    if use_instructions:
+        source_row = start_row + 1
+        for item_number in sm.range(instructions.num_items[source_item_type]):
+            createAttributeCellContent(worksheet = worksheet, row = source_row, col = start_col, 
+                                       attribute = "name", item_type = source_item_type, item_type_specs = item_type_specs, 
+                                       item_number = item_number, formats = formats, format_key = ES.FORMAT_KEY_CENTER_BOLD, temp_storage = temp_storage)
+            source_row += 1
+        target_col = start_col + 1
+        for item_number in sm.range(instructions.num_items[target_item_type]):
+            createAttributeCellContent(worksheet = worksheet, row = start_row, col = target_col, 
+                                       attribute = "name", item_type = target_item_type, item_type_specs = item_type_specs, 
+                                       item_number = item_number, formats = formats, format_key = ES.FORMAT_KEY_CENTER_BOLD, temp_storage = temp_storage)
+            target_col += 1
+    row = source_row + 2    # Extra row to space out following tables.
+
+    next_row, next_col = row, col
+    return next_row, next_col
+
 def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
     
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
@@ -373,7 +401,7 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
             format_variables[format_variable_key] = attribute_spec[format_variable_key]
     try: header = item_specs[item_type][item_key][attribute]
     except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
-    worksheet.write(row, col, header, formats["center_bold"])
+    worksheet.write(row, col, header, formats[ES.FORMAT_KEY_CENTER_BOLD])
     if "comment" in attribute_spec:
         header_comment = attribute_spec["comment"]
         worksheet.write_comment(row, col, header_comment, 
@@ -439,17 +467,17 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, data = 
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
-        core_item_type = table.item_type
-        row, col = writeDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row, start_col = col,
+        row, col = writeDetailColumns(worksheet = worksheet, core_item_type = table.item_type, start_row = row, start_col = col,
                                       framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                       formats = formats, format_variables = format_variables, temp_storage = temp_storage)
-    
+    if isinstance(table, ConnectionMatrix):
+        row, col = writeConnectionMatrix(worksheet = worksheet, source_item_type = table.source_item_type, target_item_type = table.target_item_type,
+                                         start_row = row, start_col = col, 
+                                         framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                                         formats = formats, format_variables = format_variables, temp_storage = temp_storage)
     if isinstance(table, TimeDependentValuesEntry):
-        item_type = table.item_type
-        item_key = table.item_key
-        iterated_type = table.iterated_type
-        if not item_key is None:
-            row, col = writeTimeDependentValuesEntry(worksheet = worksheet, item_type = item_type, item_key = item_key, iterated_type = iterated_type,
+        if not table.item_key is None:
+            row, col = writeTimeDependentValuesEntry(worksheet = worksheet, item_type = table.item_type, item_key = table.item_key, iterated_type = table.iterated_type,
                                                      start_row = row, start_col = col, 
                                                      framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                                      formats = formats, format_variables = format_variables, temp_storage = temp_storage)

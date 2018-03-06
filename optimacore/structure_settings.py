@@ -21,13 +21,23 @@ class KeyUniquenessException(OptimaException):
         return super().__init__(message, **kwargs)
 
 class TableType(object):
-    """ Lightweight structure to define a table for workbook IO. """
+    """ Structure to define a table for workbook IO. """
     def __init__(self): pass
 class DetailColumns(TableType):
     """ Structure to associate a workbook table of detail columns with a specific item type. """
     def __init__(self, item_type):
         super(DetailColumns,self).__init__()
         self.item_type = item_type
+class ConnectionMatrix(TableType):
+    """
+    Structure to define a matrix that connects two item types together.
+    The connections are directional from row headers, e.g. the zeroth column, to column headers, e.g. the zeroth row.
+    """
+    def __init__(self, source_item_type, target_item_type = None):
+        super(ConnectionMatrix,self).__init__()
+        self.source_item_type = source_item_type
+        if target_item_type is None: target_item_type = source_item_type
+        self.target_item_type = target_item_type
 class TableTemplate(TableType):
     """
     Structure indicating a table should be duplicated for each existing instance of an item type.
@@ -97,6 +107,7 @@ class BaseStructuralSettings():
 
     KEY_COMPARTMENT = "comp"
     KEY_CHARACTERISTIC = "charac"
+    KEY_TRANSITION = "trans"
     KEY_PARAMETER = "par"
     KEY_POPULATION = "pop"
     KEY_PROGRAM = "prog"
@@ -271,7 +282,7 @@ class FrameworkSettings(BaseStructuralSettings):
     NAME = SS.WORKBOOK_KEY_FRAMEWORK
     CONFIG_PATH = getOptimaCorePath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
-    PAGE_KEYS = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_COMPARTMENT, "trans", 
+    PAGE_KEYS = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION, 
                  BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_PROGRAM_TYPE]
 
     @classmethod
@@ -282,6 +293,7 @@ class FrameworkSettings(BaseStructuralSettings):
         for item_type in cls.ITEM_TYPES:
             if item_type in cls.PAGE_SPECS:
                 cls.PAGE_SPECS[item_type]["tables"].append(DetailColumns(item_type))
+        cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(cls.KEY_COMPARTMENT))
 
         cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
