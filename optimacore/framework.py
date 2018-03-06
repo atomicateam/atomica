@@ -5,23 +5,15 @@ Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 
-from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
 from optimacore.structure_settings import DatabookSettings as DS
-from optimacore.excel import ExcelSettings as ES
 
-from optimacore.system import logger, applyToAllMethods, logUsage, accepts, returns, OptimaException
+from optimacore.system import applyToAllMethods, logUsage
 from optimacore.structure import CoreProjectStructure
-from optimacore.excel import extractHeaderColumnsMapping, extractExcelSheetValue
 from optimacore.structure_settings import TimeDependentValuesEntry
 
-import os
-import xlrd
 from collections import OrderedDict
 from copy import deepcopy as dcp
-
-from six import moves as sm
-import xlsxwriter as xw
 
 
 @applyToAllMethods(logUsage)

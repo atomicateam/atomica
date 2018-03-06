@@ -8,7 +8,8 @@ import unittest
 
 from optimacore.project import Project
 
-from optimacore.workbook import writeWorkbook, readWorkbook
+from optimacore.workbook_export import writeWorkbook
+from optimacore.workbook_import import readWorkbook
 from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
 

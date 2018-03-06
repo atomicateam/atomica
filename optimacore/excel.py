@@ -5,7 +5,7 @@ Contains functionality specific to Excel input and output.
 """
 
 from optimacore.system import SystemSettings as SS
-from optimacore.system import logger, logUsage, accepts, returns
+from optimacore.system import logger, logUsage, accepts, returns, OptimaException
 
 from six import moves as sm
 import xlsxwriter as xw

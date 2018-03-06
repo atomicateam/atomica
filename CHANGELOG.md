@@ -6,7 +6,11 @@ The format adheres to Semantic Versioning.
 ## 0.4.1 (2018-03-06): Workbook Matrix Interfacing
 
 Features
-- Developed table IO for matrices.
+- Developed table IO for connection matrices.
+
+Edits
+- Split workbook IO file into two for import and export so as to make code more manageable.
+  Introduced another workbook utilities file for common functionality.
 
 ## 0.4.0 (2018-03-06): Databook Time-Dependent Value Interfacing
 
