@@ -40,7 +40,7 @@ class EverythingTest(unittest.TestCase):
         writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
         readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = self.proj.framework, data = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
         writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_DATA)
-        readWorkbook(workbook_path = "./databooks/databook_ukraine_alt.xlsx", framework = self.proj.framework, data = self.proj.data, workbook_type = SS.WORKBOOK_KEY_DATA)
+        readWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = self.proj.data, workbook_type = SS.WORKBOOK_KEY_DATA)
         print("-"*100)
         pprint.pprint(self.proj.framework.specs)
         print("-"*100)

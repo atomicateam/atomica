@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.1 (2018-03-06): Workbook Matrix Interfacing
+## 0.4.1 (2018-03-07): Workbook Matrix Interfacing
 
 Features
 - Developed table IO for connection matrices.

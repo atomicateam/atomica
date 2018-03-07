@@ -9,6 +9,7 @@ from optimacore.workbook_utils import WorkbookTypeException, WorkbookRequirement
 
 import os
 from copy import deepcopy as dcp
+from six import moves as sm
 import xlsxwriter as xw
 import xlrd
 
@@ -84,7 +85,49 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
     next_row = row
     return next_row
 
-def readContentsTDVE(worksheet, item_type, item_key, iterated_type, value_attribute, start_row, framework = None, data = None, workbook_type = None):
+def readConnectionMatrix(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
+    
+    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
+    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
+    structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
+
+    header_row, header_col, last_col = None, 0, None
+    row, col = start_row, header_col + 1
+    keep_scanning_rows, keep_scanning_cols = True, True
+    while keep_scanning_rows and row < worksheet.nrows:
+        # Scan for the header row of the matrix, recognising the top-left cell may be empty, hence the non-zero start column.
+        if header_row is None:
+            check_label = str(worksheet.cell_value(row, col))
+            if not check_label == "":
+                header_row = row
+                # Upon finding the header row, locate its last column.
+                col += 1
+                while last_col is None and col < worksheet.ncols:
+                    check_label = str(worksheet.cell_value(row, col))
+                    if check_label == "": last_col = col - 1
+                    col += 1
+                if last_col is None: last_col = worksheet.ncols - 1
+        else:
+            for col in sm.range(header_col + 1, last_col + 1):
+                val = str(worksheet.cell_value(row, col))
+                if not val == "":
+                    source_item = str(worksheet.cell_value(row, header_col))
+                    target_item = str(worksheet.cell_value(header_row, col))
+                    if table.storage_item_type is None:
+                        structure.addSpecAttribute(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
+                    else:
+                        # Allow connection matrices to use name tags before they are used for detailed items.
+                        # Only allow this for non-subitems.
+                        if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
+                            raise OptimaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
+                        try: structure.getSpec(val)
+                        except: structure.createItem(item_name = val, item_type = table.storage_item_type)
+                        structure.appendSpecAttribute(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
+        row += 1
+    next_row = row
+    return next_row
+
+def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, value_attribute, start_row, framework = None, data = None, workbook_type = None):
     
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
@@ -140,16 +183,6 @@ def readContentsTDVE(worksheet, item_type, item_key, iterated_type, value_attrib
     next_row = row
     return next_row
 
-def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, value_attribute, start_row, framework = None, data = None, workbook_type = None):
-    """ TODO: Decide if necessary. """
-
-    row = start_row
-    row = readContentsTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key, 
-                           iterated_type = iterated_type, value_attribute = value_attribute, start_row = start_row, 
-                           framework = framework, data = data, workbook_type = workbook_type)
-    next_row = row
-    return next_row
-
 def readTable(worksheet, table, start_row, start_col, framework = None, data = None, workbook_type = None):
 
     # Check workbook type.
@@ -157,16 +190,14 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
-        core_item_type = table.item_type
-        row = readDetailColumns(worksheet = worksheet, core_item_type = core_item_type, start_row = row,
-                                     framework = framework, data = data, workbook_type = workbook_type)
+        row = readDetailColumns(worksheet = worksheet, core_item_type = table.item_type, start_row = row,
+                                framework = framework, data = data, workbook_type = workbook_type)
+    if isinstance(table, ConnectionMatrix):
+        row = readConnectionMatrix(worksheet = worksheet, table = table, start_row = row,
+                                framework = framework, data = data, workbook_type = workbook_type)
     if isinstance(table, TimeDependentValuesEntry):
-        item_type = table.item_type
-        item_key = table.item_key
-        iterated_type = table.iterated_type
-        value_attribute = table.value_attribute
-        row = readTimeDependentValuesEntry(worksheet = worksheet, item_type = item_type, item_key = item_key,
-                                           iterated_type = iterated_type, value_attribute = value_attribute, start_row = start_row, 
+        row = readTimeDependentValuesEntry(worksheet = worksheet, item_type = table.item_type, item_key = table.item_key,
+                                           iterated_type = table.iterated_type, value_attribute = table.value_attribute, start_row = start_row, 
                                            framework = framework, data = data, workbook_type = workbook_type)
     
     next_row, next_col = row, col

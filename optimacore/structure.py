@@ -91,7 +91,7 @@ class CoreProjectStructure(object):
             item_name = self.getSpecName(term)
             self.createSemantic(term = value, item_name = item_name, attribute = attribute)
 
-    def extendSpecAttribute(self, term, attribute, value, subkey = None):
+    def appendSpecAttribute(self, term, attribute, value, subkey = None):
         """
         Creates a list for a specification attribute if currently nonexistent, then extends or appends it by a value.
         Attribute can be treated as a dictionary with key 'subkey'.
@@ -99,19 +99,15 @@ class CoreProjectStructure(object):
         spec = self.getSpec(term)
         if subkey is None: 
             if attribute not in spec: spec[attribute] = []
-            try: spec[attribute].extend(value)
-            except:
-                try: spec[attribute].append(value)
-                except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
-                                              "can neither be extended nor appended by value '{2}'.".format(attribute, term, value))
+            try: spec[attribute].append(value)
+            except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
+                                          "can neither be extended nor appended by value '{2}'.".format(attribute, term, value))
         else:
             if not attribute in spec: spec[attribute] = dict()
             if not subkey in spec[attribute]: spec[attribute][subkey] = []
-            try: spec[attribute][subkey].extend(value)
-            except:
-                try: spec[attribute][subkey].append(value)
-                except: raise OptimaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
-                                              "can neither be extended nor appended by value '{3}'.".format(attribute, subkey, term, value))
+            try: spec[attribute][subkey].append(value)
+            except: raise OptimaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
+                                          "can neither be extended nor appended by value '{3}'.".format(attribute, subkey, term, value))
 
 
     def getSpecName(self, term):

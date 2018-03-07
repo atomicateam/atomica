@@ -32,12 +32,19 @@ class ConnectionMatrix(TableType):
     """
     Structure to define a matrix that connects two item types together.
     The connections are directional from row headers, e.g. the zeroth column, to column headers, e.g. the zeroth row.
+    If no target item type is specified, the connections are between the same type of item.
+    If no storage item type is specified, all values are stored in a dictionary within source item specs.
+    In this case, the attribute containing the dict is 'storage_attribute' and it is keyed by target item.
+    However, if storage item type is specified, the linking value is considered to be a 'name' of this type.
+    A list of tuples containing source and target items is stored under 'storage_attribute'.
     """
-    def __init__(self, source_item_type, target_item_type = None):
+    def __init__(self, source_item_type, storage_attribute, target_item_type = None, storage_item_type = None):
         super(ConnectionMatrix,self).__init__()
         self.source_item_type = source_item_type
         if target_item_type is None: target_item_type = source_item_type
         self.target_item_type = target_item_type
+        self.storage_item_type = storage_item_type
+        self.storage_attribute = storage_attribute
 class TableTemplate(TableType):
     """
     Structure indicating a table should be duplicated for each existing instance of an item type.
@@ -300,7 +307,9 @@ class FrameworkSettings(BaseStructuralSettings):
             cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = True
             if item_type in cls.PAGE_SPECS:
                 cls.PAGE_SPECS[item_type]["tables"].append(DetailColumns(item_type))
-        cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(cls.KEY_COMPARTMENT))
+        cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_COMPARTMENT,
+                                                                             storage_item_type = cls.KEY_PARAMETER,
+                                                                             storage_attribute = "links"))
 
         cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
@@ -327,11 +336,16 @@ class DatabookSettings(BaseStructuralSettings):
         cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
         cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
+        #cls.createItemTypeAttributes(cls.KEY_PROGRAM, ["target_pops"], IDRefListType(attribute = "name", item_types = [cls.KEY_POPULATION]))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["values"], TimeSeriesType())
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["values"], TimeSeriesType())
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
+        # TODO: Enable other connection matrices.
+        #cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM, 
+        #                                                                  target_item_type = cls.KEY_POPULATION,
+        #                                                                  storage_attribute = "target_pops"))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
                                                                                          iterated_type = cls.KEY_POPULATION,
                                                                                          value_attribute = "values"))
