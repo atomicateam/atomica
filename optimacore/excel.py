@@ -107,7 +107,7 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
         rc_start = xw.utility.xl_rowcol_to_cell(row, col + 1 + 1)
         rc_end = xw.utility.xl_rowcol_to_cell(row, col + 1 + len(time_vector))
         if len(time_vector) > 0:
-            excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), default_values[item_number])
+            excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), None, default_values[item_number])
             excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats[ExcelSettings.FORMAT_KEY_CENTER])
         else: excel_page.write(row, col, default_values[item_number])
 

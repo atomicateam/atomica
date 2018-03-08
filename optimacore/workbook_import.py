@@ -60,7 +60,11 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
                                                framework = framework, data = data, workbook_type = workbook_type,
                                                superitem_type_name_pairs = new_superitem_type_name_pairs)
                 else:
-                    start_col, last_col = header_columns_map[attribute_spec["header"]]
+                    try: start_col, last_col = header_columns_map[attribute_spec["header"]]
+                    except:
+                        logger.warning("Workbook import process could not locate attribute '{0}' for '{1}' item '{2}' "
+                                       "when parsing a detail-columns table. Ignoring and proceeding to next attribute.".format(attribute, item_type, item_name))
+                        continue
                     content_type = attribute_spec["content_type"]
                     filters = []
                     if not content_type is None:

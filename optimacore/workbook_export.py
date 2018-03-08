@@ -362,6 +362,7 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
 
 def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
+    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     if temp_storage is None: temp_storage = dict()
 
     row, col = start_row, start_col
@@ -372,8 +373,12 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
     num_items = 0
     if use_instructions: num_items = instructions.num_items[iterated_type]
+    default_values = [0.0]*num_items
+    if "default_value" in item_specs[item_type][item_key]:
+        default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
     createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
-                          num_items = num_items, time_vector = [x for x in sm.range(2000,2019)], formats = formats)
+                          num_items = num_items, time_vector = [x for x in sm.range(2000,2019)], 
+                          default_values = default_values, formats = formats)
 
     row = writeHeadersTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key,
                                              start_row = row, start_col = col, 
