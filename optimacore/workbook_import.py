@@ -18,13 +18,13 @@ import xlrd
 def getTargetStructure(framework = None, data = None, workbook_type = None):
     """ Returns the structure to store definitions and values being read from workbook. """
     structure = None
-    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
+    if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK:
         if framework is None:
-            raise WorkbookRequirementException(workbook_type = SS.WORKBOOK_KEY_FRAMEWORK, requirement_type = "ProjectFramework")
+            raise WorkbookRequirementException(workbook_type = SS.STRUCTURE_KEY_FRAMEWORK, requirement_type = "ProjectFramework")
         else: structure = framework
-    elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    elif workbook_type == SS.STRUCTURE_KEY_DATA:
         if data is None:
-            raise WorkbookRequirementException(workbook_type = SS.WORKBOOK_KEY_DATA, requirement_type = "ProjectData")
+            raise WorkbookRequirementException(workbook_type = SS.STRUCTURE_KEY_DATA, requirement_type = "ProjectData")
         else: structure = data
     else: raise WorkbookTypeException(workbook_type)
     return structure
@@ -190,7 +190,7 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
 def readTable(worksheet, table, start_row, start_col, framework = None, data = None, workbook_type = None):
 
     # Check workbook type.
-    if workbook_type not in [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]: raise WorkbookTypeException(workbook_type)
+    if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]: raise WorkbookTypeException(workbook_type)
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):

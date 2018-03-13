@@ -6,7 +6,7 @@ from optimacore.system import OptimaException, displayName
 
 class WorkbookTypeException(OptimaException):
     def __init__(self, workbook_type, **kwargs):
-        available_workbook_types = [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]
+        available_workbook_types = [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]
         message = ("Unable to operate read and write processes for a workbook of type '{0}'. "
                    "Available options are: '{1}'".format(workbook_type, "' or '".join(available_workbook_types)))
         return super().__init__(message, **kwargs)
@@ -18,14 +18,14 @@ class WorkbookRequirementException(OptimaException):
 
 def getWorkbookReferences(framework = None, workbook_type = None, refer_to_default = False):
     ref_dict = dict()
-    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
+    if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK:
         ref_dict["page_keys"] = FS.PAGE_KEYS
         ref_dict["page_specs"] = FS.PAGE_SPECS
         ref_dict["item_type_specs"] = FS.ITEM_TYPE_SPECS
         ref_dict["item_specs"] = dict()
-    elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    elif workbook_type == SS.STRUCTURE_KEY_DATA:
         if framework is None:
-            raise WorkbookRequirementException(workbook_type = SS.WORKBOOK_KEY_DATA, requirement_type = "ProjectFramework")
+            raise WorkbookRequirementException(workbook_type = SS.STRUCTURE_KEY_DATA, requirement_type = "ProjectFramework")
         if refer_to_default is True:
             ref_dict["page_keys"] = DS.PAGE_KEYS
             ref_dict["page_specs"] = DS.PAGE_SPECS

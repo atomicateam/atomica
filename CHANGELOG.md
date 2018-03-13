@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.4.2 (2018-03-13): Workbook Program Interfacing
+
+Features
+- Developed table IO for specifying program impacts.
+
 ## 0.4.1 (2018-03-08): Workbook Matrix Interfacing
 
 Features

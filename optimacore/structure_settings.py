@@ -130,7 +130,7 @@ class BaseStructuralSettings():
     KEY_PROGRAM_TYPE = KEY_PROGRAM + TERM_TYPE
     KEY_PROGRAM_ATTRIBUTE = KEY_PROGRAM + TERM_ATTRIBUTE
 
-    ITEM_TYPES = [KEY_POPULATION_ATTRIBUTE, KEY_POPULATION_OPTION, KEY_COMPARTMENT, KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_PROGRAM_TYPE, KEY_PROGRAM_ATTRIBUTE]
+    ITEM_TYPES = []
 
     PAGE_KEYS = []                          # Derived settings should overwrite this.
     PAGE_SPECS = None                       # Class method makes this an ordered dictionary.
@@ -290,8 +290,12 @@ def createSpecs(undecorated_class):
 @createSpecs
 class FrameworkSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings
-    NAME = SS.WORKBOOK_KEY_FRAMEWORK
+    NAME = SS.STRUCTURE_KEY_FRAMEWORK
     CONFIG_PATH = getOptimaCorePath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
+
+    ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION, 
+                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, 
+                  BSS.KEY_PROGRAM_TYPE, BSS.KEY_PROGRAM_ATTRIBUTE]
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION, 
@@ -328,11 +332,10 @@ class FrameworkSettings(BaseStructuralSettings):
 @createSpecs
 class DatabookSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings
-    NAME = SS.WORKBOOK_KEY_DATA
+    NAME = SS.STRUCTURE_KEY_DATA
     CONFIG_PATH = getOptimaCorePath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
-    ITEM_TYPES = dcp(BSS.ITEM_TYPES)
-    ITEM_TYPES.extend([BSS.KEY_POPULATION, BSS.KEY_PROGRAM])
+    ITEM_TYPES = [BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
 
     PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 

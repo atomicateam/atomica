@@ -173,7 +173,7 @@ class GUIFrameworkFileCreation(qtw.QWidget):
     def resetAttributes(self):   
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a template framework.
-        self.framework_instructions = WorkbookInstructions(workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
+        self.framework_instructions = WorkbookInstructions(workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
 
     @logUsage
     def developLayout(self):
@@ -247,7 +247,7 @@ class GUIFrameworkFileCreation(qtw.QWidget):
         if not framework_path.endswith(ES.FILE_EXTENSION):
             logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(ES.FILE_EXTENSION))
             return
-        try: writeWorkbook(workbook_path = framework_path, instructions = self.framework_instructions, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
+        try: writeWorkbook(workbook_path = framework_path, instructions = self.framework_instructions, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
         except:
             logger.exception("Framework template construction has failed.")
             raise
@@ -273,7 +273,7 @@ class GUIDatabookCreation(qtw.QWidget):
     def resetAttributes(self):   
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a databook.
-        self.databook_instructions = WorkbookInstructions(workbook_type = SS.WORKBOOK_KEY_DATA)
+        self.databook_instructions = WorkbookInstructions(workbook_type = SS.STRUCTURE_KEY_DATA)
         self.framework = ProjectFramework()
 
     @logUsage
@@ -360,7 +360,7 @@ class GUIDatabookCreation(qtw.QWidget):
             logger.warning("Abandoning framework file import due to provided framework path not ending in '{0}'.".format(ES.FILE_EXTENSION))
             return
         try:
-            readWorkbook(workbook_path = framework_path, framework = self.framework, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
+            readWorkbook(workbook_path = framework_path, framework = self.framework, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
             self.edit_framework_name.setText(self.framework.name)
             resizeLineEditToContents(self.edit_framework_name)
             self.label_framework_name.setVisible(self.framework.name != "")
@@ -375,7 +375,7 @@ class GUIDatabookCreation(qtw.QWidget):
         if not databook_path.endswith(ES.FILE_EXTENSION):
             logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(ES.FILE_EXTENSION))
             return
-        try: writeWorkbook(workbook_path = databook_path, framework = self.framework, instructions = self.databook_instructions, workbook_type = SS.WORKBOOK_KEY_DATA)
+        try: writeWorkbook(workbook_path = databook_path, framework = self.framework, instructions = self.databook_instructions, workbook_type = SS.STRUCTURE_KEY_DATA)
         except:
             logger.exception("Databook construction has failed.")
             raise

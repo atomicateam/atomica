@@ -34,8 +34,8 @@ class WorkbookInstructions(object):
         """ Initialize instructions that detail how to construct a workbook. """
         # Every relevant item must be included in a dictionary that lists how many should be created.
         self.num_items = OrderedDict()
-        if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
-        elif workbook_type == SS.WORKBOOK_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
+        if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
+        elif workbook_type == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
         else: raise WorkbookTypeException(workbook_type)
         for item_type in item_type_specs:
             if item_type_specs[item_type]["instruction_allowed"]:
@@ -57,9 +57,9 @@ def makeInstructions(framework = None, data = None, instructions = None, workboo
     """
     use_instructions = True
     if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
-    if workbook_type == SS.WORKBOOK_KEY_FRAMEWORK:
+    if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK:
         if not framework is None: use_instructions = False
-    elif workbook_type == SS.WORKBOOK_KEY_DATA:
+    elif workbook_type == SS.STRUCTURE_KEY_DATA:
         if not data is None: use_instructions = False
     else: raise WorkbookTypeException(workbook_type)
     return instructions, use_instructions
@@ -395,7 +395,7 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, data = 
                formats = None, format_variables = None, temp_storage = None):
 
     # Check workbook type.
-    if workbook_type not in [SS.WORKBOOK_KEY_FRAMEWORK, SS.WORKBOOK_KEY_DATA]: raise WorkbookTypeException(workbook_type)
+    if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]: raise WorkbookTypeException(workbook_type)
 
     if temp_storage is None: temp_storage = dict()
 

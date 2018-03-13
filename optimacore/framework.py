@@ -4,7 +4,7 @@ Optima Core project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-
+from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
 from optimacore.structure_settings import DatabookSettings as DS
 
@@ -22,7 +22,7 @@ class ProjectFramework(CoreProjectStructure):
     
     def __init__(self, **kwargs):
         """ Initialize the framework. """
-        super(ProjectFramework, self).__init__(**kwargs)
+        super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs)
 
     def completeSpecs(self):
         """

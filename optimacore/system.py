@@ -29,8 +29,8 @@ class SystemSettings(object):
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     
-    WORKBOOK_KEY_DATA = "databook"
-    WORKBOOK_KEY_FRAMEWORK = "framework_file"
+    STRUCTURE_KEY_DATA = "databook"
+    STRUCTURE_KEY_FRAMEWORK = "framework_file"
 
     FRAMEWORK_DEFAULT_TYPE = "example"
     DATABOOK_DEFAULT_TYPE = "standard"

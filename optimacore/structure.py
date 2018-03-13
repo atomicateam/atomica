@@ -1,4 +1,6 @@
 from optimacore.system import SystemSettings as SS
+from optimacore.structure_settings import FrameworkSettings as FS
+from optimacore.structure_settings import DatabookSettings as DS
 
 from optimacore.system import applyToAllMethods, logUsage, accepts, OptimaException
 
@@ -50,13 +52,25 @@ class TimeSeries(object):
 class CoreProjectStructure(object):
     """ A base object that contains details relating to instantiated items of types defined in relevant settings classes. """
     
-    def __init__(self):
+    def __init__(self, structure_key = None):
         """ Initialize the core project structure. """
         self.name = str()
         self.specs = dict()
+
+        self.initSpecs(structure_key = structure_key)
         
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
         self.semantics = dict()
+
+    def initSpecs(self, structure_key):
+        """ Initialize the uppermost layer of structure specifications according to corresponding settings. """
+        if not structure_key is None:
+            item_type_specs = None
+            if structure_key == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
+            elif structure_key == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
+            if not item_type_specs is None:
+                for item_type in item_type_specs:
+                    if item_type_specs[item_type]["superitem_type"] is None: self.specs[item_type] = OrderedDict()
 
     def createItem(self, item_name, item_type, superitem_type_name_pairs = None):
         target_specs = self.specs

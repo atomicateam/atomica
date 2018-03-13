@@ -37,15 +37,15 @@ class EverythingTest(unittest.TestCase):
 
     def test_workbook_process(self):
         """  """
-#        writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
-#        readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = self.proj.framework, data = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
-#        writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_DATA)
-#        readWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = self.proj.data, workbook_type = SS.WORKBOOK_KEY_DATA)
+        writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+        readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = self.proj.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+        writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_DATA)
+        readWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = self.proj.data, workbook_type = SS.STRUCTURE_KEY_DATA)
 
-#        writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
-#        writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = None, instructions = None, workbook_type = SS.WORKBOOK_KEY_DATA)
-        readWorkbook(workbook_path = "./ukraine_frameworks_test.xlsx", framework = self.proj.framework, data = None, workbook_type = SS.WORKBOOK_KEY_FRAMEWORK)
-        readWorkbook(workbook_path = "./ukraine_databook_test.xlsx", framework = self.proj.framework, data = self.proj.data, workbook_type = SS.WORKBOOK_KEY_DATA)
+#        writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+#        writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = self.proj.framework, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_DATA)
+        #readWorkbook(workbook_path = "./ukraine_frameworks_test.xlsx", framework = self.proj.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+        #readWorkbook(workbook_path = "./ukraine_databook_test.xlsx", framework = self.proj.framework, data = self.proj.data, workbook_type = SS.STRUCTURE_KEY_DATA)
 
         print("-"*100)
         pprint.pprint(self.proj.framework.specs)

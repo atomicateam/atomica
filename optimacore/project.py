@@ -35,7 +35,7 @@ class Project(object):
         An object in the form of DatabookInstructions can optionally be passed in to describe how many databook items should be templated.
         """
         if databook_path is None: databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
-        writeWorkbook(workbook_path = databook_path, framework = self.framework, data = None, instructions = instructions, workbook_type = SS.WORKBOOK_KEY_DATA)
+        writeWorkbook(workbook_path = databook_path, framework = self.framework, data = None, instructions = instructions, workbook_type = SS.STRUCTURE_KEY_DATA)
     
     @accepts(str)
     def setName(self, name):
