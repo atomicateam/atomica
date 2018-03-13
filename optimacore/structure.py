@@ -57,22 +57,44 @@ class CoreProjectStructure(object):
         self.name = str()
         self.specs = dict()
 
-        self.initSpecs(structure_key = structure_key)
-        
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
         self.semantics = dict()
+        
+        # Record what type of structure this is for specification initialization purposes.
+        self.structure_key = structure_key
 
-    def initSpecs(self, structure_key):
-        """ Initialize the uppermost layer of structure specifications according to corresponding settings. """
-        if not structure_key is None:
+        self.initSpecs()
+
+    def initSpecs(self):
+        """ Initialize the uppermost layer of structure specifications (i.e. base item types) according to corresponding settings. """
+        if not self.structure_key is None:
             item_type_specs = None
-            if structure_key == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
-            elif structure_key == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
+            if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
+            elif self.structure_key == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
             if not item_type_specs is None:
                 for item_type in item_type_specs:
                     if item_type_specs[item_type]["superitem_type"] is None: self.specs[item_type] = OrderedDict()
 
+    def initItem(self, item_name, item_type, target_item_location):
+        """ Initialize the attribute structure relating to specifications for a new item within a target dictionary. """
+        target_item_location[item_name] = dict()
+        if not self.structure_key is None:
+            item_type_specs = None
+            if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
+            elif self.structure_key == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
+            if not item_type_specs is None:
+                for attribute in item_type_specs[item_type]["attributes"]:
+                    target_item_location[item_name][attribute] = None
+                    # If the attribute references another item type in settings, prepare it as a container for corresponding items in specifications.
+                    if "ref_item_type" in item_type_specs[item_type]["attributes"][attribute]:
+                        target_item_location[item_name][attribute] = OrderedDict()
+
     def createItem(self, item_name, item_type, superitem_type_name_pairs = None):
+        """
+        Instantiates item type in specs with item name as key, initializing its attribute structure as well.
+        If the item is not top-level, a list of superitem type-name pairs must be provided to point to the intended item location in specs.
+        """
+        # Move down the specs dictionary according to superitem type-name pair list.
         target_specs = self.specs
         depth = 0
         if superitem_type_name_pairs is None: superitem_type_name_pairs = []
@@ -86,13 +108,18 @@ class CoreProjectStructure(object):
         except:
             raise OptimaException("Item creation of type '{0}', name '{1}', was supplied the following chain of keys, "
                                   "which does not exist in specifications: '{2}'".format(item_type, item_name, "', '".join([elem for pair in superitem_type_name_pairs for elem in pair])))
-        if depth > 0: item_type += SS.DEFAULT_SUFFIX_PLURAL
-        if item_type not in target_specs: target_specs[item_type] = OrderedDict()
-        target_specs[item_type][item_name] = dict()
+        
+        # Initialize item in specifications dictionary.
+        # Subitem types are pluralized when used as keys in the specs structure.
+        item_type_key = item_type
+        if depth > 0: item_type_key += SS.DEFAULT_SUFFIX_PLURAL
+        self.initItem(item_name = item_name, item_type = item_type, target_item_location = target_specs[item_type_key])
 
+        # Flatten superitem type-name pairs into a flat list, if available, and extend it with the type and name of the current item.
         key_list = [elem for pair in superitem_type_name_pairs for elem in pair]
         if key_list is None: key_list = []
-        key_list.extend([item_type,item_name])
+        key_list.extend([item_type_key, item_name])
+        # Create a semantic link between the name of the item and its specifications.
         self.createSemantic(term = item_name, item_type = item_type, item_name = item_name, attribute = "name", key_list = key_list)
         
     def addSpecAttribute(self, term, attribute, value, subkey = None):
@@ -125,16 +152,18 @@ class CoreProjectStructure(object):
 
 
     def getSpecName(self, term):
+        """ Returns the name corresponding to a provided term. """
         return self.getSemanticValue(term = term, attribute = "name")
 
     def getSpecType(self, term):
         """
-        Return the type of item that this specification belongs to.
+        Returns the type of item that this specification belongs to.
         Item type, like the referencing key list, is stored only in semantic structures keyed with item names.
         """
         return self.getSemanticValue(term = self.getSpecName(term), attribute = "type")
 
     def getSpec(self, term):
+        """ Returns the item specification association with a term. """
         semantic = self.getSemantic(self.getSpecName(term))
         try:
             key_list = semantic["key_list"]
@@ -145,6 +174,10 @@ class CoreProjectStructure(object):
         except: raise OptimaException("The item corresponding to term '{0}' could not be located in the semantics dictionary.".format(term))
 
     def createSemantic(self, term, item_name, attribute, item_type = None, key_list = None):
+        """
+        Creates a semantic link from a term to an item, noting what item attribute has the term as its value.
+        Names as terms are particularly important as they also link to item type and the list of keys to access item specifications.
+        """
         if term in self.semantics:
             other_attribute = self.semantics[term]["attribute"]
             other_name = self.semantics[term]["name"]
@@ -166,10 +199,12 @@ class CoreProjectStructure(object):
                 else: self.semantics[term]["key_list"] = key_list
 
     def getSemantic(self, term):
+        """ Returns a dictionary of item name, attribute and possibly item type plus spec-referencing key list corresponding to a term. """
         try: return self.semantics[term]
         except: raise SemanticUnknownException(term = term)
 
     def getSemanticValue(self, term, attribute):
+        """ Convenience function to return the value of a semantic attribute, such as 'name', 'attribute', 'type' and 'key_list'. """
         semantic = self.getSemantic(term)
         try: return semantic[attribute]
         except: raise SemanticUnknownException(term = term, attribute = attribute)

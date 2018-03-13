@@ -315,7 +315,8 @@ class FrameworkSettings(BaseStructuralSettings):
                                                                              storage_item_type = cls.KEY_PARAMETER,
                                                                              storage_attribute = "links"))
 
-        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
+        # TODO: TEST SPEC ATTRIBUTE ACCESS.
+        #cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
                                      content_type = IDRefListType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["entry_point"], 
