@@ -5,7 +5,7 @@ from optimacore.excel import ExcelSettings as ES
 
 from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
 from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
-from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefListType, SwitchType
+from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
 from optimacore.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
 from collections import OrderedDict
@@ -92,7 +92,7 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
 
     # Determine content type and prepare for referencing if appropriate.
     if "content_type" in attribute_spec: content_type = attribute_spec["content_type"]
-    if isinstance(content_type, IDRefListType):
+    if isinstance(content_type, IDRefType):
         do_reference = True
         if not content_type.other_item_types is None:
             other_item_type = content_type.other_item_types[0]
@@ -158,7 +158,7 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
 
         # If the content is marked to reference its own item type, append the ID to current content.
         # This reference should be to an ID of the same item a row ago.
-        if isinstance(content_type, IDRefListType) and content_type.self_referencing and item_number > 0: 
+        if isinstance(content_type, IDRefType) and content_type.self_referencing and item_number > 0: 
             list_id = item_number - 1
             try: stored_refs = temp_storage[item_type][content_type.attribute]
             except: raise InvalidReferenceException(item_type = item_type, attribute = attribute, ref_item_type = item_type, ref_attribute = content_type.attribute)

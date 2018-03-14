@@ -3,10 +3,14 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.2 (2018-03-13): Workbook Program Interfacing
+## 0.4.2 (2018-03-14): Workbook Program Interfacing
 
 Features
-- Developed table IO for specifying program impacts.
+- Developed table IO for specifying program impacts. (Well... not yet.)
+
+Edits
+- Forced initialization of attribute structure for any item in structure specifications dictionary.
+  In turn, for validation, removed functionality that averts missing item type and attributes by creating them on the fly.
 
 ## 0.4.1 (2018-03-08): Workbook Matrix Interfacing
 

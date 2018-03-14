@@ -84,10 +84,17 @@ class CoreProjectStructure(object):
             elif self.structure_key == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
             if not item_type_specs is None:
                 for attribute in item_type_specs[item_type]["attributes"]:
+                    # Create space for all item attributes except 'name' as that is used as the key for specifications.
+                    if attribute == "name": continue
                     target_item_location[item_name][attribute] = None
-                    # If the attribute references another item type in settings, prepare it as a container for corresponding items in specifications.
+                    try: content_type = item_type_specs[item_type]["attributes"][attribute]["content_type"]
+                    except: content_type = None
+                    # If the attribute itself references another item type in settings, prepare it as a container for corresponding items in specifications.
                     if "ref_item_type" in item_type_specs[item_type]["attributes"][attribute]:
                         target_item_location[item_name][attribute] = OrderedDict()
+                    # If the content type for the attribute is marked as a list, instantiate that list.
+                    elif (not content_type is None) and content_type.is_list:
+                        target_item_location[item_name][attribute] = list()
 
     def createItem(self, item_name, item_type, superitem_type_name_pairs = None):
         """
@@ -122,11 +129,12 @@ class CoreProjectStructure(object):
         # Create a semantic link between the name of the item and its specifications.
         self.createSemantic(term = item_name, item_type = item_type, item_name = item_name, attribute = "name", key_list = key_list)
         
-    def addSpecAttribute(self, term, attribute, value, subkey = None):
+    def setSpecAttribute(self, term, attribute, value, subkey = None):
         spec = self.getSpec(term)
+        if not attribute in spec: raise SemanticUnknownException(term = term, attribute = attribute)
         if subkey is None: spec[attribute] = value
         else:
-            if not attribute in spec: spec[attribute] = dict()
+            #if not attribute in spec: spec[attribute] = dict()
             spec[attribute][subkey] = value
         if attribute in ["label"]:
             item_name = self.getSpecName(term)
@@ -139,13 +147,11 @@ class CoreProjectStructure(object):
         """
         spec = self.getSpec(term)
         if subkey is None: 
-            if attribute not in spec: spec[attribute] = []
             try: spec[attribute].append(value)
             except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
                                           "can neither be extended nor appended by value '{2}'.".format(attribute, term, value))
         else:
-            if not attribute in spec: spec[attribute] = dict()
-            if not subkey in spec[attribute]: spec[attribute][subkey] = []
+            if not subkey in spec[attribute]: spec[attribute][subkey] = list()
             try: spec[attribute][subkey].append(value)
             except: raise OptimaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
                                           "can neither be extended nor appended by value '{3}'.".format(attribute, subkey, term, value))

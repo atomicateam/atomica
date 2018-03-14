@@ -78,15 +78,15 @@ class IDType(ContentType):
         super(IDType,self).__init__(is_list = False)
         self.name_not_label = name_not_label
         self.superitem_type = superitem_type
-class IDRefListType(ContentType):
+class IDRefType(ContentType):
     """
-    Structure to associate the contents of an item attribute with lists of IDs belonging to items of specified types.
+    Structure to associate the contents of an item attribute with an ID, or lists thereof, belonging to items of specified types.
     Argument 'other_item_types' should be a list of other item types that the contents can reference.
     Argument 'attribute' should, assuming standard terminology, be 'name' or 'label'.
     If argument 'self_referencing' is True, the item type of the attribute is also included with other item types. 
     """
-    def __init__(self, attribute, item_types = None, self_referencing = False):
-        super(IDRefListType,self).__init__(is_list = True)
+    def __init__(self, attribute, item_types = None, self_referencing = False, **kwargs):
+        super(IDRefType,self).__init__(**kwargs)
         self.attribute = attribute
         self.other_item_types = item_types
         self.self_referencing = self_referencing
@@ -315,16 +315,16 @@ class FrameworkSettings(BaseStructuralSettings):
                                                                              storage_item_type = cls.KEY_PARAMETER,
                                                                              storage_attribute = "links"))
 
-        # TODO: TEST SPEC ATTRIBUTE ACCESS.
-        #cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
+        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
-                                     content_type = IDRefListType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True))
+                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True, is_list = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["entry_point"], 
-                                     content_type = IDRefListType(attribute = "name", item_types = [cls.KEY_COMPARTMENT]))
+                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT]))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["denominator"], 
-                                     content_type = IDRefListType(attribute = "name", self_referencing = True))
+                                     content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order","default_value"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value"])
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
         cls.createItemTypeSubitemTypes(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
@@ -346,7 +346,7 @@ class DatabookSettings(BaseStructuralSettings):
         cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
         cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
-        #cls.createItemTypeAttributes(cls.KEY_PROGRAM, ["target_pops"], IDRefListType(attribute = "name", item_types = [cls.KEY_POPULATION]))
+        #cls.createItemTypeAttributes(cls.KEY_PROGRAM, ["target_pops"], IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["values"], TimeSeriesType())
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["values"], TimeSeriesType())
 
