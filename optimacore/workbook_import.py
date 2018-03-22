@@ -126,7 +126,7 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                             raise OptimaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
                         try: structure.getSpec(val)
                         except: structure.createItem(item_name = val, item_type = table.storage_item_type)
-                        #structure.appendSpecAttribute(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
+                        structure.appendSpecAttribute(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
         row += 1
     next_row = row
     return next_row
