@@ -3,10 +3,52 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.4.2 (2018-03-14): Workbook Program Interfacing
+
+Features
+- Developed table IO for specifying program impacts. (Well... not yet.)
+
+Edits
+- Forced initialization of attribute structure for any item in structure specifications dictionary.
+  In turn, for validation, removed functionality that averts missing item type and attributes by creating them on the fly.
+
+## 0.4.1 (2018-03-08): Workbook Matrix Interfacing
+
+Features
+- Developed table IO for connection matrices.
+
+Edits
+- Split workbook IO file into two for import and export so as to make code more manageable.
+  Introduced another workbook utilities file for common functionality.
+
+## 0.4.0 (2018-03-06): Databook Time-Dependent Value Interfacing
+
+Features
+- Developed a base structure for both `ProjectData` and `ProjectFramework` named `CoreProjectStructure` in: structure.py
+  Fleshed out the semantics dictionary for easier access to specifications.
+- Developed table IO for time-dependent values, including a TimeSeries object.
+
+Edits
+- Unnecessary files have been deleted due to workbook IO consolidation.
+- `ContentType` classes have been refactored and renamed.
+
+## 0.3.4 (2018-02-13): Workbook Construction Consolidation
+
+Features
+- Templated out a `ProjectData` structure to store model values for a corresponding `ProjectFramework` structure.
+
+Edits
+- Major changes applied, with `FrameworkSettings` and `DatabookSettings` now deriving from new class `BaseStructuralSettings`.
+  Many features from previous versions have been upturned during this refactoring, such as the GUI process.
+- Consolidated workbook IO into file: workbook.py
+- Classes have been introduced as key wrappers to denote table type and content type during workbook construction.
+- Detail-column tables in a framework file allow values to be extended across columns, but no longer allows this for rows.
+
 ## 0.3.3 (2018-02-01): Basic Databook Items
 
 Features
 - Improved wrapped `createDatabookFunc()` to produce a list of populations in a databook.
+- Characteristics and parameters are also listed out.
 
 Edits
 - Pulled Excel-based functionality and format variables into file: excel.py

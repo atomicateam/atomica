@@ -5,11 +5,13 @@ Implements a class to investigate a context represented by a complex Markov chai
 The archetypal example is an epidemic within a geographical location, where entities move between disease states.
 """
 
-from optimacore.system import applyToAllMethods, logUsage, accepts, returns
-from optimacore.system import logger, SystemSettings
+from optimacore.system import SystemSettings as SS
+from optimacore.excel import ExcelSettings as ES
+
+from optimacore.system import applyToAllMethods, logUsage, accepts
 from optimacore.framework import ProjectFramework
-from optimacore.databook import createDatabookFunc
-from optimacore.excel import ExcelSettings
+from optimacore.data import ProjectData
+from optimacore.workbook_export import writeWorkbook
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -23,37 +25,19 @@ class Project(object):
         """ Initialize the project. """
         self.name = str()
         self.framework = ProjectFramework()
+        self.data = ProjectData()
         
         self.setName(name)
 
-    def createDatabook(self, databook_path = None, instructions = None, databook_type = SystemSettings.DATABOOK_DEFAULT_TYPE):
+    def createDatabook(self, databook_path = None, instructions = None, databook_type = SS.DATABOOK_DEFAULT_TYPE):
         """
-        Generate a data-input Excel spreadsheet corresponding to the framework of this project.
+        Generate an empty data-input Excel spreadsheet corresponding to the framework of this project.
         An object in the form of DatabookInstructions can optionally be passed in to describe how many databook items should be templated.
         """
-        if databook_path is None: databook_path = "./databook_" + self.name + ExcelSettings.FILE_EXTENSION
-        createDatabookFunc(framework = self.getFramework(), databook_path = databook_path, instructions = instructions, databook_type = databook_type)
+        if databook_path is None: databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
+        writeWorkbook(workbook_path = databook_path, framework = self.framework, data = None, instructions = instructions, workbook_type = SS.STRUCTURE_KEY_DATA)
     
     @accepts(str)
     def setName(self, name):
         """ Set primary human-readable identifier for the project. """
         self.name = name
-    
-    @returns(str)
-    def getName(self):
-        """ Get primary human-readable identifier for the project. """
-        return self.name
-    
-    @accepts(ProjectFramework)
-    def setFramework(self, framework):
-        """ Set the underlying context framework for the project. """
-        self.framework = framework
-    
-    @returns(ProjectFramework)
-    def getFramework(self):
-        """ Get the underlying context framework for the project. """
-        return self.framework
-
-#    def __repr__(self):
-#        """ String representation of the project. """
-#        return ""

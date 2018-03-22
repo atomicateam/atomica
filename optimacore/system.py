@@ -29,6 +29,9 @@ class SystemSettings(object):
     
     LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
     
+    STRUCTURE_KEY_DATA = "databook"
+    STRUCTURE_KEY_FRAMEWORK = "framework_file"
+
     FRAMEWORK_DEFAULT_TYPE = "example"
     DATABOOK_DEFAULT_TYPE = "standard"
     
@@ -38,6 +41,9 @@ class SystemSettings(object):
     DEFAULT_SEPARATOR_NAME = "_"
     DEFAULT_SYMBOL_YES = "y"
     DEFAULT_SYMBOL_NO = "n"
+    DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
+    DEFAULT_SYMBOL_OR = "OR"
+    DEFAULT_SUFFIX_PLURAL = "s"
     
 
 #%% Code for determining module installation directory.
@@ -204,3 +210,11 @@ def applyToAllMethods(function):
             setattr(undecorated_class, method_name, function(method))                
         return undecorated_class
     return classDecorator
+
+#%% String utility functions.
+
+def displayName(name, as_title = False):
+    """ Minor function to convert name into text display format. """
+    text = name
+    if as_title: text = text.title()
+    return text.replace(SystemSettings.DEFAULT_SPACE_NAME, SystemSettings.DEFAULT_SPACE_LABEL)

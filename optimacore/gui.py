@@ -5,13 +5,15 @@ Contains back-end GUI wrappers for codebase functionality.
 Note: Callback functions cannot be easily decorated, so logging is applied per method, not per class.
 """
 
-from optimacore.system import logUsage, accepts, returns, logger, SystemSettings
-from optimacore.framework_settings import FrameworkSettings
-from optimacore.framework_io import FrameworkTemplateInstructions, createFrameworkTemplate
+from optimacore.system import SystemSettings as SS
+from optimacore.structure_settings import FrameworkSettings as FS
+from optimacore.structure_settings import DatabookSettings as DS
+from optimacore.excel import ExcelSettings as ES
+
+from optimacore.system import logUsage, accepts, returns, logger
 from optimacore.framework import ProjectFramework
-from optimacore.databook_settings import DatabookSettings
-from optimacore.databook import DatabookInstructions, createDatabookFunc
-from optimacore.excel import ExcelSettings
+from optimacore.workbook_export import WorkbookInstructions, writeWorkbook
+from optimacore.workbook_import import readWorkbook
 
 import sys
 
@@ -171,7 +173,7 @@ class GUIFrameworkFileCreation(qtw.QWidget):
     def resetAttributes(self):   
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a template framework.
-        self.framework_instructions = FrameworkTemplateInstructions()
+        self.framework_instructions = WorkbookInstructions(workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
 
     @logUsage
     def developLayout(self):
@@ -184,11 +186,11 @@ class GUIFrameworkFileCreation(qtw.QWidget):
         # Develop appropriate text for label widgets that describe each page-item type.
         item_type_number = 0
         for item_type in self.framework_instructions.num_items:
-            descriptor = FrameworkSettings.ITEM_TYPE_SPECS[item_type]["descriptor"]
+            descriptor = FS.ITEM_TYPE_SPECS[item_type]["descriptor"]
             text_extra = "' items: "
-            if not FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
-                superitem_type = FrameworkSettings.ITEM_TYPE_SPECS[item_type]["superitem_type"]
-                descriptor_extra = FrameworkSettings.ITEM_TYPE_SPECS[superitem_type]["descriptor"]
+            if not FS.ITEM_TYPE_SPECS[item_type]["superitem_type"] is None:
+                superitem_type = FS.ITEM_TYPE_SPECS[item_type]["superitem_type"]
+                descriptor_extra = FS.ITEM_TYPE_SPECS[superitem_type]["descriptor"]
                 text_extra = "' subitems per '" + descriptor_extra + "' item: "
             text = "Number of '" + descriptor + text_extra
             self.list_label_item_descriptors.append(qtw.QLabel(text))
@@ -241,11 +243,11 @@ class GUIFrameworkFileCreation(qtw.QWidget):
         
     def slotCreateFrameworkTemplate(self):
         """ Creates a template framework file at the location specified by the user. """
-        framework_path = getSavePathFromUser(file_filter = "*"+ExcelSettings.FILE_EXTENSION)
-        if not framework_path.endswith(ExcelSettings.FILE_EXTENSION):
-            logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(ExcelSettings.FILE_EXTENSION))
+        framework_path = getSavePathFromUser(file_filter = "*"+ES.FILE_EXTENSION)
+        if not framework_path.endswith(ES.FILE_EXTENSION):
+            logger.warning("Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(ES.FILE_EXTENSION))
             return
-        try: createFrameworkTemplate(framework_path = framework_path, instructions = self.framework_instructions)
+        try: writeWorkbook(workbook_path = framework_path, instructions = self.framework_instructions, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
         except:
             logger.exception("Framework template construction has failed.")
             raise
@@ -271,7 +273,7 @@ class GUIDatabookCreation(qtw.QWidget):
     def resetAttributes(self):   
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a databook.
-        self.databook_instructions = DatabookInstructions()
+        self.databook_instructions = WorkbookInstructions(workbook_type = SS.STRUCTURE_KEY_DATA)
         self.framework = ProjectFramework()
 
     @logUsage
@@ -285,7 +287,7 @@ class GUIDatabookCreation(qtw.QWidget):
         # Develop appropriate text for label widgets that describe each page-item type.
         item_type_number = 0
         for item_type in self.databook_instructions.num_items:
-            descriptor = DatabookSettings.ITEM_TYPE_SPECS[item_type]["descriptor"]
+            descriptor = DS.ITEM_TYPE_SPECS[item_type]["descriptor"]
             text_extra = "' items: "
             text = "Number of '" + descriptor + text_extra
             self.list_label_item_descriptors.append(qtw.QLabel(text))
@@ -308,12 +310,12 @@ class GUIDatabookCreation(qtw.QWidget):
         self.button_import_framework = qtw.QPushButton("Import Framework", self)
         self.button_import_framework.clicked.connect(self.slotImportFramework)
         self.label_framework_name = qtw.QLabel("Framework: ")
-        self.label_framework_name.setVisible(self.framework.getName()!="")
+        self.label_framework_name.setVisible(self.framework.name != "")
         self.edit_framework_name = qtw.QLineEdit()
         self.edit_framework_name.setReadOnly(True)
         self.edit_framework_name.setAlignment(qtc.Qt.AlignCenter)
-        self.edit_framework_name.setText(self.framework.getName())
-        self.edit_framework_name.setVisible(self.framework.getName()!="")
+        self.edit_framework_name.setText(self.framework.name)
+        self.edit_framework_name.setVisible(self.framework.name != "")
         layout_import_framework = qtw.QVBoxLayout()
         layout_framework_name = qtw.QHBoxLayout()
         layout_framework_name.addWidget(self.label_framework_name)
@@ -353,27 +355,27 @@ class GUIDatabookCreation(qtw.QWidget):
 
     def slotImportFramework(self):
         """ Imports a framework file from the location specified by the user. """
-        framework_path = getLoadPathFromUser(file_filter = "*"+ExcelSettings.FILE_EXTENSION)
-        if not framework_path.endswith(ExcelSettings.FILE_EXTENSION):
-            logger.warning("Abandoning framework file import due to provided framework path not ending in '{0}'.".format(ExcelSettings.FILE_EXTENSION))
+        framework_path = getLoadPathFromUser(file_filter = "*"+ES.FILE_EXTENSION)
+        if not framework_path.endswith(ES.FILE_EXTENSION):
+            logger.warning("Abandoning framework file import due to provided framework path not ending in '{0}'.".format(ES.FILE_EXTENSION))
             return
         try:
-            self.framework.importFromFile(framework_path = framework_path)
-            self.edit_framework_name.setText(self.framework.getName())
+            readWorkbook(workbook_path = framework_path, framework = self.framework, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+            self.edit_framework_name.setText(self.framework.name)
             resizeLineEditToContents(self.edit_framework_name)
-            self.label_framework_name.setVisible(self.framework.getName()!="")
-            self.edit_framework_name.setVisible(self.framework.getName()!="")
+            self.label_framework_name.setVisible(self.framework.name != "")
+            self.edit_framework_name.setVisible(self.framework.name != "")
         except:
             logger.exception("Framework file import has failed.")
             raise
         
     def slotCreateDatabook(self):
         """ Creates a databook at the location specified by the user. """
-        databook_path = getSavePathFromUser(file_filter = "*"+ExcelSettings.FILE_EXTENSION)
-        if not databook_path.endswith(ExcelSettings.FILE_EXTENSION):
-            logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(ExcelSettings.FILE_EXTENSION))
+        databook_path = getSavePathFromUser(file_filter = "*"+ES.FILE_EXTENSION)
+        if not databook_path.endswith(ES.FILE_EXTENSION):
+            logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(ES.FILE_EXTENSION))
             return
-        try: createDatabookFunc(framework = self.framework, databook_path = databook_path, instructions = self.databook_instructions)
+        try: writeWorkbook(workbook_path = databook_path, framework = self.framework, instructions = self.databook_instructions, workbook_type = SS.STRUCTURE_KEY_DATA)
         except:
             logger.exception("Databook construction has failed.")
             raise
