@@ -6,7 +6,6 @@ Version: 2018mar23
 """
 
 from optima import odict, Link, today, defaultrepr, getdate, dcp, isnumber, printv, OptimaException
-from numpy import array, exp
 
 
 #################################################################################################################################
