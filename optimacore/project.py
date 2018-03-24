@@ -31,8 +31,9 @@ from optimacore.system import applyToAllMethods, logUsage, accepts
 from optimacore.framework import ProjectFramework
 from optimacore.data import ProjectData
 from optimacore.workbook_export import writeWorkbook
+from optimacore.workbook_import import readWorkbook
 
-from optima import odict, today, OptimaException ## TODO: remove temporary imports from HIV
+from optima import odict, today, OptimaException, makefilepath ## TODO: remove temporary imports from HIV
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -77,7 +78,15 @@ class Project(object):
     def loadDatabook(self, filename=None, folder=None, name=None, overwrite=False, makedefaults=True, dorun=True, **kwargs):
         ''' Load a data spreadsheet'''
         ## Load spreadsheet and update metadata
+        fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
+        self.data = readWorkbook(workbook_path=fullpath, framework=self.framework, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+
+        self.spreadsheetdate = today() # Update date when spreadsheet was last loaded
+        self.modified = today()
+
         return None
+
+
 
 
     def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
