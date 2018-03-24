@@ -59,7 +59,7 @@ if 'makeframework' in torun:
 
 ### Export a databook from a framework
 if 'makedatabook' in torun:
-    F.writeDatabook(filename="./databooks/databook_sir.xlsx", data=None, instructions=None)
+    F.writeDatabook(filename="./databooks/databook_sir_blank.xlsx", data=None, instructions=None)
 
 ### Initialise a project with data and a framework file
 if 'makeproject' in torun:

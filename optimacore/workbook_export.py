@@ -8,11 +8,11 @@ from optimacore.excel import createStandardExcelFormats, createDefaultFormatVari
 from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
 from optimacore.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from collections import OrderedDict
-from copy import deepcopy as dcp
+#from collections import OrderedDict
+#from copy import deepcopy as dcp
 from six import moves as sm
 import xlsxwriter as xw
-
+from optima import odict, dcp # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 
 class KeyUniquenessException(OptimaException):
@@ -33,7 +33,7 @@ class WorkbookInstructions(object):
     def __init__(self, workbook_type = None):
         """ Initialize instructions that detail how to construct a workbook. """
         # Every relevant item must be included in a dictionary that lists how many should be created.
-        self.num_items = OrderedDict()
+        self.num_items = odict()
         if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
         elif workbook_type == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
         else: raise WorkbookTypeException(workbook_type)
@@ -72,7 +72,7 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
 
     # Determine attribute information and prepare for content production.
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
     if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
     if format_key is None: format_key = ES.FORMAT_KEY_CENTER
     cell_format = formats[format_key]
@@ -207,7 +207,7 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
     format_variables = dcp(orig_format_variables)
     revert_format_variables = False
 
-    row, col, header_column_map = start_row, start_col, dict()
+    row, col, header_column_map = start_row, start_col, odict()
     for attribute in item_type_spec["attributes"]:
         attribute_spec = item_type_spec["attributes"][attribute]
         if "ref_item_type" in attribute_spec:
@@ -249,7 +249,7 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
     item_type_spec = item_type_specs[item_type]
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
 
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     row, new_row = start_row, start_row
     if use_instructions:
@@ -273,7 +273,7 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
 
 def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
     row, _, header_column_map = writeHeadersDC(worksheet = worksheet, item_type = core_item_type, start_row = row, start_col = col,
@@ -290,7 +290,7 @@ def writeConnectionMatrix(worksheet, source_item_type, target_item_type, start_r
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
 
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
     if use_instructions:
@@ -347,7 +347,7 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
 
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
     if use_instructions:
@@ -363,7 +363,7 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
 def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
 
@@ -397,7 +397,7 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, data = 
     # Check workbook type.
     if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]: raise WorkbookTypeException(workbook_type)
 
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
@@ -441,7 +441,7 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
     # Generate standard formats if they do not exist and construct headers for the page.
     if formats is None: formats = createStandardExcelFormats(workbook)
 
-    if temp_storage is None: temp_storage = dict()
+    if temp_storage is None: temp_storage = odict()
 
     # Iteratively construct tables.
     row, col = 0, 0
@@ -464,7 +464,7 @@ def writeWorkbook(workbook_path, framework = None, data = None, instructions = N
     format_variables = createDefaultFormatVariables()
 
     # Create a storage dictionary for values and formulae that may persist between sections.
-    temp_storage = dict()
+    temp_storage = odict()
 
     # Iteratively construct worksheets.
     for page_key in page_keys:
