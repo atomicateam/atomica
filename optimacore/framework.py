@@ -76,7 +76,7 @@ class ProjectFramework(CoreProjectStructure):
             
     def writeDatabook(self, filename, data=None, instructions=None):
         '''
-        Export a databook 
+        Export a databook from framework 
         '''        
         writeWorkbook(workbook_path=filename, framework=self, data=data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
         return None
