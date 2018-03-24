@@ -89,6 +89,8 @@ if 'makeproject' in torun:
 # Step 2 -- transform the parameters into Par objects & put them in a Parset
 # Step 3 -- make sure that interpolation works
 # Step 4 -- figure out where the model is, and run it
+# Step 5 -- implement results class, figure out characteristics
+# Step 6 -- calibration
 
 print('\n\n\nDONE: ran %i tests' % len(torun))
 toc(T)
