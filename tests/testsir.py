@@ -49,19 +49,19 @@ T = tic()
 
 
 
-### MAKE A FRAMEWORK FILE
+### Make a framework file
 if 'makeframeworkfile' in torun:
     writeWorkbook(workbook_path="./frameworks/framework_test.xlsx", framework=None, data=None, instructions=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 
-### MAKE A FRAMEWORK
+### Import a framework file & make a framework
 if 'makeframework' in torun:
     F = ProjectFramework(filename="./frameworks/framework_sir.xlsx")
 
-### EXPORT A DATABOOK FROM A FRAMEWORK
+### Export a databook from a framework
 if 'makedatabook' in torun:
-    writeWorkbook(workbook_path = "./databooks/databook_sir.xlsx", framework=F, data=None, instructions=None, workbook_type=SS.STRUCTURE_KEY_DATA)
+    F.writeDatabook(filename="./databooks/databook_sir.xlsx", data=None, instructions=None)
 
-### INITIALISE A PROJECT WITH A FRAMEWORK FILE
+### Initialise a project with data and a framework file
 if 'makeproject' in torun:
     P = Project(framework=F, )
     #readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = P.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)

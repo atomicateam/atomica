@@ -12,6 +12,7 @@ from optimacore.system import applyToAllMethods, logUsage
 from optimacore.structure import CoreProjectStructure
 from optimacore.structure_settings import TimeDependentValuesEntry
 from optimacore.workbook_import import readWorkbook
+from optimacore.workbook_export import writeWorkbook
 
 #from collections import OrderedDict
 #from copy import deepcopy as dcp
@@ -71,3 +72,12 @@ class ProjectFramework(CoreProjectStructure):
                                 self.specs[FS.KEY_DATAPAGE][page_key]["tables"].append(table)
 
             else: self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
+            
+            
+    def writeDatabook(self, filename, data=None, instructions=None):
+        '''
+        Export a databook 
+        '''        
+        writeWorkbook(workbook_path=filename, framework=self, data=data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+        return None
+        
