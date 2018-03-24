@@ -21,8 +21,8 @@ torun = [
 #         'makeframeworkfile',
 #         'makeframework',
 #         'saveframework',
-         'loadframework',
 #         'makedatabook',
+         'loadframework',
          'makeproject',
          ]
 
@@ -83,7 +83,7 @@ if 'makedatabook' in torun:
 if 'makeproject' in torun:
     P = Project(framework=F, databook="./databooks/databook_sir.xlsx")
 
-
+### Make parameters, run the model, produce results, plot... 
 
 
 print('\n\n\nDONE: ran %i tests' % len(torun))
