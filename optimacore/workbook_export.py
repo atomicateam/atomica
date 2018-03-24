@@ -451,7 +451,7 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
                               formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
 @accepts(str)
-def writeWorkbook(workbook_path, framework = None, data = None, instructions = None, workbook_type = None):
+def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, workbook_type=None):
 
     page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
 
