@@ -24,16 +24,16 @@ import pprint
 #readWorkbook(workbook_path = "./ukraine_databook_test.xlsx", framework = proj.framework, data = proj.data, workbook_type = SS.STRUCTURE_KEY_DATA)
 
 ## TEST ALT
-proj = Project()
+P = Project()
 #writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
-readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = proj.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = P.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
 #writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = proj.framework, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_DATA)
 #readWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = proj.framework, data = proj.data, workbook_type = SS.STRUCTURE_KEY_DATA)
 
 ## PRINT
 print("-"*100)
-pprint.pprint(proj.framework.specs)
+pprint.pprint(P.framework.specs)
 print("-"*100)
-pprint.pprint(proj.data.specs)
+pprint.pprint(P.data.specs)
 print("-"*100)
 

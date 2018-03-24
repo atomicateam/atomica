@@ -42,7 +42,6 @@ class Project(object):
         if isinstance(name, str): self.name = name
         self.framework = ProjectFramework()
         self.data = ProjectData()
-        self.setName(name)
         
         ## Define the structure sets
         self.parsets  = odict()

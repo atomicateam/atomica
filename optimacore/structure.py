@@ -1,10 +1,11 @@
 from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
 from optimacore.structure_settings import DatabookSettings as DS
-
 from optimacore.system import applyToAllMethods, logUsage, accepts, OptimaException
 
-from collections import OrderedDict
+from optima import odict # TEMP IMPORT FROM OPTIMA HIV
+
+#from collections import OrderedDict
 
 class SemanticUnknownException(OptimaException):
     def __init__(self, term, attribute = None, **kwargs):
@@ -55,10 +56,10 @@ class CoreProjectStructure(object):
     def __init__(self, structure_key = None):
         """ Initialize the core project structure. """
         self.name = str()
-        self.specs = dict()
+        self.specs = odict()
 
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
-        self.semantics = dict()
+        self.semantics = odict()
         
         # Record what type of structure this is for specification initialization purposes.
         self.structure_key = structure_key
@@ -73,11 +74,11 @@ class CoreProjectStructure(object):
             elif self.structure_key == SS.STRUCTURE_KEY_DATA: item_type_specs = DS.ITEM_TYPE_SPECS
             if not item_type_specs is None:
                 for item_type in item_type_specs:
-                    if item_type_specs[item_type]["superitem_type"] is None: self.specs[item_type] = OrderedDict()
+                    if item_type_specs[item_type]["superitem_type"] is None: self.specs[item_type] = odict()
 
     def initItem(self, item_name, item_type, target_item_location):
         """ Initialize the attribute structure relating to specifications for a new item within a target dictionary. """
-        target_item_location[item_name] = dict()
+        target_item_location[item_name] = odict()
         if not self.structure_key is None:
             item_type_specs = None
             if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
@@ -91,7 +92,7 @@ class CoreProjectStructure(object):
                     except: content_type = None
                     # If the attribute itself references another item type in settings, prepare it as a container for corresponding items in specifications.
                     if "ref_item_type" in item_type_specs[item_type]["attributes"][attribute]:
-                        target_item_location[item_name][attribute] = OrderedDict()
+                        target_item_location[item_name][attribute] = odict()
                     # If the content type for the attribute is marked as a list, instantiate that list.
                     elif (not content_type is None) and content_type.is_list:
                         target_item_location[item_name][attribute] = list()
