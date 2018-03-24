@@ -84,7 +84,11 @@ if 'makeproject' in torun:
     P = Project(framework=F, databook="./databooks/databook_sir.xlsx")
 
 ### Make parameters, run the model, produce results, plot... 
-
+# Note, data is in P.data.specs
+# Step 1 -- transform this to something like a dataframe or list
+# Step 2 -- transform the parameters into Par objects & put them in a Parset
+# Step 3 -- make sure that interpolation works
+# Step 4 -- figure out where the model is, and run it
 
 print('\n\n\nDONE: ran %i tests' % len(torun))
 toc(T)
