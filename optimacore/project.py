@@ -37,11 +37,11 @@ from optima import odict, today, OptimaException, makefilepath ## TODO: remove t
 
 @applyToAllMethods(logUsage)
 class Project(object):
-    def __init__(self, name = "default", framework=None, spreadsheet=None):
+    def __init__(self, name = "default", framework=None, databook=None):
         """ Initialize the project. """
 
         if isinstance(name, str): self.name = name
-        self.framework = ProjectFramework()
+        self.framework = framework
         self.data = ProjectData()
         
         ## Define the structure sets
@@ -57,8 +57,8 @@ class Project(object):
         self.spreadsheetdate = 'Spreadsheet never loaded'
 
         ## Load spreadsheet, if available
-        if framework and spreadsheet: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            pass
+        if framework and databook: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
+            self.loadDatabook(filename=databook)
 
         return None
 
@@ -75,11 +75,13 @@ class Project(object):
         writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 
-    def loadDatabook(self, filename=None, folder=None, name=None, overwrite=False, makedefaults=True, dorun=True, **kwargs):
+    def loadDatabook(self, filename=None, folder=None, **kwargs):
         ''' Load a data spreadsheet'''
         ## Load spreadsheet and update metadata
         fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
-        self.data = readWorkbook(workbook_path=fullpath, framework=self.framework, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+
+        readWorkbook(workbook_path=fullpath, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.spreadsheetdate = today() # Update date when spreadsheet was last loaded
         self.modified = today()

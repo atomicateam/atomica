@@ -240,9 +240,10 @@ def readWorkbook(workbook_path, framework = None, data = None, workbook_type = N
 
     # Iteratively parse worksheets.
     for page_key in page_keys:
-        readWorksheet(workbook = workbook, page_key = page_key, 
+        try: readWorksheet(workbook = workbook, page_key = page_key, 
                       framework = framework, data = data, workbook_type = workbook_type)
-
+        except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+            
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
     structure.completeSpecs()
     structure.name = workbook_path

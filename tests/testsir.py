@@ -5,30 +5,25 @@ Created on Fri Mar 23 16:37:15 2018
 """
 
 ## TEMPORARY IMPORTS
-from optima import odict
+from optima import odict, saveobj, loadobj
 from optima import tic, toc, blank
 #from numpy import array
 
 ## IMPORTS
 from optimacore.project import Project
 from optimacore.workbook_export import writeWorkbook
-from optimacore.workbook_import import readWorkbook
 from optimacore.system import SystemSettings as SS
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
 from optimacore.framework import ProjectFramework
 from optimacore.workbook_export import makeInstructions
 
-## OTHER IMPORTS
-import sys
-import pprint
-
 ## DEFINE WHAT TO RUN
 torun = [
-         'makeframeworkfile',
-         'makeframework',
-         'makedatabook',
-#         'makeproject',
+#         'makeframeworkfile',
+#         'makeframework',
+#         'saveframework',
+         'loadframework',
+#         'makedatabook',
+         'makeproject',
          ]
 
 def done(t=0):
@@ -68,19 +63,25 @@ if 'makeframeworkfile' in torun:
 ### Make a framework by importing a framework file, then optionally output a blank databook from it
 if 'makeframework' in torun:
     F = ProjectFramework(filename="./frameworks/framework_sir.xlsx")
+    
+    # Save the framework object
+    if 'saveframework' in torun:
+        saveobj('testframework.frw',F)
+        
+# Load a framework object
+if 'loadframework' in torun:
+    F = loadobj('testframework.frw')
+    
+### Export a databook from a framework
+if 'makedatabook' in torun:
+    databook_instructions, use_instructions = makeInstructions(framework=F, data=None, workbook_type=SS.STRUCTURE_KEY_DATA)
+    databook_instructions.num_items = odict([('prog', 3),       # Set the number of programs
+                                             ('pop', 1), ])     # Set the number of populations
+    F.writeDatabook(filename="./databooks/databook_sir_blank.xlsx", data=None, instructions=databook_instructions)
 
-    ### Export a databook from a framework
-    if 'makedatabook' in torun:
-        databook_instructions, use_instructions = makeInstructions(framework=F, data=None, workbook_type=SS.STRUCTURE_KEY_DATA)
-        databook_instructions.num_items = odict([('prog', 3),       # Set the number of programs
-                                                 ('pop', 1), ])     # Set the number of populations
-        F.writeDatabook(filename="./databooks/databook_sir_blank.xlsx", data=None, instructions=databook_instructions)
-    
-    
 ### Initialise a project with data and a framework file
 if 'makeproject' in torun:
-    P = Project(framework=F, )
-    #readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = P.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+    P = Project(framework=F, databook="./databooks/databook_sir.xlsx")
 
 
 
