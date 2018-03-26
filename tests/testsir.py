@@ -86,8 +86,12 @@ if 'makeproject' in torun:
     
     P.parset().pars['foi'].interp(2016)
 
+
 ### Make parameters, run the model, produce results, plot... 
-# Step 3 -- make sure that interpolation works
+# Note, data is in P.data.specs
+# Step 1 -- transform this to something like a dataframe or list -- NOT DONE, SKIPPED FOR NOW
+# Step 2 -- transform the parameters into Par objects & put them in a Parset -- DONE
+# Step 3 -- make sure that interpolation works -- DOING
 # Step 4 -- figure out where the model is, and run it
 # Step 5 -- implement results class, figure out characteristics
 # Step 6 -- calibration
