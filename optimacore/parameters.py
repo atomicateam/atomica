@@ -232,7 +232,7 @@ class Timepar(Par):
 def data2timepar(parname=None, data=None, keys=None, defaultind=0, verbose=2, **defaultargs):
     """ Take data and turn it into default parameters"""
     # Check that at minimum, name and short were specified, since can't proceed otherwise
-    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+#    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     try: 
         name, short = defaultargs['label'], parname
     except: 
@@ -240,20 +240,29 @@ def data2timepar(parname=None, data=None, keys=None, defaultind=0, verbose=2, **
         raise OptimaException(errormsg)
         
     par = Timepar(m=1.0, y=odict(), t=odict(), **defaultargs) # Create structure
-    for row,key in enumerate(keys):
-        try:
-            validdata = ~isnan(data[short][row]) # WARNING, this could all be greatly simplified!!!! Shouldn't need to call this and sanitize()
-            par.t[key] = getvaliddata(data['years'], validdata, defaultind=defaultind) 
-            if sum(validdata): 
-                par.y[key] = sanitize(data[short][row])
-            else:
-                printv('data2timepar(): no data for parameter "%s", key "%s"' % (name, key), 3, verbose) # Probably ok...
-                par.y[key] = array([0.0]) # Blank, assume zero -- WARNING, is this ok?
-                par.t[key] = array([0.0])
-        except:
-            errormsg = 'Error converting time parameter "%s", key "%s"' % (name, key)
-            printv(errormsg, 1, verbose)
-            raise
+    par.short = name
+    par.name = short
+    for key in keys:
+        par.y[key] = data['values'].getValue(key)
+        if data['values'].getValue('t') is not None:
+            par.t[key] = data['values'].getValue('t')
+        else:
+            par.t[key] = 2018. # TODO, remove this, it's SUPER TEMPORARY -- a way to assign a year to constants/assumptions
+
+#    for row,key in enumerate(keys):
+#        try:
+#            validdata = ~isnan(data[short][row]) # WARNING, this could all be greatly simplified!!!! Shouldn't need to call this and sanitize()
+#            par.t[key] = getvaliddata(data['years'], validdata, defaultind=defaultind) 
+#            if sum(validdata): 
+#                par.y[key] = sanitize(data[short][row])
+#            else:
+#                printv('data2timepar(): no data for parameter "%s", key "%s"' % (name, key), 3, verbose) # Probably ok...
+#                par.y[key] = array([0.0]) # Blank, assume zero -- WARNING, is this ok?
+#                par.t[key] = array([0.0])
+#        except:
+#            errormsg = 'Error converting time parameter "%s", key "%s"' % (name, key)
+#            printv(errormsg, 1, verbose)
+#            raise
 
     return par
 
@@ -304,7 +313,7 @@ def makepars(data=None, framework=None, verbose=2, die=True, fixprops=None):
 #            if fromdata: pars[parname] = data2timepar(parname=parname, data=data['par'][parname], keys=keys, **par) 
 #            else: pars[parname] = Timepar(m=1.0, y=odict([(key,array([nan])) for key in keys]), t=odict([(key,array([0.0])) for key in keys]), **par) # Create structure
 
-            # TEMPORARY!!! - all parameters are assumed to be made from data and by population
+            # TEMPORARY!!! - all parameters are assumed to be Timepars made from data and by population
             keys = popkeys
             pars[parname] = data2timepar(parname=parname, data=data['par'][parname], keys=keys, **par) 
             
