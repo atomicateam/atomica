@@ -17,7 +17,7 @@ from optimacore._version import __version__ as version # TODO: fix imports
 
 #from collections import OrderedDict
 #from copy import deepcopy as dcp
-from optima import odict, dcp, OptimaException, makefilepath, saveobj, today, uuid, gitinfo # TEMPORARY IMPORTS FROM OPTIMA HIV
+from optima import odict, dcp, OptimaException, makefilepath, saveobj, today, uuid, gitinfo, objrepr, getdate # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 
 @applyToAllMethods(logUsage)
@@ -26,7 +26,7 @@ class ProjectFramework(CoreProjectStructure):
     
     def __init__(self, name="SIR", frameworkfilename=None, **kwargs):
         """ Initialize the framework. """
-        super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs)
+        super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs) #TODO: figure out & remove replication from below
 
         ## Define metadata
         self.name = name
@@ -45,6 +45,21 @@ class ProjectFramework(CoreProjectStructure):
         return None
 
 
+    def __repr__(self):
+        ''' Print out useful information when called '''
+        output = objrepr(self)
+        output += '    Framework name: %s\n'    % self.name
+        output += '\n'
+        output += '    Optima version: %s\n'    % self.version
+        output += '      Date created: %s\n'    % getdate(self.created)
+        output += '     Date modified: %s\n'    % getdate(self.modified)
+        output += '  Datasheet loaded: %s\n'    % getdate(self.frameworkfileloaddate)
+        output += '        Git branch: %s\n'    % self.gitbranch
+        output += '       Git version: %s\n'    % self.gitversion
+        output += '               UID: %s\n'    % self.uid
+        output += '============================================================\n'
+        return output
+    
 
     def completeSpecs(self):
         """
@@ -90,10 +105,10 @@ class ProjectFramework(CoreProjectStructure):
             else: self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
             
             
-    def writeDatabook(self, filename, data=None, instructions=None):
-        ''' Export a databook from framework '''        
-        writeWorkbook(workbook_path=filename, framework=self, data=data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
-        return None
+    def writeFrameworkfile(self, filename, data=None, instructions=None):
+        ''' Export a framework file from framework'''        
+        # TODO: modify writeWorkbook so it can write framework specs to an excel file???
+        pass
 
 
     def readFrameworkfile(self, frameworkfilename=None):

@@ -40,7 +40,7 @@ from optimacore._version import __version__ as version # TODO: fix imports
 
 from numpy.random import seed, randint
 
-from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber, promotetolist, saveobj, uuid, gitinfo, getdate, objrepr ## TODO: remove temporary imports from HIV
+from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber, promotetolist, saveobj, uuid, gitinfo, getdate, objrepr, Link ## TODO: remove temporary imports from HIV utils
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -149,6 +149,8 @@ class Project(object):
         return parset
 
 
+    def makeprogset(self, name='default'):
+        pass
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
 #
@@ -317,6 +319,14 @@ class Project(object):
     ### Utilities
     #######################################################################################################
 
+    def restorelinks(self):
+        ''' Loop over all objects that have links back to the project and restore them '''
+        for item in self.parsets.values()+self.progsets.values()+self.scens.values()+self.optims.values()+self.results.values():
+            if hasattr(item, 'projectref'):
+                item.projectref = Link(self)
+        return None
+
+
     def pars(self, key=-1, verbose=2):
         ''' Shortcut for getting the latest active set of parameters, i.e. self.parsets[-1].pars '''
         try:    return self.parsets[key].pars
@@ -426,6 +436,22 @@ class Project(object):
         return simparslist #TEMP: return interpolated parameters
 
 
+    def calibrate(self):
+        ''' Function to perform automatic calibration '''
+        pass
+    
+    def outcome(self):
+        ''' Function to get the outcome for a particular sim and objective'''
+        pass
+    
+    def runscenarios(self):
+        '''Run the specified scenarios'''
+        pass
+    
+    def optimize(self):
+        '''Run an optimization'''
+    
+    
     def save(self, filename=None, folder=None, verbose=2):
         ''' Save the current project.'''
         fullpath = makefilepath(filename=filename, folder=folder, ext='prj', sanitize=True)
@@ -447,8 +473,8 @@ class Project(object):
 #            printv('Generated spreadsheet from project %s and saved to file %s' % (self.name, spreadsheetpath), 2, verbose)
 
         output = "'''\nSCRIPT TO GENERATE PROJECT %s\n" %(self.name)
-        output += "Created %s\n\n\n'''\n\n\n" %(today())
-        output += "NOT FUNCTIONAL YET\n\n"
+        output += "Created %s\n\n\n" %(today())
+        output += "THIS METHOD IS NOT FUNCTIONAL YET'''\n\n\n"
 
         f = open(fullpath, 'w')
         f.write( output )
