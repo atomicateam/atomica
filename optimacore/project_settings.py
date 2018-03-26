@@ -13,7 +13,7 @@ class ProjectSettings(object):
         self.nprogs = nprogs if nprogs is not None else 4 # Default number of programs
         self.npops = npops if npops is not None else  1 # Default number of populations
 
-        self.start = start if start is not None else 2000.0 # Default start year
+        self.datastart = start if start is not None else 2000.0 # Default start year
         self.dataend = dataend if dataend is not None else 2020.0 # Default end year for data entry
         self.end = end if end is not None else 2030.0 # Default end year for projections
         self.now = 2018.0 # Default current year

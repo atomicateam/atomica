@@ -83,7 +83,7 @@ if 'makedatabook' in torun:
 
 ### Initialise a project with data and a framework file
 if 'makeproject' in torun:
-    P = Project(framework=F, databook="./databooks/databook_sir.xlsx")
+    P = Project(framework=F, databoook="./databooks/databook_sir.xlsx")
     
     P.parset().pars['foi'].interp(2016)
 

@@ -89,9 +89,9 @@ class Project(object):
         self.databookdate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
         
-        self.datayears = databookout['datayears']
-        self.datastart = self.datayears[0]
-        self.dataend = self.datayears[-1]
+        datayears = databookout['datayears']
+        self.settings.datastart = datayears[0]
+        self.settings.dataend = datayears[-1]
 
         if name is None: name = 'default'
         self.makeparset(name=name, overwrite=overwrite)
@@ -104,8 +104,7 @@ class Project(object):
         if not self.data: # TODO this is not the right check to be doing
             raise OptimaException('No data in project "%s"!' % self.name)
         parset = Parameterset(name=name, project=self)
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-        parset.makepars(self.data, framework=self.framework, start=self.datastart, end=self.dataend) # Create parameters
+        parset.makepars(self.data, framework=self.framework, start=self.settings.datastart, end=self.settings.dataend) # Create parameters
 
         if dosave: # Save to the project if requested
             if name in self.parsets and not overwrite: # and overwrite if requested
@@ -116,6 +115,29 @@ class Project(object):
                 self.addparset(name=name, parset=parset, overwrite=overwrite) # Store parameters
                 self.modified = today()
         return parset
+
+
+#    def makedefaults(self, name=None, scenname=None, overwrite=False):
+#        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
+#
+#        # Handle inputs
+#        if name is None: name = 'default'
+#        if scenname is None: scenname = 'default'
+#
+#        # Make default progset, scenarios and optimizations
+#        if overwrite or name not in self.progsets:
+#            progset = Programset(name=name, project=self)
+#            self.addprogset(progset)
+#
+#        if overwrite or scenname not in self.scens:
+#            scenlist = [Parscen(name=scenname, parsetname=name,pars=[])]
+#            self.addscens(scenlist)
+#
+#        if overwrite or name not in self.optims:
+#            optim = Optim(project=self, name=name)
+#            self.addoptim(optim)
+#
+#        return None
 
 
     #######################################################################################################
@@ -259,29 +281,6 @@ class Project(object):
     def renamescen(self,    orig=None, new=None, overwrite=True): self.rename(what='scen',     orig=orig, new=new, overwrite=overwrite)
     def renameoptim(self,   orig=None, new=None, overwrite=True): self.rename(what='optim',    orig=orig, new=new, overwrite=overwrite)
 
-#    def makedefaults(self, name=None, scenname=None, overwrite=False):
-#        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
-#
-#        # Handle inputs
-#        if name is None: name = 'default'
-#        if scenname is None: scenname = 'default'
-#
-#        # Make default progset, scenarios and optimizations
-#        if overwrite or name not in self.progsets:
-#            progset = Programset(name=name, project=self)
-#            self.addprogset(progset)
-#
-#        if overwrite or scenname not in self.scens:
-#            scenlist = [Parscen(name=scenname, parsetname=name,pars=[])]
-#            self.addscens(scenlist)
-#
-#        if overwrite or name not in self.optims:
-#            optim = Optim(project=self, name=name)
-#            self.addoptim(optim)
-#
-#        return None
-
-
     #######################################################################################################
     ### Utilities
     #######################################################################################################
@@ -320,6 +319,79 @@ class Project(object):
         ''' Shortcut for getting the latest active results, i.e. self.results[-1]'''
         try:    return self.results[key]
         except: return printv('Warning, results set not found!', 1, verbose) # Returns None
+
+
+    #######################################################################################################
+    ### Methods to perform major tasks
+    #######################################################################################################
+
+
+    def runsim(self, name=None, pars=None, simpars=None, start=None, end=None, dt=None, tvec=None, 
+               budget=None, coverage=None, budgetyears=None, data=None, n=1, sample=None, tosample=None, randseed=None,
+               addresult=True, overwrite=True, keepraw=False, doround=True, die=True, debug=False, verbose=None, 
+               parsetname=None, progsetname=None, resultname=None, label=None, **kwargs):
+        ''' 
+        This function runs a single simulation, or multiple simulations if n>1. This is the
+        core function for actually running the model!!!!!!
+        
+        Version: 2018jan13
+        '''
+        if dt      is None: dt      = self.settings.dt # Specify the timestep
+        if verbose is None: verbose = self.settings.verbose
+        
+        # Extract parameters either from a parset stored in project or from input
+        if parsetname is None:
+            if name is not None: parsetname = name # This is mostly for backwards compatibility -- allow the first argument to set the parset
+            else:                parsetname = -1 # Set default name
+            if pars is None:
+                pars = self.parsets[parsetname].pars
+                resultname = 'parset-'+self.parsets[parsetname].name
+            else:
+                printv('Model was given a pardict and a parsetname, defaulting to use pardict input', 3, self.settings.verbose)
+                if resultname is None: resultname = 'pardict'
+        else:
+            if pars is not None:
+                printv('Model was given a pardict and a parsetname, defaulting to use pardict input', 3, self.settings.verbose)
+                if resultname is None: resultname = 'pardict'
+            else:
+                if resultname is None: resultname = 'parset-'+self.parsets[parsetname].name
+                pars = self.parsets[parsetname].pars
+        if label is None: # Define the label
+            if name is None: label = '%s' % parsetname
+            else:            label = name
+            
+        # Get the parameters sorted
+        if simpars is None: # Optionally run with a precreated simpars instead
+            simparslist = [] # Needs to be a list
+            if n>1 and sample is None: sample = 'new' # No point drawing more than one sample unless you're going to use uncertainty
+            if randseed is not None: seed(randseed) # Reset the random seed, if specified
+            if start is None: 
+                try:    start = self.parsets[parsetname].start # Try to get start from parameter set, but don't worry if it doesn't exist
+                except: start = self.settings.start # Else, specify the start year from the project
+                try:    end   = self.parsets[parsetname].end # Ditto
+                except: end   = self.settings.end # Ditto
+            for i in range(n):
+                maxint = 2**31-1 # See https://en.wikipedia.org/wiki/2147483647_(number)
+                sampleseed = randint(0,maxint) 
+                simparslist.append(makesimpars(pars, start=start, end=end, dt=dt, tvec=tvec, settings=self.settings, name=parsetname, sample=sample, tosample=tosample, randseed=sampleseed))
+        else:
+            simparslist = promotetolist(simpars)
+
+        # Run the model!
+        rawlist = []
+        for ind,simpars in enumerate(simparslist):
+            raw = model(simpars, self.settings, die=die, debug=debug, verbose=verbose, label=self.name, **kwargs) # ACTUALLY RUN THE MODEL
+            rawlist.append(raw)
+
+        # Store results if required
+        results = Resultset(name=resultname, pars=pars, parsetname=parsetname, progsetname=progsetname, raw=rawlist, simpars=simparslist, budget=budget, coverage=coverage, budgetyears=budgetyears, project=self, keepraw=keepraw, doround=doround, data=data, verbose=verbose) # Create structure for storing results
+        if addresult:
+            keyname = self.addresult(result=results, overwrite=overwrite)
+            if parsetname is not None:
+                self.parsets[parsetname].resultsref = keyname # If linked to a parset, store the results
+            self.modified = today() # Only change the modified date if the results are stored
+        
+        return results
 
 
 
