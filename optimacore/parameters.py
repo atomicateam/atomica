@@ -241,7 +241,6 @@ def data2timepar(parname=None, data=None, keys=None, defaultind=0, verbose=2, **
     par = Timepar(m=1.0, y=odict(), t=odict(), **defaultargs) # Create structure
     par.name = name
     par.short = short
-    if par.short =='susdeath': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     for key in keys:
         par.y[key] = data['values'].getValue(key)
         if data['values'].getValue('t') is not None: # TODO this whole thing only works for constants... need to revamp data storage
