@@ -19,9 +19,9 @@ from optimacore.project_settings import ProjectSettings
 
 ## DEFINE WHAT TO RUN
 torun = [
-#         'makeframeworkfile',
-#         'makeframework',
-#         'saveframework',
+         'makeframeworkfile',
+         'makeframework',
+         'saveframework',
          'loadframework',
 #         'makedatabook',
          'makeproject',
@@ -67,7 +67,8 @@ if 'makeframework' in torun:
     
     # Save the framework object
     if 'saveframework' in torun:
-        saveobj('testframework.frw',F)
+        F.save('testframework.frw')
+#        saveobj('testframework.frw',F)
         
 # Load a framework object
 if 'loadframework' in torun:

@@ -83,18 +83,11 @@ class ProjectFramework(CoreProjectStructure):
         return None
 
 
-    def save(self, filename=None, folder=None, saveresults=False, verbose=2):
+    def save(self, filename=None, folder=None, verbose=2):
         ''' Save the current project, by default using its name, and without results '''
-        fullpath = makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
+        fullpath = makefilepath(filename=filename, folder=folder, ext='frw', sanitize=True)
         self.filename = fullpath # Store file path
-        if saveresults:
-            saveobj(fullpath, self, verbose=verbose)
-        else:
-            tmpproject = dcp(self) # Need to do this so we don't clobber the existing results
-            tmpproject.restorelinks() # Make sure links are restored
-            tmpproject.cleanresults() # Get rid of all results
-            saveobj(fullpath, tmpproject, verbose=verbose) # Save it to file
-            del tmpproject # Don't need it hanging around any more
+        saveobj(fullpath, self, verbose=verbose)
         return fullpath
 
 
