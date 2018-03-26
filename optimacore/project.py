@@ -36,20 +36,22 @@ from optimacore.programs import Programset
 from optimacore.results import Resultset
 from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
+from optimacore._version import __version__ as version # TODO: fix imports
 
 from numpy.random import seed, randint
 
-from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber, promotetolist ## TODO: remove temporary imports from HIV
+from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber, promotetolist, saveobj, uuid, gitinfo, getdate, objrepr ## TODO: remove temporary imports from HIV
 
 @applyToAllMethods(logUsage)
 class Project(object):
     def __init__(self, name = "default", framework=None, databook=None):
         """ Initialize the project. """
 
-        if isinstance(name, str): self.name = name
+        self.name = name
+        self.filename = None # Never saved to file
         self.framework = framework if framework else ProjectFramework()
-        self.data = ProjectData()
-        
+        self.data = ProjectData() # TEMPORARY
+
         ## Define the structure sets
         self.parsets  = odict()
         self.progsets = odict()
@@ -58,9 +60,12 @@ class Project(object):
         self.results  = odict()
 
         ## Define metadata
+        self.uid = uuid()
+        self.version = version
+        self.gitbranch, self.gitversion = gitinfo()
         self.created = today()
         self.modified = today()
-        self.databookdate = 'Databook never loaded'
+        self.databookloaddate = 'Databook never loaded'
         self.settings = ProjectSettings() # Global settings
 
         ## Load spreadsheet, if available
@@ -69,6 +74,29 @@ class Project(object):
 
         return None
 
+
+    def __repr__(self):
+        ''' Print out useful information when called '''
+        output = objrepr(self)
+        output += '      Project name: %s\n'    % self.name
+        output += '    Framework name: %s\n'    % self.framework.name
+        output += '\n'
+        output += '    Parameter sets: %i\n'    % len(self.parsets)
+        output += '      Program sets: %i\n'    % len(self.progsets)
+        output += '         Scenarios: %i\n'    % len(self.scens)
+        output += '     Optimizations: %i\n'    % len(self.optims)
+        output += '      Results sets: %i\n'    % len(self.results)
+        output += '\n'
+        output += '    Optima version: %s\n'    % self.version
+        output += '      Date created: %s\n'    % getdate(self.created)
+        output += '     Date modified: %s\n'    % getdate(self.modified)
+        output += '  Datasheet loaded: %s\n'    % getdate(self.databookloaddate)
+        output += '        Git branch: %s\n'    % self.gitbranch
+        output += '       Git version: %s\n'    % self.gitversion
+        output += '               UID: %s\n'    % self.uid
+        output += '============================================================\n'
+        return output
+    
 
     #######################################################################################################
     ### Methods for I/O and spreadsheet loading
@@ -88,7 +116,7 @@ class Project(object):
         fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
         databookout = readWorkbook(workbook_path=fullpath, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
 
-        self.databookdate = today() # Update date when spreadsheet was last loaded
+        self.databookloaddate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
         
         datayears = databookout['datayears']
@@ -398,6 +426,35 @@ class Project(object):
         return simparslist #TEMP: return interpolated parameters
 
 
+    def save(self, filename=None, folder=None, verbose=2):
+        ''' Save the current project.'''
+        fullpath = makefilepath(filename=filename, folder=folder, ext='prj', sanitize=True)
+        self.filename = fullpath # Store file path
+        saveobj(fullpath, self, verbose=verbose)
+        return fullpath
+
+
+    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):
+        '''
+        Export a script that, when run, generates this project.
+        '''
+        
+        fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='py', sanitize=True)
+        
+#        if datasheetpath is None:
+#            spreadsheetpath = self.name+'.xlsx'
+#            self.createDatabook(filename=spreadsheetpath, folder=folder) ## TODO: first need to make sure that data can be written back to excel
+#            printv('Generated spreadsheet from project %s and saved to file %s' % (self.name, spreadsheetpath), 2, verbose)
+
+        output = "'''\nSCRIPT TO GENERATE PROJECT %s\n" %(self.name)
+        output += "Created %s\n\n\n'''\n\n\n" %(today())
+        output += "NOT FUNCTIONAL YET\n\n"
+
+        f = open(fullpath, 'w')
+        f.write( output )
+        f.close()
+        printv('Saved project %s to script file %s' % (self.name, fullpath), 2, verbose)
+        return None
 
         
         

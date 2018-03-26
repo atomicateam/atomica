@@ -13,11 +13,11 @@ from optimacore.structure import CoreProjectStructure
 from optimacore.structure_settings import TimeDependentValuesEntry
 from optimacore.workbook_import import readWorkbook
 from optimacore.workbook_export import writeWorkbook
-from optimacore.project_settings import ProjectSettings
+from optimacore._version import __version__ as version # TODO: fix imports
 
 #from collections import OrderedDict
 #from copy import deepcopy as dcp
-from optima import odict, dcp, OptimaException, makefilepath, saveobj, today # TEMPORARY IMPORTS FROM OPTIMA HIV
+from optima import odict, dcp, OptimaException, makefilepath, saveobj, today, uuid, gitinfo # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 
 @applyToAllMethods(logUsage)
@@ -29,10 +29,14 @@ class ProjectFramework(CoreProjectStructure):
         super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs)
 
         ## Define metadata
+        self.name = name
+        self.filename = None # Never yet saved to file
+        self.uid = uuid()
         self.created = today()
         self.modified = today()
-        self.databookdate = 'Databook never loaded'
-        self.settings = ProjectSettings() # Global settings
+        self.version = version
+        self.gitbranch, self.gitversion = gitinfo()
+        self.frameworkfileloaddate = 'Framework file never loaded'
 
         ## Load framework file if provided
         if frameworkfilename:
@@ -96,9 +100,15 @@ class ProjectFramework(CoreProjectStructure):
         ''' Export a databook from framework '''        
         frameworkfileout = readWorkbook(workbook_path=frameworkfilename, framework=self, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         self.frameworkfileout = frameworkfileout # readWorkbook returns an odict of information about the workbook it just read. For framework files, this is blank at the moment. Think about what could go here & how it could be stored.
+        self.frameworkfileloaddate = today()
         self.modified = today()
         
         return None
+
+
+    def makemodel(self):
+        '''Generate the model that goes with the framework'''
+        pass
 
 
     def save(self, filename=None, folder=None, verbose=2):

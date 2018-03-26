@@ -19,12 +19,14 @@ from optimacore.project_settings import ProjectSettings
 
 ## DEFINE WHAT TO RUN
 torun = [
-         'makeframeworkfile',
-         'makeframework',
-         'saveframework',
-         'loadframework',
+#         'makeframeworkfile',
+#         'makeframework',
+#         'saveframework',
+#         'loadframework',
 #         'makedatabook',
-         'makeproject',
+#         'makeproject',
+#         'saveproject',
+         'loadproject',
          ]
 
 def done(t=0):
@@ -63,7 +65,7 @@ if 'makeframeworkfile' in torun:
 
 ### Make a framework by importing a framework file, then optionally save it
 if 'makeframework' in torun:
-    F = ProjectFramework(frameworkfilename="./frameworks/framework_sir.xlsx")
+    F = ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
     
     # Save the framework object
     if 'saveframework' in torun:
@@ -83,7 +85,17 @@ if 'makedatabook' in torun:
 ### Initialise a project with data and a framework file
 if 'makeproject' in torun:
     P = Project(framework=F, databook="./databooks/databook_sir.xlsx")
-    # Note, P.runsim() currently returns interpolated parameters
+    # Note, P.runsim() currently returns interpolated parameters, not an actual model result. Model doesn't exist yet
+    
+    # Save the framework object
+    if 'saveproject' in torun:
+        P.save('testproject.prj')
+        
+# Load a project
+if 'loadproject' in torun:
+    P = loadobj('testproject.prj')
+    P.export()
+    
 
 ### Make parameters, run the model, produce results, plot... 
 # Note, data is in P.data.specs
