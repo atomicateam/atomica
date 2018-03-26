@@ -63,7 +63,6 @@ class Parameterset(object):
 
 
 
-
     def interp(self, keys=None, start=None, end=2030, dt=0.2, tvec=None, smoothness=20, asarray=True, samples=None, verbose=2):
         """ Prepares model parameters to run the simulation. """
         printv('Making model parameters...', 1, verbose),
@@ -189,7 +188,6 @@ class Timepar(Par):
     
     def sample(self, randseed=None):
         ''' Recalculate msample '''
-        self.msample = self.prior.sample(n=1, randseed=randseed)[0]
         return None
     
     def interp(self, tvec=None, dt=None, smoothness=None, asarray=True, sample=None, randseed=None):
