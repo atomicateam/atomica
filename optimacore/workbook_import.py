@@ -13,7 +13,7 @@ from six import moves as sm
 import xlsxwriter as xw
 import xlrd
 
-
+from optima import odict ## TEMPORARY IMPORTS FROM OPTIMA HIV
 
 def getTargetStructure(framework = None, data = None, workbook_type = None):
     """ Returns the structure to store definitions and values being read from workbook. """
@@ -225,8 +225,19 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
         row, col = readTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
                              framework = framework, data = data, workbook_type = workbook_type)
 
+
+def getyears(sheetdata):
+    ''' Get years from a worksheet'''
+    years = [] # Initialize data years
+    for col in range(3,sheetdata.ncols): 
+        thiscell = sheetdata.cell_value(0,col) # 3 is because we start in column 3
+        years.append(float(thiscell)) # Add this year
+    
+    return years
+
+
 @accepts(str)
-def readWorkbook(workbook_path, framework = None, data = None, workbook_type = None):
+def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
 
     page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
 
@@ -238,6 +249,17 @@ def readWorkbook(workbook_path, framework = None, data = None, workbook_type = N
         logger.error("Workbook was not found.")
         raise
 
+    # Check workbook type and initialise output
+    if workbook_type in [SS.STRUCTURE_KEY_FRAMEWORK]:
+        workbookout = odict() # TODO add whatever output you want here
+    elif workbook_type in [SS.STRUCTURE_KEY_DATA]:
+        workbookout = odict()
+        ## Open workbook and calculate columns for which data are entered, and store the year ranges
+        sheetdata = workbook.sheet_by_name('Parameters') # Load this workbook
+        workbookout['datayears'] = getyears(sheetdata)
+    else:
+        raise WorkbookTypeException(workbook_type)
+
     # Iteratively parse worksheets.
     for page_key in page_keys:
         readWorksheet(workbook = workbook, page_key = page_key, 
@@ -246,3 +268,5 @@ def readWorkbook(workbook_path, framework = None, data = None, workbook_type = N
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
     structure.completeSpecs()
     structure.name = workbook_path
+    
+    return workbookout

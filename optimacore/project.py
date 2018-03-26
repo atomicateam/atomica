@@ -30,6 +30,7 @@ from optimacore.excel import ExcelSettings as ES
 from optimacore.system import applyToAllMethods, logUsage, accepts
 from optimacore.framework import ProjectFramework
 from optimacore.data import ProjectData
+from optimacore.project_settings import ProjectSettings
 from optimacore.parameters import Parameterset
 from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
@@ -56,6 +57,7 @@ class Project(object):
         self.created = today()
         self.modified = today()
         self.databookdate = 'Databook never loaded'
+        self.settings = ProjectSettings() # Global settings
 
         ## Load spreadsheet, if available
         if framework and databook: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
@@ -80,10 +82,14 @@ class Project(object):
         ''' Load a data spreadsheet'''
         ## Load spreadsheet and update metadata
         fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
-        readWorkbook(workbook_path=fullpath, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
+        databookout = readWorkbook(workbook_path=fullpath, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookdate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
+        
+        self.datayears = databookout['datayears']
+        self.datastart = self.datayears[0]
+        self.dataend = self.datayears[-1]
 
         if name is None: name = 'default'
 #        self.makeparset(name=name, overwrite=overwrite)

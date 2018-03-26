@@ -13,10 +13,11 @@ from optimacore.structure import CoreProjectStructure
 from optimacore.structure_settings import TimeDependentValuesEntry
 from optimacore.workbook_import import readWorkbook
 from optimacore.workbook_export import writeWorkbook
+from optimacore.project_settings import ProjectSettings
 
 #from collections import OrderedDict
 #from copy import deepcopy as dcp
-from optima import odict, dcp # TEMPORARY IMPORTS FROM OPTIMA HIV
+from optima import odict, dcp, OptimaException # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 
 @applyToAllMethods(logUsage)
@@ -27,8 +28,8 @@ class ProjectFramework(CoreProjectStructure):
         """ Initialize the framework. """
         super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs)
         if filename:
-            readWorkbook(workbook_path=filename, framework=self, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
-
+            frameworkfileout = readWorkbook(workbook_path=filename, framework=self, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+            self.frameworkfileout = frameworkfileout # readWorkbook returns an odict of information about the workbook it just read. For framework files, this is blank at the moment. Think about what could go here & how it could be stored.
 
     def completeSpecs(self):
         """
@@ -74,7 +75,7 @@ class ProjectFramework(CoreProjectStructure):
             else: self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
             
             
-    def writeDatabook(self, filename, data=None, instructions=None):
+    def writeDatabook(self, filename, data=None, instructions=None, warn=False):
         '''
         Export a databook from framework 
         '''        

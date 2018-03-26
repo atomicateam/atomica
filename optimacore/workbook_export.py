@@ -360,7 +360,7 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
     next_row = row
     return next_row
 
-def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, tvec=None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     if temp_storage is None: temp_storage = odict()
@@ -369,15 +369,16 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
 
     # Create the standard value entry block, extracting the number of items from instructions.
     # TODO: Adjust this for when writing existing values to workbook.
-    # TODO: Decide what to do about time.
+    # TODO: Decide what to do about time. RS: I have put in a temporary solution
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
     num_items = 0
     if use_instructions: num_items = instructions.num_items[iterated_type]
     default_values = [0.0]*num_items
     if "default_value" in item_specs[item_type][item_key]:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
+    if tvec is None: tvec = [x for x in sm.range(2000,2019)] # TODO Temporary, fix this!
     createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
-                          num_items = num_items, time_vector = [x for x in sm.range(2000,2019)], 
+                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere
                           default_values = default_values, formats = formats)
 
     row = writeHeadersTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key,
@@ -391,7 +392,7 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     next_row, next_col = row, col
     return next_row, next_col
 
-def writeTable(worksheet, table, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+def writeTable(worksheet, table, start_row, start_col, framework = None, tvec=None, data = None, instructions = None, workbook_type = None, 
                formats = None, format_variables = None, temp_storage = None):
 
     # Check workbook type.
@@ -413,14 +414,14 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, data = 
         if not table.item_key is None:
             row, col = writeTimeDependentValuesEntry(worksheet = worksheet, item_type = table.item_type, item_key = table.item_key, iterated_type = table.iterated_type,
                                                      start_row = row, start_col = col, 
-                                                     framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                                                     framework = framework, tvec=tvec, data = data, instructions = instructions, workbook_type = workbook_type,
                                                      formats = formats, format_variables = format_variables, temp_storage = temp_storage)
     
     next_row, next_col = row, col
     return next_row, next_col
 
-def writeWorksheet(workbook, page_key, framework = None, data = None, instructions = None, workbook_type = None, 
-                   formats = None, format_variables = None, temp_storage = None):
+def writeWorksheet(workbook, page_key, framework=None, tvec=None, data=None, instructions=None, workbook_type=None, 
+                   formats=None, format_variables=None, temp_storage=None):
 
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
 
@@ -447,11 +448,11 @@ def writeWorksheet(workbook, page_key, framework = None, data = None, instructio
     row, col = 0, 0
     for table in page_spec["tables"]:
         row, col = writeTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
-                              framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
+                              framework = framework, tvec=tvec, data = data, instructions = instructions, workbook_type = workbook_type,
                               formats = formats, format_variables = format_variables, temp_storage = temp_storage)
 
 @accepts(str)
-def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, workbook_type=None):
+def writeWorkbook(workbook_path, framework=None, tvec=None, data=None, instructions=None, workbook_type=None):
 
     page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
 
@@ -468,9 +469,9 @@ def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, w
 
     # Iteratively construct worksheets.
     for page_key in page_keys:
-        writeWorksheet(workbook = workbook, page_key = page_key, 
-                       framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
-                       formats = formats, format_variables = format_variables, temp_storage = temp_storage)
+        writeWorksheet(workbook=workbook, page_key=page_key, 
+                       framework=framework, tvec=tvec, data=data, instructions=instructions, workbook_type=workbook_type,
+                       formats=formats, format_variables=format_variables, temp_storage=temp_storage)
     workbook.close()
 
     logger.info("{0} construction complete.".format(displayName(workbook_type, as_title = True)))
