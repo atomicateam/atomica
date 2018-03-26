@@ -17,7 +17,7 @@ from optimacore.project_settings import ProjectSettings
 
 #from collections import OrderedDict
 #from copy import deepcopy as dcp
-from optima import odict, dcp, OptimaException # TEMPORARY IMPORTS FROM OPTIMA HIV
+from optima import odict, dcp, OptimaException, makefilepath, saveobj # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 
 @applyToAllMethods(logUsage)
@@ -81,4 +81,21 @@ class ProjectFramework(CoreProjectStructure):
         '''        
         writeWorkbook(workbook_path=filename, framework=self, data=data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
         return None
+
+
+    def save(self, filename=None, folder=None, saveresults=False, verbose=2):
+        ''' Save the current project, by default using its name, and without results '''
+        fullpath = makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
+        self.filename = fullpath # Store file path
+        if saveresults:
+            saveobj(fullpath, self, verbose=verbose)
+        else:
+            tmpproject = dcp(self) # Need to do this so we don't clobber the existing results
+            tmpproject.restorelinks() # Make sure links are restored
+            tmpproject.cleanresults() # Get rid of all results
+            saveobj(fullpath, tmpproject, verbose=verbose) # Save it to file
+            del tmpproject # Don't need it hanging around any more
+        return fullpath
+
+
         
