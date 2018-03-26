@@ -49,7 +49,7 @@ class WorkbookInstructions(object):
             logger.error("An attempted update of workbook instructions to produce '{0}' instances of item type '{1}' failed.".format(number, item_type))
             raise
 
-def makeInstructions(framework = None, data = None, instructions = None, workbook_type = None):
+def makeInstructions(framework=None, data=None, instructions=None, workbook_type=None):
     """
     Generates instructions that detail the number of items pertinent to workbook construction processes.
     If a ProjectFramework or ProjectData structure is available, this will be used in filling out a workbook rather than via instructions.

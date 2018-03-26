@@ -30,6 +30,7 @@ from optimacore.excel import ExcelSettings as ES
 from optimacore.system import applyToAllMethods, logUsage, accepts
 from optimacore.framework import ProjectFramework
 from optimacore.data import ProjectData
+from optimacore.parameters import Parameterset
 from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
 
@@ -75,7 +76,7 @@ class Project(object):
         writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 
-    def loadDatabook(self, filename=None, folder=None, **kwargs):
+    def loadDatabook(self, filename=None, folder=None, name=None, overwrite=True, **kwargs):
         ''' Load a data spreadsheet'''
         ## Load spreadsheet and update metadata
         fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
@@ -84,28 +85,29 @@ class Project(object):
         self.databookdate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
 
+        if name is None: name = 'default'
+#        self.makeparset(name=name, overwrite=overwrite)
+
         return None
 
 
+    def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
+        ''' Create or overwrite a parameter set '''
+        if not self.data:
+            raise OptimaException('No data in project "%s"!' % self.name)
+        parset = Parameterset(name=name, project=self)
+        parset.makepars(self.data, verbose=self.settings.verbose, start=self.settings.start, end=self.settings.end) # Create parameters
+        if dosave: # Save to the project if requested
+            if name in self.parsets and not overwrite: # and overwrite if requested
+                errormsg = 'Cannot make parset "%s" because it already exists (%s) and overwrite is off' % (name, self.parsets.keys())
+                if die: raise OptimaException(errormsg) # Probably not a big deal, so...
+                else:   printv(errormsg, 3, verbose=self.settings.verbose) # ...don't even print it except with high verbose settings
+            else:
+                self.addparset(name=name, parset=parset, overwrite=overwrite) # Store parameters
+                self.modified = today()
+        return parset
 
 
-#    def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
-#        ''' Create or overwrite a parameter set '''
-#        if not self.data:
-#            raise OptimaException('No data in project "%s"!' % self.name)
-#        parset = Parameterset(name=name, project=self)
-#        parset.makepars(self.data, verbose=self.settings.verbose, start=self.settings.start, end=self.settings.end) # Create parameters
-#        if dosave: # Save to the project if requested
-#            if name in self.parsets and not overwrite: # and overwrite if requested
-#                errormsg = 'Cannot make parset "%s" because it already exists (%s) and overwrite is off' % (name, self.parsets.keys())
-#                if die: raise OptimaException(errormsg) # Probably not a big deal, so...
-#                else:   printv(errormsg, 3, verbose=self.settings.verbose) # ...don't even print it except with high verbose settings
-#            else:
-#                self.addparset(name=name, parset=parset, overwrite=overwrite) # Store parameters
-#                self.modified = today()
-#        return parset
-#
-#
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
 #

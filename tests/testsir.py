@@ -21,7 +21,7 @@ torun = [
 #         'makeframeworkfile',
 #         'makeframework',
 #         'saveframework',
-#         'makedatabook',
+         'makedatabook',
          'loadframework',
          'makeproject',
          ]
