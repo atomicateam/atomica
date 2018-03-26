@@ -17,7 +17,7 @@ class ProjectSettings(object):
         self.dataend = dataend if dataend is not None else 2020.0 # Default end year for data entry
         self.end = end if end is not None else 2030.0 # Default end year for projections
         self.now = 2018.0 # Default current year
-        self.dt = 0.2 # Timestep
+        self.dt = 1.0 # Timestep
         
         # Other
         self.defaultblue = (0.16, 0.67, 0.94) # The color of Optima

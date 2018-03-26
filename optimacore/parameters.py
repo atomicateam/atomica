@@ -5,7 +5,7 @@ and the Parameterset class, which is for the full set of parameters.
 Version: 2018mar23
 """
 
-from optima import odict, Link, today, defaultrepr, getdate, dcp, isnumber, printv, OptimaException, smoothinterp, getvaliddata, sanitize, findinds
+from optima import odict, Link, today, defaultrepr, getdate, dcp, isnumber, printv, OptimaException, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist
 from optima import gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
 from numpy import array, zeros, isnan, nan, isfinite, median, shape
 from optimacore.project_settings import convertlimits
@@ -239,11 +239,12 @@ def data2timepar(parname=None, data=None, keys=None, defaultind=0, verbose=2, **
         raise OptimaException(errormsg)
         
     par = Timepar(m=1.0, y=odict(), t=odict(), **defaultargs) # Create structure
-    par.short = name
-    par.name = short
+    par.name = name
+    par.short = short
+    if par.short =='susdeath': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     for key in keys:
         par.y[key] = data['values'].getValue(key)
-        if data['values'].getValue('t') is not None:
+        if data['values'].getValue('t') is not None: # TODO this whole thing only works for constants... need to revamp data storage
             par.t[key] = data['values'].getValue('t')
         else:
             par.t[key] = 2018. # TODO, remove this, it's SUPER TEMPORARY -- a way to assign a year to constants/assumptions
@@ -323,6 +324,47 @@ def makepars(data=None, framework=None, verbose=2, die=True, fixprops=None):
             else: printv(errormsg, 1, verbose)
         
     return pars
+
+
+def makesimpars(pars, name=None, keys=None, start=None, end=None, dt=None, tvec=None, settings=None, smoothness=None, asarray=True, sample=None, tosample=None, randseed=None, verbose=2):
+    ''' 
+    A function for taking a single set of parameters and returning the interpolated versions.
+    Version: 2018mar26
+    '''
+    
+    # Handle inputs and initialization
+    simpars = odict() 
+    simpars['parsetname'] = name
+    if keys is None: keys = pars.keys() # Just get all keys
+    if type(keys)==str: keys = [keys] # Listify if string
+    if tvec is not None: simpars['tvec'] = tvec
+    elif settings is not None: simpars['tvec'] = settings.maketvec(start=start, end=end, dt=dt)
+    else: simpars['tvec'] = inclusiverange(start=start, stop=end, step=dt) # Store time vector with the model parameters
+    if len(simpars['tvec'])>1: dt = simpars['tvec'][1] - simpars['tvec'][0] # Recalculate dt since must match tvec
+    simpars['dt'] = dt  # Store dt
+    if smoothness is None: smoothness = int(defaultsmoothness/dt)
+    tosample = promotetolist(tosample) # Convert to list
+    
+    # Copy default keys by default
+#    for key in generalkeys: simpars[key] = dcp(pars[key])
+#    for key in staticmatrixkeys: simpars[key] = dcp(array(pars[key]))
+
+    # Loop over requested keys
+    for key in keys: # Loop over all keys
+        if isinstance(pars[key], Par): # Check that it is actually a parameter
+            simpars[key] = dcp(pars[key])
+            thissample = sample # Make a copy of it to check it against the list of things we are sampling
+            if tosample[0] is not None and key not in tosample: thissample = False # Don't sample from unselected parameters -- tosample[0] since it's been promoted to a list
+            try:
+                simpars[key] = pars[key].interp(tvec=simpars['tvec'], dt=dt, smoothness=smoothness, asarray=asarray, sample=thissample, randseed=randseed)
+            except OptimaException as E: 
+                errormsg = 'Could not figure out how to interpolate parameter "%s"' % key
+                errormsg += 'Error: "%s"' % repr(E)
+                raise OptimaException(errormsg)
+
+
+    return simpars
+
 
 
 

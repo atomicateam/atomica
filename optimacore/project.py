@@ -31,13 +31,15 @@ from optimacore.system import applyToAllMethods, logUsage, accepts
 from optimacore.framework import ProjectFramework
 from optimacore.data import ProjectData
 from optimacore.project_settings import ProjectSettings
-from optimacore.parameters import Parameterset
+from optimacore.parameters import Parameterset, makesimpars
 from optimacore.programs import Programset
 from optimacore.results import Resultset
 from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
 
-from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber ## TODO: remove temporary imports from HIV
+from numpy.random import seed, randint
+
+from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber, promotetolist ## TODO: remove temporary imports from HIV
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -80,7 +82,7 @@ class Project(object):
         writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 
-    def loadDatabook(self, filename=None, folder=None, name=None, overwrite=True, **kwargs):
+    def loadDatabook(self, filename=None, folder=None, name=None, overwrite=True, dorun=True, **kwargs):
         ''' Load a data spreadsheet'''
         ## Load spreadsheet and update metadata
         fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
@@ -91,10 +93,12 @@ class Project(object):
         
         datayears = databookout['datayears']
         self.settings.datastart = datayears[0]
+        self.settings.start = datayears[0]
         self.settings.dataend = datayears[-1]
 
         if name is None: name = 'default'
         self.makeparset(name=name, overwrite=overwrite)
+        if dorun: self.runsim()
 
         return None
 
@@ -377,21 +381,21 @@ class Project(object):
         else:
             simparslist = promotetolist(simpars)
 
-        # Run the model!
-        rawlist = []
-        for ind,simpars in enumerate(simparslist):
-            raw = model(simpars, self.settings, die=die, debug=debug, verbose=verbose, label=self.name, **kwargs) # ACTUALLY RUN THE MODEL
-            rawlist.append(raw)
-
-        # Store results if required
-        results = Resultset(name=resultname, pars=pars, parsetname=parsetname, progsetname=progsetname, raw=rawlist, simpars=simparslist, budget=budget, coverage=coverage, budgetyears=budgetyears, project=self, keepraw=keepraw, doround=doround, data=data, verbose=verbose) # Create structure for storing results
-        if addresult:
-            keyname = self.addresult(result=results, overwrite=overwrite)
-            if parsetname is not None:
-                self.parsets[parsetname].resultsref = keyname # If linked to a parset, store the results
-            self.modified = today() # Only change the modified date if the results are stored
-        
-        return results
+#        # Run the model!
+#        rawlist = []
+#        for ind,simpars in enumerate(simparslist):
+#            raw = model(simpars, self.settings, die=die, debug=debug, verbose=verbose, label=self.name, **kwargs) # ACTUALLY RUN THE MODEL
+#            rawlist.append(raw)
+#
+#        # Store results if required
+#        results = Resultset(name=resultname, pars=pars, parsetname=parsetname, progsetname=progsetname, raw=rawlist, simpars=simparslist, budget=budget, coverage=coverage, budgetyears=budgetyears, project=self, keepraw=keepraw, doround=doround, data=data, verbose=verbose) # Create structure for storing results
+#        if addresult:
+#            keyname = self.addresult(result=results, overwrite=overwrite)
+#            if parsetname is not None:
+#                self.parsets[parsetname].resultsref = keyname # If linked to a parset, store the results
+#            self.modified = today() # Only change the modified date if the results are stored
+#        
+        return simparslist #TEMP: return interpolated parameters
 
 
 
