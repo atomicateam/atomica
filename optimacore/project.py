@@ -35,7 +35,7 @@ from optimacore.parameters import Parameterset
 from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
 
-from optima import odict, today, OptimaException, makefilepath ## TODO: remove temporary imports from HIV
+from optima import odict, today, OptimaException, makefilepath, printv ## TODO: remove temporary imports from HIV
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -92,17 +92,19 @@ class Project(object):
         self.dataend = self.datayears[-1]
 
         if name is None: name = 'default'
-#        self.makeparset(name=name, overwrite=overwrite)
+        self.makeparset(name=name, overwrite=overwrite)
 
         return None
 
 
     def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
         ''' Create or overwrite a parameter set '''
-        if not self.data:
+        if not self.data: # TODO this is not the right check to be doing
             raise OptimaException('No data in project "%s"!' % self.name)
         parset = Parameterset(name=name, project=self)
-        parset.makepars(self.data, verbose=self.settings.verbose, start=self.settings.start, end=self.settings.end) # Create parameters
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+        parset.makepars(self.data, framework=self.framework, start=self.datastart, end=self.dataend) # Create parameters
+
         if dosave: # Save to the project if requested
             if name in self.parsets and not overwrite: # and overwrite if requested
                 errormsg = 'Cannot make parset "%s" because it already exists (%s) and overwrite is off' % (name, self.parsets.keys())

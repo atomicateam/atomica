@@ -53,15 +53,12 @@ class Parameterset(object):
         return parslist
     
     
-    def makepars(self, data=None, fix=True, verbose=2, start=None, end=None):
+    def makepars(self, data=None, framework=None, fix=True, verbose=2, start=None, end=None):
         '''Method to make the parameters from data'''
-        self.popkeys = dcp(self.data.specs['pop'].keys()) # Store population keys more accessibly
-        self.pars = makepars(data=self.data.specs, verbose=verbose) # Initialize as list with single entry
+        
+        self.popkeys = dcp(data.specs['pop'].keys()) # Store population keys more accessibly
+        self.pars = makepars(data=data.specs, framework=framework, verbose=verbose) # Initialize as list with single entry
 
-        if start is None: self.start = data['years'][0] # Store the start year -- if not supplied, use beginning of data
-        else:             self.start = start
-        if end is None:   self.end   = Settings().endyear # Store the end year -- if not supplied, use default
-        else:             self.end   = end
         return None
 
 
@@ -235,6 +232,7 @@ class Timepar(Par):
 def data2timepar(parname=None, data=None, keys=None, defaultind=0, verbose=2, **defaultargs):
     """ Take data and turn it into default parameters"""
     # Check that at minimum, name and short were specified, since can't proceed otherwise
+    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     try: 
         name, short = defaultargs['label'], parname
     except: 
@@ -278,7 +276,7 @@ def makepars(data=None, framework=None, verbose=2, die=True, fixprops=None):
     pars = odict()
     
     # Set up population keys
-    pars['popkeys'] = dcp(data.specs['pop'].keys()) # Get population keys
+    pars['popkeys'] = dcp(data['pop'].keys()) # Get population keys
     totkey = ['tot'] # Define a key for when not separated by population
     popkeys = pars['popkeys'] # Convert to a normal string and to lower case...maybe not necessary
     
@@ -294,19 +292,24 @@ def makepars(data=None, framework=None, verbose=2, die=True, fixprops=None):
         
         try: # Optionally keep going if some parameters fail
         
-            # Shorten key variables
-            by = par['by']
-            fromdata = par['fromdata']
-            
-            # Decide what the keys are
-            if   by=='tot' : keys = totkey
-            elif by=='pop' : keys = popkeys
-            else: keys = [] 
-            
-            if fromdata: pars[parname] = data2timepar(parname=parname, data=data['par'][parname], keys=keys, **par) 
-            else: pars[parname] = Timepar(m=1.0, y=odict([(key,array([nan])) for key in keys]), t=odict([(key,array([0.0])) for key in keys]), **par) # Create structure
+#            # Shorten key variables
+#            by = par['by']
+#            fromdata = par['fromdata']
+#            
+#            # Decide what the keys are
+#            if   by=='tot' : keys = totkey
+#            elif by=='pop' : keys = popkeys
+#            else: keys = [] 
+#            
+#            if fromdata: pars[parname] = data2timepar(parname=parname, data=data['par'][parname], keys=keys, **par) 
+#            else: pars[parname] = Timepar(m=1.0, y=odict([(key,array([nan])) for key in keys]), t=odict([(key,array([0.0])) for key in keys]), **par) # Create structure
+
+            # TEMPORARY!!! - all parameters are assumed to be made from data and by population
+            keys = popkeys
+            pars[parname] = data2timepar(parname=parname, data=data['par'][parname], keys=keys, **par) 
             
         except Exception as E:
+            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             errormsg = 'Failed to convert parameter %s:\n%s' % (parname, repr(E))
             if die: raise OptimaException(errormsg)
             else: printv(errormsg, 1, verbose)
