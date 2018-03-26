@@ -5,9 +5,10 @@ and the Parameterset class, which is for the full set of parameters.
 Version: 2018mar23
 """
 
-from optima import odict, Link, today, defaultrepr, getdate, dcp, isnumber, printv, OptimaException, smoothinterp, getvaliddata, sanitize
+from optima import odict, Link, today, defaultrepr, getdate, dcp, isnumber, printv, OptimaException, smoothinterp, getvaliddata, sanitize, findinds
 from optima import gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
-from numpy import array, zeros, isnan, nan
+from numpy import array, zeros, isnan, nan, isfinite, median, shape
+from optimacore.project_settings import convertlimits
 
 defaultsmoothness = 1.0 # The number of years of smoothing to do by default
 
@@ -327,7 +328,7 @@ def makepars(data=None, framework=None, verbose=2, die=True, fixprops=None):
 
 def applylimits(y, par=None, limits=None, dt=None, warn=True, verbose=2):
     ''' 
-    A function to intelligently apply limits (supplied as [low, high] list or tuple) to an output.
+    A function to  apply limits (supplied as [low, high] list or tuple) to an output.
     Needs dt as input since that determines maxrate.
     Version: 2018mar23
     '''
