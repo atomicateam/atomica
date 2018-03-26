@@ -61,14 +61,13 @@ if 'makeframeworkfile' in torun:
     writeWorkbook(workbook_path="./frameworks/framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 
 
-### Make a framework by importing a framework file, then optionally output a blank databook from it
+### Make a framework by importing a framework file, then optionally save it
 if 'makeframework' in torun:
     F = ProjectFramework(filename="./frameworks/framework_sir.xlsx")
     
     # Save the framework object
     if 'saveframework' in torun:
         F.save('testframework.frw')
-#        saveobj('testframework.frw',F)
         
 # Load a framework object
 if 'loadframework' in torun:
@@ -84,13 +83,13 @@ if 'makedatabook' in torun:
 ### Initialise a project with data and a framework file
 if 'makeproject' in torun:
     P = Project(framework=F, databook="./databooks/databook_sir.xlsx")
-    
+    # Note, P.runsim() currently returns interpolated parameters
 
 ### Make parameters, run the model, produce results, plot... 
 # Note, data is in P.data.specs
 # Step 1 -- transform this to something like a dataframe or list -- NOT DONE, SKIPPED FOR NOW
 # Step 2 -- transform the parameters into Par objects & put them in a Parset -- DONE
-# Step 3 -- make sure that interpolation works -- DOING
+# Step 3 -- make sure that interpolation works -- DONE, but breaks for timepars (only works for constants)
 # Step 4 -- figure out where the model is, and run it
 # Step 5 -- implement results class, figure out characteristics
 # Step 6 -- calibration
