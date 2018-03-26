@@ -63,7 +63,7 @@ if 'makeframeworkfile' in torun:
 
 ### Make a framework by importing a framework file, then optionally save it
 if 'makeframework' in torun:
-    F = ProjectFramework(filename="./frameworks/framework_sir.xlsx")
+    F = ProjectFramework(frameworkfilename="./frameworks/framework_sir.xlsx")
     
     # Save the framework object
     if 'saveframework' in torun:
