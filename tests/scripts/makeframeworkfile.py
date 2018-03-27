@@ -5,8 +5,8 @@ from optimacore.system import SystemSettings as SS
 from optimacore.framework import ProjectFramework
 from optimacore.workbook_export import makeInstructions
 from optimacore.project_settings import ProjectSettings
-from optima import odict, saveobj, loadobj
-from optima import tic, toc, blank
+from optimacore.system_io import saveobj, loadobj
+from optimacore.utils import odict, tic, toc, blank
 
 framework_instructions, use_instructions = makeInstructions(framework=None, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 framework_instructions.num_items = odict([('popatt', 4),        # Set the number of population attributes (not currently used)

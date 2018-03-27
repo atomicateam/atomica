@@ -25,7 +25,6 @@ import traceback
 ## ADD DIRECTORIES - THESE ARE ACCESSIBLE IN THE TEST SCRIPTS
 rootdir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..','..'))
 sys.path.append(os.path.join(rootdir,'optimacore'))
-sys.path.append(os.path.join(rootdir,'optima'))
 testdir = os.path.join(rootdir,'optimacore','tests')
 tempdir = os.path.join(testdir,'temp')
 
