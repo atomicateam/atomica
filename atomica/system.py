@@ -153,6 +153,7 @@ def accepts(*arg_types):
         arg_count = arg_start
         try:
             for (arg, accepted_type) in zip(args[arg_start:], arg_types):
+                if accepted_type == str: accepted_type = six.string_types
                 if not isinstance(arg, accepted_type):
                     raise ArgumentTypeError(func_name = undecoratedFunction.__name__,
                                             arg_name = sig[arg_count], 
