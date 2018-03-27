@@ -1,12 +1,12 @@
 ### Initialise a project with data and a framework file
-from optimacore.project import Project
-from optimacore.workbook_export import writeWorkbook
-from optimacore.system import SystemSettings as SS
-from optimacore.framework import ProjectFramework
-from optimacore.workbook_export import makeInstructions
-from optimacore.project_settings import ProjectSettings
-from optimacore.system_io import saveobj, loadobj
-from optimacore.utils import odict, tic, toc, blank
+from atomica.project import Project
+from atomica.workbook_export import writeWorkbook
+from atomica.system import SystemSettings as SS
+from atomica.framework import ProjectFramework
+from atomica.workbook_export import makeInstructions
+from atomica.project_settings import ProjectSettings
+from atomica.system_io import saveobj, loadobj
+from atomica.utils import odict, tic, toc, blank
 
 F = ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
 P = Project(framework=F) # Create a project with no data

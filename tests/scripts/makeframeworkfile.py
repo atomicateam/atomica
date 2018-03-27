@@ -1,12 +1,12 @@
 # First, generate an "Instructions" object which allows you to specify details of the framework file. Question, why isn't there an easier way to do this??? I should be able to pass in a dictionary to writeWorkbook.
-from optimacore.project import Project
-from optimacore.workbook_export import writeWorkbook
-from optimacore.system import SystemSettings as SS
-from optimacore.framework import ProjectFramework
-from optimacore.workbook_export import makeInstructions
-from optimacore.project_settings import ProjectSettings
-from optimacore.system_io import saveobj, loadobj
-from optimacore.utils import odict, tic, toc, blank
+from atomica.project import Project
+from atomica.workbook_export import writeWorkbook
+from atomica.system import SystemSettings as SS
+from atomica.framework import ProjectFramework
+from atomica.workbook_export import makeInstructions
+from atomica.project_settings import ProjectSettings
+from atomica.system_io import saveobj, loadobj
+from atomica.utils import odict, tic, toc, blank
 
 framework_instructions, use_instructions = makeInstructions(framework=None, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 framework_instructions.num_items = odict([('popatt', 4),        # Set the number of population attributes (not currently used)
