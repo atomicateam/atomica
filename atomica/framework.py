@@ -4,14 +4,12 @@ Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, uuid
+from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TimeDependentValuesEntry
 from atomica.structure import CoreProjectStructure
 from atomica.workbook_import import readWorkbook
 from atomica._version import __version__
-
-from sciris.fileio import saveobj
-from sciris.utils import odict, makefilepath, today, gitinfo, objrepr, getdate, dcp
+from sciris.core import odict, makefilepath, today, gitinfo, objrepr, getdate, dcp, uuid, saveobj
 
 
 @applyToAllMethods(logUsage)

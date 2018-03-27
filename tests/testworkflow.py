@@ -21,7 +21,7 @@ tmpdir = '.' + os.sep + 'temp' + os.sep
 
 
 if 'makeframeworkfile' in torun:
-    framework_instructions, use_instructions = aui.makeInstructions(framework=None, data=None, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+    framework_instructions, use_instructions = aui.makeInstructions(framework=None, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
     framework_instructions.num_items = sc.odict([('popatt', 4),        # Set the number of population attributes (not currently used)
                                               ('par', 10),          # Set the number of parameters
                                               ('comp', 4),          # Set the number of compartments
@@ -30,7 +30,7 @@ if 'makeframeworkfile' in torun:
                                               ('charac', 10),       # Set the number of characteristics, i.e., results
                                               ('progtype', 7), ])   # Set the number of program types - question, can we get rid of this?
     
-    at.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+    at.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
 
 
 	
@@ -49,10 +49,10 @@ if 'loadframework' in torun:
 if 'makedatabook' in torun:
     F = sc.loadobj(tmpdir+'testframework.frw')
     P = aui.Project(framework=F) # Create a project with no data
-    databook_instructions, use_instructions = aui.makeInstructions(framework=F, data=None, workbook_type=SS.STRUCTURE_KEY_DATA)
+    databook_instructions, use_instructions = aui.makeInstructions(framework=F, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_DATA)
     databook_instructions.num_items = sc.odict([('prog', 3),       # Set the number of programs
                                              ('pop', 1), ])     # Set the number of populations
-    P.createDatabook(databook_path="./databooks/databook_sir_blank.xlsx", instructions=databook_instructions, databook_type=SS.DATABOOK_DEFAULT_TYPE)
+    P.createDatabook(databook_path="./databooks/databook_sir_blank.xlsx", instructions=databook_instructions, databook_type=aui.SystemSettings.DATABOOK_DEFAULT_TYPE)
 
 
 if 'makeproject' in torun:
