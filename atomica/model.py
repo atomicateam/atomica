@@ -1,6 +1,6 @@
 # %% Imports
 
-from optima_tb.utils import OptimaException # CK: warning, should remove
+from atomica.system import OptimaException # CK: warning, should rename
 from optima_tb.validation import checkTransitionFraction
 import optima_tb.settings as project_settings
 from optima_tb.results import ResultSet
