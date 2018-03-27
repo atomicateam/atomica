@@ -1,0 +1,15 @@
+### Make a framework by importing a framework file, then optionally save it
+from optimacore.project import Project
+from optimacore.workbook_export import writeWorkbook
+from optimacore.system import SystemSettings as SS
+from optimacore.framework import ProjectFramework
+from optimacore.workbook_export import makeInstructions
+from optimacore.project_settings import ProjectSettings
+from optima import odict, saveobj, loadobj
+from optima import tic, toc, blank
+
+F = ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
+
+# Save the framework object
+F.save('./temp/testframework.frw')
+    

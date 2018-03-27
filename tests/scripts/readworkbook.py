@@ -26,7 +26,7 @@ import pprint
 ## TEST ALT
 P = Project()
 #writeWorkbook(workbook_path = "./frameworks/framework_test.xlsx", framework = None, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
-readWorkbook(workbook_path = "./frameworks/framework_ukraine.xlsx", framework = P.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
+readWorkbook(workbook_path = os.path.join(testdir,'frameworks','framework_ukraine.xlsx'), framework = P.framework, data = None, workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
 #writeWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = proj.framework, data = None, instructions = None, workbook_type = SS.STRUCTURE_KEY_DATA)
 #readWorkbook(workbook_path = "./databooks/databook_ukraine.xlsx", framework = proj.framework, data = proj.data, workbook_type = SS.STRUCTURE_KEY_DATA)
 
