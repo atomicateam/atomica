@@ -46,6 +46,5 @@ setup(
         'matplotlib>=1.4.2',
         'numpy>=1.10.1',
         'decorator>=4.1.2',
-        'dill>=0.2.7.1'
     ],
 )
