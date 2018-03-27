@@ -4,6 +4,6 @@ Optima Core graphical user interface (GUI) script.
 Launches the GUI.
 """
 
-from optimacore.gui import runGUI
+from atomica.gui import runGUI
 
 runGUI()

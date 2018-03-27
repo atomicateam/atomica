@@ -6,13 +6,13 @@ Created on Thu Mar  8 08:30:08 2018
 """
 
 ## IMPORTS
-from optimacore.project import Project
-from optimacore.workbook_export import writeWorkbook
-from optimacore.workbook_import import readWorkbook
-from optimacore.system import SystemSettings as SS
+from atomica.project import Project
+from atomica.workbook_export import writeWorkbook
+from atomica.workbook_import import readWorkbook
+from atomica.system import SystemSettings as SS
 
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
 
 import sys
 import pprint
