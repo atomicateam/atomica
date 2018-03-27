@@ -34,7 +34,7 @@ class ProjectFramework(CoreProjectStructure):
         self.created = today()
         self.modified = today()
         self.version = version
-        self.gitbranch, self.gitversion = gitinfo()
+        self.gitinfo = gitinfo()
         self.frameworkfileloaddate = 'Framework file never loaded'
 
         ## Load framework file if provided
@@ -53,8 +53,8 @@ class ProjectFramework(CoreProjectStructure):
         output += '      Date created: %s\n'    % getdate(self.created)
         output += '     Date modified: %s\n'    % getdate(self.modified)
         output += '  Datasheet loaded: %s\n'    % getdate(self.frameworkfileloaddate)
-        output += '        Git branch: %s\n'    % self.gitbranch
-        output += '       Git version: %s\n'    % self.gitversion
+        output += '        Git branch: %s\n'    % self.gitinfo['branch']
+        output += '          Git hash: %s\n'    % self.gitinfo['hash']
         output += '               UID: %s\n'    % self.uid
         output += '============================================================\n'
         return output

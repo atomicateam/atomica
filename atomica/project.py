@@ -63,7 +63,7 @@ class Project(object):
         ## Define metadata
         self.uid = uuid()
         self.version = version
-        self.gitbranch, self.gitversion = gitinfo()
+        self.gitinfo = gitinfo()
         self.created = today()
         self.modified = today()
         self.databookloaddate = 'Databook never loaded'
@@ -92,8 +92,8 @@ class Project(object):
         output += '      Date created: %s\n'    % getdate(self.created)
         output += '     Date modified: %s\n'    % getdate(self.modified)
         output += '  Datasheet loaded: %s\n'    % getdate(self.databookloaddate)
-        output += '        Git branch: %s\n'    % self.gitbranch
-        output += '       Git version: %s\n'    % self.gitversion
+        output += '        Git branch: %s\n'    % self.gitinfo['branch']
+        output += '          Git hash: %s\n'    % self.gitinfo['hash']
         output += '               UID: %s\n'    % self.uid
         output += '============================================================\n'
         return output
