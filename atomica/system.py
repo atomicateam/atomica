@@ -48,7 +48,7 @@ class SystemSettings(object):
 
 #%% Code for determining module installation directory.
 
-def getOptimaCorePath(subdir = None, end_with_sep = True):
+def getOptimaCorePath(subdir = None, end_with_sep = True): # CK: duplicates atomicapath in init.py
     """
     Returns the parent path of the Atomica module.
     If subdir is not None, include it in the path.
@@ -63,7 +63,7 @@ def getOptimaCorePath(subdir = None, end_with_sep = True):
 
 #%% Code for creating a directory if it does not exist.
 
-def prepareFilePath(file_path):
+def prepareFilePath(file_path): # CK: duplicates makefilepath in sciris.utils
     """
     If a file path specifies directories that do not exist, an error will be thrown.
     This function ensures that a file can be created in the desired location.
@@ -81,7 +81,7 @@ logger = logging.getLogger("atomica")
 
 #%% Code for an exception specific to Atomica.
 
-class OptimaException(Exception):
+class OptimaException(Exception): # CK: needs to be renamed
     """ A wrapper class to allow for Atomica-specific exceptions. """
     def __init(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
