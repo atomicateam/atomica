@@ -27,7 +27,7 @@ Version: 2018mar22
 from optimacore.system import SystemSettings as SS
 from optimacore.excel import ExcelSettings as ES
 
-from optimacore.system import applyToAllMethods, logUsage, accepts
+from optimacore.system import applyToAllMethods, logUsage, accepts, OptimaException, uuid
 from optimacore.framework import ProjectFramework
 from optimacore.data import ProjectData
 from optimacore.project_settings import ProjectSettings
@@ -38,9 +38,11 @@ from optimacore.workbook_export import writeWorkbook
 from optimacore.workbook_import import readWorkbook
 from optimacore._version import __version__ as version # TODO: fix imports
 
-from numpy.random import seed, randint
+from optimacore.system_io import saveobj
+from optimacore.utils import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link ## TODO: remove temporary imports from HIV utils
 
-from optima import odict, dcp, today, OptimaException, makefilepath, printv, isnumber, promotetolist, saveobj, uuid, gitinfo, getdate, objrepr, Link ## TODO: remove temporary imports from HIV utils
+from numpy.random import seed, randint
+from copy import deepcopy as dcp
 
 @applyToAllMethods(logUsage)
 class Project(object):

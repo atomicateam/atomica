@@ -9,12 +9,13 @@ import logging.config
 import os
 import datetime
 import inspect
-
 import decorator
 import six
 
 if six.PY2: from inspect import getargspec as argspec   # Python 2 arg inspection.
 else: from inspect import getfullargspec as argspec     # Python 3 arg inspection.
+
+from uuid import uuid4 as uuid
 
 #%% Code for setting up a system settings class containing module-wide variables.
 
@@ -44,7 +45,6 @@ class SystemSettings(object):
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
     DEFAULT_SYMBOL_OR = "OR"
     DEFAULT_SUFFIX_PLURAL = "s"
-    
 
 #%% Code for determining module installation directory.
 

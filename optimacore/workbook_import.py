@@ -7,13 +7,13 @@ from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeD
 from optimacore.structure import TimeSeries
 from optimacore.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
+from optimacore.utils import odict ## TEMPORARY IMPORTS FROM OPTIMA HIV
+
 import os
 from copy import deepcopy as dcp
 from six import moves as sm
 import xlsxwriter as xw
 import xlrd
-
-from optima import odict ## TEMPORARY IMPORTS FROM OPTIMA HIV
 
 def getTargetStructure(framework = None, data = None, workbook_type = None):
     """ Returns the structure to store definitions and values being read from workbook. """

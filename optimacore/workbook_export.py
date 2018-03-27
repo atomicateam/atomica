@@ -8,11 +8,12 @@ from optimacore.excel import createStandardExcelFormats, createDefaultFormatVari
 from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
 from optimacore.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
+from optimacore.utils import odict # TEMPORARY IMPORTS FROM OPTIMA HIV
+
 #from collections import OrderedDict
-#from copy import deepcopy as dcp
+from copy import deepcopy as dcp
 from six import moves as sm
 import xlsxwriter as xw
-from optima import odict, dcp # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 
 class KeyUniquenessException(OptimaException):
