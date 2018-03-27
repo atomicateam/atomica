@@ -1,14 +1,14 @@
-from optimacore.system import SystemSettings as SS
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
-from optimacore.excel import ExcelSettings as ES
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
+from atomica.excel import ExcelSettings as ES
 
-from optimacore.system import logger, OptimaException, accepts, prepareFilePath, displayName
-from optimacore.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
-from optimacore.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
-from optimacore.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.system import logger, OptimaException, accepts, prepareFilePath, displayName
+from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
+from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
+from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from optimacore.utils import odict # TEMPORARY IMPORTS FROM OPTIMA HIV
+from atomica.utils import odict # TEMPORARY IMPORTS FROM OPTIMA HIV
 
 #from collections import OrderedDict
 from copy import deepcopy as dcp

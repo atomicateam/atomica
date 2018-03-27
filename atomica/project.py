@@ -24,22 +24,22 @@ Methods for structure lists:
 Version: 2018mar22
 """
 
-from optimacore.system import SystemSettings as SS
-from optimacore.excel import ExcelSettings as ES
+from atomica.system import SystemSettings as SS
+from atomica.excel import ExcelSettings as ES
 
-from optimacore.system import applyToAllMethods, logUsage, accepts, OptimaException, uuid
-from optimacore.framework import ProjectFramework
-from optimacore.data import ProjectData
-from optimacore.project_settings import ProjectSettings
-from optimacore.parameters import Parameterset, makesimpars
-from optimacore.programs import Programset
-from optimacore.results import Resultset
-from optimacore.workbook_export import writeWorkbook
-from optimacore.workbook_import import readWorkbook
-from optimacore._version import __version__ as version # TODO: fix imports
+from atomica.system import applyToAllMethods, logUsage, accepts, OptimaException, uuid
+from atomica.framework import ProjectFramework
+from atomica.data import ProjectData
+from atomica.project_settings import ProjectSettings
+from atomica.parameters import Parameterset, makesimpars
+from atomica.programs import Programset
+from atomica.results import Resultset
+from atomica.workbook_export import writeWorkbook
+from atomica.workbook_import import readWorkbook
+from atomica._version import __version__ as version # TODO: fix imports
 
-from optimacore.system_io import saveobj
-from optimacore.utils import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link ## TODO: remove temporary imports from HIV utils
+from atomica.system_io import saveobj
+from atomica.utils import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link ## TODO: remove temporary imports from HIV utils
 
 from numpy.random import seed, randint
 from copy import deepcopy as dcp

@@ -4,7 +4,7 @@
 
 from setuptools import setup, find_packages
 
-with open("./optimacore/_version.py", "r") as f:
+with open("./atomica/_version.py", "r") as f:
     version_file = {}
     exec(f.read(), version_file)
     version = version_file["__version__"]
@@ -29,13 +29,13 @@ CLASSIFIERS = [
 ]
 
 setup(
-    name='optimacore',
+    name='atomica',
     version=version,
     author='David J. Kedziora, Robyn M. Stuart',
     author_email='info@optimamodel.com',
     description='Software package for the optimization of complex Markov chain models',
     #long_description=convert('README.md', 'md'),
-    url='http://github.com/optimamodel/optimacore',
+    url='http://github.com/optimamodel/atomica',
     keywords=['optima','disease'],
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,

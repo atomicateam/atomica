@@ -4,19 +4,19 @@ Optima Core project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-from optimacore.system import SystemSettings as SS
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
 
-from optimacore.system import applyToAllMethods, logUsage, OptimaException, uuid
-from optimacore.structure import CoreProjectStructure
-from optimacore.structure_settings import TimeDependentValuesEntry
-from optimacore.workbook_import import readWorkbook
-from optimacore.workbook_export import writeWorkbook
-from optimacore._version import __version__ as version # TODO: fix imports
+from atomica.system import applyToAllMethods, logUsage, OptimaException, uuid
+from atomica.structure import CoreProjectStructure
+from atomica.structure_settings import TimeDependentValuesEntry
+from atomica.workbook_import import readWorkbook
+from atomica.workbook_export import writeWorkbook
+from atomica._version import __version__ as version # TODO: fix imports
 
-from optimacore.system_io import saveobj
-from optimacore.utils import odict, makefilepath, today, gitinfo, objrepr, getdate
+from atomica.system_io import saveobj
+from atomica.utils import odict, makefilepath, today, gitinfo, objrepr, getdate
 from copy import deepcopy as dcp
 
 

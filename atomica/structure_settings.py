@@ -5,12 +5,12 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from optimacore.system import SystemSettings as SS
+from atomica.system import SystemSettings as SS
 
-from optimacore.system import logUsage, accepts, OptimaException
-from optimacore.system import logger, getOptimaCorePath, displayName
-from optimacore.parser import loadConfigFile, getConfigValue, configparser
-from optimacore.excel import ExcelSettings
+from atomica.system import logUsage, accepts, OptimaException
+from atomica.system import logger, getOptimaCorePath, displayName
+from atomica.parser import loadConfigFile, getConfigValue, configparser
+from atomica.excel import ExcelSettings
 
 from collections import OrderedDict
 from copy import deepcopy as dcp

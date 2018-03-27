@@ -22,7 +22,7 @@ from uuid import uuid4 as uuid
 class SystemSettings(object):
     """ Stores all 'system' variables used by the Optima Core module. """
     
-    CODEBASE_DIRNAME = "optimacore"
+    CODEBASE_DIRNAME = "atomica"
     CONFIG_LOGGER_FILENAME = "logging.ini"
     CONFIG_FRAMEWORK_FILENAME = "format_framework.ini"
     CONFIG_DATABOOK_FILENAME = "format_databook.ini"
@@ -77,7 +77,7 @@ def prepareFilePath(file_path):
 
 logging.config.fileConfig(getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_LOGGER_FILENAME, 
                           defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
-logger = logging.getLogger("optimacore")
+logger = logging.getLogger("atomica")
 
 #%% Code for an exception specific to Optima.
 

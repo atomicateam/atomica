@@ -1,9 +1,9 @@
-from optimacore.system import SystemSettings as SS
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
-from optimacore.system import applyToAllMethods, logUsage, OptimaException
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
+from atomica.system import applyToAllMethods, logUsage, OptimaException
 
-from optimacore.utils import odict
+from atomica.utils import odict
 
 #from collections import OrderedDict
 

@@ -3,10 +3,10 @@
 Optima Core data file.
 Sets out a structure to store context-specific databook-imported values relating to a model.
 """
-from optimacore.system import SystemSettings as SS
+from atomica.system import SystemSettings as SS
 
-from optimacore.system import applyToAllMethods, logUsage
-from optimacore.structure import CoreProjectStructure
+from atomica.system import applyToAllMethods, logUsage
+from atomica.structure import CoreProjectStructure
 
 @applyToAllMethods(logUsage)
 class ProjectData(CoreProjectStructure):

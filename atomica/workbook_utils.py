@@ -1,8 +1,8 @@
-from optimacore.system import SystemSettings as SS
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
 
-from optimacore.system import OptimaException, displayName
+from atomica.system import OptimaException, displayName
 
 class WorkbookTypeException(OptimaException):
     def __init__(self, workbook_type, **kwargs):
