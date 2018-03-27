@@ -9,4 +9,4 @@ from sciris.fileio import saveobj, loadobj
 from sciris.utils import odict, tic, toc, blank
 import os
 
-F = loadobj(os.path.join('tmpfiles','testframework.frw'))
+F = loadobj(os.path.join('temp','testframework.frw'))
