@@ -58,7 +58,7 @@ class Parameterset(object):
     def makepars(self, data=None, framework=None, fix=True, verbose=2, start=None, end=None):
         '''Method to make the parameters from data'''
         
-        self.popkeys = dcp(data.specs['pop'].keys()) # Store population keys more accessibly
+        self.popkeys = data.specs['pop'].keys() # Store population keys more accessibly
         self.pars = makepars(data=data.specs, framework=framework, verbose=verbose) # Initialize as list with single entry
 
         return None
@@ -285,7 +285,7 @@ def makepars(data=None, framework=None, verbose=2, die=True, fixprops=None):
     pars = odict()
     
     # Set up population keys
-    pars['popkeys'] = dcp(data['pop'].keys()) # Get population keys
+    pars['popkeys'] = data['pop'].keys() # Get population keys
     totkey = ['tot'] # Define a key for when not separated by population
     popkeys = pars['popkeys'] # Convert to a normal string and to lower case...maybe not necessary
     

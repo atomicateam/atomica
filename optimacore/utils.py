@@ -2221,9 +2221,14 @@ class odict(OrderedDict):
             iterator.append(thistuple)
         return iterator
         
+    if not six.PY2:
+        def keys(self):
+            """ Method to get a list of keys as in Python 2. """
+            return list(OrderedDict.keys(self))
         
-        
-        
+        def iteritems(self):
+            """ Method to generate an item iterator as in Python 2. """
+            return list(OrderedDict.items(self))
         
         
         
