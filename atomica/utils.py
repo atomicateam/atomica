@@ -2228,7 +2228,11 @@ class odict(OrderedDict):
         
         def iteritems(self):
             """ Method to generate an item iterator as in Python 2. """
-            return list(OrderedDict.items(self))
+            return OrderedDict.items(self)
+        
+        def values(self):
+            """ Method to generate a list of values as in Python 2. """
+            return list(OrderedDict.values(self))
         
         
         
