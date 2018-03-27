@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core module initialization file.
+Atomica module initialization file.
 The module can be imported in any of the following ways:
 
     from atomica import Project
@@ -29,5 +29,5 @@ License:
 from ._version import __version__, __updated__
 
 # Print the license.
-optima_license = 'Optima Core %s (%s) -- (c) Optima Consortium' % (__version__, __updated__)
-print(optima_license)
+atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __updated__)
+print(atomica_license)
