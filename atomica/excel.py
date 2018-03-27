@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core Excel utilities file.
+Atomica Excel utilities file.
 Contains functionality specific to Excel input and output.
 """
 

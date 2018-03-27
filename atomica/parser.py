@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core parser file.
+Atomica parser file.
 Contains functionality for parsing configuration files.
 """
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core data file.
+Atomica data file.
 Sets out a structure to store context-specific databook-imported values relating to a model.
 """
 from atomica.system import SystemSettings as SS

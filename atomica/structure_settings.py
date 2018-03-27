@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core project-framework settings file.
+Atomica project-framework settings file.
 Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
@@ -206,7 +206,7 @@ class BaseStructuralSettings():
         Note: Currently references the default configuration file, but can be modified in the future.
         """
         config_path = cls.CONFIG_PATH
-        logger.info("Attempting to generate Optima Core {0} settings from configuration file.".format(displayName(cls.NAME)))
+        logger.info("Attempting to generate Atomica {0} settings from configuration file.".format(displayName(cls.NAME)))
         logger.info("Location... {0}".format(config_path))
         cp = configparser.ConfigParser()
         cp.read(config_path)
@@ -260,7 +260,7 @@ class BaseStructuralSettings():
         #pprint.pprint(cls.PAGE_SPECS)
         #pprint.pprint(cls.ITEM_TYPE_SPECS)
 
-        logger.info("Optima Core {0} settings successfully generated.".format(displayName(cls.NAME))) 
+        logger.info("Atomica {0} settings successfully generated.".format(displayName(cls.NAME))) 
         return
 
     @classmethod

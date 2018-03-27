@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core graphical user interface (GUI) file.
+Atomica graphical user interface (GUI) file.
 Contains back-end GUI wrappers for codebase functionality.
 Note: Callback functions cannot be easily decorated, so logging is applied per method, not per class.
 """

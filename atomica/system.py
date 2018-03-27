@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core system functionality file.
-Contains important functions that are used throughout Optima Core.
+Atomica system functionality file.
+Contains important functions that are used throughout Atomica.
 Examples include logging, type-checking, etc.
 """
 
@@ -20,7 +20,7 @@ from uuid import uuid4 as uuid
 #%% Code for setting up a system settings class containing module-wide variables.
 
 class SystemSettings(object):
-    """ Stores all 'system' variables used by the Optima Core module. """
+    """ Stores all 'system' variables used by the Atomica module. """
     
     CODEBASE_DIRNAME = "atomica"
     CONFIG_LOGGER_FILENAME = "logging.ini"
@@ -50,7 +50,7 @@ class SystemSettings(object):
 
 def getOptimaCorePath(subdir = None, end_with_sep = True):
     """
-    Returns the parent path of the Optima module.
+    Returns the parent path of the Atomica module.
     If subdir is not None, include it in the path.
     If end_with_sep is True, cap off the path with a separator (i.e. the path is to be appended by a filename).
     """
@@ -79,10 +79,10 @@ logging.config.fileConfig(getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNA
                           defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
 logger = logging.getLogger("atomica")
 
-#%% Code for an exception specific to Optima.
+#%% Code for an exception specific to Atomica.
 
 class OptimaException(Exception):
-    """ A wrapper class to allow for Optima-specific exceptions. """
+    """ A wrapper class to allow for Atomica-specific exceptions. """
     def __init(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 

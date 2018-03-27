@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core portfolio definition file.
-Implements a container class for Optima projects of all types.
+Atomica portfolio definition file.
+Implements a container class for Atomica (and derived classes) projects of all types.
 """
 
 from atomica.system import applyToAllMethods, logUsage, accepts

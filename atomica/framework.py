@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core project-framework file.
+Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
@@ -50,7 +50,7 @@ class ProjectFramework(CoreProjectStructure):
         output = objrepr(self)
         output += '    Framework name: %s\n'    % self.name
         output += '\n'
-        output += '    Optima version: %s\n'    % self.version
+        output += '   Atomica version: %s\n'    % self.version
         output += '      Date created: %s\n'    % getdate(self.created)
         output += '     Date modified: %s\n'    % getdate(self.modified)
         output += '  Datasheet loaded: %s\n'    % getdate(self.frameworkfileloaddate)
