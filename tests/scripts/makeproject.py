@@ -8,7 +8,7 @@ from optimacore.project_settings import ProjectSettings
 from optima import odict, saveobj, loadobj
 from optima import tic, toc, blank
 
-F = loadobj(os.path.join(tempdir,'testframework.frw'))
+F = ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
 P = Project(framework=F) # Create a project with no data
 databook_instructions, use_instructions = makeInstructions(framework=F, data=None, workbook_type=SS.STRUCTURE_KEY_DATA)
 databook_instructions.num_items = odict([('prog', 3),       # Set the number of programs
