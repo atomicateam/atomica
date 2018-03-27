@@ -8,7 +8,7 @@ Version: 2018mar26
 #from optima import OptimaException, Multiresultset # Core classes/functions
 #from optima import dcp, today, findinds, vec2obj, isnumber, promotetoarray # Utilities
 from optima import defaultrepr, printv, OptimaException, odict, Link # TODO - replace utilities imports 
-from optimacore.results import getresults
+from atomica.results import getresults
 
 class Scen(object):
     ''' 

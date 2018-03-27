@@ -15,11 +15,11 @@ import dill
 from gzip import GzipFile
 from contextlib import closing
 #from numpy import ones, zeros
-#from optimacore.system import OptimaException
-from optimacore.utils import makefilepath#, odict
+#from atomica.system import OptimaException
+from atomica.utils import makefilepath#, odict
 #from xlrd import open_workbook
 #import os
-import optimacore as op
+import atomica as op
 
 
 

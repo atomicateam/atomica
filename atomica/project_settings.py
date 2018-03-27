@@ -4,8 +4,8 @@ Store all the settings for a project.
 Version: 2018mar26
 """
 
-from optimacore.system import OptimaException
-from optimacore.utils import printv, defaultrepr, inclusiverange, isnumber
+from atomica.system import OptimaException
+from atomica.utils import printv, defaultrepr, inclusiverange, isnumber
 from numpy import shape, array #arange, concatenate as cat, 
 
 class ProjectSettings(object):

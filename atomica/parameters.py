@@ -5,9 +5,9 @@ and the Parameterset class, which is for the full set of parameters.
 Version: 2018mar23
 """
 
-from optimacore.system import OptimaException
-from optimacore.project_settings import convertlimits
-from optimacore.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
+from atomica.system import OptimaException
+from atomica.project_settings import convertlimits
+from atomica.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
 from copy import deepcopy as dcp
 from numpy import array, zeros, isnan, nan, isfinite, median, shape
 

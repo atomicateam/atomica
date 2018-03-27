@@ -1,4 +1,4 @@
-from optimacore.system import OptimaException
+from atomica.system import OptimaException
 
 import six
 from six import moves as sm

@@ -10,7 +10,7 @@ Version: 2018mar23
 #from numpy import ones, prod, array, zeros, exp, log, append, nan, isnan, maximum, minimum, sort, concatenate as cat, transpose, mean, argsort
 #from random import uniform
 
-from optimacore.utils import odict, today, getdate
+from atomica.utils import odict, today, getdate
 
 class Programset(object):
 

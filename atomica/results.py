@@ -2,8 +2,8 @@
 Defines the classes for storing results.
 Version: 2018mar23
 """
-from optimacore.system import OptimaException, uuid
-from optimacore.utils import Link, odict, sigfig, today, makefilepath, getdate, printv, objrepr, defaultrepr, sanitizefilename, sanitize # Printing/file utilities
+from atomica.system import OptimaException, uuid
+from atomica.utils import Link, odict, sigfig, today, makefilepath, getdate, printv, objrepr, defaultrepr, sanitizefilename, sanitize # Printing/file utilities
 #from optima import quantile, findinds, findnearest, promotetolist, promotetoarray, checktype # Numeric utilities
 #from numpy import array, nan, zeros, arange, shape, maximum, log
 from numbers import Number

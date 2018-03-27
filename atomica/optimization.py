@@ -6,7 +6,7 @@ Version: 2018mar26
 from optima import OptimaException, Link, # Main functions
 from optima import printv, dcp, odict, findinds, today, getdate, uuid, objrepr, promotetoarray, findnearest, sanitize, inclusiverange # Utilities
 from numpy import zeros, ones, empty, arange, maximum, array, inf, isfinite, argmin, argsort, nan, floor, concatenate, exp
-from optimacore.results import getresults
+from atomica.results import getresults
 from numpy.random import random, seed
 from time import time
 
