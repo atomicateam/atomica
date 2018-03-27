@@ -6,7 +6,7 @@ from atomica.framework import ProjectFramework
 from atomica.workbook_export import makeInstructions
 from atomica.project_settings import ProjectSettings
 from sciris.fileio import saveobj, loadobj
-from atomica.utils import odict, tic, toc, blank
+from sciris.utils import odict, tic, toc, blank
 
 F = ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
 P = Project(framework=F) # Create a project with no data
