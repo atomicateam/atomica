@@ -1,21 +1,19 @@
 # %% Imports
 
 from atomica.system import OptimaException # CK: warning, should rename
-from optima_tb.validation import checkTransitionFraction
+from optima_tb.validation import checkTransitionFraction # CK: warning, should not import optima_tb!!
 import optima_tb.settings as project_settings
 from optima_tb.results import ResultSet
 from optima_tb.parsing import FunctionParser
 from optima_tb.ModelPrograms import ModelProgramSet, ModelProgram
 from collections import defaultdict # CK: warning, should probably remove
-from sciris.utils import odict
+from sciris.core import odict, dcp, uuid
 
 import logging
 logger = logging.getLogger(__name__)
 parser = FunctionParser(debug=False)  # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
 
 import numpy as np
-from copy import deepcopy as dcp
-import uuid
 
 import matplotlib.pyplot as plt
 

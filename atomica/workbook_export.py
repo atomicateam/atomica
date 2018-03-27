@@ -8,7 +8,7 @@ from atomica.ui import createStandardExcelFormats, createDefaultFormatVariables,
 from atomica.ui import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
 from atomica.ui import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from sciris.utils import odict, dcp
+from sciris.core import odict, dcp
 import xlsxwriter as xw
 
 

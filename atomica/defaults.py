@@ -3,7 +3,7 @@ Defines some defaults for Atomica projects
 Version: 2018mar27
 """
 
-from sciris.utils import printv # TODO replace
+from sciris.core import printv # TODO replace
 from atomica.framework import ProjectFramework
 from atomica.project import Project
 from atomica.system import OptimaException # TODO rename
