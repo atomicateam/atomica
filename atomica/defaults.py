@@ -7,6 +7,7 @@ from sciris.utils import printv # TODO replace
 from atomica.framework import ProjectFramework
 from atomica.project import Project
 from atomica.system import OptimaException # TODO rename
+from atomica import atomicapath
 
 
 def defaultprograms(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
@@ -31,8 +32,8 @@ def defaultproject(which='sir', verbose=2, **kwargs):
     if which=='sir':
         printv('Creating an SIR epidemic project...', 2, verbose)
         
-        F = ProjectFramework(name=which, frameworkfilename="frameworks/framework_sir.xlsx")
-        P = Project(framework=F, databook="databooks/databook_sir.xlsx")
+        F = ProjectFramework(name=which, frameworkfilename=atomicapath(['tests','frameworks'])+'framework_sir.xlsx')
+        P = Project(framework=F, databook=atomicapath(['tests','databooks'])+"databook_sir.xlsx")
         
     else:
         raise OptimaException('Default project type "%s" not understood: choices are "sir"' % which)
