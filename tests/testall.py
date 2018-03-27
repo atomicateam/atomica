@@ -3,15 +3,7 @@
 from sciris.tests import testfiles
 
 filelist = [
-'loadframework',
-'loadproject',
-'makedatabook',
-'makeframeworkfile',
-'makeframework',
-'makeproject',
-'readworkbook',
-'saveframework',
-'saveproject',
+'testworkflow',
 ]
 
-testfiles(path='./scripts', filelist=filelist)
+testfiles(path='.', filelist=filelist)
