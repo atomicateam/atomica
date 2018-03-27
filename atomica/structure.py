@@ -3,7 +3,7 @@ from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure_settings import DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage, OptimaException
 
-from atomica.utils import odict
+from sciris.utils import odict
 
 #from collections import OrderedDict
 

@@ -8,10 +8,7 @@ from atomica.excel import createStandardExcelFormats, createDefaultFormatVariabl
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
 from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from atomica.utils import odict # TEMPORARY IMPORTS FROM OPTIMA HIV
-
-#from collections import OrderedDict
-from copy import deepcopy as dcp
+from sciris.utils import odict, dcp
 from six import moves as sm
 import xlsxwriter as xw
 

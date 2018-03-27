@@ -5,7 +5,7 @@ Version: 2018mar26
 """
 
 from atomica.system import OptimaException
-from atomica.utils import printv, defaultrepr, inclusiverange, isnumber
+from sciris.utils import printv, defaultrepr, inclusiverange, isnumber # CK: warning, should replace printv with logger
 from numpy import shape, array #arange, concatenate as cat, 
 
 class ProjectSettings(object):

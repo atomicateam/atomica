@@ -15,9 +15,8 @@ from atomica.workbook_import import readWorkbook
 from atomica.workbook_export import writeWorkbook
 from atomica._version import __version__ as version # TODO: fix imports
 
-from atomica.system_io import saveobj
-from atomica.utils import odict, makefilepath, today, gitinfo, objrepr, getdate
-from copy import deepcopy as dcp
+from sciris.fileio import saveobj
+from sciris.utils import odict, makefilepath, today, gitinfo, objrepr, getdate, dcp
 
 
 @applyToAllMethods(logUsage)

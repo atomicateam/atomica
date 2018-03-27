@@ -7,8 +7,7 @@ Version: 2018mar23
 
 from atomica.system import OptimaException
 from atomica.project_settings import convertlimits
-from atomica.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
-from copy import deepcopy as dcp
+from sciris.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, gettvecdt, dcp
 from numpy import array, zeros, isnan, nan, isfinite, median, shape
 
 defaultsmoothness = 1.0 # The number of years of smoothing to do by default

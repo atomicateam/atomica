@@ -7,10 +7,9 @@ from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDepe
 from atomica.structure import TimeSeries
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from atomica.utils import odict ## TEMPORARY IMPORTS FROM OPTIMA HIV
+from sciris.utils import odict, dcp
 
 import os
-from copy import deepcopy as dcp
 from six import moves as sm
 import xlsxwriter as xw
 import xlrd
