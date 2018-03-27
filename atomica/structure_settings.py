@@ -5,15 +5,11 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from atomica.system import SystemSettings as SS
-
-from atomica.system import logUsage, accepts, OptimaException
-from atomica.system import logger, getOptimaCorePath, displayName
+from atomica.system import SystemSettings as SS, logUsage, OptimaException, logger, getOptimaCorePath, displayName
 from atomica.parser import loadConfigFile, getConfigValue, configparser
 from atomica.excel import ExcelSettings
+from sciris.core import odict
 
-from collections import OrderedDict
-from copy import deepcopy as dcp
 
 class KeyUniquenessException(OptimaException):
     def __init__(self, key, object_type, **kwargs):
@@ -136,12 +132,12 @@ class BaseStructuralSettings():
     PAGE_SPECS = None                       # Class method makes this an ordered dictionary.
 
     ITEM_TYPE_SPECS = None                  # Class method makes this a dictionary.
-    ITEM_TYPE_DESCRIPTOR_KEY = dict()       # A mapping from item type descriptors to type-key.
+    ITEM_TYPE_DESCRIPTOR_KEY = odict()      # A mapping from item type descriptors to type-key.
 
     @classmethod
     @logUsage
     def createPageSpecs(cls):
-        cls.PAGE_SPECS = OrderedDict()
+        cls.PAGE_SPECS = odict()
         for page_key in cls.PAGE_KEYS:
             cls.PAGE_SPECS[page_key] = {"title":page_key.title()}
             cls.PAGE_SPECS[page_key]["tables"] = []
@@ -172,10 +168,10 @@ class BaseStructuralSettings():
     @classmethod
     @logUsage
     def createItemTypeSpecs(cls):
-        cls.ITEM_TYPE_SPECS = dict()
+        cls.ITEM_TYPE_SPECS = odict()
         for item_type in cls.ITEM_TYPES:
-            cls.ITEM_TYPE_SPECS[item_type] = dict()
-            cls.ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
+            cls.ITEM_TYPE_SPECS[item_type] = odict()
+            cls.ITEM_TYPE_SPECS[item_type]["attributes"] = odict()
             cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
             cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = False   # This key notes whether the item type appears in workbook instructions.
             cls.ITEM_TYPE_SPECS[item_type]["superitem_type"] = None         # If this item type is a subitem of another item type, this key notes the superitem.

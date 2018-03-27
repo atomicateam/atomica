@@ -1,11 +1,7 @@
 from atomica.system import SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure_settings import DatabookSettings as DS
+from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage, OptimaException
-
 from sciris.utils import odict
-
-#from collections import OrderedDict
 
 class SemanticUnknownException(OptimaException):
     def __init__(self, term, attribute = None, **kwargs):

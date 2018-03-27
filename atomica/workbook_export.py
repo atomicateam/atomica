@@ -1,15 +1,14 @@
-from atomica.system import SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure_settings import DatabookSettings as DS
-from atomica.excel import ExcelSettings as ES
+from atomica.ui import SystemSettings as SS
+from atomica.ui import FrameworkSettings as FS
+from atomica.ui import DatabookSettings as DS
+from atomica.ui import ExcelSettings as ES
 
-from atomica.system import logger, OptimaException, accepts, prepareFilePath, displayName
-from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
-from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
-from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.ui import logger, OptimaException, accepts, prepareFilePath, displayName
+from atomica.ui import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
+from atomica.ui import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
+from atomica.ui import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
 from sciris.utils import odict, dcp
-from six import moves as sm
 import xlsxwriter as xw
 
 
@@ -251,7 +250,7 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
 
     row, new_row = start_row, start_row
     if use_instructions:
-        for item_number in sm.range(instructions.num_items[item_type]):
+        for item_number in range(instructions.num_items[item_type]):
             for attribute in item_type_spec["attributes"]:
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
@@ -293,13 +292,13 @@ def writeConnectionMatrix(worksheet, source_item_type, target_item_type, start_r
     row, col = start_row, start_col
     if use_instructions:
         source_row = start_row + 1
-        for item_number in sm.range(instructions.num_items[source_item_type]):
+        for item_number in range(instructions.num_items[source_item_type]):
             createAttributeCellContent(worksheet = worksheet, row = source_row, col = start_col, 
                                        attribute = "name", item_type = source_item_type, item_type_specs = item_type_specs, 
                                        item_number = item_number, formats = formats, format_key = ES.FORMAT_KEY_CENTER_BOLD, temp_storage = temp_storage)
             source_row += 1
         target_col = start_col + 1
-        for item_number in sm.range(instructions.num_items[target_item_type]):
+        for item_number in range(instructions.num_items[target_item_type]):
             createAttributeCellContent(worksheet = worksheet, row = start_row, col = target_col, 
                                        attribute = "name", item_type = target_item_type, item_type_specs = item_type_specs, 
                                        item_number = item_number, formats = formats, format_key = ES.FORMAT_KEY_CENTER_BOLD, temp_storage = temp_storage)
@@ -349,7 +348,7 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
 
     row, col = start_row, start_col
     if use_instructions:
-        for item_number in sm.range(instructions.num_items[iterated_type]):
+        for item_number in range(instructions.num_items[iterated_type]):
             createAttributeCellContent(worksheet = worksheet, row = row, col = col, 
                                        attribute = "label", item_type = iterated_type, item_type_specs = item_type_specs, 
                                        item_number = item_number, formats = formats, temp_storage = temp_storage)
@@ -374,7 +373,7 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     default_values = [0.0]*num_items
     if "default_value" in item_specs[item_type][item_key]:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
-    if tvec is None: tvec = [x for x in sm.range(2000,2019)] # TODO Temporary, fix this!
+    if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
     createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
                           num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere
                           default_values = default_values, formats = formats)
