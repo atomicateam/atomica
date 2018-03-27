@@ -7,3 +7,6 @@ filelist = [
 ]
 
 testfiles(path='.', filelist=filelist)
+
+from atomica.defaults import demo
+P = demo(0)
