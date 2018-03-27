@@ -20,8 +20,9 @@ from glob import glob as GLOB
 import os
 import sys
 import shutil
+import traceback
 
-## ADD DIRECTORIES
+## ADD DIRECTORIES - THESE ARE ACCESSIBLE IN THE TEST SCRIPTS
 rootdir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..','..'))
 sys.path.append(os.path.join(rootdir,'optimacore'))
 sys.path.append(os.path.join(rootdir,'optima'))
@@ -36,6 +37,9 @@ if len(ARGV)>1:
 
 def runscript(fname):
     exec(open(fname).read()) # Run the test!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if os.path.isfile(fname+'c'):
+        os.remove(fname+'c') # Delete the pyc file!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
 ## Run the tests in a loop
 VERYSTART = TIME()
@@ -50,15 +54,19 @@ for TEST in MASTER:
         runscript(TEST)
         SUCCEEDED.append({'test':TEST, 'time':TIME()-THISSTART})
     except:
-        FAILED.append({'test':TEST, 'msg':EXC_INFO()[1]})
+        FAILED.append({'test':TEST, 'msg':EXC_INFO()})
 
-
-print('\n'*5)
+print('#'*200+'\n'*3)
+print('TEST REPORT')
+print('Elapsed time: %0.1f s.\n\n' % (TIME()-VERYSTART))
 if len(FAILED):
-    print('The following %i/%i tests failed :(' % (len(FAILED), len(MASTER)))
-    for FAIL in FAILED: print('  %s: %s' % (FAIL['test'], FAIL['msg']))
+    print('The following %i/%i tests failed :(\n\n' % (len(FAILED), len(MASTER)))
+    for FAIL in FAILED: 
+        print('%s FAILED TEST %s\n' % (10*'#',FAIL['test']))
+        traceback.print_exception(*FAILED[0]['msg'])
+        print('\n'+10*'#'+'\n')
 else:
     print('All %i tests passed!!! You are the best!!' % len(MASTER))
     for SUCCESS in SUCCEEDED: print('  %s: %0.1f s' % (SUCCESS['test'], SUCCESS['time']))
     shutil.rmtree(tempdir)
-print('Elapsed time: %0.1f s.' % (TIME()-VERYSTART))
+

@@ -8,5 +8,4 @@ from optimacore.project_settings import ProjectSettings
 from optima import odict, saveobj, loadobj
 from optima import tic, toc, blank
 
-print os.path.join(tempdir,'testframework.frw')
 F = loadobj(os.path.join(tempdir,'testframework.frw'))
