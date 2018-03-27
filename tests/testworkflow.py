@@ -30,7 +30,7 @@ if 'makeframeworkfile' in torun:
                                               ('charac', 10),       # Set the number of characteristics, i.e., results
                                               ('progtype', 7), ])   # Set the number of program types - question, can we get rid of this?
     
-    at.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
+    aui.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
 
 
 	
