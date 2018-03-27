@@ -5,10 +5,11 @@ and the Parameterset class, which is for the full set of parameters.
 Version: 2018mar23
 """
 
-from optima import odict, Link, today, defaultrepr, getdate, dcp, isnumber, printv, OptimaException, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist
-from optima import gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
-from numpy import array, zeros, isnan, nan, isfinite, median, shape
+from optimacore.system import OptimaException
 from optimacore.project_settings import convertlimits
+from optimacore.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
+from copy import deepcopy as dcp
+from numpy import array, zeros, isnan, nan, isfinite, median, shape
 
 defaultsmoothness = 1.0 # The number of years of smoothing to do by default
 

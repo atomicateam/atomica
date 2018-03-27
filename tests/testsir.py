@@ -4,9 +4,13 @@ Tests the basic functionality of Core
 Created on Fri Mar 23 16:37:15 2018
 """
 
+import sys
+try: sys.path.append('D:\Projects - Work\Optima\optima\optima')
+except: pass
+
 ## TEMPORARY IMPORTS
-from optima import odict, saveobj, loadobj
-from optima import tic, toc, blank
+from optimacore.system_io import saveobj, loadobj
+from optimacore.utils import odict, tic, toc, blank
 #from numpy import array
 
 ## IMPORTS

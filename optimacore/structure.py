@@ -1,9 +1,9 @@
 from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
 from optimacore.structure_settings import DatabookSettings as DS
-from optimacore.system import applyToAllMethods, logUsage, accepts, OptimaException
+from optimacore.system import applyToAllMethods, logUsage, OptimaException
 
-from optima import odict # TEMP IMPORT FROM OPTIMA HIV
+from optimacore.utils import odict
 
 #from collections import OrderedDict
 

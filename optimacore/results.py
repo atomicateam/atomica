@@ -2,16 +2,13 @@
 Defines the classes for storing results.
 Version: 2018mar23
 """
-
-from optima import OptimaException, Link, odict, sigfig # Classes/functions
-from optima import uuid, today, makefilepath, getdate, printv, dcp, objrepr, defaultrepr, sanitizefilename, sanitize # Printing/file utilities
+from optimacore.system import OptimaException, uuid
+from optimacore.utils import Link, odict, sigfig, today, makefilepath, getdate, printv, objrepr, defaultrepr, sanitizefilename, sanitize # Printing/file utilities
 #from optima import quantile, findinds, findnearest, promotetolist, promotetoarray, checktype # Numeric utilities
 #from numpy import array, nan, zeros, arange, shape, maximum, log
 from numbers import Number
+from copy import deepcopy as dcp
 #from xlsxwriter import Workbook
-
-
-from optima import defaultrepr, odict, today
 
 
 class Result(object):

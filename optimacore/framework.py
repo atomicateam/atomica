@@ -8,16 +8,16 @@ from optimacore.system import SystemSettings as SS
 from optimacore.structure_settings import FrameworkSettings as FS
 from optimacore.structure_settings import DatabookSettings as DS
 
-from optimacore.system import applyToAllMethods, logUsage
+from optimacore.system import applyToAllMethods, logUsage, OptimaException, uuid
 from optimacore.structure import CoreProjectStructure
 from optimacore.structure_settings import TimeDependentValuesEntry
 from optimacore.workbook_import import readWorkbook
 from optimacore.workbook_export import writeWorkbook
 from optimacore._version import __version__ as version # TODO: fix imports
 
-#from collections import OrderedDict
-#from copy import deepcopy as dcp
-from optima import odict, dcp, OptimaException, makefilepath, saveobj, today, uuid, gitinfo, objrepr, getdate # TEMPORARY IMPORTS FROM OPTIMA HIV
+from optimacore.system_io import saveobj
+from optimacore.utils import odict, makefilepath, today, gitinfo, objrepr, getdate
+from copy import deepcopy as dcp
 
 
 @applyToAllMethods(logUsage)
@@ -104,7 +104,8 @@ class ProjectFramework(CoreProjectStructure):
 
             else: self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
             
-            
+    
+# TODO: Setup all following methods in Project, with maybe save as an exception.        
     def writeFrameworkfile(self, filename, data=None, instructions=None):
         ''' Export a framework file from framework'''        
         # TODO: modify writeWorkbook so it can write framework specs to an excel file???
