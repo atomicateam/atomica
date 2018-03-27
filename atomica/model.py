@@ -1,12 +1,13 @@
 # %% Imports
 
-from optima_tb.utils import flattenDict, odict, OptimaException
+from atomica.system import OptimaException # CK: warning, should rename
 from optima_tb.validation import checkTransitionFraction
 import optima_tb.settings as project_settings
 from optima_tb.results import ResultSet
 from optima_tb.parsing import FunctionParser
 from optima_tb.ModelPrograms import ModelProgramSet, ModelProgram
-from collections import defaultdict
+from collections import defaultdict # CK: warning, should probably remove
+from sciris.utils import odict
 
 import logging
 logger = logging.getLogger(__name__)

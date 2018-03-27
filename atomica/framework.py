@@ -15,9 +15,8 @@ from atomica.workbook_import import readWorkbook
 from atomica.workbook_export import writeWorkbook
 from atomica._version import __version__ as version # TODO: fix imports
 
-from atomica.system_io import saveobj
-from atomica.utils import odict, makefilepath, today, gitinfo, objrepr, getdate
-from copy import deepcopy as dcp
+from sciris.fileio import saveobj
+from sciris.utils import odict, makefilepath, today, gitinfo, objrepr, getdate, dcp
 
 
 @applyToAllMethods(logUsage)
@@ -35,7 +34,7 @@ class ProjectFramework(CoreProjectStructure):
         self.created = today()
         self.modified = today()
         self.version = version
-        self.gitbranch, self.gitversion = gitinfo()
+        self.gitinfo = gitinfo()
         self.frameworkfileloaddate = 'Framework file never loaded'
 
         ## Load framework file if provided
@@ -54,8 +53,8 @@ class ProjectFramework(CoreProjectStructure):
         output += '      Date created: %s\n'    % getdate(self.created)
         output += '     Date modified: %s\n'    % getdate(self.modified)
         output += '  Datasheet loaded: %s\n'    % getdate(self.frameworkfileloaddate)
-        output += '        Git branch: %s\n'    % self.gitbranch
-        output += '       Git version: %s\n'    % self.gitversion
+        output += '        Git branch: %s\n'    % self.gitinfo['branch']
+        output += '          Git hash: %s\n'    % self.gitinfo['hash']
         output += '               UID: %s\n'    % self.uid
         output += '============================================================\n'
         return output

@@ -124,7 +124,8 @@ def logUsage(undecoratedFunction):
         # If an exception was raised while processing the function, it should be delayed no longer.
         if exception_raised: raise e_saved
         return x                                             
-    return logUsageDecoratedFunction
+#    return logUsageDecoratedFunction
+    return undecoratedFunction
     
 #%% Code for validating function argument types.
 

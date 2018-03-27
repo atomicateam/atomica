@@ -2,13 +2,12 @@
 This module defines the Parameters classes, which are used for single parameters,
 and the Parameterset class, which is for the full set of parameters.
 
-Version: 2018mar23
+Version: 2018mar27
 """
 
-from atomica.system import OptimaException
-from atomica.project_settings import convertlimits
-from atomica.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, gettvecdt # This currently exists in settings, not utils. Move to utils? Or so something with settings?
-from copy import deepcopy as dcp
+from atomica.system import OptimaException # CK: this should be renamed
+from atomica.project_settings import convertlimits, gettvecdt
+from sciris.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, dcp
 from numpy import array, zeros, isnan, nan, isfinite, median, shape
 
 defaultsmoothness = 1.0 # The number of years of smoothing to do by default
@@ -417,4 +416,3 @@ def applylimits(y, par=None, limits=None, dt=None, warn=True, verbose=2):
         raise OptimaException(errormsg)
     
     return newy
-

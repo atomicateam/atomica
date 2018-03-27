@@ -3,11 +3,10 @@ Defines the classes for storing results.
 Version: 2018mar23
 """
 from atomica.system import OptimaException, uuid
-from atomica.utils import Link, odict, sigfig, today, makefilepath, getdate, printv, objrepr, defaultrepr, sanitizefilename, sanitize # Printing/file utilities
+from sciris.utils import Link, odict, sigfig, today, makefilepath, getdate, printv, objrepr, defaultrepr, sanitizefilename, sanitize, dcp # Printing/file utilities
 #from optima import quantile, findinds, findnearest, promotetolist, promotetoarray, checktype # Numeric utilities
 #from numpy import array, nan, zeros, arange, shape, maximum, log
 from numbers import Number
-from copy import deepcopy as dcp
 #from xlsxwriter import Workbook
 
 
@@ -74,7 +73,7 @@ def getresults(project=None, pointer=None, die=True):
         return None 
     
     # Normal usage, e.g. getresults(P, 3) will retrieve the 3rd set of results
-    elif isinstance(pointer, (str, unicode, Number, type(uuid()))):
+    elif isinstance(pointer, (str, unicode, Number, type(uuid()))): # CK: warning, should replace with sciris.utils.checktype()
         if project is not None:
             resultnames = [res.name for res in project.results.values()]
             resultuids = [str(res.uid) for res in project.results.values()]

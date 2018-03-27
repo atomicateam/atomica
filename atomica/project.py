@@ -38,11 +38,10 @@ from atomica.workbook_export import writeWorkbook
 from atomica.workbook_import import readWorkbook
 from atomica._version import __version__ as version # TODO: fix imports
 
-from atomica.system_io import saveobj
-from atomica.utils import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link ## TODO: remove temporary imports from HIV utils
+from sciris.utils import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp
+from sciris.fileio import saveobj
 
 from numpy.random import seed, randint
-from copy import deepcopy as dcp
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -64,7 +63,7 @@ class Project(object):
         ## Define metadata
         self.uid = uuid()
         self.version = version
-        self.gitbranch, self.gitversion = gitinfo()
+        self.gitinfo = gitinfo()
         self.created = today()
         self.modified = today()
         self.databookloaddate = 'Databook never loaded'
@@ -93,8 +92,8 @@ class Project(object):
         output += '      Date created: %s\n'    % getdate(self.created)
         output += '     Date modified: %s\n'    % getdate(self.modified)
         output += '  Datasheet loaded: %s\n'    % getdate(self.databookloaddate)
-        output += '        Git branch: %s\n'    % self.gitbranch
-        output += '       Git version: %s\n'    % self.gitversion
+        output += '        Git branch: %s\n'    % self.gitinfo['branch']
+        output += '          Git hash: %s\n'    % self.gitinfo['hash']
         output += '               UID: %s\n'    % self.uid
         output += '============================================================\n'
         return output
