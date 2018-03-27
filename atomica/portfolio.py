@@ -4,7 +4,7 @@ Optima Core portfolio definition file.
 Implements a container class for Optima projects of all types.
 """
 
-from optimacore.system import applyToAllMethods, logUsage, accepts
+from atomica.system import applyToAllMethods, logUsage, accepts
 
 @applyToAllMethods(logUsage)
 class Portfolio(object):

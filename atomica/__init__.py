@@ -3,11 +3,11 @@
 Optima Core module initialization file.
 The module can be imported in any of the following ways:
 
-    from optimacore import Project
+    from atomica import Project
     or
-    import optimacore as op
+    import atomica as op
     or
-    from optimacore import *
+    from atomica import *
 
 License:
 

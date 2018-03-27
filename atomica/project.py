@@ -5,13 +5,13 @@ Implements a class to investigate a context represented by a complex Markov chai
 The archetypal example is an epidemic within a geographical location, where entities move between disease states.
 """
 
-from optimacore.system import SystemSettings as SS
-from optimacore.excel import ExcelSettings as ES
+from atomica.system import SystemSettings as SS
+from atomica.excel import ExcelSettings as ES
 
-from optimacore.system import applyToAllMethods, logUsage, accepts
-from optimacore.framework import ProjectFramework
-from optimacore.data import ProjectData
-from optimacore.workbook_export import writeWorkbook
+from atomica.system import applyToAllMethods, logUsage, accepts
+from atomica.framework import ProjectFramework
+from atomica.data import ProjectData
+from atomica.workbook_export import writeWorkbook
 
 @applyToAllMethods(logUsage)
 class Project(object):

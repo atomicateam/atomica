@@ -4,9 +4,9 @@ Optima Core parser file.
 Contains functionality for parsing configuration files.
 """
 
-from optimacore.system import SystemSettings as SS
+from atomica.system import SystemSettings as SS
 
-from optimacore.system import logUsage, accepts, logger
+from atomica.system import logUsage, accepts, logger
 
 import six
 

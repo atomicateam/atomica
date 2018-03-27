@@ -5,15 +5,15 @@ Contains back-end GUI wrappers for codebase functionality.
 Note: Callback functions cannot be easily decorated, so logging is applied per method, not per class.
 """
 
-from optimacore.system import SystemSettings as SS
-from optimacore.structure_settings import FrameworkSettings as FS
-from optimacore.structure_settings import DatabookSettings as DS
-from optimacore.excel import ExcelSettings as ES
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
+from atomica.excel import ExcelSettings as ES
 
-from optimacore.system import logUsage, accepts, returns, logger
-from optimacore.framework import ProjectFramework
-from optimacore.workbook_export import WorkbookInstructions, writeWorkbook
-from optimacore.workbook_import import readWorkbook
+from atomica.system import logUsage, accepts, returns, logger
+from atomica.framework import ProjectFramework
+from atomica.workbook_export import WorkbookInstructions, writeWorkbook
+from atomica.workbook_import import readWorkbook
 
 import sys
 
