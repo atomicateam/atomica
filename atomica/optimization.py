@@ -3,8 +3,8 @@ Functions for running optimizations.
 Version: 2018mar26
 """
 
-from optima import OptimaException, Link, # Main functions
-from sciris.utils import printv, dcp, odict, findinds, today, getdate, uuid, objrepr, promotetoarray, findnearest, sanitize, inclusiverange # Utilities
+from atomica.system import OptimaException
+from sciris.core import Link, printv, dcp, odict, findinds, today, getdate, uuid, objrepr, promotetoarray, findnearest, sanitize, inclusiverange # Utilities
 from numpy import zeros, ones, empty, arange, maximum, array, inf, isfinite, argmin, argsort, nan, floor, concatenate, exp
 from atomica.results import getresults
 from numpy.random import random, seed

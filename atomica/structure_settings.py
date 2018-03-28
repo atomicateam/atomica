@@ -5,15 +5,11 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from atomica.system import SystemSettings as SS
-
-from atomica.system import logUsage, accepts, OptimaException
-from atomica.system import logger, getOptimaCorePath, displayName
+from atomica.system import SystemSettings as SS, logUsage, OptimaException, logger, atomicaPath, displayName
 from atomica.parser import loadConfigFile, getConfigValue, configparser
 from atomica.excel import ExcelSettings
+from sciris.core import odict
 
-from collections import OrderedDict
-from copy import deepcopy as dcp
 
 class KeyUniquenessException(OptimaException):
     def __init__(self, key, object_type, **kwargs):
@@ -23,11 +19,13 @@ class KeyUniquenessException(OptimaException):
 class TableType(object):
     """ Structure to define a table for workbook IO. """
     def __init__(self): pass
+
 class DetailColumns(TableType):
     """ Structure to associate a workbook table of detail columns with a specific item type. """
     def __init__(self, item_type):
         super(DetailColumns,self).__init__()
         self.item_type = item_type
+
 class ConnectionMatrix(TableType):
     """
     Structure to define a matrix that connects two item types together.
@@ -45,6 +43,7 @@ class ConnectionMatrix(TableType):
         self.target_item_type = target_item_type
         self.storage_item_type = storage_item_type
         self.storage_attribute = storage_attribute
+
 class TableTemplate(TableType):
     """
     Structure indicating a table should be duplicated for each existing instance of an item type.
@@ -55,6 +54,7 @@ class TableTemplate(TableType):
         super(TableTemplate,self).__init__()
         self.item_type = item_type
         self.item_key = item_key
+
 class TimeDependentValuesEntry(TableTemplate):
     """
     Template table requesting time-dependent values, with each instantiation iterating over an item type.
@@ -68,6 +68,7 @@ class TimeDependentValuesEntry(TableTemplate):
 class ContentType(object):
     """ Structure to describe the contents of an item attribute. """
     def __init__(self, is_list = False): self.is_list = is_list
+
 class IDType(ContentType):
     """
     Structure to associate the contents of an item attribute with code name or display label formats.
@@ -78,6 +79,7 @@ class IDType(ContentType):
         super(IDType,self).__init__(is_list = False)
         self.name_not_label = name_not_label
         self.superitem_type = superitem_type
+
 class IDRefType(ContentType):
     """
     Structure to associate the contents of an item attribute with an ID, or lists thereof, belonging to items of specified types.
@@ -136,12 +138,12 @@ class BaseStructuralSettings():
     PAGE_SPECS = None                       # Class method makes this an ordered dictionary.
 
     ITEM_TYPE_SPECS = None                  # Class method makes this a dictionary.
-    ITEM_TYPE_DESCRIPTOR_KEY = dict()       # A mapping from item type descriptors to type-key.
+    ITEM_TYPE_DESCRIPTOR_KEY = odict()      # A mapping from item type descriptors to type-key.
 
     @classmethod
     @logUsage
     def createPageSpecs(cls):
-        cls.PAGE_SPECS = OrderedDict()
+        cls.PAGE_SPECS = odict()
         for page_key in cls.PAGE_KEYS:
             cls.PAGE_SPECS[page_key] = {"title":page_key.title()}
             cls.PAGE_SPECS[page_key]["tables"] = []
@@ -172,10 +174,10 @@ class BaseStructuralSettings():
     @classmethod
     @logUsage
     def createItemTypeSpecs(cls):
-        cls.ITEM_TYPE_SPECS = dict()
+        cls.ITEM_TYPE_SPECS = odict()
         for item_type in cls.ITEM_TYPES:
-            cls.ITEM_TYPE_SPECS[item_type] = dict()
-            cls.ITEM_TYPE_SPECS[item_type]["attributes"] = OrderedDict()
+            cls.ITEM_TYPE_SPECS[item_type] = odict()
+            cls.ITEM_TYPE_SPECS[item_type]["attributes"] = odict()
             cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
             cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = False   # This key notes whether the item type appears in workbook instructions.
             cls.ITEM_TYPE_SPECS[item_type]["superitem_type"] = None         # If this item type is a subitem of another item type, this key notes the superitem.
@@ -291,7 +293,7 @@ def createSpecs(undecorated_class):
 class FrameworkSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings
     NAME = SS.STRUCTURE_KEY_FRAMEWORK
-    CONFIG_PATH = getOptimaCorePath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
+    CONFIG_PATH = atomicaPath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
     ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION, 
                   BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, 
@@ -334,7 +336,7 @@ class FrameworkSettings(BaseStructuralSettings):
 class DatabookSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings
     NAME = SS.STRUCTURE_KEY_DATA
-    CONFIG_PATH = getOptimaCorePath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
+    CONFIG_PATH = atomicaPath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
     ITEM_TYPES = [BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
 

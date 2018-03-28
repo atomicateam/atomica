@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from sciris.tests import testfiles
+from sciris.core import testfiles
 
 filelist = [
 'testworkflow',

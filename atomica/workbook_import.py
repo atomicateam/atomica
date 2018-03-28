@@ -7,10 +7,9 @@ from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDepe
 from atomica.structure import TimeSeries
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from sciris.utils import odict, dcp
+from sciris.core import odict, dcp
 
 import os
-from six import moves as sm
 import xlsxwriter as xw
 import xlrd
 
@@ -111,7 +110,7 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                     col += 1
                 if last_col is None: last_col = worksheet.ncols - 1
         else:
-            for col in sm.range(header_col + 1, last_col + 1):
+            for col in range(header_col + 1, last_col + 1):
                 val = str(worksheet.cell_value(row, col))
                 if not val == "":
                     source_item = str(worksheet.cell_value(row, header_col))

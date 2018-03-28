@@ -24,10 +24,8 @@ Methods for structure lists:
 Version: 2018mar22
 """
 
-from atomica.system import SystemSettings as SS
+from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, OptimaException
 from atomica.excel import ExcelSettings as ES
-
-from atomica.system import applyToAllMethods, logUsage, accepts, OptimaException, uuid
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
@@ -36,10 +34,8 @@ from atomica.programs import Programset
 from atomica.results import Resultset
 from atomica.workbook_export import writeWorkbook
 from atomica.workbook_import import readWorkbook
-from atomica._version import __version__ as version # TODO: fix imports
-
-from sciris.utils import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp
-from sciris.fileio import saveobj
+from atomica._version import __version__
+from sciris.core import odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, uuid
 
 from numpy.random import seed, randint
 
@@ -62,7 +58,7 @@ class Project(object):
 
         ## Define metadata
         self.uid = uuid()
-        self.version = version
+        self.version = __version__
         self.gitinfo = gitinfo()
         self.created = today()
         self.modified = today()

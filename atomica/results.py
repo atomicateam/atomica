@@ -2,12 +2,9 @@
 Defines the classes for storing results.
 Version: 2018mar23
 """
-from atomica.system import OptimaException, uuid
-from sciris.utils import Link, odict, sigfig, today, makefilepath, getdate, printv, objrepr, defaultrepr, sanitizefilename, sanitize, dcp # Printing/file utilities
-#from optima import quantile, findinds, findnearest, promotetolist, promotetoarray, checktype # Numeric utilities
-#from numpy import array, nan, zeros, arange, shape, maximum, log
+from atomica.system import OptimaException
+from sciris.core import uuid, odict, today, defaultrepr # Printing/file utilities
 from numbers import Number
-#from xlsxwriter import Workbook
 
 
 class Result(object):

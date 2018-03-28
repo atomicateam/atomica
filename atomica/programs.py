@@ -6,11 +6,7 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-#from optima import OptimaException, Link, printv, uuid, today, sigfig, getdate, dcp, smoothinterp, findinds, odict, Settings, sanitize, defaultrepr, isnumber, promotetoarray, vec2obj, asd, convertlimits
-#from numpy import ones, prod, array, zeros, exp, log, append, nan, isnan, maximum, minimum, sort, concatenate as cat, transpose, mean, argsort
-#from random import uniform
-
-from sciris.utils import odict, today, getdate
+from sciris.core import odict, today, getdate
 
 class Programset(object):
 

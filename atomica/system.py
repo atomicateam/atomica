@@ -15,8 +15,6 @@ import six
 if six.PY2: from inspect import getargspec as argspec   # Python 2 arg inspection.
 else: from inspect import getfullargspec as argspec     # Python 3 arg inspection.
 
-from uuid import uuid4 as uuid
-
 #%% Code for setting up a system settings class containing module-wide variables.
 
 class SystemSettings(object):
@@ -48,17 +46,16 @@ class SystemSettings(object):
 
 #%% Code for determining module installation directory.
 
-def getOptimaCorePath(subdir = None, end_with_sep = True): # CK: duplicates atomicapath in init.py
-    """
-    Returns the parent path of the Atomica module.
-    If subdir is not None, include it in the path.
-    If end_with_sep is True, cap off the path with a separator (i.e. the path is to be appended by a filename).
-    """
+# Tool path
+def atomicaPath(subdir=None, trailingsep=True):
+    ''' Returns the parent path of the Atomica module. If subdir is not None, include it in the path '''
+    import os
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-    tojoin = [path]
-    if subdir is not None: tojoin.append(subdir)
-    if end_with_sep: tojoin.append('')
-    path = os.path.join(*tojoin)
+    if subdir is not None:
+        if not isinstance(subdir, list): subdir = [subdir] # Ensure it's a list
+        tojoin = [path] + subdir
+        if trailingsep: tojoin.append('') # This ensures it ends with a separator
+        path = os.path.join(*tojoin) # e.g. ['/home/optima', 'tests', '']
     return path
 
 #%% Code for creating a directory if it does not exist.
@@ -75,7 +72,7 @@ def prepareFilePath(file_path): # CK: duplicates makefilepath in sciris.utils
 
 #%% Code for setting up a logger.
 
-logging.config.fileConfig(getOptimaCorePath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_LOGGER_FILENAME, 
+logging.config.fileConfig(atomicaPath(subdir=SystemSettings.CODEBASE_DIRNAME)+SystemSettings.CONFIG_LOGGER_FILENAME, 
                           defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
 logger = logging.getLogger("atomica")
 
