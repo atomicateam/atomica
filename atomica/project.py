@@ -31,7 +31,8 @@ from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet#, makesimpars
 from atomica.programs import Programset
-from atomica.results import Resultset
+from atomica.model import runModel
+from atomica.results import ResultSet
 from atomica.workbook_export import writeWorkbook
 from atomica.workbook_import import readWorkbook
 from atomica._version import __version__
@@ -134,7 +135,7 @@ class Project(object):
     def makeParset(self, name = "default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
 
-#        if not self.data: raise OptimaException("ERROR: No data exists for project '%s'.".format(self.name))
+#        if not self.data: raise OptimaException("ERROR: No data exists for project '{0}'.".format(self.name))
         self.parsets[name] = ParameterSet(name=name)
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
@@ -377,52 +378,52 @@ class Project(object):
 
 
     def runSim(self, parset=None, parset_name='default', progset=None, progset_name=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
-        ''' Run model using a selected parset and store/return results. '''
+        """ Run model using a selected parset and store/return results. """
 
         if parset is None:
             if len(self.parsets) < 1:
-                raise OptimaException('ERROR: Project "%s" appears to have no parameter sets. Cannot run model.' % self.name)
+                raise OptimaException("ERROR: Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
             else:
                 try: parset = self.parsets[parset_name]
-                except: raise OptimaException('ERROR: Project "%s" is lacking a parset named "%s". Cannot run model.' % (self.name, parset_name))
+                except: raise OptimaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name, parset_name))
 
         if progset is None:
             try: progset = self.progsets[progset_name]
-            except: logger.info('Initiating a standard run of project "%s" (i.e. without the influence of programs).' % self.name)
+            except: logger.info("Initiating a standard run of project '{0}' (i.e. without the influence of programs).".format(self.name))
         if progset is not None:
             if options is None:
-                logger.info('Program set "%s" will be ignored while running project "%s" due to no options specified.' % (progset.name, self.name))
+                logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
                 progset = None
 
         tm = tic()
 
 #        # results = runModel(settings = self.settings, parset = parset)
-#        results = runModel(settings=self.settings, parset=parset, progset=progset, options=options)
-#
-#        toc(tm, label='running %s model' % self.name)
-#
+        results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
+
+        toc(tm, label="running '{0}' model".format(self.name))
+
 #        if plot:
 #            tp = tic()
 #            self.plotResults(results=results)
 #            toc(tp, label='plotting %s' % self.name)
-#
-#        if store_results:
-#            if result_name is None:
-#                result_name = 'parset_' + parset.name
-#                if not progset is None:
-#                    result_name = result_name + '_progset_' + progset.name
-#                if result_type is not None:
-#                    result_name = result_type + '_' + result_name
-#                k = 1
-#                while k > 0:
-#                    result_name_attempt = result_name + '_' + str(k)
-#                    k = k + 1
-#                    if result_name_attempt not in self.results.keys():
-#                        result_name = result_name_attempt
-#                        k = 0
-#            self.results[result_name] = results
-#
-#        return results
+
+        if store_results:
+            if result_name is None:
+                result_name = "parset_" + parset.name
+                if not progset is None:
+                    result_name = result_name + "_progset_" + progset.name
+                if result_type is not None:
+                    result_name = result_type + "_" + result_name
+                k = 1
+                while k > 0:
+                    result_name_attempt = result_name + "_" + str(k)
+                    k = k + 1
+                    if result_name_attempt not in self.results:
+                        result_name = result_name_attempt
+                        k = 0
+            self.results[result_name] = results
+
+        return results
 
 #    def runsim(self, name=None, pars=None, simpars=None, start=None, end=None, dt=None, tvec=None, 
 #               budget=None, coverage=None, budgetyears=None, data=None, n=1, sample=None, tosample=None, randseed=None,

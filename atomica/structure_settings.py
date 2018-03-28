@@ -321,12 +321,12 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
                                      content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True, is_list = True))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["entry_point"], 
-                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT]))
+#        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["entry_point"], 
+#                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT]))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["denominator"], 
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order","default_value"])
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value"])
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value","function"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])

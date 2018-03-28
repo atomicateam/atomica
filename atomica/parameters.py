@@ -80,28 +80,52 @@ class Parameter(object):
             output = np.ones(len(tvec))*(self.y[pop_name][0]*np.abs(self.y_factor[pop_name]))   # Don"t bother running interpolation loops if constant. Good for performance.
         else:
             input_t = dcp(self.t[pop_name])
-            input_y = dcp(self.y[pop_name])*np.abs(self.y_factor[pop_name])
+            input_y = dcp(self.y[pop_name])#*np.abs(self.y_factor[pop_name])
             
-            if not extrapolate_nan:
+            # Eliminate np.nan from value array before interpolation. Makes sure timepoints are appropriately constrained.
+            print(input_y)
+            cleaned_times = input_t[~np.isnan(input_y)] # NB. numpy advanced indexing here results in a copy
+            cleaned_vals = input_y[~np.isnan(input_y)]
+
+            if len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
+                output = np.ones(len(tvec)) * (cleaned_vals)[0]  # Don't bother running interpolation loops if constant. Good for performance.
+            else:
                 # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
-                ind_min, t_min = min(enumerate(self.t[pop_name]), key = lambda p: p[1])
-                ind_max, t_max = max(enumerate(self.t[pop_name]), key = lambda p: p[1])
-                y_at_t_min = self.y[pop_name][ind_min]
-                y_at_t_max = self.y[pop_name][ind_max]
-                
+                ind_min, t_min = min(enumerate(cleaned_times), key=lambda p: p[1])
+                ind_max, t_max = max(enumerate(cleaned_times), key=lambda p: p[1])
+                val_at_t_min = cleaned_vals[ind_min]
+                val_at_t_max = cleaned_vals[ind_max]
+
                 # This padding effectively keeps edge values constant for desired time ranges larger than data-provided time ranges.
                 if tvec[0] < t_min:
-                    input_t = np.append(tvec[0], input_t)
-                    input_y = np.append(y_at_t_min, input_y)
+                    cleaned_times = np.append(tvec[0], cleaned_times)
+                    cleaned_vals = np.append(val_at_t_min, cleaned_vals)
                 if tvec[-1] > t_max:
-                    input_t = np.append(input_t, tvec[-1])
-                    input_y = np.append(input_y, y_at_t_max)
+                    cleaned_times = np.append(cleaned_times, tvec[-1])
+                    cleaned_vals = np.append(cleaned_vals, val_at_t_max)
+
+                output = interpolateFunc(cleaned_times, cleaned_vals, tvec)
             
-            elif len(input_t) == 1:       # The interpolation function currently complains about single data points, so this is the simplest hack for nan extrapolation.
-                input_t = np.append(input_t, input_t[-1] + 1e-12)
-                input_y = np.append(input_y, input_y[-1])
-            
-            output = interpolateFunc(x = input_t, y = input_y, xnew = tvec, extrapolate_nan = extrapolate_nan)
+#            if not extrapolate_nan:
+#                # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
+#                ind_min, t_min = min(enumerate(self.t[pop_name]), key = lambda p: p[1])
+#                ind_max, t_max = max(enumerate(self.t[pop_name]), key = lambda p: p[1])
+#                y_at_t_min = self.y[pop_name][ind_min]
+#                y_at_t_max = self.y[pop_name][ind_max]
+#                
+#                # This padding effectively keeps edge values constant for desired time ranges larger than data-provided time ranges.
+#                if tvec[0] < t_min:
+#                    input_t = np.append(tvec[0], input_t)
+#                    input_y = np.append(y_at_t_min, input_y)
+#                if tvec[-1] > t_max:
+#                    input_t = np.append(input_t, tvec[-1])
+#                    input_y = np.append(input_y, y_at_t_max)
+#            
+#            elif len(input_t) == 1:       # The interpolation function currently complains about single data points, so this is the simplest hack for nan extrapolation.
+#                input_t = np.append(input_t, input_t[-1] + 1e-12)
+#                input_y = np.append(input_y, input_y[-1])
+#            
+#            output = interpolateFunc(x = input_t, y = input_y, xnew = tvec, extrapolate_nan = extrapolate_nan)
         
         return output
     
@@ -143,7 +167,7 @@ class ParameterSet(object):
         self.pop_labels = [data.getSpec(pop_name)["label"] for pop_name in self.pop_names]
             
         # Cascade parameter and characteristic extraction.
-        for k in range(1):
+        for k in range(2):
             item_key = [DS.KEY_PARAMETER, DS.KEY_CHARACTERISTIC][k]
             item_group = ["cascade","characs"][k]
             for l, name in enumerate(data.specs[item_key]):
@@ -152,9 +176,17 @@ class ParameterSet(object):
                 series = data.getSpecValue(name, DS.TERM_DATA)
                 for pop_id in series.keys:
                     if pop_id == "t": continue
-                    for t in series.t_id_map:
-                        self.pars[item_group][-1].t[pop_id] = t
-                        self.pars[item_group][-1].y[pop_id] = series.getValue(key = pop_id, t = t)
+                    tvec = np.array([np.nan if t is None else t for t in series.t_id_map])
+                    yvec = np.array([np.nan if series.getValue(key = pop_id, t = t) is None else series.getValue(key = pop_id, t = t) for t in series.t_id_map])
+                    # TODO: Deal with assumptions in a better way by storing them regardless under assumption attribute.
+                    #       For now, convert assumption from None to year 0 if no other values exist, otherwise delete assumption index (its value should have been ignored during data import).
+#                    if tvec[0] is None:
+#                        if len(tvec) == 1: tvec[0] = 0.0
+#                    else: 
+#                        del tvec[0]
+#                        del yvec[0]
+                    self.pars[item_group][-1].t[pop_id] = tvec
+                    self.pars[item_group][-1].y[pop_id] = yvec
 #                self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
 #                if data[DS.KEY_PARAMETER][name][pop_id]["y_factor"] == DO_NOT_SCALE:
 #                    self.pars["cascade"][-1].y_factor[pop_id] = DEFAULT_YFACTOR
