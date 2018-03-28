@@ -16,6 +16,9 @@ import numpy as np
 from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
 
+# TODO: Put this in a better place.
+TOLERANCE = 1e-6
+
 # np.seterr(all='raise')
 # %% Abstract classes used in model
 
@@ -396,11 +399,11 @@ class ModelPopulation(Node):
         for name in framework.specs[FS.KEY_COMPARTMENT]:
             spec = framework.getSpec(name)
             self.comps.append(Compartment(name=name))
-            if "is_source" in spec:
+            if spec["is_source"]:
                 self.comps[-1].tag_birth = True
-            if "is_sink" in spec:
+            if spec["is_sink"]:
                 self.comps[-1].tag_dead = True
-            if "is_junction" in spec:
+            if spec["is_junction"]:
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name:comp for comp in self.comps}
 
@@ -485,6 +488,7 @@ class ModelPopulation(Node):
                     includes.append(inc)
             return includes
 
+#        print([(c,framework.getSpecValue(c.name,"datapage_order")) for c in self.characs])
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i,c in enumerate(characs):
             # Look up the characteristic value
@@ -505,8 +509,8 @@ class ModelPopulation(Node):
 
         # Print warning for characteristics that are not well matched by the compartment size solution
         proposed = np.matmul(A,x)
-        for i in xrange(0,len(characs)):
-            if abs(proposed[i]-b[i]) > project_settings.TOLERANCE:
+        for i in range(0,len(characs)):
+            if abs(proposed[i]-b[i]) > TOLERANCE:#project_settings.TOLERANCE:
                 logger.warn('Characteristic %s %s - Requested %f, Calculated %f' % (self.name,characs[i].name,b[i],proposed[i]))
         
         # Print diagnostic output for compartments that were assigned a negative value
@@ -523,8 +527,8 @@ class ModelPopulation(Node):
                 else:
                     logger.warn(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name,x[comp_indices[inc.name]]))
 
-        for i in xrange(0, len(comps)):
-            if x[i] < -project_settings.TOLERANCE:
+        for i in range(0, len(comps)):
+            if x[i] < -TOLERANCE:
                 logger.warn('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
                     if comps[i] in extract_includes(charac):
@@ -532,11 +536,12 @@ class ModelPopulation(Node):
 
 
         # Halt for an unsatisfactory overall solution (could relax this check later)
-        if residual > project_settings.TOLERANCE:
-            raise OptimaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,project_settings.TOLERANCE))
+        if residual > TOLERANCE:
+            print(x)
+            raise OptimaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,TOLERANCE))
 
         # Halt for any negative popsizes
-        if np.any(x < -project_settings.TOLERANCE):
+        if np.any(x < -TOLERANCE):
             raise OptimaException('Negative initial popsizes')
 
         # Otherwise, insert the values

@@ -88,6 +88,8 @@ class ProjectFramework(CoreProjectStructure):
                             if isinstance(table, TimeDependentValuesEntry):
                                 item_type = table.item_type
                                 for item_key in self.specs[item_type]:
+#                                    # Do not create tables for items that are marked not to be shown in a datapage.
+#                                    if not ("datapage_order" in self.specs[item_type][item_key] and self.specs[item_type][item_key]["datapage_order"] == -1):
                                     instantiated_table = dcp(table)
                                     instantiated_table.item_key = item_key
                                     self.specs[FS.KEY_DATAPAGE][page_key]["tables"].append(instantiated_table)

@@ -2,7 +2,7 @@
 
 from atomica.system import OptimaException, logger
 from atomica.structure_settings import DatabookSettings as DS
-#from optima_tb.interpolation import interpolateFunc
+from atomica.interpolation import interpolateFunc
 #from optima_tb.databook import getEmptyData
 #from optima_tb.settings import DO_NOT_SCALE, DEFAULT_YFACTOR
 from sciris.core import odict, uuid
@@ -67,7 +67,7 @@ class Parameter(object):
             if tval > t_remove[0] and tval < t_remove[1]:
                 self.removeValueAt(tval,pop_name)
         
-    def interpolate(self, tvec = None, pop_name = None, extrapolate_nan = False):
+    def interpolate(self, tvec = None, pop_name = None):#, extrapolate_nan = False):
         """ Take parameter values and construct an interpolated array corresponding to the input time vector. """
         
         # Validate input.
@@ -76,35 +76,34 @@ class Parameter(object):
         if not len(self.t[pop_name]) > 0: raise OptimaException("ERROR: There are no timepoint values for parameter '{0}', population '{1}'.".format(self.name, pop_name))
         if not len(self.t[pop_name]) == len(self.y[pop_name]): raise OptimaException("ERROR: Parameter '{0}', population '{1}', does not have corresponding values and timepoints.".format(self.name, pop_name))
 
-        if len(self.t[pop_name]) == 1 and not extrapolate_nan:
-            output = np.ones(len(tvec))*(self.y[pop_name][0]*np.abs(self.y_factor[pop_name]))   # Don"t bother running interpolation loops if constant. Good for performance.
+#        if len(self.t[pop_name]) == 1 and not extrapolate_nan:
+#            output = np.ones(len(tvec))*(self.y[pop_name][0]*np.abs(self.y_factor[pop_name]))   # Don"t bother running interpolation loops if constant. Good for performance.
+#        else:
+        input_t = dcp(self.t[pop_name])
+        input_y = dcp(self.y[pop_name])#*np.abs(self.y_factor[pop_name])
+        
+        # Eliminate np.nan from value array before interpolation. Makes sure timepoints are appropriately constrained.
+        cleaned_times = input_t[~np.isnan(input_y)] # NB. numpy advanced indexing here results in a copy
+        cleaned_vals = input_y[~np.isnan(input_y)]
+
+        if len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
+            output = np.ones(len(tvec)) * (cleaned_vals)[0]  # Don't bother running interpolation loops if constant. Good for performance.
         else:
-            input_t = dcp(self.t[pop_name])
-            input_y = dcp(self.y[pop_name])#*np.abs(self.y_factor[pop_name])
-            
-            # Eliminate np.nan from value array before interpolation. Makes sure timepoints are appropriately constrained.
-            print(input_y)
-            cleaned_times = input_t[~np.isnan(input_y)] # NB. numpy advanced indexing here results in a copy
-            cleaned_vals = input_y[~np.isnan(input_y)]
+            # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
+            ind_min, t_min = min(enumerate(cleaned_times), key=lambda p: p[1])
+            ind_max, t_max = max(enumerate(cleaned_times), key=lambda p: p[1])
+            val_at_t_min = cleaned_vals[ind_min]
+            val_at_t_max = cleaned_vals[ind_max]
 
-            if len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
-                output = np.ones(len(tvec)) * (cleaned_vals)[0]  # Don't bother running interpolation loops if constant. Good for performance.
-            else:
-                # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
-                ind_min, t_min = min(enumerate(cleaned_times), key=lambda p: p[1])
-                ind_max, t_max = max(enumerate(cleaned_times), key=lambda p: p[1])
-                val_at_t_min = cleaned_vals[ind_min]
-                val_at_t_max = cleaned_vals[ind_max]
+            # This padding effectively keeps edge values constant for desired time ranges larger than data-provided time ranges.
+            if tvec[0] < t_min:
+                cleaned_times = np.append(tvec[0], cleaned_times)
+                cleaned_vals = np.append(val_at_t_min, cleaned_vals)
+            if tvec[-1] > t_max:
+                cleaned_times = np.append(cleaned_times, tvec[-1])
+                cleaned_vals = np.append(cleaned_vals, val_at_t_max)
 
-                # This padding effectively keeps edge values constant for desired time ranges larger than data-provided time ranges.
-                if tvec[0] < t_min:
-                    cleaned_times = np.append(tvec[0], cleaned_times)
-                    cleaned_vals = np.append(val_at_t_min, cleaned_vals)
-                if tvec[-1] > t_max:
-                    cleaned_times = np.append(cleaned_times, tvec[-1])
-                    cleaned_vals = np.append(cleaned_vals, val_at_t_max)
-
-                output = interpolateFunc(cleaned_times, cleaned_vals, tvec)
+            output = interpolateFunc(cleaned_times, cleaned_vals, tvec)
             
 #            if not extrapolate_nan:
 #                # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
