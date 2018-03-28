@@ -6,7 +6,7 @@ The definitions are hard-coded, while interface semantics are drawn from a confi
 """
 
 from atomica.system import SystemSettings as SS, logUsage, OptimaException, logger, atomicaPath, displayName
-from atomica.parser import loadConfigFile, getConfigValue, configparser
+from atomica.parser_config import loadConfigFile, getConfigValue, configparser
 from atomica.excel import ExcelSettings
 from sciris.core import odict
 
@@ -126,6 +126,7 @@ class BaseStructuralSettings():
     TERM_TYPE = "type"
     TERM_ATTRIBUTE = "att"
     TERM_OPTION = "opt"
+    TERM_DATA = "data"
 
     KEY_POPULATION_ATTRIBUTE = KEY_POPULATION + TERM_ATTRIBUTE
     KEY_POPULATION_OPTION = KEY_POPULATION + TERM_OPTION
@@ -349,8 +350,8 @@ class DatabookSettings(BaseStructuralSettings):
         cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
         #cls.createItemTypeAttributes(cls.KEY_PROGRAM, ["target_pops"], IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["values"], TimeSeriesType())
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["values"], TimeSeriesType())
+        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, [cls.TERM_DATA], TimeSeriesType())
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, [cls.TERM_DATA], TimeSeriesType())
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
@@ -360,7 +361,7 @@ class DatabookSettings(BaseStructuralSettings):
         #                                                                  storage_attribute = "target_pops"))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
                                                                                          iterated_type = cls.KEY_POPULATION,
-                                                                                         value_attribute = "values"))
+                                                                                         value_attribute = cls.TERM_DATA))
         cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_PARAMETER,
                                                                                     iterated_type = cls.KEY_POPULATION,
-                                                                                    value_attribute = "values"))
+                                                                                    value_attribute = cls.TERM_DATA))

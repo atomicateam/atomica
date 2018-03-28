@@ -7,7 +7,6 @@ Contains functionality specific to Excel input and output.
 from atomica.system import SystemSettings as SS
 from atomica.system import logger, logUsage, accepts, returns, OptimaException
 
-from six import moves as sm
 import xlsxwriter as xw
 import xlrd
 
@@ -101,7 +100,7 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
         for t_val in time_vector:
             excel_page.write(row, col, t_val, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
             col += 1
-    for item_number in sm.range(num_items):
+    for item_number in range(num_items):
         row += 1
         col = start_col
         rc_start = xw.utility.xl_rowcol_to_cell(row, col + 1 + 1)
@@ -125,7 +124,7 @@ def extractHeaderColumnsMapping(excel_page, row = 0):
     """
     header_columns_map = dict()
     current_header = None
-    for col in sm.range(excel_page.ncols):
+    for col in range(excel_page.ncols):
         header = str(excel_page.cell_value(row, col))
         if not header == "":
             if not header in header_columns_map: header_columns_map[header] = [col, col]

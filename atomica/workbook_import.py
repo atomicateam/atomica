@@ -90,12 +90,11 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
 def readConnectionMatrix(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
     
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
 
     header_row, header_col, last_col = None, 0, None
     row, col = start_row, header_col + 1
-    keep_scanning_rows, keep_scanning_cols = True, True
+    keep_scanning_rows = True
     while keep_scanning_rows and row < worksheet.nrows:
         # Scan for the header row of the matrix, recognising the top-left cell may be empty, hence the non-zero start column.
         if header_row is None:

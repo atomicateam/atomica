@@ -153,7 +153,6 @@ class CoreProjectStructure(object):
             except: raise OptimaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
                                           "can neither be extended nor appended by value '{3}'.".format(attribute, subkey, term, value))
 
-
     def getSpecName(self, term):
         """ Returns the name corresponding to a provided term. """
         return self.getSemanticValue(term = term, attribute = "name")
@@ -164,6 +163,12 @@ class CoreProjectStructure(object):
         Item type, like the referencing key list, is stored only in semantic structures keyed with item names.
         """
         return self.getSemanticValue(term = self.getSpecName(term), attribute = "type")
+
+    def getSpecValue(self, term, attribute):
+        """ Returns the value of an attribute for a provided term. """
+        spec = self.getSpec(term = term)
+        try: return spec[attribute]
+        except: raise OptimaException("The item corresponding to term '{0}' does not have attribute '{1}' to query value of.".format(term, attribute))
 
     def getSpec(self, term):
         """ Returns the item specification association with a term. """
