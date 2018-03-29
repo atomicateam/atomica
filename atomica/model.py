@@ -92,11 +92,11 @@ class Variable(object):
                 continue
             elif isinstance(self.__dict__[prop],list):
                 for i,obj in enumerate(self.__dict__[prop]):
-                    if isinstance(obj,uuid.UUID):
+                    if isinstance(obj,type(uuid)):
                         self.__dict__[prop][i] = objs[obj]
             else:
                 obj = self.__dict__[prop]
-                if isinstance(obj,uuid.UUID):
+                if isinstance(obj,type(uuid)):
                     self.__dict__[prop] = objs[obj]
 
     def set_dependent(self):
@@ -172,10 +172,10 @@ class Characteristic(Variable):
             denom  = self.denominator.vals[[ti]]
 
             ## Todo - do this better!
-            for i in xrange(0,ti.size):
+            for i in range(0,ti.size):
                 if denom[i] > 0:
                     self.vals[ti[i]] /= denom[i]
-                elif self.vals[ti[i]] < project_settings.TOLERANCE:
+                elif self.vals[ti[i]] < TOLERANCE:
                     self.vals[ti[i]] = 0  # Given a zero/zero case, make the answer zero.
                 else:
                     self.vals[ti[i]] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
@@ -633,9 +633,9 @@ class Model(object):
                 pop = self.getPop(pop_name)
                 par = pop.getPar(cascade_par.name) # Find the parameter with the requested name
                 par.vals = cascade_par.interpolate(tvec=self.sim_settings['tvec'], pop_name=pop_name)
-                par.scale_factor = cascade_par.y_factor[pop_name]
-                if par.links:
-                    par.units = cascade_par.y_format[pop_name]
+#                par.scale_factor = cascade_par.y_factor[pop_name]
+#                if par.links:
+#                    par.units = cascade_par.y_format[pop_name]
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -723,32 +723,30 @@ class Model(object):
         else:
             self.programs_active = False
 
-        # Make sure initially-filled junctions are processed and initial dependencies are calculated.
-        self.updateValues(settings=settings, do_special=False)     # Done first just in case junctions are dependent on characteristics.
-                                                                                                # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
-                                                                                                # NOTE: If junction outflows were to be tagged by special rules, initial calculations may be off. Return to this later and consider logic rigorously.
-        self.processJunctions(settings=settings)
-        self.updateValues(settings=settings)
+#        # Make sure initially-filled junctions are processed and initial dependencies are calculated.
+#        self.updateValues(framework=framework, do_special=False)     # Done first just in case junctions are dependent on characteristics.
+#                                                                                                # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
+#                                                                                                # NOTE: If junction outflows were to be tagged by special rules, initial calculations may be off. Return to this later and consider logic rigorously.
+#        self.processJunctions(framework=framework)
+#        self.updateValues(framework=framework)
 
 
         # set up sim_settings for later use wrt population tags
-        self.sim_settings['tag_birth'] = []
-        self.sim_settings['tag_death'] = []
-        self.sim_settings['tag_no_plot'] = []
-        for node_name in settings.node_specs:
-            for tag in ['tag_birth', 'tag_death', 'tag_no_plot']:
-                if tag in settings.node_specs[node_name]:
-                    self.sim_settings[tag] = node_name
+        for tag in ["is_source", "is_sink", "is_junction"]:
+            self.sim_settings[tag] = []
+            for node_name in framework.specs[FS.KEY_COMPARTMENT]:
+                if framework.getSpecValue(node_name, tag):
+                    self.sim_settings[tag].append(node_name)
 
-    def process(self, settings, progset=None):
+    def process(self, framework, progset=None):
         ''' 
         Run the full model.
         '''
 
         for t in self.sim_settings['tvec'][1:]:
-            self.stepForward(settings=settings, dt=settings.tvec_dt)
-            self.processJunctions(settings=settings)
-            self.updateValues(settings=settings)
+            self.stepForward(framework=framework, dt=self.sim_settings['tvec_dt'])
+#            self.processJunctions(framework=framework)
+#            self.updateValues(framework=framework)
 
         for pop in self.pops:
             [par.update() for par in pop.pars if not par.dependency]
@@ -756,7 +754,7 @@ class Model(object):
 
         return self.pops, self.sim_settings
 
-    def stepForward(self, settings, dt=1.0):
+    def stepForward(self, framework, dt=1.0):
         '''
         Evolve model characteristics by one timestep (defaulting as 1 year).
         Each application of this method writes calculated values to the next position in popsize arrays, regardless of dt.
@@ -790,28 +788,28 @@ class Model(object):
                             link.target_flow[ti] = 0.0
                             continue
 
-                        if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
-                            transition *= link.parameter.scale_factor
+#                        if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
+#                            transition *= link.parameter.scale_factor
 
-                        if link.parameter.units == 'fraction':
+#                        if link.parameter.units == 'fraction':
                             # check if there are any violations, and if so, deal with them
-                            if transition > 1.:
-                                transition = checkTransitionFraction(transition, settings.validation)
-                            converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
-                            if link.source.tag_birth:
-                                n_alive = 0
-                                for p in self.pops:
-                                    n_alive += p.getCharac(settings.charac_pop_count).vals[ti]
-                                converted_amt = n_alive * converted_frac
-                            else:
-                                converted_amt = comp_source.vals[ti] * converted_frac
-                        elif link.parameter.units == 'number':
-                            converted_amt = transition * dt
-                            if link.is_transfer:
-                                transfer_rescale = comp_source.vals[ti] / pop.getCharac(settings.charac_pop_count).vals[ti]
-                                converted_amt *= transfer_rescale
+                        if transition > 1.:
+                            transition = checkTransitionFraction(transition, settings.validation)
+                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
+                        if link.source.tag_birth:
+                            n_alive = 0
+                            for p in self.pops:
+                                n_alive += p.getCharac(settings.charac_pop_count).vals[ti]
+                            converted_amt = n_alive * converted_frac
                         else:
-                            raise OptimaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
+                            converted_amt = comp_source.vals[ti] * converted_frac
+#                        elif link.parameter.units == 'number':
+#                            converted_amt = transition * dt
+#                            if link.is_transfer:
+#                                transfer_rescale = comp_source.vals[ti] / pop.getCharac(settings.charac_pop_count).vals[ti]
+#                                converted_amt *= transfer_rescale
+#                        else:
+#                            raise OptimaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
                         outflow[i] = converted_amt
                         link.target_flow[ti] = converted_amt
@@ -848,7 +846,7 @@ class Model(object):
         # Update timestep index.
         self.t_index += 1
 
-    def processJunctions(self, settings):
+    def processJunctions(self, framework):
         '''
         For every compartment considered a junction, propagate the contents onwards until all junctions are empty.
         '''
@@ -900,7 +898,7 @@ class Model(object):
                             if link.dest.is_junction:
                                 review_required = True # Need to review if a junction received an inflow at this step
 
-    def updateValues(self, settings, do_special=True):
+    def updateValues(self, framework, do_special=True):
         '''
         Run through all parameters and characteristics flagged as dependencies for custom-function parameters and evaluate them for the current timestep.
         These dependencies must be calculated in the same order as defined in settings, characteristics before parameters, otherwise references may break.
@@ -986,7 +984,7 @@ class Model(object):
             for par in pars:
                 par.constrain(ti)
 
-    def calculateOutputs(self, settings):
+    def calculateOutputs(self, framework):
         '''
         Calculate outputs (called cascade characteristics in settings).
         These outputs must be calculated in the same order as defined in settings, otherwise references may break.
@@ -1020,8 +1018,8 @@ def runModel(settings, framework, parset, progset=None, options=None):
 
     m = Model()
     m.build(settings=settings, framework=framework, parset=parset, progset=progset, options=options)
-    m.process(settings=settings, framework=framework, progset=progset)
+    m.process(framework=framework, progset=progset)
 
-    results = ResultSet(m, parset, settings, progset, options)    # NOTE: Progset may need to be passed to results. Depends on what results object stores.
+    results = ResultSet(m, parset, framework, progset, options)    # NOTE: Progset may need to be passed to results. Depends on what results object stores.
 
     return results
