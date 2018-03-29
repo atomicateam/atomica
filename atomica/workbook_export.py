@@ -194,8 +194,9 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     if not validation_source is None:
         worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
 
-def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
+def writeHeadersDC(worksheet, table, start_row, start_col, item_type=None, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
     
+    if item_type is None: item_type = table.item_type
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
@@ -207,9 +208,13 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
 
     row, col, header_column_map = start_row, start_col, odict()
     for attribute in item_type_spec["attributes"]:
+        # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
+        # Item name is always in the table though.
+        if not attribute == "name":
+            if (table.exclude_not_include == (attribute in table.attribute_list)): continue
         attribute_spec = item_type_spec["attributes"][attribute]
         if "ref_item_type" in attribute_spec:
-            _, col, sub_map = writeHeadersDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+            _, col, sub_map = writeHeadersDC(worksheet = worksheet, table = table, item_type = attribute_spec["ref_item_type"],
                                            start_row = row, start_col = col,
                                            framework = framework, data = data, workbook_type = workbook_type,
                                            formats = formats, format_variables = format_variables)
@@ -240,9 +245,10 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
     next_row, next_col = row, col
     return next_row, next_col, header_column_map
 
-def writeContentsDC(worksheet, item_type, start_row, header_column_map, framework = None, data = None, instructions = None, workbook_type = None,
+def writeContentsDC(worksheet, table, start_row, header_column_map, item_type=None, framework = None, data = None, instructions = None, workbook_type = None,
                   formats = None, temp_storage = None):
 
+    if item_type is None: item_type = table.item_type
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
@@ -253,9 +259,13 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
     if use_instructions:
         for item_number in range(instructions.num_items[item_type]):
             for attribute in item_type_spec["attributes"]:
+                # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
+                # Item name is always in the table though.
+                if not attribute == "name":
+                    if (table.exclude_not_include == (attribute in table.attribute_list)): continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
-                    sub_row = writeContentsDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                    sub_row = writeContentsDC(worksheet = worksheet, table = table, item_type = attribute_spec["ref_item_type"],
                                                start_row = row, header_column_map = header_column_map,
                                                framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                                formats = formats, temp_storage = temp_storage)
@@ -269,15 +279,15 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
     next_row = row
     return next_row
 
-def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+def writeDetailColumns(worksheet, table, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
     if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
-    row, _, header_column_map = writeHeadersDC(worksheet = worksheet, item_type = core_item_type, start_row = row, start_col = col,
+    row, _, header_column_map = writeHeadersDC(worksheet = worksheet, table = table, start_row = row, start_col = col,
                           framework = framework, data = data, workbook_type = workbook_type,
                           formats = formats, format_variables = format_variables)
-    row = writeContentsDC(worksheet = worksheet, item_type = core_item_type, start_row = row, header_column_map = header_column_map,
+    row = writeContentsDC(worksheet = worksheet, table = table, start_row = row, header_column_map = header_column_map,
                            framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                            formats = formats, temp_storage = temp_storage)
     next_row, next_col = row, col
@@ -400,7 +410,7 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, tvec=No
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
-        row, col = writeDetailColumns(worksheet = worksheet, core_item_type = table.item_type, start_row = row, start_col = col,
+        row, col = writeDetailColumns(worksheet = worksheet, table = table, start_row = row, start_col = col,
                                       framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                       formats = formats, format_variables = format_variables, temp_storage = temp_storage)
     if isinstance(table, ConnectionMatrix):

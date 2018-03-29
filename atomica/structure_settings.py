@@ -21,11 +21,17 @@ class TableType(object):
     def __init__(self): pass
 
 class DetailColumns(TableType):
-    """ Structure to associate a workbook table of detail columns with a specific item type. """
-    def __init__(self, item_type):
+    """
+    Structure to associate a workbook table of detail columns with a specific item type.
+    Columns of the table exclude, or include, listed attributes.
+    Attribute marked 'name' is an exception and will always appear in this table type as an item ID.
+    """
+    def __init__(self, item_type, attribute_list = None, exclude_not_include = True):
         super(DetailColumns,self).__init__()
         self.item_type = item_type
-#        self.exc_not_inc
+        self.exclude_not_include = exclude_not_include
+        if attribute_list is None: attribute_list = []
+        self.attribute_list = attribute_list
 
 class ConnectionMatrix(TableType):
     """
@@ -314,7 +320,10 @@ class FrameworkSettings(BaseStructuralSettings):
         for item_type in cls.ITEM_TYPES:
             cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = True
             if item_type in cls.PAGE_SPECS:
-                cls.PAGE_SPECS[item_type]["tables"].append(DetailColumns(item_type))
+                if item_type == cls.KEY_PARAMETER: table = DetailColumns(item_type, attribute_list = ["links"],
+                                                                         exclude_not_include = True)
+                else: table = DetailColumns(item_type)
+                cls.PAGE_SPECS[item_type]["tables"].append(table)
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_COMPARTMENT,
                                                                              storage_item_type = cls.KEY_PARAMETER,
                                                                              storage_attribute = "links"))
