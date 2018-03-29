@@ -1,7 +1,7 @@
 from atomica.system import SystemSettings as SS
 from atomica.excel import ExcelSettings as ES
 
-from atomica.system import logger, OptimaException, accepts, displayName
+from atomica.system import logger, AtomicaException, accepts, displayName
 from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType
 from atomica.structure import TimeSeries
@@ -120,7 +120,7 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                         # Allow connection matrices to use name tags before they are used for detailed items.
                         # Only allow this for non-subitems.
                         if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
-                            raise OptimaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
+                            raise AtomicaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
                         try: structure.getSpec(val)
                         except: structure.createItem(item_name = val, item_type = table.storage_item_type)
                         structure.appendSpecAttribute(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
@@ -143,7 +143,7 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
             # The first label encounter is of the item that heads this table; verify it matches the item name associated with the table.
             if header_row is None:
                 if not label == item_specs[item_type][item_key]["label"]:
-                    raise OptimaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
+                    raise AtomicaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
                                           "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name, item_key, label))
                 else:
                     # Do a quick scan of all row headers to determine keys for a TimeSeries object.
@@ -167,14 +167,14 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                     val = str(worksheet.cell_value(row, col))
                     if not val in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
                         try: val = float(val)
-                        except: raise OptimaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
+                        except: raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         header = str(worksheet.cell_value(header_row, col))
                         if header == ES.ASSUMPTION_HEADER:
                             structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val)
                             break
                         else:
                             try: time = float(header)
-                            except: raise OptimaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
+                            except: raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
                             structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val, t = time)
                     col += 1
 

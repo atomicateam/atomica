@@ -1,24 +1,25 @@
-from atomica.ui import SystemSettings as SS
-from atomica.ui import FrameworkSettings as FS
-from atomica.ui import DatabookSettings as DS
-from atomica.ui import ExcelSettings as ES
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
+from atomica.excel import ExcelSettings as ES
 
-from atomica.ui import logger, OptimaException, accepts, prepareFilePath, displayName
-from atomica.ui import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
-from atomica.ui import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
-from atomica.ui import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.system import logger, AtomicaException, accepts, prepareFilePath, displayName
+from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
+from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
+from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
-from sciris.core import odict, dcp
+from sciris.core import odict
+from copy import deepcopy as dcp
 import xlsxwriter as xw
 
 
-class KeyUniquenessException(OptimaException):
+class KeyUniquenessException(AtomicaException):
     def __init__(self, key, dict_type, **kwargs):
         if key is None: message = ("Key uniqueness failure. A key is used more than once in '{0}'.".format(dict_type))
         else: message = ("Key uniqueness failure. Key '{0}' is used more than once in '{1}'.".format(key, dict_type))
         return super().__init__(message, **kwargs)
 
-class InvalidReferenceException(OptimaException):
+class InvalidReferenceException(AtomicaException):
     def __init__(self, item_type, attribute, ref_item_type, ref_attribute, **kwargs):
         message = ("Workbook construction failed when item '{0}', attribute '{1}', attempted to reference nonexistent values, specifically item '{2}', attribute '{3}'. "
                    "It is possible the referenced attribute values are erroneously scheduled to be created later.".format(item_type, attribute, ref_item_type, ref_attribute))
@@ -70,7 +71,7 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     # Determine attribute information and prepare for content production.
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
     if temp_storage is None: temp_storage = odict()
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_key is None: format_key = ES.FORMAT_KEY_CENTER
     cell_format = formats[format_key]
 
@@ -198,7 +199,7 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None: format_variables = createDefaultFormatVariables()
     orig_format_variables = dcp(format_variables)
     format_variables = dcp(orig_format_variables)
@@ -313,7 +314,7 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None: format_variables = createDefaultFormatVariables()
     orig_format_variables = dcp(format_variables)
     format_variables = dcp(orig_format_variables)
@@ -326,7 +327,7 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
         if format_variable_key in attribute_spec:
             format_variables[format_variable_key] = attribute_spec[format_variable_key]
     try: header = item_specs[item_type][item_key][attribute]
-    except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
+    except: raise AtomicaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
     worksheet.write(row, col, header, formats[ES.FORMAT_KEY_CENTER_BOLD])
     if "comment" in attribute_spec:
         header_comment = attribute_spec["comment"]

@@ -1,9 +1,9 @@
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
-from atomica.system import applyToAllMethods, logUsage, OptimaException
+from atomica.system import applyToAllMethods, logUsage, AtomicaException
 from sciris.core import odict
 
-class SemanticUnknownException(OptimaException):
+class SemanticUnknownException(AtomicaException):
     def __init__(self, term, attribute = None, **kwargs):
         extra_message = ""
         if not attribute is None: extra_message = ", attribute {0},".format(attribute)
@@ -19,7 +19,7 @@ class TimeSeries(object):
         self.key_id_map = {"t":0}
         if not keys is None:
             for id, key in enumerate(keys):
-                if key == "t": raise OptimaException("The symbol 't' is already a reserved key for a TimeSeries object. "
+                if key == "t": raise AtomicaException("The symbol 't' is already a reserved key for a TimeSeries object. "
                                                      "It cannot be in the following list provided during construction: '{0}'".format("', '".join(keys)))
                 self.keys.append(key)
                 self.key_id_map[key] = id + 1
@@ -30,10 +30,10 @@ class TimeSeries(object):
 
     def getValue(self, key, t = None):
         try: return self.values[self.t_id_map[t]][self.key_id_map[key]]
-        except: raise OptimaException("Cannot locate value for '{0}' at time '{1}'.".format(key,t))
+        except: raise AtomicaException("Cannot locate value for '{0}' at time '{1}'.".format(key,t))
 
     def setValue(self, key, value, t = None):
-        if not key in self.key_id_map: raise OptimaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
+        if not key in self.key_id_map: raise AtomicaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
         if t not in self.t_id_map:
             self.values.append([t]+[None]*(len(self.key_id_map)-1))
             self.t_id_map[t] = len(self.t_id_map)    
@@ -110,7 +110,7 @@ class CoreProjectStructure(object):
                 target_specs = target_specs[super_type][super_name]
                 depth += 1
         except:
-            raise OptimaException("Item creation of type '{0}', name '{1}', was supplied the following chain of keys, "
+            raise AtomicaException("Item creation of type '{0}', name '{1}', was supplied the following chain of keys, "
                                   "which does not exist in specifications: '{2}'".format(item_type, item_name, "', '".join([elem for pair in superitem_type_name_pairs for elem in pair])))
         
         # Initialize item in specifications dictionary.
@@ -145,12 +145,12 @@ class CoreProjectStructure(object):
         spec = self.getSpec(term)
         if subkey is None: 
             try: spec[attribute].append(value)
-            except: raise OptimaException("Attribute '{0}' for specification associated with term '{1}' "
+            except: raise AtomicaException("Attribute '{0}' for specification associated with term '{1}' "
                                           "can neither be extended nor appended by value '{2}'.".format(attribute, term, value))
         else:
             if not subkey in spec[attribute]: spec[attribute][subkey] = list()
             try: spec[attribute][subkey].append(value)
-            except: raise OptimaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
+            except: raise AtomicaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
                                           "can neither be extended nor appended by value '{3}'.".format(attribute, subkey, term, value))
 
     def getSpecName(self, term):
@@ -168,7 +168,7 @@ class CoreProjectStructure(object):
         """ Returns the value of an attribute for a provided term. """
         spec = self.getSpec(term = term)
         try: return spec[attribute]
-        except: raise OptimaException("The item corresponding to term '{0}' does not have attribute '{1}' to query value of.".format(term, attribute))
+        except: raise AtomicaException("The item corresponding to term '{0}' does not have attribute '{1}' to query value of.".format(term, attribute))
 
     def getSpec(self, term):
         """ Returns the item specification association with a term. """
@@ -179,7 +179,7 @@ class CoreProjectStructure(object):
             for key in key_list:
                 spec = spec[key]
             return spec
-        except: raise OptimaException("The item corresponding to term '{0}' could not be located in the semantics dictionary.".format(term))
+        except: raise AtomicaException("The item corresponding to term '{0}' could not be located in the semantics dictionary.".format(term))
 
     def createSemantic(self, term, item_name, attribute, item_type = None, key_list = None):
         """
@@ -189,20 +189,20 @@ class CoreProjectStructure(object):
         if term in self.semantics:
             other_attribute = self.semantics[term]["attribute"]
             other_name = self.semantics[term]["name"]
-            raise OptimaException("The term '{0}' has been defined previously as the '{1}' of item '{2}'. "
+            raise AtomicaException("The term '{0}' has been defined previously as the '{1}' of item '{2}'. "
                                   "Duplicate terms are not allowed.".format(term, other_attribute, other_name))
         else:
             self.semantics[term] = {"name":item_name, "attribute":attribute}
             if attribute == "name":
                 if not term == item_name:
-                    raise OptimaException("Term '{0}' has been declared as the name of item with name '{1}'. "
+                    raise AtomicaException("Term '{0}' has been declared as the name of item with name '{1}'. "
                                           "This is a contradiction.".format(term, item_name))
                 if item_type is None:
-                    raise OptimaException("Term '{0}' is an item name. It must be associated with an item type in a semantics "
+                    raise AtomicaException("Term '{0}' is an item name. It must be associated with an item type in a semantics "
                                           "dictionary for quick-reference purposes.".format(term))
                 else: self.semantics[term]["type"] = item_type
                 if key_list is None:
-                    raise OptimaException("Term '{0}' is an item name. It must be associated with a key list in a semantics "
+                    raise AtomicaException("Term '{0}' is an item name. It must be associated with a key list in a semantics "
                                           "dictionary that points to where the item sits in a specifications dictionary.".format(term))
                 else: self.semantics[term]["key_list"] = key_list
 

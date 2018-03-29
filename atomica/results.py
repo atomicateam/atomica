@@ -1,4 +1,4 @@
-from atomica.system import OptimaException, logger
+from atomica.system import AtomicaException, logger
 from atomica.structure_settings import FrameworkSettings as FS
 from sciris.core import uuid, odict, defaultrepr, objrepr
 #import optima_tb.settings as project_settings
@@ -419,7 +419,7 @@ class ResultSet(object):
 #Version: 2018mar23
 #"""
 #
-#from atomica.system import OptimaException
+#from atomica.system import AtomicaException
 #from sciris.core import uuid, odict, today, defaultrepr # Printing/file utilities
 #from numbers import Number
 
@@ -459,8 +459,8 @@ class ResultSet(object):
 #        self.setup = odict() # For storing the setup attributes (e.g. tvec)
 #        if type(resultsetlist)==list: pass # It's already a list, carry on
 #        elif type(resultsetlist) in [odict, dict]: resultsetlist = resultsetlist.values() # Convert from odict to list
-#        elif resultsetlist is None: raise OptimaException('To generate multi-results, you must feed in a list of result sets: none provided')
-#        else: raise OptimaException('Resultsetlist type "%s" not understood' % str(type(resultsetlist)))
+#        elif resultsetlist is None: raise AtomicaException('To generate multi-results, you must feed in a list of result sets: none provided')
+#        else: raise AtomicaException('Resultsetlist type "%s" not understood' % str(type(resultsetlist)))
 #
 #
 #
@@ -491,7 +491,7 @@ class ResultSet(object):
 #            resultlabels = [res.label for res in project.results.values()]
 #            resultuids = [str(res.uid) for res in project.results.values()]
 #        else: 
-#            if die: raise OptimaException('To get results using a key or index, getresults() must be given the project')
+#            if die: raise AtomicaException('To get results using a key or index, getresults() must be given the project')
 #            else: return None
 #        try: # Try using pointer as key -- works if label
 #            results = project.results[pointer]
@@ -506,7 +506,7 @@ class ResultSet(object):
 #            else: # Give up
 #                validchoices = ['#%i: label="%s", uid=%s' % (i, resultlabels[i], resultuids[i]) for i in range(len(resultlabels))]
 #                errormsg = 'Could not get result "%s": choices are:\n%s' % (pointer, '\n'.join(validchoices))
-#                if die: raise OptimaException(errormsg)
+#                if die: raise AtomicaException(errormsg)
 #                else: return None
 #    
 #    # The pointer is the results object
@@ -518,12 +518,12 @@ class ResultSet(object):
 #        try: 
 #            return pointer()
 #        except:
-#            if die: raise OptimaException('Results pointer "%s" seems to be callable, but call failed' % str(pointer))
+#            if die: raise AtomicaException('Results pointer "%s" seems to be callable, but call failed' % str(pointer))
 #            else: return None
 #    
 #    # Could not figure out what to do with it
 #    else: 
-#        if die: raise OptimaException('Could not retrieve results \n"%s"\n from project \n"%s"' % (pointer, project))
+#        if die: raise AtomicaException('Could not retrieve results \n"%s"\n from project \n"%s"' % (pointer, project))
 #        else: return None
 #        
  

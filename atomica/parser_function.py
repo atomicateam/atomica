@@ -1,6 +1,6 @@
 #%% Imports
 
-from atomica.system import OptimaException, logger
+from atomica.system import AtomicaException, logger
 
 from pyparsing import Word, Literal, Optional, alphanums, nums, ZeroOrMore, Group, Forward
 import operator
@@ -109,7 +109,7 @@ class FunctionParser(object):
             try:
                 opval = deps[op]
             except:
-                raise OptimaException("ERROR: Dependent variable '{0}' has not been provided a value via function parser.".format(op))
+                raise AtomicaException("ERROR: Dependent variable '{0}' has not been provided a value via function parser.".format(op))
             return opval
         else:
             return float(op)

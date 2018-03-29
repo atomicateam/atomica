@@ -5,13 +5,13 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from atomica.system import SystemSettings as SS, logUsage, OptimaException, logger, atomicaPath, displayName
+from atomica.system import SystemSettings as SS, logUsage, AtomicaException, logger, atomicaPath, displayName
 from atomica.parser_config import loadConfigFile, getConfigValue, configparser
 from atomica.excel import ExcelSettings
 from sciris.core import odict
 
 
-class KeyUniquenessException(OptimaException):
+class KeyUniquenessException(AtomicaException):
     def __init__(self, key, object_type, **kwargs):
         message = ("Key uniqueness failure. Settings specify the same key '{0}' for more than one '{1}'.".format(key, object_type))
         return super().__init__(message, **kwargs)
@@ -25,6 +25,7 @@ class DetailColumns(TableType):
     def __init__(self, item_type):
         super(DetailColumns,self).__init__()
         self.item_type = item_type
+#        self.exc_not_inc
 
 class ConnectionMatrix(TableType):
     """
@@ -269,7 +270,7 @@ class BaseStructuralSettings():
     @classmethod
     @logUsage
     def elaborateStructure(cls):
-        raise OptimaException("Base structural settings class was instructed to elaborate structure. "
+        raise AtomicaException("Base structural settings class was instructed to elaborate structure. "
                               "This should not happen and suggests that a derived settings class has not overloaded the class method. ")
 
 def createSpecs(undecorated_class):

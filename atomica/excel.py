@@ -5,7 +5,7 @@ Contains functionality specific to Excel input and output.
 """
 
 from atomica.system import SystemSettings as SS
-from atomica.system import logger, logUsage, accepts, returns, OptimaException
+from atomica.system import logger, logUsage, accepts, returns, AtomicaException
 
 import xlsxwriter as xw
 import xlrd
@@ -131,7 +131,7 @@ def extractHeaderColumnsMapping(excel_page, row = 0):
             elif not current_header == header:
                 error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
                 logger.error(error_message)
-                raise OptimaException(error_message)
+                raise AtomicaException(error_message)
             current_header = header
         if not current_header is None: header_columns_map[current_header][-1] = col
     return header_columns_map

@@ -1,6 +1,6 @@
 # %% Imports
 
-from atomica.system import OptimaException, logger # CK: warning, should relabel exception
+from atomica.system import AtomicaException, logger # CK: warning, should relabel exception
 from atomica.structure_settings import FrameworkSettings as FS
 #from optima_tb.validation import checkTransitionFraction # CK: warning, should not import optima_tb!!
 #import optima_tb.settings as project_settings
@@ -206,7 +206,7 @@ class Parameter(Variable):
         if self.links: # We only need to set dependencies if this is a Transition parameter and thus dependencies must be evaluated during integration
             for dep in deps:
                 if isinstance(dep,Link):
-                    raise OptimaException('A transition parameter cannot itself depend on a transition tag')
+                    raise AtomicaException('A transition parameter cannot itself depend on a transition tag')
                 dep.set_dependent()
 
     def set_dependent(self):
@@ -214,7 +214,7 @@ class Parameter(Variable):
         if self.deps is not None:
             for dep in self.deps:
                 if isinstance(dep,Link):
-                    raise OptimaException('A Parameter that depends on transition flow rates cannot be a dependency, it must be output only')
+                    raise AtomicaException('A Parameter that depends on transition flow rates cannot be a dependency, it must be output only')
 
     def constrain(self,ti):
         # NB. Must be an array, so ti must must not be supplied
@@ -368,7 +368,7 @@ class ModelPopulation(Node):
         elif name in self.link_lookup:
             return self.link_lookup[name]
         else:
-            raise OptimaException('Object %s not found' % (name))
+            raise AtomicaException('Object %s not found' % (name))
 
     def getComp(self, comp_name):
         ''' Allow compartments to be retrieved by name rather than index. Returns a Compartment. '''
@@ -505,7 +505,7 @@ class ModelPopulation(Node):
 
         # Halt if the solution is not unique (could relax this check later)
         if rank < A.shape[1]:
-            raise OptimaException('Characteristics are not full rank, cannot determine a unique initialization')
+            raise AtomicaException('Characteristics are not full rank, cannot determine a unique initialization')
 
         # Print warning for characteristics that are not well matched by the compartment size solution
         proposed = np.matmul(A,x)
@@ -538,11 +538,11 @@ class ModelPopulation(Node):
         # Halt for an unsatisfactory overall solution (could relax this check later)
         if residual > TOLERANCE:
             print(x)
-            raise OptimaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,TOLERANCE))
+            raise AtomicaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,TOLERANCE))
 
         # Halt for any negative popsizes
         if np.any(x < -TOLERANCE):
-            raise OptimaException('Negative initial popsizes')
+            raise AtomicaException('Negative initial popsizes')
 
         # Otherwise, insert the values
         for i,c in enumerate(comps):
@@ -719,7 +719,7 @@ class Model(object):
                 self.pset.update_cache(alloc,self.sim_settings['tvec'],self.sim_settings['tvec_dt']) # Perform precomputations
 
             else:
-                raise OptimaException('ERROR: A model run was initiated with instructions to activate programs, but no program set was passed to the model.')
+                raise AtomicaException('ERROR: A model run was initiated with instructions to activate programs, but no program set was passed to the model.')
         else:
             self.programs_active = False
 
@@ -809,7 +809,7 @@ class Model(object):
 #                                transfer_rescale = comp_source.vals[ti] / pop.getCharac(settings.charac_pop_count).vals[ti]
 #                                converted_amt *= transfer_rescale
 #                        else:
-#                            raise OptimaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
+#                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
                         outflow[i] = converted_amt
                         link.target_flow[ti] = converted_amt
@@ -826,7 +826,7 @@ class Model(object):
                         else:
                             warning = "Negative value encountered for: (%s - %s) at ti=%g : popsize = %g, outflow = %g" % (pop.name,comp_source.name,ti,comp_source.vals[ti],sum(outflow))
                             if validation_level == project_settings.VALIDATION_ERROR:
-                                raise OptimaException(warning)
+                                raise AtomicaException(warning)
                             elif validation_level == project_settings.VALIDATION_WARN:
                                 logger.warn(warning)
 
@@ -863,7 +863,7 @@ class Model(object):
             review_required = False # Don't re-run unless a junction has refilled
 
             if review_count > settings.recursion_limit:
-                raise OptimaException('ERROR: Processing junctions (i.e. propagating contents onwards) for timestep %i is taking far too long. Infinite loop suspected.' % ti_link)
+                raise AtomicaException('ERROR: Processing junctions (i.e. propagating contents onwards) for timestep %i is taking far too long. Infinite loop suspected.' % ti_link)
 
             for pop in self.pops:
                 junctions = [comp for comp in pop.comps if comp.is_junction]
@@ -885,7 +885,7 @@ class Model(object):
                         current_size = junc.vals[ti]
                         denom_val = sum(link.parameter.vals[ti_link] for link in junc.outlinks) # This is the total number of people in the outflow compartments, at the previous timestep, used for splitting the outputs
                         if denom_val == 0:
-                            raise OptimaException('ERROR: Proportions for junction "%s" outflows sum to zero, resulting in a nonsensical ratio. There may even be (invalidly) no outgoing transitions for this junction.' % junction_name)
+                            raise AtomicaException('ERROR: Proportions for junction "%s" outflows sum to zero, resulting in a nonsensical ratio. There may even be (invalidly) no outgoing transitions for this junction.' % junction_name)
                         for link in junc.outlinks:
                             if review_count == 1:
                                 link.vals[ti] = 0

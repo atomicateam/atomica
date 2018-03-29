@@ -1,3 +1,3 @@
-# OPTIMA CORE README
+# ATOMICA README
 
-This is Optima Core.
+This is Atomica.

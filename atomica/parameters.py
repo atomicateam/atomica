@@ -1,6 +1,6 @@
 #%% Imports
 
-from atomica.system import OptimaException, logger
+from atomica.system import AtomicaException, logger
 from atomica.structure_settings import DatabookSettings as DS
 from atomica.interpolation import interpolateFunc
 #from optima_tb.databook import getEmptyData
@@ -71,10 +71,10 @@ class Parameter(object):
         """ Take parameter values and construct an interpolated array corresponding to the input time vector. """
         
         # Validate input.
-        if pop_name not in self.t.keys(): raise OptimaException("ERROR: Cannot interpolate parameter '{0}' without referring to a proper population name.".format(pop_name))
-        if tvec is None: raise OptimaException("ERROR: Cannot interpolate parameter '{0}' without providing a time vector.".format(self.name))
-        if not len(self.t[pop_name]) > 0: raise OptimaException("ERROR: There are no timepoint values for parameter '{0}', population '{1}'.".format(self.name, pop_name))
-        if not len(self.t[pop_name]) == len(self.y[pop_name]): raise OptimaException("ERROR: Parameter '{0}', population '{1}', does not have corresponding values and timepoints.".format(self.name, pop_name))
+        if pop_name not in self.t.keys(): raise AtomicaException("ERROR: Cannot interpolate parameter '{0}' without referring to a proper population name.".format(pop_name))
+        if tvec is None: raise AtomicaException("ERROR: Cannot interpolate parameter '{0}' without providing a time vector.".format(self.name))
+        if not len(self.t[pop_name]) > 0: raise AtomicaException("ERROR: There are no timepoint values for parameter '{0}', population '{1}'.".format(self.name, pop_name))
+        if not len(self.t[pop_name]) == len(self.y[pop_name]): raise AtomicaException("ERROR: Parameter '{0}', population '{1}', does not have corresponding values and timepoints.".format(self.name, pop_name))
 
 #        if len(self.t[pop_name]) == 1 and not extrapolate_nan:
 #            output = np.ones(len(tvec))*(self.y[pop_name][0]*np.abs(self.y_factor[pop_name]))   # Don"t bother running interpolation loops if constant. Good for performance.
@@ -159,7 +159,7 @@ class ParameterSet(object):
         for par_type in ["cascade","characs"]:
             if name in self.par_ids[par_type].keys():
                 return self.pars[par_type][self.par_ids[par_type][name]]
-        raise OptimaException("ERROR: Name '{0}' cannot be found in parameter set '{1}' as either a cascade parameter or characteristic.".format(name, self.name))
+        raise AtomicaException("ERROR: Name '{0}' cannot be found in parameter set '{1}' as either a cascade parameter or characteristic.".format(name, self.name))
     
     def makePars(self, data):
         self.pop_names = data.specs[DS.KEY_POPULATION].keys()
@@ -243,7 +243,7 @@ class ParameterSet(object):
 #        elif y_format.lower() in ["number","proportion"]:
 #            return (0.,np.inf)
 #        else:
-#            raise OptimaException("Unknown y_format '{0}' encountered while returning min-max bounds".format(y_format))
+#            raise AtomicaException("Unknown y_format '{0}' encountered while returning min-max bounds".format(y_format))
 #    
 #    
 #    def extract(self,settings=None,getMinMax=False,getYFactor=False):
@@ -378,7 +378,7 @@ class ParameterSet(object):
 ##                if self.pars["cascade"][j].y_factor[pop_id] == settings.DO_NOT_SCALE:
 ##                    continue
 ##                if not isYFactor and len(self.pars["cascade"][j].y[pop_id]) != len(paramvec[index]):
-##                    raise OptimaException("Could not update parameter set "%s" for pop=%s,cascade=%s as updated parameter has different length."%(self.name,pop_id,casc_id))
+##                    raise AtomicaException("Could not update parameter set "%s" for pop=%s,cascade=%s as updated parameter has different length."%(self.name,pop_id,casc_id))
 ##                # update y or y_factor, based on parameters
 ##                if isYFactor:
 ##                    self.pars["cascade"][j].y_factor[pop_id] = paramvec[index]
@@ -453,7 +453,7 @@ class ParameterSet(object):
 #        stage that "a" should be the ParameterSet kept for it"s characteristics and
 #        transfer definitions.
 #        
-#        Throws an OptimaException if parameters with matching names have different
+#        Throws an AtomicaException if parameters with matching names have different
 #        y_formats
 #        
 #        Usage:
@@ -474,7 +474,7 @@ class ParameterSet(object):
 #            for pop in b.pars["cascade"][b_index].t.keys():     
 #                # check that the y_format matches: if not, throw an error
 #                if b.pars["cascade"][b_index].y_format[pop] != c.pars["cascade"][c_index].y_format[pop]:
-#                    raise OptimaException("ERROR: trying to combine two Parameters with different y_formats: ")
+#                    raise AtomicaException("ERROR: trying to combine two Parameters with different y_formats: ")
 #                # add or insert value of b into c
 #                for i,t_val in enumerate(b.pars["cascade"][b_index].t[pop]):
 #                    
@@ -507,7 +507,7 @@ class ParameterSet(object):
 #Version: 2018mar27
 #"""
 #
-#from atomica.system import OptimaException # CK: this should be renamed
+#from atomica.system import AtomicaException # CK: this should be renamed
 #from atomica.project_settings import convertlimits, gettvecdt
 #from sciris.utils import odict, Link, today, defaultrepr, getdate, isnumber, printv, smoothinterp, getvaliddata, sanitize, findinds, inclusiverange, promotetolist, dcp
 #from numpy import array, zeros, isnan, nan, isfinite, median, shape
@@ -699,7 +699,7 @@ class ParameterSet(object):
 #        # Validate input
 #        if tvec is None: 
 #            errormsg = "Cannot interpolate parameter "%s" with no time vector specified" % self.name
-#            raise OptimaException(errormsg)
+#            raise AtomicaException(errormsg)
 #        tvec, dt = gettvecdt(tvec=tvec, dt=dt) # Method for getting these as best possible
 #        if smoothness is None: smoothness = int(defaultsmoothness/dt) # Handle smoothness
 #        
@@ -738,7 +738,7 @@ class ParameterSet(object):
 #        name, short = defaultargs["label"], parname
 #    except: 
 #        errormsg = "Cannot create a time parameter without name and label."
-#        raise OptimaException(errormsg)
+#        raise AtomicaException(errormsg)
 #        
 #    par = Timepar(m=1.0, y=odict(), t=odict(), **defaultargs) # Create structure
 #    par.name = name
@@ -793,9 +793,9 @@ class ParameterSet(object):
 #    # Read in parameters automatically
 #    try: 
 #        rawpars = framework.specs["par"] # Read the parameters structure
-#    except OptimaException as E: 
+#    except AtomicaException as E: 
 #        errormsg = "Could not load parameter specs: "%s"" % repr(E)
-#        raise OptimaException(errormsg)
+#        raise AtomicaException(errormsg)
 #        
 #    for parname,par in rawpars.iteritems(): # Iterate over all automatically read in parameters
 #        printv("Converting data parameter "%s"..." % parname, 3, verbose)
@@ -821,7 +821,7 @@ class ParameterSet(object):
 #        except Exception as E:
 #            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 #            errormsg = "Failed to convert parameter %s:\n%s" % (parname, repr(E))
-#            if die: raise OptimaException(errormsg)
+#            if die: raise AtomicaException(errormsg)
 #            else: printv(errormsg, 1, verbose)
 #        
 #    return pars
@@ -858,10 +858,10 @@ class ParameterSet(object):
 #            if tosample[0] is not None and key not in tosample: thissample = False # Don"t sample from unselected parameters -- tosample[0] since it"s been promoted to a list
 #            try:
 #                simpars[key] = pars[key].interp(tvec=simpars["tvec"], dt=dt, smoothness=smoothness, asarray=asarray, sample=thissample, randseed=randseed)
-#            except OptimaException as E: 
+#            except AtomicaException as E: 
 #                errormsg = "Could not figure out how to interpolate parameter "%s"" % key
 #                errormsg += "Error: "%s"" % repr(E)
-#                raise OptimaException(errormsg)
+#                raise AtomicaException(errormsg)
 #
 #
 #    return simpars
@@ -888,7 +888,7 @@ class ParameterSet(object):
 #        return y
 #    
 #    if dt is None:
-#        if warn: raise OptimaException("No timestep specified: required for convertlimits()")
+#        if warn: raise AtomicaException("No timestep specified: required for convertlimits()")
 #        else: dt = 0.2 # WARNING, should probably not hard code this, although with the warning, and being conservative, probably OK
 #    
 #    # Convert any text in limits to a numerical value
@@ -910,11 +910,11 @@ class ParameterSet(object):
 #        if warn and any(newy!=array(y)):
 #            printv("Note, parameter "%s" value reset from:\n%s\nto:\n%s" % (parname, y, newy), 3, verbose)
 #    else:
-#        if warn: raise OptimaException("Data type "%s" not understood for applying limits for parameter "%s"" % (type(y), parname))
+#        if warn: raise AtomicaException("Data type "%s" not understood for applying limits for parameter "%s"" % (type(y), parname))
 #        else: newy = array(y)
 #    
 #    if shape(newy)!=shape(y):
 #        errormsg = "Something went wrong with applying limits for parameter "%s":\ninput and output do not have the same shape:\n%s vs. %s" % (parname, shape(y), shape(newy))
-#        raise OptimaException(errormsg)
+#        raise AtomicaException(errormsg)
 #    
 #    return newy

@@ -4,7 +4,7 @@ Store all the settings for a project.
 Version: 2018mar26
 """
 
-from atomica.system import OptimaException
+from atomica.system import AtomicaException
 from sciris.utils import printv, defaultrepr, inclusiverange, isnumber # CK: warning, should replace printv with logger
 from numpy import shape, array #arange, concatenate as cat, 
 
@@ -21,7 +21,7 @@ class ProjectSettings(object):
         self.dt = 1.0 # Timestep
         
         # Other
-        self.defaultblue = (0.16, 0.67, 0.94) # The color of Optima
+        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
         self.verbose = verbose # Default verbosity for how much to print out -- see definitions in utils.py:printv()
         self.safetymargin = 0.5 # Do not move more than this fraction of people on a single timestep
         self.eps = 1e-3 # Must be small enough to be applied to prevalence, which might be ~0.1% or less
@@ -63,13 +63,13 @@ def gettvecdt(tvec=None, dt=None, justdt=False):
     defaultdt = 0.2 # WARNING, slightly dangerous to hard-code but should be ok, since very rare situation
     if tvec is None: 
         if justdt: return defaultdt # If it's a constant, maybe don' need a time vector, and just return dt
-        else: raise OptimaException('No time vector supplied, and unable to figure it out') # Usual case, crash
+        else: raise AtomicaException('No time vector supplied, and unable to figure it out') # Usual case, crash
     elif isnumber(tvec): tvec = array([tvec]) # Convert to 1-element array
     elif shape(tvec): # Make sure it has a length -- if so, overwrite dt
         if len(tvec)>=2: dt = tvec[1]-tvec[0] # Even if dt supplied, recalculate it from the time vector
         else: dt = dt # Use input
     else:
-        raise OptimaException('Could not understand tvec of type "%s"' % type(tvec))
+        raise AtomicaException('Could not understand tvec of type "%s"' % type(tvec))
     if dt is None: dt = defaultdt # Or give up and use default
     return tvec, dt
     
@@ -95,7 +95,7 @@ def convertlimits(limits=None, tvec=None, dt=None, safetymargin=None, settings=N
     printv('Converting to numerical limits...', 4, verbose)
     if dt is None: 
         if settings is not None: dt = settings.dt
-        else: raise OptimaException('convertlimits() must be given either a timestep or a settings object')
+        else: raise AtomicaException('convertlimits() must be given either a timestep or a settings object')
     if safetymargin is None:
         if settings is not None: safetymargin = settings.safetymargin
         else: 

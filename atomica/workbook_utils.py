@@ -1,14 +1,14 @@
-from atomica.system import OptimaException, displayName, SystemSettings as SS
+from atomica.system import AtomicaException, displayName, SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 
-class WorkbookTypeException(OptimaException):
+class WorkbookTypeException(AtomicaException):
     def __init__(self, workbook_type, **kwargs):
         available_workbook_types = [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]
         message = ("Unable to operate read and write processes for a workbook of type '{0}'. "
                    "Available options are: '{1}'".format(workbook_type, "' or '".join(available_workbook_types)))
         return super().__init__(message, **kwargs)
 
-class WorkbookRequirementException(OptimaException):
+class WorkbookRequirementException(AtomicaException):
     def __init__(self, workbook_type, requirement_type, **kwargs):
         message = ("Select {0} IO operations cannot proceed without a '{1}' being provided. Abandoning workbook IO.".format(displayName(workbook_type), requirement_type))
         return super().__init__(message, **kwargs)

@@ -1,6 +1,6 @@
 #%% Imports
 
-from atomica.system import OptimaException, logger
+from atomica.system import AtomicaException, logger
 
 from copy import deepcopy as dcp
 import numpy as np
@@ -21,11 +21,11 @@ def interpolateFunc(x, y, xnew, method = 'pchip', extrapolate_nan = False):
         y = y.astype(float)
         xnew = xnew.astype(float)
     except:
-        raise OptimaException('ERROR: Interpolation received values that cannot be converted into numpy float arrays.')
+        raise AtomicaException('ERROR: Interpolation received values that cannot be converted into numpy float arrays.')
     
-    if not len(x) > 1: raise OptimaException('ERROR: Interpolation failure due to the existence of less than two x values.')
-    if not len(x) == len(y): raise OptimaException('ERROR: Interpolation failure due to unequal number of x and y values.')
-    if len(set(x)) != len(x): raise OptimaException('ERROR: Interpolation failure due to repeated x values.')
+    if not len(x) > 1: raise AtomicaException('ERROR: Interpolation failure due to the existence of less than two x values.')
+    if not len(x) == len(y): raise AtomicaException('ERROR: Interpolation failure due to unequal number of x and y values.')
+    if len(set(x)) != len(x): raise AtomicaException('ERROR: Interpolation failure due to repeated x values.')
     
     # Sorts all input vectors.
     idx = np.argsort(x) # Index order to sort arrays
@@ -41,7 +41,7 @@ def interpolateFunc(x, y, xnew, method = 'pchip', extrapolate_nan = False):
 #        ...
     
     else:
-        raise OptimaException('ERROR: Interpolation method "%s" not understood.' % method)
+        raise AtomicaException('ERROR: Interpolation method "%s" not understood.' % method)
         
     # Replace extrapolated values with np.nan if this tag is marked True.
     if extrapolate_nan:

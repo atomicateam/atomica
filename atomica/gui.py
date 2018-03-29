@@ -115,7 +115,7 @@ def resizeLineEditToContents(line_edit):
 #%% Code for GUIs.
 
 class GUIDemo(qtw.QWidget):
-    """ A demo window that displays a series of buttons for launching other Optima Core widgets. """
+    """ A demo window that displays a series of buttons for launching other Atomica widgets. """
 
     @logUsage
     def __init__(self):
@@ -385,7 +385,7 @@ class GUIDatabookCreation(qtw.QWidget):
 def runGUI():
     """ Function that launches all available back-end GUIs as they are developed. """
     app = qtw.QApplication(sys.argv)
-    app.setApplicationName("Optima Core GUI")
+    app.setApplicationName("Atomica GUI")
     GUISettings.updateUsingApp(app)
     gui = GUIDemo()
     sys.exit(app.exec_())

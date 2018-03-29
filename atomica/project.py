@@ -24,7 +24,7 @@ Methods for structure lists:
 Version: 2018mar22
 """
 
-from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, OptimaException, logger
+from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, AtomicaException, logger
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
@@ -85,7 +85,7 @@ class Project(object):
         output += '     Optimizations: %i\n'    % len(self.optims)
         output += '      Results sets: %i\n'    % len(self.results)
         output += '\n'
-        output += '    Optima version: %s\n'    % self.version
+        output += '   Atomica version: %s\n'    % self.version
         output += '      Date created: %s\n'    % getdate(self.created)
         output += '     Date modified: %s\n'    % getdate(self.modified)
         output += '  Datasheet loaded: %s\n'    % getdate(self.databookloaddate)
@@ -135,7 +135,7 @@ class Project(object):
     def makeParset(self, name = "default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
 
-#        if not self.data: raise OptimaException("ERROR: No data exists for project '{0}'.".format(self.name))
+#        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
         self.parsets[name] = ParameterSet(name=name)
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
@@ -143,14 +143,14 @@ class Project(object):
 #    def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
 #        ''' Create or overwrite a parameter set '''
 #        if not self.data: # TODO this is not the right check to be doing
-#            raise OptimaException('No data in project "%s"!' % self.name)
+#            raise AtomicaException('No data in project "%s"!' % self.name)
 #        parset = Parameterset(name=name, project=self)
 #        parset.makepars(self.data, framework=self.framework, start=self.settings.datastart, end=self.settings.dataend) # Create parameters
 #
 #        if dosave: # Save to the project if requested
 #            if name in self.parsets and not overwrite: # and overwrite if requested
 #                errormsg = 'Cannot make parset "%s" because it already exists (%s) and overwrite is off' % (name, self.parsets.keys())
-#                if die: raise OptimaException(errormsg) # Probably not a big deal, so...
+#                if die: raise AtomicaException(errormsg) # Probably not a big deal, so...
 #                else:   printv(errormsg, 3, verbose=self.settings.verbose) # ...don't even print it except with high verbose settings
 #            else:
 #                self.addparset(name=name, parset=parset, overwrite=overwrite) # Store parameters
@@ -194,19 +194,19 @@ class Project(object):
             structlist = getwhat('parameters')
         will return P.parset.
         '''
-        if item is None and what is None: raise OptimaException('No inputs provided')
+        if item is None and what is None: raise AtomicaException('No inputs provided')
         if what is not None: # Explicitly define the type
             if what in ['p', 'pars', 'parset', 'parameters']: structlist = self.parsets
             elif what in ['pr', 'progs', 'progset', 'progsets']: structlist = self.progsets 
             elif what in ['s', 'scen', 'scens', 'scenario', 'scenarios']: structlist = self.scens
             elif what in ['o', 'opt', 'opts', 'optim', 'optims', 'optimisation', 'optimization', 'optimisations', 'optimizations']: structlist = self.optims
             elif what in ['r', 'res', 'result', 'results']: structlist = self.results
-            else: raise OptimaException('Structure list "%s" not understood' % what)
+            else: raise AtomicaException('Structure list "%s" not understood' % what)
         else: # Figure out the type based on the input
             if type(item)==Parameterset: structlist = self.parsets
             elif type(item)==Programset: structlist = self.progsets
             elif type(item)==Resultset: structlist = self.results
-            else: raise OptimaException('Structure list "%s" not understood' % str(type(item)))
+            else: raise AtomicaException('Structure list "%s" not understood' % str(type(item)))
         return structlist
 
 
@@ -216,17 +216,17 @@ class Project(object):
         else: structlist = self.getwhat(what=what)
         if isnumber(checkexists): # It's a numerical index
             try: checkexists = structlist.keys()[checkexists] # Convert from 
-            except: raise OptimaException('Index %i is out of bounds for structure list "%s" of length %i' % (checkexists, what, len(structlist)))
+            except: raise AtomicaException('Index %i is out of bounds for structure list "%s" of length %i' % (checkexists, what, len(structlist)))
         if checkabsent is not None:
             if checkabsent in structlist:
                 if overwrite==False:
-                    raise OptimaException('Structure list "%s" already has item named "%s"' % (what, checkabsent))
+                    raise AtomicaException('Structure list "%s" already has item named "%s"' % (what, checkabsent))
                 else:
                     printv('Structure list already has item named "%s"' % (checkabsent), 3, self.settings.verbose)
                 
         if checkexists is not None:
             if not checkexists in structlist:
-                raise OptimaException('Structure list has no item named "%s"' % (checkexists))
+                raise AtomicaException('Structure list has no item named "%s"' % (checkexists))
         return None
 
 
@@ -240,7 +240,7 @@ class Project(object):
                 try: 
                     item = name # It's actully an item, not a name
                     name = item.name # Try getting name from the item
-                except: raise OptimaException('Could not figure out how to add item with name "%s" and item "%s"' % (name, item))
+                except: raise AtomicaException('Could not figure out how to add item with name "%s" and item "%s"' % (name, item))
             else: # No item has been supplied, add a default one
                 if what=='parset':  
                     item = Parameterset(name=name, project=self)
@@ -252,7 +252,7 @@ class Project(object):
 #                elif what=='optim': 
 #                    item = Optim(project=self, name=name)
                 else:
-                    raise OptimaException('Unable to add item of type "%s", please supply explicitly' % what)
+                    raise AtomicaException('Unable to add item of type "%s", please supply explicitly' % what)
         structlist = self.getwhat(item=item, what=what)
         self.checkname(structlist, checkabsent=name, overwrite=overwrite)
         structlist[name] = item
@@ -382,10 +382,10 @@ class Project(object):
 
         if parset is None:
             if len(self.parsets) < 1:
-                raise OptimaException("ERROR: Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
+                raise AtomicaException("ERROR: Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
             else:
                 try: parset = self.parsets[parset_name]
-                except: raise OptimaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name, parset_name))
+                except: raise AtomicaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name, parset_name))
 
         if progset is None:
             try: progset = self.progsets[progset_name]
