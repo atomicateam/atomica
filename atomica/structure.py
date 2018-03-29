@@ -6,7 +6,7 @@ from sciris.core import odict
 class SemanticUnknownException(AtomicaException):
     def __init__(self, term, attribute = None, **kwargs):
         extra_message = ""
-        if not attribute is None: extra_message = ", attribute {0},".format(attribute)
+        if not attribute is None: extra_message = ", attribute '{0}',".format(attribute)
         message = "Term '{0}'{1} is not recognised by the project.".format(term, extra_message)
         return super().__init__(message, **kwargs)
 
@@ -73,7 +73,10 @@ class CoreProjectStructure(object):
                     if item_type_specs[item_type]["superitem_type"] is None: self.specs[item_type] = odict()
 
     def initItem(self, item_name, item_type, target_item_location):
-        """ Initialize the attribute structure relating to specifications for a new item within a target dictionary. """
+        """
+        Initialize the attribute structure relating to specifications for a new item within a target dictionary.
+        Should not be called directly as it is part of item creation.
+        """
         target_item_location[item_name] = odict()
         if not self.structure_key is None:
             item_type_specs = None
@@ -98,6 +101,7 @@ class CoreProjectStructure(object):
         Instantiates item type in specs with item name as key, initializing its attribute structure as well.
         If the item is not top-level, a list of superitem type-name pairs must be provided to point to the intended item location in specs.
         """
+        item_name = str(item_name)  # Hard-coded type-enforcement for name.
         # Move down the specs dictionary according to superitem type-name pair list.
         target_specs = self.specs
         depth = 0
@@ -126,7 +130,25 @@ class CoreProjectStructure(object):
         # Create a semantic link between the name of the item and its specifications.
         self.createSemantic(term = item_name, item_type = item_type, item_name = item_name, attribute = "name", key_list = key_list)
         
-    def setSpecAttribute(self, term, attribute, value, subkey = None):
+    def enforceValue(self, value, content_type):
+        """ Enforces value type according to content specifications. """
+        def identity(x): return x
+        intermediate_type = identity
+        # All content subclasses from ContentType, which may specify type enforcement for a value and whether it is a list.
+        # If so, apply the enforcement.
+        if not content_type is None:
+            if not content_type.enforce_type is None:
+                if content_type.enforce_type == int: intermediate_type = float  # Handles str to int conversion.
+                if content_type.is_list: value = [content_type.enforce_type(intermediate_type(x)) if not x is None else None for x in value]
+                else: value = content_type.enforce_type(intermediate_type(value)) if not value is None else None
+        return value
+        
+    def setSpecValue(self, term, attribute, value, subkey = None, content_type = None):
+        if not content_type is None:
+            try: value = self.enforceValue(value, content_type)
+            except: raise AtomicaException("Attribute '{0}' for specification associated with term '{1}' "
+                                           "has been assigned a value that cannot be enforced as type '{2}'. "
+                                           "The value is: {3}".format(attribute, term, content_type.enforce_type, value))
         spec = self.getSpec(term)
         if not attribute in spec: raise SemanticUnknownException(term = term, attribute = attribute)
         if subkey is None: spec[attribute] = value
@@ -137,11 +159,16 @@ class CoreProjectStructure(object):
             item_name = self.getSpecName(term)
             self.createSemantic(term = value, item_name = item_name, attribute = attribute)
 
-    def appendSpecAttribute(self, term, attribute, value, subkey = None):
+    def appendSpecValue(self, term, attribute, value, subkey = None, content_type = None):
         """
         Creates a list for a specification attribute if currently nonexistent, then extends or appends it by a value.
         Attribute can be treated as a dictionary with key 'subkey'.
         """
+        if not content_type is None:
+            try: value = self.enforceValue(value, content_type)
+            except: raise AtomicaException("Attribute '{0}' for specification associated with term '{1}' "
+                                           "has been assigned a value that cannot be enforced as type '{2}'. "
+                                           "The value is: {3}".format(attribute, term, content_type.enforce_type, value))
         spec = self.getSpec(term)
         if subkey is None: 
             try: spec[attribute].append(value)

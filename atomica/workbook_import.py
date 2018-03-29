@@ -72,7 +72,8 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if not value is None: structure.setSpecAttribute(term = item_name, attribute = attribute, value = value)
+                    if attribute == "datapage_order": print(content_type.enforce_type)
+                    if not value is None: structure.setSpecValue(term = item_name, attribute = attribute, value = value, content_type = content_type)
             row += 1
     next_row = row
     return next_row
@@ -115,7 +116,7 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                     source_item = str(worksheet.cell_value(row, header_col))
                     target_item = str(worksheet.cell_value(header_row, col))
                     if table.storage_item_type is None:
-                        structure.setSpecAttribute(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
+                        structure.setSpecValue(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
                     else:
                         # Allow connection matrices to use name tags before they are used for detailed items.
                         # Only allow this for non-subitems.
@@ -123,7 +124,7 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                             raise AtomicaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
                         try: structure.getSpec(val)
                         except: structure.createItem(item_name = val, item_type = table.storage_item_type)
-                        structure.appendSpecAttribute(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
+                        structure.appendSpecValue(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
         row += 1
     next_row = row
     return next_row
@@ -156,9 +157,9 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                         else: keys.append(structure.getSpecName(quick_label))
                         quick_row += 1
                     structure.createItem(item_name = item_key, item_type = item_type)
-                    structure.setSpecAttribute(term = item_key, attribute = "label", value = label)
+                    structure.setSpecValue(term = item_key, attribute = "label", value = label)
                     time_series = TimeSeries(keys = keys)
-                    structure.setSpecAttribute(term = item_key, attribute = value_attribute, value = time_series)
+                    structure.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)
                 header_row = row
             # All other label encounters are of an iterated type.
             else:

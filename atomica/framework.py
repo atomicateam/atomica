@@ -5,7 +5,7 @@ Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage
-from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TimeDependentValuesEntry
+from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TableTemplate
 from atomica.structure import CoreProjectStructure
 from atomica.workbook_import import readWorkbook
 from atomica._version import __version__
@@ -68,35 +68,36 @@ class ProjectFramework(CoreProjectStructure):
         These are the ones that databook construction processes use when deciding layout.
         """
         # Copy default page keys over.
+#        self.specs[FS.KEY_DATAPAGE] = odict()
         for page_key in DS.PAGE_KEYS:
-            self.specs[FS.KEY_DATAPAGE][page_key] = odict()
+            self.createItem(item_name = page_key, item_type = FS.KEY_DATAPAGE)
             
             # Do a scan over page tables in default databook settings.
             # If any are templated, i.e. are duplicated per instance of an item type, all tables must be copied over and duplicated where necessary.
             copy_over = False
             for table in DS.PAGE_SPECS[page_key]["tables"]:
-                if isinstance(table, TimeDependentValuesEntry):
+                if isinstance(table, TableTemplate):
                     copy_over = True
                     break
 
             if copy_over:
                 for page_attribute in DS.PAGE_SPECS[page_key]:
-                    if not page_attribute == "tables": self.specs[FS.KEY_DATAPAGE][page_key][page_attribute] = DS.PAGE_SPECS[page_key][page_attribute]
+                    if not page_attribute == "tables": self.setSpecValue(term = page_key, attribute = page_attribute, value = DS.PAGE_SPECS[page_key][page_attribute])
                     else:
-                        self.specs[FS.KEY_DATAPAGE][page_key]["tables"] = []
+#                        self.specs[FS.KEY_DATAPAGE][page_key]["tables"] = []
                         for table in DS.PAGE_SPECS[page_key]["tables"]:
-                            if isinstance(table, TimeDependentValuesEntry):
+                            if isinstance(table, TableTemplate):
                                 item_type = table.item_type
                                 for item_key in self.specs[item_type]:
                                     # Do not create tables for items that are marked not to be shown in a datapage.
-                                    if not ("datapage_order" in self.specs[item_type][item_key] and self.specs[item_type][item_key]["datapage_order"] == -1):
+                                    if not ("datapage_order" in self.getSpec(item_key) and self.getSpecValue(item_key,"datapage_order") == -1):
                                         instantiated_table = dcp(table)
                                         instantiated_table.item_key = item_key
-                                        self.specs[FS.KEY_DATAPAGE][page_key]["tables"].append(instantiated_table)
+                                        self.appendSpecValue(term = page_key, attribute = "tables", value = instantiated_table)
                             else:
-                                self.specs[FS.KEY_DATAPAGE][page_key]["tables"].append(table)
+                                self.appendSpecValue(term = page_key, attribute = "tables", value = table)
 
-            else: self.specs[FS.KEY_DATAPAGE][page_key]["refer_to_default"] = True
+            else: self.setSpecValue(term = page_key, attribute = "refer_to_default", value = True)
             
     
 # TODO: Setup all following methods in Project, with maybe save as an exception.        

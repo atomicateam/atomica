@@ -73,8 +73,14 @@ class TimeDependentValuesEntry(TableTemplate):
         self.value_attribute = value_attribute
 
 class ContentType(object):
-    """ Structure to describe the contents of an item attribute. """
-    def __init__(self, is_list = False): self.is_list = is_list
+    """
+    Structure to describe the contents of an item attribute.
+    Attempts to enforce storage of contents as an optionally specified enforce type, although None is always ignored.
+    If contents are kept as a list, type enforcement is applied to each element.
+    """
+    def __init__(self, enforce_type = None, is_list = False):
+        self.is_list = is_list
+        self.enforce_type = enforce_type
 
 class IDType(ContentType):
     """
@@ -83,7 +89,7 @@ class IDType(ContentType):
     Can store a reference to a 'superitem_type' so that ID is prepended by the ID of the superitem during template-writing operations.
     """
     def __init__(self, name_not_label = True, superitem_type = None): 
-        super(IDType,self).__init__(is_list = False)
+        super(IDType,self).__init__(enforce_type = str, is_list = False)
         self.name_not_label = name_not_label
         self.superitem_type = superitem_type
 
@@ -105,7 +111,7 @@ class SwitchType(ContentType):
     Content with no value defaults to the value of argument 'default_on'.
     """
     def __init__(self, default_on = False):
-        super(SwitchType,self).__init__(is_list = False)
+        super(SwitchType,self).__init__(enforce_type = bool, is_list = False)
         self.default_on = default_on
 # TODO: Determine if type is necessary and, if so, implement restrictions.
 class TimeSeriesType(ContentType):
@@ -305,7 +311,7 @@ class FrameworkSettings(BaseStructuralSettings):
 
     ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION, 
                   BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, 
-                  BSS.KEY_PROGRAM_TYPE, BSS.KEY_PROGRAM_ATTRIBUTE]
+                  BSS.KEY_PROGRAM_TYPE, BSS.KEY_PROGRAM_ATTRIBUTE, BSS.KEY_DATAPAGE]
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION, 
@@ -329,15 +335,19 @@ class FrameworkSettings(BaseStructuralSettings):
                                                                              storage_attribute = "links"))
 
         cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
+        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order"], content_type = ContentType(enforce_type = int))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
                                      content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True, is_list = True))
 #        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["entry_point"], 
 #                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT]))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["denominator"], 
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order","default_value"])
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","datapage_order","default_value","function"])
+        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["default_value"])
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["datapage_order"], content_type = ContentType(enforce_type = int))
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value","function"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
+        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["refer_to_default","title"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
+        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["tables"], content_type = ContentType(is_list = True))   
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
         cls.createItemTypeSubitemTypes(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
