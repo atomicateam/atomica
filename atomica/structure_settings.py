@@ -336,7 +336,7 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["denominator"], 
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order","default_value"])
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value","function"])
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","datapage_order","default_value","function"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])

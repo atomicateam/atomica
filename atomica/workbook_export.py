@@ -50,16 +50,21 @@ class WorkbookInstructions(object):
 def makeInstructions(framework=None, data=None, instructions=None, workbook_type=None):
     """
     Generates instructions that detail the number of items pertinent to workbook construction processes.
-    If a ProjectFramework or ProjectData structure is available, this will be used in filling out a workbook rather than via instructions.
-    In that case, this function will return a boolean tag indicating whether to use instructions or not.
+    If instructions are already provided, they will be used regardless of the presence of any structure.
+    Otherwise, if a ProjectFramework or ProjectData structure is available, this will be used in filling out a workbook.
+    If relevant structure is unavailable, a default set of instructions will be produced instead.
+    This function returns a boolean tag indicating whether to use instructions or not according to the above logic.
     """
-    use_instructions = True
-    if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
+    use_instructions = False
+    # Check if framework/data is missing for the relevant workbook. If so, use instructions.
     if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK:
-        if not framework is None: use_instructions = False
+        if framework is None: use_instructions = True
     elif workbook_type == SS.STRUCTURE_KEY_DATA:
-        if not data is None: use_instructions = False
+        if data is None: use_instructions = True
     else: raise WorkbookTypeException(workbook_type)
+    # If no instructions are provided, generate a default, even if they will not be used.
+    if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
+    else: use_instructions = True   # If instructions are provided, they must be used.
     return instructions, use_instructions
 
 
@@ -382,11 +387,11 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     num_items = 0
     if use_instructions: num_items = instructions.num_items[iterated_type]
     default_values = [0.0]*num_items
-    if "default_value" in item_specs[item_type][item_key]:
+    if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
     if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
     createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
-                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere
+                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere... hmm, really...?
                           default_values = default_values, formats = formats)
 
     row = writeHeadersTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key,
