@@ -72,7 +72,6 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if attribute == "datapage_order": print(content_type.enforce_type)
                     if not value is None: structure.setSpecValue(term = item_name, attribute = attribute, value = value, content_type = content_type)
             row += 1
     next_row = row

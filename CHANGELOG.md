@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.5.1 (2018-04-03): Improved Model Construction
+
+Features
+- Framework files now have a databook ordering column, with a value of '-1' suppressing table construction in databooks.
+
 ## 0.5.0 (2018-03-29): Drafting Simulation Workflow
 
 Features
