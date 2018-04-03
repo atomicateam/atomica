@@ -395,35 +395,35 @@ class Project(object):
                 logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
                 progset = None
 
-#        tm = tic()
-#
-##        # results = runModel(settings = self.settings, parset = parset)
-#        results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
-#
-#        toc(tm, label="running '{0}' model".format(self.name))
-#
-##        if plot:
-##            tp = tic()
-##            self.plotResults(results=results)
-##            toc(tp, label='plotting %s' % self.name)
-#
-#        if store_results:
-#            if result_name is None:
-#                result_name = "parset_" + parset.name
-#                if not progset is None:
-#                    result_name = result_name + "_progset_" + progset.name
-#                if result_type is not None:
-#                    result_name = result_type + "_" + result_name
-#                k = 1
-#                while k > 0:
-#                    result_name_attempt = result_name + "_" + str(k)
-#                    k = k + 1
-#                    if result_name_attempt not in self.results:
-#                        result_name = result_name_attempt
-#                        k = 0
-#            self.results[result_name] = results
-#
-#        return results
+        tm = tic()
+
+#        # results = runModel(settings = self.settings, parset = parset)
+        results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
+
+        toc(tm, label="running '{0}' model".format(self.name))
+
+#        if plot:
+#            tp = tic()
+#            self.plotResults(results=results)
+#            toc(tp, label='plotting %s' % self.name)
+
+        if store_results:
+            if result_name is None:
+                result_name = "parset_" + parset.name
+                if not progset is None:
+                    result_name = result_name + "_progset_" + progset.name
+                if result_type is not None:
+                    result_name = result_type + "_" + result_name
+                k = 1
+                while k > 0:
+                    result_name_attempt = result_name + "_" + str(k)
+                    k = k + 1
+                    if result_name_attempt not in self.results:
+                        result_name = result_name_attempt
+                        k = 0
+            self.results[result_name] = results
+
+        return results
 
 #    def runsim(self, name=None, pars=None, simpars=None, start=None, end=None, dt=None, tvec=None, 
 #               budget=None, coverage=None, budgetyears=None, data=None, n=1, sample=None, tosample=None, randseed=None,

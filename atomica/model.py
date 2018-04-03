@@ -472,6 +472,8 @@ class ModelPopulation(Node):
         # values for the compartments by solving the set of characteristics simultaneously
 
         characs = [c for c in self.characs if framework.getSpecValue(c.name,"datapage_order")!=-1]
+        characs += [c for c in self.comps if framework.getSpecValue(c.name,"datapage_order")!=-1]
+#        print(characs)
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name:i for i,c in enumerate(characs)} # Make lookup dict for characteristic indices
         comp_indices = {c.name:i for i,c in enumerate(comps)} # Make lookup dict for compartment indices
@@ -494,11 +496,16 @@ class ModelPopulation(Node):
             # Look up the characteristic value
             par = parset.getPar(c.name)
             b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]
-            if c.denominator is not None:
-                denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
-                b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]
-            for inc in extract_includes(c):
-                A[i,comp_indices[inc.name]] = 1.0
+            # Run exception clauses for compartment logic.
+            try:
+                if c.denominator is not None:
+                    denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
+                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]
+            except: pass
+            try:
+                for inc in extract_includes(c):
+                    A[i,comp_indices[inc.name]] = 1.0
+            except: A[i,comp_indices[c.name]] = 1.0
 
         # Solve the linear system
         x, residual, rank, _ = np.linalg.lstsq(A,b,rcond=-1)
@@ -531,8 +538,11 @@ class ModelPopulation(Node):
             if x[i] < -TOLERANCE:
                 logger.warn('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
-                    if comps[i] in extract_includes(charac):
-                        report_characteristic(charac)
+                    try:
+                        if comps[i] in extract_includes(charac):
+                            report_characteristic(charac)
+                    except:
+                        if comps[i] == charac: report_characteristic(charac)
 
 
         # Halt for an unsatisfactory overall solution (could relax this check later)

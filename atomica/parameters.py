@@ -147,8 +147,9 @@ class ParameterSet(object):
                                     # Labels are used only for user interface and can be more elaborate than simple names.
         self.pars = odict()
         self.pars["cascade"] = []
+        self.pars["comps"] = []
         self.pars["characs"] = []
-        self.par_ids = {"cascade":{}, "characs":{}}
+        self.par_ids = {"cascade":{}, "comps":{}, "characs":{}}
         
         self.transfers = odict()    # Dictionary of inter-population transitions.
         self.contacts = odict()     # Dictionary of inter-population interaction weights.
@@ -156,19 +157,19 @@ class ParameterSet(object):
         logger.info("Created ParameterSet: {0}".format(self.name))
         
     def getPar(self, name):
-        for par_type in ["cascade","characs"]:
+        for par_type in ["cascade","comps","characs"]:
             if name in self.par_ids[par_type].keys():
                 return self.pars[par_type][self.par_ids[par_type][name]]
-        raise AtomicaException("ERROR: Name '{0}' cannot be found in parameter set '{1}' as either a cascade parameter or characteristic.".format(name, self.name))
+        raise AtomicaException("ERROR: Name '{0}' cannot be found in parameter set '{1}' as either a cascade parameter, compartment or characteristic.".format(name, self.name))
     
     def makePars(self, data):
         self.pop_names = data.specs[DS.KEY_POPULATION].keys()
         self.pop_labels = [data.getSpec(pop_name)["label"] for pop_name in self.pop_names]
             
         # Cascade parameter and characteristic extraction.
-        for k in range(2):
-            item_key = [DS.KEY_PARAMETER, DS.KEY_CHARACTERISTIC][k]
-            item_group = ["cascade","characs"][k]
+        for k in range(3):
+            item_key = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][k]
+            item_group = ["cascade","comps","characs"][k]
             for l, name in enumerate(data.specs[item_key]):
                 self.par_ids[item_group][name] = l
                 self.pars[item_group].append(Parameter(name = name))
