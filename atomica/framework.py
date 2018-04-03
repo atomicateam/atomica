@@ -4,7 +4,7 @@ Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage
+from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, logger, AtomicaException
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TableTemplate
 from atomica.structure import CoreProjectStructure
 from atomica.workbook_import import readWorkbook
@@ -59,8 +59,9 @@ class ProjectFramework(CoreProjectStructure):
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
         # Construct specifications for constructing a databook beyond the information contained in default databook settings.
-        self.specs[FS.KEY_DATAPAGE] = odict()
+#        self.specs[FS.KEY_DATAPAGE] = odict()
         self.createDatabookSpecs()
+        self.validateSpecs()
 
     def createDatabookSpecs(self):
         """
@@ -68,7 +69,6 @@ class ProjectFramework(CoreProjectStructure):
         These are the ones that databook construction processes use when deciding layout.
         """
         # Copy default page keys over.
-#        self.specs[FS.KEY_DATAPAGE] = odict()
         for page_key in DS.PAGE_KEYS:
             self.createItem(item_name = page_key, item_type = FS.KEY_DATAPAGE)
             
@@ -84,13 +84,19 @@ class ProjectFramework(CoreProjectStructure):
                 for page_attribute in DS.PAGE_SPECS[page_key]:
                     if not page_attribute == "tables": self.setSpecValue(term = page_key, attribute = page_attribute, value = DS.PAGE_SPECS[page_key][page_attribute])
                     else:
-#                        self.specs[FS.KEY_DATAPAGE][page_key]["tables"] = []
                         for table in DS.PAGE_SPECS[page_key]["tables"]:
                             if isinstance(table, TableTemplate):
                                 item_type = table.item_type
                                 for item_key in self.specs[item_type]:
                                     # Do not create tables for items that are marked not to be shown in a datapage.
-                                    if not ("datapage_order" in self.getSpec(item_key) and self.getSpecValue(item_key,"datapage_order") == -1):
+                                    # Warn if they should be.
+                                    if ("datapage_order" in self.getSpec(item_key) and self.getSpecValue(item_key,"datapage_order") == -1):
+                                        if ("setup_weight" in self.getSpec(item_key) and not self.getSpecValue(item_key,"setup_weight") == 0.0):
+                                            logger.warn("Item '{0}' of type '{1}' is associated with a non-zero setup weight of '{2}' "
+                                                        "but a databook ordering of '-1'. Users will not be able to supply "
+                                                        "important values.".format(item_key, item_type, self.getSpecValue(item_key,"setup_weight")))
+                                    # Otherwise create the tables.
+                                    else:
                                         instantiated_table = dcp(table)
                                         instantiated_table.item_key = item_key
                                         self.appendSpecValue(term = page_key, attribute = "tables", value = instantiated_table)
@@ -98,6 +104,23 @@ class ProjectFramework(CoreProjectStructure):
                                 self.appendSpecValue(term = page_key, attribute = "tables", value = table)
 
             else: self.setSpecValue(term = page_key, attribute = "refer_to_default", value = True)
+            
+    def validateSpecs(self):
+        """ Check that framework specifications make sense. """
+        for item_key in self.specs[FS.KEY_COMPARTMENT]:
+            special_comp_tags = [self.getSpecValue(item_key,"is_source"),
+                                 self.getSpecValue(item_key,"is_sink"),
+                                 self.getSpecValue(item_key,"is_junction")]
+            if special_comp_tags.count(True) > 1: 
+                raise AtomicaException("Compartment '{0}' can only be a source, sink or junction, not a combination of two or more.".format(item_key))
+            if special_comp_tags[0:2].count(True) > 0:
+                if not self.getSpecValue(item_key,"setup_weight") == 0.0:
+                    raise AtomicaException("Compartment '{0}' cannot be a source or sink and also have a nonzero setup weight. "
+                                           "Check that setup weight was explicitly set to `0`.".format(item_key))
+                if not self.getSpecValue(item_key,"datapage_order") == -1:
+                    raise AtomicaException("Compartment '{0}' cannot be a source or sink and not have a '-1' databook ordering. "
+                                           "It must be explicitly excluded from querying its population size in a databook.".format(item_key))
+        
             
     
 # TODO: Setup all following methods in Project, with maybe save as an exception.        

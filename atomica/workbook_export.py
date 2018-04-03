@@ -80,13 +80,6 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     if format_key is None: format_key = ES.FORMAT_KEY_CENTER
     cell_format = formats[format_key]
 
-    # Default content is blank.
-    content = ""
-    space = ""
-    sep = ""
-    validation_source = None
-    rc = xw.utility.xl_rowcol_to_cell(row, col)
-
     # Set up default content type and reference information.
     content_type = None
     do_reference = False
@@ -100,6 +93,13 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
         if not content_type.other_item_types is None:
             other_item_type = content_type.other_item_types[0]
             other_attribute = content_type.attribute
+            
+    # Default content is blank.
+    content = ""
+    space = ""
+    sep = ""
+    validation_source = None
+    rc = xw.utility.xl_rowcol_to_cell(row, col)
                   
     # Content associated with standard content types is set up here.
     if isinstance(content_type, IDType):
@@ -188,11 +188,18 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
             temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
             temp_storage[item_type][attribute]["list_cell"].append(rc)
             temp_storage[item_type][attribute]["page_title"] = worksheet.name
+            
+    # Do a final check to see if the content is still blank, in which case apply a default value.
+    if content == "" and not content_type is None and not content_type.default_value is None:
+        default_value = content_type.default_value
+        if default_value is True: default_value = SS.DEFAULT_SYMBOL_YES
+        if default_value is False: default_value = SS.DEFAULT_SYMBOL_NO
+        content = default_value
 
     # Actually write the content, using a backup value where the content is an equation and may not be calculated.
     # This lack of calculation occurs when Excel files are not opened before writing and reading phases.
     # Also validate that the cell only allows certain values.
-    if content.startswith("="):
+    if isinstance(content,str) and content.startswith("="):
         worksheet.write_formula(rc, content, cell_format, content_backup)
     else:
         worksheet.write(rc, content, cell_format)

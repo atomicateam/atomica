@@ -74,12 +74,13 @@ class TimeDependentValuesEntry(TableTemplate):
 
 class ContentType(object):
     """
-    Structure to describe the contents of an item attribute.
-    Attempts to enforce storage of contents as an optionally specified enforce type, although None is always ignored.
-    If contents are kept as a list, type enforcement is applied to each element.
+    Structure to describe the contents of an item attribute, with optional default value.
+    Attempts to enforce storage of contents as an optionally specified enforce type, although None is always ignored if no default provided.
+    If contents are kept as a list, type enforcement and default valuing should be applied to each element.
     """
-    def __init__(self, enforce_type = None, is_list = False):
+    def __init__(self, default_value = None, enforce_type = None, is_list = False):
         self.is_list = is_list
+        self.default_value = default_value
         self.enforce_type = enforce_type
 
 class IDType(ContentType):
@@ -111,8 +112,9 @@ class SwitchType(ContentType):
     Content with no value defaults to the value of argument 'default_on'.
     """
     def __init__(self, default_on = False):
-        super(SwitchType,self).__init__(enforce_type = bool, is_list = False)
+        super(SwitchType,self).__init__(default_value = False, enforce_type = bool, is_list = False)
         self.default_on = default_on
+        if default_on: self.default_value = True
 # TODO: Determine if type is necessary and, if so, implement restrictions.
 class TimeSeriesType(ContentType):
     """
@@ -335,11 +337,12 @@ class FrameworkSettings(BaseStructuralSettings):
                                                                              storage_attribute = "links"))
 
         cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
+        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["datapage_order"], content_type = ContentType(enforce_type = int))
+        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["setup_weight"], content_type = ContentType(enforce_type = float, default_value = 1))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order"], content_type = ContentType(enforce_type = int))
+        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["setup_weight"], content_type = ContentType(enforce_type = float, default_value = 1))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
                                      content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True, is_list = True))
-#        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["entry_point"], 
-#                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT]))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["denominator"], 
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["default_value"])
@@ -359,7 +362,7 @@ class DatabookSettings(BaseStructuralSettings):
     NAME = SS.STRUCTURE_KEY_DATA
     CONFIG_PATH = atomicaPath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
-    ITEM_TYPES = [BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
+    ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
 
     PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
@@ -370,6 +373,7 @@ class DatabookSettings(BaseStructuralSettings):
         cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
         #cls.createItemTypeAttributes(cls.KEY_PROGRAM, ["target_pops"], IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
+        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, [cls.TERM_DATA], TimeSeriesType())
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, [cls.TERM_DATA], TimeSeriesType())
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, [cls.TERM_DATA], TimeSeriesType())
 
@@ -379,6 +383,9 @@ class DatabookSettings(BaseStructuralSettings):
         #cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM, 
         #                                                                  target_item_type = cls.KEY_POPULATION,
         #                                                                  storage_attribute = "target_pops"))
+        cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_COMPARTMENT,
+                                                                                         iterated_type = cls.KEY_POPULATION,
+                                                                                         value_attribute = cls.TERM_DATA))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
                                                                                          iterated_type = cls.KEY_POPULATION,
                                                                                          value_attribute = cls.TERM_DATA))

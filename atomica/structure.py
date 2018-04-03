@@ -86,9 +86,14 @@ class CoreProjectStructure(object):
                 for attribute in item_type_specs[item_type]["attributes"]:
                     # Create space for all item attributes except 'name' as that is used as the key for specifications.
                     if attribute == "name": continue
-                    target_item_location[item_name][attribute] = None
-                    try: content_type = item_type_specs[item_type]["attributes"][attribute]["content_type"]
-                    except: content_type = None
+                    content_type = None
+                    if "content_type" in item_type_specs[item_type]["attributes"][attribute]:
+                        content_type = item_type_specs[item_type]["attributes"][attribute]["content_type"]
+                    # Set up a default value if available.
+                    value = None
+                    if (not content_type is None) and not content_type.default_value is None: 
+                        value = self.enforceValue(value = content_type.default_value, content_type = content_type)
+                    target_item_location[item_name][attribute] = value
                     # If the attribute itself references another item type in settings, prepare it as a container for corresponding items in specifications.
                     if "ref_item_type" in item_type_specs[item_type]["attributes"][attribute]:
                         target_item_location[item_name][attribute] = odict()
@@ -137,6 +142,9 @@ class CoreProjectStructure(object):
         # All content subclasses from ContentType, which may specify type enforcement for a value and whether it is a list.
         # If so, apply the enforcement.
         if not content_type is None:
+            if not content_type.default_value is None:
+                if content_type.is_list: value = [content_type.default_value if x is None else x for x in value]
+                else: value = content_type.default_value if value is None else value
             if not content_type.enforce_type is None:
                 if content_type.enforce_type == int: intermediate_type = float  # Handles str to int conversion.
                 if content_type.is_list: value = [content_type.enforce_type(intermediate_type(x)) if not x is None else None for x in value]
