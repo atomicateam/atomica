@@ -4,7 +4,7 @@ from atomica.system import AtomicaException, logger # CK: warning, should relabe
 from atomica.structure_settings import FrameworkSettings as FS
 #from optima_tb.validation import checkTransitionFraction # CK: warning, should not import optima_tb!!
 #import optima_tb.settings as project_settings
-from atomica.results import ResultSet
+from atomica.results import Result
 from atomica.parser_function import FunctionParser
 #from optima_tb.ModelPrograms import ModelProgramSet, ModelProgram
 from collections import defaultdict # CK: warning, should probably remove
@@ -161,7 +161,7 @@ class Characteristic(Variable):
 
             if self.denominator is not None:
                 denom = self.denominator.vals
-                vals_zero = vals < project_settings.TOLERANCE
+                vals_zero = vals < TOLERANCE
                 vals[denom > 0] /= denom[denom > 0]
                 vals[vals_zero] = 0.0
                 vals[(denom<=0) & (~vals_zero)] = np.inf
@@ -203,7 +203,7 @@ class Characteristic(Variable):
             denom  = self.denominator.vals[ti]
             if denom > 0:
                 self.internal_vals[ti] /= denom
-            elif self.internal_vals[ti] < project_settings.TOLERANCE:
+            elif self.internal_vals[ti] < TOLERANCE:
                 self.internal_vals[ti] = 0  # Given a zero/zero case, make the answer zero.
             else:
                 self.internal_vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
@@ -349,7 +349,7 @@ class Link(Variable):
         plt.title('Link %s to %s' % (self.source.name,self.dest.name))
 
 # %% Cascade compartment and population classes
-class ModelPopulation(object):
+class Population(object):
     '''
     A class to wrap up data for one population within model.
     Each model population must contain a set of compartments with equivalent names.
@@ -626,11 +626,11 @@ class ModelPopulation(object):
 class Model(object):
     ''' A class to wrap up multiple populations within model and handle cross-population transitions. '''
 
-    def __init__(self,settings, framework, parset, progset=None, options=None,name=None):
+    def __init__(self,settings, framework, parset, progset=None, options=None):
 
         self.pops = list()              # List of population groups that this model subdivides into.
         self.pop_ids = dict()           # Maps name of a population to its position index within populations list.
-        self.contacts = dict()          # Maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) ModelPopulations, marking them with a weight.
+        self.contacts = dict()          # Maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) Populations, marking them with a weight.
         self.sim_settings = odict()
         self.t_index = 0                # Keeps track of array index for current timepoint data within all compartments.
         self.programs_active = None     # True or False depending on whether Programs will be used or not
@@ -638,13 +638,6 @@ class Model(object):
         self.t = None
         self.dt = None
         self.uid = uuid()
-        self.integrated = False             # Flag whether the model has been run or not
-
-        if name is None:
-            self.name = parset.name + ('-%s' % (progset.name) if progset is not None else '')
-        else:
-            self.name = name
-
         self.build(settings, framework, parset, progset, options)
 
     def unlink(self):
@@ -715,7 +708,7 @@ class Model(object):
         # parser.debug = settings.parser_debug
 
         for k, pop_name in enumerate(parset.pop_names):
-            self.pops.append(ModelPopulation(framework=framework, name=pop_name))
+            self.pops.append(Population(framework=framework, name=pop_name))
             #TODO! Update preallocate case
             self.pops[-1].preallocate(self.t,self.dt)     # Memory is allocated, speeding up model. However, values are NaN so as to enforce proper parset value saturation.
             self.pop_ids[pop_name] = k
@@ -856,9 +849,6 @@ class Model(object):
                         for link in par.links:
                             link.vals = None
 
-        self.integrated = True # Flag that the model has now been run
-
-
     def stepForward(self, framework, dt=1.0):
         '''
         Evolve model characteristics by one timestep (defaulting as 1 year).
@@ -978,7 +968,7 @@ class Model(object):
                             link.vals[ti] = 0
 
                     # If the compartment is numerically empty, make it empty
-                    if junc.vals[ti] <= project_settings.TOLERANCE:   # Includes negative values.
+                    if junc.vals[ti] <= TOLERANCE:   # Includes negative values.
                         junc.vals[ti] = 0
                     else:
                         current_size = junc.vals[ti]
@@ -1111,6 +1101,6 @@ def runModel(settings, framework, parset, progset=None, options=None,full_output
     - If full_output = False, non-output Parameters (and corresponding links) will be set to None
     '''
 
-    m = Model(settings, framework, parset, progset, options,name)
+    m = Model(settings, framework, parset, progset, options)
     m.process(framework, progset, full_output)
-    return m
+    return Result(model=m,parset=parset,name=name)

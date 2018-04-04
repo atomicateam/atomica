@@ -32,7 +32,7 @@ from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet#, makesimpars
 from atomica.programs import Programset
 from atomica.model import runModel
-from atomica.results import ResultSet
+from atomica.results import Result
 from atomica.workbook_export import writeWorkbook
 from atomica.workbook_import import readWorkbook
 from atomica._version import __version__
