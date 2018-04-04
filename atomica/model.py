@@ -516,8 +516,8 @@ class ModelPopulation(object):
 #                if 'max' in spec:
 #                    par.limits[1] = spec['max']
 
-            if not spec["function"] is None:
-                f_stack = dcp(spec["function"])
+            if not spec[FS.TERM_FUNCTION] is None:
+                f_stack = dcp(spec[FS.TERM_FUNCTION])
                 deps = []
                 for dep_name in spec["dependencies"]:
                     deps += self.getVariable(dep_name)
@@ -825,7 +825,7 @@ class Model(object):
 #                                                                                                # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
 #                                                                                                # NOTE: If junction outflows were to be tagged by special rules, initial calculations may be off. Return to this later and consider logic rigorously.
 #        self.processJunctions(framework=framework)
-#        self.updateValues(framework=framework)
+        self.updateValues(framework=framework)
 
 
         # set up sim_settings for later use wrt population tags
@@ -843,7 +843,7 @@ class Model(object):
         for t in self.t[1:]:
             self.stepForward(framework=framework, dt=self.dt)
 #            self.processJunctions(framework=framework)
-#            self.updateValues(framework=framework)
+            self.updateValues(framework=framework)
 
         for pop in self.pops:
             [par.update() for par in pop.pars if not par.dependency] # Update any remaining parameters
@@ -1024,7 +1024,7 @@ class Model(object):
         if do_program_overwrite:
             prog_vals = self.pset.compute_pars(ti)[0]
 
-        for par_name in (settings.par_funcs.keys() + self.sim_settings['impact_pars_not_func']):
+        for par_name in (framework.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER]):# + self.sim_settings['impact_pars_not_func']):
             pars = self.pars_by_pop[par_name] # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
 
             # First - update parameters that are dependencies, evaluating f_stack if required
@@ -1038,40 +1038,40 @@ class Model(object):
                     if par.uid in prog_vals:
                         par.vals[ti] = prog_vals[par.uid]
 
-            # Handle parameters tagged with special rules. Overwrite vals if necessary.
-            if do_special and 'rules' in settings.linkpar_specs[par_name]:
-                pars = self.pars_by_pop[par_name]  # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
-
-                old_vals = {par.uid: par.vals[ti] for par in self.pars_by_pop[par_name]}
-
-                rule = settings.linkpar_specs[par_name]['rules']
-                for pop in self.pops:
-                    if rule == 'avg_contacts_in':
-                        from_list = self.contacts['into'][pop.name].keys()
-
-                        # If interactions with a pop are initiated by the same pop, no need to proceed with special calculations. Else, carry on.
-                        if not ((len(from_list) == 1 and from_list[0] == pop.name)):
-
-                            if len(from_list) == 0:
-                                new_val = 0.0
-                            else:
-                                val_sum = 0.0
-                                weights = 0.0
-
-                                for k,from_pop in enumerate(from_list):
-                                    # All transition links with the same par_name are identically valued. For calculations, only one is needed for reference.
-                                    par = self.getPop(from_pop).getPar(par_name)
-                                    weight = self.contacts['into'][pop.name][from_pop]*self.getPop(from_pop).popsize(ti)
-                                    val_sum += old_vals[par.uid]*weight
-                                    weights += weight
-
-                                if abs(val_sum) > project_settings.TOLERANCE:
-                                    new_val = val_sum / weights
-                                else:
-                                    new_val = 0.0   # Only valid because if the weighted sum is zero, all pop_counts must be zero, meaning that the numerator is zero.
-
-                            # Update the parameter's value in this population - will propagate to links in next stage
-                            pop.getPar(par_name).vals[ti] = new_val
+#            # Handle parameters tagged with special rules. Overwrite vals if necessary.
+#            if do_special and 'rules' in settings.linkpar_specs[par_name]:
+#                pars = self.pars_by_pop[par_name]  # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
+#
+#                old_vals = {par.uid: par.vals[ti] for par in self.pars_by_pop[par_name]}
+#
+#                rule = settings.linkpar_specs[par_name]['rules']
+#                for pop in self.pops:
+#                    if rule == 'avg_contacts_in':
+#                        from_list = self.contacts['into'][pop.name].keys()
+#
+#                        # If interactions with a pop are initiated by the same pop, no need to proceed with special calculations. Else, carry on.
+#                        if not ((len(from_list) == 1 and from_list[0] == pop.name)):
+#
+#                            if len(from_list) == 0:
+#                                new_val = 0.0
+#                            else:
+#                                val_sum = 0.0
+#                                weights = 0.0
+#
+#                                for k,from_pop in enumerate(from_list):
+#                                    # All transition links with the same par_name are identically valued. For calculations, only one is needed for reference.
+#                                    par = self.getPop(from_pop).getPar(par_name)
+#                                    weight = self.contacts['into'][pop.name][from_pop]*self.getPop(from_pop).popsize(ti)
+#                                    val_sum += old_vals[par.uid]*weight
+#                                    weights += weight
+#
+#                                if abs(val_sum) > project_settings.TOLERANCE:
+#                                    new_val = val_sum / weights
+#                                else:
+#                                    new_val = 0.0   # Only valid because if the weighted sum is zero, all pop_counts must be zero, meaning that the numerator is zero.
+#
+#                            # Update the parameter's value in this population - will propagate to links in next stage
+#                            pop.getPar(par_name).vals[ti] = new_val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
@@ -1113,5 +1113,5 @@ def runModel(settings, framework, parset, progset=None, options=None,full_output
     '''
 
     m = Model(settings, framework, parset, progset, options,name)
-    m.process(settings, progset,full_output)
+    m.process(framework, progset, full_output)
     return m

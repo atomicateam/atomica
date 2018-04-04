@@ -23,6 +23,9 @@ class ProjectFramework(CoreProjectStructure):
 
         # One copy of a function parser for performance sake.
         self.parser = FunctionParser()
+        
+        # Set up a filter for quick referencing items of a certain group.
+        self.filter = {FS.TERM_FUNCTION + FS.KEY_PARAMETER : []}
 
         ## Define metadata
         self.name = name
@@ -69,10 +72,12 @@ class ProjectFramework(CoreProjectStructure):
 
     def parseFunctionSpecs(self):
         """ If any parameters are associated with functions, convert them into lists of tokens. """
+        self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER] = []
         for item_key in self.specs[FS.KEY_PARAMETER]:
-            if not self.getSpecValue(item_key, "function") is None:
-                function_stack, dependencies = self.parser.produceStack(self.getSpecValue(item_key, "function").replace(" ",""))
-                self.setSpecValue(item_key, attribute = "function", value = function_stack)
+            if not self.getSpecValue(item_key, FS.TERM_FUNCTION) is None:
+                self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER].append(item_key)
+                function_stack, dependencies = self.parser.produceStack(self.getSpecValue(item_key, FS.TERM_FUNCTION).replace(" ",""))
+                self.setSpecValue(item_key, attribute = FS.TERM_FUNCTION, value = function_stack)
                 self.setSpecValue(item_key, attribute = "dependencies", value = dependencies)
 
     def createDatabookSpecs(self):

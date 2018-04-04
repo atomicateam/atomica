@@ -142,6 +142,7 @@ class BaseStructuralSettings():
     TERM_ATTRIBUTE = "att"
     TERM_OPTION = "opt"
     TERM_DATA = "data"
+    TERM_FUNCTION = "func"
 
     KEY_POPULATION_ATTRIBUTE = KEY_POPULATION + TERM_ATTRIBUTE
     KEY_POPULATION_OPTION = KEY_POPULATION + TERM_OPTION
@@ -347,7 +348,7 @@ class FrameworkSettings(BaseStructuralSettings):
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["default_value"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["datapage_order"], content_type = ContentType(enforce_type = int))
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value","function","dependencies"])
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value",cls.TERM_FUNCTION,"dependencies"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
         cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["refer_to_default","title"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["tables"], content_type = ContentType(is_list = True))   
