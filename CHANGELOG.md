@@ -3,10 +3,13 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.5.1 (2018-04-03): Improved Model Construction
+## 0.5.1 (2018-04-04): Improved Model Construction
 
 Features
 - Framework files now have a databook ordering column, with a value of '-1' suppressing table construction in databooks.
+- Compartments can be associated with time-dependent values, just like characteristics.
+- Parameters can be described as functions of other parameters, characteristics and compartments.
+  These are dynamically updated during a model run.
 
 ## 0.5.0 (2018-03-29): Drafting Simulation Workflow
 

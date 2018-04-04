@@ -11,33 +11,40 @@ class SemanticUnknownException(AtomicaException):
         return super().__init__(message, **kwargs)
 
 class TimeSeries(object):
-    """ A custom object for storing values associated with time points. """
+    """ 
+    A custom object for storing values associated with time points. 
+    The values for each timepoint are listed in order as the 'keys' that represent the series.
+    For example:
+        self.keys = ["a","b","c"]
+        self.values = {2010.0:[1,1001,-15],
+                       2020.0:[2,2001,-50]}
+    Note: The values structure contains special lists for assumptions and formats.
+    """
     def __init__(self, keys = None):
-        self.keys = ["t"]
-        self.values = list()
-
-        self.key_id_map = {"t":0}
-        if not keys is None:
-            for id, key in enumerate(keys):
-                if key == "t": raise AtomicaException("The symbol 't' is already a reserved key for a TimeSeries object. "
-                                                     "It cannot be in the following list provided during construction: '{0}'".format("', '".join(keys)))
-                self.keys.append(key)
-                self.key_id_map[key] = id + 1
-
-        # Make an assumption tuple for the object, associated with a 't' value of 'None'.
-        self.values.append([None]*len(self.key_id_map))
-        self.t_id_map = {None:0}
+        self.keys = keys
+        self.key_id_map = dict()
+        for id, key in enumerate(self.keys):
+            self.key_id_map[key] = id
+        self.values = {None:[None]*len(self.keys),
+                       "format":[None]*len(self.keys)}
 
     def getValue(self, key, t = None):
-        try: return self.values[self.t_id_map[t]][self.key_id_map[key]]
+        try: return self.values[t][self.key_id_map[key]]
         except: raise AtomicaException("Cannot locate value for '{0}' at time '{1}'.".format(key,t))
 
     def setValue(self, key, value, t = None):
         if not key in self.key_id_map: raise AtomicaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
-        if t not in self.t_id_map:
-            self.values.append([t]+[None]*(len(self.key_id_map)-1))
-            self.t_id_map[t] = len(self.t_id_map)    
-        self.values[self.t_id_map[t]][self.key_id_map[key]] = value
+        if t not in self.values:
+            self.values[t] = [None]*len(self.keys)   
+        self.values[t][self.key_id_map[key]] = value
+        
+    def getFormat(self, key):
+        try: return self.values["format"][self.key_id_map[key]]
+        except: raise AtomicaException("Cannot locate format for time series values of '{0}'.".format(key))
+
+    def setFormat(self, key, value_format):
+        if not key in self.key_id_map: raise AtomicaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
+        self.values["format"][self.key_id_map[key]] = value_format
 
     def __repr__(self, **kwargs):
         return "<TimeSeries Object, Keys: " + self.keys.__repr__(**kwargs) + ", Values: " + self.values.__repr__(**kwargs) + ">"

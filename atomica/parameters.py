@@ -176,8 +176,8 @@ class ParameterSet(object):
                 series = data.getSpecValue(name, DS.TERM_DATA)
                 for pop_id in series.keys:
                     if pop_id == "t": continue
-                    tvec = np.array([np.nan if t is None else t for t in series.t_id_map])
-                    yvec = np.array([np.nan if series.getValue(key = pop_id, t = t) is None else series.getValue(key = pop_id, t = t) for t in series.t_id_map])
+                    tvec = np.array([np.nan if t is None else t for t in series.values])
+                    yvec = np.array([np.nan if series.getValue(key = pop_id, t = t) is None else series.getValue(key = pop_id, t = t) for t in series.values])
                     # TODO: Deal with assumptions in a better way by storing them regardless under assumption attribute.
                     #       For now, convert assumption from None to year 0 if no other values exist, otherwise delete assumption index (its value should have been ignored during data import).
 #                    if tvec[0] is None:
