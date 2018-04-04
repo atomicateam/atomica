@@ -71,7 +71,6 @@ class ProjectFramework(CoreProjectStructure):
         """ If any parameters are associated with functions, convert them into lists of tokens. """
         for item_key in self.specs[FS.KEY_PARAMETER]:
             if not self.getSpecValue(item_key, "function") is None:
-                print(self.getSpecValue(item_key, "function").replace(" ",""))
                 function_stack, dependencies = self.parser.produceStack(self.getSpecValue(item_key, "function").replace(" ",""))
                 self.setSpecValue(item_key, attribute = "function", value = function_stack)
                 self.setSpecValue(item_key, attribute = "dependencies", value = dependencies)

@@ -29,8 +29,9 @@ def getTargetStructure(framework = None, data = None, workbook_type = None):
 
 
 
-def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, superitem_type_name_pairs = None):
+def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = None, stop_row = None, framework = None, data = None, workbook_type = None, superitem_type_name_pairs = None):
     
+    if item_type is None: item_type = table.item_type
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
@@ -48,15 +49,17 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
             try: structure.getSpec(item_name)
             except: structure.createItem(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
             for attribute in item_type_spec["attributes"]:
-                if attribute == "name": continue
+                # No need to parse name.
+                # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
+                if attribute == "name" or (table.exclude_not_include == (attribute in table.attribute_list)): continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
                     new_superitem_type_name_pairs = dcp(superitem_type_name_pairs)
                     new_superitem_type_name_pairs.append([item_type, item_name])
-                    readContentsDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
-                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
-                                               framework = framework, data = data, workbook_type = workbook_type,
-                                               superitem_type_name_pairs = new_superitem_type_name_pairs)
+                    readContentsDC(worksheet = worksheet, table = table, item_type = attribute_spec["ref_item_type"],
+                                   start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
+                                   framework = framework, data = data, workbook_type = workbook_type,
+                                   superitem_type_name_pairs = new_superitem_type_name_pairs)
                 else:
                     try: start_col, last_col = header_columns_map[attribute_spec["header"]]
                     except:
@@ -78,12 +81,12 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
     next_row = row
     return next_row
 
-def readDetailColumns(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
+def readDetailColumns(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
 
     row = start_row
     header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
     row += 1
-    row = readContentsDC(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
+    row = readContentsDC(worksheet = worksheet, table = table, start_row = row, header_columns_map = header_columns_map,
                        framework = framework, data = data, workbook_type = workbook_type)
     next_row = row
     return next_row
@@ -192,7 +195,7 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
-        row = readDetailColumns(worksheet = worksheet, core_item_type = table.item_type, start_row = row,
+        row = readDetailColumns(worksheet = worksheet, table = table, start_row = row,
                                 framework = framework, data = data, workbook_type = workbook_type)
     if isinstance(table, ConnectionMatrix):
         row = readConnectionMatrix(worksheet = worksheet, table = table, start_row = row,

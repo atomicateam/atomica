@@ -516,10 +516,10 @@ class ModelPopulation(object):
 #                if 'max' in spec:
 #                    par.limits[1] = spec['max']
 
-            if 'function' in spec:
-                f_stack = dcp(spec['function'])
+            if not spec["function"] is None:
+                f_stack = dcp(spec["function"])
                 deps = []
-                for dep_name in spec['deps']:
+                for dep_name in spec["dependencies"]:
                     deps += self.getVariable(dep_name)
                 par.set_f_stack(f_stack,deps)
 

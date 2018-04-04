@@ -5,6 +5,7 @@ from atomica.system import AtomicaException, logger
 from pyparsing import Word, Literal, Optional, alphanums, nums, ZeroOrMore, Group, Forward
 import operator
 from copy import deepcopy as dcp
+import math
 
 
 #%% Parser for functions written as strings
@@ -39,6 +40,8 @@ class FunctionParser(object):
         rpar  = Literal(")").suppress()
         num = Word(nums + ".")
         var = Word(alphanums + "_")
+        func = Word(alphanums)
+        sep = Literal(",")
         
         self.op_dict = {"+": operator.add,
                         "-": operator.sub,
@@ -47,8 +50,17 @@ class FunctionParser(object):
                         "^": operator.pow,
                         "**": operator.pow}
         
+        # Unary functions.
+        self.ufn_dict = {"exp": math.exp,
+                         "floor": math.floor,
+                         "ceil": math.ceil}
+
+        # Binary functions.
+        self.bfn_dict = {"min": min,
+                         "max": max}
+        
         self.grammar = Forward()
-        primary = (neg + ((num | var.setParseAction(self.noteVariable)).setParseAction(self.pushFirst) | Group(lpar + self.grammar + rpar))).setParseAction(self.pushUnaryMinus)        
+        primary = (neg + ((num | func + lpar + self.grammar + rpar | func + lpar + self.grammar + sep + self.grammar + rpar | var.setParseAction(self.noteVariable)).setParseAction(self.pushFirst) | Group(lpar + self.grammar + rpar))).setParseAction(self.pushUnaryMinus)        
         factor = Forward()      # Making sure chain-exponentiation tokens are evaluated from right to left.
         factor << primary + ZeroOrMore((expop + factor).setParseAction(self.pushFirst))
         term = factor + ZeroOrMore((multop + factor).setParseAction(self.pushFirst))
@@ -101,11 +113,17 @@ class FunctionParser(object):
         op = stack.pop()
         if op == "u-":
             return -self.evaluateStack(stack, deps = deps, level = level + 1)
-        elif op in "+-*/^":
+        elif op in "+-**/^":
             op2 = self.evaluateStack(stack, deps = deps, level = level + 1)
             op1 = self.evaluateStack(stack, deps = deps, level = level + 1)
             if self.debug: logger.debug("Level {0}: {1} {2} {3} = {4}".format(level, op1, op, op2, self.op_dict[op](op1, op2)))
             return self.op_dict[op](op1, op2)
+        elif op in self.ufn_dict:
+            return self.ufn_dict[op](self.evaluateStack(stack, deps=deps, level=level+1))
+        elif op in self.bfn_dict:
+            op2 = self.evaluateStack(stack, deps=deps, level=level + 1)
+            op1 = self.evaluateStack(stack, deps=deps, level=level + 1)
+            return self.bfn_dict[op](op1, op2)
         elif op[0].isalpha():
             try:
                 opval = deps[op]
