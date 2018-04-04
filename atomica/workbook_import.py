@@ -268,6 +268,6 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
             
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
     structure.completeSpecs()
-    structure.name = workbook_path
+    structure.frameworkfilename = workbook_path
     
     return workbookout
