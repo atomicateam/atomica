@@ -515,13 +515,13 @@ class ModelPopulation(object):
 #                    par.limits[0] = spec['min']
 #                if 'max' in spec:
 #                    par.limits[1] = spec['max']
-#
-#            if 'f_stack' in spec:
-#                f_stack = dcp(spec['f_stack'])
-#                deps = []
-#                for dep_name in spec['deps']:
-#                    deps += self.getVariable(dep_name)
-#                par.set_f_stack(f_stack,deps)
+
+            if 'function' in spec:
+                f_stack = dcp(spec['function'])
+                deps = []
+                for dep_name in spec['deps']:
+                    deps += self.getVariable(dep_name)
+                par.set_f_stack(f_stack,deps)
 
     def preallocate(self, tvec, dt):
         '''

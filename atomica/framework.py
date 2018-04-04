@@ -8,6 +8,7 @@ from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, lo
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TableTemplate
 from atomica.structure import CoreProjectStructure
 from atomica.workbook_import import readWorkbook
+from atomica.parser_function import FunctionParser
 from atomica._version import __version__
 from sciris.core import odict, makefilepath, today, gitinfo, objrepr, getdate, dcp, uuid, saveobj
 
@@ -19,6 +20,9 @@ class ProjectFramework(CoreProjectStructure):
     def __init__(self, name="SIR", frameworkfilename=None, **kwargs):
         """ Initialize the framework. """
         super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs) #TODO: figure out & remove replication from below
+
+        # One copy of a function parser for performance sake.
+        self.parser = FunctionParser()
 
         ## Define metadata
         self.name = name
@@ -59,13 +63,22 @@ class ProjectFramework(CoreProjectStructure):
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
         # Construct specifications for constructing a databook beyond the information contained in default databook settings.
-#        self.specs[FS.KEY_DATAPAGE] = odict()
+        self.parseFunctionSpecs()
         self.createDatabookSpecs()
         self.validateSpecs()
 
+    def parseFunctionSpecs(self):
+        """ If any parameters are associated with functions, convert them into lists of tokens. """
+        for item_key in self.specs[FS.KEY_PARAMETER]:
+            if not self.getSpecValue(item_key, "function") is None:
+                print(self.getSpecValue(item_key, "function").replace(" ",""))
+                function_stack, dependencies = self.parser.produceStack(self.getSpecValue(item_key, "function").replace(" ",""))
+                self.setSpecValue(item_key, attribute = "function", value = function_stack)
+                self.setSpecValue(item_key, attribute = "dependencies", value = dependencies)
+
     def createDatabookSpecs(self):
         """
-        Generate framework-dependent databook settings that are a fusion of static databook settings and dynamic framework specifics.
+        Generates framework-dependent databook settings that are a fusion of static databook settings and dynamic framework specifics.
         These are the ones that databook construction processes use when deciding layout.
         """
         # Copy default page keys over.

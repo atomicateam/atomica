@@ -328,7 +328,7 @@ class FrameworkSettings(BaseStructuralSettings):
         for item_type in cls.ITEM_TYPES:
             cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = True
             if item_type in cls.PAGE_SPECS:
-                if item_type == cls.KEY_PARAMETER: table = DetailColumns(item_type, attribute_list = ["links"],
+                if item_type == cls.KEY_PARAMETER: table = DetailColumns(item_type, attribute_list = ["links","dependencies"],
                                                                          exclude_not_include = True)
                 else: table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
@@ -347,7 +347,7 @@ class FrameworkSettings(BaseStructuralSettings):
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["default_value"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["datapage_order"], content_type = ContentType(enforce_type = int))
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value","function"])
+        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value","function","dependencies"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
         cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["refer_to_default","title"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["tables"], content_type = ContentType(is_list = True))   

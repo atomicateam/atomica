@@ -34,7 +34,7 @@ class FunctionParser(object):
         neg     = Optional("-")
         addop  = plus | minus
         multop = mult | div
-        expop = Literal("^")
+        expop = Literal("^") | Literal("**")
         lpar  = Literal("(").suppress()
         rpar  = Literal(")").suppress()
         num = Word(nums + ".")
@@ -44,7 +44,8 @@ class FunctionParser(object):
                         "-": operator.sub,
                         "*": operator.mul,
                         "/": operator.truediv,
-                        "^": operator.pow}
+                        "^": operator.pow,
+                        "**": operator.pow}
         
         self.grammar = Forward()
         primary = (neg + ((num | var.setParseAction(self.noteVariable)).setParseAction(self.pushFirst) | Group(lpar + self.grammar + rpar))).setParseAction(self.pushUnaryMinus)        
