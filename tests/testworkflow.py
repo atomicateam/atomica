@@ -18,6 +18,7 @@ torun = [
 ]
 
 tmpdir = "." + os.sep + "temp" + os.sep
+if 'doplot' not in locals(): doplot = True
 
 
 if "makeframeworkfile" in torun:
@@ -54,8 +55,9 @@ if "makedatabook" in torun:
 if "makeproject" in torun:
     P = aui.Project(framework=F, databook="./databooks/databook_sir.xlsx", dorun=True)
     
-    for var in ["sus","inf","rec","dead","ch_all","foi"]:
-        P.results[0].getPop("adults").getVariable(var)[0].plot()
+    if doplot:
+        for var in ["sus","inf","rec","dead","ch_all","foi"]:
+            P.results[0].getPop("adults").getVariable(var)[0].plot()
 
 if "saveproject" in torun:
     P.save(tmpdir+"testproject.prj")
