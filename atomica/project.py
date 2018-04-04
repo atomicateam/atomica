@@ -42,7 +42,7 @@ from numpy.random import seed, randint
 
 @applyToAllMethods(logUsage)
 class Project(object):
-    def __init__(self, name = "default", framework=None, databook=None):
+    def __init__(self, name = "default", framework=None, databook=None, dorun=True):
         """ Initialize the project. """
 
         self.name = name
@@ -68,7 +68,7 @@ class Project(object):
 
         ## Load spreadsheet, if available
         if framework and databook: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            self.loadDatabook(filename=databook)
+            self.loadDatabook(filename=databook, dorun=dorun)
 
         return None
 
