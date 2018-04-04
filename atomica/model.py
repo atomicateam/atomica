@@ -62,7 +62,7 @@ class Variable(object):
         return
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__label__,self.name,self.uid)
+        return '%s "%s" (%s)' % (self.__class__.__name__,self.name,self.uid)
 
 class Compartment(Variable):
     ''' A class to wrap up data for one compartment within a cascade network. '''
@@ -376,7 +376,7 @@ class ModelPopulation(object):
         self.popsize_cache_val = None
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__label__,self.name,self.uid)
+        return '%s "%s" (%s)' % (self.__class__.__name__,self.name,self.uid)
 
     def unlink(self):
         for obj in self.comps + self.characs + self.pars + self.links:
