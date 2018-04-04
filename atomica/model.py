@@ -494,7 +494,8 @@ class ModelPopulation(object):
                     src = self.getComp(pair[0])
                     dst = self.getComp(pair[1])
 # TODO!! ATOMICA - Need to find the link tag here
-                    new_link = Link(par,src,dst,tag) # The link needs to be nameled with the Parameter it derives from so that Results can find it later
+                    tag = src.name + '-' + dst.name     # Temporary tag solution.
+                    new_link = Link(par,src,dst,tag) # The link needs to be named with the Parameter it derives from so that Results can find it later
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
                     else:
@@ -696,8 +697,8 @@ class Model(object):
 
         if options is None: options = dict()
 
-        self.t = settings.tvec # NB. returning a mutable variable in a class @property method returns a new object each time
-        self.dt = settings.tvec_dt
+        self.t = settings.maketvec() # NB. returning a mutable variable in a class @property method returns a new object each time
+        self.dt = settings.dt
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
         #                                                     # This is only non-empty if a progset is being used in the model.
@@ -708,7 +709,7 @@ class Model(object):
             #TODO! Update preallocate case
             self.pops[-1].preallocate(self.t,self.dt)     # Memory is allocated, speeding up model. However, values are NaN so as to enforce proper parset value saturation.
             self.pop_ids[pop_name] = k
-            self.pops[-1].initialize_compartments(parset, framework, settings,self.t[0])
+            self.pops[-1].initialize_compartments(parset, framework, self.t[0])
 
         self.contacts = dcp(parset.contacts)    # Simple propagation of interaction details from parset to model.
 
@@ -829,7 +830,7 @@ class Model(object):
         '''
 
         for t in self.t[1:]:
-            self.stepForward(framework=framework, dt=self.sim_settings['tvec_dt'])
+            self.stepForward(framework=framework, dt=self.dt)
 #            self.processJunctions(framework=framework)
 #            self.updateValues(framework=framework)
 
@@ -881,28 +882,28 @@ class Model(object):
                             outflow[i] = 0.0
                             continue
 
-                        if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
-                            transition *= link.parameter.scale_factor
+#                        if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
+#                            transition *= link.parameter.scale_factor
 
-                        if link.parameter.units == 'fraction':
-                            # check if there are any violations, and if so, deal with them
-                            if transition > 1.:
-                                transition = checkTransitionFraction(transition, settings.validation)
-                            converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
-                            if link.source.tag_birth:
-                                n_alive = 0
-                                for p in self.pops:
-                                    n_alive += p.popsize(ti)
-                                converted_amt = n_alive * converted_frac
-                            else:
-                                converted_amt = comp_source.vals[ti] * converted_frac
-                        elif link.parameter.units == 'number':
-                            converted_amt = transition * dt
-                            if link.is_transfer:
-                                transfer_rescale = comp_source.vals[ti] / pop.popsize(ti)
-                                converted_amt *= transfer_rescale
+#                        if link.parameter.units == 'fraction':
+#                            # check if there are any violations, and if so, deal with them
+                        if transition > 1.:
+                            transition = checkTransitionFraction(transition, settings.validation)
+                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
+                        if link.source.tag_birth:
+                            n_alive = 0
+                            for p in self.pops:
+                                n_alive += p.popsize(ti)
+                            converted_amt = n_alive * converted_frac
                         else:
-                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
+                            converted_amt = comp_source.vals[ti] * converted_frac
+#                        elif link.parameter.units == 'number':
+#                            converted_amt = transition * dt
+#                            if link.is_transfer:
+#                                transfer_rescale = comp_source.vals[ti] / pop.popsize(ti)
+#                                converted_amt *= transfer_rescale
+#                        else:
+#                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
                         outflow[i] = converted_amt
 
