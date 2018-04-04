@@ -12,6 +12,7 @@ from sciris.core import odict, uuid
 
 parser = FunctionParser(debug=False)  # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
 
+import pickle
 import numpy as np
 from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
