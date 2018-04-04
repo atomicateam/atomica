@@ -45,10 +45,10 @@ class Variable(object):
         d = self.__dict__
         for name,val in d.items():
             if isinstance(val,np.ndarray) and val is not self.t and val.size == self.t.size:
-                plt.plot(self.t,val,name=name)
+                plt.plot(self.t,val,label=name)
         plt.legend()
-        plt.xname('Year')
-        plt.yname("%s (%s)" % (self.name,self.units))
+        plt.xlabel('Year')
+        plt.ylabel("%s (%s)" % (self.name,self.units))
 
     def update(self,ti=None):
         # A Variable can have a function to update its value at a given time, which is
