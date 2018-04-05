@@ -42,10 +42,7 @@ class Variable(object):
 
     def plot(self):
         plt.figure()
-        d = self.__dict__
-        for name,val in d.items():
-            if isinstance(val,np.ndarray) and val is not self.t and val.size == self.t.size:
-                plt.plot(self.t,val,label=name)
+        plt.plot(self.t,self.vals,label=self.name)
         plt.legend()
         plt.xlabel('Year')
         plt.ylabel("%s (%s)" % (self.name,self.units))
@@ -148,6 +145,8 @@ class Characteristic(Variable):
         self.internal_vals = None
 
     def preallocate(self,tvec,dt):
+        # Note that we don't use Variable.preallocate() here because we cannot
+        # preallocate self.vals because it is a property method
         self.t = tvec
         self.dt = dt
         self.internal_vals = np.ones(tvec.shape) * np.nan

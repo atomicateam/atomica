@@ -18,7 +18,7 @@ torun = [
 ]
 
 tmpdir = "." + os.sep + "temp" + os.sep
-if 'doplot' not in locals(): doplot = True
+if 'doplot' not in locals(): doplot = False
 
 
 if "makeframeworkfile" in torun:
