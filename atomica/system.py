@@ -34,6 +34,9 @@ class SystemSettings(object):
     FRAMEWORK_DEFAULT_TYPE = "example"
     DATABOOK_DEFAULT_TYPE = "standard"
     
+    QUANTITY_TYPE_ABSOLUTE = "absolute"
+    QUANTITY_TYPE_RELATIVE = "relative"
+    
     DEFAULT_SPACE_LABEL = " "
     DEFAULT_SPACE_NAME = "_"
     DEFAULT_SEPARATOR_LABEL = " - "
