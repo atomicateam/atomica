@@ -12,6 +12,12 @@ class SemanticUnknownException(AtomicaException):
         message = "Term '{0}'{1} is not recognised by the project.".format(term, extra_message)
         return super().__init__(message, **kwargs)
     
+def getQuantityTypeList(include_absolute = False, include_relative = False):
+    quantity_types = []
+    if include_absolute: quantity_types += [FS.QUANTITY_TYPE_NUMBER]
+    if include_relative: quantity_types += [FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
+    return quantity_types
+    
 def convertQuantity(value, initial_type, final_type, set_size = None, dt = 1.0):
     """
     Converts a quantity from one type to another and applies a time conversion if requested.

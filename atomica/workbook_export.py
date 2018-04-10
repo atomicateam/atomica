@@ -7,6 +7,7 @@ from atomica.system import logger, AtomicaException, accepts, prepareFilePath, d
 from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
 from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.structure import getQuantityTypeList
 
 from sciris.core import odict
 from copy import deepcopy as dcp
@@ -369,7 +370,9 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     default_values = [0.0]*num_items
     quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE]
     if "format" in item_specs[item_type][item_key]:
-        quantity_types = [item_specs[item_type][item_key]["format"]]
+        quantity_types = [item_specs[item_type][item_key]["format"].title()]
+    else:   # User's choice.
+        quantity_types = [x.title() for x in getQuantityTypeList(include_absolute = True, include_relative = True)]
     if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
     if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
