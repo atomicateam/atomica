@@ -41,29 +41,29 @@ class Result(object):
     @property
     def t_observed_data(self):
         return self.t[self.indices_observed_data]
-    
+
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have
     # different contents
     def comp_names(self,pop_name):
         # Return compartment names for a given population
-        names = self.model.getPop(pop_name).comp_lookup.keys().sort()
+        return sorted(self.model.getPop(pop_name).comp_lookup.keys())
 
     def charac_names(self,pop_name):
-    # Return characteristic names for a given population
-        names = self.model.getPop(pop_name).charac_lookup.keys().sort()
+        # Return characteristic names for a given population
+        return sorted(self.model.getPop(pop_name).charac_lookup.keys())
 
     def par_names(self,pop_name):
-    # Return parteristic names for a given population
-        names = self.model.getPop(pop_name).par_lookup.keys().sort()
+        # Return parteristic names for a given population
+        return sorted(self.model.getPop(pop_name).par_lookup.keys())
 
     def link_names(self,pop_name):
-    # Return link names for a given population
+        # Return link names for a given population
         names = set()
         pop = self.model.getPop(pop_name)
         for link in pop.links:
-            names.append(link.name)
-        return list(names).sort()
+            names.add(link.name)
+        return sorted(names)
 
     def __repr__(self):
         ''' Print out useful information when called'''
