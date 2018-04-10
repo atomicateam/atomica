@@ -2,6 +2,7 @@
 
 from atomica.system import AtomicaException, logger # CK: warning, should relabel exception
 from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure import convertQuantity
 #from optima_tb.validation import checkTransitionFraction # CK: warning, should not import optima_tb!!
 #import optima_tb.settings as project_settings
 from atomica.results import ResultSet
@@ -897,16 +898,16 @@ class Model(object):
 
 #                        if link.parameter.units == 'fraction':
 #                            # check if there are any violations, and if so, deal with them
-                        if transition > 1.:
-                            transition = checkTransitionFraction(transition, settings.validation)
-                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
-                        if link.source.tag_birth:
-                            n_alive = 0
-                            for p in self.pops:
-                                n_alive += p.popsize(ti)
-                            converted_amt = n_alive * converted_frac
-                        else:
-                            converted_amt = comp_source.vals[ti] * converted_frac
+#                        if transition > 1.:
+#                            transition = checkTransitionFraction(transition, settings.validation)
+#                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
+#                        if link.source.tag_birth:
+#                            n_alive = 0
+#                            for p in self.pops:
+#                                n_alive += p.popsize(ti)
+#                            converted_amt = n_alive * converted_frac
+#                        else:
+#                            converted_amt = comp_source.vals[ti] * converted_frac
 #                        elif link.parameter.units == 'number':
 #                            converted_amt = transition * dt
 #                            if link.is_transfer:
@@ -915,7 +916,11 @@ class Model(object):
 #                        else:
 #                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
-                        outflow[i] = converted_amt
+                        value = convertQuantity(value = transition, initial_type = FS.QUANTITY_TYPE_PROBABILITY, 
+                                                                    final_type = FS.QUANTITY_TYPE_NUMBER, 
+                                                                    set_size = comp_source.vals[ti], dt = self.dt)
+
+                        outflow[i] = value
 
                     # Prevent negative population by proportionately downscaling the outflow
                     # if there are insufficient people _currently_ in the compartment

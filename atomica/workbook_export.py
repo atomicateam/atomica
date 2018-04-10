@@ -331,11 +331,13 @@ def writeConnectionMatrix(worksheet, source_item_type, target_item_type, start_r
     next_row, next_col = row, col
     return next_row, next_col
 
-def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
-    
+def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, tvec=None, data = None, instructions = None, workbook_type = None, 
+                       formats = None, format_variables = None, temp_storage = None):
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    
+    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+    if temp_storage is None: temp_storage = odict()
+
     if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None: format_variables = createDefaultFormatVariables()
     orig_format_variables = dcp(format_variables)
@@ -343,6 +345,7 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
     
     row, col = start_row, start_col
 
+    # Set up a header for the table relating to the object for which the databook is requesting values.
     attribute = "label"
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
     for format_variable_key in format_variables:
@@ -358,18 +361,25 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
                                  "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
     worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
 
+    # Create the standard value entry block, extracting the number of items from instructions.
+    # TODO: Adjust this for when writing existing values to workbook.
+    # TODO: Decide what to do about time. RS: I have put in a temporary solution
+    num_items = 0
+    if use_instructions: num_items = instructions.num_items[iterated_type]
+    default_values = [0.0]*num_items
+    quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE]
+    if "format" in item_specs[item_type][item_key]:
+        quantity_types = [item_specs[item_type][item_key]["format"]]
+    if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
+        default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
+    if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
+    createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
+                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere... hmm, really...?
+                          default_values = default_values, formats = formats,
+                          quantity_types = quantity_types)
+
+    # Fill in the appropriate 'keys' for the table.
     row += 1
-    next_row = row
-    return next_row
-
-def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, formats = None, temp_storage = None):
-    
-    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-
-    if temp_storage is None: temp_storage = odict()
-
-    row, col = start_row, start_col
     if use_instructions:
         for item_number in range(instructions.num_items[iterated_type]):
             createAttributeCellContent(worksheet = worksheet, row = row, col = col, 
@@ -377,37 +387,6 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
                                        item_number = item_number, formats = formats, temp_storage = temp_storage)
             row += 1
     row += 1    # Extra row to space out following tables.
-    next_row = row
-    return next_row
-
-def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, tvec=None, data = None, instructions = None, workbook_type = None, 
-                       formats = None, format_variables = None, temp_storage = None):
-    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
-    if temp_storage is None: temp_storage = odict()
-
-    row, col = start_row, start_col
-
-    # Create the standard value entry block, extracting the number of items from instructions.
-    # TODO: Adjust this for when writing existing values to workbook.
-    # TODO: Decide what to do about time. RS: I have put in a temporary solution
-    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-    num_items = 0
-    if use_instructions: num_items = instructions.num_items[iterated_type]
-    default_values = [0.0]*num_items
-    if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
-        default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
-    if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
-    createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
-                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere... hmm, really...?
-                          default_values = default_values, formats = formats)
-
-    row = writeHeadersTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key,
-                                             start_row = row, start_col = col, 
-                                             framework = framework, data = data, workbook_type = workbook_type,
-                                             formats = formats, format_variables = format_variables)
-    row = writeContentsTDVE(worksheet = worksheet, iterated_type = iterated_type, start_row = row, start_col = col,
-                           framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
-                           formats = formats, temp_storage = temp_storage)
 
     next_row, next_col = row, col
     return next_row, next_col
