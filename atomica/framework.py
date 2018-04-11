@@ -60,14 +60,13 @@ class ProjectFramework(CoreProjectStructure):
         return output
     
 
-    def completeSpecs(self):
+    def completeSpecs(self, **kwargs):
         """
         A method for completing specifications that is called at the end of a file import.
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
-        # Construct specifications for constructing a databook beyond the information contained in default databook settings.
         self.parseFunctionSpecs()
-        self.createDatabookSpecs()
+        self.createDatabookSpecs()  # Construct specifications for constructing a databook beyond info contained in default databook settings.
         self.validateSpecs()
 
     def parseFunctionSpecs(self):

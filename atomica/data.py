@@ -4,9 +4,9 @@ Atomica data file.
 Sets out a structure to store context-specific databook-imported values relating to a model.
 """
 from atomica.system import SystemSettings as SS
-
+from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage
-from atomica.structure import CoreProjectStructure
+from atomica.structure import CoreProjectStructure, TimeSeries
 from sciris.core import objrepr, gitinfo
 from atomica._version import __version__
 
@@ -24,3 +24,25 @@ class ProjectData(CoreProjectStructure):
         output = objrepr(self)
         return output
     
+    def completeSpecs(self, framework, **kwargs):
+        """
+        A method for completing specifications that is called at the end of a file import.
+        This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
+        """
+        # Construct specifications for constructing a databook beyond the information contained in default databook settings.
+        self.validateSpecs(framework = framework)
+        
+    def validateSpecs(self, framework):
+        """ Check that data specifications make sense. """
+        # Make sure that all parameters in the framework are in the data as well, primarily to ensure specification of quantity types.
+        for item_key in framework.specs[FS.KEY_PARAMETER]:
+            try: self.getSpec(item_key)
+            except:
+                self.createItem(item_name = item_key, item_type = DS.KEY_PARAMETER)
+                default_format = None
+                if "format" in framework.specs[FS.KEY_PARAMETER][item_key]:
+                    default_format = framework.specs[FS.KEY_PARAMETER][item_key]["format"].lower()
+                time_series = TimeSeries(keys = self.specs[DS.KEY_POPULATION].keys(), default_format = default_format)
+                value_attribute = DS.PAGE_SPECS[DS.KEY_PARAMETER]["tables"][0].value_attribute
+                self.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)
+        

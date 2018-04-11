@@ -916,7 +916,6 @@ class Model(object):
 #                        else:
 #                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
-                        print(link.parameter.name)
                         value = convertQuantity(value = transition, initial_type = link.parameter.units, 
                                                                     final_type = FS.QUANTITY_TYPE_NUMBER, 
                                                                     set_size = comp_source.vals[ti], dt = self.dt)

@@ -315,7 +315,7 @@ class CoreProjectStructure(object):
         try: return semantic[attribute]
         except: raise SemanticUnknownException(term = term, attribute = attribute)
 
-    def completeSpecs(self):
+    def completeSpecs(self, **kwargs):
         """
         An overloaded method for completing specifications that is called at the end of a file import.
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.

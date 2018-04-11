@@ -86,7 +86,9 @@ class Parameter(object):
         cleaned_times = input_t[~np.isnan(input_y)] # NB. numpy advanced indexing here results in a copy
         cleaned_vals = input_y[~np.isnan(input_y)]
 
-        if len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
+        if len(cleaned_times) == 0: # If there are no timepoints after cleaning, this may be a calculated parameter.
+            output = np.ones(len(tvec)) * np.nan
+        elif len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
             output = np.ones(len(tvec)) * (cleaned_vals)[0]  # Don't bother running interpolation loops if constant. Good for performance.
         else:
             # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
