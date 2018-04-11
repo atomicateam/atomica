@@ -368,10 +368,15 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     num_items = 0
     if use_instructions: num_items = instructions.num_items[iterated_type]
     default_values = [0.0]*num_items
+    # Decide what quantity types, a.k.a. value formats, are allowed for the item.
     quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE]
-    if "format" in item_specs[item_type][item_key]:
+    if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:    # State variables are in number amounts unless normalized.
+        if "denominator" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["denominator"] is None:
+            quantity_types = [FS.QUANTITY_TYPE_FRACTION.title()]
+        else: quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
+    elif "format" in item_specs[item_type][item_key]:   # Modeller's choice for parameters.
         quantity_types = [item_specs[item_type][item_key]["format"].title()]
-    else:   # User's choice.
+    else:   # User's choice for parameters.
         quantity_types = [x.title() for x in getQuantityTypeList(include_absolute = True, include_relative = True)]
     if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items

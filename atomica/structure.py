@@ -22,9 +22,10 @@ def convertQuantity(value, initial_type, final_type, set_size = None, dt = 1.0):
     """
     Converts a quantity from one type to another and applies a time conversion if requested.
     All values must be provided with respect to the project unit of time, e.g. a year.
+    Note: Time conversion should only be applied to rate-based quantities, not state variables.
     """
     absolute_types = [FS.QUANTITY_TYPE_NUMBER]
-    relative_types = [FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
+    relative_types = [FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
     initial_class = SS.QUANTITY_TYPE_ABSOLUTE if initial_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
     final_class = SS.QUANTITY_TYPE_ABSOLUTE if final_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
     value = float(value)    # Safety conversion for type.
@@ -58,7 +59,7 @@ def convertQuantity(value, initial_type, final_type, set_size = None, dt = 1.0):
             value /= dt     # Average duration before transition in number of timesteps.
         elif final_type == FS.QUANTITY_TYPE_PROBABILITY:
             value = 1 - (1 - value)**dt
-        elif final_type == FS.QUANTITY_TYPE_NUMBER:
+        elif final_type in [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_FRACTION]:
             value *= dt
         else: raise AtomicaException("Time conversion for type '{0}' is not known.".format(final_type))
     
@@ -75,13 +76,13 @@ class TimeSeries(object):
                        2020.0:[2,2001,-50]}
     Note: The values structure contains special lists for assumptions and formats.
     """
-    def __init__(self, keys = None):
+    def __init__(self, keys = None, default_format = None):
         self.keys = keys
         self.key_id_map = dict()
         for id, key in enumerate(self.keys):
             self.key_id_map[key] = id
         self.values = {None:[None]*len(self.keys),
-                       "format":[None]*len(self.keys)}
+                       "format":[default_format]*len(self.keys)}
 
     def getValue(self, key, t = None):
         try: return self.values[t][self.key_id_map[key]]

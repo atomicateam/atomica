@@ -731,8 +731,8 @@ class Model(object):
                 par = pop.getPar(cascade_par.name) # Find the parameter with the requested name
                 par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                 # par.scale_factor = cascade_par.y_factor[pop_name]
-                # if par.links:
-                #     par.units = cascade_par.y_format[pop_name]
+                if par.links:
+                    par.units = cascade_par.y_format[pop_name]
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -916,7 +916,8 @@ class Model(object):
 #                        else:
 #                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
-                        value = convertQuantity(value = transition, initial_type = FS.QUANTITY_TYPE_PROBABILITY, 
+                        print(link.parameter.name)
+                        value = convertQuantity(value = transition, initial_type = link.parameter.units, 
                                                                     final_type = FS.QUANTITY_TYPE_NUMBER, 
                                                                     set_size = comp_source.vals[ti], dt = self.dt)
 

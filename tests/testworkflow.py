@@ -19,13 +19,14 @@ torun = [
 
 tmpdir = "." + os.sep + "temp" + os.sep
 if 'doplot' not in locals(): doplot = False
+doplot = True
 
 
 if "makeframeworkfile" in torun:
     framework_instructions, _ = aui.makeInstructions(framework=None, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
     framework_instructions.updateNumberOfItems("par", 7)        # Set the number of parameters
     framework_instructions.updateNumberOfItems("comp", 4)       # Set the number of compartments
-    framework_instructions.updateNumberOfItems("charac", 7)     # Set the number of characteristics
+    framework_instructions.updateNumberOfItems("charac", 8)     # Set the number of characteristics
     
     aui.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
 
