@@ -46,7 +46,7 @@ if "loadframework" in torun:
 
 
 if "makedatabook" in torun:
-    F = sc.loadobj(tmpdir+"testframework.frw")
+    F = aui.ProjectFramework.load(tmpdir+"testframework.frw")
     P = aui.Project(framework=F) # Create a project with no data
     databook_instructions, _ = aui.makeInstructions(framework=F, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_DATA)
     databook_instructions.updateNumberOfItems("prog", 3)    # Set the number of programs

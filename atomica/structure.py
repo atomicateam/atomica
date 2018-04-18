@@ -2,7 +2,7 @@ from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage, AtomicaException
 from atomica._version import __version__
-from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid
+from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj
 
 
 import numpy as np
@@ -347,3 +347,16 @@ class CoreProjectStructure(object):
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
         pass
+    
+    def save(self, file_path):
+        """ Save the current project structure to a relevant object file. """
+        file_extension = None
+        if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: file_extension = "frw"
+        if self.structure_key == SS.STRUCTURE_KEY_DATA: file_extension = "dat"
+        file_path = makefilepath(filename=file_path, ext=file_extension, sanitize=True)  # Enforce file extension.
+        saveobj(file_path, self)
+    
+    @classmethod
+    def load(cls, file_path):
+        """ Convenience class method for loading a project structure in the absence of an instance. """
+        return loadobj(file_path)

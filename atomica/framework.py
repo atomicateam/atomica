@@ -126,40 +126,16 @@ class ProjectFramework(CoreProjectStructure):
         if not num_pars is None: framework_instructions.updateNumberOfItems(FS.KEY_PARAMETER, num_pars)                 # Set the number of parameters.
     
         writeWorkbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
-    
-# TODO: Setup all following methods in Project, with maybe save as an exception.        
+            
+        
     def writeToFile(self, filename, data=None, instructions=None):
         """ Export a framework to file. """       
         # TODO: modify writeWorkbook so it can write framework specs to an excel file???
         pass
-
 
     def readFromFile(self, file_path=None):
         """ Import a framework from file. """      
         frameworkfileout = readWorkbook(workbook_path=file_path, framework=self, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         self.frameworkfileout = frameworkfileout # readWorkbook returns an odict of information about the workbook it just read. For framework files, this is blank at the moment. Think about what could go here & how it could be stored.
         self.workbook_load_date = today()
-        self.modified = today()
-        
-        return None
-
-
-#    def makemodel(self):
-#        '''Generate the model that goes with the framework'''
-#        pass
-
-
-    def save(self, file_path):
-        """ Save the current project structure to a .frw file. """
-        file_path = makefilepath(filename=file_path, ext='frw', sanitize=True)  # Ensure file extension.
-#        self.filename = fullpath # Store file path
-        saveobj(file_path, self)
-#        return fullpath
-    
-    @classmethod
-    def load(cls, file_path):
-        """ Convenience class method for loading a framework in the absence of an instance. """
-        return loadobj(file_path)
-
-
-        
+        self.modified = today()        
