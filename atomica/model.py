@@ -708,7 +708,7 @@ class Model(object):
 
         if options is None: options = dict()
 
-        self.t = settings.maketvec() # NB. returning a mutable variable in a class @property method returns a new object each time
+        self.t = settings.makeTimeVector() # NB. returning a mutable variable in a class @property method returns a new object each time
         self.dt = settings.dt
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
