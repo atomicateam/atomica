@@ -1,7 +1,9 @@
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage, AtomicaException
-from sciris.core import odict
+from atomica._version import __version__
+from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid
+
 
 import numpy as np
 
@@ -124,6 +126,30 @@ class CoreProjectStructure(object):
         self.structure_key = structure_key
 
         self.initSpecs()
+        
+        # Standard metadata.
+        self.uid = uuid()
+        self.created = today()
+        self.modified = today()
+        self.version = __version__
+        self.git_info = gitinfo()
+        self.workbook_load_date = "N.A."
+
+    def __repr__(self):
+        output = objrepr(self)
+        output += self.getMetadataString()
+        output += "="*60 + "\n"
+        return output
+    
+    def getMetadataString(self):
+        meta =  "   Atomica version: %s\n"    % self.version
+        meta += "      Date created: %s\n"    % getdate(self.created)
+        meta += "     Date modified: %s\n"    % getdate(self.modified)
+        meta += "   Workbook loaded: %s\n"    % getdate(self.workbook_load_date)
+        meta += "        Git branch: %s\n"    % self.git_info['branch']
+        meta += "          Git hash: %s\n"    % self.git_info['hash']
+        meta += "               UID: %s\n"    % self.uid
+        return meta
 
     def initSpecs(self):
         """ Initialize the uppermost layer of structure specifications (i.e. base item types) according to corresponding settings. """

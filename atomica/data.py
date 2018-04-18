@@ -19,10 +19,10 @@ class ProjectData(CoreProjectStructure):
         self.version = __version__
         self.gitinfo = gitinfo()
         
-    def __repr__(self):
-        ''' Print out useful information when called '''
-        output = objrepr(self)
-        return output
+#    def __repr__(self):
+#        ''' Print out useful information when called '''
+#        output = objrepr(self)
+#        return output
     
     def completeSpecs(self, framework, **kwargs):
         """

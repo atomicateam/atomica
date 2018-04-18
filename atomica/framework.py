@@ -21,44 +21,22 @@ class ProjectFramework(CoreProjectStructure):
         """ Initialize the framework. """
         super(ProjectFramework, self).__init__(structure_key = SS.STRUCTURE_KEY_FRAMEWORK, **kwargs) #TODO: figure out & remove replication from below
 
-        # One copy of a function parser for performance sake.
+        # One copy of a function parser stored for performance sake.
         self.parser = FunctionParser()
         
         # Set up a filter for quick referencing items of a certain group.
         self.filter = {FS.TERM_FUNCTION + FS.KEY_PARAMETER : []}
 
         ## Define metadata
-        self.name = name
+#        self.name = name   #Already in ProjectStructure.
         self.filename = None # Never yet saved to file
-        self.uid = uuid()
-        self.created = today()
-        self.modified = today()
-        self.version = __version__
-        self.gitinfo = gitinfo()
-        self.frameworkfileloaddate = 'Framework file never loaded'
+#        self.frameworkfileloaddate = 'Framework file never loaded'
 
         ## Load framework file if provided
         if frameworkfilename:
             self.readFrameworkfile(frameworkfilename=frameworkfilename)
 
         return None
-
-
-    def __repr__(self):
-        ''' Print out useful information when called '''
-        output = objrepr(self)
-        output += '    Framework name: %s\n'    % self.name
-        output += '\n'
-        output += '   Atomica version: %s\n'    % self.version
-        output += '      Date created: %s\n'    % getdate(self.created)
-        output += '     Date modified: %s\n'    % getdate(self.modified)
-        output += '  Datasheet loaded: %s\n'    % getdate(self.frameworkfileloaddate)
-        output += '        Git branch: %s\n'    % self.gitinfo['branch']
-        output += '          Git hash: %s\n'    % self.gitinfo['hash']
-        output += '               UID: %s\n'    % self.uid
-        output += '============================================================\n'
-        return output
-    
 
     def completeSpecs(self, **kwargs):
         """
@@ -156,9 +134,9 @@ class ProjectFramework(CoreProjectStructure):
         return None
 
 
-    def makemodel(self):
-        '''Generate the model that goes with the framework'''
-        pass
+#    def makemodel(self):
+#        '''Generate the model that goes with the framework'''
+#        pass
 
 
     def save(self, filename=None, folder=None, verbose=2):
