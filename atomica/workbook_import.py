@@ -256,13 +256,14 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
         raise
 
     # Check workbook type and initialise output
+    # TODO: Is there a better way to do this?
     if workbook_type in [SS.STRUCTURE_KEY_FRAMEWORK]:
         workbookout = odict() # TODO add whatever output you want here
     elif workbook_type in [SS.STRUCTURE_KEY_DATA]:
         workbookout = odict()
         ## Open workbook and calculate columns for which data are entered, and store the year ranges
-        sheetdata = workbook.sheet_by_name('Parameters') # Load this workbook
-        workbookout['datayears'] = getyears(sheetdata)
+        sheetdata = workbook.sheet_by_name("Parameters") # Load this workbook
+        workbookout["datayears"] = getyears(sheetdata)
     else:
         raise WorkbookTypeException(workbook_type)
 

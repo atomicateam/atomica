@@ -7,10 +7,10 @@ This includes a description of the Markov chain network underlying project dynam
 from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, logger, AtomicaException
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TableTemplate
 from atomica.structure import CoreProjectStructure
+from atomica.workbook_export import makeInstructions, writeWorkbook
 from atomica.workbook_import import readWorkbook
 from atomica.parser_function import FunctionParser
-from atomica._version import __version__
-from sciris.core import odict, makefilepath, today, gitinfo, objrepr, getdate, dcp, uuid, saveobj
+from sciris.core import makefilepath, today, dcp, saveobj
 
 
 @applyToAllMethods(logUsage)
@@ -29,7 +29,7 @@ class ProjectFramework(CoreProjectStructure):
 
         ## Define metadata
 #        self.name = name   #Already in ProjectStructure.
-        self.filename = None # Never yet saved to file
+#        self.filename = None # Never yet saved to file
 #        self.frameworkfileloaddate = 'Framework file never loaded'
 
         ## Load framework file if provided
@@ -116,6 +116,16 @@ class ProjectFramework(CoreProjectStructure):
                                            "It must be explicitly excluded from querying its population size in a databook.".format(item_key))
         
             
+
+    @classmethod
+    def createTemplate(cls, path, num_comps=None, num_characs=None, num_pars=None):
+        """ Convenience method for template creation in the absence of an instance. """
+        framework_instructions, _ = makeInstructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        if not num_comps is None: framework_instructions.updateNumberOfItems(FS.KEY_COMPARTMENT, num_comps)             # Set the number of compartments.
+        if not num_characs is None: framework_instructions.updateNumberOfItems(FS.KEY_CHARACTERISTIC, num_characs)      # Set the number of characteristics.
+        if not num_pars is None: framework_instructions.updateNumberOfItems(FS.KEY_PARAMETER, num_pars)                 # Set the number of parameters.
+    
+        writeWorkbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
     
 # TODO: Setup all following methods in Project, with maybe save as an exception.        
     def writeFrameworkfile(self, filename, data=None, instructions=None):

@@ -23,14 +23,15 @@ doplot = True
 
 
 if "makeframeworkfile" in torun:
-    framework_instructions, _ = aui.makeInstructions(framework=None, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
-    framework_instructions.updateNumberOfItems("par", 6)        # Set the number of parameters
-    framework_instructions.updateNumberOfItems("comp", 4)       # Set the number of compartments
-    framework_instructions.updateNumberOfItems("charac", 8)     # Set the number of characteristics
+#    framework_instructions, _ = aui.makeInstructions(framework=None, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
+#    framework_instructions.updateNumberOfItems("par", 6)        # Set the number of parameters
+#    framework_instructions.updateNumberOfItems("comp", 4)       # Set the number of compartments
+#    framework_instructions.updateNumberOfItems("charac", 8)     # Set the number of characteristics
+#    
+#    aui.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
     
-    aui.writeWorkbook(workbook_path=tmpdir+"framework_test.xlsx", framework=None, data=None, instructions=framework_instructions, workbook_type=aui.SystemSettings.STRUCTURE_KEY_FRAMEWORK)
-
-
+    # Convenient class method that creates a template for a framework without needing the object to exist.
+    aui.ProjectFramework.createTemplate(path=tmpdir+"framework_test.xlsx", num_comps=4, num_pars=6, num_characs=8)
 	
 if "makeframework" in torun:
     F = aui.ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
