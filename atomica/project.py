@@ -183,193 +183,193 @@ class Project(object):
 #        return None
 
 
-    #######################################################################################################
-    ### Methods to handle common tasks with structure lists
-    #######################################################################################################
-
-
-    def getwhat(self, item=None, what=None):
-        '''
-        Figure out what kind of structure list is being requested, e.g.
-            structlist = getwhat('parameters')
-        will return P.parset.
-        '''
-        if item is None and what is None: raise AtomicaException('No inputs provided')
-        if what is not None: # Explicitly define the type
-            if what in ['p', 'pars', 'parset', 'parameters']: structlist = self.parsets
-            elif what in ['pr', 'progs', 'progset', 'progsets']: structlist = self.progsets 
-            elif what in ['s', 'scen', 'scens', 'scenario', 'scenarios']: structlist = self.scens
-            elif what in ['o', 'opt', 'opts', 'optim', 'optims', 'optimisation', 'optimization', 'optimisations', 'optimizations']: structlist = self.optims
-            elif what in ['r', 'res', 'result', 'results']: structlist = self.results
-            else: raise AtomicaException('Structure list "%s" not understood' % what)
-        else: # Figure out the type based on the input
-            if type(item)==Parameterset: structlist = self.parsets
-            elif type(item)==Programset: structlist = self.progsets
-            elif type(item)==Resultset: structlist = self.results
-            else: raise AtomicaException('Structure list "%s" not understood' % str(type(item)))
-        return structlist
-
-
-    def checkname(self, what=None, checkexists=None, checkabsent=None, overwrite=True):
-        ''' Check that a name exists if it needs to; check that a name doesn't exist if it's not supposed to '''
-        if type(what)==odict: structlist=what # It's already a structlist
-        else: structlist = self.getwhat(what=what)
-        if isnumber(checkexists): # It's a numerical index
-            try: checkexists = structlist.keys()[checkexists] # Convert from 
-            except: raise AtomicaException('Index %i is out of bounds for structure list "%s" of length %i' % (checkexists, what, len(structlist)))
-        if checkabsent is not None:
-            if checkabsent in structlist:
-                if overwrite==False:
-                    raise AtomicaException('Structure list "%s" already has item named "%s"' % (what, checkabsent))
-                else:
-                    printv('Structure list already has item named "%s"' % (checkabsent), 3, self.settings.verbose)
-                
-        if checkexists is not None:
-            if not checkexists in structlist:
-                raise AtomicaException('Structure list has no item named "%s"' % (checkexists))
-        return None
-
-
-    def add(self, name=None, item=None, what=None, overwrite=True, consistentnames=True):
-        ''' Add an entry to a structure list -- can be used as add('blah', obj), add(name='blah', item=obj), or add(item) '''
-        if name is None:
-            try: name = item.name # Try getting name from the item
-            except: name = 'default' # If not, revert to default
-        if item is None:
-            if type(name)!=str: # Maybe an item has been supplied as the only argument
-                try: 
-                    item = name # It's actully an item, not a name
-                    name = item.name # Try getting name from the item
-                except: raise AtomicaException('Could not figure out how to add item with name "%s" and item "%s"' % (name, item))
-            else: # No item has been supplied, add a default one
-                if what=='parset':  
-                    item = Parameterset(name=name, project=self)
-                    item.makepars(self.data, verbose=self.settings.verbose) # Create parameters
-                elif what=='progset': 
-                    item = Programset(name=name, project=self)
-#                elif what=='scen':
-#                    item = Parscen(name=name)
-#                elif what=='optim': 
-#                    item = Optim(project=self, name=name)
-                else:
-                    raise AtomicaException('Unable to add item of type "%s", please supply explicitly' % what)
-        structlist = self.getwhat(item=item, what=what)
-        self.checkname(structlist, checkabsent=name, overwrite=overwrite)
-        structlist[name] = item
-        if consistentnames: structlist[name].name = name # Make sure names are consistent -- should be the case for everything except results, where keys are UIDs
-#        if hasattr(structlist[name], 'projectref'): structlist[name].projectref = Link(self) # Fix project links
-#        printv('Item "%s" added to "%s"' % (name, what), 3, self.settings.verbose)
-        self.modified = today()
-        return None
-
-
-    def remove(self, what=None, name=None):
-        ''' Remove an entry from a structure list by name '''
-        if name is None: name = -1 # If no name is supplied, remove the last item
-        structlist = self.getwhat(what=what)
-        self.checkname(what, checkexists=name)
-        structlist.pop(name)
-#        printv('%s "%s" removed' % (what, name), 3, self.settings.verbose)
-        self.modified = today()
-        return None
-
-
-    def copy(self, what=None, orig=None, new=None, overwrite=True):
-        ''' Copy an entry in a structure list '''
-        if orig is None: orig = -1
-        if new  is None: new = 'new'
-        structlist = self.getwhat(what=what)
-        self.checkname(what, checkexists=orig, checkabsent=new, overwrite=overwrite)
-        structlist[new] = dcp(structlist[orig])
-        structlist[new].name = new  # Update name
-        structlist[new].created = today() # Update dates
-        structlist[new].modified = today() # Update dates
-#        if hasattr(structlist[new], 'projectref'): structlist[new].projectref = Link(self) # Fix project links
-#        printv('%s "%s" copied to "%s"' % (what, orig, new), 3, self.settings.verbose)
-        self.modified = today()
-        return None
-
-
-    def rename(self, what=None, orig=None, new=None, overwrite=True):
-        ''' Rename an entry in a structure list '''
-        if orig is None: orig = -1
-        if new  is None: new = 'new'
-        structlist = self.getwhat(what=what)
-        self.checkname(what, checkexists=orig, checkabsent=new, overwrite=overwrite)
-        structlist.rename(oldkey=orig, newkey=new)
-        structlist[new].name = new # Update name
-#        printv('%s "%s" renamed "%s"' % (what, orig, new), 3, self.settings.verbose)
-        self.modified = today()
-        return None
-        
-
-    def addparset(self,   name=None, parset=None,   overwrite=True): self.add(what='parset',   name=name, item=parset,  overwrite=overwrite)
-    def addprogset(self,  name=None, progset=None,  overwrite=True): self.add(what='progset',  name=name, item=progset, overwrite=overwrite)
-    def addscen(self,     name=None, scen=None,     overwrite=True): self.add(what='scen',     name=name, item=scen,    overwrite=overwrite)
-    def addoptim(self,    name=None, optim=None,    overwrite=True): self.add(what='optim',    name=name, item=optim,   overwrite=overwrite)
-
-    def rmparset(self,   name=None): self.remove(what='parset',   name=name)
-    def rmprogset(self,  name=None): self.remove(what='progset',  name=name)
-    def rmscen(self,     name=None): self.remove(what='scen',     name=name)
-    def rmoptim(self,    name=None): self.remove(what='optim',    name=name)
-
-
-    def copyparset(self,  orig=None, new=None, overwrite=True): self.copy(what='parset',   orig=orig, new=new, overwrite=overwrite)
-    def copyprogset(self, orig=None, new=None, overwrite=True): self.copy(what='progset',  orig=orig, new=new, overwrite=overwrite)
-    def copyscen(self,    orig=None, new=None, overwrite=True): self.copy(what='scen',     orig=orig, new=new, overwrite=overwrite)
-    def copyoptim(self,   orig=None, new=None, overwrite=True): self.copy(what='optim',    orig=orig, new=new, overwrite=overwrite)
-
-    def renameparset(self,  orig=None, new=None, overwrite=True): self.rename(what='parset',   orig=orig, new=new, overwrite=overwrite)
-    def renameprogset(self, orig=None, new=None, overwrite=True): self.rename(what='progset',  orig=orig, new=new, overwrite=overwrite)
-    def renamescen(self,    orig=None, new=None, overwrite=True): self.rename(what='scen',     orig=orig, new=new, overwrite=overwrite)
-    def renameoptim(self,   orig=None, new=None, overwrite=True): self.rename(what='optim',    orig=orig, new=new, overwrite=overwrite)
-
-    #######################################################################################################
-    ### Utilities
-    #######################################################################################################
-
-    def restorelinks(self):
-        ''' Loop over all objects that have links back to the project and restore them '''
-        for item in self.parsets.values()+self.progsets.values()+self.scens.values()+self.optims.values()+self.results.values():
-            if hasattr(item, 'projectref'):
-                item.projectref = Link(self)
-        return None
-
-
-    def pars(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest active set of parameters, i.e. self.parsets[-1].pars '''
-        try:    return self.parsets[key].pars
-        except: return printv('Warning, parameters dictionary not found!', 1, verbose) # Returns None
-    
-    def parset(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest active parameters set, i.e. self.parsets[-1] '''
-        try:    return self.parsets[key]
-        except: return printv('Warning, parameter set not found!', 1, verbose) # Returns None
-    
-    def programs(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest active set of programs '''
-        try:    return self.progsets[key].programs
-        except: return printv('Warning, programs not found!', 1, verbose) # Returns None
-
-    def progset(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest active program set, i.e. self.progsets[-1]'''
-        try:    return self.progsets[key]
-        except: return printv('Warning, program set not found!', 1, verbose) # Returns None
-    
-    def scen(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest scenario, i.e. self.scens[-1]'''
-        try:    return self.scens[key]
-        except: return printv('Warning, scenario not found!', 1, verbose) # Returns None
-
-    def optim(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest optimization, i.e. self.optims[-1]'''
-        try:    return self.optims[key]
-        except: return printv('Warning, optimization not found!', 1, verbose) # Returns None
-
-    def result(self, key=-1, verbose=2):
-        ''' Shortcut for getting the latest active results, i.e. self.results[-1]'''
-        try:    return self.results[key]
-        except: return printv('Warning, results set not found!', 1, verbose) # Returns None
+#    #######################################################################################################
+#    ### Methods to handle common tasks with structure lists
+#    #######################################################################################################
+#
+#
+#    def getwhat(self, item=None, what=None):
+#        '''
+#        Figure out what kind of structure list is being requested, e.g.
+#            structlist = getwhat('parameters')
+#        will return P.parset.
+#        '''
+#        if item is None and what is None: raise AtomicaException('No inputs provided')
+#        if what is not None: # Explicitly define the type
+#            if what in ['p', 'pars', 'parset', 'parameters']: structlist = self.parsets
+#            elif what in ['pr', 'progs', 'progset', 'progsets']: structlist = self.progsets 
+#            elif what in ['s', 'scen', 'scens', 'scenario', 'scenarios']: structlist = self.scens
+#            elif what in ['o', 'opt', 'opts', 'optim', 'optims', 'optimisation', 'optimization', 'optimisations', 'optimizations']: structlist = self.optims
+#            elif what in ['r', 'res', 'result', 'results']: structlist = self.results
+#            else: raise AtomicaException('Structure list "%s" not understood' % what)
+#        else: # Figure out the type based on the input
+#            if type(item)==Parameterset: structlist = self.parsets
+#            elif type(item)==Programset: structlist = self.progsets
+#            elif type(item)==Resultset: structlist = self.results
+#            else: raise AtomicaException('Structure list "%s" not understood' % str(type(item)))
+#        return structlist
+#
+#
+#    def checkname(self, what=None, checkexists=None, checkabsent=None, overwrite=True):
+#        ''' Check that a name exists if it needs to; check that a name doesn't exist if it's not supposed to '''
+#        if type(what)==odict: structlist=what # It's already a structlist
+#        else: structlist = self.getwhat(what=what)
+#        if isnumber(checkexists): # It's a numerical index
+#            try: checkexists = structlist.keys()[checkexists] # Convert from 
+#            except: raise AtomicaException('Index %i is out of bounds for structure list "%s" of length %i' % (checkexists, what, len(structlist)))
+#        if checkabsent is not None:
+#            if checkabsent in structlist:
+#                if overwrite==False:
+#                    raise AtomicaException('Structure list "%s" already has item named "%s"' % (what, checkabsent))
+#                else:
+#                    printv('Structure list already has item named "%s"' % (checkabsent), 3, self.settings.verbose)
+#                
+#        if checkexists is not None:
+#            if not checkexists in structlist:
+#                raise AtomicaException('Structure list has no item named "%s"' % (checkexists))
+#        return None
+#
+#
+#    def add(self, name=None, item=None, what=None, overwrite=True, consistentnames=True):
+#        ''' Add an entry to a structure list -- can be used as add('blah', obj), add(name='blah', item=obj), or add(item) '''
+#        if name is None:
+#            try: name = item.name # Try getting name from the item
+#            except: name = 'default' # If not, revert to default
+#        if item is None:
+#            if type(name)!=str: # Maybe an item has been supplied as the only argument
+#                try: 
+#                    item = name # It's actully an item, not a name
+#                    name = item.name # Try getting name from the item
+#                except: raise AtomicaException('Could not figure out how to add item with name "%s" and item "%s"' % (name, item))
+#            else: # No item has been supplied, add a default one
+#                if what=='parset':  
+#                    item = Parameterset(name=name, project=self)
+#                    item.makepars(self.data, verbose=self.settings.verbose) # Create parameters
+#                elif what=='progset': 
+#                    item = Programset(name=name, project=self)
+##                elif what=='scen':
+##                    item = Parscen(name=name)
+##                elif what=='optim': 
+##                    item = Optim(project=self, name=name)
+#                else:
+#                    raise AtomicaException('Unable to add item of type "%s", please supply explicitly' % what)
+#        structlist = self.getwhat(item=item, what=what)
+#        self.checkname(structlist, checkabsent=name, overwrite=overwrite)
+#        structlist[name] = item
+#        if consistentnames: structlist[name].name = name # Make sure names are consistent -- should be the case for everything except results, where keys are UIDs
+##        if hasattr(structlist[name], 'projectref'): structlist[name].projectref = Link(self) # Fix project links
+##        printv('Item "%s" added to "%s"' % (name, what), 3, self.settings.verbose)
+#        self.modified = today()
+#        return None
+#
+#
+#    def remove(self, what=None, name=None):
+#        ''' Remove an entry from a structure list by name '''
+#        if name is None: name = -1 # If no name is supplied, remove the last item
+#        structlist = self.getwhat(what=what)
+#        self.checkname(what, checkexists=name)
+#        structlist.pop(name)
+##        printv('%s "%s" removed' % (what, name), 3, self.settings.verbose)
+#        self.modified = today()
+#        return None
+#
+#
+#    def copy(self, what=None, orig=None, new=None, overwrite=True):
+#        ''' Copy an entry in a structure list '''
+#        if orig is None: orig = -1
+#        if new  is None: new = 'new'
+#        structlist = self.getwhat(what=what)
+#        self.checkname(what, checkexists=orig, checkabsent=new, overwrite=overwrite)
+#        structlist[new] = dcp(structlist[orig])
+#        structlist[new].name = new  # Update name
+#        structlist[new].created = today() # Update dates
+#        structlist[new].modified = today() # Update dates
+##        if hasattr(structlist[new], 'projectref'): structlist[new].projectref = Link(self) # Fix project links
+##        printv('%s "%s" copied to "%s"' % (what, orig, new), 3, self.settings.verbose)
+#        self.modified = today()
+#        return None
+#
+#
+#    def rename(self, what=None, orig=None, new=None, overwrite=True):
+#        ''' Rename an entry in a structure list '''
+#        if orig is None: orig = -1
+#        if new  is None: new = 'new'
+#        structlist = self.getwhat(what=what)
+#        self.checkname(what, checkexists=orig, checkabsent=new, overwrite=overwrite)
+#        structlist.rename(oldkey=orig, newkey=new)
+#        structlist[new].name = new # Update name
+##        printv('%s "%s" renamed "%s"' % (what, orig, new), 3, self.settings.verbose)
+#        self.modified = today()
+#        return None
+#        
+#
+#    def addparset(self,   name=None, parset=None,   overwrite=True): self.add(what='parset',   name=name, item=parset,  overwrite=overwrite)
+#    def addprogset(self,  name=None, progset=None,  overwrite=True): self.add(what='progset',  name=name, item=progset, overwrite=overwrite)
+#    def addscen(self,     name=None, scen=None,     overwrite=True): self.add(what='scen',     name=name, item=scen,    overwrite=overwrite)
+#    def addoptim(self,    name=None, optim=None,    overwrite=True): self.add(what='optim',    name=name, item=optim,   overwrite=overwrite)
+#
+#    def rmparset(self,   name=None): self.remove(what='parset',   name=name)
+#    def rmprogset(self,  name=None): self.remove(what='progset',  name=name)
+#    def rmscen(self,     name=None): self.remove(what='scen',     name=name)
+#    def rmoptim(self,    name=None): self.remove(what='optim',    name=name)
+#
+#
+#    def copyparset(self,  orig=None, new=None, overwrite=True): self.copy(what='parset',   orig=orig, new=new, overwrite=overwrite)
+#    def copyprogset(self, orig=None, new=None, overwrite=True): self.copy(what='progset',  orig=orig, new=new, overwrite=overwrite)
+#    def copyscen(self,    orig=None, new=None, overwrite=True): self.copy(what='scen',     orig=orig, new=new, overwrite=overwrite)
+#    def copyoptim(self,   orig=None, new=None, overwrite=True): self.copy(what='optim',    orig=orig, new=new, overwrite=overwrite)
+#
+#    def renameparset(self,  orig=None, new=None, overwrite=True): self.rename(what='parset',   orig=orig, new=new, overwrite=overwrite)
+#    def renameprogset(self, orig=None, new=None, overwrite=True): self.rename(what='progset',  orig=orig, new=new, overwrite=overwrite)
+#    def renamescen(self,    orig=None, new=None, overwrite=True): self.rename(what='scen',     orig=orig, new=new, overwrite=overwrite)
+#    def renameoptim(self,   orig=None, new=None, overwrite=True): self.rename(what='optim',    orig=orig, new=new, overwrite=overwrite)
+#
+#    #######################################################################################################
+#    ### Utilities
+#    #######################################################################################################
+#
+#    def restorelinks(self):
+#        ''' Loop over all objects that have links back to the project and restore them '''
+#        for item in self.parsets.values()+self.progsets.values()+self.scens.values()+self.optims.values()+self.results.values():
+#            if hasattr(item, 'projectref'):
+#                item.projectref = Link(self)
+#        return None
+#
+#
+#    def pars(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest active set of parameters, i.e. self.parsets[-1].pars '''
+#        try:    return self.parsets[key].pars
+#        except: return printv('Warning, parameters dictionary not found!', 1, verbose) # Returns None
+#    
+#    def parset(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest active parameters set, i.e. self.parsets[-1] '''
+#        try:    return self.parsets[key]
+#        except: return printv('Warning, parameter set not found!', 1, verbose) # Returns None
+#    
+#    def programs(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest active set of programs '''
+#        try:    return self.progsets[key].programs
+#        except: return printv('Warning, programs not found!', 1, verbose) # Returns None
+#
+#    def progset(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest active program set, i.e. self.progsets[-1]'''
+#        try:    return self.progsets[key]
+#        except: return printv('Warning, program set not found!', 1, verbose) # Returns None
+#    
+#    def scen(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest scenario, i.e. self.scens[-1]'''
+#        try:    return self.scens[key]
+#        except: return printv('Warning, scenario not found!', 1, verbose) # Returns None
+#
+#    def optim(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest optimization, i.e. self.optims[-1]'''
+#        try:    return self.optims[key]
+#        except: return printv('Warning, optimization not found!', 1, verbose) # Returns None
+#
+#    def result(self, key=-1, verbose=2):
+#        ''' Shortcut for getting the latest active results, i.e. self.results[-1]'''
+#        try:    return self.results[key]
+#        except: return printv('Warning, results set not found!', 1, verbose) # Returns None
 
 
     #######################################################################################################
@@ -491,22 +491,22 @@ class Project(object):
 ##            self.modified = today() # Only change the modified date if the results are stored
 ##        
 #        return simparslist #TEMP: return interpolated parameters
-
-
-    def calibrate(self):
-        ''' Function to perform automatic calibration '''
-        pass
-    
-    def outcome(self):
-        ''' Function to get the outcome for a particular sim and objective'''
-        pass
-    
-    def runscenarios(self):
-        '''Run the specified scenarios'''
-        pass
-    
-    def optimize(self):
-        '''Run an optimization'''
+#
+#
+#    def calibrate(self):
+#        ''' Function to perform automatic calibration '''
+#        pass
+#    
+#    def outcome(self):
+#        ''' Function to get the outcome for a particular sim and objective'''
+#        pass
+#    
+#    def runscenarios(self):
+#        '''Run the specified scenarios'''
+#        pass
+#    
+#    def optimize(self):
+#        '''Run an optimization'''
     
     
     def save(self, filename=None, folder=None, verbose=2):
@@ -517,27 +517,27 @@ class Project(object):
         return fullpath
 
 
-    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):
-        '''
-        Export a script that, when run, generates this project.
-        '''
-        
-        fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='py', sanitize=True)
-        
-#        if datasheetpath is None:
-#            spreadsheetpath = self.name+'.xlsx'
-#            self.createDatabook(filename=spreadsheetpath, folder=folder) ## TODO: first need to make sure that data can be written back to excel
-#            printv('Generated spreadsheet from project %s and saved to file %s' % (self.name, spreadsheetpath), 2, verbose)
-
-        output = "'''\nSCRIPT TO GENERATE PROJECT %s\n" %(self.name)
-        output += "Created %s\n\n\n" %(today())
-        output += "THIS METHOD IS NOT FUNCTIONAL YET'''\n\n\n"
-
-        f = open(fullpath, 'w')
-        f.write( output )
-        f.close()
-        printv('Saved project %s to script file %s' % (self.name, fullpath), 2, verbose)
-        return None
+#    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):
+#        '''
+#        Export a script that, when run, generates this project.
+#        '''
+#        
+#        fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='py', sanitize=True)
+#        
+##        if datasheetpath is None:
+##            spreadsheetpath = self.name+'.xlsx'
+##            self.createDatabook(filename=spreadsheetpath, folder=folder) ## TODO: first need to make sure that data can be written back to excel
+##            printv('Generated spreadsheet from project %s and saved to file %s' % (self.name, spreadsheetpath), 2, verbose)
+#
+#        output = "'''\nSCRIPT TO GENERATE PROJECT %s\n" %(self.name)
+#        output += "Created %s\n\n\n" %(today())
+#        output += "THIS METHOD IS NOT FUNCTIONAL YET'''\n\n\n"
+#
+#        f = open(fullpath, 'w')
+#        f.write( output )
+#        f.close()
+#        printv('Saved project %s to script file %s' % (self.name, fullpath), 2, verbose)
+#        return None
 
         
         
