@@ -32,9 +32,9 @@ if "makeframeworkfile" in torun:
     
     # Convenient class method that creates a template for a framework without needing the object to exist.
     aui.ProjectFramework.createTemplate(path=tmpdir+"framework_test.xlsx", num_comps=4, num_pars=6, num_characs=8)
-	
+    
 if "makeframework" in torun:
-    F = aui.ProjectFramework(name="SIR", frameworkfilename="./frameworks/framework_sir.xlsx")
+    F = aui.ProjectFramework(name="SIR", file_path="./frameworks/framework_sir.xlsx")
 
 
 if "saveframework" in torun:
@@ -42,7 +42,7 @@ if "saveframework" in torun:
 
 
 if "loadframework" in torun:
-    F = sc.loadobj(tmpdir+"testframework.frw")
+    F = aui.ProjectFramework.load(tmpdir+"testframework.frw")
 
 
 if "makedatabook" in torun:
