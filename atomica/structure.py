@@ -351,8 +351,8 @@ class CoreProjectStructure(object):
     def save(self, file_path):
         """ Save the current project structure to a relevant object file. """
         file_extension = None
-        if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: file_extension = "frw"
-        if self.structure_key == SS.STRUCTURE_KEY_DATA: file_extension = "dat"
+        if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: file_extension = SS.OBJECT_EXTENSION_FRAMEWORK
+        if self.structure_key == SS.STRUCTURE_KEY_DATA: file_extension = SS.OBJECT_EXTENSION_DATA
         file_path = makefilepath(filename=file_path, ext=file_extension, sanitize=True)  # Enforce file extension.
         saveobj(file_path, self)
     

@@ -25,20 +25,21 @@ Version: 2018mar22
 """
 
 from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, AtomicaException, logger
+from atomica.structure_settings import DatabookSettings as DS
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet#, makesimpars
-from atomica.programs import Programset
+#from atomica.programs import Programset
 from atomica.model import runModel
-from atomica.results import ResultSet
-from atomica.workbook_export import writeWorkbook
+#from atomica.results import ResultSet
+from atomica.workbook_export import writeWorkbook, makeInstructions
 from atomica.workbook_import import readWorkbook
 from atomica._version import __version__
-from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, uuid
+from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
 
-from numpy.random import seed, randint
+#from numpy.random import seed, randint
 
 @applyToAllMethods(logUsage)
 class Project(object):
@@ -99,13 +100,15 @@ class Project(object):
     #######################################################################################################
     ### Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def createDatabook(self, databook_path=None, instructions=None, databook_type=SS.DATABOOK_DEFAULT_TYPE):
+    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None, databook_type=SS.DATABOOK_DEFAULT_TYPE):
         """
         Generate an empty data-input Excel spreadsheet corresponding to the framework of this project.
-        An object in the form of DatabookInstructions can optionally be passed in to describe how many databook items should be templated.
         """
         if databook_path is None: databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
-        writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+        databook_instructions, _ = makeInstructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
+        if not num_pops is None: databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)     # Set the number of populations.
+        if not num_progs is None: databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)      # Set the number of programs.
+        writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 
     def loadDatabook(self, filename=None, folder=None, name=None, overwrite=True, dorun=True, **kwargs):
@@ -508,13 +511,15 @@ class Project(object):
 #    def optimize(self):
 #        '''Run an optimization'''
     
+    def save(self, file_path):
+        """ Save the current project to a relevant object file. """
+        file_path = makefilepath(filename=file_path, ext=SS.OBJECT_EXTENSION_PROJECT, sanitize=True)  # Enforce file extension.
+        saveobj(file_path, self)
     
-    def save(self, filename=None, folder=None, verbose=2):
-        ''' Save the current project.'''
-        fullpath = makefilepath(filename=filename, folder=folder, ext='prj', sanitize=True)
-        self.filename = fullpath # Store file path
-        saveobj(fullpath, self, verbose=verbose)
-        return fullpath
+    @classmethod
+    def load(cls, file_path):
+        """ Convenience class method for loading a project in the absence of an instance. """
+        return loadobj(file_path)
 
 
 #    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):

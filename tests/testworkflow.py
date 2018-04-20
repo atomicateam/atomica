@@ -48,10 +48,10 @@ if "loadframework" in torun:
 if "makedatabook" in torun:
     F = aui.ProjectFramework.load(tmpdir+"testframework.frw")
     P = aui.Project(framework=F) # Create a project with no data
-    databook_instructions, _ = aui.makeInstructions(framework=F, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_DATA)
-    databook_instructions.updateNumberOfItems("prog", 3)    # Set the number of programs
-    databook_instructions.updateNumberOfItems("pop", 1)     # Set the number of populations
-    P.createDatabook(databook_path="./databooks/databook_sir_blank.xlsx", instructions=databook_instructions, databook_type=aui.SystemSettings.DATABOOK_DEFAULT_TYPE)
+#    databook_instructions, _ = aui.makeInstructions(framework=F, data=None, workbook_type=aui.SystemSettings.STRUCTURE_KEY_DATA)
+#    databook_instructions.updateNumberOfItems("prog", 3)    # Set the number of programs
+#    databook_instructions.updateNumberOfItems("pop", 1)     # Set the number of populations
+    P.createDatabook(databook_path="./databooks/databook_sir_blank.xlsx", num_pops=1, num_progs=3)
 
 
 if "makeproject" in torun:
@@ -66,5 +66,5 @@ if "saveproject" in torun:
 
 
 if "loadproject" in torun:
-    P = sc.loadobj(tmpdir+"testproject.prj")
+    P = aui.Project.load(tmpdir+"testproject.prj")
 

@@ -30,7 +30,11 @@ class SystemSettings(object):
     
     STRUCTURE_KEY_DATA = "databook"
     STRUCTURE_KEY_FRAMEWORK = "framework_file"
-
+    
+    OBJECT_EXTENSION_PROJECT = ".prj"
+    OBJECT_EXTENSION_FRAMEWORK = ".frw"
+    OBJECT_EXTENSION_DATA = ".dat"
+    
     FRAMEWORK_DEFAULT_TYPE = "example"
     DATABOOK_DEFAULT_TYPE = "standard"
     
