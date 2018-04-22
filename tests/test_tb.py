@@ -21,7 +21,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 
 if "makeframeworkfile" in torun:
     # Choosing an excess of template objects to prove that it is fine to delete them when constructing framework file.
-    aui.ProjectFramework.createTemplate(path=tmpdir+"framework_tb_blank.xlsx", num_comps=40, num_characs=60, num_pars=140)
+    aui.ProjectFramework.createTemplate(path=tmpdir+"framework_tb_blank.xlsx", num_comps=40, num_characs=60, num_pars=140, num_datapages=10)
     
 if "makeframework" in torun:
     F = aui.ProjectFramework(name="TB", file_path="./frameworks/framework_tb.xlsx")

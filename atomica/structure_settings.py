@@ -185,12 +185,13 @@ class BaseStructuralSettings():
         cls.ITEM_TYPE_DESCRIPTOR_KEY[descriptor] = item_type
 
     @classmethod
-    def createItemTypeAttributes(cls, item_type, attributes, content_type = None):
-        for attribute in attributes:
-            attribute_dict = {"header":SS.DEFAULT_SPACE_LABEL.join([item_type, attribute]).title(),
-                              "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute, item_type),
-                              "content_type":content_type}
-            cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute] = attribute_dict
+    def createItemTypeAttributes(cls, item_types, attributes, content_type = None):
+        for item_type in item_types:
+            for attribute in attributes:
+                attribute_dict = {"header":SS.DEFAULT_SPACE_LABEL.join([item_type, attribute]).title(),
+                                  "comment":"This column defines a '{0}' attribute for a '{1}' item.".format(attribute, item_type),
+                                  "content_type":content_type}
+                cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute] = attribute_dict
     
     @classmethod
     def createItemTypeSpecs(cls):
@@ -203,8 +204,8 @@ class BaseStructuralSettings():
             cls.ITEM_TYPE_SPECS[item_type]["superitem_type"] = None         # If this item type is a subitem of another item type, this key notes the superitem.
             cls.createItemTypeDescriptor(item_type = item_type, descriptor = item_type)
             # All items have a code name and display label.
-            cls.createItemTypeAttributes(item_type = item_type, attributes = ["name"], content_type = IDType(name_not_label = True))
-            cls.createItemTypeAttributes(item_type = item_type, attributes = ["label"], content_type = IDType(name_not_label = False))
+            cls.createItemTypeAttributes(item_types = [item_type], attributes = ["name"], content_type = IDType(name_not_label = True))
+            cls.createItemTypeAttributes(item_types = [item_type], attributes = ["label"], content_type = IDType(name_not_label = False))
 
     @classmethod
     def createItemTypeSubitemTypes(cls, item_type, subitem_types):
@@ -294,15 +295,15 @@ def createSpecs(undecorated_class):
     This decorator is required so that derived methods are defined.
     This is done at the import stage; failure means the class starts off incorrect and an import error is thrown.
     """
-    try:
-        undecorated_class.createPageSpecs()
-        undecorated_class.createItemTypeSpecs()
-        undecorated_class.elaborateStructure()
-        loadConfigFile(undecorated_class)
-    except:
-        logger.error("Class '{0}' is unable to process required base class methods for creating specifications. "
-                     "Import failed.".format(undecorated_class.__name__))
-        raise ImportError
+#    try:
+    undecorated_class.createPageSpecs()
+    undecorated_class.createItemTypeSpecs()
+    undecorated_class.elaborateStructure()
+    loadConfigFile(undecorated_class)
+#    except:
+#        logger.error("Class '{0}' is unable to process required base class methods for creating specifications. "
+#                     "Import failed.".format(undecorated_class.__name__))
+#        raise ImportError
     return undecorated_class
 
 
@@ -339,22 +340,26 @@ class FrameworkSettings(BaseStructuralSettings):
                                                                              storage_item_type = cls.KEY_PARAMETER,
                                                                              storage_attribute = "links"))
 
-        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["is_source","is_sink","is_junction"], content_type = SwitchType())
-        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["datapage_order"], content_type = ContentType(enforce_type = int))
-        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, ["setup_weight"], content_type = ContentType(enforce_type = float, default_value = 1))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["datapage_order"], content_type = ContentType(enforce_type = int))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["setup_weight"], content_type = ContentType(enforce_type = float, default_value = 1))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["includes"], 
+        cls.createItemTypeAttributes([cls.KEY_COMPARTMENT], ["is_source","is_sink","is_junction"], content_type = SwitchType())
+        cls.createItemTypeAttributes([cls.KEY_COMPARTMENT], ["setup_weight"], content_type = ContentType(enforce_type = float, default_value = 1))
+        cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], ["setup_weight"], content_type = ContentType(enforce_type = float, default_value = 1))
+        cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], ["includes"], 
                                      content_type = IDRefType(attribute = "name", item_types = [cls.KEY_COMPARTMENT], self_referencing = True, is_list = True))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["denominator"], 
+        cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], ["denominator"], 
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, ["default_value"])
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["datapage_order"], content_type = ContentType(enforce_type = int))
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value",cls.TERM_FUNCTION,"dependencies"])
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
-        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
-        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["tables"], content_type = ContentType(is_list = True))  
-        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["can_skip"], content_type = SwitchType())
+        cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], ["default_value"])
+        cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["format","default_value",cls.TERM_FUNCTION,"dependencies"])
+        cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["links"], content_type = ContentType(is_list = True))
+        cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
+        cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["tables"], content_type = ContentType(is_list = True))  
+        cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["can_skip"], content_type = SwitchType())
+        # TODO: ELABORATE DATA PAGE.
+        cls.createItemTypeAttributes([cls.KEY_COMPARTMENT,cls.KEY_CHARACTERISTIC,cls.KEY_PARAMETER], 
+                                     ["datapage"], 
+                                     content_type = IDRefType(attribute = "name", item_types = [cls.KEY_DATAPAGE]))
+        cls.createItemTypeAttributes([cls.KEY_COMPARTMENT,cls.KEY_CHARACTERISTIC,cls.KEY_PARAMETER], 
+                                     ["datapage_order"], 
+                                     content_type = ContentType(enforce_type = int))
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
         cls.createItemTypeSubitemTypes(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
@@ -376,9 +381,9 @@ class DatabookSettings(BaseStructuralSettings):
         cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
         #cls.createItemTypeAttributes(cls.KEY_PROGRAM, ["target_pops"], IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
-        cls.createItemTypeAttributes(cls.KEY_COMPARTMENT, [cls.TERM_DATA], TimeSeriesType())
-        cls.createItemTypeAttributes(cls.KEY_CHARACTERISTIC, [cls.TERM_DATA], TimeSeriesType())
-        cls.createItemTypeAttributes(cls.KEY_PARAMETER, [cls.TERM_DATA], TimeSeriesType())
+        cls.createItemTypeAttributes([cls.KEY_COMPARTMENT], [cls.TERM_DATA], TimeSeriesType())
+        cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], [cls.TERM_DATA], TimeSeriesType())
+        cls.createItemTypeAttributes([cls.KEY_PARAMETER], [cls.TERM_DATA], TimeSeriesType())
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type = cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type = cls.KEY_PROGRAM))
