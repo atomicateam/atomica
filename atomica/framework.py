@@ -96,8 +96,9 @@ class ProjectFramework(CoreProjectStructure):
                                         self.appendSpecValue(term = page_key, attribute = "tables", value = instantiated_table)
                             else:
                                 self.appendSpecValue(term = page_key, attribute = "tables", value = table)
-
-            else: self.setSpecValue(term = page_key, attribute = "refer_to_default", value = True)
+            # Keep framework specifications minimal by referring to settings when possible.
+            # TODO: Reconsider. Currently does not save much space as attribute dictionary is still constructed by self.createItem().
+            else: self.setSpecValue(term = page_key, attribute = "refer_to_settings", value = True)
             
     def validateSpecs(self):
         """ Check that framework specifications make sense. """

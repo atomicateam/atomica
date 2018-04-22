@@ -433,7 +433,7 @@ def writeWorksheet(workbook, page_key, framework=None, tvec=None, data=None, ins
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
 
     # Construct worksheet.
-    page_title = page_spec["title"]
+    page_title = page_spec["label"]
     logger.info("Creating page: {0}".format(page_title))
     worksheet = workbook.add_worksheet(page_title)
 

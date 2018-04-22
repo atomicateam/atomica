@@ -217,7 +217,7 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
 
     try: 
-        page_title = page_spec["title"]
+        page_title = page_spec["label"]
         logger.info("Importing page: {0}".format(page_title))
         worksheet = workbook.sheet_by_name(page_title)
     except:
