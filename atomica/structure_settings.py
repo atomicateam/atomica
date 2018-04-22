@@ -169,7 +169,7 @@ class BaseStructuralSettings():
     def createPageSpecs(cls):
         cls.PAGE_SPECS = odict()
         for page_key in cls.PAGE_KEYS:
-            cls.PAGE_SPECS[page_key] = {"label":page_key.title()}
+            cls.PAGE_SPECS[page_key] = {"label":page_key.title(), "can_skip":False}
             cls.PAGE_SPECS[page_key]["tables"] = []
 
     @classmethod
@@ -334,6 +334,7 @@ class FrameworkSettings(BaseStructuralSettings):
                                                                          exclude_not_include = True)
                 else: table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
+        cls.PAGE_SPECS[cls.KEY_DATAPAGE]["can_skip"] = True
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_COMPARTMENT,
                                                                              storage_item_type = cls.KEY_PARAMETER,
                                                                              storage_attribute = "links"))
@@ -352,7 +353,8 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["format","default_value",cls.TERM_FUNCTION,"dependencies"])
         cls.createItemTypeAttributes(cls.KEY_PARAMETER, ["links"], content_type = ContentType(is_list = True))
         cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
-        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["tables"], content_type = ContentType(is_list = True))   
+        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["tables"], content_type = ContentType(is_list = True))  
+        cls.createItemTypeAttributes(cls.KEY_DATAPAGE, ["can_skip"], content_type = SwitchType())
         # Subitem type association must be done after all item types and attributes are defined, due to cross-reference formation.
         cls.createItemTypeSubitemTypes(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
         cls.createItemTypeSubitemTypes(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
