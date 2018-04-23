@@ -624,7 +624,7 @@ class Population(object):
             c.vals[0] = max(0.0,x[i])
 
         for c in self.comps:
-            if c.tag_dead:
+            if c.tag_birth or c.tag_dead:
                 c.vals[0] = 0
 
 # %% Model class
