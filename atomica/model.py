@@ -623,6 +623,10 @@ class Population(object):
         for i,c in enumerate(comps):
             c.vals[0] = max(0.0,x[i])
 
+        for c in self.comps:
+            if c.tag_dead:
+                c.vals[0] = 0
+
 # %% Model class
 class Model(object):
     ''' A class to wrap up multiple populations within model and handle cross-population transitions. '''
