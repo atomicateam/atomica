@@ -7,7 +7,6 @@ from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage
 from atomica.structure import CoreProjectStructure, TimeSeries
-from sciris.core import objrepr, gitinfo
 from atomica._version import __version__
 
 @applyToAllMethods(logUsage)
@@ -16,13 +15,6 @@ class ProjectData(CoreProjectStructure):
     def __init__(self, **kwargs):
         """ Initialize the data container. """
         super(ProjectData, self).__init__(structure_key = SS.STRUCTURE_KEY_DATA, **kwargs)
-        self.version = __version__
-        self.gitinfo = gitinfo()
-        
-#    def __repr__(self):
-#        ''' Print out useful information when called '''
-#        output = objrepr(self)
-#        return output
     
     def completeSpecs(self, framework, **kwargs):
         """

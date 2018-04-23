@@ -6,7 +6,7 @@ import atomica.ui as aui
 import os
 
 test = "sir"
-test = "tb"
+#test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -38,8 +38,8 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with no data
-    if test == "sir": P.createDatabook(databook_path="./databooks/databook_sir_blank.xlsx", num_pops=1, num_progs=3)
-    elif test == "tb": P.createDatabook(databook_path="./databooks/databook_tb_blank.xlsx", num_pops=7, num_progs=14)
+    if test == "sir": P.createDatabook(databook_path=tmpdir+"databook_sir_blank.xlsx", num_pops=1, num_progs=3)
+    elif test == "tb": P.createDatabook(databook_path=tmpdir+"databook_tb_blank.xlsx", num_pops=7, num_progs=14)
 
 if "makeproject" in torun:
     P = aui.Project(name=test.upper()+" project", framework=F, databook="./databooks/databook_"+test+".xlsx")
@@ -49,7 +49,7 @@ if "makeplots" in torun:
         P.results[0].getVariable("adults",var)[0].plot()
 
 if "export" in torun:
-    P.results[0].export(test+"_results")
+    P.results[0].export(tmpdir+test+"_results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
