@@ -2,6 +2,7 @@
 
 from atomica.system import AtomicaException, logger # CK: warning, should relabel exception
 from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure import convertQuantity
 #from optima_tb.validation import checkTransitionFraction # CK: warning, should not import optima_tb!!
 #import optima_tb.settings as project_settings
 from atomica.results import Result
@@ -700,7 +701,7 @@ class Model(object):
 
         if options is None: options = dict()
 
-        self.t = settings.maketvec() # NB. returning a mutable variable in a class @property method returns a new object each time
+        self.t = settings.makeTimeVector() # NB. returning a mutable variable in a class @property method returns a new object each time
         self.dt = settings.dt
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
@@ -723,8 +724,8 @@ class Model(object):
                 par = pop.getPar(cascade_par.name) # Find the parameter with the requested name
                 par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                 # par.scale_factor = cascade_par.y_factor[pop_name]
-                # if par.links:
-                #     par.units = cascade_par.y_format[pop_name]
+                if par.links:
+                    par.units = cascade_par.y_format[pop_name]
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -887,16 +888,16 @@ class Model(object):
 
 #                        if link.parameter.units == 'fraction':
 #                            # check if there are any violations, and if so, deal with them
-                        if transition > 1.:
-                            transition = checkTransitionFraction(transition, settings.validation)
-                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
-                        if link.source.tag_birth:
-                            n_alive = 0
-                            for p in self.pops:
-                                n_alive += p.popsize(ti)
-                            converted_amt = n_alive * converted_frac
-                        else:
-                            converted_amt = comp_source.vals[ti] * converted_frac
+#                        if transition > 1.:
+#                            transition = checkTransitionFraction(transition, settings.validation)
+#                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
+#                        if link.source.tag_birth:
+#                            n_alive = 0
+#                            for p in self.pops:
+#                                n_alive += p.popsize(ti)
+#                            converted_amt = n_alive * converted_frac
+#                        else:
+#                            converted_amt = comp_source.vals[ti] * converted_frac
 #                        elif link.parameter.units == 'number':
 #                            converted_amt = transition * dt
 #                            if link.is_transfer:
@@ -905,7 +906,11 @@ class Model(object):
 #                        else:
 #                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
-                        outflow[i] = converted_amt
+                        value = convertQuantity(value = transition, initial_type = link.parameter.units, 
+                                                                    final_type = FS.QUANTITY_TYPE_NUMBER, 
+                                                                    set_size = comp_source.vals[ti], dt = self.dt)
+
+                        outflow[i] = value
 
                     # Prevent negative population by proportionately downscaling the outflow
                     # if there are insufficient people _currently_ in the compartment

@@ -170,9 +170,13 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                 while col < worksheet.ncols:
                     val = str(worksheet.cell_value(row, col))
                     if not val in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
+                        header = str(worksheet.cell_value(header_row, col))
+                        if header == ES.QUANTITY_TYPE_HEADER:
+                            structure.getSpec(term = item_key)[value_attribute].setFormat(key = structure.getSpecName(label), value_format = val.lower())
+                            col += 1
+                            continue
                         try: val = float(val)
                         except: raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
-                        header = str(worksheet.cell_value(header_row, col))
                         if header == ES.ASSUMPTION_HEADER:
                             structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val)
                             break
@@ -226,13 +230,14 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
         row, col = readTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
                              framework = framework, data = data, workbook_type = workbook_type)
 
-
+# TODO: Make this less hardcoded.
 def getyears(sheetdata):
     ''' Get years from a worksheet'''
     years = [] # Initialize data years
     for col in range(3,sheetdata.ncols): 
         thiscell = sheetdata.cell_value(0,col) # 3 is because we start in column 3
-        years.append(float(thiscell)) # Add this year
+        try: years.append(float(thiscell)) # Add this year
+        except: continue
     
     return years
 
@@ -251,13 +256,14 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
         raise
 
     # Check workbook type and initialise output
+    # TODO: Is there a better way to do this?
     if workbook_type in [SS.STRUCTURE_KEY_FRAMEWORK]:
         workbookout = odict() # TODO add whatever output you want here
     elif workbook_type in [SS.STRUCTURE_KEY_DATA]:
         workbookout = odict()
         ## Open workbook and calculate columns for which data are entered, and store the year ranges
-        sheetdata = workbook.sheet_by_name('Parameters') # Load this workbook
-        workbookout['datayears'] = getyears(sheetdata)
+        sheetdata = workbook.sheet_by_name("Parameters") # Load this workbook
+        workbookout["datayears"] = getyears(sheetdata)
     else:
         raise WorkbookTypeException(workbook_type)
 
@@ -267,7 +273,7 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
                       framework = framework, data = data, workbook_type = workbook_type)
             
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-    structure.completeSpecs()
-    structure.name = workbook_path
+    structure.completeSpecs(framework = framework)
+    structure.frameworkfilename = workbook_path
     
     return workbookout

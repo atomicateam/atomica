@@ -86,7 +86,9 @@ class Parameter(object):
         cleaned_times = input_t[~np.isnan(input_y)] # NB. numpy advanced indexing here results in a copy
         cleaned_vals = input_y[~np.isnan(input_y)]
 
-        if len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
+        if len(cleaned_times) == 0: # If there are no timepoints after cleaning, this may be a calculated parameter.
+            output = np.ones(len(tvec)) * np.nan
+        elif len(cleaned_times) == 1:  # If there is only one timepoint, corresponding cost and cov values should be real valued after loading databook. But can double-validate later.
             output = np.ones(len(tvec)) * (cleaned_vals)[0]  # Don't bother running interpolation loops if constant. Good for performance.
         else:
             # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
@@ -175,9 +177,8 @@ class ParameterSet(object):
                 self.pars[item_group].append(Parameter(name = name))
                 series = data.getSpecValue(name, DS.TERM_DATA)
                 for pop_id in series.keys:
-                    if pop_id == "t": continue
-                    tvec = np.array([np.nan if t is None else t for t in series.values])
-                    yvec = np.array([np.nan if series.getValue(key = pop_id, t = t) is None else series.getValue(key = pop_id, t = t) for t in series.values])
+                    tvec = np.array([np.nan if t is None else t for t in series.values if not t == "format"])
+                    yvec = np.array([np.nan if series.getValue(key = pop_id, t = t) is None else series.getValue(key = pop_id, t = t) for t in series.values if not t == "format"])
                     # TODO: Deal with assumptions in a better way by storing them regardless under assumption attribute.
                     #       For now, convert assumption from None to year 0 if no other values exist, otherwise delete assumption index (its value should have been ignored during data import).
 #                    if tvec[0] is None:
@@ -187,6 +188,7 @@ class ParameterSet(object):
 #                        del yvec[0]
                     self.pars[item_group][-1].t[pop_id] = tvec
                     self.pars[item_group][-1].y[pop_id] = yvec
+                    self.pars[item_group][-1].y_format[pop_id] = series.getFormat(key = pop_id)
 #                self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
 #                if data[DS.KEY_PARAMETER][name][pop_id]["y_factor"] == DO_NOT_SCALE:
 #                    self.pars["cascade"][-1].y_factor[pop_id] = DEFAULT_YFACTOR

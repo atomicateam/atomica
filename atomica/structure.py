@@ -1,7 +1,11 @@
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage, AtomicaException
-from sciris.core import odict
+from atomica._version import __version__
+from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj
+
+
+import numpy as np
 
 class SemanticUnknownException(AtomicaException):
     def __init__(self, term, attribute = None, **kwargs):
@@ -9,6 +13,60 @@ class SemanticUnknownException(AtomicaException):
         if not attribute is None: extra_message = ", attribute '{0}',".format(attribute)
         message = "Term '{0}'{1} is not recognised by the project.".format(term, extra_message)
         return super().__init__(message, **kwargs)
+    
+def getQuantityTypeList(include_absolute = False, include_relative = False):
+    quantity_types = []
+    if include_absolute: quantity_types += [FS.QUANTITY_TYPE_NUMBER]
+    if include_relative: quantity_types += [FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
+    return quantity_types
+    
+def convertQuantity(value, initial_type, final_type, set_size = None, dt = 1.0):
+    """
+    Converts a quantity from one type to another and applies a time conversion if requested.
+    All values must be provided with respect to the project unit of time, e.g. a year.
+    Note: Time conversion should only be applied to rate-based quantities, not state variables.
+    """
+    absolute_types = [FS.QUANTITY_TYPE_NUMBER]
+    relative_types = [FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
+    initial_class = SS.QUANTITY_TYPE_ABSOLUTE if initial_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
+    final_class = SS.QUANTITY_TYPE_ABSOLUTE if final_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
+    value = float(value)    # Safety conversion for type.
+    
+    if not initial_type in absolute_types + relative_types: 
+        raise AtomicaException("An attempt to convert a quantity between types was made, "
+                               "but initial type '{0}' was not recognised.".format(initial_type))
+    if not final_type in absolute_types + relative_types:
+        raise AtomicaException("An attempt to convert a quantity between types was made, "
+                               "but final type '{0}' was not recognised.".format(final_type))
+        
+    # Convert the value of all input quantities to standardised 'absolute' or 'relative' format.
+    if initial_type == FS.QUANTITY_TYPE_DURATION:
+        value = 1.0 - np.exp(-1.0/value)
+    
+    # Convert between standard 'absolute' and 'relative' formats, if applicable.
+    if not initial_class == final_class:
+        if set_size is None:
+            raise AtomicaException("An attempt to convert a quantity between absolute and relative types was made, "
+                                   "but no set size was provided as the denominator for conversion.")
+        if initial_class == SS.QUANTITY_TYPE_ABSOLUTE: value = value/set_size
+        else: value = value*set_size
+        
+    # Convert value from standardised 'absolute' or 'relative' formats to that which is requested.
+    if final_type == FS.QUANTITY_TYPE_DURATION:
+        value = -1.0/np.log(1.0 - value)
+
+    # Convert to the corresponding timestep value.
+    if not dt == 1.0:
+        if final_type == FS.QUANTITY_TYPE_DURATION:
+            value /= dt     # Average duration before transition in number of timesteps.
+        elif final_type == FS.QUANTITY_TYPE_PROBABILITY:
+            value = 1 - (1 - value)**dt
+        elif final_type in [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_FRACTION]:
+            value *= dt
+        else: raise AtomicaException("Time conversion for type '{0}' is not known.".format(final_type))
+    
+    return value
+    
 
 class TimeSeries(object):
     """ 
@@ -20,13 +78,13 @@ class TimeSeries(object):
                        2020.0:[2,2001,-50]}
     Note: The values structure contains special lists for assumptions and formats.
     """
-    def __init__(self, keys = None):
+    def __init__(self, keys = None, default_format = None):
         self.keys = keys
         self.key_id_map = dict()
         for id, key in enumerate(self.keys):
             self.key_id_map[key] = id
         self.values = {None:[None]*len(self.keys),
-                       "format":[None]*len(self.keys)}
+                       "format":[default_format]*len(self.keys)}
 
     def getValue(self, key, t = None):
         try: return self.values[t][self.key_id_map[key]]
@@ -68,6 +126,30 @@ class CoreProjectStructure(object):
         self.structure_key = structure_key
 
         self.initSpecs()
+        
+        # Standard metadata.
+        self.uid = uuid()
+        self.created = today()
+        self.modified = today()
+        self.version = __version__
+        self.git_info = gitinfo()
+        self.workbook_load_date = "N.A."
+
+    def __repr__(self):
+        output = objrepr(self)
+        output += self.getMetadataString()
+        output += "="*60 + "\n"
+        return output
+    
+    def getMetadataString(self):
+        meta =  "   Atomica version: %s\n"    % self.version
+        meta += "      Date created: %s\n"    % getdate(self.created)
+        meta += "     Date modified: %s\n"    % getdate(self.modified)
+        meta += "   Workbook loaded: %s\n"    % getdate(self.workbook_load_date)
+        meta += "        Git branch: %s\n"    % self.git_info['branch']
+        meta += "          Git hash: %s\n"    % self.git_info['hash']
+        meta += "               UID: %s\n"    % self.uid
+        return meta
 
     def initSpecs(self):
         """ Initialize the uppermost layer of structure specifications (i.e. base item types) according to corresponding settings. """
@@ -259,9 +341,22 @@ class CoreProjectStructure(object):
         try: return semantic[attribute]
         except: raise SemanticUnknownException(term = term, attribute = attribute)
 
-    def completeSpecs(self):
+    def completeSpecs(self, **kwargs):
         """
         An overloaded method for completing specifications that is called at the end of a file import.
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
         pass
+    
+    def save(self, file_path):
+        """ Save the current project structure to a relevant object file. """
+        file_extension = None
+        if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: file_extension = SS.OBJECT_EXTENSION_FRAMEWORK
+        if self.structure_key == SS.STRUCTURE_KEY_DATA: file_extension = SS.OBJECT_EXTENSION_DATA
+        file_path = makefilepath(filename=file_path, ext=file_extension, sanitize=True)  # Enforce file extension.
+        saveobj(file_path, self)
+    
+    @classmethod
+    def load(cls, file_path):
+        """ Convenience class method for loading a project structure in the absence of an instance. """
+        return loadobj(file_path)
