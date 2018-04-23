@@ -96,8 +96,9 @@ class ProjectFramework(CoreProjectStructure):
                                         self.appendSpecValue(term = page_key, attribute = "tables", value = instantiated_table)
                             else:
                                 self.appendSpecValue(term = page_key, attribute = "tables", value = table)
-
-            else: self.setSpecValue(term = page_key, attribute = "refer_to_default", value = True)
+            # Keep framework specifications minimal by referring to settings when possible.
+            # TODO: Reconsider. Currently does not save much space as attribute dictionary is still constructed by self.createItem().
+            else: self.setSpecValue(term = page_key, attribute = "refer_to_settings", value = True)
             
     def validateSpecs(self):
         """ Check that framework specifications make sense. """
@@ -118,12 +119,13 @@ class ProjectFramework(CoreProjectStructure):
             
 
     @classmethod
-    def createTemplate(cls, path, num_comps=None, num_characs=None, num_pars=None):
+    def createTemplate(cls, path, num_comps=None, num_characs=None, num_pars=None, num_datapages=None):
         """ Convenience class method for template creation in the absence of an instance. """
         framework_instructions, _ = makeInstructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
-        if not num_comps is None: framework_instructions.updateNumberOfItems(FS.KEY_COMPARTMENT, num_comps)             # Set the number of compartments.
-        if not num_characs is None: framework_instructions.updateNumberOfItems(FS.KEY_CHARACTERISTIC, num_characs)      # Set the number of characteristics.
-        if not num_pars is None: framework_instructions.updateNumberOfItems(FS.KEY_PARAMETER, num_pars)                 # Set the number of parameters.
+        if not num_comps is None:       framework_instructions.updateNumberOfItems(FS.KEY_COMPARTMENT, num_comps)           # Set the number of compartments.
+        if not num_characs is None:     framework_instructions.updateNumberOfItems(FS.KEY_CHARACTERISTIC, num_characs)      # Set the number of characteristics.
+        if not num_pars is None:        framework_instructions.updateNumberOfItems(FS.KEY_PARAMETER, num_pars)              # Set the number of parameters.
+        if not num_datapages is None:   framework_instructions.updateNumberOfItems(FS.KEY_DATAPAGE, num_datapages)          # Set the number of custom databook pages.
     
         writeWorkbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
             

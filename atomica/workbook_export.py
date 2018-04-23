@@ -374,7 +374,7 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
         if "denominator" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["denominator"] is None:
             quantity_types = [FS.QUANTITY_TYPE_FRACTION.title()]
         else: quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
-    elif "format" in item_specs[item_type][item_key]:   # Modeller's choice for parameters.
+    elif "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:   # Modeller's choice for parameters.
         quantity_types = [item_specs[item_type][item_key]["format"].title()]
     else:   # User's choice for parameters.
         quantity_types = [x.title() for x in getQuantityTypeList(include_absolute = True, include_relative = True)]
@@ -433,7 +433,7 @@ def writeWorksheet(workbook, page_key, framework=None, tvec=None, data=None, ins
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
 
     # Construct worksheet.
-    page_title = page_spec["title"]
+    page_title = page_spec["label"]
     logger.info("Creating page: {0}".format(page_title))
     worksheet = workbook.add_worksheet(page_title)
 

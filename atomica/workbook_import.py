@@ -215,12 +215,14 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
 def readWorksheet(workbook, page_key, framework = None, data = None, workbook_type = None):
 
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
-
     try: 
-        page_title = page_spec["title"]
-        logger.info("Importing page: {0}".format(page_title))
+        page_title = page_spec["label"]
         worksheet = workbook.sheet_by_name(page_title)
+        logger.info("Importing page: {0}".format(page_title))
     except:
+        if "can_skip" in page_spec and page_spec["can_skip"] is True:
+            logger.warn("Workbook does not contain an optional page titled '{0}'.".format(page_title))
+            return
         logger.error("Workbook does not contain a required page titled '{0}'.".format(page_title))
         raise
 

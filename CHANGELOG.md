@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.6.0 (2018-04-23): Establishing Complex Workflow
+
+Features
+- A new file is set up to port and test workflow from Optima TB: test_tb.py
+- Custom databook pages enabled in the framework file.
+
+Edits
+- Stylistic changes applied, primarily taking method/function names to snake case.
+
 ## 0.5.1 (2018-04-11): Improved Model Construction
 
 Features
