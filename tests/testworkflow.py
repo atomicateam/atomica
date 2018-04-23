@@ -13,6 +13,7 @@ torun = [
 "makedatabook",
 "makeproject",
 "makeplots",
+"export",
 "saveproject",
 "loadproject",
 ]
@@ -40,8 +41,11 @@ if "makeproject" in torun:
     
 if "makeplots" in torun:
     for var in ["sus","inf","rec","dead","ch_all","foi"]:
-        P.results[0].getPop("adults").getVariable(var)[0].plot()
+        P.results[0].getVariable("adults",var)[0].plot()
 
+if "export" in torun:
+    P.results[0].export('test')
+    
 if "saveproject" in torun:
     P.save(tmpdir+"testproject.prj")
 
