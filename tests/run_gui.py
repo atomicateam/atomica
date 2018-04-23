@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core graphical user interface (GUI) script.
+Atomica graphical user interface (GUI) script.
 Launches the GUI.
 """
 

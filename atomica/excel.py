@@ -5,9 +5,8 @@ Contains functionality specific to Excel input and output.
 """
 
 from atomica.system import SystemSettings as SS
-from atomica.system import logger, logUsage, accepts, returns, OptimaException
+from atomica.system import logger, logUsage, accepts, returns, AtomicaException
 
-from six import moves as sm
 import xlsxwriter as xw
 import xlrd
 
@@ -52,6 +51,15 @@ class ExcelSettings(object):
                           "Alternatively, the user can leave the cell blank.\n"
                           "However, any other value will override the time-dependent "
                           "values during a model run.")
+    QUANTITY_TYPE_HEADER = "quantity_type".replace("_"," ").title()
+    QUANTITY_TYPE_COLUMN_WIDTH = 15
+    QUANTITY_TYPE_COMMENT_XSCALE = 3
+    QUANTITY_TYPE_COMMENT_YSCALE = 3
+    QUANTITY_TYPE_COMMENT = ("This column displays the type of quantity that the databook is "
+                             "requesting, e.g. probability, duration, number, etc.\n"
+                             "In some cases, the user may select the format for the data, "
+                             "to align with data collection pragmatics, and appropriate "
+                             "conversions will be done internally to the model.")
 
 #%% Utility functions for writing.
 
@@ -80,7 +88,9 @@ def createDefaultFormatVariables():
     return format_variables
 
 @accepts(xw.worksheet.Worksheet,int,int,int)
-def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vector = None, default_values = None, formats = None):
+def createValueEntryBlock(excel_page, start_row, start_col, num_items, 
+                          time_vector = None, default_values = None, formats = None,
+                          quantity_types = None):
     """ Create a block where users enter values in a 'constant' column or as time-dependent array. """
     # Generate standard formats if they do not exist.
     if formats is None:
@@ -90,7 +100,16 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
     if time_vector is None: time_vector = []
     if default_values is None: default_values = [0.0]*num_items
 
+    # Start with the headers and column formats.
     row, col = start_row, start_col
+    # If a list of quantity types exists for the data, create a corresponding column.
+    if not quantity_types is None:
+        excel_page.write(row, col, ExcelSettings.QUANTITY_TYPE_HEADER, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
+        excel_page.write_comment(row, col, ExcelSettings.QUANTITY_TYPE_COMMENT, 
+                                 {"x_scale": ExcelSettings.QUANTITY_TYPE_COMMENT_XSCALE, 
+                                  "y_scale": ExcelSettings.QUANTITY_TYPE_COMMENT_YSCALE})
+        excel_page.set_column(col, col, ExcelSettings.QUANTITY_TYPE_COLUMN_WIDTH)
+        col += 1
     excel_page.write(row, col, ExcelSettings.ASSUMPTION_HEADER, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
     excel_page.write_comment(row, col, ExcelSettings.ASSUMPTION_COMMENT, 
                              {"x_scale": ExcelSettings.ASSUMPTION_COMMENT_XSCALE, 
@@ -98,14 +117,20 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items, time_vect
     excel_page.set_column(col, col, ExcelSettings.ASSUMPTION_COLUMN_WIDTH)
     if len(time_vector) > 0:
         col += 2
+        rc_start = xw.utility.xl_rowcol_to_cell(row, col)
+        rc_end = xw.utility.xl_rowcol_to_cell(row, col + len(time_vector) - 1)
         for t_val in time_vector:
             excel_page.write(row, col, t_val, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
             col += 1
-    for item_number in sm.range(num_items):
+    
+    # Flesh out the contents.
+    col = start_col
+    for item_number in range(num_items):
         row += 1
-        col = start_col
-        rc_start = xw.utility.xl_rowcol_to_cell(row, col + 1 + 1)
-        rc_end = xw.utility.xl_rowcol_to_cell(row, col + 1 + len(time_vector))
+        if not quantity_types is None:
+            excel_page.write(row, col, quantity_types[0])
+            excel_page.data_validation(xw.utility.xl_rowcol_to_cell(row, col), {"validate": "list", "source": quantity_types})
+            col += 1
         if len(time_vector) > 0:
             excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), None, default_values[item_number])
             excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats[ExcelSettings.FORMAT_KEY_CENTER])
@@ -125,14 +150,14 @@ def extractHeaderColumnsMapping(excel_page, row = 0):
     """
     header_columns_map = dict()
     current_header = None
-    for col in sm.range(excel_page.ncols):
+    for col in range(excel_page.ncols):
         header = str(excel_page.cell_value(row, col))
         if not header == "":
             if not header in header_columns_map: header_columns_map[header] = [col, col]
             elif not current_header == header:
                 error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
                 logger.error(error_message)
-                raise OptimaException(error_message)
+                raise AtomicaException(error_message)
             current_header = header
         if not current_header is None: header_columns_map[current_header][-1] = col
     return header_columns_map

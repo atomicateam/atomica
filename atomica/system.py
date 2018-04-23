@@ -30,9 +30,16 @@ class SystemSettings(object):
     
     STRUCTURE_KEY_DATA = "databook"
     STRUCTURE_KEY_FRAMEWORK = "framework_file"
-
+    
+    OBJECT_EXTENSION_PROJECT = ".prj"
+    OBJECT_EXTENSION_FRAMEWORK = ".frw"
+    OBJECT_EXTENSION_DATA = ".dat"
+    
     FRAMEWORK_DEFAULT_TYPE = "example"
     DATABOOK_DEFAULT_TYPE = "standard"
+    
+    QUANTITY_TYPE_ABSOLUTE = "absolute"
+    QUANTITY_TYPE_RELATIVE = "relative"
     
     DEFAULT_SPACE_LABEL = " "
     DEFAULT_SPACE_NAME = "_"
@@ -46,16 +53,15 @@ class SystemSettings(object):
 
 #%% Code for determining module installation directory.
 
-# Tool path
 def atomicaPath(subdir=None, trailingsep=True):
-    ''' Returns the parent path of the Atomica module. If subdir is not None, include it in the path '''
+    """ Returns the parent path of the Atomica module. If subdir is not None, include it in the path. """
     import os
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if subdir is not None:
-        if not isinstance(subdir, list): subdir = [subdir] # Ensure it's a list
+        if not isinstance(subdir, list): subdir = [subdir]  # Ensure it's a list.
         tojoin = [path] + subdir
-        if trailingsep: tojoin.append('') # This ensures it ends with a separator
-        path = os.path.join(*tojoin) # e.g. ['/home/optima', 'tests', '']
+        if trailingsep: tojoin.append('')   # This ensures it ends with a separator.
+        path = os.path.join(*tojoin)        # For example: ['/home/atomica', 'tests', '']
     return path
 
 #%% Code for creating a directory if it does not exist.
@@ -78,7 +84,7 @@ logger = logging.getLogger("atomica")
 
 #%% Code for an exception specific to Atomica.
 
-class OptimaException(Exception): # CK: needs to be renamed
+class AtomicaException(Exception): # CK: needs to be renamed
     """ A wrapper class to allow for Atomica-specific exceptions. """
     def __init(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)

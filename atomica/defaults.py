@@ -6,7 +6,7 @@ Version: 2018mar27
 from sciris.core import printv # TODO replace
 from atomica.framework import ProjectFramework
 from atomica.project import Project
-from atomica.system import OptimaException # TODO rename
+from atomica.system import AtomicaException
 from atomica.system import atomicaPath
 
 
@@ -36,7 +36,7 @@ def defaultproject(which='sir', verbose=2, **kwargs):
         P = Project(framework=F, databook=atomicaPath(['tests','databooks'])+"databook_sir.xlsx")
         
     else:
-        raise OptimaException('Default project type "%s" not understood: choices are "sir"' % which)
+        raise AtomicaException('Default project type "%s" not understood: choices are "sir"' % which)
     return P
 
 

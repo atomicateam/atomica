@@ -5,10 +5,11 @@ Version: 2018mar26
 
 ### Imports
 #from numpy import append, array, inf
-#from optima import OptimaException, Multiresultset # Core classes/functions
+#from optima import AtomicaException, Multiresultset # Core classes/functions
 #from optima import dcp, today, findinds, vec2obj, isnumber, promotetoarray # Utilities
-from optima import defaultrepr, printv, OptimaException, odict, Link # TODO - replace utilities imports 
+from atomica.system import AtomicaException
 from atomica.results import getresults
+from sciris.core import defaultrepr, printv, odict, Link # TODO - replace utilities imports 
 
 class Scen(object):
     ''' 
@@ -93,7 +94,7 @@ def makescenarios(project=None, scenlist=None, verbose=2, ccsample=False, randse
 
 def baselinescenario(parset=None, verbose=2):
     """ Define the baseline scenario -- "Baseline" by default """
-    if parset is None: raise OptimaException('You need to supply a parset to generate default scenarios')
+    if parset is None: raise AtomicaException('You need to supply a parset to generate default scenarios')
     
     scenlist = [Parscen()]
     

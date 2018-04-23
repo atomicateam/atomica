@@ -1,7 +1,7 @@
 from atomica.system import SystemSettings as SS
 from atomica.excel import ExcelSettings as ES
 
-from atomica.system import logger, OptimaException, accepts, displayName
+from atomica.system import logger, AtomicaException, accepts, displayName
 from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType
 from atomica.structure import TimeSeries
@@ -29,8 +29,9 @@ def getTargetStructure(framework = None, data = None, workbook_type = None):
 
 
 
-def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row = None, framework = None, data = None, workbook_type = None, superitem_type_name_pairs = None):
+def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = None, stop_row = None, framework = None, data = None, workbook_type = None, superitem_type_name_pairs = None):
     
+    if item_type is None: item_type = table.item_type
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
@@ -48,15 +49,17 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
             try: structure.getSpec(item_name)
             except: structure.createItem(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
             for attribute in item_type_spec["attributes"]:
-                if attribute == "name": continue
+                # No need to parse name.
+                # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
+                if attribute == "name" or (table.exclude_not_include == (attribute in table.attribute_list)): continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
                     new_superitem_type_name_pairs = dcp(superitem_type_name_pairs)
                     new_superitem_type_name_pairs.append([item_type, item_name])
-                    readContentsDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
-                                               start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
-                                               framework = framework, data = data, workbook_type = workbook_type,
-                                               superitem_type_name_pairs = new_superitem_type_name_pairs)
+                    readContentsDC(worksheet = worksheet, table = table, item_type = attribute_spec["ref_item_type"],
+                                   start_row = row, header_columns_map = header_columns_map, stop_row = row + 1,
+                                   framework = framework, data = data, workbook_type = workbook_type,
+                                   superitem_type_name_pairs = new_superitem_type_name_pairs)
                 else:
                     try: start_col, last_col = header_columns_map[attribute_spec["header"]]
                     except:
@@ -72,17 +75,18 @@ def readContentsDC(worksheet, item_type, start_row, header_columns_map, stop_row
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if not value is None: structure.setSpecAttribute(term = item_name, attribute = attribute, value = value)
+                    if not value is None or (not content_type is None and not content_type.default_value is None): 
+                        structure.setSpecValue(term = item_name, attribute = attribute, value = value, content_type = content_type)
             row += 1
     next_row = row
     return next_row
 
-def readDetailColumns(worksheet, core_item_type, start_row, framework = None, data = None, workbook_type = None):
+def readDetailColumns(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
 
     row = start_row
     header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
     row += 1
-    row = readContentsDC(worksheet = worksheet, item_type = core_item_type, start_row = row, header_columns_map = header_columns_map,
+    row = readContentsDC(worksheet = worksheet, table = table, start_row = row, header_columns_map = header_columns_map,
                        framework = framework, data = data, workbook_type = workbook_type)
     next_row = row
     return next_row
@@ -90,12 +94,11 @@ def readDetailColumns(worksheet, core_item_type, start_row, framework = None, da
 def readConnectionMatrix(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
     
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
 
     header_row, header_col, last_col = None, 0, None
     row, col = start_row, header_col + 1
-    keep_scanning_rows, keep_scanning_cols = True, True
+    keep_scanning_rows = True
     while keep_scanning_rows and row < worksheet.nrows:
         # Scan for the header row of the matrix, recognising the top-left cell may be empty, hence the non-zero start column.
         if header_row is None:
@@ -116,15 +119,15 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                     source_item = str(worksheet.cell_value(row, header_col))
                     target_item = str(worksheet.cell_value(header_row, col))
                     if table.storage_item_type is None:
-                        structure.setSpecAttribute(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
+                        structure.setSpecValue(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
                     else:
                         # Allow connection matrices to use name tags before they are used for detailed items.
                         # Only allow this for non-subitems.
                         if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
-                            raise OptimaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
+                            raise AtomicaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
                         try: structure.getSpec(val)
                         except: structure.createItem(item_name = val, item_type = table.storage_item_type)
-                        structure.appendSpecAttribute(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
+                        structure.appendSpecValue(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
         row += 1
     next_row = row
     return next_row
@@ -144,7 +147,7 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
             # The first label encounter is of the item that heads this table; verify it matches the item name associated with the table.
             if header_row is None:
                 if not label == item_specs[item_type][item_key]["label"]:
-                    raise OptimaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
+                    raise AtomicaException("A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
                                           "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name, item_key, label))
                 else:
                     # Do a quick scan of all row headers to determine keys for a TimeSeries object.
@@ -157,9 +160,9 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                         else: keys.append(structure.getSpecName(quick_label))
                         quick_row += 1
                     structure.createItem(item_name = item_key, item_type = item_type)
-                    structure.setSpecAttribute(term = item_key, attribute = "label", value = label)
+                    structure.setSpecValue(term = item_key, attribute = "label", value = label)
                     time_series = TimeSeries(keys = keys)
-                    structure.setSpecAttribute(term = item_key, attribute = value_attribute, value = time_series)
+                    structure.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
@@ -167,15 +170,19 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                 while col < worksheet.ncols:
                     val = str(worksheet.cell_value(row, col))
                     if not val in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
-                        try: val = float(val)
-                        except: raise OptimaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         header = str(worksheet.cell_value(header_row, col))
+                        if header == ES.QUANTITY_TYPE_HEADER:
+                            structure.getSpec(term = item_key)[value_attribute].setFormat(key = structure.getSpecName(label), value_format = val.lower())
+                            col += 1
+                            continue
+                        try: val = float(val)
+                        except: raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         if header == ES.ASSUMPTION_HEADER:
                             structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val)
                             break
                         else:
                             try: time = float(header)
-                            except: raise OptimaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
+                            except: raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
                             structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val, t = time)
                     col += 1
 
@@ -192,7 +199,7 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
-        row = readDetailColumns(worksheet = worksheet, core_item_type = table.item_type, start_row = row,
+        row = readDetailColumns(worksheet = worksheet, table = table, start_row = row,
                                 framework = framework, data = data, workbook_type = workbook_type)
     if isinstance(table, ConnectionMatrix):
         row = readConnectionMatrix(worksheet = worksheet, table = table, start_row = row,
@@ -208,12 +215,14 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
 def readWorksheet(workbook, page_key, framework = None, data = None, workbook_type = None):
 
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
-
     try: 
-        page_title = page_spec["title"]
-        logger.info("Importing page: {0}".format(page_title))
+        page_title = page_spec["label"]
         worksheet = workbook.sheet_by_name(page_title)
+        logger.info("Importing page: {0}".format(page_title))
     except:
+        if "can_skip" in page_spec and page_spec["can_skip"] is True:
+            logger.warn("Workbook does not contain an optional page titled '{0}'.".format(page_title))
+            return
         logger.error("Workbook does not contain a required page titled '{0}'.".format(page_title))
         raise
 
@@ -223,13 +232,14 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
         row, col = readTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
                              framework = framework, data = data, workbook_type = workbook_type)
 
-
+# TODO: Make this less hardcoded.
 def getyears(sheetdata):
     ''' Get years from a worksheet'''
     years = [] # Initialize data years
     for col in range(3,sheetdata.ncols): 
         thiscell = sheetdata.cell_value(0,col) # 3 is because we start in column 3
-        years.append(float(thiscell)) # Add this year
+        try: years.append(float(thiscell)) # Add this year
+        except: continue
     
     return years
 
@@ -248,13 +258,14 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
         raise
 
     # Check workbook type and initialise output
+    # TODO: Is there a better way to do this?
     if workbook_type in [SS.STRUCTURE_KEY_FRAMEWORK]:
         workbookout = odict() # TODO add whatever output you want here
     elif workbook_type in [SS.STRUCTURE_KEY_DATA]:
         workbookout = odict()
         ## Open workbook and calculate columns for which data are entered, and store the year ranges
-        sheetdata = workbook.sheet_by_name('Parameters') # Load this workbook
-        workbookout['datayears'] = getyears(sheetdata)
+        sheetdata = workbook.sheet_by_name("Parameters") # Load this workbook
+        workbookout["datayears"] = getyears(sheetdata)
     else:
         raise WorkbookTypeException(workbook_type)
 
@@ -264,7 +275,7 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
                       framework = framework, data = data, workbook_type = workbook_type)
             
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-    structure.completeSpecs()
-    structure.name = workbook_path
+    structure.completeSpecs(framework = framework)
+    structure.frameworkfilename = workbook_path
     
     return workbookout

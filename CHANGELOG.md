@@ -1,12 +1,37 @@
-# OPTIMA CORE CHANGELOG
+# ATOMICA CHANGELOG
 
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.4.2 (2018-03-14): Workbook Program Interfacing
+## 0.6.0 (2018-04-23): Establishing Complex Workflow
 
 Features
-- Developed table IO for specifying program impacts. (Well... not yet.)
+- A new file is set up to port and test workflow from Optima TB: test_tb.py
+- Custom databook pages enabled in the framework file.
+
+Edits
+- Stylistic changes applied, primarily taking method/function names to snake case.
+
+## 0.5.1 (2018-04-11): Improved Model Construction
+
+Features
+- Framework files now have a databook ordering column, with a value of '-1' suppressing table construction in databooks.
+- Compartments can be associated with time-dependent values, just like characteristics.
+- Parameters can be described as functions of other parameters, characteristics and compartments.
+  These are dynamically updated during a model run.
+- Databook values can now be attributed with quantity types, a.k.a. formats, with inter-conversions enabled.
+
+## 0.5.0 (2018-03-29): Drafting Simulation Workflow
+
+Features
+- Very unrefined batches of code from Optima HIV/TB have been ported across.
+  This tentatively allows simulation workflow, i.e. conversion from data to parameter set and subsequent model processing.
+
+Edits
+- Codebase has been named Atomica, with code history edited to reflect this..
+- Many utility functions are currently imported from Sciris.
+
+## 0.4.2 (2018-03-14): Workbook Interface Refinement
 
 Edits
 - Forced initialization of attribute structure for any item in structure specifications dictionary.
@@ -129,11 +154,11 @@ Edits
 
 Features
 - Created project framework stub file: framework.py
-- Created a 'tests' subfolder to store Optima Core unit tests.
+- Created a 'tests' subfolder to store Atomica unit tests.
 - Created a 'frameworks' subfolder in 'tests' to contain framework file examples.
 
 Edits
-- Coded function `getOptimaCorePath()` to retrieve module installation path.
+- Coded function `getAtomicaPath()` to retrieve module installation path.
 - The logging configuration file is now drawn from a fixed absolute path, regardless of application directory.
   The logging output file still ends up in the working path.
 
@@ -141,7 +166,7 @@ Edits
 
 Features
 - Created logging configuration file: logging.ini
-- Generated a logger named 'optimacore' that prints debug statements to file.
+- Generated a logger named 'atomica' that prints debug statements to file.
   The file path can be varied with system setting variable `LOGGER_DEBUG_OUTPUT_PATH`.
 - Updated `print` statements in `logUsage()` function as `logger.debug` calls.
 
@@ -170,8 +195,8 @@ Features
 ## 0.1.0 (2017-10-17): Module Initialization
 
 Features
-- Created optimacore subfolder for the codebase.
-- Created setup.py file (in the root optimacore directory) for optimacore installation.
+- Created atomica subfolder for the codebase.
+- Created setup.py file (in the root atomica directory) for atomica installation.
   Heavily based on Optima HIV/TB.
 - Created _version.py file to track version numbers and dates.
   Must be manually updated.

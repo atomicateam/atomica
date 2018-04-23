@@ -1,24 +1,26 @@
-from atomica.ui import SystemSettings as SS
-from atomica.ui import FrameworkSettings as FS
-from atomica.ui import DatabookSettings as DS
-from atomica.ui import ExcelSettings as ES
+from atomica.system import SystemSettings as SS
+from atomica.structure_settings import FrameworkSettings as FS
+from atomica.structure_settings import DatabookSettings as DS
+from atomica.excel import ExcelSettings as ES
 
-from atomica.ui import logger, OptimaException, accepts, prepareFilePath, displayName
-from atomica.ui import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
-from atomica.ui import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
-from atomica.ui import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.system import logger, AtomicaException, accepts, prepareFilePath, displayName
+from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
+from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
+from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.structure import getQuantityTypeList
 
-from sciris.core import odict, dcp
+from sciris.core import odict
+from copy import deepcopy as dcp
 import xlsxwriter as xw
 
 
-class KeyUniquenessException(OptimaException):
+class KeyUniquenessException(AtomicaException):
     def __init__(self, key, dict_type, **kwargs):
         if key is None: message = ("Key uniqueness failure. A key is used more than once in '{0}'.".format(dict_type))
         else: message = ("Key uniqueness failure. Key '{0}' is used more than once in '{1}'.".format(key, dict_type))
         return super().__init__(message, **kwargs)
 
-class InvalidReferenceException(OptimaException):
+class InvalidReferenceException(AtomicaException):
     def __init__(self, item_type, attribute, ref_item_type, ref_attribute, **kwargs):
         message = ("Workbook construction failed when item '{0}', attribute '{1}', attempted to reference nonexistent values, specifically item '{2}', attribute '{3}'. "
                    "It is possible the referenced attribute values are erroneously scheduled to be created later.".format(item_type, attribute, ref_item_type, ref_attribute))
@@ -49,16 +51,21 @@ class WorkbookInstructions(object):
 def makeInstructions(framework=None, data=None, instructions=None, workbook_type=None):
     """
     Generates instructions that detail the number of items pertinent to workbook construction processes.
-    If a ProjectFramework or ProjectData structure is available, this will be used in filling out a workbook rather than via instructions.
-    In that case, this function will return a boolean tag indicating whether to use instructions or not.
+    If instructions are already provided, they will be used regardless of the presence of any structure.
+    Otherwise, if a ProjectFramework or ProjectData structure is available, this will be used in filling out a workbook.
+    If relevant structure is unavailable, a default set of instructions will be produced instead.
+    This function returns a boolean tag indicating whether to use instructions or not according to the above logic.
     """
-    use_instructions = True
-    if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
+    use_instructions = False
+    # Check if framework/data is missing for the relevant workbook. If so, use instructions.
     if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK:
-        if not framework is None: use_instructions = False
+        if framework is None: use_instructions = True
     elif workbook_type == SS.STRUCTURE_KEY_DATA:
-        if not data is None: use_instructions = False
+        if data is None: use_instructions = True
     else: raise WorkbookTypeException(workbook_type)
+    # If no instructions are provided, generate a default, even if they will not be used.
+    if instructions is None: instructions = WorkbookInstructions(workbook_type = workbook_type)
+    else: use_instructions = True   # If instructions are provided, they must be used.
     return instructions, use_instructions
 
 
@@ -70,16 +77,9 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     # Determine attribute information and prepare for content production.
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
     if temp_storage is None: temp_storage = odict()
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_key is None: format_key = ES.FORMAT_KEY_CENTER
     cell_format = formats[format_key]
-
-    # Default content is blank.
-    content = ""
-    space = ""
-    sep = ""
-    validation_source = None
-    rc = xw.utility.xl_rowcol_to_cell(row, col)
 
     # Set up default content type and reference information.
     content_type = None
@@ -94,6 +94,13 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
         if not content_type.other_item_types is None:
             other_item_type = content_type.other_item_types[0]
             other_attribute = content_type.attribute
+            
+    # Default content is blank.
+    content = ""
+    space = ""
+    sep = ""
+    validation_source = None
+    rc = xw.utility.xl_rowcol_to_cell(row, col)
                   
     # Content associated with standard content types is set up here.
     if isinstance(content_type, IDType):
@@ -182,23 +189,31 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
             temp_storage[item_type][attribute]["list_content_backup"].append(content_backup)
             temp_storage[item_type][attribute]["list_cell"].append(rc)
             temp_storage[item_type][attribute]["page_title"] = worksheet.name
+            
+    # Do a final check to see if the content is still blank, in which case apply a default value.
+    if content == "" and not content_type is None and not content_type.default_value is None:
+        default_value = content_type.default_value
+        if default_value is True: default_value = SS.DEFAULT_SYMBOL_YES
+        if default_value is False: default_value = SS.DEFAULT_SYMBOL_NO
+        content = default_value
 
     # Actually write the content, using a backup value where the content is an equation and may not be calculated.
     # This lack of calculation occurs when Excel files are not opened before writing and reading phases.
     # Also validate that the cell only allows certain values.
-    if content.startswith("="):
+    if isinstance(content,str) and content.startswith("="):
         worksheet.write_formula(rc, content, cell_format, content_backup)
     else:
         worksheet.write(rc, content, cell_format)
     if not validation_source is None:
         worksheet.data_validation(rc, {"validate": "list", "source": validation_source})
 
-def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
+def writeHeadersDC(worksheet, table, start_row, start_col, item_type=None, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
     
+    if item_type is None: item_type = table.item_type
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
 
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None: format_variables = createDefaultFormatVariables()
     orig_format_variables = dcp(format_variables)
     format_variables = dcp(orig_format_variables)
@@ -206,9 +221,13 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
 
     row, col, header_column_map = start_row, start_col, odict()
     for attribute in item_type_spec["attributes"]:
+        # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
+        # Item name is always in the table though.
+        if not attribute == "name":
+            if (table.exclude_not_include == (attribute in table.attribute_list)): continue
         attribute_spec = item_type_spec["attributes"][attribute]
         if "ref_item_type" in attribute_spec:
-            _, col, sub_map = writeHeadersDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+            _, col, sub_map = writeHeadersDC(worksheet = worksheet, table = table, item_type = attribute_spec["ref_item_type"],
                                            start_row = row, start_col = col,
                                            framework = framework, data = data, workbook_type = workbook_type,
                                            formats = formats, format_variables = format_variables)
@@ -239,9 +258,10 @@ def writeHeadersDC(worksheet, item_type, start_row, start_col, framework = None,
     next_row, next_col = row, col
     return next_row, next_col, header_column_map
 
-def writeContentsDC(worksheet, item_type, start_row, header_column_map, framework = None, data = None, instructions = None, workbook_type = None,
+def writeContentsDC(worksheet, table, start_row, header_column_map, item_type=None, framework = None, data = None, instructions = None, workbook_type = None,
                   formats = None, temp_storage = None):
 
+    if item_type is None: item_type = table.item_type
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
     item_type_spec = item_type_specs[item_type]
     instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
@@ -252,9 +272,13 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
     if use_instructions:
         for item_number in range(instructions.num_items[item_type]):
             for attribute in item_type_spec["attributes"]:
+                # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
+                # Item name is always in the table though.
+                if not attribute == "name":
+                    if (table.exclude_not_include == (attribute in table.attribute_list)): continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
-                    sub_row = writeContentsDC(worksheet = worksheet, item_type = attribute_spec["ref_item_type"],
+                    sub_row = writeContentsDC(worksheet = worksheet, table = table, item_type = attribute_spec["ref_item_type"],
                                                start_row = row, header_column_map = header_column_map,
                                                framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                                formats = formats, temp_storage = temp_storage)
@@ -268,15 +292,15 @@ def writeContentsDC(worksheet, item_type, start_row, header_column_map, framewor
     next_row = row
     return next_row
 
-def writeDetailColumns(worksheet, core_item_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
+def writeDetailColumns(worksheet, table, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, 
                        formats = None, format_variables = None, temp_storage = None):
     if temp_storage is None: temp_storage = odict()
 
     row, col = start_row, start_col
-    row, _, header_column_map = writeHeadersDC(worksheet = worksheet, item_type = core_item_type, start_row = row, start_col = col,
+    row, _, header_column_map = writeHeadersDC(worksheet = worksheet, table = table, start_row = row, start_col = col,
                           framework = framework, data = data, workbook_type = workbook_type,
                           formats = formats, format_variables = format_variables)
-    row = writeContentsDC(worksheet = worksheet, item_type = core_item_type, start_row = row, header_column_map = header_column_map,
+    row = writeContentsDC(worksheet = worksheet, table = table, start_row = row, header_column_map = header_column_map,
                            framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                            formats = formats, temp_storage = temp_storage)
     next_row, next_col = row, col
@@ -308,25 +332,28 @@ def writeConnectionMatrix(worksheet, source_item_type, target_item_type, start_r
     next_row, next_col = row, col
     return next_row, next_col
 
-def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, framework = None, data = None, workbook_type = None, formats = None, format_variables = None):
-    
+def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, tvec=None, data = None, instructions = None, workbook_type = None, 
+                       formats = None, format_variables = None, temp_storage = None):
     item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
     item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    
-    if formats is None: raise OptimaException("Excel formats have not been passed to workbook table construction.")
+    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
+    if temp_storage is None: temp_storage = odict()
+
+    if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None: format_variables = createDefaultFormatVariables()
     orig_format_variables = dcp(format_variables)
     format_variables = dcp(orig_format_variables)
     
     row, col = start_row, start_col
 
+    # Set up a header for the table relating to the object for which the databook is requesting values.
     attribute = "label"
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
     for format_variable_key in format_variables:
         if format_variable_key in attribute_spec:
             format_variables[format_variable_key] = attribute_spec[format_variable_key]
     try: header = item_specs[item_type][item_key][attribute]
-    except: raise OptimaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
+    except: raise AtomicaException("No instantiation of item type '{0}' exists with the key of '{1}'.".format(item_type, item_key))
     worksheet.write(row, col, header, formats[ES.FORMAT_KEY_CENTER_BOLD])
     if "comment" in attribute_spec:
         header_comment = attribute_spec["comment"]
@@ -335,18 +362,32 @@ def writeHeadersTDVE(worksheet, item_type, item_key, start_row, start_col, frame
                                  "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
     worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
 
+    # Create the standard value entry block, extracting the number of items from instructions.
+    # TODO: Adjust this for when writing existing values to workbook.
+    # TODO: Decide what to do about time. RS: I have put in a temporary solution
+    num_items = 0
+    if use_instructions: num_items = instructions.num_items[iterated_type]
+    default_values = [0.0]*num_items
+    # Decide what quantity types, a.k.a. value formats, are allowed for the item.
+    quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE]
+    if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:    # State variables are in number amounts unless normalized.
+        if "denominator" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["denominator"] is None:
+            quantity_types = [FS.QUANTITY_TYPE_FRACTION.title()]
+        else: quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
+    elif "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:   # Modeller's choice for parameters.
+        quantity_types = [item_specs[item_type][item_key]["format"].title()]
+    else:   # User's choice for parameters.
+        quantity_types = [x.title() for x in getQuantityTypeList(include_absolute = True, include_relative = True)]
+    if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
+        default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
+    if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
+    createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
+                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere... hmm, really...?
+                          default_values = default_values, formats = formats,
+                          quantity_types = quantity_types)
+
+    # Fill in the appropriate 'keys' for the table.
     row += 1
-    next_row = row
-    return next_row
-
-def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework = None, data = None, instructions = None, workbook_type = None, formats = None, temp_storage = None):
-    
-    item_type_specs = getWorkbookItemTypeSpecs(framework = framework, workbook_type = workbook_type)
-    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-
-    if temp_storage is None: temp_storage = odict()
-
-    row, col = start_row, start_col
     if use_instructions:
         for item_number in range(instructions.num_items[iterated_type]):
             createAttributeCellContent(worksheet = worksheet, row = row, col = col, 
@@ -354,37 +395,6 @@ def writeContentsTDVE(worksheet, iterated_type, start_row, start_col, framework 
                                        item_number = item_number, formats = formats, temp_storage = temp_storage)
             row += 1
     row += 1    # Extra row to space out following tables.
-    next_row = row
-    return next_row
-
-def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, start_row, start_col, framework = None, tvec=None, data = None, instructions = None, workbook_type = None, 
-                       formats = None, format_variables = None, temp_storage = None):
-    item_specs = getWorkbookItemSpecs(framework = framework, workbook_type = workbook_type)
-    if temp_storage is None: temp_storage = odict()
-
-    row, col = start_row, start_col
-
-    # Create the standard value entry block, extracting the number of items from instructions.
-    # TODO: Adjust this for when writing existing values to workbook.
-    # TODO: Decide what to do about time. RS: I have put in a temporary solution
-    instructions, use_instructions = makeInstructions(framework = framework, data = data, instructions = instructions, workbook_type = workbook_type)
-    num_items = 0
-    if use_instructions: num_items = instructions.num_items[iterated_type]
-    default_values = [0.0]*num_items
-    if "default_value" in item_specs[item_type][item_key]:
-        default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
-    if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
-    createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
-                          num_items = num_items, time_vector = tvec, # TODO change nomenclature to use tvec everywhere
-                          default_values = default_values, formats = formats)
-
-    row = writeHeadersTDVE(worksheet = worksheet, item_type = item_type, item_key = item_key,
-                                             start_row = row, start_col = col, 
-                                             framework = framework, data = data, workbook_type = workbook_type,
-                                             formats = formats, format_variables = format_variables)
-    row = writeContentsTDVE(worksheet = worksheet, iterated_type = iterated_type, start_row = row, start_col = col,
-                           framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
-                           formats = formats, temp_storage = temp_storage)
 
     next_row, next_col = row, col
     return next_row, next_col
@@ -399,7 +409,7 @@ def writeTable(worksheet, table, start_row, start_col, framework = None, tvec=No
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
-        row, col = writeDetailColumns(worksheet = worksheet, core_item_type = table.item_type, start_row = row, start_col = col,
+        row, col = writeDetailColumns(worksheet = worksheet, table = table, start_row = row, start_col = col,
                                       framework = framework, data = data, instructions = instructions, workbook_type = workbook_type,
                                       formats = formats, format_variables = format_variables, temp_storage = temp_storage)
     if isinstance(table, ConnectionMatrix):
@@ -423,7 +433,7 @@ def writeWorksheet(workbook, page_key, framework=None, tvec=None, data=None, ins
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
 
     # Construct worksheet.
-    page_title = page_spec["title"]
+    page_title = page_spec["label"]
     logger.info("Creating page: {0}".format(page_title))
     worksheet = workbook.add_worksheet(page_title)
 

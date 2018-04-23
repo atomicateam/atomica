@@ -8,7 +8,7 @@ from atomica.system import applyToAllMethods, logUsage, accepts
 
 @applyToAllMethods(logUsage)
 class Portfolio(object):
-    """ The Optima Core portfolio class, a higher-level container for Optima Core projects. """
+    """ The Atomica portfolio class, a higher-level container for Atomica projects. """
 
     def __init__(self, name = "default"):
         """ Initialize the portfolio. """

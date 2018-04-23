@@ -3,7 +3,7 @@ Functions for running optimizations.
 Version: 2018mar26
 """
 
-from atomica.system import OptimaException
+from atomica.system import AtomicaException
 from sciris.core import Link, printv, dcp, odict, findinds, today, getdate, uuid, objrepr, promotetoarray, findnearest, sanitize, inclusiverange # Utilities
 from numpy import zeros, ones, empty, arange, maximum, array, inf, isfinite, argmin, argsort, nan, floor, concatenate, exp
 from atomica.results import getresults
@@ -17,7 +17,7 @@ class Optim(object):
     ''' An object for storing an optimization '''
 
     def __init__(self, project=None, name='default', objectives=None, constraints=None, parsetname=None, progsetname=None, timevarying=None, tvsettings=None):
-        if project     is None: raise OptimaException('To create an optimization, you must supply a project')
+        if project     is None: raise AtomicaException('To create an optimization, you must supply a project')
         if parsetname  is None: parsetname  = -1 # If none supplied, assume defaults
         if progsetname is None: progsetname = -1
 #        if objectives  is None: objectives  = defaultobjectives(project=project,  progsetname=progsetname, verbose=0)
