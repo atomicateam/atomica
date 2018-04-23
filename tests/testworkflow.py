@@ -6,7 +6,7 @@ import atomica.ui as aui
 import os
 
 test = "sir"
-#test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -49,7 +49,7 @@ if "makeplots" in torun:
         P.results[0].getVariable("adults",var)[0].plot()
 
 if "export" in torun:
-    P.results[0].export(test.upper()+" results")
+    P.results[0].export(test+"_results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

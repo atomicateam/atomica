@@ -431,6 +431,7 @@ def writeWorksheet(workbook, page_key, framework=None, tvec=None, data=None, ins
                    formats=None, format_variables=None, temp_storage=None):
 
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
+    if len(page_spec["tables"]) == 0: return
 
     # Construct worksheet.
     page_title = page_spec["label"]

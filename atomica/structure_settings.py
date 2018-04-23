@@ -355,7 +355,7 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["can_skip"], content_type = SwitchType())
         # TODO: ELABORATE DATA PAGE.
         cls.createItemTypeAttributes([cls.KEY_COMPARTMENT,cls.KEY_CHARACTERISTIC,cls.KEY_PARAMETER], 
-                                     ["datapage"], 
+                                     [cls.KEY_DATAPAGE], 
                                      content_type = IDRefType(attribute = "name", item_types = [cls.KEY_DATAPAGE]))
         cls.createItemTypeAttributes([cls.KEY_COMPARTMENT,cls.KEY_CHARACTERISTIC,cls.KEY_PARAMETER], 
                                      ["datapage_order"], 

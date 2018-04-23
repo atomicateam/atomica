@@ -124,8 +124,8 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items,
             col += 1
     
     # Flesh out the contents.
-    col = start_col
     for item_number in range(num_items):
+        col = start_col
         row += 1
         if not quantity_types is None:
             excel_page.write(row, col, quantity_types[0])
