@@ -6,7 +6,7 @@ import atomica.ui as aui
 import os
 
 test = "sir"
-#test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -25,7 +25,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 
 if "makeframeworkfile" in torun:
     if test == "sir": aui.ProjectFramework.createTemplate(path=tmpdir+"framework_sir_blank.xlsx", num_comps=4, num_pars=6, num_characs=8)
-    elif test == "tb": aui.ProjectFramework.createTemplate(path=tmpdir+"framework_tb_blank.xlsx", num_comps=40, num_characs=60, num_pars=140, num_datapages=10)
+    elif test == "tb": aui.ProjectFramework.createTemplate(path=tmpdir+"framework_tb_blank.xlsx", num_comps=40, num_characs=70, num_pars=140, num_datapages=10)
     
 if "makeframework" in torun:
     F = aui.ProjectFramework(name=test.upper(), file_path="./frameworks/framework_"+test+".xlsx")
