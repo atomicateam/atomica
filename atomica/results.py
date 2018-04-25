@@ -102,7 +102,7 @@ class Result(object):
 
         # Optionally save it
         if filename is not None:
-            df.to_excel(filename + '.xlsx' if not filename.endswith('.xlsx') else filename)
+            df.T.to_excel(filename + '.xlsx' if not filename.endswith('.xlsx') else filename)
 
         return df
 

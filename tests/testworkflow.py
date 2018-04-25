@@ -41,12 +41,19 @@ if "makedatabook" in torun:
     if test == "sir": P.createDatabook(databook_path=tmpdir+"databook_sir_blank.xlsx", num_pops=1, num_progs=3)
     elif test == "tb": P.createDatabook(databook_path=tmpdir+"databook_tb_blank.xlsx", num_pops=7, num_progs=14)
 
-if "makeproject" in torun:
-    P = aui.Project(name=test.upper()+" project", framework=F, databook="./databooks/databook_"+test+".xlsx")
+if "makeproject" in torun:  # TODO: Complete databook and then combine into one line.
+    if test == "sir": P = aui.Project(name=test.upper()+" project", framework=F, databook="./databooks/databook_"+test+".xlsx")
+    if test == "tb": P = aui.Project(name=test.upper()+" project", framework=F, databook=tmpdir+"databook_tb_blank.xlsx")
     
 if "makeplots" in torun:
-    for var in ["sus","inf","rec","dead","ch_all","foi"]:
-        P.results[0].getVariable("adults",var)[0].plot()
+    if test == "sir": 
+        test_vars = ["sus","inf","rec","dead","ch_all","foi"]
+        pop = "adults"
+    if test == "tb":
+        test_vars = ["sus","vac","spdu","alive","b_rate"]
+        pop = "pop_0"
+    for var in test_vars:
+        P.results[0].getVariable(pop,var)[0].plot()
 
 if "export" in torun:
     P.results[0].export(tmpdir+test+"_results")

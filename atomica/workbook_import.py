@@ -215,6 +215,7 @@ def readTable(worksheet, table, start_row, start_col, framework = None, data = N
 def readWorksheet(workbook, page_key, framework = None, data = None, workbook_type = None):
 
     page_spec = getWorkbookPageSpec(page_key = page_key, framework = framework, workbook_type = workbook_type)
+    if len(page_spec["tables"]) == 0: return
     try: 
         page_title = page_spec["label"]
         worksheet = workbook.sheet_by_name(page_title)

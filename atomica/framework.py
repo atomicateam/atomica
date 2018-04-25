@@ -121,6 +121,9 @@ class ProjectFramework(CoreProjectStructure):
                     raise AtomicaException("Compartment '{0}' cannot be a source or sink and not have a '-1' databook ordering. "
                                            "It must be explicitly excluded from querying its population size in a databook.".format(item_key))
         for item_key in self.specs[FS.KEY_PARAMETER]:
+            if self.getSpecValue(item_key,"label") is None:
+                raise AtomicaException("Parameter '{0}' has no label. This is likely because it was used to mark a link in a transition matrix "
+                                       "but was left undefined on the parameters page of a framework file.".format(item_key))
             links = self.getSpecValue(item_key,"links")
             for link in links:
                 if self.getSpecValue(link[0],"is_sink"):
