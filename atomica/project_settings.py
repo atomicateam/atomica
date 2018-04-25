@@ -7,6 +7,7 @@ Version: 2018mar26
 from atomica.system import AtomicaException, logger
 from sciris.utils import defaultrepr, inclusiverange, isnumber # CK: warning, should replace printv with logger
 from numpy import shape, array #arange, concatenate as cat, 
+import numpy as np
 
 class ProjectSettings(object):
     def __init__(self, num_progs=None, num_pops=None, start=None, end_data=None, end=None, verbose=2):
@@ -19,7 +20,8 @@ class ProjectSettings(object):
         self.end = end if end is not None else 2030.0 # Default end year for projections
         self.now = 2018.0 # Default current year
         self.dt = 1.0 # Timestep
-        
+
+
         # Other
 #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
 #        self.verbose = verbose # Default verbosity for how much to print out -- see definitions in utils.py:printv()
@@ -33,7 +35,10 @@ class ProjectSettings(object):
         """ Print object """
         output =  defaultrepr(self)
         return output
-    
+
+    @property
+    def tvec(self):
+        return np.arange(self.start, self.end + self.dt / 2, self.dt)
     
     def makeTimeVector(self, start=None, end=None, dt=None):
         """ Calculate time vector"""

@@ -267,13 +267,13 @@ class Parameter(Variable):
         # Update the value of this Parameter at time index ti
         # by evaluating its f_stack function using the 
         # current values of all dependent variables at time index ti
+        if self.f_stack is None:
+            return
+
         if ti is None:
             ti = np.arange(0,self.vals.size) # This corresponds to every time point
         else:
             ti = np.array(ti)
-
-        if self.f_stack is None:
-            return
 
         dep_vals = defaultdict(np.float64)
         for dep in self.deps:
@@ -282,6 +282,7 @@ class Parameter(Variable):
             else:
                 dep_vals[dep.name] += dep.vals[[ti]]
         self.vals[ti] = parser.evaluateStack(stack=self.f_stack[0:], deps=dep_vals)   # self.f_stack[0:] makes a copy
+        self.vals[ti] *= self.scale_factor
 
     def source_popsize(self,ti):
         # Get the total number of people covered by this program
@@ -705,7 +706,7 @@ class Model(object):
 
         if options is None: options = dict()
 
-        self.t = settings.makeTimeVector() # NB. returning a mutable variable in a class @property method returns a new object each time
+        self.t = settings.tvec # NB. returning a mutable variable in a class @property method returns a new object each time
         self.dt = settings.dt
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
@@ -727,7 +728,8 @@ class Model(object):
                 pop = self.getPop(pop_name)
                 par = pop.getPar(cascade_par.name) # Find the parameter with the requested name
                 par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
-                # par.scale_factor = cascade_par.y_factor[pop_name]
+                par.scale_factor = cascade_par.y_factor[pop_name]
+                par.vals *= par.scale_factor # Interpolation no longer rescales, so do it here
                 if par.links:
                     par.units = cascade_par.y_format[pop_name]
 
@@ -887,8 +889,8 @@ class Model(object):
                             outflow[i] = 0.0
                             continue
 
-#                        if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
-#                            transition *= link.parameter.scale_factor
+                       # if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
+                       #     transition *= link.parameter.scale_factor
 
 #                        if link.parameter.units == 'fraction':
 #                            # check if there are any violations, and if so, deal with them

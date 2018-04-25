@@ -189,6 +189,8 @@ class ParameterSet(object):
                     self.pars[item_group][-1].t[pop_id] = tvec
                     self.pars[item_group][-1].y[pop_id] = yvec
                     self.pars[item_group][-1].y_format[pop_id] = series.getFormat(key = pop_id)
+                    self.pars[item_group][-1].y_factor[pop_id] = 1.0 # TODO - maybe read this in from the databook later?
+
 #                self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
 #                if data[DS.KEY_PARAMETER][name][pop_id]["y_factor"] == DO_NOT_SCALE:
 #                    self.pars["cascade"][-1].y_factor[pop_id] = DEFAULT_YFACTOR

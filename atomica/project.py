@@ -504,10 +504,17 @@ class Project(object):
 #        ''' Function to get the outcome for a particular sim and objective'''
 #        pass
 #    
-#    def runscenarios(self):
-#        '''Run the specified scenarios'''
-#        pass
-#    
+    def run_scenario(self,scenario,parset='default',progset=None,options=None):
+        '''Run a scenario object
+
+
+        '''
+        if isinstance(parset,str):
+           parset = self.parsets[parset]
+        scenario_parset = scenario.get_parset(parset,self.settings)
+        scenario_progset, scenario_options = scenario.get_progset(progset, self.settings,options)
+        return self.runSim(parset=scenario_parset, progset=scenario_progset,options=scenario_options,store_results=False)
+
 #    def optimize(self):
 #        '''Run an optimization'''
     
