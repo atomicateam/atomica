@@ -7,7 +7,6 @@ from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage
 from atomica.structure import CoreProjectStructure, TimeSeries
-from atomica._version import __version__
 
 @applyToAllMethods(logUsage)
 class ProjectData(CoreProjectStructure):
@@ -32,9 +31,8 @@ class ProjectData(CoreProjectStructure):
             except:
                 self.createItem(item_name = item_key, item_type = DS.KEY_PARAMETER)
                 default_format = None
-                if "format" in framework.specs[FS.KEY_PARAMETER][item_key]:
+                if "format" in framework.getSpec(item_key) and not framework.getSpecValue(item_key,"format") is None:
                     default_format = framework.specs[FS.KEY_PARAMETER][item_key]["format"].lower()
                 time_series = TimeSeries(keys = self.specs[DS.KEY_POPULATION].keys(), default_format = default_format)
                 value_attribute = DS.PAGE_SPECS[DS.KEY_PARAMETER]["tables"][0].value_attribute
                 self.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)
-        
