@@ -264,9 +264,10 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
         workbookout = odict() # TODO add whatever output you want here
     elif workbook_type in [SS.STRUCTURE_KEY_DATA]:
         workbookout = odict()
+        # TODO: Deal properly with data range extraction, perhaps via hidden metadata page.
         ## Open workbook and calculate columns for which data are entered, and store the year ranges
-        sheetdata = workbook.sheet_by_name("Parameters") # Load this workbook
-        workbookout["datayears"] = getyears(sheetdata)
+#        sheetdata = workbook.sheet_by_name("Parameters") # Load this workbook
+        workbookout["datayears"] = [x for x in range(2000,2019)]#getyears(sheetdata)
     else:
         raise WorkbookTypeException(workbook_type)
 
