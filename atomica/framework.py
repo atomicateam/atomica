@@ -129,10 +129,13 @@ class ProjectFramework(CoreProjectStructure):
                 if self.getSpecValue(link[-1],"is_source"):
                     raise AtomicaException("Parameter '{0}' cannot be associated with a transition from compartment '{1}' to '{2}'. "
                                            "Compartment '{2}' is strictly a source compartment.".format(item_key,link[0],link[-1]))
-                if self.getSpecValue(link[0],"is_source") and self.getSpecValue(link[-1],"is_sink"):
-                    raise AtomicaException("Parameter '{0}' should not be associated with a transition from compartment '{1}' to '{2}'. "
-                                           "This is a pointless flow from source to sink compartment.".format(item_key,link[0],link[-1]))
-        
+                if self.getSpecValue(link[0],"is_source"):
+                    if self.getSpecValue(link[-1],"is_sink"):
+                        raise AtomicaException("Parameter '{0}' should not be associated with a transition from compartment '{1}' to '{2}'. "
+                                               "This is a pointless flow from source to sink compartment.".format(item_key,link[0],link[-1]))
+                    if len(links) > 1:
+                        raise AtomicaException("Parameter '{0}' is associated with a transition from source compartment '{1}' to '{2}'. "
+                                               "This restricts any other transitions being marked '{0}' due to flow disaggregation ambiguity.".format(item_key,link[0],link[-1]))
             
 
     @classmethod
