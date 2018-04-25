@@ -161,12 +161,14 @@ class CoreProjectStructure(object):
                 for item_type in item_type_specs:
                     if item_type_specs[item_type]["superitem_type"] is None: self.specs[item_type] = odict()
 
-    def initItem(self, item_name, item_type, target_item_location):
+    def initItem(self, item_name, item_type, target_item_location, position = None):
         """
         Initialize the attribute structure relating to specifications for a new item within a target dictionary.
         Should not be called directly as it is part of item creation.
         """
-        target_item_location[item_name] = odict()
+        if position is None: target_item_location[item_name] = odict()
+        else: target_item_location.insert(pos=position, key=item_name, value=odict())        
+        
         if not self.structure_key is None:
             item_type_specs = None
             if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: item_type_specs = FS.ITEM_TYPE_SPECS
@@ -190,10 +192,11 @@ class CoreProjectStructure(object):
                     elif (not content_type is None) and content_type.is_list:
                         target_item_location[item_name][attribute] = list()
 
-    def createItem(self, item_name, item_type, superitem_type_name_pairs = None):
+    def createItem(self, item_name, item_type, superitem_type_name_pairs = None, position = None):
         """
         Instantiates item type in specs with item name as key, initializing its attribute structure as well.
         If the item is not top-level, a list of superitem type-name pairs must be provided to point to the intended item location in specs.
+        Position is an integer corresponding to the index of the target ordered dictionary in which the item should be created.
         """
         item_name = str(item_name)  # Hard-coded type-enforcement for name.
         # Move down the specs dictionary according to superitem type-name pair list.
@@ -215,7 +218,7 @@ class CoreProjectStructure(object):
         # Subitem types are pluralized when used as keys in the specs structure.
         item_type_key = item_type
         if depth > 0: item_type_key += SS.DEFAULT_SUFFIX_PLURAL
-        self.initItem(item_name = item_name, item_type = item_type, target_item_location = target_specs[item_type_key])
+        self.initItem(item_name = item_name, item_type = item_type, target_item_location = target_specs[item_type_key], position = position)
 
         # Flatten superitem type-name pairs into a flat list, if available, and extend it with the type and name of the current item.
         key_list = [elem for pair in superitem_type_name_pairs for elem in pair]

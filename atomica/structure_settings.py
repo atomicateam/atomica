@@ -391,12 +391,12 @@ class DatabookSettings(BaseStructuralSettings):
         #cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM, 
         #                                                                  target_item_type = cls.KEY_POPULATION,
         #                                                                  storage_attribute = "target_pops"))
+        cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_PARAMETER,
+                                                                                    iterated_type = cls.KEY_POPULATION,
+                                                                                    value_attribute = cls.TERM_DATA))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_COMPARTMENT,
                                                                                          iterated_type = cls.KEY_POPULATION,
                                                                                          value_attribute = cls.TERM_DATA))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_CHARACTERISTIC,
                                                                                          iterated_type = cls.KEY_POPULATION,
                                                                                          value_attribute = cls.TERM_DATA))
-        cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(TimeDependentValuesEntry(item_type = cls.KEY_PARAMETER,
-                                                                                    iterated_type = cls.KEY_POPULATION,
-                                                                                    value_attribute = cls.TERM_DATA))

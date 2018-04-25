@@ -63,11 +63,11 @@ class ProjectFramework(CoreProjectStructure):
         These are the ones that databook construction processes use when deciding layout.
         """
         # Copy page keys from databook settings into framework datapage objects.
-        for page_key in DS.PAGE_KEYS:
-            self.createItem(item_name = page_key, item_type = FS.KEY_DATAPAGE)
+        for page_key in reversed(DS.PAGE_KEYS):
+            position = 0
+            if page_key in [DS.KEY_CHARACTERISTIC, DS.KEY_PARAMETER]: position = None
+            self.createItem(item_name = page_key, item_type = FS.KEY_DATAPAGE, position = position)
         
-#        # Loop through them again.
-#        for page_key in DS.PAGE_KEYS:
             # Do a scan over page tables in default databook settings.
             # If any are templated, i.e. are duplicated per instance of an item type, all tables must be copied over and duplicated where necessary.
             copy_over = False
@@ -116,10 +116,22 @@ class ProjectFramework(CoreProjectStructure):
             if special_comp_tags[0:2].count(True) > 0:
                 if not self.getSpecValue(item_key,"setup_weight") == 0.0:
                     raise AtomicaException("Compartment '{0}' cannot be a source or sink and also have a nonzero setup weight. "
-                                           "Check that setup weight was explicitly set to `0`.".format(item_key))
+                                           "Check that setup weight was explicitly set to '0'.".format(item_key))
                 if not self.getSpecValue(item_key,"datapage_order") == -1:
                     raise AtomicaException("Compartment '{0}' cannot be a source or sink and not have a '-1' databook ordering. "
                                            "It must be explicitly excluded from querying its population size in a databook.".format(item_key))
+        for item_key in self.specs[FS.KEY_PARAMETER]:
+            links = self.getSpecValue(item_key,"links")
+            for link in links:
+                if self.getSpecValue(link[0],"is_sink"):
+                    raise AtomicaException("Parameter '{0}' cannot be associated with a transition from compartment '{1}' to '{2}'. "
+                                           "Compartment '{1}' is strictly a sink compartment.".format(item_key,link[0],link[-1]))
+                if self.getSpecValue(link[-1],"is_source"):
+                    raise AtomicaException("Parameter '{0}' cannot be associated with a transition from compartment '{1}' to '{2}'. "
+                                           "Compartment '{2}' is strictly a source compartment.".format(item_key,link[0],link[-1]))
+                if self.getSpecValue(link[0],"is_source") and self.getSpecValue(link[-1],"is_sink"):
+                    raise AtomicaException("Parameter '{0}' should not be associated with a transition from compartment '{1}' to '{2}'. "
+                                           "This is a pointless flow from source to sink compartment.".format(item_key,link[0],link[-1]))
         
             
 
