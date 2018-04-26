@@ -6,7 +6,7 @@ This includes a description of the Markov chain network underlying project dynam
 """
 from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, logger, AtomicaException
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TableTemplate
-from atomica.structure import CoreProjectStructure
+from atomica.structure import CoreProjectStructure, getQuantityTypeList
 from atomica.workbook_export import makeInstructions, writeWorkbook
 from atomica.workbook_import import readWorkbook
 from atomica.parser_function import FunctionParser
@@ -121,10 +121,18 @@ class ProjectFramework(CoreProjectStructure):
                     raise AtomicaException("Compartment '{0}' cannot be a source or sink and not have a '-1' databook ordering. "
                                            "It must be explicitly excluded from querying its population size in a databook.".format(item_key))
         for item_key in self.specs[FS.KEY_PARAMETER]:
+            # Validate transition-matrix and parameter matching.
             if self.getSpecValue(item_key,"label") is None:
                 raise AtomicaException("Parameter '{0}' has no label. This is likely because it was used to mark a link in a transition matrix "
                                        "but was left undefined on the parameters page of a framework file.".format(item_key))
+            # Make sure functional parameters have a specified format.
             links = self.getSpecValue(item_key,"links")
+            if len(links) > 0:
+                if (not self.getSpecValue(item_key, FS.TERM_FUNCTION) is None and
+                    not self.getSpecValue(item_key,"format") in getQuantityTypeList(include_absolute = True, include_relative = True, include_special = True)):
+                    raise AtomicaException("Parameter '{0}' is associated with transitions and is expressed as a custom function of other parameters. "
+                                           "A format must be specified for it in a framework file.".format(item_key))
+            # Validate parameter-related transitions with source/sink/junction compartments.
             for link in links:
                 if self.getSpecValue(link[0],"is_sink"):
                     raise AtomicaException("Parameter '{0}' cannot be associated with a transition from compartment '{1}' to '{2}'. "
@@ -139,6 +147,18 @@ class ProjectFramework(CoreProjectStructure):
                     if len(links) > 1:
                         raise AtomicaException("Parameter '{0}' is associated with a transition from source compartment '{1}' to '{2}'. "
                                                "This restricts any other transitions being marked '{0}' due to flow disaggregation ambiguity.".format(item_key,link[0],link[-1]))
+                    if not self.getSpecValue(item_key,"format") in getQuantityTypeList(include_absolute = True):
+                        raise AtomicaException("Parameter '{0}' is associated with a transition from source compartment '{1}' to '{2}'. "
+                                               "The format of the parameter must thus be specified as: '{3}'".format(item_key,link[0],link[-1],
+                                                                                                                     "' or '".join(getQuantityTypeList(include_absolute = True))))
+                if self.getSpecValue(link[0],"is_junction"):
+                    if len(links) > 1:
+                        # TODO: Avoid repetitive exception code. Encapsulate all exceptions.
+                        raise AtomicaException("Parameter '{0}' is associated with a transition from junction compartment '{1}' to '{2}'. "
+                                               "This restricts any other transitions being marked '{0}' due to flow disaggregation ambiguity.".format(item_key,link[0],link[-1]))
+                    if not self.getSpecValue(item_key,"format") == FS.QUANTITY_TYPE_PROPORTION:
+                        raise AtomicaException("Parameter '{0}' is associated with a transition from junction compartment '{1}' to '{2}'. "
+                                               "The format of the parameter must thus be specified as: '{3}'".format(item_key,link[0],link[-1],FS.QUANTITY_TYPE_PROPORTION))
             
 
     @classmethod

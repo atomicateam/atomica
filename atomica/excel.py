@@ -115,10 +115,10 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items,
                              {"x_scale": ExcelSettings.ASSUMPTION_COMMENT_XSCALE, 
                               "y_scale": ExcelSettings.ASSUMPTION_COMMENT_YSCALE})
     excel_page.set_column(col, col, ExcelSettings.ASSUMPTION_COLUMN_WIDTH)
+    year_col = 0
     if len(time_vector) > 0:
         col += 2
-        rc_start = xw.utility.xl_rowcol_to_cell(row, col)
-        rc_end = xw.utility.xl_rowcol_to_cell(row, col + len(time_vector) - 1)
+        year_col = col
         for t_val in time_vector:
             excel_page.write(row, col, t_val, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
             col += 1
@@ -132,6 +132,8 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items,
             excel_page.data_validation(xw.utility.xl_rowcol_to_cell(row, col), {"validate": "list", "source": quantity_types})
             col += 1
         if len(time_vector) > 0:
+            rc_start = xw.utility.xl_rowcol_to_cell(row, year_col)
+            rc_end = xw.utility.xl_rowcol_to_cell(row, year_col + len(time_vector) - 1)
             excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), None, default_values[item_number])
             excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats[ExcelSettings.FORMAT_KEY_CENTER])
         else: excel_page.write(row, col, default_values[item_number])

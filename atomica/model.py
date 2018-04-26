@@ -707,7 +707,7 @@ class Model(object):
         if options is None: options = dict()
 
         self.t = settings.tvec # NB. returning a mutable variable in a class @property method returns a new object each time
-        self.dt = settings.dt
+        self.dt = settings.sim_dt
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
         #                                                     # This is only non-empty if a progset is being used in the model.
