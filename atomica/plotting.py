@@ -297,11 +297,11 @@ class PlotData(object):
 
                         units = list(set([output_units[x] for x in labels]))
                         if len(units) > 1:
-                            logger.warn('Warning - aggregation for output "%s" is mixing units, this is almost certainly not desired' % (output_name))
+                            logger.warning('Warning - aggregation for output "%s" is mixing units, this is almost certainly not desired' % (output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
                             if units[0] in ['','fraction','proportion'] and output_aggregation == 'sum' and len(labels) > 1: # Dimensionless quantity, like a prevalance
-                                logger.warn('Warning - output "%s" is not in number units, so output aggregation probably should not be "sum"' % (output_name))
+                                logger.warning('Warning - output "%s" is not in number units, so output aggregation probably should not be "sum"' % (output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
                             
                         if output_aggregation == 'sum': 
@@ -325,7 +325,7 @@ class PlotData(object):
                         pop_labels = pop[pop_name]
                         if pop_aggregation == 'sum':
                             if aggregated_units[output_name] in ['','fraction','proportion'] and len(pop_labels) > 1:
-                                logger.warn('Warning - output "%s" is not in number units, so population aggregation probably should not be "sum"' % (output_name))
+                                logger.warning('Warning - output "%s" is not in number units, so population aggregation probably should not be "sum"' % (output_name))
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
                         elif pop_aggregation == 'average': 
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
@@ -709,7 +709,7 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
     if len(units) == 1:
         ax.set_ylabel(units[0])
     else:
-        logger.warn('Warning - bar plot quantities mix units, double check that output selection is correct')
+        logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
     # Outer group labels are only displayed if there is more than one group
     if outer == 'times' and len(tvals) > 1:

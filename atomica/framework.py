@@ -70,6 +70,7 @@ class ProjectFramework(CoreProjectStructure):
         
             # Do a scan over page tables in default databook settings.
             # If any are templated, i.e. are duplicated per instance of an item type, all tables must be copied over and duplicated where necessary.
+        for page_key in DS.PAGE_KEYS:
             copy_over = False
             for table in DS.PAGE_SPECS[page_key]["tables"]:
                 if isinstance(table, TableTemplate):
@@ -88,9 +89,9 @@ class ProjectFramework(CoreProjectStructure):
                                     # Warn if they should be.
                                     if ("datapage_order" in self.getSpec(item_key) and self.getSpecValue(item_key,"datapage_order") == -1):
                                         if ("setup_weight" in self.getSpec(item_key) and not self.getSpecValue(item_key,"setup_weight") == 0.0):
-                                            logger.warn("Item '{0}' of type '{1}' is associated with a non-zero setup weight of '{2}' "
-                                                        "but a databook ordering of '-1'. Users will not be able to supply "
-                                                        "important values.".format(item_key, item_type, self.getSpecValue(item_key,"setup_weight")))
+                                            logger.warning("Item '{0}' of type '{1}' is associated with a non-zero setup weight of '{2}' "
+                                                           "but a databook ordering of '-1'. Users will not be able to supply "
+                                                           "important values.".format(item_key, item_type, self.getSpecValue(item_key,"setup_weight")))
                                     # Otherwise create the tables.
                                     else:
                                         actual_page_key = page_key

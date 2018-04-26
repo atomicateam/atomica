@@ -43,7 +43,7 @@ from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, 
 
 @applyToAllMethods(logUsage)
 class Project(object):
-    def __init__(self, name="default", framework=None, databook=None):#, dorun=True):
+    def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
         """ Initialize the project. """
 
         self.name = name
@@ -68,8 +68,8 @@ class Project(object):
         self.settings = ProjectSettings() # Global settings
 
         ## Load spreadsheet, if available
-        if framework and databook: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            self.loadDatabook(databook_path=databook)#, dorun=dorun)
+        if framework and databook_path: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
+            self.loadDatabook(databook_path=databook_path, do_run=do_run)
 
         return None
 
@@ -100,19 +100,18 @@ class Project(object):
     #######################################################################################################
     ### Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None):
-        """
-        Generate an empty data-input Excel spreadsheet corresponding to the framework of this project.
-        """
+    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None, data_start=None, data_end=None, data_dt=None):
+        """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None: databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
         databook_instructions, _ = makeInstructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if not num_pops is None: databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)     # Set the number of populations.
         if not num_progs is None: databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)      # Set the number of programs.
+        databook_instructions.updateTimeVector(data_start=data_start, data_end=data_end, data_dt=data_dt)
         writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 
-    def loadDatabook(self, databook_path=None, name=None, dorun=True):
-        """ Load a data spreadsheet"""
+    def loadDatabook(self, databook_path=None, make_default_parset=True, do_run=True):
+        """ Load a data spreadsheet. """
         ## Load spreadsheet and update metadata
         full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
         metadata = readWorkbook(workbook_path=full_path, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
@@ -123,10 +122,11 @@ class Project(object):
         if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
 
-        if name is None: name = "default"
-        self.makeParset(name=name)
-        if dorun:
-            self.runSim()
+        if make_default_parset: self.makeParset(name="default")
+        if do_run: 
+            if not make_default_parset: logger.warning("Project has been requested to run a simulation after loading databook, despite no request to "
+                                                       "create a default parameter set.")
+            self.runSim(parset="default")
 
         return None
 

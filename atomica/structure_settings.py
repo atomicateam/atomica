@@ -125,6 +125,13 @@ class TimeSeriesType(ContentType):
     """
     def __init__(self):
         super(TimeSeriesType,self).__init__(is_list = False)
+        
+class QuantityFormatType(ContentType):
+    """
+    Structure to associate the contents of an item attribute with quantity types.
+    """
+    def __init__(self):
+        super(QuantityFormatType,self).__init__()
 
 
 
@@ -349,7 +356,9 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], ["denominator"], 
                                      content_type = IDRefType(attribute = "name", self_referencing = True))
         cls.createItemTypeAttributes([cls.KEY_CHARACTERISTIC], ["default_value"])
-        cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["format","default_value",cls.TERM_FUNCTION,"dependencies"])
+        cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["format"],
+                                     content_type = QuantityFormatType())
+        cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["default_value",cls.TERM_FUNCTION,"dependencies"])
         cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["links"], content_type = ContentType(is_list = True))
         cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["tables"], content_type = ContentType(is_list = True))  
