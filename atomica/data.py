@@ -6,7 +6,7 @@ Sets out a structure to store context-specific databook-imported values relating
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.system import applyToAllMethods, logUsage
-from atomica.structure import CoreProjectStructure, TimeSeries
+from atomica.structure import CoreProjectStructure, KeyData
 
 @applyToAllMethods(logUsage)
 class ProjectData(CoreProjectStructure):
@@ -14,15 +14,25 @@ class ProjectData(CoreProjectStructure):
     def __init__(self, **kwargs):
         """ Initialize the data container. """
         super(ProjectData, self).__init__(structure_key = SS.STRUCTURE_KEY_DATA, **kwargs)
-    
+
+        self.filter = {FS.TERM_DATA + FS.KEY_PARAMETER: []}
+
+
     def completeSpecs(self, framework, **kwargs):
         """
         A method for completing specifications that is called at the end of a file import.
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
         # Construct specifications for constructing a databook beyond the information contained in default databook settings.
+        self.filterSpecs()
         self.validateSpecs(framework = framework)
-        
+
+    def filterSpecs(self):
+        self.filter[DS.TERM_DATA + DS.KEY_PARAMETER] = []
+        for item_key in self.specs[DS.KEY_PARAMETER].keys()+self.specs[DS.KEY_CHARACTERISTIC].keys()+self.specs[DS.KEY_COMPARTMENT].keys():
+            if not self.getSpecValue(item_key, DS.TERM_DATA) is None:
+                self.filter[DS.TERM_DATA + DS.KEY_PARAMETER].append(item_key)
+
     def validateSpecs(self, framework):
         """ Check that data specifications make sense. """
         # Make sure that all parameters in the framework are in the data as well, primarily to ensure specification of quantity types.
@@ -33,6 +43,6 @@ class ProjectData(CoreProjectStructure):
                 default_format = None
                 if "format" in framework.getSpec(item_key) and not framework.getSpecValue(item_key,"format") is None:
                     default_format = framework.specs[FS.KEY_PARAMETER][item_key]["format"].lower()
-                time_series = TimeSeries(keys = self.specs[DS.KEY_POPULATION].keys(), default_format = default_format)
+                time_series = KeyData(keys = self.specs[DS.KEY_POPULATION].keys(), default_format = default_format)
                 value_attribute = DS.PAGE_SPECS[DS.KEY_PARAMETER]["tables"][0].value_attribute
                 self.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)

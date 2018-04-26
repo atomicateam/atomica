@@ -121,7 +121,7 @@ class Project(object):
         self.databookloaddate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
         
-        if "data_start" in metadata:
+        if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
 
         if name is None: name = "default"
@@ -377,15 +377,20 @@ class Project(object):
     #######################################################################################################
 
 
-    def runSim(self, parset=None, parset_name="default", progset=None, progset_name=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
+    def runSim(self, parset=None, progset=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
+
         """ Run model using a selected parset and store/return results. """
 
         if parset is None:
             if len(self.parsets) < 1:
                 raise AtomicaException("ERROR: Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
             else:
-                try: parset = self.parsets[parset_name]
-                except: raise AtomicaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name, parset_name))
+                parset = self.parsets[0]
+        else:
+            if isinstance(parset,str):
+                if parset not in self.parsets:
+                    raise AtomicaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name,parset))
+                parset = self.parsets[parset]
 
         if progset is None:
             try: progset = self.progsets[progset_name]

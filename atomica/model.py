@@ -727,7 +727,8 @@ class Model(object):
             for pop_name in parset.pop_names:
                 pop = self.getPop(pop_name)
                 par = pop.getPar(cascade_par.name) # Find the parameter with the requested name
-                par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
+                if par.f_stack is None: # If parameter has an f-stack then vals will be calculated during/after integration rather than supplied from databook
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                 par.scale_factor = cascade_par.y_factor[pop_name]
                 par.vals *= par.scale_factor # Interpolation no longer rescales, so do it here
                 if par.links:
