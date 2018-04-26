@@ -100,7 +100,7 @@ class Project(object):
     #######################################################################################################
     ### Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None):
+    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None, data_start=None, data_end=None, data_dt=None):
         """
         Generate an empty data-input Excel spreadsheet corresponding to the framework of this project.
         """
@@ -108,6 +108,7 @@ class Project(object):
         databook_instructions, _ = makeInstructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if not num_pops is None: databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)     # Set the number of populations.
         if not num_progs is None: databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)      # Set the number of programs.
+        databook_instructions.updateTimeVector(data_start=data_start, data_end=data_end, data_dt=data_dt)
         writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 

@@ -6,7 +6,7 @@ import atomica.ui as aui
 import os
 
 test = "sir"
-test = "tb"
+#test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -38,8 +38,8 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": P.createDatabook(databook_path=tmpdir+"databook_sir_blank.xlsx", num_pops=1, num_progs=3)
-    elif test == "tb": P.createDatabook(databook_path=tmpdir+"databook_tb_blank.xlsx", num_pops=7, num_progs=14)
+    if test == "sir": P.createDatabook(databook_path=tmpdir+"databook_sir_blank.xlsx", num_pops=1, num_progs=3, data_start=2005, data_end=2015, data_dt=0.5)
+    elif test == "tb": P.createDatabook(databook_path=tmpdir+"databook_tb_blank.xlsx", num_pops=7, num_progs=14, data_end=2018)
 
 if "makeproject" in torun:  # TODO: Complete databook and then combine into one line.
     if test == "sir": P = aui.Project(name=test.upper()+" project", framework=F, databook="./databooks/databook_"+test+".xlsx")
