@@ -584,25 +584,25 @@ class Population(object):
         proposed = np.matmul(A,x)
         for i in range(0,len(characs)):
             if abs(proposed[i]-b[i]) > TOLERANCE:#project_settings.TOLERANCE:
-                logger.warn('Characteristic %s %s - Requested %f, Calculated %f' % (self.name,characs[i].name,b[i],proposed[i]))
+                logger.warning('Characteristic %s %s - Requested %f, Calculated %f' % (self.name,characs[i].name,b[i],proposed[i]))
         
         # Print diagnostic output for compartments that were assigned a negative value
         def report_characteristic(charac,n_indent=0):
             if charac.name in charac_indices:
-                logger.warn(n_indent * '\t' + 'Characteristic %s: Target value = %f' % (charac.name,b[charac_indices[charac.name]]))
+                logger.warning(n_indent * '\t' + 'Characteristic %s: Target value = %f' % (charac.name,b[charac_indices[charac.name]]))
             else:
-                logger.warn(n_indent * '\t' + 'Characteristic %s not in databook: Target value = N/A (0.0)' % (charac.name))
+                logger.warning(n_indent * '\t' + 'Characteristic %s not in databook: Target value = N/A (0.0)' % (charac.name))
 
             n_indent += 1
             for inc in charac.includes:
                 if isinstance(inc,Characteristic):
                     report_characteristic(inc,n_indent)
                 else:
-                    logger.warn(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name,x[comp_indices[inc.name]]))
+                    logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name,x[comp_indices[inc.name]]))
 
         for i in range(0, len(comps)):
             if x[i] < -TOLERANCE:
-                logger.warn('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
+                logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
                     try:
                         if comps[i] in extract_includes(charac):
@@ -933,7 +933,7 @@ class Model(object):
                             if validation_level == project_settings.VALIDATION_ERROR:
                                 raise AtomicaException(warning)
                             elif validation_level == project_settings.VALIDATION_WARN:
-                                logger.warn(warning)
+                                logger.warning(warning)
 
                     # Apply the flows to the compartments
                     for i, link in enumerate(outlinks):

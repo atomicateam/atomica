@@ -6,7 +6,7 @@ import atomica.ui as aui
 import os
 
 test = "sir"
-#test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -15,6 +15,9 @@ torun = [
 "loadframework",
 "makedatabook",
 "makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
 "makeplots",
 "export",
 "saveproject",
@@ -41,9 +44,19 @@ if "makedatabook" in torun:
     if test == "sir": P.createDatabook(databook_path=tmpdir+"databook_sir_blank.xlsx", num_pops=1, num_progs=3, data_start=2005, data_end=2015, data_dt=0.5)
     elif test == "tb": P.createDatabook(databook_path=tmpdir+"databook_tb_blank.xlsx", num_pops=7, num_progs=14, data_end=2018)
 
-if "makeproject" in torun:  # TODO: Complete databook and then combine into one line.
-    if test == "sir": P = aui.Project(name=test.upper()+" project", framework=F, databook="./databooks/databook_"+test+".xlsx")
-    if test == "tb": P = aui.Project(name=test.upper()+" project", framework=F, databook=tmpdir+"databook_tb_blank.xlsx")
+if "makeproject" in torun:
+    # Preventing a run so as to make calls explicit for the benefit of the FE.
+    P = aui.Project(name=test.upper()+" project", framework=F, do_run=False)
+    
+if "loaddatabook" in torun:
+    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+    P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=False, do_run=False)
+    
+if "makeparset" in torun:
+    P.makeParset(name = "default")
+    
+if "runsim" in torun:
+    P.runSim(parset = "default")
     
 if "makeplots" in torun:
     if test == "sir": 

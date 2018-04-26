@@ -75,7 +75,7 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
-                    if isinstance(content_type, QuantityFormatType): value = value.lower()  # A catch to ensure formats are stored in lower case.
+                    if isinstance(content_type, QuantityFormatType) and not value is None: value = value.lower()  # A catch to ensure formats are stored as lower-case strings.
                     if not value is None or (not content_type is None and not content_type.default_value is None): 
                         structure.setSpecValue(term = item_name, attribute = attribute, value = value, content_type = content_type)
             row += 1
@@ -222,7 +222,7 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
         logger.info("Importing page: {0}".format(page_title))
     except:
         if "can_skip" in page_spec and page_spec["can_skip"] is True:
-            logger.warn("Workbook does not contain an optional page titled '{0}'.".format(page_title))
+            logger.warning("Workbook does not contain an optional page titled '{0}'.".format(page_title))
             return
         logger.error("Workbook does not contain a required page titled '{0}'.".format(page_title))
         raise

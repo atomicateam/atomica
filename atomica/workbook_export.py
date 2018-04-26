@@ -394,6 +394,8 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
         else: quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
     elif "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:   # Modeller's choice for parameters.
         quantity_types = [item_specs[item_type][item_key]["format"].title()]
+        # Make sure proportions do not default to a value of zero.
+        if item_specs[item_type][item_key]["format"] == FS.QUANTITY_TYPE_PROPORTION: default_values = [1.0]*num_items
     else:   
         # User's choice for parameters if a transition.
         if "links" in item_specs[item_type][item_key] and len(item_specs[item_type][item_key]["links"]) > 0:
