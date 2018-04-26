@@ -157,7 +157,11 @@ class ParameterSet(object):
         self.contacts = odict()     # Dictionary of inter-population interaction weights.
         
         logger.info("Created ParameterSet: {0}".format(self.name))
-        
+
+    def set_scaling_factor(self,par_name,pop_name,scale):
+        par = self.getPar(par_name)
+        par.y_factor[pop_name] = scale
+
     def getPar(self, name):
         for par_type in ["cascade","comps","characs"]:
             if name in self.par_ids[par_type].keys():

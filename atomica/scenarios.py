@@ -77,7 +77,6 @@ class ParameterScenario(Scenario):
         for par_label in self.scenario_values.keys():
             par = new_parset.getPar(par_label)  # This is the parameter we are updating
 
-
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t'])+1e-5]), pop_label)
@@ -85,7 +84,6 @@ class ParameterScenario(Scenario):
                 if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
                     par.t[pop_label] = np.array([settings.sim_start,settings.sim_end])
                     par.y[pop_label] = par.y[pop_label]*np.ones(par.t[pop_label].shape)
-
 
                 if 'smooth_onset' not in overwrite:
                     overwrite['smooth_onset'] = 1e-5

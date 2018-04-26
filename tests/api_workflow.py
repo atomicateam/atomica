@@ -14,6 +14,7 @@ from copy import deepcopy as dcp
 import atomica.ui as aui
 import os
 from atomica.scenarios import ParameterScenario
+from atomica.calibration import performAutofit
 
 plot_initial = False
 
@@ -70,18 +71,27 @@ P.results['scen1']=P.run_scenario(s)
 # d = PlotData(P.results, outputs=['dead'])
 # plotSeries(d, axis='results')
 
-P.parsets['calibration_target'] = dcp(P.parsets[0])
-P.parsets['calibration_target'].name = 'calibration_target'
-par = P.parsets['calibration_target'].getPar('infdeath')
-par.y_factor['adults']=0.5
-r2 = P.runSim(parset='calibration_target')
+# Synthesize the calibration target
+# P.parsets['calibration_target'] = dcp(P.parsets[0])
+# P.parsets['calibration_target'].name = 'calibration_target'
+# par = P.parsets['calibration_target'].getPar('transpercontact')
+# par.y_factor['adults']=0.2
+# r2 = P.runSim(parset='calibration_target')
+# d = PlotData([P.results[0],r2], outputs=['ch_prev'])
+# plotSeries(d, axis='results',data=P.data)
 
 
+# Perform calibration to get a calibrated parset
+pars_to_adjust = [('transpercontact','adults',0.1,1.9)]
+output_quantities = []
+for pop in P.parsets[0].pop_names:
+    output_quantities.append((pop,'ch_prev',1.0,"fractional"))
+calibrated_parset = performAutofit(P,P.parsets[0] , pars_to_adjust, output_quantities,max_time=30)
 
-d = PlotData([P.results[0],r2], outputs=['ch_prev'])
+# Plot the results before and after calibration
+calibrated_results = P.runSim(calibrated_parset)
+d = PlotData([P.results[0],calibrated_results], outputs=['ch_prev'])
 plotSeries(d, axis='results',data=P.data)
-
-
 
 
 import matplotlib.pyplot as plt
