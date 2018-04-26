@@ -9,6 +9,7 @@ if ipython is not None:
     ipython.magic('load_ext autoreload')
     ipython.magic('autoreload 2')
 from atomica.plotting import PlotData,plotSeries,plotBars
+from copy import deepcopy as dcp
 
 import atomica.ui as aui
 import os
@@ -63,11 +64,23 @@ scvalues['infdeath']['adults']['smooth_onset'] = [2, 3]
 s = ParameterScenario('increased_infections',scvalues)
 P.results['scen1']=P.run_scenario(s)
 
-d = PlotData(P.results, outputs=['inf'])
-plotSeries(d, axis='results')
+# d = PlotData(P.results, outputs=['inf'])
+# plotSeries(d, axis='results')
+#
+# d = PlotData(P.results, outputs=['dead'])
+# plotSeries(d, axis='results')
 
-d = PlotData(P.results, outputs=['dead'])
-plotSeries(d, axis='results')
+P.parsets['calibration_target'] = dcp(P.parsets[0])
+P.parsets['calibration_target'].name = 'calibration_target'
+par = P.parsets['calibration_target'].getPar('infdeath')
+par.y_factor['adults']=0.5
+r2 = P.runSim(parset='calibration_target')
+
+
+
+d = PlotData([P.results[0],r2], outputs=['ch_prev'])
+plotSeries(d, axis='results',data=P.data)
+
 
 
 

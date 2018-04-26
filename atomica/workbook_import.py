@@ -4,7 +4,7 @@ from atomica.excel import ExcelSettings as ES
 from atomica.system import logger, AtomicaException, accepts, displayName
 from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType
-from atomica.structure import TimeSeries
+from atomica.structure import KeyData
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
 from sciris.core import odict, dcp
@@ -161,7 +161,7 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                         quick_row += 1
                     structure.createItem(item_name = item_key, item_type = item_type)
                     structure.setSpecValue(term = item_key, attribute = "label", value = label)
-                    time_series = TimeSeries(keys = keys)
+                    time_series = KeyData(keys = keys)
                     structure.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)
                 header_row = row
             # All other label encounters are of an iterated type.
@@ -179,7 +179,6 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                         except: raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         if header == ES.ASSUMPTION_HEADER:
                             structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val)
-                            break
                         else:
                             try: time = float(header)
                             except: raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))

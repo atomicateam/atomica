@@ -871,16 +871,15 @@ def render_data(ax,data,series):
     # name - The name-formatting function to retrieve full names (currently unused)
     # color - The color of the data points to use
 
-    if series.data_label in data['characs']:
-        d = data['characs'][series.data_label]
-    elif series.data_label in data['linkpars']:
-        d = data['linkpars'][series.data_label]
+    if series.data_label in data.filter['datapar']:
+        d = data.getSpec(series.data_label)
     else:
         return
 
-    if series.pop in d:
-        y = d[series.pop]['y']
-        t = d[series.pop]['t']
+    if series.pop in d['data'].keys():
+        t,y = d['data'].getArrays('adults')
+        if len(t) == 0:
+            return
     else:
         return
 

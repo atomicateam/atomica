@@ -3,7 +3,7 @@ from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings
 from atomica.system import applyToAllMethods, logUsage, AtomicaException
 from atomica._version import __version__
 from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj
-
+from bisect import bisect
 
 import numpy as np
 
@@ -66,9 +66,67 @@ def convertQuantity(value, initial_type, final_type, set_size = None, dt = 1.0):
         else: raise AtomicaException("Time conversion for type '{0}' is not known.".format(final_type))
     
     return value
-    
 
 class TimeSeries(object):
+    def __init__(self,t=None,vals=None,format=None,units=None):
+
+        t = t if t is not None else list()
+        vals = vals if vals is not None else list()
+
+        assert len(t) == len(vals)
+
+        self.t = []
+        self.vals = []
+        self.format = format
+        self.units = units
+        self.assumption = None
+
+        for tx,vx in zip(t,vals):
+            self.insert(tx,vx)
+
+    def insert(self,t,v):
+        # Insert value v at time t maintaining sort order
+        if t is None:
+            self.assumption = v
+        elif t in self.t:
+            idx = self.t.index(t)
+            self.vals[idx] = v
+        else:
+            idx = bisect(self.t, t)
+            self.t.insert(idx, t)
+            self.vals.insert(idx, v)
+
+    def get(self,t):
+        if t is None or len(self.t) == 0:
+            return self.assumption
+        elif t in self.t:
+            return self.vals[self.t.index(t)]
+        else:
+            raise AtomicaException('Item not found')
+
+    def get_arrays(self):
+        if len(self.t) == 0:
+            t = np.array([np.nan])
+            v = np.array([self.assumption])
+        else:
+            t = np.array(self.t)
+            v = np.array(self.vals)
+        return t,v
+
+    def remove(self,t):
+        if t is None:
+            self.assumption = None
+        elif t in self.t:
+            idx = self.t.index(t)
+            del self.t[idx]
+            del self.vals[idx]
+        else:
+            raise AtomicaException('Item not found')
+
+    # Todo - unit conversion (should it return a new instance?)
+    # Todo - interpolation/expansion
+
+class KeyData(object):
     """ 
     A custom object for storing values associated with time points. 
     The values for each timepoint are listed in order as the 'keys' that represent the series.
@@ -79,35 +137,38 @@ class TimeSeries(object):
     Note: The values structure contains special lists for assumptions and formats.
     """
     def __init__(self, keys = None, default_format = None):
-        self.keys = keys
-        self.key_id_map = dict()
-        for id, key in enumerate(self.keys):
-            self.key_id_map[key] = id
-        self.values = {None:[None]*len(self.keys),
-                       "format":[default_format]*len(self.keys)}
+        self.data = {}
+        self.default_format = default_format
+        if keys is not None:
+            [self.addKey(x) for x in keys]
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def keys(self):
+        return self.data.keys()
+
+    def addKey(self,key,format=None):
+        format = format if format is not None else self.default_format
+        self.data[key] = TimeSeries(format=format)
 
     def getValue(self, key, t = None):
-        try: return self.values[t][self.key_id_map[key]]
-        except: raise AtomicaException("Cannot locate value for '{0}' at time '{1}'.".format(key,t))
+        return self.data[key].get(t)
 
     def setValue(self, key, value, t = None):
-        if not key in self.key_id_map: raise AtomicaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
-        if t not in self.values:
-            self.values[t] = [None]*len(self.keys)   
-        self.values[t][self.key_id_map[key]] = value
-        
+        self.data[key].insert(t,value)
+
+    def getArrays(self, key):
+        return self.data[key].get_arrays()
+
     def getFormat(self, key):
-        try: return self.values["format"][self.key_id_map[key]]
-        except: raise AtomicaException("Cannot locate format for time series values of '{0}'.".format(key))
+        return self.data[key].format
 
     def setFormat(self, key, value_format):
-        if not key in self.key_id_map: raise AtomicaException("TimeSeries object queried for value of nonexistent key '{0}'.".format(key))
-        self.values["format"][self.key_id_map[key]] = value_format
+        self.data[key].format = value_format
 
     def __repr__(self, **kwargs):
-        return "<TimeSeries Object, Keys: " + self.keys.__repr__(**kwargs) + ", Values: " + self.values.__repr__(**kwargs) + ">"
-
-
+        return "Keydata: " + str(self.keys())
 
 
 @applyToAllMethods(logUsage)
