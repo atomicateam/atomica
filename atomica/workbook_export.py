@@ -376,8 +376,13 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
         else: quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
     elif "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:   # Modeller's choice for parameters.
         quantity_types = [item_specs[item_type][item_key]["format"].title()]
-    else:   # User's choice for parameters.
-        quantity_types = [x.title() for x in getQuantityTypeList(include_absolute = True, include_relative = True)]
+    else:   
+        # User's choice for parameters if a transition.
+        if "links" in item_specs[item_type][item_key] and len(item_specs[item_type][item_key]["links"]) > 0:
+            quantity_types = [FS.QUANTITY_TYPE_NUMBER.title(),FS.QUANTITY_TYPE_PROBABILITY.title()]
+        # If not a transition, the format of this parameter is meaningless.
+        else:
+            quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
     if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
     if tvec is None: tvec = [x for x in range(2000,2019)] # TODO Temporary, fix this!
