@@ -120,7 +120,7 @@ class Project(object):
         self.databookloaddate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
         
-        if "data_start" in metadata:
+        if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
 
         if name is None: name = "default"

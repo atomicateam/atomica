@@ -83,7 +83,7 @@ class ParameterScenario(Scenario):
                 original_y_end = par.interpolate(np.array([max(overwrite['t'])+1e-5]), pop_label)
 
                 if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
-                    par.t[pop_label] = np.array([settings.start,settings.end])
+                    par.t[pop_label] = np.array([settings.sim_start,settings.sim_end])
                     par.y[pop_label] = par.y[pop_label]*np.ones(par.t[pop_label].shape)
 
 
