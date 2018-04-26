@@ -35,9 +35,6 @@ class SystemSettings(object):
     OBJECT_EXTENSION_FRAMEWORK = ".frw"
     OBJECT_EXTENSION_DATA = ".dat"
     
-    FRAMEWORK_DEFAULT_TYPE = "example"
-    DATABOOK_DEFAULT_TYPE = "standard"
-    
     QUANTITY_TYPE_ABSOLUTE = "absolute"
     QUANTITY_TYPE_RELATIVE = "relative"
     

@@ -10,17 +10,11 @@ from numpy import shape, array #arange, concatenate as cat,
 import numpy as np
 
 class ProjectSettings(object):
-    def __init__(self, num_progs=None, num_pops=None, start=None, end_data=None, end=None, verbose=2):
-
-        self.num_progs = num_progs if num_progs is not None else 4 # Default number of programs
-        self.num_pops = num_pops if num_pops is not None else  1 # Default number of populations
-
-        self.datastart = start if start is not None else 2000.0 # Default start year
-        self.end_data = end_data if end_data is not None else 2020.0 # Default end year for data entry
-        self.end = end if end is not None else 2030.0 # Default end year for projections
-        self.now = 2018.0 # Default current year
-        self.dt = 1.0 # Timestep
-
+    def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
+        
+        self.sim_start = sim_start if sim_start is not None else 2000.0
+        self.sim_end = sim_end if sim_end is not None else 2030.0
+        self.sim_dt = sim_dt if sim_dt is not None else 1.0/4
 
         # Other
 #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
@@ -38,16 +32,13 @@ class ProjectSettings(object):
 
     @property
     def tvec(self):
-        return np.arange(self.start, self.end + self.dt / 2, self.dt)
+        return np.arange(self.sim_start, self.sim_end + self.sim_dt / 2, self.sim_dt)
     
-    def makeTimeVector(self, start=None, end=None, dt=None):
-        """ Calculate time vector"""
-        if start is None: start = self.start
-        if end is None: end = self.end
-        if dt is None: dt = self.dt
-        tvec = inclusiverange(start=start, stop=end, step=dt) # Can"t use arange since handles floating point arithmetic badly, e.g. compare arange(2000, 2020, 0.2) with arange(2000, 2020.2, 0.2)
-        logger.info("Constructing time vector.")
-        return tvec
+    def updateTimeVector(self, start=None, end=None, dt=None):
+        """ Calculate time vector. """
+        if not start is None: self.sim_start = start
+        if not end is None: self.sim_end = end
+        if not dt is None: self.sim_dt = dt
     
     
 #    def convertlimits(self, limits=None, tvec=None, dt=None, safetymargin=None, verbose=None):

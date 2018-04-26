@@ -233,16 +233,26 @@ def readWorksheet(workbook, page_key, framework = None, data = None, workbook_ty
         row, col = readTable(worksheet = worksheet, table = table, start_row = row, start_col = col,
                              framework = framework, data = data, workbook_type = workbook_type)
 
-# TODO: Make this less hardcoded.
-def getyears(sheetdata):
-    ''' Get years from a worksheet'''
-    years = [] # Initialize data years
-    for col in range(3,sheetdata.ncols): 
-        thiscell = sheetdata.cell_value(0,col) # 3 is because we start in column 3
-        try: years.append(float(thiscell)) # Add this year
-        except: continue
+def readReferenceWorksheet(workbook, workbook_type = None):
+    """ Reads a hidden worksheet for metadata and other values that are useful to store but are not directly part of framework/data. """
+        
+    page_title = "metadata".title()
+    try:
+        worksheet = workbook.sheet_by_name(page_title)
+        logger.info("Importing page: {0}".format(page_title))
+    except:
+        logger.warn("No metadata page exists in this workbook.")
+        return None
     
-    return years
+    metadata = dict()
+    row = 0
+    while row < worksheet.nrows:
+        value = str(worksheet.cell_value(row, 1))
+        try: value = float(value)
+        except: pass
+        metadata[str(worksheet.cell_value(row, 0))] = value
+        row += 1
+    return metadata
 
 
 @accepts(str)
@@ -259,16 +269,7 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
         raise
 
     # Check workbook type and initialise output
-    # TODO: Is there a better way to do this?
-    if workbook_type in [SS.STRUCTURE_KEY_FRAMEWORK]:
-        workbookout = odict() # TODO add whatever output you want here
-    elif workbook_type in [SS.STRUCTURE_KEY_DATA]:
-        workbookout = odict()
-        # TODO: Deal properly with data range extraction, perhaps via hidden metadata page.
-        ## Open workbook and calculate columns for which data are entered, and store the year ranges
-#        sheetdata = workbook.sheet_by_name("Parameters") # Load this workbook
-        workbookout["datayears"] = [x for x in range(2000,2019)]#getyears(sheetdata)
-    else:
+    if not workbook_type in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]:
         raise WorkbookTypeException(workbook_type)
 
     # Iteratively parse worksheets.
@@ -280,4 +281,6 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
     structure.completeSpecs(framework = framework)
     structure.frameworkfilename = workbook_path
     
-    return workbookout
+    metadata = readReferenceWorksheet(workbook = workbook, workbook_type = workbook_type)
+    
+    return metadata

@@ -69,7 +69,7 @@ class Project(object):
 
         ## Load spreadsheet, if available
         if framework and databook: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            self.loadDatabook(filename=databook)#, dorun=dorun)
+            self.loadDatabook(databook_path=databook)#, dorun=dorun)
 
         return None
 
@@ -100,7 +100,7 @@ class Project(object):
     #######################################################################################################
     ### Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None, databook_type=SS.DATABOOK_DEFAULT_TYPE):
+    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None):
         """
         Generate an empty data-input Excel spreadsheet corresponding to the framework of this project.
         """
@@ -111,26 +111,22 @@ class Project(object):
         writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
     
 
-    def loadDatabook(self, filename=None, folder=None, name=None, overwrite=True, dorun=True, **kwargs):
-        ''' Load a data spreadsheet'''
+    def loadDatabook(self, databook_path=None, name=None, dorun=True):
+        """ Load a data spreadsheet"""
         ## Load spreadsheet and update metadata
-        fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx')
-        databookout = readWorkbook(workbook_path=fullpath, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
+        full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        metadata = readWorkbook(workbook_path=full_path, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookloaddate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
         
-        datayears = databookout['datayears']
-        self.settings.datastart = datayears[0]
-        self.settings.start = datayears[0]
-        self.settings.dataend = datayears[-1]
+        if "data_start" in metadata:
+            self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
 
-        if name is None: name = 'default'
+        if name is None: name = "default"
         self.makeParset(name=name)
-#        self.makeparset(name=name, overwrite=overwrite)
         if dorun:
             self.runSim()
-#            self.runsum()
 
         return None
 
@@ -380,7 +376,7 @@ class Project(object):
     #######################################################################################################
 
 
-    def runSim(self, parset=None, parset_name='default', progset=None, progset_name=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
+    def runSim(self, parset=None, parset_name="default", progset=None, progset_name=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
         """ Run model using a selected parset and store/return results. """
 
         if parset is None:
