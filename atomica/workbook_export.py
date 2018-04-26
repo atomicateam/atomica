@@ -5,7 +5,7 @@ from atomica.excel import ExcelSettings as ES
 
 from atomica.system import logger, AtomicaException, accepts, prepareFilePath, displayName
 from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
-from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType
+from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType, QuantityFormatType
 from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 from atomica.structure import getQuantityTypeList
 
@@ -146,6 +146,9 @@ def createAttributeCellContent(worksheet, row, col, attribute, item_type, item_t
     elif isinstance(content_type, SwitchType):
         validation_source = [SS.DEFAULT_SYMBOL_NO, SS.DEFAULT_SYMBOL_YES]
         if content_type.default_on: validation_source.reverse()
+        content = validation_source[0]
+    elif isinstance(content_type, QuantityFormatType):
+        validation_source = [""]+getQuantityTypeList(include_absolute=True, include_relative=True, include_special=True)
         content = validation_source[0]
     content_backup = content
 

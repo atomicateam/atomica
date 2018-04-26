@@ -3,7 +3,7 @@ from atomica.excel import ExcelSettings as ES
 
 from atomica.system import logger, AtomicaException, accepts, displayName
 from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
-from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType
+from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, QuantityFormatType
 from atomica.structure import KeyData
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
@@ -75,6 +75,7 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
                     value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
+                    if isinstance(content_type, QuantityFormatType): value = value.lower()  # A catch to ensure formats are stored in lower case.
                     if not value is None or (not content_type is None and not content_type.default_value is None): 
                         structure.setSpecValue(term = item_name, attribute = attribute, value = value, content_type = content_type)
             row += 1
