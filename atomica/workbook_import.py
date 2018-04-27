@@ -5,7 +5,7 @@ from atomica.system import logger, AtomicaException, accepts, displayName
 from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, QuantityFormatType
 from atomica.structure import KeyData
-from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpecs, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 
 from sciris.core import odict, dcp
 
@@ -259,6 +259,8 @@ def readReferenceWorksheet(workbook, workbook_type = None):
 def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
 
     page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
+    page_specs = getWorkbookPageSpecs(framework = framework, workbook_type = workbook_type)
+    page_keys = sorted(page_keys, key=lambda x: page_specs[x]["read_order"] if not page_specs[x]["read_order"] is None else 0)
 
     logger.info("Importing a {0}: {1}".format(displayName(workbook_type), workbook_path))
 
