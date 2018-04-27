@@ -16,8 +16,6 @@ class ProjectSettings(object):
         self.sim_end = sim_end if sim_end is not None else 2030.0
         self.sim_dt = sim_dt if sim_dt is not None else 1.0/4
 
-        self.tolerance = 1e-6
-        self.iteration_limit = 100
 
         # Other
 #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica

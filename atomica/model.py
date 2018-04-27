@@ -18,8 +18,10 @@ import numpy as np
 from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
 
-# TODO: Put this in a better place.
-self.sim_settings['tolerance'] = 1e-6
+model_settings = dict() # TODO - Change name to 'settings' and rename project settings accordingly
+model_settings['tolerance'] = 1e-6
+model_settings['iteration_limit'] = 100
+
 
 class Variable(object):
     '''
@@ -163,7 +165,7 @@ class Characteristic(Variable):
 
             if self.denominator is not None:
                 denom = self.denominator.vals
-                vals_zero = vals < self.sim_settings['tolerance']
+                vals_zero = vals < model_settings['tolerance']
                 vals[denom > 0] /= denom[denom > 0]
                 vals[vals_zero] = 0.0
                 vals[(denom<=0) & (~vals_zero)] = np.inf
@@ -205,7 +207,7 @@ class Characteristic(Variable):
             denom  = self.denominator.vals[ti]
             if denom > 0:
                 self.internal_vals[ti] /= denom
-            elif self.internal_vals[ti] < self.sim_settings['tolerance']:
+            elif self.internal_vals[ti] < model_settings['tolerance']:
                 self.internal_vals[ti] = 0  # Given a zero/zero case, make the answer zero.
             else:
                 self.internal_vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
@@ -584,7 +586,7 @@ class Population(object):
         # Print warning for characteristics that are not well matched by the compartment size solution
         proposed = np.matmul(A,x)
         for i in range(0,len(characs)):
-            if abs(proposed[i]-b[i]) > self.sim_settings['tolerance']:#project_settings.self.sim_settings['tolerance']:
+            if abs(proposed[i]-b[i]) > model_settings['tolerance']:#project_settings.model_settings['tolerance']:
                 logger.warning('Characteristic %s %s - Requested %f, Calculated %f' % (self.name,characs[i].name,b[i],proposed[i]))
         
         # Print diagnostic output for compartments that were assigned a negative value
@@ -602,7 +604,7 @@ class Population(object):
                     logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name,x[comp_indices[inc.name]]))
 
         for i in range(0, len(comps)):
-            if x[i] < -self.sim_settings['tolerance']:
+            if x[i] < -model_settings['tolerance']:
                 logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
                     try:
@@ -613,12 +615,12 @@ class Population(object):
 
 
         # Halt for an unsatisfactory overall solution (could relax this check later)
-        if residual > self.sim_settings['tolerance']:
+        if residual > model_settings['tolerance']:
             print(x)
-            raise AtomicaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,self.sim_settings['tolerance']))
+            raise AtomicaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,model_settings['tolerance']))
 
         # Halt for any negative popsizes
-        if np.any(x < -self.sim_settings['tolerance']):
+        if np.any(x < -model_settings['tolerance']):
             raise AtomicaException('Negative initial popsizes')
 
         # Otherwise, insert the values
@@ -709,9 +711,6 @@ class Model(object):
 
         self.t = settings.tvec # NB. returning a mutable variable in a class @property method returns a new object each time
         self.dt = settings.sim_dt
-
-        self.sim_settings['iteration_limit'] = settings.iteration_limit
-        self.sim_settings['tolerance'] = settings.tolerance
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
         #                                                     # This is only non-empty if a progset is being used in the model.
@@ -827,7 +826,7 @@ class Model(object):
         # Make sure initially-filled junctions are processed and initial dependencies are calculated.
         self.updateValues(framework=framework, do_special=False)    # Done first just in case junctions are dependent on characteristics.
                                                                     # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
-#        self.processJunctions(framework=framework)
+        self.processJunctions()
         self.updateValues(framework=framework)
 
         # TODO: Check if necessary.
@@ -845,7 +844,7 @@ class Model(object):
 
         for t in self.t[1:]:
             self.stepForward(framework=framework, dt=self.dt)
-#            self.processJunctions(framework=framework)
+            self.processJunctions()
             self.updateValues(framework=framework)
 
         for pop in self.pops:
@@ -954,7 +953,7 @@ class Model(object):
         # Update timestep index.
         self.t_index += 1
 
-    def processJunctions(self, framework):
+    def processJunctions(self):
         """ For every compartment considered a junction, propagate the contents onwards until all junctions are empty. """
 
         ti = self.t_index
@@ -968,7 +967,7 @@ class Model(object):
             review_count += 1
             review_required = False # Don't re-run unless a junction has refilled
 
-            if review_count > settings.recursion_limit:
+            if review_count > model_settings['iteration_limit']:
                 raise AtomicaException('ERROR: Processing junctions (i.e. propagating contents onwards) for timestep %i is taking far too long. Infinite loop suspected.' % ti_link)
 
             for pop in self.pops:
@@ -981,7 +980,7 @@ class Model(object):
                             link.vals[ti] = 0
 
                     # If the compartment is numerically empty, make it empty
-                    if junc.vals[ti] <= self.sim_settings['tolerance']:   # Includes negative values.
+                    if junc.vals[ti] <= model_settings['tolerance']:   # Includes negative values.
                         junc.vals[ti] = 0
                     else:
                         current_size = junc.vals[ti]
@@ -1067,7 +1066,7 @@ class Model(object):
 #                                    val_sum += old_vals[par.uid]*weight
 #                                    weights += weight
 #
-#                                if abs(val_sum) > self.sim_settings['tolerance']:
+#                                if abs(val_sum) > model_settings['tolerance']:
 #                                    new_val = val_sum / weights
 #                                else:
 #                                    new_val = 0.0   # Only valid because if the weighted sum is zero, all pop_counts must be zero, meaning that the numerator is zero.
