@@ -19,7 +19,7 @@ from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
 
 # TODO: Put this in a better place.
-TOLERANCE = 1e-6
+self.sim_settings['tolerance'] = 1e-6
 
 class Variable(object):
     '''
@@ -95,11 +95,12 @@ class Compartment(Variable):
             if link.parameter.units == 'fraction':
                 outflow_probability += 1 - (1 - link.parameter.vals[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
             elif link.parameter.units == 'number':
-                outflow_probability += link.parameter.vals[ti]*dt/self.vals[ti]
+                outflow_probability += link.parameter.vals[ti]*dt /self.vals[ti]
             else:
                 raise OptimaException('Unknown parameter units')
 
         remain_probability = 1-outflow_probability
+
         dur = np.zeros(outflow_probability.shape)
         # From OSL/HMM-MAR:
         # Given a transition probability, what is the expected lifetime in units of steps?
@@ -162,7 +163,7 @@ class Characteristic(Variable):
 
             if self.denominator is not None:
                 denom = self.denominator.vals
-                vals_zero = vals < TOLERANCE
+                vals_zero = vals < self.sim_settings['tolerance']
                 vals[denom > 0] /= denom[denom > 0]
                 vals[vals_zero] = 0.0
                 vals[(denom<=0) & (~vals_zero)] = np.inf
@@ -204,7 +205,7 @@ class Characteristic(Variable):
             denom  = self.denominator.vals[ti]
             if denom > 0:
                 self.internal_vals[ti] /= denom
-            elif self.internal_vals[ti] < TOLERANCE:
+            elif self.internal_vals[ti] < self.sim_settings['tolerance']:
                 self.internal_vals[ti] = 0  # Given a zero/zero case, make the answer zero.
             else:
                 self.internal_vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
@@ -583,7 +584,7 @@ class Population(object):
         # Print warning for characteristics that are not well matched by the compartment size solution
         proposed = np.matmul(A,x)
         for i in range(0,len(characs)):
-            if abs(proposed[i]-b[i]) > TOLERANCE:#project_settings.TOLERANCE:
+            if abs(proposed[i]-b[i]) > self.sim_settings['tolerance']:#project_settings.self.sim_settings['tolerance']:
                 logger.warning('Characteristic %s %s - Requested %f, Calculated %f' % (self.name,characs[i].name,b[i],proposed[i]))
         
         # Print diagnostic output for compartments that were assigned a negative value
@@ -601,7 +602,7 @@ class Population(object):
                     logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name,x[comp_indices[inc.name]]))
 
         for i in range(0, len(comps)):
-            if x[i] < -TOLERANCE:
+            if x[i] < -self.sim_settings['tolerance']:
                 logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
                     try:
@@ -612,12 +613,12 @@ class Population(object):
 
 
         # Halt for an unsatisfactory overall solution (could relax this check later)
-        if residual > TOLERANCE:
+        if residual > self.sim_settings['tolerance']:
             print(x)
-            raise AtomicaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,TOLERANCE))
+            raise AtomicaException('Residual was %f which is unacceptably large (should be < %f) - this points to a probable inconsistency in the initial values' % (residual,self.sim_settings['tolerance']))
 
         # Halt for any negative popsizes
-        if np.any(x < -TOLERANCE):
+        if np.any(x < -self.sim_settings['tolerance']):
             raise AtomicaException('Negative initial popsizes')
 
         # Otherwise, insert the values
@@ -708,6 +709,9 @@ class Model(object):
 
         self.t = settings.tvec # NB. returning a mutable variable in a class @property method returns a new object each time
         self.dt = settings.sim_dt
+
+        self.sim_settings['iteration_limit'] = settings.iteration_limit
+        self.sim_settings['tolerance'] = settings.tolerance
 
         # self.sim_settings['impact_pars_not_func'] = []      # Program impact parameters that are not functions of other parameters and thus already marked for dynamic updating.
         #                                                     # This is only non-empty if a progset is being used in the model.
@@ -977,7 +981,7 @@ class Model(object):
                             link.vals[ti] = 0
 
                     # If the compartment is numerically empty, make it empty
-                    if junc.vals[ti] <= TOLERANCE:   # Includes negative values.
+                    if junc.vals[ti] <= self.sim_settings['tolerance']:   # Includes negative values.
                         junc.vals[ti] = 0
                     else:
                         current_size = junc.vals[ti]
@@ -1063,7 +1067,7 @@ class Model(object):
 #                                    val_sum += old_vals[par.uid]*weight
 #                                    weights += weight
 #
-#                                if abs(val_sum) > project_settings.TOLERANCE:
+#                                if abs(val_sum) > self.sim_settings['tolerance']:
 #                                    new_val = val_sum / weights
 #                                else:
 #                                    new_val = 0.0   # Only valid because if the weighted sum is zero, all pop_counts must be zero, meaning that the numerator is zero.

@@ -16,11 +16,13 @@ class ProjectSettings(object):
         self.sim_end = sim_end if sim_end is not None else 2030.0
         self.sim_dt = sim_dt if sim_dt is not None else 1.0/4
 
+        self.tolerance = 1e-6
+        self.iteration_limit = 100
+
         # Other
 #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
 #        self.verbose = verbose # Default verbosity for how much to print out -- see definitions in utils.py:printv()
 #        self.safetymargin = 0.5 # Do not move more than this fraction of people on a single timestep
-#        self.eps = 1e-3 # Must be small enough to be applied to prevalence, which might be ~0.1% or less
 #        self.infmoney = 1e10 # A lot of money
         logger.info("Initialized project settings.")
     
