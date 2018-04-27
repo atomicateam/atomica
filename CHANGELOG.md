@@ -3,13 +3,14 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.6.0 (2018-04-26): Establishing Complex Workflow
+## 0.6.0 (2018-04-27): Establishing Complex Workflow
 
 Features
 - A new file is set up to port and test workflow from Optima TB: test_tb.py
 - Custom databook pages enabled in the framework file, plus a bonus hidden metadata page.
 - Time vector management updated, with ProjectSettings in charge of simulation time vectors.
   WorkbookInstructions controls data time ranges.
+- Calibration, autocalibration and parameter scenarios established.
 
 Edits
 - Stylistic changes in the process of being applied, primarily taking method/function names to snake case.

@@ -53,10 +53,11 @@ if "loaddatabook" in torun:
     P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.makeParset(name = "default")
+    P.makeParset(name="default")
     
 if "runsim" in torun:
-    P.runSim(parset = "default")
+    P.updateSettings(sim_start=2005.0, sim_end=2025.0, sim_dt=0.5)
+    P.runSim(parset="default")
     
 if "makeplots" in torun:
     if test == "sir": 

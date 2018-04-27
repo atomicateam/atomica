@@ -376,6 +376,10 @@ class Project(object):
     #######################################################################################################
 
 
+    def updateSettings(self, sim_start=None, sim_end=None, sim_dt=None):
+        """ Modify the project settings, e.g. the simulation time vector. """
+        self.settings.updateTimeVector(start=sim_start, end=sim_end, dt=sim_dt)
+
     def runSim(self, parset=None, progset=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
 
         """ Run model using a selected parset and store/return results. """
@@ -391,13 +395,13 @@ class Project(object):
                     raise AtomicaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name,parset))
                 parset = self.parsets[parset]
 
-        if progset is None:
-            try: progset = self.progsets[progset_name]
-            except: logger.info("Initiating a standard run of project '{0}' (i.e. without the influence of programs).".format(self.name))
-        if progset is not None:
-            if options is None:
-                logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
-                progset = None
+#        if progset is None:
+#            try: progset = self.progsets[progset_name]
+#            except: logger.info("Initiating a standard run of project '{0}' (i.e. without the influence of programs).".format(self.name))
+#        if progset is not None:
+#            if options is None:
+#                logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
+#                progset = None
 
         tm = tic()
 
