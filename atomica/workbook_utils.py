@@ -39,6 +39,10 @@ def getWorkbookPageKeys(framework = None, workbook_type = None):
     ref_dict = getWorkbookReferences(framework = framework, workbook_type = workbook_type)
     return ref_dict["page_keys"]
 
+def getWorkbookPageSpecs(framework = None, workbook_type = None):
+    ref_dict = getWorkbookReferences(framework = framework, workbook_type = workbook_type)
+    return ref_dict["page_specs"]
+
 def getWorkbookPageSpec(page_key, framework = None, workbook_type = None):
     ref_dict = getWorkbookReferences(framework = framework, workbook_type = workbook_type)
     if "refer_to_settings" in ref_dict["page_specs"][page_key] and ref_dict["page_specs"][page_key]["refer_to_settings"] is True:

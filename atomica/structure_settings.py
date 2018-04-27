@@ -177,7 +177,7 @@ class BaseStructuralSettings():
     def createPageSpecs(cls):
         cls.PAGE_SPECS = odict()
         for page_key in cls.PAGE_KEYS:
-            cls.PAGE_SPECS[page_key] = {"label":page_key.title(), "can_skip":False}
+            cls.PAGE_SPECS[page_key] = {"label":page_key.title(), "can_skip":False, "read_order":0}
             cls.PAGE_SPECS[page_key]["tables"] = []
 
     @classmethod
@@ -344,6 +344,7 @@ class FrameworkSettings(BaseStructuralSettings):
                 else: table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
         cls.PAGE_SPECS[cls.KEY_DATAPAGE]["can_skip"] = True
+        cls.PAGE_SPECS[cls.KEY_TRANSITION]["read_order"] = 1    # Ensure that transition matrix is read after parameter page.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_COMPARTMENT,
                                                                              storage_item_type = cls.KEY_PARAMETER,
                                                                              storage_attribute = "links"))
@@ -360,7 +361,7 @@ class FrameworkSettings(BaseStructuralSettings):
                                      content_type = QuantityFormatType())
         cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["default_value",cls.TERM_FUNCTION,"dependencies"])
         cls.createItemTypeAttributes([cls.KEY_PARAMETER], ["links"], content_type = ContentType(is_list = True))
-        cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
+        cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["read_order","refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["tables"], content_type = ContentType(is_list = True))  
         cls.createItemTypeAttributes([cls.KEY_DATAPAGE], ["can_skip"], content_type = SwitchType())
         # TODO: ELABORATE DATA PAGE.
