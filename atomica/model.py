@@ -442,7 +442,7 @@ class Population(object):
         elif name in self.link_lookup:
             return self.link_lookup[name]
         else:
-            raise OptimaException('Object %s not found' % (name))
+            raise AtomicaException('Object %s not found' % (name))
 
     def getCharac(self, charac_name):
         ''' Allow dependencies to be retrieved by name rather than index. Returns a Variable. '''
@@ -820,14 +820,13 @@ class Model(object):
         else:
             self.programs_active = False
 
-#        # Make sure initially-filled junctions are processed and initial dependencies are calculated.
-#        self.updateValues(framework=framework, do_special=False)     # Done first just in case junctions are dependent on characteristics.
-#                                                                                                # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
-#                                                                                                # NOTE: If junction outflows were to be tagged by special rules, initial calculations may be off. Return to this later and consider logic rigorously.
+        # Make sure initially-filled junctions are processed and initial dependencies are calculated.
+        self.updateValues(framework=framework, do_special=False)    # Done first just in case junctions are dependent on characteristics.
+                                                                    # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
 #        self.processJunctions(framework=framework)
         self.updateValues(framework=framework)
 
-
+        # TODO: Check if necessary.
         # set up sim_settings for later use wrt population tags
         for tag in ["is_source", "is_sink", "is_junction"]:
             self.sim_settings[tag] = []
@@ -952,9 +951,7 @@ class Model(object):
         self.t_index += 1
 
     def processJunctions(self, framework):
-        '''
-        For every compartment considered a junction, propagate the contents onwards until all junctions are empty.
-        '''
+        """ For every compartment considered a junction, propagate the contents onwards until all junctions are empty. """
 
         ti = self.t_index
         ti_link = ti - 1

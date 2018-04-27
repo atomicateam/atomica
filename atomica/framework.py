@@ -133,8 +133,8 @@ class ProjectFramework(CoreProjectStructure):
                     not self.getSpecValue(item_key,"format") in getQuantityTypeList(include_absolute = True, include_relative = True, include_special = True)):
                     raise AtomicaException("Parameter '{0}' is associated with transitions and is expressed as a custom function of other parameters. "
                                            "A format must be specified for it in a framework file.".format(item_key))
-            # Validate parameter-related transitions with source/sink/junction compartments.
             for link in links:
+                # Validate parameter-related transitions with source/sink compartments.
                 if self.getSpecValue(link[0],"is_sink"):
                     raise AtomicaException("Parameter '{0}' cannot be associated with a transition from compartment '{1}' to '{2}'. "
                                            "Compartment '{1}' is strictly a sink compartment.".format(item_key,link[0],link[-1]))
@@ -152,6 +152,7 @@ class ProjectFramework(CoreProjectStructure):
                         raise AtomicaException("Parameter '{0}' is associated with a transition from source compartment '{1}' to '{2}'. "
                                                "The format of the parameter must thus be specified as: '{3}'".format(item_key,link[0],link[-1],
                                                                                                                      "' or '".join(getQuantityTypeList(include_absolute = True))))
+                # Validate parameter-related transitions with junction compartments.
                 if self.getSpecValue(link[0],"is_junction"):
                     if len(links) > 1:
                         # TODO: Avoid repetitive exception code. Encapsulate all exceptions.
@@ -160,6 +161,11 @@ class ProjectFramework(CoreProjectStructure):
                     if not self.getSpecValue(item_key,"format") == FS.QUANTITY_TYPE_PROPORTION:
                         raise AtomicaException("Parameter '{0}' is associated with a transition from junction compartment '{1}' to '{2}'. "
                                                "The format of the parameter must thus be specified as: '{3}'".format(item_key,link[0],link[-1],FS.QUANTITY_TYPE_PROPORTION))
+                if self.getSpecValue(item_key,"format") == FS.QUANTITY_TYPE_PROPORTION:
+                    if not self.getSpecValue(link[0],"is_junction"):
+                        raise AtomicaException("Parameter '{0}' is associated with a transition from non-junction compartment '{1}' to '{2}'. "
+                                               "It is also incorrectly given a 'proportion' format which can only describe transitions from junctions.".format(item_key,link[0],link[-1]))
+                    
             
 
     @classmethod

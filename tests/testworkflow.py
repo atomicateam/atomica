@@ -56,7 +56,7 @@ if "makeparset" in torun:
     P.makeParset(name="default")
     
 if "runsim" in torun:
-    P.updateSettings(sim_start=2005.0, sim_end=2025.0, sim_dt=0.5)
+    P.updateSettings(sim_start=2005.0, sim_end=2005.5, sim_dt=0.5)
     P.runSim(parset="default")
     
 if "makeplots" in torun:
