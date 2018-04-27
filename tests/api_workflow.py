@@ -56,9 +56,7 @@ scvalues['infdeath']['adults'] = dict()
 scvalues['infdeath']['adults']['y'] = [0.125]
 scvalues['infdeath']['adults']['t'] = [2015.]
 
-
 scvalues['infdeath']['adults']['smooth_onset'] = [2]
-
 scvalues['infdeath']['adults']['y'] = [0.125, 0.5]
 scvalues['infdeath']['adults']['t'] = [2015., 2020.]
 scvalues['infdeath']['adults']['smooth_onset'] = [2, 3]
@@ -66,11 +64,14 @@ scvalues['infdeath']['adults']['smooth_onset'] = [2, 3]
 s = ParameterScenario('increased_infections',scvalues)
 P.results['scen1']=P.run_scenario(s)
 
-# d = PlotData(P.results, outputs=['inf'])
-# plotSeries(d, axis='results')
-#
-# d = PlotData(P.results, outputs=['dead'])
-# plotSeries(d, axis='results')
+d = PlotData(P.results, outputs=['inf'])
+plotSeries(d, axis='results')
+
+d = PlotData(P.results, outputs=['dead'])
+plotSeries(d, axis='results')
+
+import matplotlib.pyplot as plt
+plt.show()
 
 # Synthesize the calibration target
 # P.parsets['calibration_target'] = dcp(P.parsets[0])
