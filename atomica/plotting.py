@@ -79,6 +79,7 @@ class PlotData(object):
     # labels, colours, groupings etc. only apply to plots, not to results, and there could be several
     # different views of the same data.
 
+    # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
     def __init__(self,results,outputs=None,pops=None,output_aggregation='sum',pop_aggregation='sum',project=None,time_aggregation='sum',t_bins=None):
         # Construct a PlotData instance from a Results object by selecting data and optionally
         # specifying desired aggregations

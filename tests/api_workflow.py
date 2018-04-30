@@ -16,7 +16,7 @@ import os
 from atomica.scenarios import ParameterScenario
 from atomica.calibration import performAutofit
 
-plot_initial = False
+plot_initial = True
 
 test = "sir"
 tmpdir = "." + os.sep + "temp" + os.sep

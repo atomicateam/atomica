@@ -920,22 +920,23 @@ class Model(object):
                                                                     set_size = comp_source.vals[ti], dt = self.dt)
 
                         outflow[i] = value
-
+                    
+                    # TODO: Decide what to do about this negative population block.
                     # Prevent negative population by proportionately downscaling the outflow
                     # if there are insufficient people _currently_ in the compartment
                     # Rescaling is performed if the validation setting is 'avert', otherwise
                     # either a warning will be displayed or an error will be printed
                     if not comp_source.tag_birth and np.sum(outflow) > comp_source.vals[ti]:
-                        validation_level = settings.validation['negative_population']
-
-                        if validation_level == project_settings.VALIDATION_AVERT or validation_level == project_settings.VALIDATION_WARN:
-                            outflow = outflow / np.sum(outflow) * comp_source.vals[ti]
-                        else:
-                            warning = "Negative value encountered for: (%s - %s) at ti=%g : popsize = %g, outflow = %g" % (pop.name,comp_source.name,ti,comp_source.vals[ti],sum(outflow))
-                            if validation_level == project_settings.VALIDATION_ERROR:
-                                raise AtomicaException(warning)
-                            elif validation_level == project_settings.VALIDATION_WARN:
-                                logger.warning(warning)
+#                        validation_level = settings.validation['negative_population']
+#
+#                        if validation_level == project_settings.VALIDATION_AVERT or validation_level == project_settings.VALIDATION_WARN:
+                        outflow = outflow / np.sum(outflow) * comp_source.vals[ti]
+#                        else:
+#                            warning = "Negative value encountered for: (%s - %s) at ti=%g : popsize = %g, outflow = %g" % (pop.name,comp_source.name,ti,comp_source.vals[ti],sum(outflow))
+#                            if validation_level == project_settings.VALIDATION_ERROR:
+#                                raise AtomicaException(warning)
+#                            elif validation_level == project_settings.VALIDATION_WARN:
+#                                logger.warning(warning)
 
                     # Apply the flows to the compartments
                     for i, link in enumerate(outlinks):

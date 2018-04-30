@@ -133,11 +133,16 @@ class Project(object):
 
     def makeParset(self, name = "default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-
+        
+        # TODO: Develop some flag or check for data 'emptiness'.
 #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
-        self.parsets[name] = ParameterSet(name=name)
+        self.setParset(parset_key = name, parset_object = ParameterSet(name=name))
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
+    
+    def copyParset(self, old_name = "default", new_name = "copy"):
+        """ Deep copy an existent parameter set. """
+        self.setParset(parset_key = new_name, parset_object = dcp(self.parsets[old_name]))
 
 #    def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
 #        ''' Create or overwrite a parameter set '''
@@ -182,11 +187,17 @@ class Project(object):
 #        return None
 
 
-#    #######################################################################################################
-#    ### Methods to handle common tasks with structure lists
-#    #######################################################################################################
-#
-#
+    #######################################################################################################
+    ### Methods to handle common tasks with structure lists
+    #######################################################################################################
+
+    def setParset(self, parset_key, parset_object, overwrite = False):
+        """ Set method for parameter sets to prevent overwriting unless explicit. """
+        if parset_key in self.parsets:
+            if not overwrite: raise AtomicaException("A parameter set is already attached to a project under the key '{0}'.".format(parset_key))
+            else: logger.warning("A parameter set already attached to the project with key '{0}' is being overwritten.".format(parset_key))
+        self.parsets[parset_key] = parset_object
+
 #    def getwhat(self, item=None, what=None):
 #        '''
 #        Figure out what kind of structure list is being requested, e.g.
@@ -386,13 +397,13 @@ class Project(object):
 
         if parset is None:
             if len(self.parsets) < 1:
-                raise AtomicaException("ERROR: Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
+                raise AtomicaException("Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
             else:
                 parset = self.parsets[0]
         else:
             if isinstance(parset,str):
                 if parset not in self.parsets:
-                    raise AtomicaException("ERROR: Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name,parset))
+                    raise AtomicaException("Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name,parset))
                 parset = self.parsets[parset]
 
 #        if progset is None:
