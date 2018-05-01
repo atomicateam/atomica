@@ -33,6 +33,7 @@ from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet
 #from atomica.programs import Programset
 from atomica.calibration import performAutofit
+from atomica.scenarios import ParameterScenario
 from atomica.model import runModel
 from atomica.results import Result
 from atomica.workbook_export import writeWorkbook, makeInstructions
@@ -132,40 +133,17 @@ class Project(object):
         return None
 
 
-    def makeParset(self, name = "default"):
+    def makeParset(self, name="default", overwrite=False):
         """ Transform project data into a set of parameters that can be used in model simulations. """
         
         # TODO: Develop some flag or check for data 'emptiness'.
 #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
-        self.set_parset(parset_key = name, parset_object = ParameterSet(name=name))
+        self.set_parset(parset_key = name, parset_object = ParameterSet(name=name), overwrite=overwrite)
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
-    
-    def copy_parset(self, old_name = "default", new_name = "copy"):
-        """ Deep copy an existent parameter set. """
-        parset_object = dcp(self.parsets[old_name])
-        parset_object.change_id(new_name = new_name)
-        self.set_parset(parset_key = new_name, parset_object = parset_object)
-
-#    def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
-#        ''' Create or overwrite a parameter set '''
-#        if not self.data: # TODO this is not the right check to be doing
-#            raise AtomicaException('No data in project "%s"!' % self.name)
-#        parset = Parameterset(name=name, project=self)
-#        parset.makepars(self.data, framework=self.framework, start=self.settings.datastart, end=self.settings.dataend) # Create parameters
-#
-#        if dosave: # Save to the project if requested
-#            if name in self.parsets and not overwrite: # and overwrite if requested
-#                errormsg = 'Cannot make parset "%s" because it already exists (%s) and overwrite is off' % (name, self.parsets.keys())
-#                if die: raise AtomicaException(errormsg) # Probably not a big deal, so...
-#                else:   printv(errormsg, 3, verbose=self.settings.verbose) # ...don't even print it except with high verbose settings
-#            else:
-#                self.addparset(name=name, parset=parset, overwrite=overwrite) # Store parameters
-#                self.modified = today()
-#        return parset
 
 
-    def makeprogset(self, name='default'):
+    def make_progset(self, name="default"):
         pass
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
@@ -188,39 +166,68 @@ class Project(object):
 #            self.addoptim(optim)
 #
 #        return None
+        
+    def make_scenario(self, name="default", instructions=None, save_to_project=True, overwrite=False):
+        scenario = ParameterScenario(name=name, scenario_values=instructions)
+        if save_to_project: self.set_scenario(scenario_key = name, scenario_object = scenario, overwrite=overwrite)
+        return scenario
+        
 
 
     #######################################################################################################
     ### Methods to handle common tasks with structure lists
     #######################################################################################################
 
+    def set_structure(self, structure_key, structure_object, structure_list, structure_string, overwrite = False):
+        """ Base method for setting elements of structure lists to a structure object, with optional overwrite validation. """
+        if structure_key in structure_list:
+            if not overwrite: raise AtomicaException("A {0} is already attached to a project under the key '{1}'.".format(structure_string,structure_key))
+            else: logger.warning("A {0} already attached to the project with key '{1}' is being overwritten.".format(structure_string,structure_key))
+        structure_list[structure_key] = structure_object
+
     def set_parset(self, parset_key, parset_object, overwrite = False):
-        """ Set method for parameter sets to prevent overwriting unless explicit. """
-        if parset_key in self.parsets:
-            if not overwrite: raise AtomicaException("A parameter set is already attached to a project under the key '{0}'.".format(parset_key))
-            else: logger.warning("A parameter set already attached to the project with key '{0}' is being overwritten.".format(parset_key))
-        self.parsets[parset_key] = parset_object
+        """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
+        self.set_structure(structure_key=parset_key, structure_object=parset_object, structure_list=self.parsets, 
+                           structure_string="parameter set", overwrite=overwrite)
+
+    def set_scenario(self, scenario_key, scenario_object, overwrite = False):
+        """ 'Set' method for scenarios to prevent overwriting unless explicit. """
+        self.set_structure(structure_key=scenario_key, structure_object=scenario_object, structure_list=self.scens, 
+                           structure_string="scenario", overwrite=overwrite)
+    
+    def copy_parset(self, old_name = "default", new_name = "copy"):
+        """ Deep copy an existent parameter set. """
+        parset_object = dcp(self.parsets[old_name])
+        parset_object.change_id(new_name = new_name)
+        self.set_parset(parset_key = new_name, parset_object = parset_object)
         
-    def validate_parset(self, parset):
-        """ Allows for parsets to be passed in as objects or strings, the latter of which is checked against project attributes. """
-        if parset is None:
-            if len(self.parsets) < 1:
-                raise AtomicaException("Project '{0}' appears to have no parameter sets. Cannot select a default to run process.".format(self.name))
+    def get_structure(self, structure, structure_list, structure_string):
+        """ Base method that allows structures to be retrieved via an object or string handle and, if the latter, validates for existence. """
+        if structure is None:
+            if len(structure_list) < 1:
+                raise AtomicaException("Project '{0}' appears to have no {1}s. Cannot select a default to run process.".format(self.name,structure_string))
             else:
                 try:
-                    parset = self.parsets["default"]
-                    logger.warning("Project '{0}' has selected parameter set with key 'default' to run process.".format(self.name))
+                    structure = structure_list["default"]
+                    logger.warning("Project '{0}' has selected {1} with key 'default' to run process.".format(self.name,structure_string))
                 except: 
-                    parset = self.parsets[0]
+                    structure = structure_list[0]
                     logger.warning("In the absence of a parameter set with key 'default', "
-                                   "project '{0}' has selected parameter set with name '{1}' to run process.".format(self.name,parset.name))
+                                   "project '{0}' has selected {1} with name '{2}' to run process.".format(self.name,structure_string,structure.name))
         else:
-            if isinstance(parset,str):
-                if parset not in self.parsets:
-                    raise AtomicaException("Project '{0}' is lacking a parset named '{1}'. Cannot run process.".format(self.name,parset))
-                parset = self.parsets[parset]
-        return parset
+            if isinstance(structure,str):
+                if structure not in structure_list:
+                    raise AtomicaException("Project '{0}' is lacking a {1} named '{2}'. Cannot run process.".format(self.name,structure_string,structure))
+                structure = structure_list[structure]
+        return structure
         
+    def get_parset(self, parset):
+        """ Allows for parsets to be retrieved from an object or string handle, the latter of which is checked against project attributes. """
+        return self.get_structure(structure=parset, structure_list=self.parsets, structure_string="parameter set")
+      
+    def get_scenario(self, scenario):
+        """ Allows for scenarios to be retrieved from an object or string handle, the latter of which is checked against project attributes. """
+        return self.get_structure(structure=scenario, structure_list=self.scens, structure_string="scenario")
 
 #    def getwhat(self, item=None, what=None):
 #        '''
@@ -418,7 +425,7 @@ class Project(object):
     def runSim(self, parset=None, progset=None, options=None, store_results=True, result_type=None, result_name=None):
         """ Run model using a selected parset and store/return results. """
         
-        parset = self.validate_parset(parset=parset)
+        parset = self.get_parset(parset=parset)
 
 #        if progset is None:
 #            try: progset = self.progsets[progset_name]
@@ -428,25 +435,26 @@ class Project(object):
 #                logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
 #                progset = None
 
+        if result_name is None:
+            result_name = "parset_" + parset.name
+            if not progset is None:
+                result_name = result_name + "_progset_" + progset.name
+            if result_type is not None:
+                result_name = result_type + "_" + result_name
+            k = 1
+            while k > 0:
+                result_name_attempt = result_name + "_" + str(k)
+                k = k + 1
+                if result_name_attempt not in self.results:
+                    result_name = result_name_attempt
+                    k = 0
+
         tm = tic()
-        results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
+        results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options, name=result_name)
 
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
-            if result_name is None:
-                result_name = "parset_" + parset.name
-                if not progset is None:
-                    result_name = result_name + "_progset_" + progset.name
-                if result_type is not None:
-                    result_name = result_type + "_" + result_name
-                k = 1
-                while k > 0:
-                    result_name_attempt = result_name + "_" + str(k)
-                    k = k + 1
-                    if result_name_attempt not in self.results:
-                        result_name = result_name_attempt
-                        k = 0
             self.results[result_name] = results
 
         return results
@@ -477,7 +485,7 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape", "R2"
         Note that scaling limits are absolute, not relative.
         """
-        parset = self.validate_parset(parset=parset)
+        parset = self.get_parset(parset=parset)
         if adjustables is None: adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
         if measurables is None: measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys() + self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
         for index, adjustable in enumerate(adjustables):
@@ -497,17 +505,16 @@ class Project(object):
 #    def outcome(self):
 #        ''' Function to get the outcome for a particular sim and objective'''
 #        pass
-#    
-    def run_scenario(self,scenario,parset='default',progset=None,options=None):
-        '''Run a scenario object
+        
 
-
-        '''
-        if isinstance(parset,str):
-           parset = self.parsets[parset]
-        scenario_parset = scenario.get_parset(parset,self.settings)
+    def run_scenario(self, scenario, parset=None, progset=None, options=None, store_results=True, result_name=None):
+        """ Run a scenario. """
+        parset = self.get_parset(parset)
+        scenario = self.get_scenario(scenario)
+        scenario_parset = scenario.get_parset(parset, self.settings)
         scenario_progset, scenario_options = scenario.get_progset(progset, self.settings,options)
-        return self.runSim(parset=scenario_parset, progset=scenario_progset,options=scenario_options,store_results=False)
+        return self.runSim(parset=scenario_parset, progset=scenario_progset, options=scenario_options, 
+                           store_results=store_results, result_type="scenario", result_name=result_name)
 
 #    def optimize(self):
 #        '''Run an optimization'''

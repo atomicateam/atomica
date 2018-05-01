@@ -130,11 +130,11 @@ if "autocalibrate" in torun:
     if test == "sir":
         # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
         adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-        measurables = [("ch_prev", 'adults', 1.0, "fractional")]        # Weight and type of metric.
+        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
         # New name argument set to old name to do in-place calibration.
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
         P.runSim(parset="auto", result_name="auto")
-        d = PlotData(P.results.values(), outputs=["ch_prev"])   # Values method used to plot all existent results.
+        d = PlotData(P.results, outputs=["ch_prev"])   # Values method used to plot all existent results.
         plotSeries(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
@@ -143,21 +143,26 @@ if "parameterscenario" in torun:
         scvalues["infdeath"] = dict()
         scvalues["infdeath"]["adults"] = dict()
         
+        # Insert (and possibly overwrite) one value.
         scvalues["infdeath"]["adults"]["y"] = [0.125]
         scvalues["infdeath"]["adults"]["t"] = [2015.]
         scvalues["infdeath"]["adults"]["smooth_onset"] = [2]
         
+        P.make_scenario(name="increased_infections", instructions=scvalues)
+        P.run_scenario(scenario="increased_infections", parset="auto", result_name="scen1")
+        
+        # Insert two values and eliminate everything between them.
         scvalues["infdeath"]["adults"]["y"] = [0.125, 0.5]
         scvalues["infdeath"]["adults"]["t"] = [2015., 2020.]
         scvalues["infdeath"]["adults"]["smooth_onset"] = [2, 3]
         
-        s = ParameterScenario("increased_infections",scvalues)
-        P.results["scen1"]=P.run_scenario(s)
+        P.make_scenario(name="increased_infections", instructions=scvalues, overwrite=True)
+        P.run_scenario(scenario="increased_infections", parset="auto", result_name="scen2")
         
-        d = PlotData(P.results, outputs=["inf"])
+        d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=["inf"])
         plotSeries(d, axis="results")
         
-        d = PlotData(P.results, outputs=["dead"])
+        d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=["dead"])
         plotSeries(d, axis="results")
     
 if "saveproject" in torun:
