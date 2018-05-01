@@ -62,7 +62,7 @@ scvalues['infdeath']['adults']['t'] = [2015., 2020.]
 scvalues['infdeath']['adults']['smooth_onset'] = [2, 3]
 
 s = ParameterScenario('increased_infections',scvalues)
-P.results['scen1']=P.run_scenario(s)
+P.run_scenario(s)
 
 d = PlotData(P.results, outputs=['inf'])
 plotSeries(d, axis='results')
