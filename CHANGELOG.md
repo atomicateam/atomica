@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.6.1 (2018-05-01): High-order Program Processes
+
+Features
+- Without settling on a programs structure yet, wrapper processes are established.
+  These include budget scenarios and optimizations.
+
 ## 0.6.0 (2018-04-27): Establishing Complex Workflow
 
 Features

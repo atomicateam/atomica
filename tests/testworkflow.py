@@ -5,6 +5,9 @@ Version:
 import atomica.ui as aui
 import os
 
+# TODO: Wrap up what the FE is likely to use into either Project or Result level method calls, rather than using functions.
+from atomica.plotting import PlotData, plotSeries, plotBars
+
 test = "sir"
 #test = "tb"
 
@@ -59,12 +62,10 @@ if "makeparset" in torun:
     P.makeParset(name="default")
     
 if "runsim" in torun:
-    P.updateSettings(sim_start=2005.0, sim_end=2075.5, sim_dt=0.5)
-    P.runSim(parset="default")
+    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    P.runSim(parset="default", result_name="default")
     
 if "makeplots" in torun:
-    # TODO: Wrap up what the FE is likely to use into either Project or Result level method calls, rather than using functions.
-    from atomica.plotting import PlotData, plotSeries, plotBars
     if test == "sir": 
         test_vars = ["sus","inf","rec","dead","ch_all","foi"]
         pop = "adults"
@@ -93,10 +94,27 @@ if "export" in torun:
     P.results[0].export(tmpdir+test+"_results")
     
 if "manualcalibrate" in torun:
-    P.copyParset(old_name="default", new_name="manual")
+    # Attempt a manual calibration, i.e. edit the scaling factors directly.
+    P.copy_parset(old_name="default", new_name="manual")
+    if test == "sir":
+        P.parsets["manual"].set_scaling_factor(par_name="transpercontact", pop_name="adults", scale=0.5)
+        P.runSim(parset="manual", result_name="manual")
+        d = PlotData([P.results["default"],P.results["manual"]], outputs=["ch_prev"])
+        plotSeries(d, axis='results', data=P.data)
     
 if "autocalibrate" in torun:
-    P.copyParset(old_name="default", new_name="auto")
+    # Manual fit was not good enough according to plots, so run autofit.
+    P.copy_parset(old_name="default", new_name="auto")
+    if test == "sir":
+        adjustables = [("transpercontact", "adults", 0.1, 1.9)]
+        measurables = [("ch_prev", pop, 1.0, "fractional")]
+        for pop in P.parsets[0].pop_names:
+            measurables.append(("ch_prev", pop, 1.0, "fractional"))
+        # New name argument set to old name to do in-place calibration.
+        P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+        P.runSim(parset="auto", result_name="auto")
+        d = PlotData(P.results.values(), outputs=["ch_prev"])   # Values method used to plot all existent results.
+        plotSeries(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     pass

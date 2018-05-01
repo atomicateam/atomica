@@ -8,10 +8,10 @@ Version: 2018mar23
 
 from sciris.core import odict, today, getdate
 
-class Programset(object):
+class ProgramSet(object):
 
-    def __init__(self, name='default', programs=None, default_interaction='additive', project=None):
-        ''' Initialize '''
+    def __init__(self, name="default", programs=None, default_interaction="additive"):
+        """ Class to hold all programs. """
         self.name = name
         self.default_interaction = default_interaction
         self.programs = odict()

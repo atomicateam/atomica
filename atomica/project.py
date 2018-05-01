@@ -30,8 +30,9 @@ from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
-from atomica.parameters import ParameterSet#, makesimpars
+from atomica.parameters import ParameterSet
 #from atomica.programs import Programset
+from atomica.calibration import performAutofit
 from atomica.model import runModel
 from atomica.results import Result
 from atomica.workbook_export import writeWorkbook, makeInstructions
@@ -136,13 +137,15 @@ class Project(object):
         
         # TODO: Develop some flag or check for data 'emptiness'.
 #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
-        self.setParset(parset_key = name, parset_object = ParameterSet(name=name))
+        self.set_parset(parset_key = name, parset_object = ParameterSet(name=name))
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
     
-    def copyParset(self, old_name = "default", new_name = "copy"):
+    def copy_parset(self, old_name = "default", new_name = "copy"):
         """ Deep copy an existent parameter set. """
-        self.setParset(parset_key = new_name, parset_object = dcp(self.parsets[old_name]))
+        parset_object = dcp(self.parsets[old_name])
+        parset_object.change_id(new_name = new_name)
+        self.set_parset(parset_key = new_name, parset_object = parset_object)
 
 #    def makeparset(self, name='default', overwrite=False, dosave=True, die=False):
 #        ''' Create or overwrite a parameter set '''
@@ -191,12 +194,33 @@ class Project(object):
     ### Methods to handle common tasks with structure lists
     #######################################################################################################
 
-    def setParset(self, parset_key, parset_object, overwrite = False):
+    def set_parset(self, parset_key, parset_object, overwrite = False):
         """ Set method for parameter sets to prevent overwriting unless explicit. """
         if parset_key in self.parsets:
             if not overwrite: raise AtomicaException("A parameter set is already attached to a project under the key '{0}'.".format(parset_key))
             else: logger.warning("A parameter set already attached to the project with key '{0}' is being overwritten.".format(parset_key))
         self.parsets[parset_key] = parset_object
+        
+    def validate_parset(self, parset):
+        """ Allows for parsets to be passed in as objects or strings, the latter of which is checked against project attributes. """
+        if parset is None:
+            if len(self.parsets) < 1:
+                raise AtomicaException("Project '{0}' appears to have no parameter sets. Cannot select a default to run process.".format(self.name))
+            else:
+                try:
+                    parset = self.parsets["default"]
+                    logger.warning("Project '{0}' has selected parameter set with key 'default' to run process.".format(self.name))
+                except: 
+                    parset = self.parsets[0]
+                    logger.warning("In the absence of a parameter set with key 'default', "
+                                   "project '{0}' has selected parameter set with name '{1}' to run process.".format(self.name,parset.name))
+        else:
+            if isinstance(parset,str):
+                if parset not in self.parsets:
+                    raise AtomicaException("Project '{0}' is lacking a parset named '{1}'. Cannot run process.".format(self.name,parset))
+                parset = self.parsets[parset]
+        return parset
+        
 
 #    def getwhat(self, item=None, what=None):
 #        '''
@@ -387,24 +411,14 @@ class Project(object):
     #######################################################################################################
 
 
-    def updateSettings(self, sim_start=None, sim_end=None, sim_dt=None):
+    def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.updateTimeVector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def runSim(self, parset=None, progset=None, options=None, plot=False, debug=False, store_results=True, result_type=None, result_name=None):
-
+    def runSim(self, parset=None, progset=None, options=None, store_results=True, result_type=None, result_name=None):
         """ Run model using a selected parset and store/return results. """
-
-        if parset is None:
-            if len(self.parsets) < 1:
-                raise AtomicaException("Project '{0}' appears to have no parameter sets. Cannot run model.".format(self.name))
-            else:
-                parset = self.parsets[0]
-        else:
-            if isinstance(parset,str):
-                if parset not in self.parsets:
-                    raise AtomicaException("Project '{0}' is lacking a parset named '{1}'. Cannot run model.".format(self.name,parset))
-                parset = self.parsets[parset]
+        
+        parset = self.validate_parset(parset=parset)
 
 #        if progset is None:
 #            try: progset = self.progsets[progset_name]
@@ -415,16 +429,9 @@ class Project(object):
 #                progset = None
 
         tm = tic()
-
-#        # results = runModel(settings = self.settings, parset = parset)
         results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
 
         toc(tm, label="running '{0}' model".format(self.name))
-
-#        if plot:
-#            tp = tic()
-#            self.plotResults(results=results)
-#            toc(tp, label='plotting %s' % self.name)
 
         if store_results:
             if result_name is None:
@@ -444,78 +451,21 @@ class Project(object):
 
         return results
 
-#    def runsim(self, name=None, pars=None, simpars=None, start=None, end=None, dt=None, tvec=None, 
-#               budget=None, coverage=None, budgetyears=None, data=None, n=1, sample=None, tosample=None, randseed=None,
-#               addresult=True, overwrite=True, keepraw=False, doround=True, die=True, debug=False, verbose=None, 
-#               parsetname=None, progsetname=None, resultname=None, label=None, **kwargs):
-#        ''' 
-#        This function runs a single simulation, or multiple simulations if n>1. This is the
-#        core function for actually running the model!!!!!!
-#        
-#        Version: 2018jan13
-#        '''
-#        if dt      is None: dt      = self.settings.dt # Specify the timestep
-#        if verbose is None: verbose = self.settings.verbose
-#        
-#        # Extract parameters either from a parset stored in project or from input
-#        if parsetname is None:
-#            if name is not None: parsetname = name # This is mostly for backwards compatibility -- allow the first argument to set the parset
-#            else:                parsetname = -1 # Set default name
-#            if pars is None:
-#                pars = self.parsets[parsetname].pars
-#                resultname = 'parset-'+self.parsets[parsetname].name
-#            else:
-#                printv('Model was given a pardict and a parsetname, defaulting to use pardict input', 3, self.settings.verbose)
-#                if resultname is None: resultname = 'pardict'
-#        else:
-#            if pars is not None:
-#                printv('Model was given a pardict and a parsetname, defaulting to use pardict input', 3, self.settings.verbose)
-#                if resultname is None: resultname = 'pardict'
-#            else:
-#                if resultname is None: resultname = 'parset-'+self.parsets[parsetname].name
-#                pars = self.parsets[parsetname].pars
-#        if label is None: # Define the label
-#            if name is None: label = '%s' % parsetname
-#            else:            label = name
-#            
-#        # Get the parameters sorted
-#        if simpars is None: # Optionally run with a precreated simpars instead
-#            simparslist = [] # Needs to be a list
-#            if n>1 and sample is None: sample = 'new' # No point drawing more than one sample unless you're going to use uncertainty
-#            if randseed is not None: seed(randseed) # Reset the random seed, if specified
-#            if start is None: 
-#                try:    start = self.parsets[parsetname].start # Try to get start from parameter set, but don't worry if it doesn't exist
-#                except: start = self.settings.start # Else, specify the start year from the project
-#                try:    end   = self.parsets[parsetname].end # Ditto
-#                except: end   = self.settings.end # Ditto
-#            for i in range(n):
-#                maxint = 2**31-1 # See https://en.wikipedia.org/wiki/2147483647_(number)
-#                sampleseed = randint(0,maxint) 
-#                simparslist.append(makesimpars(pars, start=start, end=end, dt=dt, tvec=tvec, settings=self.settings, name=parsetname, sample=sample, tosample=tosample, randseed=sampleseed))
-#        else:
-#            simparslist = promotetolist(simpars)
-#
-##        # Run the model!
-##        rawlist = []
-##        for ind,simpars in enumerate(simparslist):
-##            raw = model(simpars, self.settings, die=die, debug=debug, verbose=verbose, label=self.name, **kwargs) # ACTUALLY RUN THE MODEL
-##            rawlist.append(raw)
-##
-##        # Store results if required
-##        results = Resultset(name=resultname, pars=pars, parsetname=parsetname, progsetname=progsetname, raw=rawlist, simpars=simparslist, budget=budget, coverage=coverage, budgetyears=budgetyears, project=self, keepraw=keepraw, doround=doround, data=data, verbose=verbose) # Create structure for storing results
-##        if addresult:
-##            keyname = self.addresult(result=results, overwrite=overwrite)
-##            if parsetname is not None:
-##                self.parsets[parsetname].resultsref = keyname # If linked to a parset, store the results
-##            self.modified = today() # Only change the modified date if the results are stored
-##        
-#        return simparslist #TEMP: return interpolated parameters
-#
-#
-#    def calibrate(self):
-#        ''' Function to perform automatic calibration '''
-#        pass
-#    
+    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None):
+        """
+        Method to perform automatic calibration.
+        To do in-place for a project-attached parameter set, provide its old name as the new name.
+        """
+        parset = self.validate_parset(parset=parset)
+        # TODO: Give adjustables and measurables some leeway in how they are passed as inputs.
+        new_parset = performAutofit(project=self, parset=parset, 
+                                    pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
+        if save_to_project:
+            self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)
+        return new_parset
+        
+    
 #    def outcome(self):
 #        ''' Function to get the outcome for a particular sim and objective'''
 #        pass

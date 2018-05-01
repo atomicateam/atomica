@@ -157,6 +157,19 @@ class ParameterSet(object):
         self.contacts = odict()     # Dictionary of inter-population interaction weights.
         
         logger.info("Created ParameterSet: {0}".format(self.name))
+        
+    def change_id(self, new_name = None):
+        """
+        Change the name and uid of this parameter set.
+        This is a dangerous function that could break references by uid, so should only be used on duplicates.
+        """
+        new_name_string = ""
+        if not new_name is None: 
+            if new_name == self.name:
+                logger.warning("A parameter set with name '{0}' has been explicitly requested to rename itself '{0}'".format(new_name))
+            self.name = new_name
+            new_name_string = "with name '{0}' ".format(new_name)
+        logger.warning("A parameter set {0}has been given a new uid.".format(new_name_string))
 
     def set_scaling_factor(self,par_name,pop_name,scale):
         par = self.getPar(par_name)

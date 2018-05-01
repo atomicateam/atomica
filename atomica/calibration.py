@@ -116,7 +116,7 @@ def _calc_R2(y_obs,y_fit):
     """
     raise NotImplementedError
 
-def performAutofit(proj,parset,pars_to_adjust,output_quantities,max_time=60):
+def performAutofit(project,parset,pars_to_adjust,output_quantities,max_time=60):
     """
     Run an autofit and save resulting parameterset
 
@@ -132,7 +132,7 @@ def performAutofit(proj,parset,pars_to_adjust,output_quantities,max_time=60):
     """
 
     args = {
-        'project': proj,
+        'project': project,
         'parset': dcp(parset),
         'pars_to_adjust': pars_to_adjust,
         'output_quantities': output_quantities,
