@@ -87,7 +87,7 @@ plt.show()
 pars_to_adjust = [('transpercontact','adults',0.1,1.9)]
 output_quantities = []
 for pop in P.parsets[0].pop_names:
-    output_quantities.append((pop,'ch_prev',1.0,"fractional"))
+    output_quantities.append(('ch_prev',pop,1.0,"fractional"))
 calibrated_parset = performAutofit(P,P.parsets[0] , pars_to_adjust, output_quantities,max_time=30)
 
 # Plot the results before and after calibration

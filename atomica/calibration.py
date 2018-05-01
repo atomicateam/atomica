@@ -59,7 +59,7 @@ def calculateObjective(y_factors,pars_to_adjust,output_quantities,parset,project
 
     objective = 0.0
 
-    for pop_name,var_label,weight,metric in output_quantities:
+    for var_label,pop_name,weight,metric in output_quantities:
         var = result.model.getPop(pop_name).getVariable(var_label)
         if isinstance(var[0],Characteristic):
             target = project.data.getSpec('ch_prev')['data'][pop_name]
@@ -171,24 +171,6 @@ def performAutofit(proj,parset,pars_to_adjust,output_quantities,max_time=60):
     x1, _, _ = asd(calculateObjective, x0, args, **optim_args)
 
     update_parset(args['parset'],x1,pars_to_adjust)
-
-    for i,x in enumerate(pars_to_adjust):
-        par_name = x[0]
-        pop_name = x[1]
-
-        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
-            par = args['parset'].getPar(par_name)
-
-            if pop_name is None:
-                for pop in par.pops:
-                    print('{} - {}, scale={:.3f}'.format(par_name, pop, par.y_factor[pop]))
-            else:
-                print('{} - {}, scale={:.2f}'.format(par_name, pop_name, par.y_factor[pop_name]))
-
-        else: # For now, must be in there...
-            tokens = par_name.split('_from_')
-            par = args['parset'].transfers[tokens[0]][tokens[1]]
-            print('{} - {}, scale={:.2f}'.format(tokens[0], tokens[1], par.y_factor[pop_name]))
 
     for i,x in enumerate(pars_to_adjust):
         par_name = x[0]
