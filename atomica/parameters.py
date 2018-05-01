@@ -34,6 +34,10 @@ class Parameter(object):
         self.y_factor = y_factor                # Scaling factor of data. Corresponds to different transformations whether format is fraction or number.
         self.autocalibrate = autocalibrate      # A set of boolean flags corresponding to y_factor that denote whether this parameter can be autocalibrated.
                                                                 
+    @property
+    def pops(self):
+        return self.t.keys()
+
     def insertValuePair(self, t, y, pop_name):
         """ Check if the inserted t value already exists for the population parameter. If not, append y value. If so, overwrite y value. """
         # Make sure it stays sorted

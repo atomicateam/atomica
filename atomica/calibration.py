@@ -145,7 +145,10 @@ def performAutofit(project,parset,pars_to_adjust,output_quantities,max_time=60):
         par_name, pop_name, scale_min, scale_max = x
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
             par = parset.getPar(par_name)
-            x0.append(par.y_factor[pop_name])
+            if pop_name is None:
+                x0.append(np.mean([par.y_factor[p] for p in par.pops]))
+            else:
+                x0.append(par.y_factor[pop_name])
         else:
             tokens = par_name.split('_from_')
             par = parset.transfers[tokens[0]][tokens[1]]
