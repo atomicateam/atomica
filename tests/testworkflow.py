@@ -106,8 +106,9 @@ if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
     P.copy_parset(old_name="default", new_name="auto")
     if test == "sir":
-        adjustables = [("transpercontact", "adults", 0.1, 1.9)]     # Absolute scaling factor limits.
-        measurables = [("ch_prev", "adults", 1.0, "fractional")]    # Weight and type of metric.
+        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
+        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+        measurables = [("ch_prev", None, 1.0, "fractional")]        # Weight and type of metric.
         # New name argument set to old name to do in-place calibration.
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
         P.runSim(parset="auto", result_name="auto")

@@ -25,7 +25,7 @@ Version: 2018mar22
 """
 
 from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, AtomicaException, logger
-from atomica.structure_settings import DatabookSettings as DS
+from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
@@ -451,13 +451,41 @@ class Project(object):
 
         return results
 
-    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None):
+    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None, 
+                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
         """
         Method to perform automatic calibration.
-        To do in-place for a project-attached parameter set, provide its old name as the new name.
+        
+        The adjustables argument should be a list in the form of...
+            [par_name_1, par_name_2, charac_name_1]
+        ...or...
+            [(par_name_1, pop_1, min_scale_1, max_scale_1)
+             (par_name_2, None, min_scale_2, max_scale_2),
+             (charac_name_1, pop_2, min_scale_3, max_scale_3)]
+        The former will instruct the autofit algorithm to vary specified parameter values for all populations between default scaling limits.
+        The latter will vary specified parameters for specified populations, with 'None' denoting all pops, and within specified scaling limits.
+        
+        The measurables argument should be a list in the form of...
+            [charac_name_1, charac_name_2]
+        ...or...
+            [(charac_name_1, pop_1, weight_1, "fractional")
+             (charac_name_2, None, weight_2, "wape")]
+        The former will instruct calculation of a 'fractional' data-simulation comparison metric summed across specified characteristics for all pops.
+        The latter will calculate its metric for specified populations, with 'None' denoting all pops, and for specified weights and metric types.
+        
+        To calibrate a project-attached parameter set in place, provide its key as the new name argument to this method.
+        Current fitting metrics are: "fractional", "meansquare", "wape", "R2"
+        Note that scaling limits are absolute, not relative.
         """
         parset = self.validate_parset(parset=parset)
-        # TODO: Give adjustables and measurables some leeway in how they are passed as inputs.
+        if adjustables is None: adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
+        if measurables is None: measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys() + self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
+        for index, adjustable in enumerate(adjustables):
+            if isinstance(adjustable, str):     # Assume that a parameter name was passed in if not a tuple.
+                adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
+        for index, measurable in enumerate(measurables):
+            if isinstance(measurable, str):     # Assume that a parameter name was passed in if not a tuple.
+                measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = performAutofit(project=self, parset=parset, 
                                     pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
