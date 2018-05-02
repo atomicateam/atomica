@@ -435,24 +435,25 @@ class Project(object):
 #                logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
 #                progset = None
 
+        if result_name is None:
+            base_name = "parset_" + parset.name
+            if not progset is None:
+                base_name = base_name + "_progset_" + progset.name
+            if result_type is not None:
+                base_name = result_type + "_" + base_name
+
+            k = 1  # consider making this 2?
+            result_name = base_name
+            while result_name in self.results:
+                result_name = base_name + "_" + str(k)
+                k += 1
+
         tm = tic()
         result = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options,name=result_name)
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
-            if result_name is None:
-                result_name = "parset_" + parset.name
-                if not progset is None:
-                    result_name = result_name + "_progset_" + progset.name
-                if result_type is not None:
-                    result_name = result_type + "_" + result_name
-
-            proposed_name = result_name
-            k = 1 # consider making this 2?
-            while proposed_name in self.results:
-                proposed_name = result_name + "_" + str(k)
-                k += 1
-            self.results[proposed_name] = result
+            self.results[result_name] = result
 
         return result
 
