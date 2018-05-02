@@ -23,6 +23,7 @@ torun = [
 "runsim",
 "makeplots",
 "export",
+"listspecs",
 "manualcalibrate",
 "autocalibrate",
 "parameterscenario",
@@ -93,6 +94,27 @@ if "makeplots" in torun:
 if "export" in torun:
     P.results[0].export(tmpdir+test+"_results")
     
+if "listspecs" in torun:
+    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
+    FS = aui.FrameworkSettings
+    DS = aui.DatabookSettings
+    # Print list of characteristic names, i.e. state variables.
+    print("\nCharacteristics...")
+    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
+    # Print list of compartment names. Should be added to the characteristics list for typical processes.
+    print("Compartments...")
+    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
+    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
+    print("Parameters...")
+    print(P.framework.specs[FS.KEY_PARAMETER].keys())
+    # Print list of populations.
+    print("Populations...")
+    print(P.data.specs[DS.KEY_POPULATION].keys())
+    # Print list of programs.
+    print("Programs...")
+    print(P.data.specs[DS.KEY_PROGRAM].keys())
+    print()
+    
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
     P.copy_parset(old_name="default", new_name="manual")
@@ -108,15 +130,40 @@ if "autocalibrate" in torun:
     if test == "sir":
         # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
         adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-        measurables = [("ch_prev", 'adults', 1.0, "fractional")]        # Weight and type of metric.
+        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
         # New name argument set to old name to do in-place calibration.
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
         P.runSim(parset="auto", result_name="auto")
-        d = PlotData(P.results.values(), outputs=["ch_prev"])   # Values method used to plot all existent results.
+        d = PlotData(P.results, outputs=["ch_prev"])   # Values method used to plot all existent results.
         plotSeries(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
-    pass
+    scvalues = dict()
+    if test == "sir":
+        scvalues["infdeath"] = dict()
+        scvalues["infdeath"]["adults"] = dict()
+        
+        # Insert (and possibly overwrite) one value.
+        scvalues["infdeath"]["adults"]["y"] = [0.125]
+        scvalues["infdeath"]["adults"]["t"] = [2015.]
+        scvalues["infdeath"]["adults"]["smooth_onset"] = [2]
+        
+        P.make_scenario(name="increased_infections", instructions=scvalues)
+        P.run_scenario(scenario="increased_infections", parset="auto", result_name="scen1")
+        
+        # Insert two values and eliminate everything between them.
+        scvalues["infdeath"]["adults"]["y"] = [0.125, 0.5]
+        scvalues["infdeath"]["adults"]["t"] = [2015., 2020.]
+        scvalues["infdeath"]["adults"]["smooth_onset"] = [2, 3]
+        
+        P.make_scenario(name="increased_infections", instructions=scvalues, overwrite=True)
+        P.run_scenario(scenario="increased_infections", parset="auto", result_name="scen2")
+        
+        d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=["inf"])
+        plotSeries(d, axis="results")
+        
+        d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=["dead"])
+        plotSeries(d, axis="results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
