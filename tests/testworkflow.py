@@ -9,7 +9,7 @@ import os
 from atomica.plotting import PlotData, plotSeries, plotBars
 
 test = "sir"
-#test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -22,7 +22,7 @@ torun = [
 "makeparset",
 "runsim",
 "makeplots",
-"export",
+#"export",
 "listspecs",
 "manualcalibrate",
 "autocalibrate",
@@ -34,9 +34,10 @@ torun = [
 tmpdir = "." + os.sep + "temp" + os.sep
 
 if "makeframeworkfile" in torun:
-    if test == "sir": aui.ProjectFramework.createTemplate(path=tmpdir+"framework_sir_blank.xlsx", num_comps=4, num_pars=6, num_characs=8)
-    elif test == "tb": aui.ProjectFramework.createTemplate(path=tmpdir+"framework_tb_blank.xlsx", num_comps=40, num_characs=70, num_pars=140, num_datapages=10)
-    
+    if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
+    elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
+    aui.ProjectFramework.createTemplate(path=tmpdir+"framework_"+test+"_blank.xlsx", **args)
+        
 if "makeframework" in torun:
     F = aui.ProjectFramework(name=test.upper(), file_path="./frameworks/framework_"+test+".xlsx")
 
@@ -48,9 +49,10 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": P.createDatabook(databook_path=tmpdir+"databook_sir_blank.xlsx", num_pops=1, num_progs=3, data_start=2005, data_end=2015, data_dt=0.5)
-    elif test == "tb": P.createDatabook(databook_path=tmpdir+"databook_tb_blank.xlsx", num_pops=7, num_progs=14, data_end=2018)
-
+    if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2005, "data_end":2015, "data_dt":0.5}
+    elif test == "tb": args = {"num_pops":12, "num_progs":31, "data_end":2018}
+    P.createDatabook(databook_path=tmpdir+"databook_"+test+"_blank.xlsx", **args)
+    
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
     P = aui.Project(name=test.upper()+" project", framework=F, do_run=False)
@@ -69,30 +71,38 @@ if "runsim" in torun:
 if "makeplots" in torun:
     if test == "sir": 
         test_vars = ["sus","inf","rec","dead","ch_all","foi"]
-        pop = "adults"
-        # Low level debug plots.
-        for var in test_vars: P.results[0].getVariable(pop,var)[0].plot()
-        
-        # Plot population decomposition.
-        d = PlotData(P.results[0],outputs=["sus","inf","rec","dead"])
-        plotSeries(d,plot_type="stacked")
-    
-        # Plot bars for deaths.
-        d = PlotData(P.results[0],outputs=["inf-dead","rec-dead","sus-dead"],t_bins=10)
-        plotBars(d,outer="results",stack_outputs=[["inf-dead","rec-dead","sus-dead"]])
-    
-        # Plot aggregate flows.
-        d = PlotData(P.results[0],outputs=[{"Death rate":["inf-dead","rec-dead","sus-dead"]}])
-        plotSeries(d)
-        
+        test_pop = "adults"
+        decomp = ["sus","inf","rec","dead"]
+        deaths = ["inf-dead","rec-dead","sus-dead"]
     if test == "tb":
         test_vars = ["sus","vac","spdu","alive","b_rate"]
-        pop = "pop_0"
-        for var in test_vars:
-            P.results[0].getVariable(pop,var)[0].plot()
+        test_pop = "0-4"
+        decomp = ["sus","vac","lt_inf","ac_inf","acr"]
+        # Just do untreated TB-related deaths for simplicity.
+#        death_pars = ["pd_term","pm_term","px_term","nd_term","nm_term","nx_term"]
+#        death_links = [x.name for death_par in death_pars for x in P.results["default"].getVariable("0-4",death_par)[0].links]
+        deaths = {"ds_deaths":["pd_term","pd_sad","nd_term","nd_sad"],
+                  "mdr_deaths":["pm_term","pm_sad","nm_term","nm_sad"],
+                  "xdr_deaths":["px_term","px_sad","nx_term","nx_sad"]}
+        
+    # Low level debug plots.
+    for var in test_vars: P.results["default"].getVariable(test_pop,var)[0].plot()
+    
+    # Plot population decomposition.
+    d = PlotData(P.results["default"],outputs=decomp)
+    plotSeries(d,plot_type="stacked")
+
+    # Plot bars for deaths.
+    d = PlotData(P.results["default"],outputs=deaths,t_bins=10)
+    plotBars(d,outer="results")#,stack_outputs=[deaths])
+
+    # Plot aggregate flows.
+    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    plotSeries(d)
+    
 
 if "export" in torun:
-    P.results[0].export(tmpdir+test+"_results")
+    P.results["default"].export(tmpdir+test+"_results")
     
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
