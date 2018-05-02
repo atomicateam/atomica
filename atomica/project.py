@@ -430,23 +430,24 @@ class Project(object):
 
         tm = tic()
         results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
+        if result_name is None:
+            result_name = "parset_" + parset.name
+            if not progset is None:
+                result_name = result_name + "_progset_" + progset.name
+            if result_type is not None:
+                result_name = result_type + "_" + result_name
 
         toc(tm, label="running '{0}' model".format(self.name))
 
+
         if store_results:
-            if result_name is None:
-                result_name = "parset_" + parset.name
-                if not progset is None:
-                    result_name = result_name + "_progset_" + progset.name
-                if result_type is not None:
-                    result_name = result_type + "_" + result_name
-                k = 1
-                while k > 0:
-                    result_name_attempt = result_name + "_" + str(k)
-                    k = k + 1
-                    if result_name_attempt not in self.results:
-                        result_name = result_name_attempt
-                        k = 0
+            k = 1
+            while k > 0:
+                result_name_attempt = result_name + "_" + str(k)
+                k = k + 1
+                if result_name_attempt not in self.results:
+                    result_name = result_name_attempt
+                    k = 0
             self.results[result_name] = results
 
         return results
@@ -491,6 +492,9 @@ class Project(object):
         new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)
+            # self.runSim(new_parset.name)
+
+
         return new_parset
         
     
