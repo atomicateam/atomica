@@ -490,8 +490,6 @@ class Project(object):
         new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)
-            # self.runSim(new_parset.name)
-
 
         return new_parset
         
