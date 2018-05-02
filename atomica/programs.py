@@ -6,7 +6,7 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate
+from sciris.core import odict, today, getdate, defaultrepr
 
 class ProgramSet(object):
 
@@ -33,3 +33,26 @@ class ProgramSet(object):
         output += '============================================================\n'
         
         return output
+
+
+class Program(object):
+    ''' Defines a single program.'''
+
+    def __init__(self, short, name=None, targetpars=None, targetpops=None, ccpars=None, ccdata=None):
+        '''Initialize'''
+        self.short = short
+        self.name = name
+        self.targetpars = targetpars
+        self.targetpops = targetpops
+        self.ccdata = ccdata if ccdata else {'t':[],'cost':[],'coverage':[]}
+
+
+    def __repr__(self):
+        ''' Print out useful info'''
+        output = defaultrepr(self)
+        output += '          Program name: %s\n'    % self.short
+        output += '  Targeted populations: %s\n'    % self.targetpops
+        output += '   Targeted parameters: %s\n'    % self.targetpars
+        output += '\n'
+        return output
+    

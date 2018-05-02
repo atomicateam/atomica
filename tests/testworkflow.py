@@ -9,7 +9,7 @@ import os
 from atomica.plotting import PlotData, plotSeries, plotBars
 
 test = "sir"
-test = "tb"
+#test = "tb"
 
 torun = [
 "makeframeworkfile",
