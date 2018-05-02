@@ -429,7 +429,8 @@ class Project(object):
 #                progset = None
 
         tm = tic()
-        results = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
+        result = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options)
+        
         if result_name is None:
             result_name = "parset_" + parset.name
             if not progset is None:
@@ -439,18 +440,15 @@ class Project(object):
 
         toc(tm, label="running '{0}' model".format(self.name))
 
-
         if store_results:
-            k = 1
-            while k > 0:
-                result_name_attempt = result_name + "_" + str(k)
-                k = k + 1
-                if result_name_attempt not in self.results:
-                    result_name = result_name_attempt
-                    k = 0
-            self.results[result_name] = results
+            proposed_name = result_name
+            k = 1 # consider making this 2?
+            while proposed_name in self.results:
+                proposed_name = result_name + "_" + str(k)
+                k += 1
+            self.results[proposed_name] = result
 
-        return results
+        return result
 
     def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None, 
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
