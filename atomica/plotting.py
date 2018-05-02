@@ -301,7 +301,7 @@ class PlotData(object):
                             logger.warning('Warning - aggregation for output "%s" is mixing units, this is almost certainly not desired' % (output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
-                            if units[0] in ['','fraction','proportion'] and output_aggregation == 'sum' and len(labels) > 1: # Dimensionless quantity, like a prevalance
+                            if units[0] in ['','fraction','proportion','probability'] and output_aggregation == 'sum' and len(labels) > 1: # Dimensionless quantity, like a prevalance
                                 logger.warning('Warning - output "%s" is not in number units, so output aggregation probably should not be "sum"' % (output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
                             
@@ -325,7 +325,7 @@ class PlotData(object):
                         pop_name = list(pop.keys())[0]
                         pop_labels = pop[pop_name]
                         if pop_aggregation == 'sum':
-                            if aggregated_units[output_name] in ['','fraction','proportion'] and len(pop_labels) > 1:
+                            if aggregated_units[output_name] in ['','fraction','proportion','probability'] and len(pop_labels) > 1:
                                 logger.warning('Warning - output "%s" is not in number units, so population aggregation probably should not be "sum"' % (output_name))
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
                         elif pop_aggregation == 'average': 
@@ -380,6 +380,8 @@ class PlotData(object):
                     else:
                         flt = (s.tvec >= low) & (s.tvec < high)
                         if time_aggregation == 'sum':
+                            if s.units in ['','fraction','proportion','probability']:
+                                logger.warning('Warning - %s is not in number units, so time aggregation probably should not be "sum"' % (s))
                             vals.append(np.sum(s.vals[flt]))
                         elif time_aggregation == 'average':
                             vals.append(np.average(s.vals[flt]))
