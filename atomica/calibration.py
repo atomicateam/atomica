@@ -18,30 +18,27 @@ Calibration and sensitivity analysis
 
 """
 
-# CALIBRATION LAYOUT
-# Auto calibration proceeds using y-factors. The input should thus be a list
-# of parameters to calibrate. The output metric would be a list of characteristics
-# or flow rates that need to be matched. So calibration requires
-# - A list of parameters to adjust
-# - A list of output characteristics to match
-#
-# For example, the input parameters could be a list of birth rates and transfer rates
-# and HIV infection rates, and the output parameters could be a list of characteristics
-# In theory these could be population-specific?
-
 def update_parset(parset,y_factors,pars_to_adjust):
+    # Insert updated y-values into the parset
+    # - parset : a ParameterSet object
+    # - y_factors : Array with as many elements as pars_to_adjust
+    # - pars_to_adjust : Array of tuples (par_name,pop_name,...) with special value pop='all' supported
+    #                    Must have as many elements as y_factors. pop=None is not allowed - it must be converted
+    #                    to a full list of pops previously (in performAutofit)
+
     for i,x in enumerate(pars_to_adjust):
         par_name = x[0]
         pop_name = x[1]
 
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
-            if pop_name is None:
+            if pop_name == 'all':
                 par = parset.getPar(par_name)
                 for pop in par.pops:
                     parset.set_scaling_factor(par_name, pop, y_factors[i])
             else:
                 parset.set_scaling_factor(par_name, pop_name, y_factors[i])
-        else: # For now, must be in there...
+        else:
+            # Handle transfers here
             raise NotImplemented
             tokens = par_name.split('_from_')
             par = parset.transfers[tokens[0]][tokens[1]]
@@ -49,9 +46,8 @@ def update_parset(parset,y_factors,pars_to_adjust):
 
 def calculateObjective(y_factors,pars_to_adjust,output_quantities,parset,project):
     # y-factors, array of y-factors to apply to specified output_quantities
-    # pars_to_adjust - list of tuples (par_name,pop_name) recognized by parset.update()
-    # output_quantities - a tuple like (pop,var,weight,metric) understood by model.getPop[pop].getVar(var)
-    # TODO - support Link flow rates and parameters, need to auto adjust
+    # pars_to_adjust - list of tuples (par_name,pop_name,...) recognized by parset.update()
+    # output_quantities - a tuple like (pop,var,weight,metric) understood by model.getPop[pop].getVar
 
     update_parset(parset,y_factors, pars_to_adjust)
 
@@ -61,11 +57,8 @@ def calculateObjective(y_factors,pars_to_adjust,output_quantities,parset,project
 
     for var_label,pop_name,weight,metric in output_quantities:
         var = result.model.getPop(pop_name).getVariable(var_label)
-        if isinstance(var[0],Characteristic):
-            target = project.data.getSpec('ch_prev')['data'][pop_name]
-            data_t,data_v = target.get_arrays()
-        else:
-            raise AtomicaException('Not yet implemented')
+        target = project.data.getSpec(var_label)['data'][pop_name]
+        data_t,data_v = target.get_arrays()
 
         y = data_v
         y2 = interpolateFunc(var[0].t,var[0].vals,data_t)
@@ -120,7 +113,13 @@ def performAutofit(project,parset,pars_to_adjust,output_quantities,max_time=60):
     """
     Run an autofit and save resulting parameterset
 
-    pars_to_adjust - list of tuples, (par,pop,scale) where allowed Y-factor range is 1-scale to 1+scale
+    pars_to_adjust - list of tuples, (par_name,pop_name,lower_limit,upper_limit)
+                     the pop name can be None, which will be expanded to all populations
+                     relevant to the parameter independently, or 'all' which will use the
+                     same y-factor for all populations. The initial y-value is the current
+                     y-value OR in the case of 'all', the average of the y-values across pops
+    output_quantities - list of tuples, (var_label,pop_name,weight,metric), for use in the objective
+                        function. pop_name=None will expand to all pops. pop_name='all' is not supported
     Params:
         project
         paramset
@@ -130,6 +129,29 @@ def performAutofit(project,parset,pars_to_adjust,output_quantities,max_time=60):
         useYFactor            boolean of flag whether we should use yvalues directly, or y_factor
    
     """
+
+    # Expand out pop=None in pars_to_adjust
+    p2 = []
+    for par_tuple in pars_to_adjust:
+        if par_tuple[1] is None: # If the pop name is None
+            par = parset.getPar(par_tuple[0])
+            for pop_name in par.pops:
+                p2.append((par_tuple[0],pop_name,par_tuple[2],par_tuple[3]))
+        else:
+            p2.append(par_tuple)
+    pars_to_adjust = p2
+
+    # Expand out pop=None in output_quantities
+    o2 = []
+    for output_tuple in output_quantities:
+        if output_tuple[1] is None: # If the pop name is None
+            pops = project.data.getSpec(output_tuple[0])['data'].keys()
+            for pop_name in pops:
+                o2.append((output_tuple[0],pop_name,output_tuple[2],output_tuple[3]))
+        else:
+            o2.append(output_tuple)
+    output_quantities = o2
+
 
     args = {
         'project': project,
@@ -145,7 +167,7 @@ def performAutofit(project,parset,pars_to_adjust,output_quantities,max_time=60):
         par_name, pop_name, scale_min, scale_max = x
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
             par = parset.getPar(par_name)
-            if pop_name is None:
+            if pop_name == 'all':
                 x0.append(np.mean([par.y_factor[p] for p in par.pops]))
             else:
                 x0.append(par.y_factor[pop_name])
@@ -182,7 +204,7 @@ def performAutofit(project,parset,pars_to_adjust,output_quantities,max_time=60):
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
             par = args['parset'].getPar(par_name)
 
-            if pop_name is None:
+            if pop_name is None or pop_name == 'all':
                 for pop in par.pops:
                     print("parset.getPar('{}').y_factor['{}']={:.2f}" .format(par_name, pop, par.y_factor[pop]))
             else:

@@ -878,7 +878,7 @@ def render_data(ax,data,series):
         return
 
     if series.pop in d['data'].keys():
-        t,y = d['data'].getArrays('adults')
+        t,y = d['data'].getArrays(series.pop)
         if len(t) == 0:
             return
     else:

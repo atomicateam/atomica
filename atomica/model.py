@@ -8,7 +8,7 @@ from atomica.structure import convertQuantity
 from atomica.results import Result
 from atomica.parser_function import FunctionParser
 #from optima_tb.ModelPrograms import ModelProgramSet, ModelProgram
-from collections import defaultdict # CK: warning, should probably remove
+from collections import defaultdict
 from sciris.core import odict, uuid
 
 parser = FunctionParser(debug=False)  # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
@@ -379,18 +379,25 @@ class Population(object):
         self.popsize_cache_time = None
         self.popsize_cache_val = None
 
+        self.is_linked = True # Flag to manage double unlinking/relinking
+
     def __repr__(self):
         return '%s "%s" (%s)' % (self.__class__.__name__,self.name,self.uid)
 
     def unlink(self):
+        if self.is_linked == False:
+            return
         for obj in self.comps + self.characs + self.pars + self.links:
             obj.unlink()
         self.comp_lookup = None
         self.charac_lookup = None
         self.par_lookup = None
         self.link_lookup = None
+        self.is_linked = False
 
     def relink(self,objs):
+        if self.is_linked == True:
+            return
         for obj in self.comps + self.characs + self.pars + self.links:
             obj.relink(objs)
         self.comp_lookup = {comp.name:comp for comp in self.comps}
@@ -398,6 +405,7 @@ class Population(object):
         self.par_lookup = {par.name:par for par in self.pars}
         link_names = set([link.name for link in self.links])
         self.link_lookup = {name:[link for link in self.links if link.name == name] for name in link_names}
+        self.is_linked = True
 
     def popsize(self,ti=None):
         # A population's popsize is the sum of all of the people in its compartments, excluding
@@ -647,6 +655,8 @@ class Model(object):
         self.t = None
         self.dt = None
         self.uid = uuid()
+        self.vars_by_pop = None # Cache to look up lists of variables by name across populations
+
         self.build(settings, framework, parset, progset, options)
 
     def unlink(self):
@@ -654,39 +664,36 @@ class Model(object):
         # Primary storage is in the comps, links, and outputs properties
 
         # If we are already unlinked, do nothing
-        if self.pars_by_pop is None:
+        if self.vars_by_pop is None:
             return
 
         for pop in self.pops:
             pop.unlink()
         if self.pset is not None:
             self.pset.unlink()
-        self.pars_by_pop = None
+        self.vars_by_pop = None
 
     def relink(self):
         # Need to enumerate objects at Model level because transitions link across pops
 
-        # If we are already linked, do nothing
-        if self.pars_by_pop is not None:
-            return
+        # Do we need to link any pops?
+        if any([not x.is_linked for x in self.pops]):
+            objs = {}
+            for pop in self.pops:
+                for obj in pop.comps + pop.characs + pop.pars + pop.links:
+                    objs[obj.uid] = obj
 
-        objs = {}
-        for pop in self.pops:
-            for obj in pop.comps + pop.characs + pop.pars + pop.links:
-                objs[obj.uid] = obj
+            for pop in self.pops:
+                pop.relink(objs)
 
-        for pop in self.pops:
-            pop.relink(objs)
-
-        self.pars_by_pop = dict()
-        for pop in self.pops:
-            for par in pop.pars:
-                if par.name in self.pars_by_pop:
-                    self.pars_by_pop[par.name].append(par)
-                else:
-                    self.pars_by_pop[par.name] = [par]
+        if self.vars_by_pop is None:
+            self.vars_by_pop = defaultdict(list)
+            for pop in self.pops:
+                for var in pop.comps + pop.characs + pop.pars + pop.links:
+                    self.vars_by_pop[var.name].append(var)
 
         if self.pset is not None:
+            raise NotImplemented # ModelProgramSet should have an internal flag similar to Population
             self.pset.relink(objs)
 
     def __getstate__(self):
@@ -778,14 +785,8 @@ class Model(object):
                                 else:
                                     pop.link_lookup[link.name] = [link]
 
-        # # Make a lookup dict for programs
-        self.pars_by_pop = {}
-        for pop in self.pops:
-            for par in pop.pars:
-                if par.name in self.pars_by_pop:
-                    self.pars_by_pop[par.name].append(par)
-                else:
-                    self.pars_by_pop[par.name] = [par]
+        # Refresh the lookup dict for programs (and other variables)
+        self.relink()
 
         # Finally, prepare ModelProgramSet helper if programs are going to be used
         if 'progs_start' in options:
@@ -1027,7 +1028,7 @@ class Model(object):
             prog_vals = self.pset.compute_pars(ti)[0]
 
         for par_name in (framework.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER]):# + self.sim_settings['impact_pars_not_func']):
-            pars = self.pars_by_pop[par_name] # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
+            pars = self.vars_by_pop[par_name] # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
@@ -1042,9 +1043,9 @@ class Model(object):
 
 #            # Handle parameters tagged with special rules. Overwrite vals if necessary.
 #            if do_special and 'rules' in settings.linkpar_specs[par_name]:
-#                pars = self.pars_by_pop[par_name]  # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
+#                pars = self.vars_by_pop[par_name]  # All of the parameters with this name, across populations. There should be one for each population (these are Parameters, not Links)
 #
-#                old_vals = {par.uid: par.vals[ti] for par in self.pars_by_pop[par_name]}
+#                old_vals = {par.uid: par.vals[ti] for par in self.vars_by_pop[par_name]}
 #
 #                rule = settings.linkpar_specs[par_name]['rules']
 #                for pop in self.pops:

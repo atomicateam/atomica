@@ -23,7 +23,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 
 F = aui.ProjectFramework.load(tmpdir+test+".frw")
 P = aui.Project(name=test.upper()+" project", framework=F)
-P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=True, do_run=True)
+P.loadDatabook(databook_path="./databooks/databook_sir_twopop.xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
     
@@ -31,78 +31,43 @@ P.save(tmpdir+test+".prj")
 
 P = aui.Project.load(tmpdir+test+".prj")
 
-if plot_initial:
+def plot_calibration(adjustables,measurables,titlestr):
+    # Run calibration and plot results showing y-factors in title
+    new_parset = performAutofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
+    new_result = P.runSim(new_parset)
+    d = PlotData(new_result, outputs=['ch_prev'])
+    figs = plotSeries(d, axis='pops', data=P.data)
+    figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}".format(titlestr,new_parset.getPar('transpercontact').y_factor['adults'],new_parset.getPar('transpercontact').y_factor['children']))
 
-    for var in ["sus", "inf", "rec", "dead", "ch_all", "foi"]:
-        P.results[0].getVariable("adults", var)[0].plot()
+# Calibrate explicitly listing out the pops
+# Expected result is y-factors around adults=0.2 and children=0.3
+adjustables = [("transpercontact", 'adults', 0.1, 1.9),("transpercontact", 'children', 0.1, 1.9)]  # Absolute scaling factor limits.
+measurables = [("ch_prev", 'adults', 1.0, "fractional"),("ch_prev", 'children', 1.0, "fractional")]  # Weight and type of metric.
+plot_calibration(adjustables,measurables,'explicit')
 
-    # Plot decomposition of population
-    d = PlotData(P.results[0],outputs=['sus','inf','rec','dead'])
-    plotSeries(d,plot_type='stacked')
+# Calibrate with pops=None to calibrate each pop independently
+# Expected result is that this should be the same as above
+adjustables = [("transpercontact", None, 0.1, 1.9)]  # Absolute scaling factor limits.
+measurables = [("ch_prev", None, 1.0, "fractional")]  # Weight and type of metric.
+plot_calibration(adjustables,measurables,"'None'")
 
-    # Bar plot showing deaths
-    d = PlotData(P.results[0],outputs=['inf-dead','rec-dead', 'sus-dead'],t_bins=10)
-    plotBars(d,outer='results',stack_outputs=[['inf-dead','rec-dead', 'sus-dead']])
+# Calibrate with pops='all' to use the same y-factor in all pops
+# Expected result is that the fit looks acceptable with the same y-factor for both pops
+adjustables = [("transpercontact", 'all', 0.1, 1.9)]  # Absolute scaling factor limits.
+measurables = [("ch_prev", None, 1.0, "fractional")]  # Weight and type of metric.
+plot_calibration(adjustables,measurables,"'all'")
 
-    # Aggregate flows
-    d = PlotData(P.results[0],outputs=[{'Death rate':['inf-dead','rec-dead', 'sus-dead']}])
-    plotSeries(d)
+# Calibrate using only one pop as the objective
+# Expected result is that both adults and children get the child-fitted value of 0.3
+adjustables = [("transpercontact", 'all', 0.1, 1.9)]  # Absolute scaling factor limits.
+measurables = [("ch_prev", 'children', 1.0, "fractional")]  # Weight and type of metric.
+plot_calibration(adjustables,measurables,"children objective")
 
-
-# Make a scenario e.g. decreased infection rate
-scvalues = dict()
-scvalues['infdeath'] = dict()
-scvalues['infdeath']['adults'] = dict()
-scvalues['infdeath']['adults']['y'] = [0.125]
-scvalues['infdeath']['adults']['t'] = [2015.]
-
-scvalues['infdeath']['adults']['y'] = [0.125, 0.5]
-scvalues['infdeath']['adults']['t'] = [2015., 2020.]
-scvalues['infdeath']['adults']['smooth_onset'] = [2, 3]
-
-scvalues['infdeath']['adults']['y'] = [0.125, 0.25, 0.50, 0.50]
-scvalues['infdeath']['adults']['t'] = [2015., 2020., 2025., 2030.]
-scvalues['infdeath']['adults']['smooth_onset'] = [4.,3.,2.,1.]
-
-
-s = ParameterScenario('increased_infections',scvalues)
-P.results['scen1']=P.run_scenario(s)
-
-d = PlotData(P.results, outputs=['infdeath'])
-plotSeries(d, axis='results')
-import matplotlib.pyplot as plt
-plt.show()
-
-d = PlotData(P.results, outputs=['inf'])
-plotSeries(d, axis='results')
-
-d = PlotData(P.results, outputs=['dead'])
-plotSeries(d, axis='results')
-
-plt.show()
-
-# Synthesize the calibration target
-# P.parsets['calibration_target'] = dcp(P.parsets[0])
-# P.parsets['calibration_target'].name = 'calibration_target'
-# par = P.parsets['calibration_target'].getPar('transpercontact')
-# par.y_factor['adults']=0.2
-# r2 = P.runSim(parset='calibration_target')
-# d = PlotData([P.results[0],r2], outputs=['ch_prev'])
-# plotSeries(d, axis='results',data=P.data)
-
-
-# Perform calibration to get a calibrated parset
-pars_to_adjust = [('transpercontact','adults',0.1,1.9)]
-output_quantities = []
-for pop in P.parsets[0].pop_names:
-    output_quantities.append(('ch_prev',pop,1.0,"fractional"))
-calibrated_parset = performAutofit(P, P.parsets[0], pars_to_adjust, output_quantities,max_time=30)
-
-# Plot the results before and after calibration
-calibrated_results = P.runSim(calibrated_parset)
-d = PlotData([P.results[0],calibrated_results], outputs=['ch_prev'])
-plotSeries(d, axis='results',data=P.data)
-
+# Calibrate using only one pop in both adjustables and measurables
+# Expected result is that adults will have y-factor=1.0 (no change) while children get 0.3
+adjustables = [("transpercontact", 'children', 0.1, 1.9)]  # Absolute scaling factor limits.
+measurables = [("ch_prev", 'children', 1.0, "fractional")]  # Weight and type of metric.
+plot_calibration(adjustables,measurables,"children only")
 
 import matplotlib.pyplot as plt
 plt.show()
