@@ -18,7 +18,7 @@ def defaultprogset(P, addcostcovpars=False, addcostcovdata=False, filterprograms
     ''' Make a default programset'''
     pass
 
-def defaultproject(which='sir', verbose=2, **kwargs):
+def defaultproject(which='sir', add_progs=True, verbose=2, do_run=True, **kwargs):
     ''' 
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing 
@@ -26,14 +26,25 @@ def defaultproject(which='sir', verbose=2, **kwargs):
     '''
     
     ##########################################################################################################################
-    ## Simple
+    ## SIR
     ##########################################################################################################################
     
     if which=='sir':
-        printv('Creating an SIR epidemic project...', 2, verbose)
+        printv('Creating SIR project...', 2, verbose)
         
-        F = ProjectFramework(name=which, frameworkfilename=atomicaPath(['tests','frameworks'])+'framework_sir.xlsx')
-        P = Project(framework=F, databook=atomicaPath(['tests','databooks'])+"databook_sir.xlsx")
+        F = ProjectFramework(name=which, file_path=atomicaPath(['tests','frameworks'])+'framework_sir.xlsx')
+        P = Project(framework=F, databook_path=atomicaPath(['tests','databooks'])+"databook_sir.xlsx", do_run=do_run)
+        
+        
+    ##########################################################################################################################
+    ## TB
+    ##########################################################################################################################
+    
+    elif which=='tb':
+        printv('Creating TB project...', 2, verbose)
+        
+        F = ProjectFramework(name=which, file_path=atomicaPath(['tests','frameworks'])+'framework_tb.xlsx')
+        P = Project(framework=F, databook_path=atomicaPath(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
         
     else:
         raise AtomicaException('Default project type "%s" not understood: choices are "sir"' % which)
@@ -41,9 +52,9 @@ def defaultproject(which='sir', verbose=2, **kwargs):
 
 
 
-def demo(doplot=False, verbose=2, **kwargs):
+def demo(do_run=True, do_plot=False, verbose=2, **kwargs):
     ''' Create a simple demo project'''
     P = defaultproject(**kwargs)
-    if doplot: 
+    if do_plot: 
         printv('Plotting not implemented yet.', 2, verbose)
     return P

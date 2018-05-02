@@ -35,6 +35,8 @@ class ProgramSet(object):
         return output
 
 
+#--------------------------------------------------------------------
+
 class Program(object):
     ''' Defines a single program.'''
 
@@ -56,3 +58,43 @@ class Program(object):
         output += '\n'
         return output
     
+
+    def optimizable(self):
+        return True if self.targetpars else False
+
+
+    def hasbudget(self):
+        return True if self.ccdata['cost'] else False
+
+
+    def getcoverage(self, x, t, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
+        '''Returns coverage for a time/spending vector'''
+
+        # Validate inputs
+        x = promotetoarray(x)
+        t = promotetoarray(t)
+
+        poptargeted = self.gettargetpopsize(t=t, parset=parset, results=results, total=False)
+
+        totaltargeted = sum(poptargeted.values())
+        totalreached = self.costcovfn.evaluate(x=x, popsize=totaltargeted, t=t, toplot=toplot, sample=sample)
+
+        if total: return totalreached/totaltargeted if proportion else totalreached
+        else:
+            popreached = odict()
+            targetcomposition = self.targetcomposition if self.targetcomposition else self.gettargetcomposition(t=t,parset=parset) 
+            for targetpop in self.targetpops:
+                popreached[targetpop] = totalreached*targetcomposition[targetpop]
+                if proportion: popreached[targetpop] /= poptargeted[targetpop]
+
+            return popreached
+
+
+    def getbudget(self, x, t, parset=None, results=None, proportion=False, toplot=False, sample='best'):
+        '''Returns budget for a coverage vector'''
+
+        poptargeted = self.gettargetpopsize(t=t, parset=parset, results=results, total=False)
+        totaltargeted = sum(poptargeted.values())
+        if not proportion: reqbudget = self.costcovfn.evaluate(x=x,popsize=totaltargeted,t=t,inverse=True,toplot=False,sample=sample)
+        else: reqbudget = self.costcovfn.evaluate(x=x*totaltargeted,popsize=totaltargeted,t=t,inverse=True,toplot=False,sample=sample)
+        return reqbudget

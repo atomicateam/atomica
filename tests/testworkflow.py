@@ -21,8 +21,9 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
+"makeprogramspreadsheet",
 "makeplots",
-#"export",
+"export",
 "listspecs",
 "manualcalibrate",
 "autocalibrate",
@@ -68,6 +69,15 @@ if "runsim" in torun:
     P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
     P.runSim(parset="default", result_name="default")
     
+if "makeprogramspreadsheet" in torun:
+    print('Making programs spreadsheet ...')
+    from atomica.defaults import demo
+    from atomica.workbook_export import makeprogramspreadsheet
+
+    P = demo(which='sir',do_plot=0)
+    filename = 'temp/programspreadsheet.xlsx'
+    makeprogramspreadsheet(filename, pops=2, progs=5)
+
 if "makeplots" in torun:
     if test == "sir": 
         test_vars = ["sus","inf","rec","dead","ch_all","foi"]
@@ -86,7 +96,7 @@ if "makeplots" in torun:
                   "xdr_deaths":["px_term","px_sad","nx_term","nx_sad"]}
         
     # Low level debug plots.
-    for var in test_vars: P.results["default"].getVariable(test_pop,var)[0].plot()
+    for var in test_vars: P.results["parset_default"].getVariable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
     d = PlotData(P.results["default"],outputs=decomp)
