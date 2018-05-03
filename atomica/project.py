@@ -32,7 +32,7 @@ from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet
 #from atomica.programs import Programset
-from atomica.calibration import performAutofit
+from atomica.calibration import perform_autofit
 from atomica.scenarios import ParameterScenario
 from atomica.model import runModel
 from atomica.results import Result
@@ -480,7 +480,7 @@ class Project(object):
         The latter will calculate its metric for specified populations, with 'None' denoting all pops, and for specified weights and metric types.
         
         To calibrate a project-attached parameter set in place, provide its key as the new name argument to this method.
-        Current fitting metrics are: "fractional", "meansquare", "wape", "R2"
+        Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
         parset = self.get_parset(parset=parset)
@@ -492,8 +492,8 @@ class Project(object):
         for index, measurable in enumerate(measurables):
             if isinstance(measurable, str):     # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = performAutofit(project=self, parset=parset, 
-                                    pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = perform_autofit(project=self, parset=parset,
+                                     pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)

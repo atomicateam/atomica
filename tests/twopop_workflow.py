@@ -14,7 +14,7 @@ from copy import deepcopy as dcp
 import atomica.ui as aui
 import os
 from atomica.scenarios import ParameterScenario
-from atomica.calibration import performAutofit
+from atomica.calibration import perform_autofit
 
 plot_initial = True
 
@@ -33,7 +33,7 @@ P = aui.Project.load(tmpdir+test+".prj")
 
 def plot_calibration(adjustables,measurables,titlestr):
     # Run calibration and plot results showing y-factors in title
-    new_parset = performAutofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
+    new_parset = perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
     new_result = P.runSim(new_parset)
     d = PlotData(new_result, outputs=['ch_prev'])
     figs = plotSeries(d, axis='pops', data=P.data)
