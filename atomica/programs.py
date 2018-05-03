@@ -75,57 +75,9 @@ class Program(object):
         def settargetpars(targetpars=None):
             pass
         
-        def setunitcost(unitcost=None, year=None):
-            '''
-            Handle the unit cost, also complicated since have to convert to a dataframe. 
-            
-            Unit costs can be specified as a number, a tuple, or a dict. If a dict, they can be 
-            specified with val as a tuple, or best, low, high as keys. Examples:
-            
-            setunitcost(21) # Assumes current year and that this is the best value
-            setunitcost(21, year=2014) # Specifies year
-            setunitcost(year=2014, unitcost=(11, 31)) # Specifies year, low, and high
-            setunitcost({'year':2014', 'best':21}) # Specifies year and best
-            setunitcost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
-            setunitcost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
-            '''
-            
-            # Preprocessing
-            unitcostkeys = ['year', 'best', 'low', 'high']
-            if year is None: year = Settings().now # If no year is supplied, reset it; not used if supplied in unitcost dict
-            if self.unitcost is None: self.unitcost = dataframe(cols=unitcostkeys) # Create dataframe
-            
-            # Handle cases
-            if isinstance(unitcost, dataframe): 
-                self.unitcost = unitcost # Right format already: use directly
-            elif checktype(unitcost, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
-                if isnumber(unitcost[0]): # It's a number (or at least the first entry is): convert to values and use
-                    best,low,high = Val(unitcost).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
-                    self.unitcost.addrow([year, best, low, high])
-                else: # It's not a list of numbers, so have to iterate
-                    for uc in unitcost: # Actually a list of unit costs
-                        if isinstance(uc, dict): 
-                            setunitcost(uc) # It's a dict: iterate recursively to add unit costs
-                        else:
-                            errormsg = 'Could not understand list of unit costs: expecting list of floats or list of dicts, not list containing %s' % uc
-                            raise OptimaException(errormsg)
-            elif isinstance(unitcost, dict): # Other main usage case -- it's a dict
-                if any([key not in unitcostkeys+['val'] for key in unitcost.keys()]):
-                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (unitcost.keys(), unitcostkeys)
-                    raise OptimaException(errormsg)
-                val = unitcost.get('val') # First try to get 'val'
-                if val is None: # If that fails, get other arguments
-                    val = [unitcost.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
-                best,low,high = Val(val).get('all') # ... then sanitize them via Val
-                self.unitcost.addrow([unitcost.get('year',year), best, low, high]) # Actually add to dataframe
-            else:
-                errormsg = 'Expecting unit cost of type dataframe, list/tuple/array, or dict, not %s' % type(unitcost)
-                raise OptimaException(errormsg)
-            return None
-        
         def setdata(data=None, year=None):
             ''' Handle the spend-coverage, data, also complicated since have to convert to a dataframe '''
-            datakeys = ['year', 'spend', 'basespend', 'coverage']
+            datakeys = ['year', 'spend', 'coverage']
             if self.data is None: self.data = dataframe(cols=datakeys) # Create dataframe
             if year is None: year = Settings().now # If no year is supplied, reset it
             
@@ -148,17 +100,16 @@ class Program(object):
                         raise OptimaException(errormsg)
             else:
                 errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % data
-                raise OptimaException(errormsg)
+                raise AtomicaException(errormsg)
 
             return None
         
         # Actually set everything
-        if short      is not None: self.short      = short # short name
-        if name       is not None: self.name       = name # full name
-        if category   is not None: self.category   = category # spending category
-        if saturation is not None: self.saturation = Val(saturation) # saturation coverage value
+        if short      is not None: self.short      = short
+        if name       is not None: self.name       = name 
+        if capacity   is not None: self.capacity   = capacity
         if targetpops is not None: self.targetpops = promotetolist(targetpops, 'string') # key(s) for targeted populations
-        if targetpars is not None: settargetpars(targetpars) # targeted parameters
+#        if targetpars is not None: settargetpars(targetpars) # targeted parameters
         if unitcost   is not None: setunitcost(unitcost, year) # unit cost(s)
         if data       is not None: setdata(data, year) # unit cost(s)
         
@@ -167,7 +118,6 @@ class Program(object):
             errormsg = 'You must supply a short name for a program'
             raise OptimaException(errormsg)
         if self.name is None:       self.name = self.short # If name not supplied, use short
-        if self.category is None:   self.category = 'Unspecified'
         if self.targetpops is None: self.targetpops = [] # Empty list
         if self.targetpars is None: self.targetpars = [] # Empty list
             
