@@ -32,7 +32,7 @@ def defaultproject(which='sir', add_progs=True, verbose=2, do_run=True, **kwargs
     if which=='sir':
         printv('Creating SIR project...', 2, verbose)
         
-        F = ProjectFramework(name=which, file_path=atomica_path(['tests','frameworks'])+'framework_sir.xlsx')
+        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_sir.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_sir.xlsx", do_run=do_run)
         
         
@@ -43,8 +43,12 @@ def defaultproject(which='sir', add_progs=True, verbose=2, do_run=True, **kwargs
     elif which=='tb':
         printv('Creating TB project...', 2, verbose)
         
-        F = ProjectFramework(name=which, file_path=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
+#=======
+#        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
+#        P = Project(framework=F, databook=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
+#>>>>>>> fusion
         
     else:
         raise AtomicaException('Default project type "%s" not understood: choices are "sir"' % which)

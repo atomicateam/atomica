@@ -110,27 +110,27 @@ if "makeplots" in torun:
     for var in test_vars: P.results["parset_default"].getVariable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
+    d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
     plotSeries(d,plot_type="stacked")
 
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         plotBars(d,outer="results",stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
         plotBars(d,stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
-        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         plotSeries(d,plot_type='stacked',axis='outputs')
 
     # Plot aggregate flows.
-    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
-    plotSeries(d,axis="pops")
+#    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
+#    plotSeries(d,axis="pops")
 
 
 if "export" in torun:
@@ -167,7 +167,7 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.runSim(parset="manual", result_name="manual")
-    d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plotSeries(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
