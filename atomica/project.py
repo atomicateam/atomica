@@ -187,15 +187,22 @@ class Project(object):
             raise AtomicaException(errormsg)
                 
         nprogs = len(progdata['progs']['short'])
-        programlist = []
+        programs = []
         
         for np in range(nprogs):
-            p = Program(short=progdata['progs']['short'][np],
+            pkey = progdata['progs']['short'][np]
+            data = {k: progdata[pkey][k] for k in ('cost', 'coverage')}
+            data['t'] = progdata['years']
+            p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
-                        targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]])
-            programlist.append(p)
+                        targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]],
+                        unitcost=progdata[pkey]['unitcost'],
+                        capacity=progdata[pkey]['capacity'],
+                        data=data
+                        )
+            programs.append(p)
             
-        progset = ProgramSet(name=name,programlist=programlist)
+        progset = ProgramSet(name=name,programs=programs)
         if add:
             self.set_progset(progset_key=name,progset_object=progset)
             return None

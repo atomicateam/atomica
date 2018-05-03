@@ -6,7 +6,9 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr
+from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist
+from atomica.system import AtomicaException
+
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -29,15 +31,36 @@ class ProgramSet(object):
         output = defaultrepr(self)
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
-        output += 'Targeted populations: %s\n'    % self.targetpops
         output += '        Date created: %s\n'    % getdate(self.created)
         output += '       Date modified: %s\n'    % getdate(self.modified)
-        output += '                 UID: %s\n'    % self.uid
         output += '============================================================\n'
         
         return output
 
+    def addprograms(self, progs=None, replace=False):
+        ''' Add a list of programs '''
+        
+        # Process programs
+        if progs is not None:
+            progs = promotetolist(progs)
+        else:
+            errormsg = 'Programs to add should not be None'
+            raise AtomicaException(errormsg)
+        if replace:
+            self.programs = odict()
+        for prog in progs:
+            if isinstance(prog, dict):
+                prog = Program(**prog)
+            if type(prog)!=Program:
+                errormsg = 'Programs to add must be either dicts or program objects, not %s' % type(prog)
+                raise AtomicaException(errormsg)
+            
+            # Save it
+            self.programs[prog.short] = prog
 
+        return None
+        
+        
 #--------------------------------------------------------------------
 # Program class
 #--------------------------------------------------------------------
@@ -72,51 +95,18 @@ class Program(object):
     def update(self, short=None, name=None, data=None, capacity=None, unitcost=None, year=None, targetpops=None, targetpars=None):
         ''' Add data to a program, or otherwise update the values '''
         
-        def settargetpars(targetpars=None):
-            pass
-        
-        def setdata(data=None, year=None):
-            ''' Handle the spend-coverage, data, also complicated since have to convert to a dataframe '''
-            datakeys = ['year', 'spend', 'coverage']
-            if self.data is None: self.data = dataframe(cols=datakeys) # Create dataframe
-            if year is None: year = Settings().now # If no year is supplied, reset it
-            
-            if isinstance(data, dataframe): 
-                self.data = data # Right format already: use directly
-            elif isinstance(data, dict):
-                newdata = [data.get(key) for key in datakeys] # Get full row
-                year = newdata[0] if newdata[0] is not None else year # Probably a simpler way of doing this, but use the year if it's supplied, else use the default
-                currentdata = self.data.getrow(year, asdict=True) # Get current row as a dictionary
-                if currentdata:
-                    for i,key in enumerate(data.keys()):
-                        if newdata[i] is None: newdata[i] = currentdata[key] # Replace with old data if new data is None
-                self.data.addrow(newdata) # Add new data
-            elif isinstance(data, list): # Assume it's a list of dicts
-                for datum in data:
-                    if isinstance(datum, dict):
-                        setdata(datum) # It's a dict: iterate recursively to add unit costs
-                    else:
-                        errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
-                        raise AtomicaException(errormsg)
-            else:
-                errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % data
-                raise AtomicaException(errormsg)
-
-            return None
-        
-        # Actually set everything
         if short      is not None: self.short      = short
         if name       is not None: self.name       = name 
         if capacity   is not None: self.capacity   = capacity
-        if targetpops is not None: self.targetpops = promotetolist(targetpops, 'string') # key(s) for targeted populations
+        if targetpops is not None: self.targetpops = targetpops
+        if data       is not None: self.data = data
+        if unitcost   is not None: self.unitcost = unitcost
 #        if targetpars is not None: settargetpars(targetpars) # targeted parameters
-        if unitcost   is not None: setunitcost(unitcost, year) # unit cost(s)
-        if data       is not None: setdata(data, year) # unit cost(s)
         
         # Finally, check everything
         if self.short is None: # self.short must exist
             errormsg = 'You must supply a short name for a program'
-            raise OptimaException(errormsg)
+            raise AtomicaException(errormsg)
         if self.name is None:       self.name = self.short # If name not supplied, use short
         if self.targetpops is None: self.targetpops = [] # Empty list
         if self.targetpars is None: self.targetpars = [] # Empty list
