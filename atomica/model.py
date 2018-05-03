@@ -502,12 +502,10 @@ class Population(object):
             par = Parameter(name=name)
             self.pars.append(par)
             if "links" in spec:
-#                tag = settings.linkpar_specs[name]['tag']
                 for pair in spec["links"]:
                     src = self.getComp(pair[0])
                     dst = self.getComp(pair[1])
-# TODO!! ATOMICA - Need to find the link tag here
-                    tag = src.name + '-' + dst.name     # Temporary tag solution.
+                    tag = par.name + ':flow'     # Temporary tag solution.
                     new_link = Link(par,src,dst,tag)
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
@@ -779,7 +777,7 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.getComp(source.name) # Get the corresponding compartment
-                                link_tag = par_name + '_' + source.name # e.g. 'aging_0-4_to_15-64_sus'
+                                link_tag = par_name + '_' + source.name + ':flow' # e.g. 'aging_0-4_to_15-64_sus:flow'
                                 link = Link(par, source, dest, link_tag, is_transfer=True)
                                 link.preallocate(self.t,self.dt)
                                 pop.links.append(link)
