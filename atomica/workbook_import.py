@@ -403,7 +403,6 @@ def loadprogramspreadsheet(filename, verbose=2):
         if progname != '': # The first column is blank: it's time for the data
             thesedata = blank2nan(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
             assumptiondata = sheetdata.cell_value(row, assumptioncol)
-#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             if assumptiondata != '': # There's an assumption entered
                 thesedata = [assumptiondata] # Replace the (presumably blank) data if a non-blank assumption has been entered
             if sheetdata.cell_value(row, 2) in namemap.keys(): # It's a regular variable without ranges

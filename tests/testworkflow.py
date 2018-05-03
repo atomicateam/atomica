@@ -12,25 +12,25 @@ test = "sir"
 #test = "tb"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"makeprogramspreadsheet",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-#"makeplots",
-#"export",
-#"listspecs",
-#"manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-#"saveproject",
-#"loadproject",
+"makeplots",
+"export",
+"listspecs",
+"manualcalibrate",
+"autocalibrate",
+"parameterscenario",
+"saveproject",
+"loadproject",
 ]    
 
 tmpdir = "." + os.sep + "temp" + os.sep
@@ -108,20 +108,20 @@ if "makeplots" in torun:
     for var in test_vars: P.results["parset_default"].getVariable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = PlotData(P.results["default"],outputs=decomp)
+    d = PlotData(P.results["parset_default"],outputs=decomp)
     plotSeries(d,plot_type="stacked")
 
     # Plot bars for deaths.
-    d = PlotData(P.results["default"],outputs=deaths,t_bins=10)
+    d = PlotData(P.results["parset_default"],outputs=deaths,t_bins=10)
     plotBars(d,outer="results")#,stack_outputs=[deaths])
 
     # Plot aggregate flows.
-    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
     plotSeries(d)
     
 
 if "export" in torun:
-    P.results["default"].export(tmpdir+test+"_results")
+    P.results["parset_default"].export(tmpdir+test+"_results")
     
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
@@ -150,7 +150,7 @@ if "manualcalibrate" in torun:
     if test == "sir":
         P.parsets["manual"].set_scaling_factor(par_name="transpercontact", pop_name="adults", scale=0.5)
         P.runSim(parset="manual", result_name="manual")
-        d = PlotData([P.results["default"],P.results["manual"]], outputs=["ch_prev"])
+        d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=["ch_prev"])
         plotSeries(d, axis='results', data=P.data)
     
 if "autocalibrate" in torun:
