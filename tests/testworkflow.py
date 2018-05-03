@@ -39,7 +39,7 @@ if "makeframeworkfile" in torun:
     aui.ProjectFramework.createTemplate(path=tmpdir+"framework_"+test+"_blank.xlsx", **args)
         
 if "makeframework" in torun:
-    F = aui.ProjectFramework(name=test.upper(), file_path="./frameworks/framework_"+test+".xlsx")
+    F = aui.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
     F.save(tmpdir+test+".frw")

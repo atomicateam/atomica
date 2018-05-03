@@ -5,7 +5,7 @@ Contains functionality specific to Excel input and output.
 """
 
 from atomica.system import SystemSettings as SS
-from atomica.system import logger, logUsage, accepts, returns, AtomicaException
+from atomica.system import logger, log_usage, accepts, returns, AtomicaException
 
 import xlsxwriter as xw
 import xlrd
@@ -63,7 +63,7 @@ class ExcelSettings(object):
 
 #%% Utility functions for writing.
 
-@logUsage
+@log_usage
 @accepts(xw.Workbook)
 def createStandardExcelFormats(excel_file):
     """ 
@@ -75,7 +75,7 @@ def createStandardExcelFormats(excel_file):
     formats[ExcelSettings.FORMAT_KEY_CENTER] = excel_file.add_format({"align": "center"})
     return formats
 
-@logUsage
+@log_usage
 def createDefaultFormatVariables():
     """
     Establishes framework-file default values for format variables in a dictionary and returns it.

@@ -1,6 +1,6 @@
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
-from atomica.system import applyToAllMethods, logUsage, AtomicaException
+from atomica.system import apply_to_all_methods, log_usage, AtomicaException
 from atomica._version import __version__
 from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj
 from bisect import bisect
@@ -172,7 +172,7 @@ class KeyData(object):
         return "Keydata: " + str(self.keys())
 
 
-@applyToAllMethods(logUsage)
+@apply_to_all_methods(log_usage)
 class CoreProjectStructure(object):
     """ A base object that contains details relating to instantiated items of types defined in relevant settings classes. """
     
@@ -413,15 +413,15 @@ class CoreProjectStructure(object):
         """
         pass
     
-    def save(self, file_path):
+    def save(self, filepath):
         """ Save the current project structure to a relevant object file. """
         file_extension = None
         if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: file_extension = SS.OBJECT_EXTENSION_FRAMEWORK
         if self.structure_key == SS.STRUCTURE_KEY_DATA: file_extension = SS.OBJECT_EXTENSION_DATA
-        file_path = makefilepath(filename=file_path, ext=file_extension, sanitize=True)  # Enforce file extension.
-        saveobj(file_path, self)
+        filepath = makefilepath(filename=filepath, ext=file_extension, sanitize=True)  # Enforce file extension.
+        saveobj(filepath, self)
     
     @classmethod
-    def load(cls, file_path):
+    def load(cls, filepath):
         """ Convenience class method for loading a project structure in the absence of an instance. """
-        return loadobj(file_path)
+        return loadobj(filepath)
