@@ -24,7 +24,7 @@ Methods for structure lists:
 Version: 2018mar22
 """
 
-from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, AtomicaException, logger
+from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
@@ -43,7 +43,7 @@ from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, 
 
 #from numpy.random import seed, randint
 
-@applyToAllMethods(logUsage)
+@apply_to_all_methods(log_usage)
 class Project(object):
     def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
         """ Initialize the project. """
@@ -518,15 +518,15 @@ class Project(object):
 #    def optimize(self):
 #        '''Run an optimization'''
     
-    def save(self, file_path):
+    def save(self, filepath):
         """ Save the current project to a relevant object file. """
-        file_path = makefilepath(filename=file_path, ext=SS.OBJECT_EXTENSION_PROJECT, sanitize=True)  # Enforce file extension.
-        saveobj(file_path, self)
+        filepath = makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT, sanitize=True)  # Enforce file extension.
+        saveobj(filepath, self)
     
     @classmethod
-    def load(cls, file_path):
+    def load(cls, filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
-        return loadobj(file_path)
+        return loadobj(filepath)
 
 
 #    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):

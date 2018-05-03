@@ -6,7 +6,7 @@ Contains functionality for parsing configuration files.
 
 from atomica.system import SystemSettings as SS
 
-from atomica.system import logUsage, accepts, logger
+from atomica.system import log_usage, accepts, logger
 
 import six
 
@@ -14,7 +14,7 @@ if six.PY2: import ConfigParser as configparser    # Python 2 configuration file
 else: import configparser                          # Python 3 configuration file parsing.
 
 
-@logUsage
+@log_usage
 @accepts(configparser.ConfigParser,str,str)
 def getConfigValue(config, section, option, list_form = False, mute_warnings = False):
     """

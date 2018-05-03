@@ -57,6 +57,9 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
         y = data_v
         y2 = interpolateFunc(var[0].t, var[0].vals, data_t)
+        print()
+        print(y)
+        print(y2)
 
         objective += weight * sum(_calculate_fitscore(y, y2, metric))
 

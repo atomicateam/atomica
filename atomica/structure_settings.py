@@ -5,7 +5,7 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from atomica.system import SystemSettings as SS, logUsage, AtomicaException, logger, atomicaPath, displayName
+from atomica.system import SystemSettings as SS, log_usage, AtomicaException, logger, atomica_path, display_name
 from atomica.parser_config import loadConfigFile, getConfigValue, configparser
 from atomica.excel import ExcelSettings
 from sciris.core import odict
@@ -235,7 +235,7 @@ class BaseStructuralSettings():
         Note: Currently references the default configuration file, but can be modified in the future.
         """
         config_path = cls.CONFIG_PATH
-        logger.info("Attempting to generate Atomica {0} settings from configuration file.".format(displayName(cls.NAME)))
+        logger.info("Attempting to generate Atomica {0} settings from configuration file.".format(display_name(cls.NAME)))
         logger.info("Location... {0}".format(config_path))
         cp = configparser.ConfigParser()
         cp.read(config_path)
@@ -289,7 +289,7 @@ class BaseStructuralSettings():
         #pprint.pprint(cls.PAGE_SPECS)
         #pprint.pprint(cls.ITEM_TYPE_SPECS)
 
-        logger.info("Atomica {0} settings successfully generated.".format(displayName(cls.NAME))) 
+        logger.info("Atomica {0} settings successfully generated.".format(display_name(cls.NAME)))
         return
 
     @classmethod
@@ -319,7 +319,7 @@ def createSpecs(undecorated_class):
 class FrameworkSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings
     NAME = SS.STRUCTURE_KEY_FRAMEWORK
-    CONFIG_PATH = atomicaPath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
+    CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
     ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION, 
                   BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, 
@@ -380,7 +380,7 @@ class FrameworkSettings(BaseStructuralSettings):
 class DatabookSettings(BaseStructuralSettings):
     BSS = BaseStructuralSettings
     NAME = SS.STRUCTURE_KEY_DATA
-    CONFIG_PATH = atomicaPath(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
+    CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
     ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
 

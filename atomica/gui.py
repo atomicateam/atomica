@@ -10,7 +10,7 @@ from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure_settings import DatabookSettings as DS
 from atomica.excel import ExcelSettings as ES
 
-from atomica.system import logUsage, accepts, returns, logger
+from atomica.system import log_usage, accepts, returns, logger
 from atomica.framework import ProjectFramework
 from atomica.workbook_export import WorkbookInstructions, writeWorkbook
 from atomica.workbook_import import readWorkbook
@@ -47,7 +47,7 @@ class GUISettings(object):
     PIXEL_BUFFER_WIDTH = 20
     
     @classmethod
-    @logUsage
+    @log_usage
     def updateUsingApp(cls, app):
         """ Some GUI settings cannot be determined without a PyQt application being generated first. """
         screen = app.desktop().availableGeometry()
@@ -56,7 +56,7 @@ class GUISettings(object):
 
 #%% Code for GUI convenience functions.
 
-@logUsage
+@log_usage
 def getPathFromUser(instance = None, load_not_save = True, title = None, file_filter = None):
     """
     Get a path from a file dialog, either related to opening or saving a file.
@@ -73,7 +73,7 @@ def getPathFromUser(instance = None, load_not_save = True, title = None, file_fi
         raise
     return path
 
-@logUsage
+@log_usage
 def getLoadPathFromUser(instance = None, title = None, file_filter = None):
     """ Convenience function that asks the user for a file-saving path. """
     try: path = getPathFromUser(instance = instance, load_not_save = True, title = title, file_filter = file_filter)
@@ -82,7 +82,7 @@ def getLoadPathFromUser(instance = None, title = None, file_filter = None):
         raise
     return path
 
-@logUsage
+@log_usage
 def getSavePathFromUser(instance = None, title = None, file_filter = None):
     """ Convenience function that asks the user for a file-loading path. """
     try: path = getPathFromUser(instance = instance, load_not_save = False, title = title, file_filter = file_filter)
@@ -91,19 +91,19 @@ def getSavePathFromUser(instance = None, title = None, file_filter = None):
         raise
     return path
 
-@logUsage
+@log_usage
 @accepts(qtw.QWidget,float,float)
 def resizeInScreen(widget, fraction_width, fraction_height):
     widget.resize(fraction_width*GUISettings.SCREEN_WIDTH, fraction_height*GUISettings.SCREEN_HEIGHT)
 
-@logUsage
+@log_usage
 @accepts(qtw.QWidget)
 def centerInScreen(widget):
     widget.setGeometry((GUISettings.SCREEN_WIDTH - widget.width())/2,
                        (GUISettings.SCREEN_HEIGHT - widget.height())/2,
                        widget.width(), widget.height())
 
-@logUsage
+@log_usage
 @accepts(qtw.QLineEdit)
 def resizeLineEditToContents(line_edit):
     """ Convenience function that resizes a line-edit text box to its contents. """
@@ -117,13 +117,13 @@ def resizeLineEditToContents(line_edit):
 class GUIDemo(qtw.QWidget):
     """ A demo window that displays a series of buttons for launching other Atomica widgets. """
 
-    @logUsage
+    @log_usage
     def __init__(self):
         """ Initializes the demo GUI. """
         super(GUIDemo, self).__init__()
         self.initUIDemo()
 
-    @logUsage
+    @log_usage
     def initUIDemo(self):
         """ Initializes all UI elements for the demo GUI. """
 
@@ -155,13 +155,13 @@ class GUIDemo(qtw.QWidget):
 class GUIFrameworkFileCreation(qtw.QWidget):
     """ A widget for constructing an Excel-based template framework file. """
 
-    @logUsage
+    @log_usage
     def __init__(self):
         """ Initializes the framework template GUI. """
         super(GUIFrameworkFileCreation, self).__init__()
         self.initUIFrameworkFileCreation()
 
-    @logUsage
+    @log_usage
     def initUIFrameworkFileCreation(self):
         """ Initializes all UI elements for the framework template GUI. """
         self.setWindowTitle("Framework Template Construction")
@@ -169,13 +169,13 @@ class GUIFrameworkFileCreation(qtw.QWidget):
         self.developLayout()
         self.show()
         
-    @logUsage
+    @log_usage
     def resetAttributes(self):   
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a template framework.
         self.framework_instructions = WorkbookInstructions(workbook_type = SS.STRUCTURE_KEY_FRAMEWORK)
 
-    @logUsage
+    @log_usage
     def developLayout(self):
         """ Lays out components of the framework template GUI. """
         # Produce a layout and memory space to store GUI components related to modifying instructions.
@@ -255,13 +255,13 @@ class GUIFrameworkFileCreation(qtw.QWidget):
 class GUIDatabookCreation(qtw.QWidget):
     """ A widget for constructing an Excel-based databook file from a project framework. """
 
-    @logUsage
+    @log_usage
     def __init__(self):
         """ Initializes the databook creation GUI. """
         super(GUIDatabookCreation, self).__init__()
         self.initUIDatabookCreation()
 
-    @logUsage
+    @log_usage
     def initUIDatabookCreation(self):
         """ Initializes all UI elements for the databook creation GUI. """
         self.setWindowTitle("Databook Construction")
@@ -269,14 +269,14 @@ class GUIDatabookCreation(qtw.QWidget):
         self.developLayout()
         self.show()
         
-    @logUsage
+    @log_usage
     def resetAttributes(self):   
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a databook.
         self.databook_instructions = WorkbookInstructions(workbook_type = SS.STRUCTURE_KEY_DATA)
         self.framework = ProjectFramework()
 
-    @logUsage
+    @log_usage
     def developLayout(self):
         """ Lays out components of the databook creation GUI. """
         # Produce a layout and memory space to store GUI components related to modifying instructions.
@@ -380,7 +380,7 @@ class GUIDatabookCreation(qtw.QWidget):
             logger.exception("Databook construction has failed.")
             raise
 
-@logUsage
+@log_usage
 @returns(qtw.QWidget)
 def runGUI():
     """ Function that launches all available back-end GUIs as they are developed. """
