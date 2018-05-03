@@ -31,13 +31,8 @@ from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet
-<<<<<<< HEAD
 from atomica.programs import Program, ProgramSet
-from atomica.calibration import performAutofit
-=======
-#from atomica.programs import Programset
 from atomica.calibration import perform_autofit
->>>>>>> fusion
 from atomica.scenarios import ParameterScenario
 from atomica.model import runModel
 from atomica.results import Result
