@@ -31,7 +31,7 @@ from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet
-#from atomica.programs import Programset
+from atomica.programs import Program, ProgramSet
 from atomica.calibration import performAutofit
 from atomica.scenarios import ParameterScenario
 from atomica.model import runModel
@@ -170,10 +170,37 @@ class Project(object):
         if make_default_progset: self.make_progset(name="default")
         
 
-    def make_progset(self, name="default"):
+    def make_progset(self, progdata=None, name="default",add=True):
+        '''Make a progset from program spreadsheet data'''
         
+        # Sort out inputs
+        if progdata is None:
+            if self.progdata is None:
+                errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
+                raise AtomicaException(errormsg)
+            else:
+                progdata = self.progdata
+                
+        # Check if the populations match - if not, raise an error, if so, add the data
+        if set(progdata['pops']) != set(self.popnames):
+            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
+            raise AtomicaException(errormsg)
+                
+        nprogs = len(progdata['progs']['short'])
+        programlist = []
         
-        pass
+        for np in range(nprogs):
+            p = Program(short=progdata['progs']['short'][np],
+                        name=progdata['progs']['short'][np],
+                        targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]])
+            programlist.append(p)
+            
+        progset = ProgramSet(name=name,programlist=programlist)
+        if add:
+            self.set_progset(progset_key=name,progset_object=progset)
+            return None
+        else:
+            return progset
 
 
 
@@ -260,6 +287,11 @@ class Project(object):
     def get_scenario(self, scenario):
         """ Allows for scenarios to be retrieved from an object or string handle, the latter of which is checked against project attributes. """
         return self.get_structure(structure=scenario, structure_list=self.scens, structure_string="scenario")
+
+    def set_progset(self, progset_key, progset_object, overwrite = False):
+        """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
+        self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets, 
+                           structure_string="program set", overwrite=overwrite)
 
 #    def getwhat(self, item=None, what=None):
 #        '''

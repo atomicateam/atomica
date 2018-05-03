@@ -44,7 +44,7 @@ class ProgramSet(object):
 class Program(object):
     ''' Defines a single program.'''
 
-    def __init__(self, short, name=None, targetpars=None, targetpops=None, ccpars=None, ccdata=None):
+    def __init__(self,short=None, name=None, data=None, unitcost=None, year=None, capacity=None, targetpops=None, targetpars=None):
         '''Initialize'''
         self.short = None
         self.name = None
@@ -97,7 +97,7 @@ class Program(object):
                         setdata(datum) # It's a dict: iterate recursively to add unit costs
                     else:
                         errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
-                        raise OptimaException(errormsg)
+                        raise AtomicaException(errormsg)
             else:
                 errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % data
                 raise AtomicaException(errormsg)
@@ -147,6 +147,5 @@ class Program(object):
 # Functions 
 #--------------------------------------------------------------------
 
-def make_progset(progdata, project):
     
 

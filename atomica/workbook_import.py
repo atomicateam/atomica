@@ -365,13 +365,21 @@ def loadprogramspreadsheet(filename, verbose=2):
     
     ## Load program information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
+    data['progs'] = odict()
+    data['progs']['short'] = []
+    data['progs']['name'] = []
+    data['progs']['targetpops'] = []
     for row in range(sheetdata.nrows): 
         if sheetdata.cell_value(row,0)=='':
-            thesedata = sheetdata.row_values(row, start_colx=2) # Data starts in 3rd column, finishes in 11th column
+            thesedata = sheetdata.row_values(row, start_colx=2) 
+        
             if sheetdata.cell_value(row,1)=='':
                 data['pops'] = thesedata[2:]
             else:
                 progname = str(thesedata[0])
+                data['progs']['short'].append(progname)
+                data['progs']['name'].append(str(thesedata[1]))
+                data['progs']['targetpops'].append(thesedata[2:])
                 data[progname] = odict()
                 data[progname]['name'] = str(thesedata[1])
                 data[progname]['targetpops'] = thesedata[2:]
@@ -379,12 +387,14 @@ def loadprogramspreadsheet(filename, verbose=2):
                 data[progname]['coverage'] = []
                 data[progname]['unitcost'] = odict()
                 data[progname]['capacity'] = odict()
+                
     
     namemap = {'Total spend': 'cost',
                'Unit cost':'unitcost',
                'Coverage': 'coverage',
                'Capacity constraints': 'capacity'} 
     sheetdata = workbook.sheet_by_name('Program data') # Load 
+    
     
     for row in range(sheetdata.nrows): 
         sheetname = sheetdata.cell_value(row,0) # Sheet name
@@ -403,7 +413,7 @@ def loadprogramspreadsheet(filename, verbose=2):
                 thisvar = namemap[sheetdata.cell_value(row, 2).split(' - ')[0]]  # Get the name of the indicator
                 thisestimate = sheetdata.cell_value(row, 2).split(' - ')[1]
                 data[progname][thisvar][thisestimate] = thesedata # Store data
-            checkblank = False if thisvar in ['unitcost', 'coverage', 'capacity'] else True # Don't check optional indicators, check everything else
+            checkblank = False if thisvar in ['coverage', 'capacity'] else True # Don't check optional indicators, check everything else
             validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
             
     return data
