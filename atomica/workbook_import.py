@@ -304,11 +304,13 @@ def getyears(sheetdata):
             years.append(float(thiscell)) # Add this year
     
     return lastdatacol, years
-    
+   
+   
 def blank2nan(thesedata):
     ''' Convert a blank entry to a nan '''
     return list(map(lambda val: np.nan if val=='' else val, thesedata))
     
+
 def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklower=True, checkblank=True, startcol=0):
     ''' Do basic validation on the data: at least one point entered, between 0 and 1 or just above 0 if checkupper=False '''
     
@@ -339,25 +341,22 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
     else:
         return None
 
+
 def loadprogramspreadsheet(filename, verbose=2):
     '''
     Loads the spreadsheet (i.e. reads its contents into the data).
     Version: 1.0 (2016sep30)
     '''
-    sheets = odict()
-    sheets['Populations & programs'] = ['programs'] # Data on program names and targeting
-    sheets['Program data'] = odict()
-    
     ## Basic setup
     data = odict() # Create structure for holding data
     data['meta'] = odict()
-    data['meta']['sheets'] = sheets # Store parameter names
-    try: 
-        workbook = xlrd.open_workbook(filename) # Open workbook
+    data['meta']['sheets'] = ['Populations & programs','Program data'] # TODO - remove hardcoding
+
+    ## Read in databook 
+    try: workbook = xlrd.open_workbook(filename) # Open workbook
     except: 
         errormsg = 'Failed to load program spreadsheet: file "%s" not found or other problem' % filename
         raise AtomicaException(errormsg)
-
     
     ## Calculate columns for which data are entered, and store the year ranges
     sheetdata = workbook.sheet_by_name('Program data') # Load this workbook
@@ -379,12 +378,12 @@ def loadprogramspreadsheet(filename, verbose=2):
                 data[progname]['cost'] = []
                 data[progname]['coverage'] = []
                 data[progname]['unitcost'] = odict()
-                data[progname]['saturation'] = odict()
+                data[progname]['capacity'] = odict()
     
     namemap = {'Total spend': 'cost',
                'Unit cost':'unitcost',
                'Coverage': 'coverage',
-               'Saturation': 'saturation'} 
+               'Capacity constraints': 'capacity'} 
     sheetdata = workbook.sheet_by_name('Program data') # Load 
     
     for row in range(sheetdata.nrows): 
@@ -394,6 +393,7 @@ def loadprogramspreadsheet(filename, verbose=2):
         if progname != '': # The first column is blank: it's time for the data
             thesedata = blank2nan(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
             assumptiondata = sheetdata.cell_value(row, assumptioncol)
+#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             if assumptiondata != '': # There's an assumption entered
                 thesedata = [assumptiondata] # Replace the (presumably blank) data if a non-blank assumption has been entered
             if sheetdata.cell_value(row, 2) in namemap.keys(): # It's a regular variable without ranges
@@ -403,7 +403,7 @@ def loadprogramspreadsheet(filename, verbose=2):
                 thisvar = namemap[sheetdata.cell_value(row, 2).split(' - ')[0]]  # Get the name of the indicator
                 thisestimate = sheetdata.cell_value(row, 2).split(' - ')[1]
                 data[progname][thisvar][thisestimate] = thesedata # Store data
-            checkblank = False if thisvar in ['unitcost', 'coverage', 'saturation'] else True # Don't check optional indicators, check everything else
+            checkblank = False if thisvar in ['unitcost', 'coverage', 'capacity'] else True # Don't check optional indicators, check everything else
             validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
             
     return data

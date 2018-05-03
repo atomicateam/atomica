@@ -872,10 +872,10 @@ class ProgramSpreadsheet:
 
 
     def generate_costcovdata(self):
-        row_levels = ['Total spend', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high', 'Coverage', 'Saturation: best', 'Saturation: low', 'Saturation: high']
+        row_levels = ['Total spend', 'Unit cost', 'Coverage', 'Capacity constraint']
         self.current_sheet.set_column('C:C',20)
         current_row = 0
-        current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row, row_names=self.ref_prog_range.param_refs(), row_formats = [AtomicaFormats.SCIENTIFIC,AtomicaFormats.GENERAL,AtomicaFormats.OPTIONAL,AtomicaFormats.OPTIONAL,AtomicaFormats.OPTIONAL,AtomicaFormats.OPTIONAL,AtomicaFormats.OPTIONAL,AtomicaFormats.OPTIONAL], assumption = True, row_levels = row_levels)
+        current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row, row_names=self.ref_prog_range.param_refs(), row_formats = [AtomicaFormats.SCIENTIFIC,AtomicaFormats.GENERAL,AtomicaFormats.GENERAL,AtomicaFormats.GENERAL], assumption = True, row_levels = row_levels)
 
 
     def create(self, path):

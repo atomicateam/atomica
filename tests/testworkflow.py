@@ -12,24 +12,25 @@ test = "sir"
 #test = "tb"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-"makeprogramspreadsheet",
-"makeplots",
-"export",
-"listspecs",
-"manualcalibrate",
-"autocalibrate",
-"parameterscenario",
-"saveproject",
-"loadproject",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+#"makeplots",
+#"export",
+#"listspecs",
+#"manualcalibrate",
+#"autocalibrate",
+#"parameterscenario",
+#"saveproject",
+#"loadproject",
 ]    
 
 tmpdir = "." + os.sep + "temp" + os.sep
@@ -77,6 +78,14 @@ if "makeprogramspreadsheet" in torun:
     P = demo(which='sir',do_plot=0)
     filename = 'temp/programspreadsheet.xlsx'
     makeprogramspreadsheet(filename, pops=2, progs=5)
+
+if "loadprogramspreadsheet" in torun:
+    print('\n\n\nLoading programs spreadsheet ...')
+    from atomica.defaults import demo
+
+    P = demo(which='sir',do_plot=0)
+    filename = 'databooks/programdata_sir.xlsx'
+    P.load_progbook(databook_path=filename)
 
 if "makeplots" in torun:
     if test == "sir": 

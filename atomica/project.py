@@ -37,7 +37,7 @@ from atomica.scenarios import ParameterScenario
 from atomica.model import runModel
 from atomica.results import Result
 from atomica.workbook_export import writeWorkbook, makeInstructions
-from atomica.workbook_import import readWorkbook
+from atomica.workbook_import import readWorkbook, loadprogramspreadsheet
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
 
@@ -67,6 +67,7 @@ class Project(object):
         self.created = today()
         self.modified = today()
         self.databookloaddate = 'Databook never loaded'
+        self.programdatabookloaddate = 'Programs databook never loaded'
         self.settings = ProjectSettings() # Global settings
 
         ## Load spreadsheet, if available
@@ -121,6 +122,13 @@ class Project(object):
         self.databookloaddate = today() # Update date when spreadsheet was last loaded
         self.modified = today()
         
+        # Put the population keys somewhere easier to access- TEMP, TODO, fix
+        self.popkeys = []
+        self.popnames = []
+        for k,v in self.data.specs['pop'].iteritems():
+            self.popkeys.append(k)
+            self.popnames.append(v['label'])
+        
         if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
 
@@ -143,8 +151,32 @@ class Project(object):
         return self.parsets[name]
 
 
+    def load_progbook(self, databook_path=None, make_default_progset=True):
+        ''' Load a programs databook'''
+        
+        ## Load spreadsheet and update metadata
+        full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        progdata = loadprogramspreadsheet(filename=full_path)
+        
+        # Check if the populations match - if not, raise an error, if so, add the data
+        if set(progdata['pops']) != set(self.popnames):
+            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
+            raise AtomicaException(errormsg)
+        self.progdata = progdata
+
+        self.programdatabookloaddate = today() # Update date when spreadsheet was last loaded
+        self.modified = today()
+
+        if make_default_progset: self.make_progset(name="default")
+        
+
     def make_progset(self, name="default"):
+        
+        
         pass
+
+
+
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
 #
