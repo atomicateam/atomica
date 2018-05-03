@@ -3,7 +3,7 @@ from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure_settings import DatabookSettings as DS
 from atomica.excel import ExcelSettings as ES
 
-from atomica.system import logger, AtomicaException, accepts, prepareFilePath, displayName
+from atomica.system import logger, AtomicaException, accepts, prepare_filepath, display_name
 from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType, QuantityFormatType
 from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
@@ -510,10 +510,10 @@ def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, w
 
     page_keys = getWorkbookPageKeys(framework = framework, workbook_type = workbook_type)
 
-    logger.info("Constructing a {0}: {1}".format(displayName(workbook_type), workbook_path))
+    logger.info("Constructing a {0}: {1}".format(display_name(workbook_type), workbook_path))
 
     # Construct workbook and related formats.
-    prepareFilePath(workbook_path)
+    prepare_filepath(workbook_path)
     workbook = xw.Workbook(workbook_path)
     formats = createStandardExcelFormats(workbook)
     format_variables = createDefaultFormatVariables()
@@ -530,6 +530,7 @@ def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, w
                             instructions=instructions, workbook_type=workbook_type)
     workbook.close()
 
+<<<<<<< HEAD
     logger.info("{0} construction complete.".format(displayName(workbook_type, as_title = True)))
     
     
@@ -891,3 +892,6 @@ class ProgramSpreadsheet:
             self.current_sheet = self.sheets[name]
             getattr(self, "generate_%s" % name)() # this calls the corresponding generate function
         self.book.close()
+=======
+    logger.info("{0} construction complete.".format(display_name(workbook_type, as_title = True)))
+>>>>>>> fusion

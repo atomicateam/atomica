@@ -1,4 +1,4 @@
-from atomica.system import AtomicaException, displayName, SystemSettings as SS
+from atomica.system import AtomicaException, display_name, SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 
 class WorkbookTypeException(AtomicaException):
@@ -10,7 +10,7 @@ class WorkbookTypeException(AtomicaException):
 
 class WorkbookRequirementException(AtomicaException):
     def __init__(self, workbook_type, requirement_type, **kwargs):
-        message = ("Select {0} IO operations cannot proceed without a '{1}' being provided. Abandoning workbook IO.".format(displayName(workbook_type), requirement_type))
+        message = ("Select {0} IO operations cannot proceed without a '{1}' being provided. Abandoning workbook IO.".format(display_name(workbook_type), requirement_type))
         return super().__init__(message, **kwargs)
 
 def getWorkbookReferences(framework = None, workbook_type = None, refer_to_settings = False):

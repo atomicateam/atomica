@@ -24,15 +24,20 @@ Methods for structure lists:
 Version: 2018mar22
 """
 
-from atomica.system import SystemSettings as SS, applyToAllMethods, logUsage, AtomicaException, logger
+from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData
 from atomica.project_settings import ProjectSettings
 from atomica.parameters import ParameterSet
+<<<<<<< HEAD
 from atomica.programs import Program, ProgramSet
 from atomica.calibration import performAutofit
+=======
+#from atomica.programs import Programset
+from atomica.calibration import perform_autofit
+>>>>>>> fusion
 from atomica.scenarios import ParameterScenario
 from atomica.model import runModel
 from atomica.results import Result
@@ -43,7 +48,7 @@ from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, 
 
 #from numpy.random import seed, randint
 
-@applyToAllMethods(logUsage)
+@apply_to_all_methods(log_usage)
 class Project(object):
     def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
         """ Initialize the project. """
@@ -551,7 +556,7 @@ class Project(object):
         The latter will calculate its metric for specified populations, with 'None' denoting all pops, and for specified weights and metric types.
         
         To calibrate a project-attached parameter set in place, provide its key as the new name argument to this method.
-        Current fitting metrics are: "fractional", "meansquare", "wape", "R2"
+        Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
         parset = self.get_parset(parset=parset)
@@ -563,8 +568,8 @@ class Project(object):
         for index, measurable in enumerate(measurables):
             if isinstance(measurable, str):     # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = performAutofit(project=self, parset=parset, 
-                                    pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = perform_autofit(project=self, parset=parset,
+                                     pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)
@@ -589,15 +594,15 @@ class Project(object):
 #    def optimize(self):
 #        '''Run an optimization'''
     
-    def save(self, file_path):
+    def save(self, filepath):
         """ Save the current project to a relevant object file. """
-        file_path = makefilepath(filename=file_path, ext=SS.OBJECT_EXTENSION_PROJECT, sanitize=True)  # Enforce file extension.
-        saveobj(file_path, self)
+        filepath = makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT, sanitize=True)  # Enforce file extension.
+        saveobj(filepath, self)
     
     @classmethod
-    def load(cls, file_path):
+    def load(cls, filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
-        return loadobj(file_path)
+        return loadobj(filepath)
 
 
 #    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):

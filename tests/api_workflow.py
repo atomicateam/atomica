@@ -14,7 +14,7 @@ from copy import deepcopy as dcp
 import atomica.ui as aui
 import os
 from atomica.scenarios import ParameterScenario
-from atomica.calibration import performAutofit
+from atomica.calibration import perform_autofit
 
 plot_initial = True
 
@@ -26,7 +26,8 @@ P = aui.Project(name=test.upper()+" project", framework=F)
 P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
-    
+
+
 P.save(tmpdir+test+".prj")
 
 P = aui.Project.load(tmpdir+test+".prj")
@@ -41,11 +42,11 @@ if plot_initial:
     plotSeries(d,plot_type='stacked')
 
     # Bar plot showing deaths
-    d = PlotData(P.results[0],outputs=['inf-dead','rec-dead', 'sus-dead'],t_bins=10)
-    plotBars(d,outer='results',stack_outputs=[['inf-dead','rec-dead', 'sus-dead']])
+    d = PlotData(P.results[0],outputs=['infdeath:flow', {'doth:flow':['susdeath:flow']}],t_bins=10)
+    plotBars(d,outer='results',stack_outputs=[['infdeath:flow', 'doth:flow']])
 
     # Aggregate flows
-    d = PlotData(P.results[0],outputs=[{'Death rate':['inf-dead','rec-dead', 'sus-dead']}])
+    d = PlotData(P.results[0],outputs=[{'Death rate':['infdeath:flow', 'susdeath:flow']}],project=P)
     plotSeries(d)
 
 
@@ -96,7 +97,7 @@ pars_to_adjust = [('transpercontact','adults',0.1,1.9)]
 output_quantities = []
 for pop in P.parsets[0].pop_names:
     output_quantities.append(('ch_prev',pop,1.0,"fractional"))
-calibrated_parset = performAutofit(P, P.parsets[0], pars_to_adjust, output_quantities,max_time=30)
+calibrated_parset = perform_autofit(P, P.parsets[0], pars_to_adjust, output_quantities, max_time=30)
 
 # Plot the results before and after calibration
 calibrated_results = P.runSim(calibrated_parset)

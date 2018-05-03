@@ -1,6 +1,6 @@
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
-from atomica.system import applyToAllMethods, logUsage, AtomicaException
+from atomica.system import apply_to_all_methods, log_usage, AtomicaException
 from atomica._version import __version__
 from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj
 from bisect import bisect
@@ -85,8 +85,14 @@ class TimeSeries(object):
         for tx,vx in zip(t,vals):
             self.insert(tx,vx)
 
+    @property
+    def has_data(self):
+        # Returns true if any time-specific data has been entered (not just an assumption)
+        return len(self.t) > 0
+
     def insert(self,t,v):
         # Insert value v at time t maintaining sort order
+        # To set the assumption, set t=None
         if t is None:
             self.assumption = v
         elif t in self.t:
@@ -98,6 +104,7 @@ class TimeSeries(object):
             self.vals.insert(idx, v)
 
     def get(self,t):
+        # To get the assumption, set t=None
         if t is None or len(self.t) == 0:
             return self.assumption
         elif t in self.t:
@@ -115,6 +122,7 @@ class TimeSeries(object):
         return t,v
 
     def remove(self,t):
+        # To remove the assumption, set t=None
         if t is None:
             self.assumption = None
         elif t in self.t:
@@ -172,7 +180,7 @@ class KeyData(object):
         return "Keydata: " + str(self.keys())
 
 
-@applyToAllMethods(logUsage)
+@apply_to_all_methods(log_usage)
 class CoreProjectStructure(object):
     """ A base object that contains details relating to instantiated items of types defined in relevant settings classes. """
     
@@ -413,15 +421,15 @@ class CoreProjectStructure(object):
         """
         pass
     
-    def save(self, file_path):
+    def save(self, filepath):
         """ Save the current project structure to a relevant object file. """
         file_extension = None
         if self.structure_key == SS.STRUCTURE_KEY_FRAMEWORK: file_extension = SS.OBJECT_EXTENSION_FRAMEWORK
         if self.structure_key == SS.STRUCTURE_KEY_DATA: file_extension = SS.OBJECT_EXTENSION_DATA
-        file_path = makefilepath(filename=file_path, ext=file_extension, sanitize=True)  # Enforce file extension.
-        saveobj(file_path, self)
+        filepath = makefilepath(filename=filepath, ext=file_extension, sanitize=True)  # Enforce file extension.
+        saveobj(filepath, self)
     
     @classmethod
-    def load(cls, file_path):
+    def load(cls, filepath):
         """ Convenience class method for loading a project structure in the absence of an instance. """
-        return loadobj(file_path)
+        return loadobj(filepath)

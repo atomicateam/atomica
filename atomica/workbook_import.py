@@ -1,7 +1,7 @@
 from atomica.system import SystemSettings as SS
 from atomica.excel import ExcelSettings as ES
 
-from atomica.system import logger, AtomicaException, accepts, displayName
+from atomica.system import logger, AtomicaException, accepts, display_name
 from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, QuantityFormatType
 from atomica.structure import KeyData
@@ -263,7 +263,7 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
     page_specs = getWorkbookPageSpecs(framework = framework, workbook_type = workbook_type)
     page_keys = sorted(page_keys, key=lambda x: page_specs[x]["read_order"] if not page_specs[x]["read_order"] is None else 0)
 
-    logger.info("Importing a {0}: {1}".format(displayName(workbook_type), workbook_path))
+    logger.info("Importing a {0}: {1}".format(display_name(workbook_type), workbook_path))
 
     workbook_path = os.path.abspath(workbook_path)
     try: workbook = xlrd.open_workbook(workbook_path)

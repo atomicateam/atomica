@@ -502,13 +502,11 @@ class Population(object):
             par = Parameter(name=name)
             self.pars.append(par)
             if "links" in spec:
-#                tag = settings.linkpar_specs[name]['tag']
                 for pair in spec["links"]:
                     src = self.getComp(pair[0])
                     dst = self.getComp(pair[1])
-# TODO!! ATOMICA - Need to find the link tag here
-                    tag = src.name + '-' + dst.name     # Temporary tag solution.
-                    new_link = Link(par,src,dst,tag) # The link needs to be named with the Parameter it derives from so that Results can find it later
+                    tag = par.name + ':flow'     # Temporary tag solution.
+                    new_link = Link(par,src,dst,tag)
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
                     else:
@@ -687,14 +685,17 @@ class Model(object):
                 pop.relink(objs)
 
         if self.vars_by_pop is None:
-            self.vars_by_pop = defaultdict(list)
-            for pop in self.pops:
-                for var in pop.comps + pop.characs + pop.pars + pop.links:
-                    self.vars_by_pop[var.name].append(var)
+            self.set_vars_by_pop()
 
         if self.pset is not None:
             raise NotImplemented # ModelProgramSet should have an internal flag similar to Population
             self.pset.relink(objs)
+
+    def set_vars_by_pop(self):
+        self.vars_by_pop = defaultdict(list)
+        for pop in self.pops:
+            for var in pop.comps + pop.characs + pop.pars + pop.links:
+                self.vars_by_pop[var.name].append(var)
 
     def __getstate__(self):
         self.unlink()
@@ -768,7 +769,7 @@ class Model(object):
                         par.scale_factor = transfer_parameter.y_factor[pop_target]
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
-                        pop.par_lookup[par_name] = par
+                        pop.par_lookup[par_name] = par # TODO - bit of a hack to update the lookup here manually, this might change if Transfers are implemented differently
 
                         target_pop_obj = self.getPop(pop_target)
 
@@ -776,7 +777,7 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.getComp(source.name) # Get the corresponding compartment
-                                link_tag = par_name + '_' + source.name # e.g. 'aging_0-4_to_15-64_sus'
+                                link_tag = par_name + '_' + source.name + ':flow' # e.g. 'aging_0-4_to_15-64_sus:flow'
                                 link = Link(par, source, dest, link_tag, is_transfer=True)
                                 link.preallocate(self.t,self.dt)
                                 pop.links.append(link)
@@ -785,8 +786,8 @@ class Model(object):
                                 else:
                                     pop.link_lookup[link.name] = [link]
 
-        # Refresh the lookup dict for programs (and other variables)
-        self.relink()
+        # Now that all object have been created, update vars_by_pop() accordingly
+        self.set_vars_by_pop()
 
         # Finally, prepare ModelProgramSet helper if programs are going to be used
         if 'progs_start' in options:
@@ -824,12 +825,6 @@ class Model(object):
         else:
             self.programs_active = False
 
-        # Make sure initially-filled junctions are processed and initial dependencies are calculated.
-        self.updateValues(framework=framework, do_special=False)    # Done first just in case junctions are dependent on characteristics.
-                                                                    # No special rules are applied at this stage, otherwise calculations would be iterated twice before the first step forward.
-        self.processJunctions()
-        self.updateValues(framework=framework)
-
         # TODO: Check if necessary.
         # set up sim_settings for later use wrt population tags
         for tag in ["is_source", "is_sink", "is_junction"]:
@@ -843,10 +838,21 @@ class Model(object):
         Run the full model.
         '''
 
+        assert self.t_index == 0 # Only makes sense to process a simulation once, starting at ti=0
+
+        # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
+        # initial flow rates
+        self.update_pars(framework=framework, do_special=False)
+        self.update_junctions()
+        self.update_pars(framework=framework)
+        self.update_links()
+
         for t in self.t[1:]:
-            self.stepForward(framework=framework, dt=self.dt)
-            self.processJunctions()
-            self.updateValues(framework=framework)
+            self.update_comps()
+            self.t_index += 1 # Step the simulation forward
+            self.update_junctions()
+            self.update_pars(framework=framework)
+            self.update_links()
 
         for pop in self.pops:
             [par.update() for par in pop.pars if not par.dependency] # Update any remaining parameters
@@ -860,18 +866,16 @@ class Model(object):
                         for link in par.links:
                             link.vals = None
 
-    def stepForward(self, framework, dt=1.0):
+    def update_links(self):
         '''
         Evolve model characteristics by one timestep (defaulting as 1 year).
         Each application of this method writes calculated values to the next position in popsize arrays, regardless of dt.
         Thus the corresponding time vector associated with variable dt steps must be tracked externally.
+
+        This function computes the link flow rates,
         '''
 
         ti = self.t_index
-
-        for pop in self.pops:
-            for comp in pop.comps:
-                comp.vals[ti+1] = comp.vals[ti]
 
         for pop in self.pops:
 
@@ -880,7 +884,8 @@ class Model(object):
                 if not comp_source.is_junction:  # Junctions collect inflows during this step. They do not process outflows here.
 
                     outlinks = comp_source.outlinks  # List of outgoing links
-                    outflow = np.zeros(len(comp_source.outlinks))  # Outflow for each link # TODO - store in the link objects?
+                    outflow = np.zeros(
+                        len(comp_source.outlinks))  # Outflow for each link # TODO - store in the link objects?
 
                     for i, link in enumerate(outlinks):
 
@@ -893,69 +898,84 @@ class Model(object):
                             outflow[i] = 0.0
                             continue
 
-                       # if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
-                       #     transition *= link.parameter.scale_factor
+                        # if link.parameter.scale_factor is not None and link.parameter.scale_factor != project_settings.DO_NOT_SCALE:  # scale factor should be available to be used
+                        #     transition *= link.parameter.scale_factor
 
-#                        if link.parameter.units == 'fraction':
-#                            # check if there are any violations, and if so, deal with them
-#                        if transition > 1.:
-#                            transition = checkTransitionFraction(transition, settings.validation)
-#                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
-#                        if link.source.tag_birth:
-#                            n_alive = 0
-#                            for p in self.pops:
-#                                n_alive += p.popsize(ti)
-#                            converted_amt = n_alive * converted_frac
-#                        else:
-#                            converted_amt = comp_source.vals[ti] * converted_frac
-#                        elif link.parameter.units == 'number':
-#                            converted_amt = transition * dt
-#                            if link.is_transfer:
-#                                transfer_rescale = comp_source.vals[ti] / pop.popsize(ti)
-#                                converted_amt *= transfer_rescale
-#                        else:
-#                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
+                        #                        if link.parameter.units == 'fraction':
+                        #                            # check if there are any violations, and if so, deal with them
+                        #                        if transition > 1.:
+                        #                            transition = checkTransitionFraction(transition, settings.validation)
+                        #                        converted_frac = 1 - (1 - transition) ** dt  # A formula for converting from yearly fraction values to the dt equivalent.
+                        #                        if link.source.tag_birth:
+                        #                            n_alive = 0
+                        #                            for p in self.pops:
+                        #                                n_alive += p.popsize(ti)
+                        #                            converted_amt = n_alive * converted_frac
+                        #                        else:
+                        #                            converted_amt = comp_source.vals[ti] * converted_frac
+                        #                        elif link.parameter.units == 'number':
+                        #                            converted_amt = transition * dt
+                        #                            if link.is_transfer:
+                        #                                transfer_rescale = comp_source.vals[ti] / pop.popsize(ti)
+                        #                                converted_amt *= transfer_rescale
+                        #                        else:
+                        #                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
-                        value = convertQuantity(value = transition, initial_type = link.parameter.units, 
-                                                                    final_type = FS.QUANTITY_TYPE_NUMBER, 
-                                                                    set_size = comp_source.vals[ti], dt = self.dt)
+                        value = convertQuantity(value=transition, initial_type=link.parameter.units,
+                                                final_type=FS.QUANTITY_TYPE_NUMBER,
+                                                set_size=comp_source.vals[ti], dt=self.dt)
 
                         outflow[i] = value
-                    
+
                     # TODO: Decide what to do about this negative population block.
                     # Prevent negative population by proportionately downscaling the outflow
                     # if there are insufficient people _currently_ in the compartment
                     # Rescaling is performed if the validation setting is 'avert', otherwise
                     # either a warning will be displayed or an error will be printed
                     if not comp_source.tag_birth and np.sum(outflow) > comp_source.vals[ti]:
-#                        validation_level = settings.validation['negative_population']
-#
-#                        if validation_level == project_settings.VALIDATION_AVERT or validation_level == project_settings.VALIDATION_WARN:
+                        #                        validation_level = settings.validation['negative_population']
+                        #
+                        #                        if validation_level == project_settings.VALIDATION_AVERT or validation_level == project_settings.VALIDATION_WARN:
                         outflow = outflow / np.sum(outflow) * comp_source.vals[ti]
-#                        else:
-#                            warning = "Negative value encountered for: (%s - %s) at ti=%g : popsize = %g, outflow = %g" % (pop.name,comp_source.name,ti,comp_source.vals[ti],sum(outflow))
-#                            if validation_level == project_settings.VALIDATION_ERROR:
-#                                raise AtomicaException(warning)
-#                            elif validation_level == project_settings.VALIDATION_WARN:
-#                                logger.warning(warning)
+                    #                        else:
+                    #                            warning = "Negative value encountered for: (%s - %s) at ti=%g : popsize = %g, outflow = %g" % (pop.name,comp_source.name,ti,comp_source.vals[ti],sum(outflow))
+                    #                            if validation_level == project_settings.VALIDATION_ERROR:
+                    #                                raise AtomicaException(warning)
+                    #                            elif validation_level == project_settings.VALIDATION_WARN:
+                    #                                logger.warning(warning)
 
-                    # Apply the flows to the compartments
+                    # Store the normalized outflows
                     for i, link in enumerate(outlinks):
-                        link.dest.vals[ti+1] += outflow[i]
                         link.vals[ti] = outflow[i]
 
-                    comp_source.vals[ti+1] -= np.sum(outflow)
 
+    def update_comps(self):
+        '''
+        Set the compartment values at self.t_index+1 based on the current values at self.t_index
+        and the link values at self.t_index. Values are updated by iterating over all outgoing links
+
+        '''
+
+        ti = self.t_index
+
+        # Pre-populate the current value - need to iterate over pops here because transfers
+        # will cross population boundaries
+        for pop in self.pops:
+            for comp in pop.comps:
+                comp.vals[ti+1] = comp.vals[ti]
+
+        for pop in self.pops:
+            for comp in pop.comps:
+                for link in comp.outlinks:
+                    link.source.vals[ti+1] -= link.vals[ti]
+                    link.dest.vals[ti+1] += link.vals[ti]
 
         # Guard against populations becoming negative due to numerical artifacts
         for pop in self.pops:
             for comp in pop.comps:
                 comp.vals[ti+1] = max(0,comp.vals[ti+1])
 
-        # Update timestep index.
-        self.t_index += 1
-
-    def processJunctions(self):
+    def update_junctions(self):
         """ For every compartment considered a junction, propagate the contents onwards until all junctions are empty. """
 
         ti = self.t_index
@@ -997,7 +1017,7 @@ class Model(object):
                             if link.dest.is_junction:
                                 review_required = True # Need to review if a junction received an inflow at this step
 
-    def updateValues(self, framework, do_special=True):
+    def update_pars(self, framework, do_special=True):
         '''
         Run through all parameters and characteristics flagged as dependencies for custom-function parameters and evaluate them for the current timestep.
         These dependencies must be calculated in the same order as defined in settings, characteristics before parameters, otherwise references may break.

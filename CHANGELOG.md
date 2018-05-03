@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.6.1 (2018-05-01): High-order Program Processes
+## 0.6.1 (2018-05-03): High-order Program Processes
 
 Features
 - Without settling on a programs structure yet, wrapper processes are established.
@@ -177,7 +177,7 @@ Features
 - Created logging configuration file: logging.ini
 - Generated a logger named 'atomica' that prints debug statements to file.
   The file path can be varied with system setting variable `LOGGER_DEBUG_OUTPUT_PATH`.
-- Updated `print` statements in `logUsage()` function as `logger.debug` calls.
+- Updated `print` statements in `log_usage()` function as `logger.debug` calls.
 
 Edits
 - Removed date-inclusion system variable as that is currently in the domain of logging.ini.
@@ -197,8 +197,8 @@ Features
 - Fleshed out `Portfolio` and `Project` with a `name` attribute.
   Methods `setName` and `getName` included. 
 - Created system.py file for module-wide 'static' variables and functions.
-- Coded class decorator `applyToAllMethods()` to apply a function across all methods of a class.
-- Coded function decorator `logUsage()` to timestamp usage and measure elapsed time.
+- Coded class decorator `apply_to_all_methods()` to apply a function across all methods of a class.
+- Coded function decorator `log_usage()` to timestamp usage and measure elapsed time.
 - Coded class `SystemSettings` and introduced flag for including date in timestamps.
 
 ## 0.1.0 (2017-10-17): Module Initialization

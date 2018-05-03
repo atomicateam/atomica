@@ -41,7 +41,7 @@ if "makeframeworkfile" in torun:
     aui.ProjectFramework.createTemplate(path=tmpdir+"framework_"+test+"_blank.xlsx", **args)
         
 if "makeframework" in torun:
-    F = aui.ProjectFramework(name=test.upper(), file_path="./frameworks/framework_"+test+".xlsx")
+    F = aui.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
     F.save(tmpdir+test+".frw")
@@ -93,32 +93,45 @@ if "makeplots" in torun:
         test_pop = "adults"
         decomp = ["sus","inf","rec","dead"]
         deaths = ["inf-dead","rec-dead","sus-dead"]
+        grouped_deaths = {'inf':['inf-dead:flow'],'rec':['rec-dead:flow'],'sus':['sus-dead:flow']}
+        plot_pop = [test_pop]
     if test == "tb":
         test_vars = ["sus","vac","spdu","alive","b_rate"]
         test_pop = "0-4"
         decomp = ["sus","vac","lt_inf","ac_inf","acr"]
         # Just do untreated TB-related deaths for simplicity.
-#        death_pars = ["pd_term","pm_term","px_term","nd_term","nm_term","nx_term"]
-#        death_links = [x.name for death_par in death_pars for x in P.results["default"].getVariable("0-4",death_par)[0].links]
-        deaths = {"ds_deaths":["pd_term","pd_sad","nd_term","nd_sad"],
-                  "mdr_deaths":["pm_term","pm_sad","nm_term","nm_sad"],
-                  "xdr_deaths":["px_term","px_sad","nx_term","nx_sad"]}
-        
+        deaths = ["pd_term:flow","pd_sad:flow","nd_term:flow","nd_sad:flow","pm_term:flow","pm_sad:flow","nm_term:flow","nm_sad:flow","px_term:flow","px_sad:flow","nx_term:flow","nx_sad:flow"]
+        grouped_deaths = {"ds_deaths":["pd_term:flow","pd_sad:flow","nd_term:flow","nd_sad:flow"],
+                  "mdr_deaths":["pm_term:flow","pm_sad:flow","nm_term:flow","nm_sad:flow"],
+                  "xdr_deaths":["px_term:flow","px_sad:flow","nx_term:flow","nx_sad:flow"]}
+        plot_pop = ['5-14','15-64']
+
     # Low level debug plots.
     for var in test_vars: P.results["parset_default"].getVariable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = PlotData(P.results["parset_default"],outputs=decomp)
+    d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
     plotSeries(d,plot_type="stacked")
 
-    # Plot bars for deaths.
-    d = PlotData(P.results["parset_default"],outputs=deaths,t_bins=10)
-    plotBars(d,outer="results")#,stack_outputs=[deaths])
+    if test == "tb":
+        # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
+        # Plot bars for deaths, aggregated by strain, stacked by pop
+        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        plotBars(d,outer="results",stack_pops=[plot_pop])
+
+        # Plot bars for deaths, aggregated by pop, stacked by strain
+        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        plotBars(d,stack_outputs=[list(grouped_deaths.keys())])
+
+        # Plot total death flow over time
+        # Plot death flow rate decomposition over all time
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        plotSeries(d,plot_type='stacked',axis='outputs')
 
     # Plot aggregate flows.
-    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
-    plotSeries(d)
-    
+    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    plotSeries(d,axis="pops")
+
 
 if "export" in torun:
     P.results["parset_default"].export(tmpdir+test+"_results")
@@ -149,9 +162,13 @@ if "manualcalibrate" in torun:
     P.copy_parset(old_name="default", new_name="manual")
     if test == "sir":
         P.parsets["manual"].set_scaling_factor(par_name="transpercontact", pop_name="adults", scale=0.5)
-        P.runSim(parset="manual", result_name="manual")
-        d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=["ch_prev"])
-        plotSeries(d, axis='results', data=P.data)
+        outputs = ["ch_prev"]
+    if test == "tb":
+        P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
+        outputs = ["ac_inf"]
+    P.runSim(parset="manual", result_name="manual")
+    d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    plotSeries(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
@@ -162,37 +179,47 @@ if "autocalibrate" in torun:
         measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
         # New name argument set to old name to do in-place calibration.
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
-        P.runSim(parset="auto", result_name="auto")
-        d = PlotData(P.results, outputs=["ch_prev"])   # Values method used to plot all existent results.
-        plotSeries(d, axis='results', data=P.data)
+    if test == "tb":
+        # Shortcut for calibration inputs.
+        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=30)
+    P.runSim(parset="auto", result_name="auto")
+    d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
+    plotSeries(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     scvalues = dict()
-    if test == "sir":
-        scvalues["infdeath"] = dict()
-        scvalues["infdeath"]["adults"] = dict()
-        
-        # Insert (and possibly overwrite) one value.
-        scvalues["infdeath"]["adults"]["y"] = [0.125]
-        scvalues["infdeath"]["adults"]["t"] = [2015.]
-        scvalues["infdeath"]["adults"]["smooth_onset"] = [2]
-        
-        P.make_scenario(name="increased_infections", instructions=scvalues)
-        P.run_scenario(scenario="increased_infections", parset="auto", result_name="scen1")
-        
-        # Insert two values and eliminate everything between them.
-        scvalues["infdeath"]["adults"]["y"] = [0.125, 0.5]
-        scvalues["infdeath"]["adults"]["t"] = [2015., 2020.]
-        scvalues["infdeath"]["adults"]["smooth_onset"] = [2, 3]
-        
-        P.make_scenario(name="increased_infections", instructions=scvalues, overwrite=True)
-        P.run_scenario(scenario="increased_infections", parset="auto", result_name="scen2")
-        
-        d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=["inf"])
-        plotSeries(d, axis="results")
-        
-        d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=["dead"])
-        plotSeries(d, axis="results")
+    scen_par = "infdeath"
+    scen_pop = "adults"
+    scen_outputs = ["inf","dead"]
+    if test == "tb":
+        scen_par = "spd_infxness"
+        scen_pop = "15-64"
+        scen_outputs = ["lt_inf", "ac_inf"]
+
+    scvalues[scen_par] = dict()
+    scvalues[scen_par][scen_pop] = dict()
+
+    # Insert (or possibly overwrite) one value.
+    scvalues[scen_par][scen_pop]["y"] = [0.125]
+    scvalues[scen_par][scen_pop]["t"] = [2015.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
+
+    P.make_scenario(name="varying_infections", instructions=scvalues)
+    P.run_scenario(scenario="varying_infections", parset="auto", result_name="scen1")
+
+    # Insert two values and eliminate everything between them.
+    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+
+    P.make_scenario(name="varying_infections", instructions=scvalues, overwrite=True)
+    P.run_scenario(scenario="varying_infections", parset="auto", result_name="scen2")
+
+    d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[0], pops=[scen_pop])
+    plotSeries(d, axis="results")
+
+    d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[-1], pops=[scen_pop])
+    plotSeries(d, axis="results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
