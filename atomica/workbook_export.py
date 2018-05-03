@@ -530,8 +530,7 @@ def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, w
                             instructions=instructions, workbook_type=workbook_type)
     workbook.close()
 
-<<<<<<< HEAD
-    logger.info("{0} construction complete.".format(displayName(workbook_type, as_title = True)))
+    logger.info("{0} construction complete.".format(display_name(workbook_type, as_title = True)))
     
     
     
@@ -892,6 +891,3 @@ class ProgramSpreadsheet:
             self.current_sheet = self.sheets[name]
             getattr(self, "generate_%s" % name)() # this calls the corresponding generate function
         self.book.close()
-=======
-    logger.info("{0} construction complete.".format(display_name(workbook_type, as_title = True)))
->>>>>>> fusion
