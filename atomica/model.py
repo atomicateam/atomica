@@ -508,7 +508,7 @@ class Population(object):
                     dst = self.getComp(pair[1])
 # TODO!! ATOMICA - Need to find the link tag here
                     tag = src.name + '-' + dst.name     # Temporary tag solution.
-                    new_link = Link(par,src,dst,tag) # The link needs to be named with the Parameter it derives from so that Results can find it later
+                    new_link = Link(par,src,dst,tag)
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
                     else:
@@ -687,14 +687,17 @@ class Model(object):
                 pop.relink(objs)
 
         if self.vars_by_pop is None:
-            self.vars_by_pop = defaultdict(list)
-            for pop in self.pops:
-                for var in pop.comps + pop.characs + pop.pars + pop.links:
-                    self.vars_by_pop[var.name].append(var)
+            self.set_vars_by_pop()
 
         if self.pset is not None:
             raise NotImplemented # ModelProgramSet should have an internal flag similar to Population
             self.pset.relink(objs)
+
+    def set_vars_by_pop(self):
+        self.vars_by_pop = defaultdict(list)
+        for pop in self.pops:
+            for var in pop.comps + pop.characs + pop.pars + pop.links:
+                self.vars_by_pop[var.name].append(var)
 
     def __getstate__(self):
         self.unlink()
@@ -768,7 +771,7 @@ class Model(object):
                         par.scale_factor = transfer_parameter.y_factor[pop_target]
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
-                        pop.par_lookup[par_name] = par
+                        pop.par_lookup[par_name] = par # TODO - bit of a hack to update the lookup here manually, this might change if Transfers are implemented differently
 
                         target_pop_obj = self.getPop(pop_target)
 
@@ -785,8 +788,8 @@ class Model(object):
                                 else:
                                     pop.link_lookup[link.name] = [link]
 
-        # Refresh the lookup dict for programs (and other variables)
-        self.relink()
+        # Now that all object have been created, update vars_by_pop() accordingly
+        self.set_vars_by_pop()
 
         # Finally, prepare ModelProgramSet helper if programs are going to be used
         if 'progs_start' in options:
