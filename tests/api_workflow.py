@@ -26,7 +26,8 @@ P = aui.Project(name=test.upper()+" project", framework=F)
 P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
-    
+
+
 P.save(tmpdir+test+".prj")
 
 P = aui.Project.load(tmpdir+test+".prj")
@@ -41,11 +42,11 @@ if plot_initial:
     plotSeries(d,plot_type='stacked')
 
     # Bar plot showing deaths
-    d = PlotData(P.results[0],outputs=['inf-dead','rec-dead', 'sus-dead'],t_bins=10)
-    plotBars(d,outer='results',stack_outputs=[['inf-dead','rec-dead', 'sus-dead']])
+    d = PlotData(P.results[0],outputs=['infdeath:flow', {'doth:flow':['susdeath:flow']}],t_bins=10)
+    plotBars(d,outer='results',stack_outputs=[['infdeath:flow', 'doth:flow']])
 
     # Aggregate flows
-    d = PlotData(P.results[0],outputs=[{'Death rate':['inf-dead','rec-dead', 'sus-dead']}])
+    d = PlotData(P.results[0],outputs=[{'Death rate':['infdeath:flow', 'susdeath:flow']}],project=P)
     plotSeries(d)
 
 

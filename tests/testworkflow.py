@@ -74,18 +74,18 @@ if "makeplots" in torun:
         test_pop = "adults"
         decomp = ["sus","inf","rec","dead"]
         deaths = ["inf-dead","rec-dead","sus-dead"]
-        grouped_deaths = {'inf':['inf-dead'],'rec':['rec-dead'],'sus':['sus-dead']}
+        grouped_deaths = {'inf':['inf-dead:flow'],'rec':['rec-dead:flow'],'sus':['sus-dead:flow']}
         plot_pop = [test_pop]
     if test == "tb":
         test_vars = ["sus","vac","spdu","alive","b_rate"]
         test_pop = "0-4"
         decomp = ["sus","vac","lt_inf","ac_inf","acr"]
         # Just do untreated TB-related deaths for simplicity.
-        deaths = ["pd_term","pd_sad","nd_term","nd_sad","pm_term","pm_sad","nm_term","nm_sad","px_term","px_sad","nx_term","nx_sad"]
-        grouped_deaths = {"ds_deaths":["pd_term","pd_sad","nd_term","nd_sad"],
-                  "mdr_deaths":["pm_term","pm_sad","nm_term","nm_sad"],
-                  "xdr_deaths":["px_term","px_sad","nx_term","nx_sad"]}
-        plot_pop = ['15-64']
+        deaths = ["pd_term:flow","pd_sad:flow","nd_term:flow","nd_sad:flow","pm_term:flow","pm_sad:flow","nm_term:flow","nm_sad:flow","px_term:flow","px_sad:flow","nx_term:flow","nx_sad:flow"]
+        grouped_deaths = {"ds_deaths":["pd_term:flow","pd_sad:flow","nd_term:flow","nd_sad:flow"],
+                  "mdr_deaths":["pm_term:flow","pm_sad:flow","nm_term:flow","nm_sad:flow"],
+                  "xdr_deaths":["px_term:flow","px_sad:flow","nx_term:flow","nx_sad:flow"]}
+        plot_pop = ['5-14','15-64']
 
     # Low level debug plots.
     for var in test_vars: P.results["default"].getVariable(test_pop,var)[0].plot()
@@ -97,17 +97,22 @@ if "makeplots" in torun:
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,output_aggregation='average',time_aggregation='average')
-        plotBars(d,outer="results",stack_pops=[P.results["default"].pop_names])
+        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        plotBars(d,outer="results",stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all")
-        plotBars(d,outer="results",stack_outputs=[list(grouped_deaths.keys())])
+        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        plotBars(d,stack_outputs=[list(grouped_deaths.keys())])
+
+        # Plot total death flow over time
+        # Plot death flow rate decomposition over all time
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        plotSeries(d,plot_type='stacked',axis='outputs')
 
     # Plot aggregate flows.
-    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}],output_aggregation="average")
+    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
     plotSeries(d,axis="pops")
-    
+
 
 if "export" in torun:
     P.results["default"].export(tmpdir+test+"_results")
