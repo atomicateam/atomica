@@ -85,8 +85,14 @@ class TimeSeries(object):
         for tx,vx in zip(t,vals):
             self.insert(tx,vx)
 
+    @property
+    def has_data(self):
+        # Returns true if any time-specific data has been entered (not just an assumption)
+        return len(self.t) > 0
+
     def insert(self,t,v):
         # Insert value v at time t maintaining sort order
+        # To set the assumption, set t=None
         if t is None:
             self.assumption = v
         elif t in self.t:
@@ -98,6 +104,7 @@ class TimeSeries(object):
             self.vals.insert(idx, v)
 
     def get(self,t):
+        # To get the assumption, set t=None
         if t is None or len(self.t) == 0:
             return self.assumption
         elif t in self.t:
@@ -115,6 +122,7 @@ class TimeSeries(object):
         return t,v
 
     def remove(self,t):
+        # To remove the assumption, set t=None
         if t is None:
             self.assumption = None
         elif t in self.t:

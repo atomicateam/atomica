@@ -49,8 +49,10 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
     objective = 0.0
 
     for var_label, pop_name, weight, metric in output_quantities:
-        var = result.model.getPop(pop_name).getVariable(var_label)
         target = project.data.getSpec(var_label)['data'][pop_name]
+        if not target.has_data: # Only use this output quantity if the user entered time-specific data
+            continue
+        var = result.model.getPop(pop_name).getVariable(var_label)
         data_t, data_v = target.get_arrays()
 
         y = data_v
