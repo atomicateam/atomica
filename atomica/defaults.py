@@ -19,21 +19,17 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     """ Make a default programset"""
     pass
 
-<<<<<<< HEAD
-def defaultproject(which='sir', add_progs=True, verbose=2, do_run=True, **kwargs):
-    ''' 
-=======
+#def defaultproject(which='sir', add_progs=True, verbose=2, do_run=True, **kwargs):
+#    ''' 
 
 def default_project(which='sir', **kwargs):
     """
->>>>>>> fusion
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
     Version: 2018mar27
     """
 
     ##########################################################################################################################
-<<<<<<< HEAD
     ## SIR
     ##########################################################################################################################
     
@@ -53,39 +49,17 @@ def default_project(which='sir', **kwargs):
         
         F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
-#=======
 #        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
 #        P = Project(framework=F, databook=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
-#>>>>>>> fusion
         
-=======
-    # Simple
-    ##########################################################################################################################
-
-    if which == 'sir':
-        logger.info("Creating an SIR epidemic project...")
-
-        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
-        P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
-
->>>>>>> fusion
     else:
         raise AtomicaException("Default project type '{0}' not understood; choices are 'sir'.".format(which))
     return P
 
 
-<<<<<<< HEAD
-
-def demo(do_run=True, do_plot=False, verbose=2, **kwargs):
-    ''' Create a simple demo project'''
-    P = defaultproject(**kwargs)
-    if do_plot: 
-        printv('Plotting not implemented yet.', 2, verbose)
-=======
 def demo(doplot=False, **kwargs):
     """ Create a simple demo project"""
     P = default_project(**kwargs)
     if doplot:
         logger.warning("Plotting not implemented yet.")
->>>>>>> fusion
     return P
