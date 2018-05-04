@@ -3,7 +3,7 @@ from copy import deepcopy as dcp
 import numpy as np
 
 from atomica.asd import asd
-from atomica.interpolation import interpolateFunc
+from atomica.interpolation import interpolate_func
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()
@@ -24,7 +24,7 @@ def update_parset(parset, y_factors, pars_to_adjust):
 
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
             if pop_name == 'all':
-                par = parset.getPar(par_name)
+                par = parset.get_par(par_name)
                 for pop in par.pops:
                     parset.set_scaling_factor(par_name, pop, y_factors[i])
             else:
@@ -40,7 +40,7 @@ def update_parset(parset, y_factors, pars_to_adjust):
 def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
     # y-factors, array of y-factors to apply to specified output_quantities
     # pars_to_adjust - list of tuples (par_name,pop_name,...) recognized by parset.update()
-    # output_quantities - a tuple like (pop,var,weight,metric) understood by model.getPop[pop].getVar
+    # output_quantities - a tuple like (pop,var,weight,metric) understood by model.get_pop[pop].getVar
 
     update_parset(parset, y_factors, pars_to_adjust)
 
@@ -50,13 +50,13 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
     for var_label, pop_name, weight, metric in output_quantities:
         target = project.data.get_spec(var_label)['data'][pop_name]
-        if not target.has_data: # Only use this output quantity if the user entered time-specific data
+        if not target.has_data:     # Only use this output quantity if the user entered time-specific data
             continue
-        var = result.model.getPop(pop_name).getVariable(var_label)
+        var = result.model.get_pop(pop_name).get_variable(var_label)
         data_t, data_v = target.get_arrays()
 
         y = data_v
-        y2 = interpolateFunc(var[0].t, var[0].vals, data_t)
+        y2 = interpolate_func(var[0].t, var[0].vals, data_t)
 
         objective += weight * sum(_calculate_fitscore(y, y2, metric))
 
@@ -129,7 +129,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     p2 = []
     for par_tuple in pars_to_adjust:
         if par_tuple[1] is None:  # If the pop name is None
-            par = parset.getPar(par_tuple[0])
+            par = parset.get_par(par_tuple[0])
             for pop_name in par.pops:
                 p2.append((par_tuple[0], pop_name, par_tuple[2], par_tuple[3]))
         else:
@@ -160,7 +160,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     for i, x in enumerate(pars_to_adjust):
         par_name, pop_name, scale_min, scale_max = x
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
-            par = parset.getPar(par_name)
+            par = parset.get_par(par_name)
             if pop_name == 'all':
                 x0.append(np.mean([par.y_factor[p] for p in par.pops]))
             else:
@@ -196,13 +196,13 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         pop_name = x[1]
 
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
-            par = args['parset'].getPar(par_name)
+            par = args['parset'].get_par(par_name)
 
             if pop_name is None or pop_name == 'all':
                 for pop in par.pops:
-                    print("parset.getPar('{}').y_factor['{}']={:.2f}".format(par_name, pop, par.y_factor[pop]))
+                    print("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop, par.y_factor[pop]))
             else:
-                print("parset.getPar('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
+                print("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
 
         else:
             tokens = par_name.split('_from_')

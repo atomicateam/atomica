@@ -38,6 +38,6 @@ setup(
         'decorator>=4.1.2',
         'dill>=0.2.7.1',
         'xlsxwriter',
-        'xlrd'
+        'xlrd', 'PyQt5'
     ],
 )

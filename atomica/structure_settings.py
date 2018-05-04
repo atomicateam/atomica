@@ -8,7 +8,7 @@ The definitions are hard-coded, while interface semantics are drawn from a confi
 from sciris.core import odict
 
 from atomica.excel import ExcelSettings
-from atomica.parser_config import loadConfigFile, getConfigValue, configparser
+from atomica.parser_config import load_config_file, get_config_value, configparser
 from atomica.system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
 
 
@@ -279,8 +279,8 @@ class BaseStructuralSettings(object):
             """
             for format_variable_key in ExcelSettings.FORMAT_VARIABLE_KEYS:
                 try:
-                    value_overwrite = float(getConfigValue(config=cp, section=config_section,
-                                                           option=format_variable_key, mute_warnings=True))
+                    value_overwrite = float(get_config_value(config=cp, section=config_section,
+                                                             option=format_variable_key, mute_warnings=True))
                     specs[format_variable_key] = value_overwrite
                 except ValueError:
                     logger.warning("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
@@ -293,7 +293,7 @@ class BaseStructuralSettings(object):
         for page_key in cls.PAGE_KEYS:
             # Read in required page title.
             try:
-                cls.PAGE_SPECS[page_key]["label"] = getConfigValue(config=cp, section=SS.DEFAULT_SPACE_NAME.join(
+                cls.PAGE_SPECS[page_key]["label"] = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(
                     ["page", page_key]), option="title")
             except Exception:
                 logger.error("Configuration loading process failed. Every page in a workbook needs a title.")
@@ -305,14 +305,14 @@ class BaseStructuralSettings(object):
         for item_type in cls.ITEM_TYPE_SPECS:
             try:
                 cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int(
-                    getConfigValue(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
-                                   option="default_amount"))
+                    get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
+                                     option="default_amount"))
             except Exception:
                 logger.warning("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
                                "so these items will not be constructed in templates by default.".format(item_type))
             try:
-                descriptor = getConfigValue(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
-                                            option="descriptor")
+                descriptor = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
+                                              option="descriptor")
                 cls.create_item_type_descriptor(item_type=item_type, descriptor=descriptor)
             except Exception:
                 logger.warning("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
@@ -322,10 +322,10 @@ class BaseStructuralSettings(object):
                 if "ref_item_type" not in cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]:
                     for option in ["header", "comment", "prefix"]:
                         try:
-                            config_value = getConfigValue(config=cp,
-                                                          section=SS.DEFAULT_SPACE_NAME.join(["attribute",
+                            config_value = get_config_value(config=cp,
+                                                            section=SS.DEFAULT_SPACE_NAME.join(["attribute",
                                                                                               item_type, attribute]),
-                                                          option=option)
+                                                            option=option)
                             cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute][option] = config_value
                         except Exception:
                             pass
@@ -353,7 +353,7 @@ def create_specs(undecorated_class):
     undecorated_class.create_page_specs()
     undecorated_class.create_item_type_specs()
     undecorated_class.elaborate_structure()
-    loadConfigFile(undecorated_class)
+    load_config_file(undecorated_class)
     #    except:
     #        logger.error("Class '{0}' is unable to process required base class methods for creating specifications. "
     #                     "Import failed.".format(undecorated_class.__name__))

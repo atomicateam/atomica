@@ -32,7 +32,7 @@ from atomica.calibration import perform_autofit
 from atomica.data import ProjectData
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
-from atomica.model import runModel
+from atomica.model import run_model
 from atomica.parameters import ParameterSet
 from atomica.project_settings import ProjectSettings
 from atomica.scenarios import ParameterScenario
@@ -283,8 +283,8 @@ class Project(object):
                 k += 1
 
         tm = tic()
-        result = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
-                          options=options, name=result_name)
+        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
+                           options=options, name=result_name)
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:

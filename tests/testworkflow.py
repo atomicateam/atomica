@@ -88,7 +88,7 @@ if "makeplots" in torun:
         plot_pop = ['5-14','15-64']
 
     # Low level debug plots.
-    for var in test_vars: P.results["default"].getVariable(test_pop,var)[0].plot()
+    for var in test_vars: P.results["default"].get_variable(test_pop, var)[0].plot()
     
     # Plot population decomposition.
     d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)

@@ -49,10 +49,10 @@ class Optim(object):
         return output
 
 
-    def getresults(self):
+    def get_results(self):
         ''' A method for getting the results '''
         if self.resultsref is not None and self.projectref() is not None:
-            results = getresults(project=self.projectref(), pointer=self.resultsref)
+            results = get_results(project=self.projectref(), pointer=self.resultsref)
             return results
         else:
             print('WARNING, no results associated with this optimization')

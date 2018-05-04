@@ -35,7 +35,7 @@ P = aui.Project.load(tmpdir+test+".prj")
 if plot_initial:
 
     for var in ["sus", "inf", "rec", "dead", "ch_all", "foi"]:
-        P.results[0].getVariable("adults", var)[0].plot()
+        P.results[0].get_variable("adults", var)[0].plot()
 
     # Plot decomposition of population
     d = PlotData(P.results[0],outputs=['sus','inf','rec','dead'])
@@ -85,7 +85,7 @@ plt.show()
 # Synthesize the calibration target
 # P.parsets['calibration_target'] = dcp(P.parsets[0])
 # P.parsets['calibration_target'].name = 'calibration_target'
-# par = P.parsets['calibration_target'].getPar('transpercontact')
+# par = P.parsets['calibration_target'].get_par('transpercontact')
 # par.y_factor['adults']=0.2
 # r2 = P.run_sim(parset='calibration_target')
 # d = PlotData([P.results[0],r2], outputs=['ch_prev'])

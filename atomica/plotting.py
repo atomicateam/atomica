@@ -210,13 +210,13 @@ class PlotData(object):
 
             # Aggregation over outputs takes place first, so loop over pops
             for pop_label in pops_required:
-                pop = result.model.getPop(pop_label)
+                pop = result.model.get_pop(pop_label)
                 popsize[pop_label] = pop.popsize()
                 data_dict = dict()  # Temporary storage for raw outputs
 
                 # First pass, extract the original output quantities, summing links and annualizing as required
                 for output_label in outputs_required:
-                    vars = pop.getVariable(output_label)
+                    vars = pop.get_variable(output_label)
 
                     if vars[0].vals is None:
                         raise AtomicaException('Requested output "%s" was not recorded because only partial results were saved' % (vars[0].name))
@@ -274,10 +274,10 @@ class PlotData(object):
                     deps = []
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
-                        var = pop.getVariable(dep_label)
+                        var = pop.get_variable(dep_label)
                         if t_bins is not None and (isinstance(var,Link) or isinstance(var,Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
                             raise AtomicaException('Function includes Parameter/Link so annualized rates are being used. Aggregation may need to use "average" rather than "sum"')
-                        deps += pop.getVariable(dep_label)
+                        deps += pop.get_variable(dep_label)
                     par.f_stack = f_stack
                     par.deps = deps
                     par.preallocate(tvecs[result_label], dt)

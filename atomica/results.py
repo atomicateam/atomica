@@ -18,7 +18,7 @@ class Result(object):
             self.name = parset.name
         else:
             self.name = name
-        self.model = model # The Result constructor is called in model.runModel and the Model is no longer returned, so this should be the only reference to that instance so no need to dcp
+        self.model = model # The Result constructor is called in model.run_model and the Model is no longer returned, so this should be the only reference to that instance so no need to dcp
         self.parset_name = parset.name
         self.parset_id = parset.uid
         self.pop_names = [x.name for x in self.model.pops] # This gets frequently used, so save it as an actual output
@@ -47,20 +47,20 @@ class Result(object):
     # different contents
     def comp_names(self,pop_name):
         # Return compartment names for a given population
-        return sorted(self.model.getPop(pop_name).comp_lookup.keys())
+        return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
 
     def charac_names(self,pop_name):
         # Return characteristic names for a given population
-        return sorted(self.model.getPop(pop_name).charac_lookup.keys())
+        return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
     def par_names(self,pop_name):
         # Return parteristic names for a given population
-        return sorted(self.model.getPop(pop_name).par_lookup.keys())
+        return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
     def link_names(self,pop_name):
         # Return link names for a given population
         names = set()
-        pop = self.model.getPop(pop_name)
+        pop = self.model.get_pop(pop_name)
         for link in pop.links:
             names.add(link.name)
         return sorted(names)
@@ -71,9 +71,9 @@ class Result(object):
         output += objrepr(self)
         return output
 
-    def getVariable(self,pops,name):
+    def get_variable(self, pops, name):
         # Retrieve a list of variables from a population
-        return self.model.getPop(pops).getVariable(name)
+        return self.model.get_pop(pops).get_variable(name)
 
     def export(self, filename=None,):
         '''Convert output to a single DataFrame and optionally write it to a file'''
