@@ -94,7 +94,7 @@ Edits
 ## 0.3.2 (2018-01-16): Initial Databook Construction
 
 Features
-- Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
+- Templated `Project.create_databook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
 - Coded `DatabookInstructions` class to specify how many of each item, e.g. population and program, to produce in a databook.
 - Hard-coded the keys for the databook file via a `DataSettings` class.
   Set up a configuration-loading decorator and class method for `DataSettings`.

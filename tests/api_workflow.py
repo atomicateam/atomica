@@ -23,7 +23,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 
 F = aui.ProjectFramework.load(tmpdir+test+".frw")
 P = aui.Project(name=test.upper()+" project", framework=F)
-P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=True, do_run=True)
+P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
 
@@ -87,7 +87,7 @@ plt.show()
 # P.parsets['calibration_target'].name = 'calibration_target'
 # par = P.parsets['calibration_target'].getPar('transpercontact')
 # par.y_factor['adults']=0.2
-# r2 = P.runSim(parset='calibration_target')
+# r2 = P.run_sim(parset='calibration_target')
 # d = PlotData([P.results[0],r2], outputs=['ch_prev'])
 # plotSeries(d, axis='results',data=P.data)
 
@@ -100,7 +100,7 @@ for pop in P.parsets[0].pop_names:
 calibrated_parset = perform_autofit(P, P.parsets[0], pars_to_adjust, output_quantities, max_time=30)
 
 # Plot the results before and after calibration
-calibrated_results = P.runSim(calibrated_parset)
+calibrated_results = P.run_sim(calibrated_parset)
 d = PlotData([P.results[0],calibrated_results], outputs=['ch_prev'])
 plotSeries(d, axis='results',data=P.data)
 

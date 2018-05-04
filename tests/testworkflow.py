@@ -51,7 +51,7 @@ if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2005, "data_end":2015, "data_dt":0.5}
     elif test == "tb": args = {"num_pops":12, "num_progs":31, "data_end":2018}
-    P.createDatabook(databook_path=tmpdir+"databook_"+test+"_blank.xlsx", **args)
+    P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
     
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
@@ -59,14 +59,14 @@ if "makeproject" in torun:
     
 if "loaddatabook" in torun:
     # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=False, do_run=False)
+    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.makeParset(name="default")
+    P.make_parset(name="default")
     
 if "runsim" in torun:
     P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    P.runSim(parset="default", result_name="default")
+    P.run_sim(parset="default", result_name="default")
     
 if "makeplots" in torun:
     if test == "sir": 
@@ -147,7 +147,7 @@ if "manualcalibrate" in torun:
     if test == "tb":
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
-    P.runSim(parset="manual", result_name="manual")
+    P.run_sim(parset="manual", result_name="manual")
     d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plotSeries(d, axis="results", data=P.data)
     
@@ -163,7 +163,7 @@ if "autocalibrate" in torun:
     if test == "tb":
         # Shortcut for calibration inputs.
         P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=10)
-    P.runSim(parset="auto", result_name="auto")
+    P.run_sim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     plotSeries(d, axis='results', data=P.data)
     
