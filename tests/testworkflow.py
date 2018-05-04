@@ -36,7 +36,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
-    aui.ProjectFramework.createTemplate(path=tmpdir+"framework_"+test+"_blank.xlsx", **args)
+    aui.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
     F = aui.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")

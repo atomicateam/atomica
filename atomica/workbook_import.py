@@ -2,7 +2,7 @@ from atomica.system import SystemSettings as SS
 from atomica.excel import ExcelSettings as ES
 
 from atomica.system import logger, AtomicaException, accepts, display_name
-from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
+from atomica.excel import extract_header_columns_mapping, extract_excel_sheet_value
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, QuantityFormatType
 from atomica.structure import KeyData
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpecs, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
@@ -74,7 +74,7 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
                             if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
-                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
+                    value = extract_excel_sheet_value(worksheet, start_row = row, start_col = start_col, stop_col =last_col + 1, filters = filters)
                     if isinstance(content_type, QuantityFormatType) and not value is None: value = value.lower()  # A catch to ensure formats are stored as lower-case strings.
                     if not value is None or (not content_type is None and not content_type.default_value is None): 
                         structure.set_spec_value(term = item_name, attribute = attribute, value = value, content_type = content_type)
@@ -85,7 +85,7 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
 def readDetailColumns(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
 
     row = start_row
-    header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
+    header_columns_map = extract_header_columns_mapping(worksheet, row = row)
     row += 1
     row = readContentsDC(worksheet = worksheet, table = table, start_row = row, header_columns_map = header_columns_map,
                        framework = framework, data = data, workbook_type = workbook_type)

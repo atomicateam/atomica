@@ -4,7 +4,7 @@ from atomica.structure_settings import DataSettings as DS
 from atomica.excel import ExcelSettings as ES
 
 from atomica.system import logger, AtomicaException, accepts, prepare_filepath, display_name
-from atomica.excel import createStandardExcelFormats, createDefaultFormatVariables, createValueEntryBlock
+from atomica.excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, IDType, IDRefType, SwitchType, QuantityFormatType
 from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
 from atomica.structure import get_quantity_type_list
@@ -233,7 +233,7 @@ def writeHeadersDC(worksheet, table, start_row, start_col, item_type=None, frame
     item_type_spec = item_type_specs[item_type]
 
     if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
-    if format_variables is None: format_variables = createDefaultFormatVariables()
+    if format_variables is None: format_variables = create_default_format_variables()
     orig_format_variables = dcp(format_variables)
     format_variables = dcp(orig_format_variables)
     revert_format_variables = False
@@ -359,7 +359,7 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     if temp_storage is None: temp_storage = odict()
 
     if formats is None: raise AtomicaException("Excel formats have not been passed to workbook table construction.")
-    if format_variables is None: format_variables = createDefaultFormatVariables()
+    if format_variables is None: format_variables = create_default_format_variables()
     orig_format_variables = dcp(format_variables)
     format_variables = dcp(orig_format_variables)
     
@@ -406,10 +406,10 @@ def writeTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type,
     if "default_value" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["default_value"] is None:
         default_values = [item_specs[item_type][item_key]["default_value"]]*num_items
     time_vector = instructions.tvec    # TODO: Make sure this is robust when writing from framework/data rather than instructions.
-    createValueEntryBlock(excel_page = worksheet, start_row = start_row, start_col = start_col + 1, 
-                          num_items = num_items, time_vector = time_vector,
-                          default_values = default_values, formats = formats,
-                          quantity_types = quantity_types)
+    create_value_entry_block(excel_page = worksheet, start_row = start_row, start_col =start_col + 1,
+                             num_items = num_items, time_vector = time_vector,
+                             default_values = default_values, formats = formats,
+                             quantity_types = quantity_types)
 
     # Fill in the appropriate 'keys' for the table.
     row += 1
@@ -466,14 +466,14 @@ def writeWorksheet(workbook, page_key, framework=None, data=None, instructions=N
     # Propagate file-wide format variable values to page-wide format variable values.
     # Create the format variables if they were not passed in from a file-wide context.
     # Overwrite the file-wide defaults if page-based specifics are available in framework settings.
-    if format_variables is None: format_variables = createDefaultFormatVariables()
+    if format_variables is None: format_variables = create_default_format_variables()
     else: format_variables = dcp(format_variables)
     for format_variable_key in format_variables:
         if format_variable_key in page_spec:
             format_variables[format_variable_key] = page_spec[format_variable_key]
     
     # Generate standard formats if they do not exist and construct headers for the page.
-    if formats is None: formats = createStandardExcelFormats(workbook)
+    if formats is None: formats = create_standard_excel_formats(workbook)
 
     if temp_storage is None: temp_storage = odict()
 
@@ -515,8 +515,8 @@ def writeWorkbook(workbook_path, framework=None, data=None, instructions=None, w
     # Construct workbook and related formats.
     prepare_filepath(workbook_path)
     workbook = xw.Workbook(workbook_path)
-    formats = createStandardExcelFormats(workbook)
-    format_variables = createDefaultFormatVariables()
+    formats = create_standard_excel_formats(workbook)
+    format_variables = create_default_format_variables()
 
     # Create a storage dictionary for values and formulae that may persist between sections.
     temp_storage = odict()

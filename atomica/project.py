@@ -134,8 +134,6 @@ class Project(object):
                                "despite no request to create a default parameter set.")
             self.run_sim(parset="default")
 
-        return None
-
     def make_parset(self, name="default", overwrite=False):
         """ Transform project data into a set of parameters that can be used in model simulations. """
 

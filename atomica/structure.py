@@ -197,9 +197,12 @@ class KeyData(object):
 class CoreProjectStructure(object):
     """ Base object that contains details for instantiated items of types defined in relevant settings classes. """
 
-    def __init__(self, structure_key=None):
+    def __init__(self, name=None, structure_key=None):
         """ Initialize the core project structure. """
-        self.name = str()
+        if name is None:
+            self.name = str()
+        else:
+            self.name = name
         self.specs = odict()
 
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
