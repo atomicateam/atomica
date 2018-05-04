@@ -24,24 +24,36 @@ Methods for structure lists:
 Version: 2018mar22
 """
 
-from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
+from sciris.core import tic, toc, odict, today, makefilepath, gitinfo, getdate, objrepr, dcp, saveobj, loadobj, uuid
+
+from atomica._version import __version__
+# from atomica.programs import Programset
+from atomica.calibration import perform_autofit
+from atomica.data import ProjectData
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
-from atomica.data import ProjectData
-from atomica.project_settings import ProjectSettings
+from atomica.model import run_model
 from atomica.parameters import ParameterSet
+<<<<<<< HEAD
 from atomica.programs import Program, ProgramSet
 from atomica.calibration import perform_autofit
+=======
+from atomica.project_settings import ProjectSettings
+>>>>>>> fusion
 from atomica.scenarios import ParameterScenario
-from atomica.model import runModel
-from atomica.results import Result
+from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
+from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.workbook_export import writeWorkbook, makeInstructions
+<<<<<<< HEAD
 from atomica.workbook_import import readWorkbook, loadprogramspreadsheet
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
+=======
+from atomica.workbook_import import readWorkbook
+>>>>>>> fusion
 
-#from numpy.random import seed, randint
+
+# from numpy.random import seed, randint
 
 @apply_to_all_methods(log_usage)
 class Project(object):
@@ -49,24 +61,25 @@ class Project(object):
         """ Initialize the project. """
 
         self.name = name
-#        self.filename = None # Never saved to file
+        # self.filename = None # Never saved to file
         self.framework = framework if framework else ProjectFramework()
-        self.data = ProjectData() # TEMPORARY
+        self.data = ProjectData()  # TEMPORARY
 
-        ## Define the structure sets
-        self.parsets  = odict()
+        # Define the structure sets
+        self.parsets = odict()
         self.progsets = odict()
-        self.scens    = odict()
-        self.optims   = odict()
-        self.results  = odict()
+        self.scens = odict()
+        self.optims = odict()
+        self.results = odict()
 
-        ## Define metadata
+        # Define metadata
         self.uid = uuid()
         self.version = __version__
         self.gitinfo = gitinfo()
         self.created = today()
         self.modified = today()
         self.databookloaddate = 'Databook never loaded'
+<<<<<<< HEAD
         self.programdatabookloaddate = 'Programs databook never loaded'
         self.settings = ProjectSettings() # Global settings
 
@@ -75,52 +88,63 @@ class Project(object):
             self.loadDatabook(databook_path=databook_path, do_run=do_run)
 
         return None
+=======
+        self.settings = ProjectSettings()  # Global settings
+>>>>>>> fusion
 
+        # Load spreadsheet, if available
+        if framework and databook_path:
+            # TODO: Consider compatibility checks for framework/databook.
+            self.load_databook(databook_path=databook_path, do_run=do_run)
 
     def __repr__(self):
-        ''' Print out useful information when called '''
+        """ Print out useful information when called """
         output = objrepr(self)
-        output += '      Project name: %s\n'    % self.name
-        output += '    Framework name: %s\n'    % self.framework.name
+        output += '      Project name: %s\n' % self.name
+        output += '    Framework name: %s\n' % self.framework.name
         output += '\n'
-        output += '    Parameter sets: %i\n'    % len(self.parsets)
-        output += '      Program sets: %i\n'    % len(self.progsets)
-        output += '         Scenarios: %i\n'    % len(self.scens)
-        output += '     Optimizations: %i\n'    % len(self.optims)
-        output += '      Results sets: %i\n'    % len(self.results)
+        output += '    Parameter sets: %i\n' % len(self.parsets)
+        output += '      Program sets: %i\n' % len(self.progsets)
+        output += '         Scenarios: %i\n' % len(self.scens)
+        output += '     Optimizations: %i\n' % len(self.optims)
+        output += '      Results sets: %i\n' % len(self.results)
         output += '\n'
-        output += '   Atomica version: %s\n'    % self.version
-        output += '      Date created: %s\n'    % getdate(self.created)
-        output += '     Date modified: %s\n'    % getdate(self.modified)
-        output += '  Datasheet loaded: %s\n'    % getdate(self.databookloaddate)
-        output += '        Git branch: %s\n'    % self.gitinfo['branch']
-        output += '          Git hash: %s\n'    % self.gitinfo['hash']
-        output += '               UID: %s\n'    % self.uid
+        output += '   Atomica version: %s\n' % self.version
+        output += '      Date created: %s\n' % getdate(self.created)
+        output += '     Date modified: %s\n' % getdate(self.modified)
+        output += '  Datasheet loaded: %s\n' % getdate(self.databookloaddate)
+        output += '        Git branch: %s\n' % self.gitinfo['branch']
+        output += '          Git hash: %s\n' % self.gitinfo['hash']
+        output += '               UID: %s\n' % self.uid
         output += '============================================================\n'
         return output
-    
 
     #######################################################################################################
-    ### Methods for I/O and spreadsheet loading
+    # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def createDatabook(self, databook_path=None, num_pops=None, num_progs=None, data_start=None, data_end=None, data_dt=None):
+    def create_databook(self, databook_path=None, num_pops=None, num_progs=None, data_start=None, data_end=None,
+                        data_dt=None):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
-        if databook_path is None: databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
+        if databook_path is None:
+            databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
         databook_instructions, _ = makeInstructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
-        if not num_pops is None: databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)     # Set the number of populations.
-        if not num_progs is None: databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)      # Set the number of programs.
+        if num_pops is not None:
+            databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
+        if num_progs is not None:
+            databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
         databook_instructions.updateTimeVector(data_start=data_start, data_end=data_end, data_dt=data_dt)
-        writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data, instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
-    
+        writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data,
+                      instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
-    def loadDatabook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """
-        ## Load spreadsheet and update metadata
         full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = readWorkbook(workbook_path=full_path, framework=self.framework, data=self.data, workbook_type=SS.STRUCTURE_KEY_DATA)
+        metadata = readWorkbook(workbook_path=full_path, framework=self.framework, data=self.data,
+                                workbook_type=SS.STRUCTURE_KEY_DATA)
 
-        self.databookloaddate = today() # Update date when spreadsheet was last loaded
+        self.databookloaddate = today()  # Update date when spreadsheet was last loaded
         self.modified = today()
+<<<<<<< HEAD
         
         # Put the population keys somewhere easier to access- TEMP, TODO, fix
         self.popkeys = []
@@ -137,19 +161,30 @@ class Project(object):
             if not make_default_parset: logger.warning("Project has been requested to run a simulation after loading databook, despite no request to "
                                                        "create a default parameter set.")
             self.runSim(parset="default")
+=======
+>>>>>>> fusion
 
-        return None
+        if metadata is not None and "data_start" in metadata:
+            self.settings.updateTimeVector(start=metadata["data_start"])  # Align sim start year with data start year.
 
+        if make_default_parset:
+            self.make_parset(name="default")
+        if do_run:
+            if not make_default_parset:
+                logger.warning("Project has been requested to run a simulation after loading databook, "
+                               "despite no request to create a default parameter set.")
+            self.run_sim(parset="default")
 
-    def makeParset(self, name="default", overwrite=False):
+    def make_parset(self, name="default", overwrite=False):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-        
+
         # TODO: Develop some flag or check for data 'emptiness'.
-#        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
-        self.set_parset(parset_key = name, parset_object = ParameterSet(name=name), overwrite=overwrite)
+        #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
+        self.set_parset(parset_key=name, parset_object=ParameterSet(name=name), overwrite=overwrite)
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
 
+<<<<<<< HEAD
 
     def load_progbook(self, databook_path=None, make_default_progset=True):
         ''' Load a programs databook'''
@@ -233,68 +268,112 @@ class Project(object):
 #
 #        return None
         
+=======
+    def make_progset(self, name="default"):
+        pass
+
+    #    def makedefaults(self, name=None, scenname=None, overwrite=False):
+    #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
+    #
+    #        # Handle inputs
+    #        if name is None: name = 'default'
+    #        if scenname is None: scenname = 'default'
+    #
+    #        # Make default progset, scenarios and optimizations
+    #        if overwrite or name not in self.progsets:
+    #            progset = Programset(name=name, project=self)
+    #            self.addprogset(progset)
+    #
+    #        if overwrite or scenname not in self.scens:
+    #            scenlist = [Parscen(name=scenname, parsetname=name,pars=[])]
+    #            self.addscens(scenlist)
+    #
+    #        if overwrite or name not in self.optims:
+    #            optim = Optim(project=self, name=name)
+    #            self.addoptim(optim)
+    #
+    #        return None
+
+>>>>>>> fusion
     def make_scenario(self, name="default", instructions=None, save_to_project=True, overwrite=False):
         scenario = ParameterScenario(name=name, scenario_values=instructions)
-        if save_to_project: self.set_scenario(scenario_key = name, scenario_object = scenario, overwrite=overwrite)
+        if save_to_project:
+            self.set_scenario(scenario_key=name, scenario_object=scenario, overwrite=overwrite)
         return scenario
-        
-
 
     #######################################################################################################
-    ### Methods to handle common tasks with structure lists
+    # Methods to handle common tasks with structure lists
     #######################################################################################################
 
-    def set_structure(self, structure_key, structure_object, structure_list, structure_string, overwrite = False):
-        """ Base method for setting elements of structure lists to a structure object, with optional overwrite validation. """
+    @staticmethod
+    def set_structure(structure_key, structure_object, structure_list, structure_string, overwrite=False):
+        """
+        Base function for setting elements of structure lists to a structure object.
+        Contains optional overwrite validation.
+        """
         if structure_key in structure_list:
-            if not overwrite: raise AtomicaException("A {0} is already attached to a project under the key '{1}'.".format(structure_string,structure_key))
-            else: logger.warning("A {0} already attached to the project with key '{1}' is being overwritten.".format(structure_string,structure_key))
+            if not overwrite:
+                raise AtomicaException(
+                    "A {0} is already attached to a project under the key '{1}'.".format(structure_string,
+                                                                                         structure_key))
+            else:
+                logger.warning("A {0} already attached to the project with key '{1}' is being overwritten.".format(
+                    structure_string, structure_key))
         structure_list[structure_key] = structure_object
 
-    def set_parset(self, parset_key, parset_object, overwrite = False):
+    def set_parset(self, parset_key, parset_object, overwrite=False):
         """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
-        self.set_structure(structure_key=parset_key, structure_object=parset_object, structure_list=self.parsets, 
+        self.set_structure(structure_key=parset_key, structure_object=parset_object, structure_list=self.parsets,
                            structure_string="parameter set", overwrite=overwrite)
 
-    def set_scenario(self, scenario_key, scenario_object, overwrite = False):
+    def set_scenario(self, scenario_key, scenario_object, overwrite=False):
         """ 'Set' method for scenarios to prevent overwriting unless explicit. """
-        self.set_structure(structure_key=scenario_key, structure_object=scenario_object, structure_list=self.scens, 
+        self.set_structure(structure_key=scenario_key, structure_object=scenario_object, structure_list=self.scens,
                            structure_string="scenario", overwrite=overwrite)
-    
-    def copy_parset(self, old_name = "default", new_name = "copy"):
+
+    def copy_parset(self, old_name="default", new_name="copy"):
         """ Deep copy an existent parameter set. """
         parset_object = dcp(self.parsets[old_name])
-        parset_object.change_id(new_name = new_name)
-        self.set_parset(parset_key = new_name, parset_object = parset_object)
-        
+        parset_object.change_id(new_name=new_name)
+        self.set_parset(parset_key=new_name, parset_object=parset_object)
+
     def get_structure(self, structure, structure_list, structure_string):
-        """ Base method that allows structures to be retrieved via an object or string handle and, if the latter, validates for existence. """
+        """
+        Base method that allows structures to be retrieved via an object or string handle.
+        If the latter, validates for existence.
+        """
         if structure is None:
             if len(structure_list) < 1:
-                raise AtomicaException("Project '{0}' appears to have no {1}s. Cannot select a default to run process.".format(self.name,structure_string))
+                raise AtomicaException("Project '{0}' appears to have no {1}s. "
+                                       "Cannot select a default to run process.".format(self.name, structure_string))
             else:
                 try:
                     structure = structure_list["default"]
-                    logger.warning("Project '{0}' has selected {1} with key 'default' to run process.".format(self.name,structure_string))
-                except: 
+                    logger.warning("Project '{0}' has selected {1} with key 'default' "
+                                   "to run process.".format(self.name, structure_string))
+                except KeyError:
                     structure = structure_list[0]
-                    logger.warning("In the absence of a parameter set with key 'default', "
-                                   "project '{0}' has selected {1} with name '{2}' to run process.".format(self.name,structure_string,structure.name))
+                    logger.warning("In the absence of a parameter set with key 'default', project '{0}' "
+                                   "has selected {1} with name '{2}' to run process.".format(self.name,
+                                                                                             structure_string,
+                                                                                             structure.name))
         else:
-            if isinstance(structure,str):
+            if isinstance(structure, str):
                 if structure not in structure_list:
-                    raise AtomicaException("Project '{0}' is lacking a {1} named '{2}'. Cannot run process.".format(self.name,structure_string,structure))
+                    raise AtomicaException("Project '{0}' is lacking a {1} named '{2}'. "
+                                           "Cannot run process.".format(self.name, structure_string, structure))
                 structure = structure_list[structure]
         return structure
-        
+
     def get_parset(self, parset):
-        """ Allows for parsets to be retrieved from an object or string handle, the latter of which is checked against project attributes. """
+        """ Allows for parsets to be retrieved from an object or string handle. """
         return self.get_structure(structure=parset, structure_list=self.parsets, structure_string="parameter set")
-      
+
     def get_scenario(self, scenario):
-        """ Allows for scenarios to be retrieved from an object or string handle, the latter of which is checked against project attributes. """
+        """ Allows for scenarios to be retrieved from an object or string handle. """
         return self.get_structure(structure=scenario, structure_list=self.scens, structure_string="scenario")
 
+<<<<<<< HEAD
     def set_progset(self, progset_key, progset_object, overwrite = False):
         """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
         self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets, 
@@ -484,31 +563,34 @@ class Project(object):
 #        except: return printv('Warning, results set not found!', 1, verbose) # Returns None
 
 
+=======
+>>>>>>> fusion
     #######################################################################################################
-    ### Methods to perform major tasks
+    # Methods to perform major tasks
     #######################################################################################################
-
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.updateTimeVector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def runSim(self, parset=None, progset=None, options=None, store_results=True, result_type=None, result_name=None):
+    def run_sim(self, parset=None, progset=None, options=None, store_results=True, result_type=None, result_name=None):
         """ Run model using a selected parset and store/return results. """
-        
+
         parset = self.get_parset(parset=parset)
 
-#        if progset is None:
-#            try: progset = self.progsets[progset_name]
-#            except: logger.info("Initiating a standard run of project '{0}' (i.e. without the influence of programs).".format(self.name))
-#        if progset is not None:
-#            if options is None:
-#                logger.info("Program set '{0}' will be ignored while running project '{1}' due to no options specified.".format(progset.name, self.name))
-#                progset = None
+        # if progset is None:
+        #    try: progset = self.progsets[progset_name]
+        #    except: logger.info("Initiating a standard run of project '{0}' "
+        #                        "(i.e. without the influence of programs).".format(self.name))
+        # if progset is not None:
+        #    if options is None:
+        #        logger.info("Program set '{0}' will be ignored while running project '{1}' "
+        #                    "due to no options specified.".format(progset.name, self.name))
+        #        progset = None
 
         if result_name is None:
             base_name = "parset_" + parset.name
-            if not progset is None:
+            if progset is not None:
                 base_name = base_name + "_progset_" + progset.name
             if result_type is not None:
                 base_name = result_type + "_" + base_name
@@ -520,7 +602,8 @@ class Project(object):
                 k += 1
 
         tm = tic()
-        result = runModel(settings=self.settings, framework=self.framework, parset=parset, progset=progset, options=options,name=result_name)
+        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
+                           options=options, name=result_name)
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
@@ -528,7 +611,7 @@ class Project(object):
 
         return result
 
-    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None, 
+    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
         """
         Method to perform automatic calibration.
@@ -539,88 +622,66 @@ class Project(object):
             [(par_name_1, pop_1, min_scale_1, max_scale_1)
              (par_name_2, None, min_scale_2, max_scale_2),
              (charac_name_1, pop_2, min_scale_3, max_scale_3)]
-        The former will instruct the autofit algorithm to vary specified parameter values for all populations between default scaling limits.
-        The latter will vary specified parameters for specified populations, with 'None' denoting all pops, and within specified scaling limits.
+        The former instructs specified parameter values for all populations to be varied between default scaling limits.
+        The latter varies specified parameters for specified populations, within specified scaling limits.
+        'None' in the population position represents independent scaling across all populations.
         
         The measurables argument should be a list in the form of...
             [charac_name_1, charac_name_2]
         ...or...
             [(charac_name_1, pop_1, weight_1, "fractional")
              (charac_name_2, None, weight_2, "wape")]
-        The former will instruct calculation of a 'fractional' data-simulation comparison metric summed across specified characteristics for all pops.
-        The latter will calculate its metric for specified populations, with 'None' denoting all pops, and for specified weights and metric types.
+        The former calculates a 'fractional' data comparison metric across specified characteristics for all pops.
+        The latter calculates its metric for specified populations and for both specified weights and metric types.
+        'None' represents combining the metric across all populations.
         
         To calibrate a project-attached parameter set in place, provide its key as the new name argument to this method.
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
         parset = self.get_parset(parset=parset)
-        if adjustables is None: adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
-        if measurables is None: measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys() + self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
+        if adjustables is None:
+            adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
+        if measurables is None:
+            measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys()
+            measurables += self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
         for index, adjustable in enumerate(adjustables):
-            if isinstance(adjustable, str):     # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(adjustable, str):  # Assume that a parameter name was passed in if not a tuple.
                 adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
         for index, measurable in enumerate(measurables):
-            if isinstance(measurable, str):     # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(measurable, str):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = perform_autofit(project=self, parset=parset,
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
-        new_parset.change_id(new_name=new_name)     # The new parset is a calibrated copy of the old, so change id.
+        new_parset.change_id(new_name=new_name)  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)
 
         return new_parset
-        
-    
-#    def outcome(self):
-#        ''' Function to get the outcome for a particular sim and objective'''
-#        pass
-        
+
+    #    def outcome(self):
+    #        ''' Function to get the outcome for a particular sim and objective'''
+    #        pass
 
     def run_scenario(self, scenario, parset=None, progset=None, options=None, store_results=True, result_name=None):
         """ Run a scenario. """
         parset = self.get_parset(parset)
         scenario = self.get_scenario(scenario)
         scenario_parset = scenario.get_parset(parset, self.settings)
-        scenario_progset, scenario_options = scenario.get_progset(progset, self.settings,options)
-        return self.runSim(parset=scenario_parset, progset=scenario_progset, options=scenario_options, 
-                           store_results=store_results, result_type="scenario", result_name=result_name)
+        scenario_progset, scenario_options = scenario.get_progset(progset, self.settings, options)
+        return self.run_sim(parset=scenario_parset, progset=scenario_progset, options=scenario_options,
+                            store_results=store_results, result_type="scenario", result_name=result_name)
 
-#    def optimize(self):
-#        '''Run an optimization'''
-    
+    #    def optimize(self):
+    #        '''Run an optimization'''
+
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
-        filepath = makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT, sanitize=True)  # Enforce file extension.
+        filepath = makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT,
+                                sanitize=True)  # Enforce file extension.
         saveobj(filepath, self)
-    
+
     @classmethod
     def load(cls, filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
         return loadobj(filepath)
-
-
-#    def export(self, filename=None, folder=None, datasheetpath=None, verbose=2):
-#        '''
-#        Export a script that, when run, generates this project.
-#        '''
-#        
-#        fullpath = makefilepath(filename=filename, folder=folder, default=self.name, ext='py', sanitize=True)
-#        
-##        if datasheetpath is None:
-##            spreadsheetpath = self.name+'.xlsx'
-##            self.createDatabook(filename=spreadsheetpath, folder=folder) ## TODO: first need to make sure that data can be written back to excel
-##            printv('Generated spreadsheet from project %s and saved to file %s' % (self.name, spreadsheetpath), 2, verbose)
-#
-#        output = "'''\nSCRIPT TO GENERATE PROJECT %s\n" %(self.name)
-#        output += "Created %s\n\n\n" %(today())
-#        output += "THIS METHOD IS NOT FUNCTIONAL YET'''\n\n\n"
-#
-#        f = open(fullpath, 'w')
-#        f.write( output )
-#        f.close()
-#        printv('Saved project %s to script file %s' % (self.name, fullpath), 2, verbose)
-#        return None
-
-        
-        

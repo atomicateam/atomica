@@ -23,7 +23,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 
 F = aui.ProjectFramework.load(tmpdir+test+".frw")
 P = aui.Project(name=test.upper()+" project", framework=F)
-P.loadDatabook(databook_path="./databooks/databook_sir_twopop.xlsx", make_default_parset=True, do_run=True)
+P.load_databook(databook_path="./databooks/databook_sir_twopop.xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
     
@@ -34,10 +34,10 @@ P = aui.Project.load(tmpdir+test+".prj")
 def plot_calibration(adjustables,measurables,titlestr):
     # Run calibration and plot results showing y-factors in title
     new_parset = perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
-    new_result = P.runSim(new_parset)
+    new_result = P.run_sim(new_parset)
     d = PlotData(new_result, outputs=['ch_prev'])
     figs = plotSeries(d, axis='pops', data=P.data)
-    figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}".format(titlestr,new_parset.getPar('transpercontact').y_factor['adults'],new_parset.getPar('transpercontact').y_factor['children']))
+    figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}".format(titlestr, new_parset.get_par('transpercontact').y_factor['adults'], new_parset.get_par('transpercontact').y_factor['children']))
 
 # Calibrate explicitly listing out the pops
 # Expected result is y-factors around adults=0.2 and children=0.3

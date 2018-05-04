@@ -2,7 +2,7 @@ from atomica.system import SystemSettings as SS
 from atomica.excel import ExcelSettings as ES
 
 from atomica.system import logger, AtomicaException, accepts, display_name
-from atomica.excel import extractHeaderColumnsMapping, extractExcelSheetValue
+from atomica.excel import extract_header_columns_mapping, extract_excel_sheet_value
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, QuantityFormatType
 from atomica.structure import KeyData
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, getWorkbookPageKeys, getWorkbookPageSpecs, getWorkbookPageSpec, getWorkbookItemTypeSpecs, getWorkbookItemSpecs
@@ -47,8 +47,8 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
         test_name = str(worksheet.cell_value(row, name_col))
         if not test_name == "": item_name = test_name
         if not item_name == "":
-            try: structure.getSpec(item_name)
-            except: structure.createItem(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
+            try: structure.get_spec(item_name)
+            except: structure.create_item(item_name = item_name, item_type = item_type, superitem_type_name_pairs = superitem_type_name_pairs)
             for attribute in item_type_spec["attributes"]:
                 # No need to parse name.
                 # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
@@ -75,10 +75,10 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
                             if content_type.default_on: filters.append(ES.FILTER_KEY_BOOLEAN_NO)
                             else: filters.append(ES.FILTER_KEY_BOOLEAN_YES)
                     # For ease of coding, values for this table can span multiple columns but not rows.
-                    value = extractExcelSheetValue(worksheet, start_row = row, start_col = start_col, stop_col = last_col + 1, filters = filters)
+                    value = extract_excel_sheet_value(worksheet, start_row = row, start_col = start_col, stop_col =last_col + 1, filters = filters)
                     if isinstance(content_type, QuantityFormatType) and not value is None: value = value.lower()  # A catch to ensure formats are stored as lower-case strings.
                     if not value is None or (not content_type is None and not content_type.default_value is None): 
-                        structure.setSpecValue(term = item_name, attribute = attribute, value = value, content_type = content_type)
+                        structure.set_spec_value(term = item_name, attribute = attribute, value = value, content_type = content_type)
             row += 1
     next_row = row
     return next_row
@@ -86,7 +86,7 @@ def readContentsDC(worksheet, table, start_row, header_columns_map, item_type = 
 def readDetailColumns(worksheet, table, start_row, framework = None, data = None, workbook_type = None):
 
     row = start_row
-    header_columns_map = extractHeaderColumnsMapping(worksheet, row = row)
+    header_columns_map = extract_header_columns_mapping(worksheet, row = row)
     row += 1
     row = readContentsDC(worksheet = worksheet, table = table, start_row = row, header_columns_map = header_columns_map,
                        framework = framework, data = data, workbook_type = workbook_type)
@@ -121,15 +121,15 @@ def readConnectionMatrix(worksheet, table, start_row, framework = None, data = N
                     source_item = str(worksheet.cell_value(row, header_col))
                     target_item = str(worksheet.cell_value(header_row, col))
                     if table.storage_item_type is None:
-                        structure.setSpecValue(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
+                        structure.set_spec_value(term = source_item, attribute = table.storage_attribute, value = val, subkey = target_item)
                     else:
                         # Allow connection matrices to use name tags before they are used for detailed items.
                         # Only allow this for non-subitems.
                         if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
                             raise AtomicaException("Cannot import data from connection matrix where values are names of subitems, type '{0}'.".format(table.storage_item_type))
-                        try: structure.getSpec(val)
-                        except: structure.createItem(item_name = val, item_type = table.storage_item_type)
-                        structure.appendSpecValue(term = val, attribute = table.storage_attribute, value = (source_item,target_item))
+                        try: structure.get_spec(val)
+                        except: structure.create_item(item_name = val, item_type = table.storage_item_type)
+                        structure.append_spec_value(term = val, attribute = table.storage_attribute, value = (source_item, target_item))
         row += 1
     next_row = row
     return next_row
@@ -159,12 +159,12 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                     while quick_scan and quick_row < worksheet.nrows:
                         quick_label = str(worksheet.cell_value(quick_row, id_col))
                         if quick_label == "": quick_scan = False
-                        else: keys.append(structure.getSpecName(quick_label))
+                        else: keys.append(structure.get_spec_name(quick_label))
                         quick_row += 1
-                    structure.createItem(item_name = item_key, item_type = item_type)
-                    structure.setSpecValue(term = item_key, attribute = "label", value = label)
+                    structure.create_item(item_name = item_key, item_type = item_type)
+                    structure.set_spec_value(term = item_key, attribute ="label", value = label)
                     time_series = KeyData(keys = keys)
-                    structure.setSpecValue(term = item_key, attribute = value_attribute, value = time_series)
+                    structure.set_spec_value(term = item_key, attribute = value_attribute, value = time_series)
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
@@ -174,17 +174,17 @@ def readTimeDependentValuesEntry(worksheet, item_type, item_key, iterated_type, 
                     if not val in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
                         header = str(worksheet.cell_value(header_row, col))
                         if header == ES.QUANTITY_TYPE_HEADER:
-                            structure.getSpec(term = item_key)[value_attribute].setFormat(key = structure.getSpecName(label), value_format = val.lower())
+                            structure.get_spec(term = item_key)[value_attribute].set_format(key = structure.get_spec_name(label), value_format = val.lower())
                             col += 1
                             continue
                         try: val = float(val)
                         except: raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' of sheet '{2}'.".format(val, xw.utility.xl_rowcol_to_cell(row, col), worksheet.name))
                         if header == ES.ASSUMPTION_HEADER:
-                            structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val)
+                            structure.get_spec(term = item_key)[value_attribute].set_value(key = structure.get_spec_name(label), value = val)
                         else:
                             try: time = float(header)
                             except: raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell '{1}' of sheet '{2}'.".format(header, xw.utility.xl_rowcol_to_cell(header_row, col), worksheet.name))
-                            structure.getSpec(term = item_key)[value_attribute].setValue(key = structure.getSpecName(label), value = val, t = time)
+                            structure.get_spec(term = item_key)[value_attribute].set_value(key = structure.get_spec_name(label), value = val, t = time)
                     col += 1
 
         else:
@@ -281,7 +281,7 @@ def readWorkbook(workbook_path, framework=None, data=None, workbook_type=None):
                       framework = framework, data = data, workbook_type = workbook_type)
             
     structure = getTargetStructure(framework = framework, data = data, workbook_type = workbook_type)
-    structure.completeSpecs(framework = framework)
+    structure.complete_specs(framework = framework)
     structure.frameworkfilename = workbook_path
     
     metadata = readReferenceWorksheet(workbook = workbook, workbook_type = workbook_type)

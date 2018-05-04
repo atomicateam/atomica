@@ -1,8 +1,8 @@
 #%% Imports
 
 from atomica.system import AtomicaException, logger
-from atomica.structure_settings import DatabookSettings as DS
-from atomica.interpolation import interpolateFunc
+from atomica.structure_settings import DataSettings as DS
+from atomica.interpolation import interpolate_func
 #from optima_tb.databook import getEmptyData
 #from optima_tb.settings import DO_NOT_SCALE, DEFAULT_YFACTOR
 from sciris.core import odict, uuid
@@ -109,7 +109,7 @@ class Parameter(object):
                 cleaned_times = np.append(cleaned_times, tvec[-1])
                 cleaned_vals = np.append(cleaned_vals, val_at_t_max)
 
-            output = interpolateFunc(cleaned_times, cleaned_vals, tvec)
+            output = interpolate_func(cleaned_times, cleaned_vals, tvec)
             
 #            if not extrapolate_nan:
 #                # Pad the input vectors for interpolation with minimum and maximum timepoint values, to avoid extrapolated values blowing up.
@@ -130,7 +130,7 @@ class Parameter(object):
 #                input_t = np.append(input_t, input_t[-1] + 1e-12)
 #                input_y = np.append(input_y, input_y[-1])
 #            
-#            output = interpolateFunc(x = input_t, y = input_y, xnew = tvec, extrapolate_nan = extrapolate_nan)
+#            output = interpolate_func(x = input_t, y = input_y, xnew = tvec, extrapolate_nan = extrapolate_nan)
         
         return output
     
@@ -176,10 +176,10 @@ class ParameterSet(object):
         logger.warning("A parameter set {0}has been given a new uid.".format(new_name_string))
 
     def set_scaling_factor(self,par_name,pop_name,scale):
-        par = self.getPar(par_name)
+        par = self.get_par(par_name)
         par.y_factor[pop_name] = scale
 
-    def getPar(self, name):
+    def get_par(self, name):
         for par_type in ["cascade","comps","characs"]:
             if name in self.par_ids[par_type].keys():
                 return self.pars[par_type][self.par_ids[par_type][name]]
@@ -187,7 +187,7 @@ class ParameterSet(object):
     
     def makePars(self, data):
         self.pop_names = data.specs[DS.KEY_POPULATION].keys()
-        self.pop_labels = [data.getSpec(pop_name)["label"] for pop_name in self.pop_names]
+        self.pop_labels = [data.get_spec(pop_name)["label"] for pop_name in self.pop_names]
             
         # Cascade parameter and characteristic extraction.
         for k in range(3):
@@ -196,9 +196,9 @@ class ParameterSet(object):
             for l, name in enumerate(data.specs[item_key]):
                 self.par_ids[item_group][name] = l
                 self.pars[item_group].append(Parameter(name = name))
-                popdata = data.getSpecValue(name, DS.TERM_DATA)
+                popdata = data.get_spec_value(name, DS.TERM_DATA)
                 for pop_id in popdata.keys():
-                    tvec,yvec = popdata.getArrays(pop_id)
+                    tvec,yvec = popdata.get_arrays(pop_id)
 
                     # TODO: Deal with assumptions in a better way by storing them regardless under assumption attribute.
                     #       For now, convert assumption from None to year 0 if no other values exist, otherwise delete assumption index (its value should have been ignored during data import).
@@ -209,7 +209,7 @@ class ParameterSet(object):
 #                        del yvec[0]
                     self.pars[item_group][-1].t[pop_id] = tvec
                     self.pars[item_group][-1].y[pop_id] = yvec
-                    self.pars[item_group][-1].y_format[pop_id] = popdata.getFormat(pop_id)
+                    self.pars[item_group][-1].y_format[pop_id] = popdata.get_format(pop_id)
                     self.pars[item_group][-1].y_factor[pop_id] = 1.0 # TODO - maybe read this in from the databook later?
 
 #                self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
@@ -225,10 +225,10 @@ class ParameterSet(object):
 #        for l, name in enumerate(data.specs[DS.KEY_CHARACTERISTIC]):
 #            self.par_ids["characs"][name] = l
 #            self.pars["characs"].append(Parameter(name = name))
-#            for pop_id in data.getSpecValue(name, DS.TERM_DATA):
-#                self.pars["characs"][l].t[pop_id] = data.getSpecValue(name, DS.TERM_DATA)[pop_id]["t"]
-#                self.pars["characs"][l].y[pop_id] = data.getSpecValue(name, DS.TERM_DATA)[pop_id]["y"]
-##                self.pars["characs"][l].y_format[pop_id] = data.getSpec(name)[DS.TERM_VALUE][pop_id]["y_format"]
+#            for pop_id in data.get_spec_value(name, DS.TERM_DATA):
+#                self.pars["characs"][l].t[pop_id] = data.get_spec_value(name, DS.TERM_DATA)[pop_id]["t"]
+#                self.pars["characs"][l].y[pop_id] = data.get_spec_value(name, DS.TERM_DATA)[pop_id]["y"]
+##                self.pars["characs"][l].y_format[pop_id] = data.get_spec(name)[DS.TERM_VALUE][pop_id]["y_format"]
 ##                if data[DS.KEY_CHARACTERISTIC][name][pop_id]["y_factor"] == DO_NOT_SCALE:
 ##                    self.pars["characs"][-1].y_factor[pop_id] = DEFAULT_YFACTOR
 ##                    self.pars["characs"][-1].autocalibrate[pop_id] = False
@@ -377,7 +377,7 @@ class ParameterSet(object):
 #        for par_pop_name in par_pop_names:
 #            par_name = par_pop_name[0]
 #            pop_name = par_pop_name[1]
-#            par = self.getPar(par_name)    # Returns a parameter or characteristic as required.        
+#            par = self.get_par(par_name)    # Returns a parameter or characteristic as required.
 #                
 #            if isYFactor:
 #                
@@ -770,9 +770,9 @@ class ParameterSet(object):
 #    par.name = name
 #    par.short = short
 #    for key in keys:
-#        par.y[key] = data["values"].getValue(key)
-#        if data["values"].getValue("t") is not None: # TODO this whole thing only works for constants... need to revamp data storage
-#            par.t[key] = data["values"].getValue("t")
+#        par.y[key] = data["values"].get_value(key)
+#        if data["values"].get_value("t") is not None: # TODO this whole thing only works for constants... need to revamp data storage
+#            par.t[key] = data["values"].get_value("t")
 #        else:
 #            par.t[key] = 2018. # TODO, remove this, it"s SUPER TEMPORARY -- a way to assign a year to constants/assumptions
 #

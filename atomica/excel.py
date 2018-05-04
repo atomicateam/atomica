@@ -8,7 +8,9 @@ from atomica.system import SystemSettings as SS
 from atomica.system import logger, log_usage, accepts, returns, AtomicaException
 
 import xlsxwriter as xw
+from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import xlrd
+
 
 class ExcelSettings(object):
     """ Stores settings relevant to Excel file input and output. """
@@ -19,7 +21,7 @@ class ExcelSettings(object):
     # Filter keys that denote special extraction rules when reading in Excel sheets.
     FILTER_KEY_LIST = "filter_list"
     FILTER_KEY_BOOLEAN_YES = "boolean_yes"  # Extracted value is True for a yes symbol and False for anything else.
-    FILTER_KEY_BOOLEAN_NO = "boolean_no"    # Extracted value is False for a no symbol and True for anything else.
+    FILTER_KEY_BOOLEAN_NO = "boolean_no"  # Extracted value is False for a no symbol and True for anything else.
 
     # Keys for float-valued variables related in some way to Excel file formatting.
     # They must have corresponding default values.
@@ -51,7 +53,7 @@ class ExcelSettings(object):
                           "Alternatively, the user can leave the cell blank.\n"
                           "However, any other value will override the time-dependent "
                           "values during a model run.")
-    QUANTITY_TYPE_HEADER = "quantity_type".replace("_"," ").title()
+    QUANTITY_TYPE_HEADER = "quantity_type".replace("_", " ").title()
     QUANTITY_TYPE_COLUMN_WIDTH = 15
     QUANTITY_TYPE_COMMENT_XSCALE = 3
     QUANTITY_TYPE_COMMENT_YSCALE = 3
@@ -61,11 +63,12 @@ class ExcelSettings(object):
                              "to align with data collection pragmatics, and appropriate "
                              "conversions will be done internally to the model.")
 
-#%% Utility functions for writing.
+
+# Utility functions for writing.
 
 @log_usage
 @accepts(xw.Workbook)
-def createStandardExcelFormats(excel_file):
+def create_standard_excel_formats(excel_file):
     """ 
     Generates and returns a dictionary of standard excel formats attached to an excel file.
     Note: Can be modified or expanded as necessary to fit other definitions of 'standard'.
@@ -75,8 +78,9 @@ def createStandardExcelFormats(excel_file):
     formats[ExcelSettings.FORMAT_KEY_CENTER] = excel_file.add_format({"align": "center"})
     return formats
 
+
 @log_usage
-def createDefaultFormatVariables():
+def create_default_format_variables():
     """
     Establishes framework-file default values for format variables in a dictionary and returns it.
     Note: Once used exec function here but it is now avoided for Python3 compatibility.
@@ -87,32 +91,34 @@ def createDefaultFormatVariables():
     format_variables[ExcelSettings.KEY_COMMENT_YSCALE] = ExcelSettings.EXCEL_IO_DEFAULT_COMMENT_YSCALE
     return format_variables
 
-@accepts(xw.worksheet.Worksheet,int,int,int)
-def createValueEntryBlock(excel_page, start_row, start_col, num_items, 
-                          time_vector = None, default_values = None, formats = None,
-                          quantity_types = None):
+
+def create_value_entry_block(excel_page, start_row, start_col, num_items,
+                             time_vector=None, default_values=None, formats=None,
+                             quantity_types=None):
     """ Create a block where users enter values in a 'constant' column or as time-dependent array. """
     # Generate standard formats if they do not exist.
     if formats is None:
         logger.warning("Formats were not passed to worksheet value-entry block construction.")
-        formats = {ExcelSettings.FORMAT_KEY_CENTER_BOLD:None, ExcelSettings.FORMAT_KEY_CENTER:None}
+        formats = {ExcelSettings.FORMAT_KEY_CENTER_BOLD: None, ExcelSettings.FORMAT_KEY_CENTER: None}
 
-    if time_vector is None: time_vector = []
-    if default_values is None: default_values = [0.0]*num_items
+    if time_vector is None:
+        time_vector = []
+    if default_values is None:
+        default_values = [0.0] * num_items
 
     # Start with the headers and column formats.
     row, col = start_row, start_col
     # If a list of quantity types exists for the data, create a corresponding column.
-    if not quantity_types is None:
+    if quantity_types is not None:
         excel_page.write(row, col, ExcelSettings.QUANTITY_TYPE_HEADER, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
-        excel_page.write_comment(row, col, ExcelSettings.QUANTITY_TYPE_COMMENT, 
-                                 {"x_scale": ExcelSettings.QUANTITY_TYPE_COMMENT_XSCALE, 
+        excel_page.write_comment(row, col, ExcelSettings.QUANTITY_TYPE_COMMENT,
+                                 {"x_scale": ExcelSettings.QUANTITY_TYPE_COMMENT_XSCALE,
                                   "y_scale": ExcelSettings.QUANTITY_TYPE_COMMENT_YSCALE})
         excel_page.set_column(col, col, ExcelSettings.QUANTITY_TYPE_COLUMN_WIDTH)
         col += 1
     excel_page.write(row, col, ExcelSettings.ASSUMPTION_HEADER, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
-    excel_page.write_comment(row, col, ExcelSettings.ASSUMPTION_COMMENT, 
-                             {"x_scale": ExcelSettings.ASSUMPTION_COMMENT_XSCALE, 
+    excel_page.write_comment(row, col, ExcelSettings.ASSUMPTION_COMMENT,
+                             {"x_scale": ExcelSettings.ASSUMPTION_COMMENT_XSCALE,
                               "y_scale": ExcelSettings.ASSUMPTION_COMMENT_YSCALE})
     excel_page.set_column(col, col, ExcelSettings.ASSUMPTION_COLUMN_WIDTH)
     year_col = 0
@@ -122,30 +128,38 @@ def createValueEntryBlock(excel_page, start_row, start_col, num_items,
         for t_val in time_vector:
             excel_page.write(row, col, t_val, formats[ExcelSettings.FORMAT_KEY_CENTER_BOLD])
             col += 1
-    
+
     # Flesh out the contents.
     for item_number in range(num_items):
         col = start_col
         row += 1
-        if not quantity_types is None:
+        if quantity_types is not None:
             excel_page.write(row, col, quantity_types[0])
-            excel_page.data_validation(xw.utility.xl_rowcol_to_cell(row, col), {"validate": "list", "source": quantity_types})
+            excel_page.data_validation(xlrc(row, col),
+                                       {"validate": "list", "source": quantity_types})
             col += 1
         if len(time_vector) > 0:
-            rc_start = xw.utility.xl_rowcol_to_cell(row, year_col)
-            rc_end = xw.utility.xl_rowcol_to_cell(row, year_col + len(time_vector) - 1)
-            excel_page.write(row, col, "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(), default_values[item_number], SS.DEFAULT_SYMBOL_INAPPLICABLE), None, default_values[item_number])
+            rc_start = xlrc(row, year_col)
+            rc_end = xlrc(row, year_col + len(time_vector) - 1)
+            excel_page.write(row, col,
+                             "=IF(SUMPRODUCT"
+                             "(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(),
+                                                                            default_values[item_number],
+                                                                            SS.DEFAULT_SYMBOL_INAPPLICABLE),
+                             None, default_values[item_number])
             excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats[ExcelSettings.FORMAT_KEY_CENTER])
-        else: excel_page.write(row, col, default_values[item_number])
+        else:
+            excel_page.write(row, col, default_values[item_number])
 
     last_row, last_col = row, start_col + 1 + len(time_vector)
     return last_row, last_col
 
-#%% Utility functions for reading.
+
+# Utility functions for reading.
 
 @accepts(xlrd.sheet.Sheet)
 @returns(dict)
-def extractHeaderColumnsMapping(excel_page, row = 0):
+def extract_header_columns_mapping(excel_page, row=0):
     """
     Returns a dictionary mapping column headers in an Excel page to the column numbers in which they are found.
     The columns must be contiguous and are returned as a two-element list of first and last column.
@@ -155,30 +169,36 @@ def extractHeaderColumnsMapping(excel_page, row = 0):
     for col in range(excel_page.ncols):
         header = str(excel_page.cell_value(row, col))
         if not header == "":
-            if not header in header_columns_map: header_columns_map[header] = [col, col]
+            if header not in header_columns_map:
+                header_columns_map[header] = [col, col]
             elif not current_header == header:
                 error_message = "An Excel file page contains multiple headers called '{0}'.".format(header)
                 logger.error(error_message)
                 raise AtomicaException(error_message)
             current_header = header
-        if not current_header is None: header_columns_map[current_header][-1] = col
+        if current_header is not None:
+            header_columns_map[current_header][-1] = col
     return header_columns_map
 
-@accepts(xlrd.sheet.Sheet,int,int)
-def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, stop_col = None, filters = None):
+
+@accepts(xlrd.sheet.Sheet, int, int)
+def extract_excel_sheet_value(excel_page, start_row, start_col, stop_row=None, stop_col=None, filters=None):
     """
     Returns a value extracted from an Excel page, but converted to type according to a list of filters.
-    The value will be pulled from rows starting at 'start_row' and terminating before reading 'stop_row'; a similar restriction holds for columns.
+    The value will be pulled from rows starting at 'start_row' and terminating before reading 'stop_row'.
+    A similar restriction holds for columns.
     Note that 'stop_row' and its column equivalent is one further along than a 'last_row' and its equivalent.
     Empty-string values are always equivalent to a value of None being returned.
     """
-    if filters is None: filters = []
-    old_value = None
-    row = start_row
-    col = start_col
-    if stop_row is None: stop_row = row + 1
-    if stop_col is None: stop_col = col + 1
-    rc_start = xw.utility.xl_rowcol_to_cell(start_row, start_col)
+    if filters is None:
+        filters = []
+    value, old_value = None, None
+    row, col = start_row, start_col
+    if stop_row is None:
+        stop_row = row + 1
+    if stop_col is None:
+        stop_col = col + 1
+    rc_start = xlrc(start_row, start_col)
     rc = rc_start
     # If columns without headers follow this column in the Excel page, scan through them.
     # Ditto with rows without item names that follow this row in the Excel page.
@@ -190,18 +210,20 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
             elif ExcelSettings.FILTER_KEY_LIST in filters:
                 value = [item.strip() for item in value.strip().split(ExcelSettings.LIST_SEPARATOR)]
 
-            if (not old_value is None):     # If there is an old value, this is not the first important cell examined.
+            if old_value is not None:  # If there is an old value, this is not the first important cell examined.
                 if value is None:
-                    value = old_value       # If the new value is not important, maintain the old value.
+                    value = old_value  # If the new value is not important, maintain the old value.
                 else:
                     # Expand lists with additional cell contents if appropriate.
                     if ExcelSettings.FILTER_KEY_LIST in filters:
                         value = old_value + value
                     # Otherwise, ignore with a warning.
                     else:
-                        rc = xw.utility.xl_rowcol_to_cell(row, col)
-                        logger.warning("Value '{0}' at cell '{1}' on page '{2}' is still considered part of the item and specification (i.e. header) located at cell '{3}'. "
-                                       "It will be ignored for the previous value of '{4}'.".format(value, rc, excel_page.name, rc_start, old_value))
+                        rc = xlrc(row, col)
+                        logger.warning("Value '{0}' at cell '{1}' on page '{2}' is still considered part of the item "
+                                       "and specification (i.e. header) located at cell '{3}'. It will be "
+                                       "ignored for the previous value of '{4}'.".format(value, rc, excel_page.name,
+                                                                                         rc_start, old_value))
                         value = old_value
             old_value = value
             col += 1
@@ -211,18 +233,21 @@ def extractExcelSheetValue(excel_page, start_row, start_col, stop_row = None, st
     # Convert to boolean values if specified by filter.
     # Empty strings and unidentified symbols are considered default values.
     if ExcelSettings.FILTER_KEY_BOOLEAN_YES in filters:
-        if value == SS.DEFAULT_SYMBOL_YES: value = True
+        if value == SS.DEFAULT_SYMBOL_YES:
+            value = True
         else:
-            if not value in [SS.DEFAULT_SYMBOL_NO, ""]:
+            if value not in [SS.DEFAULT_SYMBOL_NO, ""]:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SS.DEFAULT_SYMBOL_NO))
             value = ""
     if ExcelSettings.FILTER_KEY_BOOLEAN_NO in filters:
-        if value == SS.DEFAULT_SYMBOL_NO: value = False
+        if value == SS.DEFAULT_SYMBOL_NO:
+            value = False
         else:
-            if not value in [SS.DEFAULT_SYMBOL_YES, ""]:
+            if value not in [SS.DEFAULT_SYMBOL_YES, ""]:
                 logger.warning("Did not recognize symbol on page '{0}', at cell '{1}'. "
                                "Assuming a default of '{2}'.".format(excel_page.name, rc, SS.DEFAULT_SYMBOL_YES))
             value = ""
-    if value == "": value = None
+    if value == "":
+        value = None
     return value

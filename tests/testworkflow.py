@@ -38,7 +38,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
-    aui.ProjectFramework.createTemplate(path=tmpdir+"framework_"+test+"_blank.xlsx", **args)
+    aui.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
     F = aui.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
@@ -53,7 +53,7 @@ if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2005, "data_end":2015, "data_dt":0.5}
     elif test == "tb": args = {"num_pops":12, "num_progs":31, "data_end":2018}
-    P.createDatabook(databook_path=tmpdir+"databook_"+test+"_blank.xlsx", **args)
+    P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
     
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
@@ -61,14 +61,14 @@ if "makeproject" in torun:
     
 if "loaddatabook" in torun:
     # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.loadDatabook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=False, do_run=False)
+    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.makeParset(name="default")
+    P.make_parset(name="default")
     
 if "runsim" in torun:
     P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    P.runSim(parset="default", result_name="default")
+    P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
     print('Making programs spreadsheet ...')
@@ -139,7 +139,7 @@ if "export" in torun:
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
     FS = aui.FrameworkSettings
-    DS = aui.DatabookSettings
+    DS = aui.DataSettings
     # Print list of characteristic names, i.e. state variables.
     print("\nCharacteristics...")
     print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
@@ -181,8 +181,8 @@ if "autocalibrate" in torun:
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
     if test == "tb":
         # Shortcut for calibration inputs.
-        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=30)
-    P.runSim(parset="auto", result_name="auto")
+        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=10)
+    P.run_sim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     plotSeries(d, axis='results', data=P.data)
     

@@ -1,5 +1,5 @@
 from atomica.system import AtomicaException, display_name, SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
+from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 
 class WorkbookTypeException(AtomicaException):
     def __init__(self, workbook_type, **kwargs):
