@@ -19,8 +19,6 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     """ Make a default programset"""
     pass
 
-#def defaultproject(which='sir', add_progs=True, verbose=2, do_run=True, **kwargs):
-#    ''' 
 
 def default_project(which='sir', **kwargs):
     """
@@ -30,30 +28,23 @@ def default_project(which='sir', **kwargs):
     """
 
     ##########################################################################################################################
-    ## SIR
+    # Simple
     ##########################################################################################################################
-    
-    if which=='sir':
-        printv('Creating SIR project...', 2, verbose)
-        
-        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_sir.xlsx')
-        P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_sir.xlsx", do_run=do_run)
-        
-        
-    ##########################################################################################################################
-    ## TB
-    ##########################################################################################################################
-    
+
+    if which == 'sir':
+        logger.info("Creating an SIR epidemic project...")
+
+        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
+        P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
+
     elif which=='tb':
         printv('Creating TB project...', 2, verbose)
         
-        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
-#        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
-#        P = Project(framework=F, databook=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
-        
+
     else:
-        raise AtomicaException("Default project type '{0}' not understood; choices are 'sir'.".format(which))
+        raise AtomicaException("Default project type '{0}' not understood; choices are 'sir', 'tb'.".format(which))
     return P
 
 
