@@ -78,7 +78,7 @@ class Project(object):
 
         ## Load spreadsheet, if available
         if framework and databook_path: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            self.loadDatabook(databook_path=databook_path, do_run=do_run)
+            self.load_databook(databook_path=databook_path, do_run=do_run)
 
         return None
 
@@ -145,11 +145,11 @@ class Project(object):
         if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
 
-        if make_default_parset: self.makeParset(name="default")
+        if make_default_parset: self.make_parset(name="default")
         if do_run: 
             if not make_default_parset: logger.warning("Project has been requested to run a simulation after loading databook, despite no request to "
                                                        "create a default parameter set.")
-            self.runSim(parset="default")
+            self.run_sim(parset="default")
 
         if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start=metadata["data_start"])  # Align sim start year with data start year.
@@ -162,7 +162,7 @@ class Project(object):
                                "despite no request to create a default parameter set.")
             self.run_sim(parset="default")
 
-    def make_parset(self, name="default", overwrite=False):
+    def make_parset(self, name="default", overwrite=True):
         """ Transform project data into a set of parameters that can be used in model simulations. """
 
         # TODO: Develop some flag or check for data 'emptiness'.
@@ -265,7 +265,7 @@ class Project(object):
     #######################################################################################################
 
     @staticmethod
-    def set_structure(structure_key, structure_object, structure_list, structure_string, overwrite=False):
+    def set_structure(structure_key, structure_object, structure_list, structure_string, overwrite=True):
         """
         Base function for setting elements of structure lists to a structure object.
         Contains optional overwrite validation.

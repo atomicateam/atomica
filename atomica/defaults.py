@@ -20,7 +20,7 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     pass
 
 
-def default_project(which='sir', **kwargs):
+def default_project(which='sir', do_run=True, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
@@ -34,13 +34,13 @@ def default_project(which='sir', **kwargs):
     if which == 'sir':
         logger.info("Creating an SIR epidemic project...")
 
-        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
-        P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
+        F = ProjectFramework(name=which, filepath=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
+        P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
 
     elif which=='tb':
-        printv('Creating TB project...', 2, verbose)
+        logger.info("Creating an SIR epidemic project...")
         
-        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
 
     else:

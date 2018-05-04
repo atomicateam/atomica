@@ -114,8 +114,6 @@ class Program(object):
         return None
 
 
-
-
     def optimizable(self):
         return True if self.targetpars else False
 

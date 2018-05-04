@@ -107,7 +107,7 @@ if "makeplots" in torun:
         plot_pop = ['5-14','15-64']
 
     # Low level debug plots.
-    for var in test_vars: P.results["parset_default"].getVariable(test_pop,var)[0].plot()
+    for var in test_vars: P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
     d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
@@ -166,7 +166,7 @@ if "manualcalibrate" in torun:
     if test == "tb":
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
-    P.runSim(parset="manual", result_name="manual")
+    P.run_sim(parset="manual", result_name="manual")
     d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plotSeries(d, axis="results", data=P.data)
     
