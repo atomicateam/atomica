@@ -49,7 +49,7 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
     objective = 0.0
 
     for var_label, pop_name, weight, metric in output_quantities:
-        target = project.data.getSpec(var_label)['data'][pop_name]
+        target = project.data.get_spec(var_label)['data'][pop_name]
         if not target.has_data: # Only use this output quantity if the user entered time-specific data
             continue
         var = result.model.getPop(pop_name).getVariable(var_label)
@@ -140,7 +140,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     o2 = []
     for output_tuple in output_quantities:
         if output_tuple[1] is None:  # If the pop name is None
-            pops = project.data.getSpec(output_tuple[0])['data'].keys()
+            pops = project.data.get_spec(output_tuple[0])['data'].keys()
             for pop_name in pops:
                 o2.append((output_tuple[0], pop_name, output_tuple[2], output_tuple[3]))
         else:

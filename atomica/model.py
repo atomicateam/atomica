@@ -2,7 +2,7 @@
 
 from atomica.system import AtomicaException, logger # CK: warning, should relabel exception
 from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure import convertQuantity
+from atomica.structure import convert_quantity
 #from optima_tb.validation import checkTransitionFraction # CK: warning, should not import optima_tb!!
 #import optima_tb.settings as project_settings
 from atomica.results import Result
@@ -472,7 +472,7 @@ class Population(object):
 
         # Instantiate Compartments
         for name in framework.specs[FS.KEY_COMPARTMENT]:
-            spec = framework.getSpec(name)
+            spec = framework.get_spec(name)
             self.comps.append(Compartment(name=name))
             if spec["is_source"]:
                 self.comps[-1].tag_birth = True
@@ -489,7 +489,7 @@ class Population(object):
 
         # Characteristics second pass, add includes and denominator
         for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            spec = framework.getSpec(name)
+            spec = framework.get_spec(name)
             charac = self.getCharac(name)
             for inc_name in spec["includes"]:
                 charac.add_include(self.getVariable(inc_name)[0]) # nb. We expect to only get one match for the name, so use index 0
@@ -498,7 +498,7 @@ class Population(object):
 
         # Parameters first pass, create parameter objects and links
         for name in framework.specs[FS.KEY_PARAMETER]:
-            spec = framework.getSpec(name)
+            spec = framework.get_spec(name)
             par = Parameter(name=name)
             self.pars.append(par)
             if "links" in spec:
@@ -516,7 +516,7 @@ class Population(object):
 
         # Parameters second pass, process f_stacks, deps, and limits
         for name in framework.specs[FS.KEY_PARAMETER]:
-            spec = framework.getSpec(name)
+            spec = framework.get_spec(name)
             par = self.getPar(name)
 
 #            if ('min' in spec) or ('max' in spec):
@@ -546,8 +546,8 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c in self.characs if framework.getSpecValue(c.name,"datapage_order")!=-1]
-        characs += [c for c in self.comps if framework.getSpecValue(c.name,"datapage_order")!=-1]
+        characs = [c for c in self.characs if framework.get_spec_value(c.name, "datapage_order") != -1]
+        characs += [c for c in self.comps if framework.get_spec_value(c.name, "datapage_order") != -1]
 #        print(characs)
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name:i for i,c in enumerate(characs)} # Make lookup dict for characteristic indices
@@ -565,7 +565,7 @@ class Population(object):
                     includes.append(inc)
             return includes
 
-#        print([(c,framework.getSpecValue(c.name,"datapage_order")) for c in self.characs])
+#        print([(c,framework.get_spec_value(c.name,"datapage_order")) for c in self.characs])
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i,c in enumerate(characs):
             # Look up the characteristic value
@@ -830,7 +830,7 @@ class Model(object):
         for tag in ["is_source", "is_sink", "is_junction"]:
             self.sim_settings[tag] = []
             for node_name in framework.specs[FS.KEY_COMPARTMENT]:
-                if framework.getSpecValue(node_name, tag):
+                if framework.get_spec_value(node_name, tag):
                     self.sim_settings[tag].append(node_name)
 
     def process(self, framework, progset,full_output):
@@ -921,9 +921,9 @@ class Model(object):
                         #                        else:
                         #                            raise AtomicaException('Unknown parameter units! NB. "proportion" links can only appear in junctions')
 
-                        value = convertQuantity(value=transition, initial_type=link.parameter.units,
-                                                final_type=FS.QUANTITY_TYPE_NUMBER,
-                                                set_size=comp_source.vals[ti], dt=self.dt)
+                        value = convert_quantity(value=transition, initial_type=link.parameter.units,
+                                                 final_type=FS.QUANTITY_TYPE_NUMBER,
+                                                 set_size=comp_source.vals[ti], dt=self.dt)
 
                         outflow[i] = value
 

@@ -875,12 +875,12 @@ def render_data(ax,data,series):
     # color - The color of the data points to use
 
     if series.data_label in data.filter['datapar']:
-        d = data.getSpec(series.data_label)
+        d = data.get_spec(series.data_label)
     else:
         return
 
     if series.pop in d['data'].keys():
-        t,y = d['data'].getArrays(series.pop)
+        t,y = d['data'].get_arrays(series.pop)
         if len(t) == 0:
             return
     else:

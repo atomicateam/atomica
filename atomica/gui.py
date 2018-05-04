@@ -196,7 +196,7 @@ class GUIFrameworkFileCreation(qtw.QWidget):
             self.list_label_item_descriptors.append(qtw.QLabel(text))
             # Generate integer-input spinboxes and give them default values associated with the instructions object.
             self.list_spinbox_item_numbers.append(qtw.QSpinBox())
-            self.list_spinbox_item_numbers[-1].setValue(self.framework_instructions.num_items[item_type])
+            self.list_spinbox_item_numbers[-1].set_value(self.framework_instructions.num_items[item_type])
             # Ensure that user value changes are immediately propagated to the callback that updates the instructions object.
             # Note: The lambda must include item_type definition to avoid closure issues, i.e. all spinboxes referencing the last page-item.
             self.list_spinbox_item_numbers[-1].valueChanged.connect(lambda number, item_type=item_type: 
@@ -293,7 +293,7 @@ class GUIDatabookCreation(qtw.QWidget):
             self.list_label_item_descriptors.append(qtw.QLabel(text))
             # Generate integer-input spinboxes and give them default values associated with the instructions object.
             self.list_spinbox_item_numbers.append(qtw.QSpinBox())
-            self.list_spinbox_item_numbers[-1].setValue(self.databook_instructions.num_items[item_type])
+            self.list_spinbox_item_numbers[-1].set_value(self.databook_instructions.num_items[item_type])
             # Ensure that user value changes are immediately propagated to the callback that updates the instructions object.
             # Note: The lambda must include item_type definition to avoid closure issues, i.e. all spinboxes referencing the last databook item.
             self.list_spinbox_item_numbers[-1].valueChanged.connect(lambda number, item_type=item_type: 
