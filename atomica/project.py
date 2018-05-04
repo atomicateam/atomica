@@ -34,23 +34,17 @@ from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.model import run_model
 from atomica.parameters import ParameterSet
-<<<<<<< HEAD
 from atomica.programs import Program, ProgramSet
 from atomica.calibration import perform_autofit
-=======
 from atomica.project_settings import ProjectSettings
->>>>>>> fusion
 from atomica.scenarios import ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.workbook_export import writeWorkbook, makeInstructions
-<<<<<<< HEAD
 from atomica.workbook_import import readWorkbook, loadprogramspreadsheet
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
-=======
 from atomica.workbook_import import readWorkbook
->>>>>>> fusion
 
 
 # from numpy.random import seed, randint
@@ -79,7 +73,6 @@ class Project(object):
         self.created = today()
         self.modified = today()
         self.databookloaddate = 'Databook never loaded'
-<<<<<<< HEAD
         self.programdatabookloaddate = 'Programs databook never loaded'
         self.settings = ProjectSettings() # Global settings
 
@@ -88,9 +81,6 @@ class Project(object):
             self.loadDatabook(databook_path=databook_path, do_run=do_run)
 
         return None
-=======
-        self.settings = ProjectSettings()  # Global settings
->>>>>>> fusion
 
         # Load spreadsheet, if available
         if framework and databook_path:
@@ -144,7 +134,6 @@ class Project(object):
 
         self.databookloaddate = today()  # Update date when spreadsheet was last loaded
         self.modified = today()
-<<<<<<< HEAD
         
         # Put the population keys somewhere easier to access- TEMP, TODO, fix
         self.popkeys = []
@@ -161,8 +150,6 @@ class Project(object):
             if not make_default_parset: logger.warning("Project has been requested to run a simulation after loading databook, despite no request to "
                                                        "create a default parameter set.")
             self.runSim(parset="default")
-=======
->>>>>>> fusion
 
         if metadata is not None and "data_start" in metadata:
             self.settings.updateTimeVector(start=metadata["data_start"])  # Align sim start year with data start year.
@@ -184,7 +171,6 @@ class Project(object):
         self.parsets[name].makePars(self.data)
         return self.parsets[name]
 
-<<<<<<< HEAD
 
     def load_progbook(self, databook_path=None, make_default_progset=True):
         ''' Load a programs databook'''
@@ -268,33 +254,6 @@ class Project(object):
 #
 #        return None
         
-=======
-    def make_progset(self, name="default"):
-        pass
-
-    #    def makedefaults(self, name=None, scenname=None, overwrite=False):
-    #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
-    #
-    #        # Handle inputs
-    #        if name is None: name = 'default'
-    #        if scenname is None: scenname = 'default'
-    #
-    #        # Make default progset, scenarios and optimizations
-    #        if overwrite or name not in self.progsets:
-    #            progset = Programset(name=name, project=self)
-    #            self.addprogset(progset)
-    #
-    #        if overwrite or scenname not in self.scens:
-    #            scenlist = [Parscen(name=scenname, parsetname=name,pars=[])]
-    #            self.addscens(scenlist)
-    #
-    #        if overwrite or name not in self.optims:
-    #            optim = Optim(project=self, name=name)
-    #            self.addoptim(optim)
-    #
-    #        return None
-
->>>>>>> fusion
     def make_scenario(self, name="default", instructions=None, save_to_project=True, overwrite=False):
         scenario = ParameterScenario(name=name, scenario_values=instructions)
         if save_to_project:
@@ -373,7 +332,6 @@ class Project(object):
         """ Allows for scenarios to be retrieved from an object or string handle. """
         return self.get_structure(structure=scenario, structure_list=self.scens, structure_string="scenario")
 
-<<<<<<< HEAD
     def set_progset(self, progset_key, progset_object, overwrite = False):
         """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
         self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets, 
@@ -563,8 +521,6 @@ class Project(object):
 #        except: return printv('Warning, results set not found!', 1, verbose) # Returns None
 
 
-=======
->>>>>>> fusion
     #######################################################################################################
     # Methods to perform major tasks
     #######################################################################################################
