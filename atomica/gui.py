@@ -7,7 +7,7 @@ Note: Callback functions cannot be easily decorated, so logging is applied per m
 
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure_settings import DatabookSettings as DS
+from atomica.structure_settings import DataSettings as DS
 from atomica.excel import ExcelSettings as ES
 
 from atomica.system import log_usage, accepts, returns, logger

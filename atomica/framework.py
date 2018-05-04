@@ -5,7 +5,7 @@ Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
-from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS, TableTemplate
+from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.structure import CoreProjectStructure, getQuantityTypeList
 from atomica.workbook_export import makeInstructions, writeWorkbook
 from atomica.workbook_import import readWorkbook

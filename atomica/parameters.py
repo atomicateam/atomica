@@ -1,7 +1,7 @@
 #%% Imports
 
 from atomica.system import AtomicaException, logger
-from atomica.structure_settings import DatabookSettings as DS
+from atomica.structure_settings import DataSettings as DS
 from atomica.interpolation import interpolateFunc
 #from optima_tb.databook import getEmptyData
 #from optima_tb.settings import DO_NOT_SCALE, DEFAULT_YFACTOR

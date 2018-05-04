@@ -1,5 +1,5 @@
 from atomica.system import SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
+from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import apply_to_all_methods, log_usage, AtomicaException
 from atomica._version import __version__
 from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj

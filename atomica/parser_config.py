@@ -40,7 +40,7 @@ def loadConfigFile(undecorated_class):
     Decorator that instructs a class to do an initial update of its attributes according to a configuration file.
     This is done at the import stage; failure means the class starts off incorrect and an import error is thrown.
     """
-    try: undecorated_class.reloadConfigFile()
+    try: undecorated_class.reload_config_file()
     except:
         logger.exception("Because a relevant configuration file failed to load, the initial state of class '{0}' is invalid. "
                          "Import failed.".format(undecorated_class.__name__))

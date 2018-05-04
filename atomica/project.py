@@ -25,7 +25,7 @@ Version: 2018mar22
 """
 
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from atomica.structure_settings import FrameworkSettings as FS, DatabookSettings as DS
+from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.data import ProjectData

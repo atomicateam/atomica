@@ -3,11 +3,14 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.6.1 (2018-05-03): High-order Program Processes
+## 0.6.1 (2018-05-04): High-order Program Processes
 
 Features
 - Without settling on a programs structure yet, wrapper processes are established.
   These include budget scenarios and optimizations.
+
+Edits
+- PEP8 compliance worked towards in the majority of the codebase.
 
 ## 0.6.0 (2018-04-27): Establishing Complex Workflow
 
@@ -72,7 +75,7 @@ Features
 - Templated out a `ProjectData` structure to store model values for a corresponding `ProjectFramework` structure.
 
 Edits
-- Major changes applied, with `FrameworkSettings` and `DatabookSettings` now deriving from new class `BaseStructuralSettings`.
+- Major changes applied, with `FrameworkSettings` and `DataSettings` now deriving from new class `BaseStructuralSettings`.
   Many features from previous versions have been upturned during this refactoring, such as the GUI process.
 - Consolidated workbook IO into file: workbook.py
 - Classes have been introduced as key wrappers to denote table type and content type during workbook construction.
@@ -93,8 +96,8 @@ Edits
 Features
 - Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
 - Coded `DatabookInstructions` class to specify how many of each item, e.g. population and program, to produce in a databook.
-- Hard-coded the keys for the databook file via a `DatabookSettings` class.
-  Set up a configuration-loading decorator and class method for `DatabookSettings`.
+- Hard-coded the keys for the databook file via a `DataSettings` class.
+  Set up a configuration-loading decorator and class method for `DataSettings`.
   This loading is done upon initial importing.
 - Created sub-GUI class named `GUIDatabookCreation` to generate databooks from project frameworks.
   The user can select a number of databook items to create, which updates a GUI-attached `DatabookInstructions` object on the fly.
@@ -102,7 +105,7 @@ Features
 Edits
 - Overhauled semantics to distinguish between a `ProjectFramework` 'item' and its 'item type' detailed in `FrameworkSettings`.
 - Moved configuration-loading functionality into separate file: parser.py
-  This allows it to be used by both `FrameworkSettings` and `DatabookSettings`.
+  This allows it to be used by both `FrameworkSettings` and `DataSettings`.
 
 ## 0.3.1 (2018-01-11): Initial Framework Loading
 

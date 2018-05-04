@@ -120,7 +120,7 @@ if "export" in torun:
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
     FS = aui.FrameworkSettings
-    DS = aui.DatabookSettings
+    DS = aui.DataSettings
     # Print list of characteristic names, i.e. state variables.
     print("\nCharacteristics...")
     print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
@@ -162,7 +162,7 @@ if "autocalibrate" in torun:
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
     if test == "tb":
         # Shortcut for calibration inputs.
-        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=30)
+        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=10)
     P.runSim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     plotSeries(d, axis='results', data=P.data)
