@@ -29,7 +29,7 @@ class Variable(object):
     Note: All non-dependent parameters correspond to links.
     """
 
-    def __init__(self, name='default'):
+    def __init__(self, pop, name='default'):
         self.uid = uuid()
         self.name = name
         self.t = None
@@ -37,6 +37,7 @@ class Variable(object):
         if 'vals' not in dir(self):  # characteristics already have a vals method
             self.vals = None
         self.units = 'unknown'  # 'unknown' units are distinct to dimensionless units, that have value ''
+        self.pop = pop # Reference back to the Population containing this object
 
     def preallocate(self, tvec, dt):
         self.t = tvec
@@ -61,6 +62,12 @@ class Variable(object):
         # that depends on Links cannot itself be a dependency, will be enforced
         return
 
+    def unlink(self):
+        self.pop = self.pop.uid
+
+    def relink(self,objs):
+        self.pop = objs[self.pop]
+
     def __repr__(self):
         return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.uid)
 
@@ -68,8 +75,8 @@ class Variable(object):
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
 
-    def __init__(self, name='default'):
-        Variable.__init__(self, name=name)
+    def __init__(self, pop, name):
+        Variable.__init__(self, pop=pop, name=name)
         self.units = 'people'
         self.tag_birth = False  # Tag for whether this compartment contains unborn people.
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
@@ -80,10 +87,12 @@ class Compartment(Variable):
         self.inlinks = []
 
     def unlink(self):
+        Variable.unlink(self)
         self.outlinks = [x.uid for x in self.outlinks]
         self.inlinks = [x.uid for x in self.inlinks]
 
     def relink(self, objs):
+        Variable.relink(self,objs)
         self.outlinks = [objs[x] for x in self.outlinks]
         self.inlinks = [objs[x] for x in self.inlinks]
 
@@ -141,11 +150,11 @@ class Compartment(Variable):
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
 
-    def __init__(self, name='default'):
+    def __init__(self, pop, name):
         # includes is a list of Compartments, whose values are summed
         # the denominator is another Characteristic that normalizes this one
         # All passed by reference so minimal performance impact
-        Variable.__init__(self, name=name)
+        Variable.__init__(self, pop=pop, name=name)
         self.units = 'people'
         self.includes = []
         self.denominator = None
@@ -184,12 +193,14 @@ class Characteristic(Variable):
         self.dependency = True
 
     def unlink(self):
+        Variable.unlink(self)
         self.includes = [x.uid for x in self.includes]
         self.denominator = self.denominator.uid if self.denominator is not None else None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
+        Variable.relink(self,objs)
         self.includes = [objs[x] for x in self.includes]
         self.denominator = objs[self.denominator] if self.denominator is not None else None
 
@@ -227,8 +238,8 @@ class Parameter(Variable):
     # and multiple Link instances that depend on the same Parameter instance
     #
     #  *** Parameter values are always annualized ***
-    def __init__(self, name='default'):
-        Variable.__init__(self, name=name)
+    def __init__(self, pop, name):
+        Variable.__init__(self, pop=pop, name=name)
         self.vals = None
         self.deps = None
         self.f_stack = None
@@ -257,12 +268,14 @@ class Parameter(Variable):
                 dep.set_dependent()
 
     def unlink(self):
+        Variable.unlink(self)
         self.links = [x.uid for x in self.links]
         self.deps = [x.uid for x in self.deps] if self.deps is not None else None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
+        Variable.relink(self,objs)
         self.links = [objs[x] for x in self.links]
         self.deps = [objs[x] for x in self.deps] if self.deps is not None else None
 
@@ -322,9 +335,9 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, parameter, object_from, object_to, tag, is_transfer=False):
+    def __init__(self, pop, parameter, object_from, object_to, tag, is_transfer=False):
         # Note that the Link's name is the transition tag
-        Variable.__init__(self, name=tag)
+        Variable.__init__(self, pop=pop, name=tag)
         self.vals = None
         self.tag = tag
         self.units = 'people'
@@ -344,6 +357,7 @@ class Link(Variable):
         self.is_transfer = is_transfer  # A transfer connections compartments across populations
 
     def unlink(self):
+        Variable.unlink(self)
         self.parameter = self.parameter.uid
         self.source = self.source.uid
         self.dest = self.dest.uid
@@ -351,6 +365,7 @@ class Link(Variable):
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
+        Variable.relink(self,objs)
         self.parameter = objs[self.parameter]
         self.source = objs[self.source]
         self.dest = objs[self.dest]
@@ -499,7 +514,7 @@ class Population(object):
         # Instantiate Compartments
         for name in framework.specs[FS.KEY_COMPARTMENT]:
             spec = framework.get_spec(name)
-            self.comps.append(Compartment(name=name))
+            self.comps.append(Compartment(pop=self, name=name))
             if spec["is_source"]:
                 self.comps[-1].tag_birth = True
             if spec["is_sink"]:
@@ -510,7 +525,7 @@ class Population(object):
 
         # Characteristics first pass, instantiate objects
         for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            self.characs.append(Characteristic(name=name))
+            self.characs.append(Characteristic(pop=self, name=name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
@@ -526,14 +541,14 @@ class Population(object):
         # Parameters first pass, create parameter objects and links
         for name in framework.specs[FS.KEY_PARAMETER]:
             spec = framework.get_spec(name)
-            par = Parameter(name=name)
+            par = Parameter(pop=self, name=name)
             self.pars.append(par)
             if "links" in spec:
                 for pair in spec["links"]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
                     tag = par.name + ':flow'  # Temporary tag solution.
-                    new_link = Link(par, src, dst, tag)
+                    new_link = Link(self, par, src, dst, tag)
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
                     else:
@@ -717,6 +732,7 @@ class Model(object):
         if any([not x.is_linked for x in self.pops]):
             # objs = {}
             for pop in self.pops:
+                objs[pop.uid] = pop
                 for obj in pop.comps + pop.characs + pop.pars + pop.links:
                     objs[obj.uid] = obj
 
@@ -806,7 +822,7 @@ class Model(object):
 
                         # Create the parameter object for this link (shared across all compartments)
                         par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
-                        par = Parameter(name=par_name)
+                        par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
                         val = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)
                         par.vals = val
@@ -823,7 +839,7 @@ class Model(object):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
                                 link_tag = par_name + '_' + source.name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
-                                link = Link(par, source, dest, link_tag, is_transfer=True)
+                                link = Link(pop, par, source, dest, link_tag, is_transfer=True)
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:

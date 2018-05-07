@@ -269,7 +269,7 @@ class PlotData(object):
                     if not isinstance(f_stack_str,str):
                         continue
 
-                    par = Parameter(output_label)
+                    par = Parameter(pop=None,name=output_label)
                     f_stack, dep_labels = parser.produceStack(f_stack_str)
                     deps = []
                     displayed_annualization_warning = False
