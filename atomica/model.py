@@ -335,7 +335,7 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, pop, parameter, object_from, object_to, tag, is_transfer=False):
+    def __init__(self, pop, parameter, object_from, object_to, tag):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, name=tag)
         self.vals = None
@@ -354,7 +354,7 @@ class Link(Variable):
         self.source.outlinks.append(self)
         self.dest.inlinks.append(self)
 
-        self.is_transfer = is_transfer  # A transfer connections compartments across populations
+        self.is_transfer = not object_from.pop is object_to.pop  # A transfer connections compartments across populations
 
     def unlink(self):
         Variable.unlink(self)
@@ -839,7 +839,7 @@ class Model(object):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
                                 link_tag = par_name + '_' + source.name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
-                                link = Link(pop, par, source, dest, link_tag, is_transfer=True)
+                                link = Link(pop, par, source, dest, link_tag)
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:
