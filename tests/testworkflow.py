@@ -73,8 +73,8 @@ if "makeplots" in torun:
         test_vars = ["sus","inf","rec","dead","ch_all","foi"]
         test_pop = "adults"
         decomp = ["sus","inf","rec","dead"]
-        deaths = ["inf-dead","rec-dead","sus-dead"]
-        grouped_deaths = {'inf':['inf-dead:flow'],'rec':['rec-dead:flow'],'sus':['sus-dead:flow']}
+        deaths = ["infdeath:flow","susdeath:flow"]
+        grouped_deaths = {'inf':['infdeath:flow'],'non-inf':['susdeath:flow']} # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
         plot_pop = [test_pop]
     if test == "tb":
         test_vars = ["sus","vac","spdu","alive","b_rate"]
