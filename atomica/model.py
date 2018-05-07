@@ -449,6 +449,19 @@ class Population(object):
             return [self.par_lookup[name]]
         elif name in self.link_lookup:
             return self.link_lookup[name]
+        elif ':' in name:
+            # Support looking up sets of links with syntax 'source_name:dest_name'
+            # ':dest' will return all links into the destination compartment
+            # while 'source:' will return all links out of the source compartment
+            src,dest = name.split(':')
+            if src and dest:
+                return [l for l in self.get_comp(src).outlinks if l.dest.name == dest]
+            elif src:
+                return self.get_comp(src).outlinks
+            elif dest:
+                return self.get_comp(dest).inlinks
+            else:
+                raise AtomicaException('Badly formed link name')
         else:
             raise AtomicaException("Object '{0}' not found.".format(name))
 
