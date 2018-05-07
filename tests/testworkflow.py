@@ -8,7 +8,7 @@ import os
 # TODO: Wrap up what the FE is likely to use into either Project or Result level method calls, rather than using functions.
 from atomica.plotting import PlotData, plotSeries, plotBars
 
-test = "sir"
+# test = "sir"
 test = "tb"
 
 torun = [
@@ -73,8 +73,8 @@ if "makeplots" in torun:
         test_vars = ["sus","inf","rec","dead","ch_all","foi"]
         test_pop = "adults"
         decomp = ["sus","inf","rec","dead"]
-        deaths = ["infdeath:flow","susdeath:flow"]
-        grouped_deaths = {'inf':['infdeath:flow'],'non-inf':['susdeath:flow']} # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
+        deaths = ["sus:dead","inf:dead","rec:dead"]
+        grouped_deaths = {'inf':['inf:dead'],'sus':['sus:dead'],'rec':['rec:dead']} # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
         plot_pop = [test_pop]
     if test == "tb":
         test_vars = ["sus","vac","spdu","alive","b_rate"]
@@ -108,8 +108,13 @@ if "makeplots" in torun:
         # Plot death flow rate decomposition over all time
         d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         plotSeries(d,plot_type='stacked',axis='outputs')
+    elif test == 'sir':
+        # Plot disaggregated flow into deaths over time
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        plotSeries(d,plot_type='stacked',axis='outputs')
 
-    # Plot aggregate flows.
+
+    # Plot aggregate flows
     d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
     plotSeries(d,axis="pops")
 
