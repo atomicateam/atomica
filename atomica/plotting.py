@@ -345,8 +345,8 @@ class PlotData(object):
 
         # Names will be substituted with these at the last minute when plotting for titles/legends
         self.result_names = {x:x for x in self.results} # At least for now, no Result name mapping
-        self.pop_names = {x:(getFullName(x,project) if project is not None else x) for x in self.pops}
-        self.output_names = {x:(getFullName(x,project) if project is not None else x) for x in self.outputs}
+        self.pop_names = {x:(get_full_name(x, project) if project is not None else x) for x in self.pops}
+        self.output_names = {x:(get_full_name(x, project) if project is not None else x) for x in self.outputs}
 
         if t_bins is not None:
 
@@ -528,6 +528,8 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
         # - A list of stacks, where a stack is a list of pops or a string with a single pop
         # - A dict of stacks, where the key is the name, and the value is a list of pops or a string with a single pop
         # - None, in which case all available items are used
+        # - 'all' in which case all of the items appear in a single stack
+        #
         # The return value `output_stacks` is a list of tuples where
         # (a,b,c)
         # a - The automatic name
@@ -537,6 +539,9 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
 
         if input_stacks is None:
             return [(x, '', [x]) for x in available_items]
+        elif input_stacks == 'all':
+            # Put all available items into a single stack
+            return process_input_stacks([available_items],available_items)
 
         items = set()
         output_stacks = []
@@ -569,7 +574,6 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
 
     pop_stacks = process_input_stacks(stack_pops,plotdata.pops)
     output_stacks = process_input_stacks(stack_outputs,plotdata.outputs)
-
 
     # Now work out which pops and outputs appear in each bar (a bar is a pop-output combo)
     bar_pops = []
@@ -1075,23 +1079,43 @@ def relabel_legend(figs,labels):
         text.set_text(label)
 
 
-def getFullName(output_id, proj):
+def get_full_name(output_id, proj):
     """
     For a given output_id, returns the user-friendly version of the name. 
     """
-    if output_id in proj.settings.charac_specs: # characteristic
-        output_id = proj.settings.charac_specs[output_id]['name']
-    elif output_id in proj.settings.linkpar_specs: # parameter
-        output_id = proj.settings.linkpar_specs[output_id]['name']
-    elif output_id in proj.settings.node_specs: # compartment
-        output_id = proj.settings.node_specs[output_id]['name']
-    elif output_id in proj.data['pops']['label_names'].keys(): # population label
-        output_id = proj.data['pops']['label_names'][output_id]
+
+    if proj is None:
+        return output_id
+
+    labels = {y['name']:x for x,y in proj.framework.semantics.items() if y['attribute']=='label'}
+
+    # Handle Links specified with colon syntax
+    if ':' in output_id:
+        src,dest = output_id.split(':')
+
+        if dest == 'flow':
+            if src in labels:
+                return f'{labels[src]} (flow)'
+            else:
+                return f'{src} (flow)'
+
+        if src and src in labels:
+            src = labels[src]
+
+        if dest and dest in labels:
+            dest = labels[dest]
+
+        full = 'Flow'
+        if src:
+            full += f' from {src}'
+        if dest:
+            full += f' to {dest}'
+        return full
     else:
-        for label,spec in proj.settings.linkpar_specs.items():
-            if 'tag' in spec and spec['tag'] == output_id:
-                output_id = '%s (flow)' % (spec['name'])
-    return output_id
+        if output_id in labels:
+            return labels[output_id]
+        else:
+            return output_id
 
 def gridColorMap(ncolors=10, limits=None, nsteps=10, asarray=False, doplot=False, newwindow=True):
     '''

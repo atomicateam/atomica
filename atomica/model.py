@@ -192,6 +192,12 @@ class Characteristic(Variable):
     def set_dependent(self):
         self.dependency = True
 
+        for inc in self.includes:
+            inc.set_dependent()
+
+        if self.denominator is not None:
+            self.denominator.set_dependent()
+
     def unlink(self):
         Variable.unlink(self)
         self.includes = [x.uid for x in self.includes]
@@ -207,12 +213,10 @@ class Characteristic(Variable):
     def add_include(self, x):
         assert isinstance(x, Compartment) or isinstance(x, Characteristic)
         self.includes.append(x)
-        x.set_dependent()
 
     def add_denom(self, x):
         assert isinstance(x, Compartment) or isinstance(x, Characteristic)
         self.denominator = x
-        x.set_dependent()
         self.units = ''
 
     def update(self, ti):
@@ -261,23 +265,27 @@ class Parameter(Variable):
     def set_dependent(self):
         self.dependency = True
         if self.deps is not None:  # Make all dependencies dependent, this will propagate through dependent parameters.
-            for dep in self.deps:
-                if isinstance(dep, Link):
-                    raise AtomicaException("A Parameter that depends on transition flow rates cannot be a dependency, "
-                                           "it must be output only.")
-                dep.set_dependent()
+            for deps in self.deps.values():
+                for dep in deps:
+                    if isinstance(dep, Link):
+                        raise AtomicaException("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
+                    dep.set_dependent()
 
     def unlink(self):
         Variable.unlink(self)
         self.links = [x.uid for x in self.links]
-        self.deps = [x.uid for x in self.deps] if self.deps is not None else None
+        if self.deps is not None:
+            for dep_name in self.deps:
+                self.deps[dep_name] = [x.uid for x in self.deps[dep_name]]
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
         Variable.relink(self,objs)
         self.links = [objs[x] for x in self.links]
-        self.deps = [objs[x] for x in self.deps] if self.deps is not None else None
+        if self.deps is not None:
+            for dep_name in self.deps:
+                self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
 
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
@@ -298,11 +306,13 @@ class Parameter(Variable):
             ti = np.array(ti)
 
         dep_vals = defaultdict(np.float64)
-        for dep in self.deps:
-            if isinstance(dep, Link):
-                dep_vals[dep.name] += dep.vals[[ti]] / dep.dt
-            else:
-                dep_vals[dep.name] += dep.vals[[ti]]
+        for dep_name,deps in self.deps.items():
+            for dep in deps:
+                if isinstance(dep, Link):
+                    dep_vals[dep_name] += dep.vals[[ti]] / dep.dt
+                else:
+                    dep_vals[dep_name] += dep.vals[[ti]]
+
         self.vals[ti] = parser.evaluateStack(stack=self.f_stack[0:], deps=dep_vals)  # self.f_stack[0:] makes a copy
         self.vals[ti] *= self.scale_factor
 
@@ -570,9 +580,9 @@ class Population(object):
 
             if not spec[FS.TERM_FUNCTION] is None:
                 f_stack = dcp(spec[FS.TERM_FUNCTION])
-                deps = []
+                deps = {}
                 for dep_name in spec["dependencies"]:
-                    deps += self.get_variable(dep_name)
+                    deps[dep_name] = self.get_variable(dep_name)
                 par.set_f_stack(f_stack, deps)
 
     def preallocate(self, tvec, dt):

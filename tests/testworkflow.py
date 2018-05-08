@@ -8,8 +8,8 @@ import os
 # TODO: Wrap up what the FE is likely to use into either Project or Result level method calls, rather than using functions.
 from atomica.plotting import PlotData, plotSeries, plotBars
 
-# test = "sir"
-test = "tb"
+test = "sir"
+# test = "tb"
 
 torun = [
 "makeframeworkfile",

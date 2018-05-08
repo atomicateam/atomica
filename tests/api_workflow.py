@@ -38,17 +38,24 @@ if plot_initial:
         P.results[0].get_variable("adults", var)[0].plot()
 
     # Plot decomposition of population
-    d = PlotData(P.results[0],outputs=['sus','inf','rec','dead'])
+    d = PlotData(P.results[0],outputs=['sus','inf','rec','dead'],project=P)
     plotSeries(d,plot_type='stacked')
 
-    # Bar plot showing deaths
-    d = PlotData(P.results[0],outputs=['infdeath:flow', {'doth:flow':['susdeath:flow']}],t_bins=10)
-    plotBars(d,outer='results',stack_outputs=[['infdeath:flow', 'doth:flow']])
+    # Bar plot showing deaths, disaggregated by source compartment
+    d = PlotData(P.results[0],outputs=['sus:dead','inf:dead','rec:dead'],t_bins=10,project=P)
+    plotBars(d,outer='results',stack_outputs='all')
 
     # Aggregate flows
     d = PlotData(P.results[0],outputs=[{'Death rate':['infdeath:flow', 'susdeath:flow']}],project=P)
     plotSeries(d)
 
+    # Demonstrate how susdeath:flow sums over all of the tags sharing that label
+    d = PlotData(P.results[0],outputs=['susdeath:flow'],project=P)
+    plotSeries(d)
+
+    # Summing over the transitions between compartments in susdeath gives the same result
+    d = PlotData(P.results[0],outputs=['sus:dead','rec:dead'],project=P)
+    plotSeries(d,plot_type='stacked')
 
 # Make a scenario e.g. decreased infection rate
 scvalues = dict()
