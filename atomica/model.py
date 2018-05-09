@@ -16,7 +16,9 @@ import matplotlib.pyplot as plt
 # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
 parser = FunctionParser(debug=False)
 
-model_settings = dict()  # TODO - Change name to 'settings' and rename project settings accordingly
+# TODO: Consider renaming and decide what to do with project settings as an object.
+#       Maybe have Project methods for changing sim time ranges act on these model settings.
+model_settings = dict()
 model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
@@ -777,11 +779,11 @@ class Model(object):
         pop_index = self.pop_ids[pop_name]
         return self.pops[pop_index]
 
-    def build(self, settings, framework, parset, progset=None, options=None):
+    def build(self, settings, framework, parset, progset=None, progset_instructions=None):
         """ Build the full model. """
 
-        if options is None:
-            options = dict()
+        if progset_instructions is None:
+            progset_instructions = dict()
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
@@ -861,29 +863,29 @@ class Model(object):
         self.set_vars_by_pop()
 
         # Finally, prepare ModelProgramSet helper if programs are going to be used
-        if 'progs_start' in options:
+        if 'progs_start' in progset_instructions:
             if progset is not None:
                 self.programs_active = True
-                self.sim_settings['progs_start'] = options['progs_start']
+                self.sim_settings['progs_start'] = progset_instructions['progs_start']
 
-                if 'progs_end' in options:
-                    self.sim_settings['progs_end'] = options['progs_end']
+                if 'progs_end' in progset_instructions:
+                    self.sim_settings['progs_end'] = progset_instructions['progs_end']
                 else:
                     self.sim_settings['progs_end'] = np.inf  # Neverending programs
-                if 'init_alloc' in options:
-                    self.sim_settings['init_alloc'] = options['init_alloc']
+                if 'init_alloc' in progset_instructions:
+                    self.sim_settings['init_alloc'] = progset_instructions['init_alloc']
                 else:
                     self.sim_settings['init_alloc'] = {}
-                if 'constraints' in options:
-                    self.sim_settings['constraints'] = options['constraints']
+                if 'constraints' in progset_instructions:
+                    self.sim_settings['constraints'] = progset_instructions['constraints']
                 else:
                     self.sim_settings['constraints'] = None
-                if 'alloc_is_coverage' in options:
-                    self.sim_settings['alloc_is_coverage'] = options['alloc_is_coverage']
+                if 'alloc_is_coverage' in progset_instructions:
+                    self.sim_settings['alloc_is_coverage'] = progset_instructions['alloc_is_coverage']
                 else:
                     self.sim_settings['alloc_is_coverage'] = False
-                if 'saturate_with_default_budgets' in options:
-                    self.sim_settings['saturate_with_default_budgets'] = options['saturate_with_default_budgets']
+                if 'saturate_with_default_budgets' in progset_instructions:
+                    self.sim_settings['saturate_with_default_budgets'] = progset_instructions['saturate_with_default_budgets']
                 for impact_name in progset.impacts:
                     if impact_name not in settings.par_funcs:
                         self.sim_settings['impact_pars_not_func'].append(impact_name)
@@ -1191,15 +1193,15 @@ class Model(object):
                 par.constrain(ti)
 
 
-def run_model(settings, framework, parset, progset=None, options=None, name=None):
+def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
     """
     Processes the TB epidemiological model.
     Parset-based overwrites are generally done externally, so the parset is only used for model-building.
     Progset-based overwrites take place internally and must be part of the processing step.
-    The options dictionary is usually passed in with progset to specify when the overwrites take place.
-    - If full_output = False, non-output Parameters (and corresponding links) will be set to None
+    The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
     """
 
-    m = Model(settings, framework, parset, progset, options)
+    m = Model(settings, framework, parset, progset, progset_instructions)
     m.process(framework)
+    # TODO: Pass progset and instructions into results just like parset.
     return Result(model=m, parset=parset, name=name)
