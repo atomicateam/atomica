@@ -166,8 +166,9 @@ if "autocalibrate" in torun:
         # New name argument set to old name to do in-place calibration.
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
     if test == "tb":
-        # Shortcut for calibration inputs.
-        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=10)
+        # Shortcut for calibration measurables.
+        adjustables = [("foi", "15-64", 0.0, 3.0)]
+        P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     plotSeries(d, axis='results', data=P.data)

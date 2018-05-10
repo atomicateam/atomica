@@ -199,6 +199,11 @@ class Project(object):
         self.set_structure(structure_key=parset_key, structure_object=parset_object, structure_list=self.parsets,
                            structure_string="parameter set", overwrite=overwrite)
 
+    def set_progset(self, progset_key, progset_object, overwrite=False):
+        """ 'Set' method for program sets to prevent overwriting unless explicit. """
+        self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets,
+                           structure_string="program set", overwrite=overwrite)
+
     def set_scenario(self, scenario_key, scenario_object, overwrite=False):
         """ 'Set' method for scenarios to prevent overwriting unless explicit. """
         self.set_structure(structure_key=scenario_key, structure_object=scenario_object, structure_list=self.scens,
@@ -242,6 +247,10 @@ class Project(object):
         """ Allows for parsets to be retrieved from an object or string handle. """
         return self.get_structure(structure=parset, structure_list=self.parsets, structure_string="parameter set")
 
+    def get_progset(self, progset):
+        """ Allows for progsets to be retrieved from an object or string handle. """
+        return self.get_structure(structure=progset, structure_list=self.progsets, structure_string="program set")
+
     def get_scenario(self, scenario):
         """ Allows for scenarios to be retrieved from an object or string handle. """
         return self.get_structure(structure=scenario, structure_list=self.scens, structure_string="scenario")
@@ -254,20 +263,23 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.updateTimeVector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, options=None, store_results=True, result_type=None, result_name=None):
-        """ Run model using a selected parset and store/return results. """
+    def run_sim(self, parset=None, progset=None, progset_instructions=None,
+                store_results=True, result_type=None, result_name=None):
+        """
+        Run model using a selected parset and store/return results.
+        An optional program set and use instructions can be passed in to simulate budget-based interventions.
+        """
 
         parset = self.get_parset(parset=parset)
+        if progset is not None:     # Do not grab a default program set in case one does not exist.
+            progset = self.get_progset(progset=progset)
 
-        # if progset is None:
-        #    try: progset = self.progsets[progset_name]
-        #    except: logger.info("Initiating a standard run of project '{0}' "
-        #                        "(i.e. without the influence of programs).".format(self.name))
-        # if progset is not None:
-        #    if options is None:
-        #        logger.info("Program set '{0}' will be ignored while running project '{1}' "
-        #                    "due to no options specified.".format(progset.name, self.name))
-        #        progset = None
+        if progset is None:
+            logger.info("Initiating a standard run of project '{0}' "
+                        "(i.e. without the influence of programs).".format(self.name))
+        elif progset_instructions is None:
+            logger.info("Program set '{0}' will be ignored while running project '{1}' "
+                        "due to the absence of program set instructions.".format(progset.name, self.name))
 
         if result_name is None:
             base_name = "parset_" + parset.name
@@ -276,7 +288,7 @@ class Project(object):
             if result_type is not None:
                 base_name = result_type + "_" + base_name
 
-            k = 1  # consider making this 2?
+            k = 1
             result_name = base_name
             while result_name in self.results:
                 result_name = base_name + "_" + str(k)
@@ -284,7 +296,7 @@ class Project(object):
 
         tm = tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
-                           options=options, name=result_name)
+                           progset_instructions=progset_instructions, name=result_name)
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
@@ -344,13 +356,14 @@ class Project(object):
     #        ''' Function to get the outcome for a particular sim and objective'''
     #        pass
 
-    def run_scenario(self, scenario, parset=None, progset=None, options=None, store_results=True, result_name=None):
+    def run_scenario(self, scenario, parset=None, progset=None, progset_instructions=None,
+                     store_results=True, result_name=None):
         """ Run a scenario. """
         parset = self.get_parset(parset)
         scenario = self.get_scenario(scenario)
         scenario_parset = scenario.get_parset(parset, self.settings)
-        scenario_progset, scenario_options = scenario.get_progset(progset, self.settings, options)
-        return self.run_sim(parset=scenario_parset, progset=scenario_progset, options=scenario_options,
+        scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
+        return self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
                             store_results=store_results, result_type="scenario", result_name=result_name)
 
     #    def optimize(self):
