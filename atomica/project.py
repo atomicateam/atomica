@@ -140,7 +140,7 @@ class Project(object):
         # TODO: Develop some flag or check for data 'emptiness'.
         #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
         self.set_parset(parset_key=name, parset_object=ParameterSet(name=name), overwrite=overwrite)
-        self.parsets[name].makePars(self.data)
+        self.parsets[name].make_pars(self.data)
         return self.parsets[name]
 
     def make_progset(self, name="default"):

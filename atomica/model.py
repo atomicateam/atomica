@@ -39,7 +39,7 @@ class Variable(object):
         if 'vals' not in dir(self):  # characteristics already have a vals method
             self.vals = None
         self.units = 'unknown'  # 'unknown' units are distinct to dimensionless units, that have value ''
-        self.pop = pop # Reference back to the Population containing this object
+        self.pop = pop  # Reference back to the Population containing this object
 
     def preallocate(self, tvec, dt):
         self.t = tvec
@@ -67,7 +67,7 @@ class Variable(object):
     def unlink(self):
         self.pop = self.pop.uid
 
-    def relink(self,objs):
+    def relink(self, objs):
         self.pop = objs[self.pop]
 
     def __repr__(self):
@@ -94,7 +94,7 @@ class Compartment(Variable):
         self.inlinks = [x.uid for x in self.inlinks]
 
     def relink(self, objs):
-        Variable.relink(self,objs)
+        Variable.relink(self, objs)
         self.outlinks = [objs[x] for x in self.outlinks]
         self.inlinks = [objs[x] for x in self.inlinks]
 
@@ -175,7 +175,7 @@ class Characteristic(Variable):
     def get_included_comps(self):
         includes = []
         for inc in self.includes:
-            if isinstance(inc,Characteristic):
+            if isinstance(inc, Characteristic):
                 includes += inc.get_included_comps()
             else:
                 includes.append(inc)
@@ -217,7 +217,7 @@ class Characteristic(Variable):
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
-        Variable.relink(self,objs)
+        Variable.relink(self, objs)
         self.includes = [objs[x] for x in self.includes]
         self.denominator = objs[self.denominator] if self.denominator is not None else None
 
@@ -279,7 +279,8 @@ class Parameter(Variable):
             for deps in self.deps.values():
                 for dep in deps:
                     if isinstance(dep, Link):
-                        raise AtomicaException("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
+                        raise AtomicaException("A Parameter that depends on transition flow rates "
+                                               "cannot be a dependency, it must be output only.")
                     dep.set_dependent()
 
     def unlink(self):
@@ -292,7 +293,7 @@ class Parameter(Variable):
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
-        Variable.relink(self,objs)
+        Variable.relink(self, objs)
         self.links = [objs[x] for x in self.links]
         if self.deps is not None:
             for dep_name in self.deps:
@@ -317,7 +318,7 @@ class Parameter(Variable):
             ti = np.array(ti)
 
         dep_vals = defaultdict(np.float64)
-        for dep_name,deps in self.deps.items():
+        for dep_name, deps in self.deps.items():
             for dep in deps:
                 if isinstance(dep, Link):
                     dep_vals[dep_name] += dep.vals[[ti]] / dep.dt
@@ -384,7 +385,7 @@ class Link(Variable):
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
-        Variable.relink(self,objs)
+        Variable.relink(self, objs)
         self.parameter = objs[self.parameter]
         self.source = objs[self.source]
         self.dest = objs[self.dest]
@@ -487,7 +488,7 @@ class Population(object):
             # Support looking up sets of links with syntax 'source_name:dest_name'
             # ':dest' will return all links into the destination compartment
             # while 'source:' will return all links out of the source compartment
-            src,dest = name.split(':')
+            src, dest = name.split(':')
             if src and dest:
                 return [l for l in self.get_comp(src).outlinks if l.dest.name == dest]
             elif src:
@@ -672,7 +673,7 @@ class Population(object):
                 logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
                     try:
-                        if comps[i] in extract_includes(charac):
+                        if comps[i] in charac.get_included_comps():
                             report_characteristic(charac)
                     except Exception:
                         if comps[i] == charac:
@@ -686,7 +687,7 @@ class Population(object):
                                    "values.".format(residual, model_settings["tolerance"]))
 
         # Halt for any negative popsizes
-        if np.any(x < -model_settings['tolerance']):
+        if np.any(np.less(x, -model_settings['tolerance'])):
             raise AtomicaException('Negative initial popsizes')
 
         # Otherwise, insert the values
@@ -883,7 +884,8 @@ class Model(object):
                 else:
                     self.sim_settings['alloc_is_coverage'] = False
                 if 'saturate_with_default_budgets' in progset_instructions:
-                    self.sim_settings['saturate_with_default_budgets'] = progset_instructions['saturate_with_default_budgets']
+                    self.sim_settings['saturate_with_default_budgets'] = progset_instructions[
+                        'saturate_with_default_budgets']
                 for impact_name in progset.impacts:
                     if impact_name not in settings.par_funcs:
                         self.sim_settings['impact_pars_not_func'].append(impact_name)
@@ -1143,48 +1145,48 @@ class Model(object):
                     if par.uid in prog_vals:
                         par.vals[ti] = prog_vals[par.uid]
 
-                    # # Handle parameters tagged with special rules. Overwrite vals if necessary.
-                    # if do_special and 'rules' in settings.linkpar_specs[par_name]:
-                    #     # All of the parameters with this name, across populations.
-                    #     # There should be one for each population (these are Parameters, not Links).
-                    #     pars = self.vars_by_pop[par_name]
-                    #
-                    #     old_vals = {par.uid: par.vals[ti] for par in self.vars_by_pop[par_name]}
-                    #
-                    #     rule = settings.linkpar_specs[par_name]['rules']
-                    #     for pop in self.pops:
-                    #        if rule == 'avg_contacts_in':
-                    #            from_list = self.contacts['into'][pop.name].keys()
-                    #
-                    #            # If interactions with a pop are initiated by the same pop...
-                    #            # No need to proceed with special calculations. Else, carry on.
-                    #            if not ((len(from_list) == 1 and from_list[0] == pop.name)):
-                    #
-                    #                if len(from_list) == 0:
-                    #                    new_val = 0.0
-                    #                else:
-                    #                    val_sum = 0.0
-                    #                    weights = 0.0
-                    #
-                    #                    for k,from_pop in enumerate(from_list):
-                    #                        # All transition links with the same par_name are identically valued.
-                    #                        # For calculations, only one is needed for reference.
-                    #                        par = self.get_pop(from_pop).get_par(par_name)
-                    #                        weight = self.contacts['into'][pop.name][from_pop]*\
-                    #                                 self.get_pop(from_pop).popsize(ti)
-                    #                        val_sum += old_vals[par.uid]*weight
-                    #                        weights += weight
-                    #
-                    #                    if abs(val_sum) > model_settings['tolerance']:
-                    #                        new_val = val_sum / weights
-                    #                    else:
-                    #                        # Only valid because if the weighted sum is zero, all pop_counts are zero.
-                    #                        # This meansthat the numerator is zero.
-                    #                        new_val = 0.0
-                    #
-                    #                # Update the parameter's value in this population.
-                    #                # Will propagate to links in next stage.
-                    #                pop.get_par(par_name).vals[ti] = new_val
+                        # # Handle parameters tagged with special rules. Overwrite vals if necessary.
+                        # if do_special and 'rules' in settings.linkpar_specs[par_name]:
+                        #     # All of the parameters with this name, across populations.
+                        #     # There should be one for each population (these are Parameters, not Links).
+                        #     pars = self.vars_by_pop[par_name]
+                        #
+                        #     old_vals = {par.uid: par.vals[ti] for par in self.vars_by_pop[par_name]}
+                        #
+                        #     rule = settings.linkpar_specs[par_name]['rules']
+                        #     for pop in self.pops:
+                        #        if rule == 'avg_contacts_in':
+                        #            from_list = self.contacts['into'][pop.name].keys()
+                        #
+                        #            # If interactions with a pop are initiated by the same pop...
+                        #            # No need to proceed with special calculations. Else, carry on.
+                        #            if not ((len(from_list) == 1 and from_list[0] == pop.name)):
+                        #
+                        #                if len(from_list) == 0:
+                        #                    new_val = 0.0
+                        #                else:
+                        #                    val_sum = 0.0
+                        #                    weights = 0.0
+                        #
+                        #                    for k,from_pop in enumerate(from_list):
+                        #                        # All transition links with the same par_name are identically valued.
+                        #                        # For calculations, only one is needed for reference.
+                        #                        par = self.get_pop(from_pop).get_par(par_name)
+                        #                        weight = self.contacts['into'][pop.name][from_pop]*\
+                        #                                 self.get_pop(from_pop).popsize(ti)
+                        #                        val_sum += old_vals[par.uid]*weight
+                        #                        weights += weight
+                        #
+                        #                    if abs(val_sum) > model_settings['tolerance']:
+                        #                        new_val = val_sum / weights
+                        #                    else:
+                        #                        # Only valid because if weighted sum is zero, all pop_counts are zero.
+                        #                        # This meansthat the numerator is zero.
+                        #                        new_val = 0.0
+                        #
+                        #                # Update the parameter's value in this population.
+                        #                # Will propagate to links in next stage.
+                        #                pop.get_par(par_name).vals[ti] = new_val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:

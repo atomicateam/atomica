@@ -105,16 +105,16 @@ class ParameterScenario(Scenario):
                             y = par.interpolate(np.array([t]), pop_label) # Interpolation does not rescale, so don't worry about it here
                         else:
                             y = overwrite['y'][i-1]
-                        par.insertValuePair(t, y, pop_label)
+                        par.insert_value_pair(t, y, pop_label)
 
                         # Remove any intermediate values which are now smoothed via interpolation
-                        par.removeBetween([t, overwrite['t'][i]], pop_label)
+                        par.remove_between([t, overwrite['t'][i]], pop_label)
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
-                    par.insertValuePair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)
+                    par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)
 
             # Add an extra point
-            par.insertValuePair(overwrite['t'][i]+1e-5, original_y_end, pop_label)
+            par.insert_value_pair(overwrite['t'][i] + 1e-5, original_y_end, pop_label)
 
             new_parset.name = self.name + '_' + parset.name
             return new_parset
