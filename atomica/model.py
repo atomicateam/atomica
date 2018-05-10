@@ -170,6 +170,15 @@ class Characteristic(Variable):
         self.dt = dt
         self.internal_vals = np.ones(tvec.shape) * np.nan
 
+    def get_included_comps(self):
+        includes = []
+        for inc in self.includes:
+            if isinstance(inc,Characteristic):
+                includes += inc.get_included_comps()
+            else:
+                includes.append(inc)
+        return includes
+
     @property
     def vals(self):
         if self.internal_vals is None:
@@ -608,15 +617,6 @@ class Population(object):
         b = np.zeros((len(characs), 1))
         A = np.zeros((len(characs), len(comps)))
 
-        def extract_includes(charac):
-            includes = []
-            for inc in charac.includes:
-                if isinstance(inc, Characteristic):
-                    includes += extract_includes(inc)
-                else:
-                    includes.append(inc)
-            return includes
-
         #        print([(c,framework.get_spec_value(c.name,"datapage_order")) for c in self.characs])
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i, c in enumerate(characs):
@@ -631,7 +631,7 @@ class Population(object):
             except Exception:
                 pass
             try:
-                for inc in extract_includes(c):
+                for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             except Exception:
                 A[i, comp_indices[c.name]] = 1.0
@@ -1033,9 +1033,10 @@ class Model(object):
 
         for pop in self.pops:
             for comp in pop.comps:
-                for link in comp.outlinks:
-                    link.source.vals[ti + 1] -= link.vals[ti]
-                    link.dest.vals[ti + 1] += link.vals[ti]
+                if not comp.is_junction:
+                    for link in comp.outlinks:
+                        link.source.vals[ti + 1] -= link.vals[ti]
+                        link.dest.vals[ti + 1] += link.vals[ti]
 
         # Guard against populations becoming negative due to numerical artifacts
         for pop in self.pops:
@@ -1070,7 +1071,7 @@ class Model(object):
 
                     if review_count == 1:
                         for link in junc.outlinks:
-                            link.vals[ti] = 0
+                            link.vals[ti_link] = 0
 
                     # If the compartment is numerically empty, make it empty
                     if junc.vals[ti] <= model_settings['tolerance']:  # Includes negative values.
@@ -1088,7 +1089,7 @@ class Model(object):
                             flow = current_size * link.parameter.vals[ti_link] / denom_val
                             link.source.vals[ti] -= flow
                             link.dest.vals[ti] += flow
-                            link.vals[ti] += flow
+                            link.vals[ti_link] += flow
                             if link.dest.is_junction:
                                 review_required = True  # Need to review if a junction received an inflow at this step
 
