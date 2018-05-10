@@ -1,16 +1,11 @@
-'''
+"""
 Define classes and functions for handling scenarios
 Version: 2018mar26
-'''
+"""
 
-### Imports
-#from numpy import append, array, inf
-#from optima import AtomicaException, Multiresultset # Core classes/functions
-#from optima import dcp, today, findinds, vec2obj, isnumber, promotetoarray # Utilities
-from atomica.system import AtomicaException
-from sciris.core import defaultrepr, printv, odict, Link # TODO - replace utilities imports
-import numpy as np
 from copy import deepcopy as dcp
+import numpy as np
+
 
 class Scenario(object):
 
@@ -120,49 +115,49 @@ class ParameterScenario(Scenario):
             return new_parset
 
 
-class BudgetScenario(Scenario):
-
-    def __init__(self, name, scenario_values=None, **kwargs):
-        super(BudgetScenario, self).__init__(name)
-        self.makeScenarioProgset(budget_allocation=scenario_values)
-        self.budget_allocation = budget_allocation
-
-    def get_progset(self, progset, settings, budget_options):
-        """
-        Get the updated program set and budget allocation for this scenario.
-        This combines the values in the budget allocation with the values for the scenario.
-
-        Note that this assumes that all other budget allocations that are NOT
-        specified in budget_options are left as they are.
-
-        Params:
-            progset            program set object
-            budget_options     budget_options dictionary
-        """
-        new_budget_options = dcp(budget_options)
-        if self.overwrite:
-            for prog in self.budget_allocation.keys():
-                new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
-
-        else:  # we add the amount as additional funding
-            for prog in self.budget_allocation.keys():
-
-                if new_budget_options['init_alloc'].has_key(prog):
-                    new_budget_options['init_alloc'][prog] += self.budget_allocation[prog]
-                else:
-                    new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
-
-        return progset, new_budget_options
-
-
-class CoverageScenario(BudgetScenario):
-
-    def __init__(self, name, scenario_values=None, **kwargs):
-        super(CoverageScenario, self).__init__(name, scenario_values=scenario_values)
-
-    def get_progset(self, progset, settings, options):
-        progset, options = super(CoverageScenario, self).get_progset(progset, options)
-        options['alloc_is_coverage'] = True
-        return progset, options
+# class BudgetScenario(Scenario):
+#
+#     def __init__(self, name, scenario_values=None, **kwargs):
+#         super(BudgetScenario, self).__init__(name)
+#         self.makeScenarioProgset(budget_allocation=scenario_values)
+#         self.budget_allocation = budget_allocation
+#
+#     def get_progset(self, progset, settings, budget_options):
+#         """
+#         Get the updated program set and budget allocation for this scenario.
+#         This combines the values in the budget allocation with the values for the scenario.
+#
+#         Note that this assumes that all other budget allocations that are NOT
+#         specified in budget_options are left as they are.
+#
+#         Params:
+#             progset            program set object
+#             budget_options     budget_options dictionary
+#         """
+#         new_budget_options = dcp(budget_options)
+#         if self.overwrite:
+#             for prog in self.budget_allocation.keys():
+#                 new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
+#
+#         else:  # we add the amount as additional funding
+#             for prog in self.budget_allocation.keys():
+#
+#                 if new_budget_options['init_alloc'].has_key(prog):
+#                     new_budget_options['init_alloc'][prog] += self.budget_allocation[prog]
+#                 else:
+#                     new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
+#
+#         return progset, new_budget_options
+#
+#
+# class CoverageScenario(BudgetScenario):
+#
+#     def __init__(self, name, scenario_values=None, **kwargs):
+#         super(CoverageScenario, self).__init__(name, scenario_values=scenario_values)
+#
+#     def get_progset(self, progset, settings, options):
+#         progset, options = super(CoverageScenario, self).get_progset(progset, options)
+#         options['alloc_is_coverage'] = True
+#         return progset, options
 
 

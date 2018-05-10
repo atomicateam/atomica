@@ -40,6 +40,7 @@ setup(
         'xlsxwriter',
         'xlrd',
         'PyQt5',
-        'pyparsing'
+        'pyparsing',
+        'pandas'
     ],
 )

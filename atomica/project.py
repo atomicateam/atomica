@@ -38,7 +38,7 @@ from atomica.project_settings import ProjectSettings
 from atomica.scenarios import ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from atomica.workbook_export import writeWorkbook, makeInstructions
+from atomica.workbook_export import write_workbook, make_instructions
 from atomica.workbook_import import readWorkbook
 
 
@@ -105,14 +105,14 @@ class Project(object):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
-        databook_instructions, _ = makeInstructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
+        databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if num_pops is not None:
-            databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
+            databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
         if num_progs is not None:
-            databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
-        databook_instructions.updateTimeVector(data_start=data_start, data_end=data_end, data_dt=data_dt)
-        writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data,
-                      instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+            databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
+        databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)
+        write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
+                       instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """
@@ -124,7 +124,7 @@ class Project(object):
         self.modified = today()
 
         if metadata is not None and "data_start" in metadata:
-            self.settings.updateTimeVector(start=metadata["data_start"])  # Align sim start year with data start year.
+            self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
 
         if make_default_parset:
             self.make_parset(name="default")
@@ -261,7 +261,7 @@ class Project(object):
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """
-        self.settings.updateTimeVector(start=sim_start, end=sim_end, dt=sim_dt)
+        self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
     def run_sim(self, parset=None, progset=None, progset_instructions=None,
                 store_results=True, result_type=None, result_name=None):

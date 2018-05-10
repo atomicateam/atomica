@@ -12,7 +12,7 @@ from atomica.excel import ExcelSettings as ES
 
 from atomica.system import log_usage, accepts, returns, logger
 from atomica.framework import ProjectFramework
-from atomica.workbook_export import WorkbookInstructions, writeWorkbook
+from atomica.workbook_export import WorkbookInstructions, write_workbook
 from atomica.workbook_import import readWorkbook
 
 import sys
@@ -260,7 +260,7 @@ class GUIFrameworkFileCreation(qtw.QWidget):
 
     def slot_update_framework_instructions(self, item_type, number):
         """ Updates instructions relating to the amount of default framework items to produce in a template. """
-        self.framework_instructions.updateNumberOfItems(item_type=item_type, number=number)
+        self.framework_instructions.update_number_of_items(item_type=item_type, number=number)
 
     def slot_create_framework_template(self):
         """ Creates a template framework file at the location specified by the user. """
@@ -271,8 +271,8 @@ class GUIFrameworkFileCreation(qtw.QWidget):
                     ES.FILE_EXTENSION))
             return
         try:
-            writeWorkbook(workbook_path=framework_path, instructions=self.framework_instructions,
-                          workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+            write_workbook(workbook_path=framework_path, instructions=self.framework_instructions,
+                           workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         except Exception:
             logger.exception("Framework template construction has failed.")
             raise
@@ -379,7 +379,7 @@ class GUIDatabookCreation(qtw.QWidget):
 
     def slot_update_databook_instructions(self, item_type, number):
         """ Updates instructions relating to the amount of default items to produce in a databook. """
-        self.databook_instructions.updateNumberOfItems(item_type=item_type, number=number)
+        self.databook_instructions.update_number_of_items(item_type=item_type, number=number)
 
     def slot_import_framework(self):
         """ Imports a framework file from the location specified by the user. """
@@ -408,8 +408,8 @@ class GUIDatabookCreation(qtw.QWidget):
                 ES.FILE_EXTENSION))
             return
         try:
-            writeWorkbook(workbook_path=databook_path, framework=self.framework,
-                          instructions=self.databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+            write_workbook(workbook_path=databook_path, framework=self.framework,
+                           instructions=self.databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
         except Exception:
             logger.exception("Databook construction has failed.")
             raise

@@ -10,7 +10,7 @@ from atomica.parser_function import FunctionParser
 from atomica.structure import CoreProjectStructure, get_quantity_type_list
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
-from atomica.workbook_export import makeInstructions, writeWorkbook
+from atomica.workbook_export import make_instructions, write_workbook
 from atomica.workbook_import import readWorkbook
 
 
@@ -203,21 +203,21 @@ class ProjectFramework(CoreProjectStructure):
     @classmethod
     def create_template(cls, path, num_comps=None, num_characs=None, num_pars=None, num_datapages=None):
         """ Convenience class method for template creation in the absence of an instance. """
-        framework_instructions, _ = makeInstructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        framework_instructions, _ = make_instructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         if num_comps is not None:  # Set the number of compartments.
-            framework_instructions.updateNumberOfItems(FS.KEY_COMPARTMENT, num_comps)
+            framework_instructions.update_number_of_items(FS.KEY_COMPARTMENT, num_comps)
         if num_characs is not None:  # Set the number of characteristics.
-            framework_instructions.updateNumberOfItems(FS.KEY_CHARACTERISTIC, num_characs)
+            framework_instructions.update_number_of_items(FS.KEY_CHARACTERISTIC, num_characs)
         if num_pars is not None:  # Set the number of parameters.
-            framework_instructions.updateNumberOfItems(FS.KEY_PARAMETER, num_pars)
+            framework_instructions.update_number_of_items(FS.KEY_PARAMETER, num_pars)
         if num_datapages is not None:  # Set the number of custom databook pages.
-            framework_instructions.updateNumberOfItems(FS.KEY_DATAPAGE, num_datapages)
+            framework_instructions.update_number_of_items(FS.KEY_DATAPAGE, num_datapages)
 
-        writeWorkbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        write_workbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 
     def write_to_file(self, filename, data=None, instructions=None):
         """ Export a framework to file. """
-        # TODO: modify writeWorkbook so it can write framework specs to an excel file???
+        # TODO: modify write_workbook so it can write framework specs to an excel file???
         pass
 
     def read_from_file(self, filepath=None):
