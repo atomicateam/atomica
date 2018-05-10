@@ -148,7 +148,13 @@ class ProjectFramework(CoreProjectStructure):
                     raise AtomicaException("Parameter '{0}' is associated with transitions and is expressed as "
                                            "a custom function of other parameters. "
                                            "A format must be specified for it in a framework file.".format(item_key))
+            initial_comps = {}
             for link in links:
+                # Avoid discussions about how to disaggregate parameters with multiple links from the same compartment.
+                if link[0] in initial_comps:
+                    raise AtomicaException("Parameter '{0}' cannot be associated with two or more transitions "
+                                           "from the same compartment '{1}'.".format(item_key, link[0]))
+                initial_comps[link[0]] = True
                 # Validate parameter-related transitions with source/sink compartments.
                 if self.get_spec_value(link[0], "is_sink"):
                     raise AtomicaException("Parameter '{0}' cannot be associated with a transition from "
