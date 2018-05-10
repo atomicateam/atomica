@@ -47,7 +47,7 @@ class ProjectFramework(CoreProjectStructure):
         for item_key in self.specs[FS.KEY_PARAMETER]:
             if not self.get_spec_value(item_key, FS.TERM_FUNCTION) is None:
                 self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER].append(item_key)
-                function_stack, dependencies = self.parser.produceStack(
+                function_stack, dependencies = self.parser.produce_stack(
                     self.get_spec_value(item_key, FS.TERM_FUNCTION).replace(" ", ""))
                 self.set_spec_value(item_key, attribute=FS.TERM_FUNCTION, value=function_stack)
                 self.set_spec_value(item_key, attribute="dependencies", value=dependencies)

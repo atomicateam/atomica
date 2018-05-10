@@ -36,7 +36,7 @@ from matplotlib.lines import Line2D
 parser = FunctionParser(debug=False)  # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
 
 settings = dict()
-settings['legend_mode'] = 'together' # Possible options are ['together','separate','none'] 
+settings['legend_mode'] = 'together' # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0 # Width of bars in plotBars()
 
 def save_figs(figs,path = '.',prefix = '',fnames=None):
@@ -195,7 +195,7 @@ class PlotData(object):
         tvecs = dict()
 
         # Because aggregations always occur within a Result object, loop over results
-        for result in results: 
+        for result in results:
 
             result_label = result.name
             tvecs[result_label] = result.model.t
@@ -224,7 +224,7 @@ class PlotData(object):
                     if isinstance(vars[0],Link):
                         data_dict[output_label] = np.zeros(tvecs[result_label].shape)
                         compsize[output_label] = np.zeros(tvecs[result_label].shape)
-                        
+
                         for link in vars:
                             data_dict[output_label] += link.vals
                             compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
@@ -232,7 +232,7 @@ class PlotData(object):
                         if t_bins is None: # Annualize if not time aggregating
                             data_dict[output_label] /= dt
                             output_units[output_label] = link.units + '/year'
-                        else:    
+                        else:
                             output_units[output_label] = link.units # If we sum links in a bin, we get a number of people
                         data_label[output_label] = vars[0].parameter.name
 
@@ -270,7 +270,7 @@ class PlotData(object):
                         continue
 
                     par = Parameter(pop=None,name=output_label)
-                    f_stack, dep_labels = parser.produceStack(f_stack_str)
+                    f_stack, dep_labels = parser.produce_stack(f_stack_str)
                     deps = []
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
@@ -304,10 +304,10 @@ class PlotData(object):
                             if units[0] in ['','fraction','proportion','probability'] and output_aggregation == 'sum' and len(labels) > 1: # Dimensionless quantity, like a prevalance
                                 logger.warning('Warning - output "%s" is not in number units, so output aggregation probably should not be "sum"' % (output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
-                            
-                        if output_aggregation == 'sum': 
+
+                        if output_aggregation == 'sum':
                             aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels) # Add together all the outputs
-                        elif output_aggregation == 'average': 
+                        elif output_aggregation == 'average':
                             aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels) # Add together all the outputs
                             aggregated_outputs[pop_label][output_name] /= len(labels)
                         elif output_aggregation == 'weighted':
@@ -328,7 +328,7 @@ class PlotData(object):
                             if aggregated_units[output_name] in ['','fraction','proportion','probability'] and len(pop_labels) > 1:
                                 logger.warning('Warning - output "%s" is not in number units, so population aggregation probably should not be "sum"' % (output_name))
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
-                        elif pop_aggregation == 'average': 
+                        elif pop_aggregation == 'average':
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
                             vals /= len(labels)
                         elif pop_aggregation == 'weighted':
@@ -357,7 +357,7 @@ class PlotData(object):
                 else:
                     upper = self.series[0].tvec[-1]
                 t_bins = np.arange(self.series[0].tvec[0],upper,t_bins)
-            
+
             if isinstance(t_bins,str) and t_bins == 'all':
                 t_out = np.zeros((1,))
                 lower = [-np.inf]
@@ -392,7 +392,7 @@ class PlotData(object):
                     s.t_labels = ['All']
                 else:
                     s.t_labels = ['%d-%d' % (l,h) for l,h in zip(lower,upper)]
-                
+
     def __repr__(self):
         s = 'PlotData\n'
         s += 'Results: %s\n' % (self.results)
@@ -628,7 +628,7 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
     for r_idx,t_idx in iterator:
         base_offset = r_idx*result_offset + t_idx*tval_offset # Offset between outer groups
         block_offset = 0.0 # Offset between inner groups
-        
+
         if outer == 'results':
             inner_labels.append((base_offset+block_width/2.0,t_labels[t_idx]))
         elif outer == 'times':
@@ -712,7 +712,7 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
-    units = list(set([x.units for x in plotdata.series])) 
+    units = list(set([x.units for x in plotdata.series]))
     if len(units) == 1:
         ax.set_ylabel(units[0])
     else:
@@ -1224,7 +1224,7 @@ def nestedLoop(inputs,loop_order):
     # for l,n in nested_loop([['a','b','c'],[1,2,3]],[0,1]):
     # This would yield in order (a,1),(a,2),(a,3),(b,1)...
     # but if loop_order = [1,0], then it would be (a,1),(b,1),(c,1),(a,2)...
-    inputs = [inputs[i] for i in loop_order] 
+    inputs = [inputs[i] for i in loop_order]
     iterator = itertools.product(*inputs) # This is in the loop order
     for item in iterator:
         out = [None for x in loop_order]
