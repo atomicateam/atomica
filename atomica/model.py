@@ -373,8 +373,6 @@ class Link(Variable):
         self.source.outlinks.append(self)
         self.dest.inlinks.append(self)
 
-        self.is_transfer = not object_from.pop is object_to.pop  # A transfer connections compartments across populations
-
     def unlink(self):
         Variable.unlink(self)
         self.parameter = self.parameter.uid
@@ -994,9 +992,8 @@ class Model(object):
                         #        converted_amt = comp_source.vals[ti] * converted_frac
                         #     elif link.parameter.units == 'number':
                         #        converted_amt = transition * dt
-                        #        if link.is_transfer:
-                        #            transfer_rescale = comp_source.vals[ti] / pop.popsize(ti)
-                        #            converted_amt *= transfer_rescale
+                        #        if len(link.parameter.links) > 1:
+                        #            converted_amt *= comp_source.vals[ti] / link.parameter.source_popsize(ti)
                         #     else:
                         #        raise AtomicaException('Unknown parameter units; "proportion" links can only appear '
                         #                               'in junctions')
