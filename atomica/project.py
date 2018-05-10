@@ -39,7 +39,7 @@ from atomica.scenarios import ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.workbook_export import write_workbook, make_instructions
-from atomica.workbook_import import readWorkbook
+from atomica.workbook_import import read_workbook
 
 
 # from numpy.random import seed, randint
@@ -117,8 +117,8 @@ class Project(object):
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """
         full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = readWorkbook(workbook_path=full_path, framework=self.framework, data=self.data,
-                                workbook_type=SS.STRUCTURE_KEY_DATA)
+        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=self.data,
+                                 workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookloaddate = today()  # Update date when spreadsheet was last loaded
         self.modified = today()

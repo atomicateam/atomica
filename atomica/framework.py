@@ -11,7 +11,7 @@ from atomica.structure import CoreProjectStructure, get_quantity_type_list
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
 from atomica.workbook_export import make_instructions, write_workbook
-from atomica.workbook_import import readWorkbook
+from atomica.workbook_import import read_workbook
 
 
 @apply_to_all_methods(log_usage)
@@ -222,7 +222,7 @@ class ProjectFramework(CoreProjectStructure):
 
     def read_from_file(self, filepath=None):
         """ Import a framework from file. """
-        readWorkbook(workbook_path=filepath, framework=self,
-                     workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        read_workbook(workbook_path=filepath, framework=self,
+                      workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         self.workbook_load_date = today()
         self.modified = today()

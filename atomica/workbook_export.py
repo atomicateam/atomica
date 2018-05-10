@@ -7,8 +7,8 @@ from atomica.system import logger, AtomicaException, accepts, prepare_filepath, 
 from atomica.excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
 from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, \
     IDType, IDRefType, SwitchType, QuantityFormatType
-from atomica.workbook_utils import WorkbookTypeException, getWorkbookPageKeys, getWorkbookPageSpec, \
-    getWorkbookItemTypeSpecs, getWorkbookItemSpecs
+from atomica.workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
+    get_workbook_item_type_specs, get_workbook_item_specs
 from atomica.structure import get_quantity_type_list
 
 from sciris.core import odict
@@ -272,7 +272,7 @@ def write_headers_dc(worksheet, table, start_row, start_col, item_type=None, fra
                      workbook_type=None, formats=None, format_variables=None):
     if item_type is None:
         item_type = table.item_type
-    item_type_specs = getWorkbookItemTypeSpecs(framework=framework, workbook_type=workbook_type)
+    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     item_type_spec = item_type_specs[item_type]
 
     if formats is None:
@@ -332,7 +332,7 @@ def write_contents_dc(worksheet, table, start_row, header_column_map, item_type=
                       formats=None, temp_storage=None):
     if item_type is None:
         item_type = table.item_type
-    item_type_specs = getWorkbookItemTypeSpecs(framework=framework, workbook_type=workbook_type)
+    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     item_type_spec = item_type_specs[item_type]
     instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
                                                        workbook_type=workbook_type)
@@ -389,7 +389,7 @@ def write_detail_columns(worksheet, table, start_row, start_col, framework=None,
 def write_connection_matrix(worksheet, source_item_type, target_item_type, start_row, start_col, framework=None,
                             data=None, instructions=None, workbook_type=None,
                             formats=None, temp_storage=None):
-    item_type_specs = getWorkbookItemTypeSpecs(framework=framework, workbook_type=workbook_type)
+    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
                                                        workbook_type=workbook_type)
 
@@ -421,8 +421,8 @@ def write_connection_matrix(worksheet, source_item_type, target_item_type, start
 def write_time_dependent_values_entry(worksheet, item_type, item_key, iterated_type, start_row, start_col,
                                       framework=None, data=None, instructions=None, workbook_type=None,
                                       formats=None, format_variables=None, temp_storage=None):
-    item_specs = getWorkbookItemSpecs(framework=framework, workbook_type=workbook_type)
-    item_type_specs = getWorkbookItemTypeSpecs(framework=framework, workbook_type=workbook_type)
+    item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
+    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
                                                        workbook_type=workbook_type)
     if temp_storage is None:
@@ -545,7 +545,7 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
 
 def write_worksheet(workbook, page_key, framework=None, data=None, instructions=None, workbook_type=None,
                     formats=None, format_variables=None, temp_storage=None):
-    page_spec = getWorkbookPageSpec(page_key=page_key, framework=framework, workbook_type=workbook_type)
+    page_spec = get_workbook_page_spec(page_key=page_key, framework=framework, workbook_type=workbook_type)
     if len(page_spec["tables"]) == 0:
         return
 
@@ -609,7 +609,7 @@ def write_reference_worksheet(workbook, framework=None, data=None, instructions=
 
 @accepts(str)
 def write_workbook(workbook_path, framework=None, data=None, instructions=None, workbook_type=None):
-    page_keys = getWorkbookPageKeys(framework=framework, workbook_type=workbook_type)
+    page_keys = get_workbook_page_keys(framework=framework, workbook_type=workbook_type)
 
     logger.info("Constructing a {0}: {1}".format(display_name(workbook_type), workbook_path))
 

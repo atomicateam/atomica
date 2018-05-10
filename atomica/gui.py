@@ -13,7 +13,7 @@ from atomica.excel import ExcelSettings as ES
 from atomica.system import log_usage, accepts, returns, logger
 from atomica.framework import ProjectFramework
 from atomica.workbook_export import WorkbookInstructions, write_workbook
-from atomica.workbook_import import readWorkbook
+from atomica.workbook_import import read_workbook
 
 import sys
 
@@ -390,8 +390,8 @@ class GUIDatabookCreation(qtw.QWidget):
                     ES.FILE_EXTENSION))
             return
         try:
-            readWorkbook(workbook_path=framework_path, framework=self.framework,
-                         workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+            read_workbook(workbook_path=framework_path, framework=self.framework,
+                          workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
             self.edit_framework_name.setText(self.framework.name)
             resize_line_edit_to_contents(self.edit_framework_name)
             self.label_framework_name.setVisible(self.framework.name != "")
