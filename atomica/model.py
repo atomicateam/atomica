@@ -476,13 +476,6 @@ class Population(object):
         # At the moment, names are unique across object types and within object
         # types except for links, but if that logic changes, simple modifications can
         # be made here
-        if isinstance(name,uuid.UUID):
-            for obj_list in [self.comps,self.characs,self.pars,self.links]:
-                for obj in obj_list:
-                    if obj.uid == name:
-                        return [obj]
-            raise AtomicaException('Object with specified UUID not found')
-
         if name in self.comp_lookup:
             return [self.comp_lookup[name]]
         elif name in self.charac_lookup:
@@ -492,18 +485,35 @@ class Population(object):
         elif name in self.link_lookup:
             return self.link_lookup[name]
         elif ':' in name:
-            # Support looking up sets of links with syntax 'source_name:dest_name'
-            # ':dest' will return all links into the destination compartment
-            # while 'source:' will return all links out of the source compartment
-            src, dest = name.split(':')
+            # Link names in Atomica end in 'par_name:flow' so they are handled above
+            # This branch of the if statement is exclusively for compartment lookup
+            # Allowed syntax is
+            # 'source_name:' - All links going out from source
+            # ':dest_name' - All links going into destination
+            # 'source_name:dest_name' - All links from Source to Dest
+            # 'source_name:dest_name:par_name' - All links from Source to Dest belonging to a given Parameter
+            # ':dest:par_name'
+            # 'source::par_name' - As per above
+            # Note - because compartment names are resolved within compartments, this function currently cannot
+            # be used to look up transfer links
+            name_tokens = name.split(':')
+            if len(name_tokens) == 2:
+                name_tokens.append('')
+            src, dest, par = name_tokens
+
             if src and dest:
-                return [l for l in self.get_comp(src).outlinks if l.dest.name == dest]
+                links = [l for l in self.get_comp(src).outlinks if l.dest.name == dest]
             elif src:
-                return self.get_comp(src).outlinks
+                links = self.get_comp(src).outlinks
             elif dest:
-                return self.get_comp(dest).inlinks
+                links = self.get_comp(dest).inlinks
             else:
-                raise AtomicaException('Badly formed link name')
+                links = self.links
+
+            if par:
+                links = [l for l in links if l.parameter.name == par]
+
+            return links
         else:
             raise AtomicaException("Object '{0}' not found.".format(name))
 

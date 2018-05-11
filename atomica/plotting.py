@@ -1100,7 +1100,10 @@ def get_full_name(output_id, proj):
 
     # Handle Links specified with colon syntax
     if ':' in output_id:
-        src,dest = output_id.split(':')
+        output_tokens = output_id.split(':')
+        if len(output_tokens)==2:
+            output_tokens.append('')
+        src,dest,par = output_tokens
 
         if dest == 'flow':
             if src in labels:
@@ -1114,11 +1117,16 @@ def get_full_name(output_id, proj):
         if dest and dest in labels:
             dest = labels[dest]
 
+        if par and par in labels:
+            par = labels[par]
+
         full = 'Flow'
         if src:
-            full += f' from {src}'
+            full += ' from {}'.format(src)
         if dest:
-            full += f' to {dest}'
+            full += ' to {}'.format(dest)
+        if par:
+            full += ' ({})'.format(par)
         return full
     else:
         if output_id in labels:
