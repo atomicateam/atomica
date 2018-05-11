@@ -476,6 +476,13 @@ class Population(object):
         # At the moment, names are unique across object types and within object
         # types except for links, but if that logic changes, simple modifications can
         # be made here
+        if isinstance(name,uuid.UUID):
+            for obj_list in [self.comps,self.characs,self.pars,self.links]:
+                for obj in obj_list:
+                    if obj.uid == name:
+                        return [obj]
+            raise AtomicaException('Object with specified UUID not found')
+
         if name in self.comp_lookup:
             return [self.comp_lookup[name]]
         elif name in self.charac_lookup:
