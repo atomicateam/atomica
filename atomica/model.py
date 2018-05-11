@@ -361,7 +361,6 @@ class Link(Variable):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, name=tag)
         self.vals = None
-        self.tag = tag
         self.units = 'people'
 
         # Source parameter where unscaled link value is drawn from (a single parameter may have multiple links).
