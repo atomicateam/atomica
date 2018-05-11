@@ -3,9 +3,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 import numpy as np
-import pylab as pl
-from random import shuffle
-import numbers
 import os
 import itertools
 import textwrap
@@ -21,8 +18,6 @@ from atomica.results import Result
 from atomica.model import Compartment, Characteristic, Parameter, Link
 from atomica.parser_function import FunctionParser
 
-import matplotlib
-from matplotlib.pyplot import plot
 import matplotlib.cm as cmx
 import matplotlib.colors as matplotlib_colors
 import matplotlib.pyplot as plt
@@ -30,7 +25,6 @@ from matplotlib.ticker import FuncFormatter
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.collections import PatchCollection
 from matplotlib.legend import Legend
-from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
 parser = FunctionParser(debug=False)  # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
@@ -40,34 +34,42 @@ settings['legend_mode'] = 'together' # Possible options are ['together','separat
 settings['bar_width'] = 1.0 # Width of bars in plotBars()
 
 def save_figs(figs,path = '.',prefix = '',fnames=None):
-    #
+    # Take in array of figures, and save them to disk
+    # Path and prefix are appended to the start
+    # fnames - Optionally an array of file names. By default, each figure is named
+    # using its 'label' property. If a figure has an empty 'label' string it is assumed to be
+    # a legend and will be named based on the name of the figure immediately before it.
+    # If you provide an empty string in the `fnames` argument this same operation will be carried
+    # out. If the last figure name is omitted, an empty string will automatically be added. This allows
+    # the separate-legend option to be turned on or off without changing the filename inputs to this function
+    # (because the last legend figure may or may not be present depending on the legend mode)
+
     try:
         os.makedirs(path)
     except OSError as err:
         if err.errno!=os.errno.EEXIST:
             raise
 
+    # Sanitize fig array input
     if not isinstance(figs,list):
         figs = [figs]
 
-    if fnames is not None:
-        if not isinstance(fnames,list):
-            fnames = [fnames]
-        if len(fnames) == len(figs)-1 and not figs[-1].get_label():
-            fnames.append('')
-        else:
-            assert len(fnames) == len(figs), 'Number of figures must match number of specified filenames, or the last figure must be a legend with no label'
+    # Sanitize and populate default fnames values
+    if fnames is None:
+        fnames = [fig.get_label() for fig in figs]
+    elif not isinstance(fnames,list):
+        fnames = [fnames]
+
+    # Add legend figure to the end
+    if len(fnames) < len(figs):
+        fnames.append('')
+    assert len(fnames) == len(figs), 'Number of figures must match number of specified filenames, or the last figure must be a legend with no label'
+    assert fnames[0], 'The first figure name cannot be empty'
 
     for i,fig in enumerate(figs):
-        if fnames is not None and fnames[i]: # Use the specified filename
-            fname = prefix+fnames[i] + '.png'
-        else:
-            if not fig.get_label() and i == len(figs)-1: # If the figure has no label (e.g. it is a legend)
-                fname = fname[0:-4] + '_legend.png'
-            elif not fig.get_label():
-                raise AtomicaException('Only the last figure passed to save_figs is allowed to have an empty label if the filenames are not explicitly specified')
-            else:
-                fname = prefix+fig.get_label() + '.png'
+        if not fnames[i]: # assert above means that i>0
+            fnames[i] = fnames[i-1] + '_legend'
+        fname = prefix + fnames[i] + '.png'
         fig.savefig(os.path.join(path,fname),bbox_inches='tight')
         logger.info('Saved figure "%s"' % fname)
 
@@ -170,12 +172,11 @@ class PlotData(object):
         assert pop_aggregation in ['sum','average','weighted']
         assert time_aggregation in ['sum','average']
 
-        def extract_labels(l):
+        def extract_labels(input_arrays):
             # Flatten the input arrays to extract all requested pops and outputs
             # e.g. ['vac',{'a':['vac','sus']}] -> ['vac','vac','sus'] -> set(['vac','sus'])
-            # Also returns the labels for legends etc. i.e. ['vac','a']
             out = []
-            for x in l:
+            for x in input_arrays:
                 if isinstance(x,dict):
                     k = list(x.keys())
                     assert len(k) == 1, 'Aggregation dict can only have one key'
@@ -231,9 +232,9 @@ class PlotData(object):
 
                         if t_bins is None: # Annualize if not time aggregating
                             data_dict[output_label] /= dt
-                            output_units[output_label] = link.units + '/year'
+                            output_units[output_label] = vars[0].units + '/year'
                         else:
-                            output_units[output_label] = link.units # If we sum links in a bin, we get a number of people
+                            output_units[output_label] = vars[0].units # If we sum links in a bin, we get a number of people
                         data_label[output_label] = vars[0].parameter.name
 
                     elif isinstance(vars[0],Parameter):
@@ -330,10 +331,12 @@ class PlotData(object):
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
                         elif pop_aggregation == 'average':
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels) # Add together all the outputs
-                            vals /= len(labels)
+                            vals /= len(pop_labels)
                         elif pop_aggregation == 'weighted':
                             vals = sum(aggregated_outputs[x][output_name]*popsize[x] for x in pop_labels) # Add together all the outputs
                             vals /= sum([popsize[x] for x in pop_labels])
+                        else:
+                            raise AtomicaException('Unknown pop aggregation method')
                         self.series.append(Series(tvecs[result_label],vals,result_label,pop_name,output_name,data_label[output_name],units=aggregated_units[output_name]))
                     else:
                         vals = aggregated_outputs[pop][output_name]
@@ -352,6 +355,7 @@ class PlotData(object):
 
             # If t_bins is a scalar, expand it into a vector of bin edges
             if not hasattr(t_bins,'__len__'):
+                # TODO - here is where the code to handle t_bins > sim duration goes
                 if not (self.series[0].tvec[-1]-self.series[0].tvec[0])%t_bins:
                     upper = self.series[0].tvec[-1]+t_bins
                 else:
@@ -369,6 +373,8 @@ class PlotData(object):
                     t_out = upper
                 elif time_aggregation == 'average':
                     t_out = (lower+upper)/2.0
+                else:
+                    raise AtomicaException('Unknown time aggregation type')
 
             for s in self.series:
                 tvec = []
@@ -418,7 +424,7 @@ class PlotData(object):
                 return s
         raise AtomicaException('Series %s-%s-%s not found' % (key[0],key[1],key[2]))
 
-    def set_colors(self,colors=None,results=['all'],pops=['all'],outputs=['all'],overwrite=False):
+    def set_colors(self,colors=None,results='all',pops='all',outputs='all',overwrite=False):
         # What are the different ways we might want to set colours?
         # - Assign a set of colours to results/pops/outputs to distinguish on a line plot
         # - Assign a colour scheme to a bunch of outputs
@@ -463,7 +469,7 @@ class PlotData(object):
             assert len(colors) == len(targets), 'Number of colors must either be a string, or a list with as many elements as colors to set'
             colors = colors
         elif colors.startswith('#') or colors not in [m for m in plt.cm.datad if not m.endswith("_r")]:
-            colors = [colors for x in range(len(targets))] # Apply color to all requested outputs
+            colors = [colors for _ in range(len(targets))] # Apply color to all requested outputs
         else:
             color_norm = matplotlib_colors.Normalize(vmin=-1, vmax=len(targets))
             scalar_map = cmx.ScalarMappable(norm=color_norm, cmap=colors)
@@ -606,6 +612,8 @@ def plotBars(plotdata,stack_pops=None,stack_outputs=None,outer='times'):
         result_offset = len(tvals)*(block_width+gaps[1])+gaps[2]
         tval_offset = block_width+gaps[1]
         iterator = nestedLoop([range(len(plotdata.results)),range(len(tvals))],[1,0])
+    else:
+        raise AtomicaException('outer option must be either "times" or "results"')
 
     figs = []
     fig,ax = plt.subplots()
@@ -775,16 +783,9 @@ def plotSeries(plotdata,plot_type='line',axis='outputs',data=None):
 
     plotdata = dcp(plotdata)
 
-    # Update colours with defaults, if they were not set
-
     if axis == 'results':
         plotdata.set_colors(results=plotdata.results)
-    elif axis == 'pops':
-        plotdata.set_colors(pops=plotdata.pops)
-    elif axis == 'outputs':
-        plotdata.set_colors(outputs=plotdata.outputs)
 
-    if axis == 'results':
         for pop in plotdata.pops:
             for output in plotdata.outputs:
                 fig,ax = plt.subplots()
@@ -812,6 +813,8 @@ def plotSeries(plotdata,plot_type='line',axis='outputs',data=None):
                     render_legend(ax,plot_type)
 
     elif axis == 'pops':
+        plotdata.set_colors(pops=plotdata.pops)
+
         for result in plotdata.results:
             for output in plotdata.outputs:
                 fig,ax = plt.subplots()
@@ -839,6 +842,8 @@ def plotSeries(plotdata,plot_type='line',axis='outputs',data=None):
                     render_legend(ax,plot_type)
 
     elif axis == 'outputs':
+        plotdata.set_colors(outputs=plotdata.outputs)
+
         for result in plotdata.results:
             for pop in plotdata.pops:
                 fig,ax = plt.subplots()
@@ -862,6 +867,8 @@ def plotSeries(plotdata,plot_type='line',axis='outputs',data=None):
                 apply_series_formatting(ax,plot_type)
                 if settings['legend_mode'] == 'together':
                     render_legend(ax,plot_type)
+    else:
+        raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
     if settings['legend_mode'] == 'separate':
         figs.append(render_separate_legend(ax,plot_type))
@@ -1031,6 +1038,7 @@ def reorder_legend(figs,order=None):
         else:
             for fig in figs: # Apply order operation to all figures passed in
                 reorder_legend(fig,order=order)
+            return
     else:
         fig = figs
 
@@ -1058,6 +1066,7 @@ def relabel_legend(figs,labels):
         else:
             for fig in figs: # Apply order operation to all figures passed in
                 relabel_legend(fig,labels=labels)
+            return
     else:
         fig = figs
 
@@ -1117,7 +1126,7 @@ def get_full_name(output_id, proj):
         else:
             return output_id
 
-def gridColorMap(ncolors=10, limits=None, nsteps=10, asarray=False, doplot=False, newwindow=True):
+def gridColorMap(ncolors=10, limits=None, nsteps=10, asarray=False):
     '''
     Create a qualitative colormap by assigning points according to the maximum pairwise distance in the
     color cube. Basically, the algorithm generates n points that are maximally uniformly spaced in the
@@ -1128,8 +1137,6 @@ def gridColorMap(ncolors=10, limits=None, nsteps=10, asarray=False, doplot=False
         limits: how close to the edges of the cube to make colors (to avoid white and black)
         nsteps: the discretization of the color cube (e.g. 10 = 10 units per side = 1000 points total)
         asarray: whether to return the colors as an array instead of as a list of tuples
-        doplot: whether or not to plot the color cube itself
-        newwindow: if doplot=True, whether to use a new window
 
     Usage example:
         from pylab import *
@@ -1195,24 +1202,6 @@ def gridColorMap(ncolors=10, limits=None, nsteps=10, asarray=False, doplot=False
     else:
         output = []
         for i in range(ncolors): output.append(tuple(colors[i, :]))  # Gather output
-
-    # # For plotting
-    if doplot:
-        from mpl_toolkits.mplot3d import Axes3D  # analysis:ignore
-        from pylab import figure, gca
-        if newwindow:
-            fig = figure()
-            ax = fig.add_subplot(111, projection='3d')
-        else:
-            ax = gca(projection='3d')
-        ax.scatter(colors[:, 0], colors[:, 1], colors[:, 2], c=output, s=200, depthshade=False)
-        ax.set_xlabel('R')
-        ax.set_ylabel('G')
-        ax.set_zlabel('B')
-        ax.set_xlim((0, 1))
-        ax.set_ylim((0, 1))
-        ax.set_zlim((0, 1))
-        ax.grid(False)
 
     return output
 
