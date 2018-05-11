@@ -8,7 +8,6 @@ import numpy as np
 
 
 class Scenario(object):
-
     def __init__(self, name):
         self.name = name
 
@@ -21,9 +20,9 @@ class Scenario(object):
     def __repr__(self):
         return '%s "%s"' % (self.__class__.__name__, self.name)
 
-class ParameterScenario(Scenario):
 
-    def __init__(self, name, scenario_values=None, **kwargs):
+class ParameterScenario(Scenario):
+    def __init__(self, name, scenario_values=None):
         """
         Given some data that describes a parameter scenario, creates the corresponding parameterSet
         which can then be combined with a ParameterSet when running a model.
@@ -74,11 +73,11 @@ class ParameterScenario(Scenario):
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
-                original_y_end = par.interpolate(np.array([max(overwrite['t'])+1e-5]), pop_label)
+                original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
                 if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
-                    par.t[pop_label] = np.array([settings.sim_start,settings.sim_end])
-                    par.y[pop_label] = par.y[pop_label]*np.ones(par.t[pop_label].shape)
+                    par.t[pop_label] = np.array([settings.sim_start, settings.sim_end])
+                    par.y[pop_label] = par.y[pop_label] * np.ones(par.t[pop_label].shape)
 
                 if 'smooth_onset' not in overwrite:
                     overwrite['smooth_onset'] = 1e-5
@@ -87,7 +86,8 @@ class ParameterScenario(Scenario):
                     onset = np.zeros((len(overwrite['y']),))
                     onset[0] = overwrite['smooth_onset']
                 else:
-                    assert len(overwrite['smooth_onset']) == len(overwrite['y']), 'Smooth onset must be either a scalar or an array with length matching y-values'
+                    assert len(overwrite['smooth_onset']) == len(overwrite['y']), \
+                        'Smooth onset must be either a scalar or an array with length matching y-values'
                     onset = overwrite['smooth_onset']
 
                 # Now, insert all of the program overwrites
@@ -97,9 +97,10 @@ class ParameterScenario(Scenario):
                     if onset[i] > 0:
                         t = overwrite['t'][i] - onset[i]
                         if i == 0:
-                            y = par.interpolate(np.array([t]), pop_label) # Interpolation does not rescale, so don't worry about it here
+                            # Interpolation does not rescale, so don't worry about it here
+                            y = par.interpolate(np.array([t]), pop_label)
                         else:
-                            y = overwrite['y'][i-1]
+                            y = overwrite['y'][i - 1]
                         par.insert_value_pair(t, y, pop_label)
 
                         # Remove any intermediate values which are now smoothed via interpolation
@@ -108,12 +109,11 @@ class ParameterScenario(Scenario):
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
                     par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)
 
-            # Add an extra point
-            par.insert_value_pair(overwrite['t'][i] + 1e-5, original_y_end, pop_label)
+                # Add an extra point
+                par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
 
             new_parset.name = self.name + '_' + parset.name
             return new_parset
-
 
 # class BudgetScenario(Scenario):
 #
@@ -159,5 +159,3 @@ class ParameterScenario(Scenario):
 #         progset, options = super(CoverageScenario, self).get_progset(progset, options)
 #         options['alloc_is_coverage'] = True
 #         return progset, options
-
-

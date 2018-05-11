@@ -5,11 +5,11 @@ Version:
 import atomica.ui as aui
 import os
 
-# TODO: Wrap up what the FE is likely to use into either Project or Result level method calls, rather than using functions.
-from atomica.plotting import PlotData, plotSeries, plotBars
+# TODO: Wrap up what FE is likely to use into either Project or Result level method calls, rather than using functions.
+from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
-# test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -92,31 +92,31 @@ if "makeplots" in torun:
     
     # Plot population decomposition.
     d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
-    plotSeries(d,plot_type="stacked")
+    plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
         d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
-        plotBars(d,outer="results",stack_pops=[plot_pop])
+        plot_bars(d, outer="results", stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
         d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
-        plotBars(d,stack_outputs=[list(grouped_deaths.keys())])
+        plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
         d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
-        plotSeries(d,plot_type='stacked',axis='outputs')
+        plot_series(d, plot_type='stacked', axis='outputs')
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
         d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
-        plotSeries(d,plot_type='stacked',axis='outputs')
+        plot_series(d, plot_type='stacked', axis='outputs')
 
 
     # Plot aggregate flows
     d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
-    plotSeries(d,axis="pops")
+    plot_series(d, axis="pops")
 
 
 if "export" in torun:
@@ -154,7 +154,7 @@ if "manualcalibrate" in torun:
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
     d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
-    plotSeries(d, axis="results", data=P.data)
+    plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
@@ -171,7 +171,7 @@ if "autocalibrate" in torun:
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-    plotSeries(d, axis='results', data=P.data)
+    plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     scvalues = dict()
@@ -203,10 +203,10 @@ if "parameterscenario" in torun:
     P.run_scenario(scenario="varying_infections", parset="auto", result_name="scen2")
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[0], pops=[scen_pop])
-    plotSeries(d, axis="results")
+    plot_series(d, axis="results")
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[-1], pops=[scen_pop])
-    plotSeries(d, axis="results")
+    plot_series(d, axis="results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
