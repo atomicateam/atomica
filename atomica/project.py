@@ -40,16 +40,10 @@ from atomica.project_settings import ProjectSettings
 from atomica.scenarios import ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-<<<<<<< HEAD
-from atomica.workbook_export import writeWorkbook, makeInstructions
-from atomica.workbook_import import readWorkbook, loadprogramspreadsheet
+from atomica.workbook_export import write_workbook, make_instructions
+from atomica.workbook_import import read_workbook, loadprogramspreadsheet
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
-from atomica.workbook_import import readWorkbook
-=======
-from atomica.workbook_export import write_workbook, make_instructions
-from atomica.workbook_import import read_workbook
->>>>>>> develop
 
 
 # from numpy.random import seed, randint
