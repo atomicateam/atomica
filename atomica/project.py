@@ -41,7 +41,7 @@ from atomica.scenarios import ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.workbook_export import write_workbook, make_instructions
-from atomica.workbook_import import read_workbook, loadprogramspreadsheet
+from atomica.workbook_import import read_workbook, load_progbook
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
 
@@ -176,7 +176,7 @@ class Project(object):
         
         ## Load spreadsheet and update metadata
         full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        progdata = loadprogramspreadsheet(filename=full_path)
+        progdata = load_progbook(filename=full_path)
         
         # Check if the populations match - if not, raise an error, if so, add the data
         if set(progdata['pops']) != set(self.popnames):
