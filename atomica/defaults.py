@@ -34,7 +34,7 @@ def default_project(which='sir', **kwargs):
     if which == 'sir':
         logger.info("Creating an SIR epidemic project...")
 
-        F = ProjectFramework(name=which, frameworkfilename=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
+        F = ProjectFramework(name=which, filepath=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
 
     else:
