@@ -3,14 +3,26 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.6.0 (2018-04-23): Establishing Complex Workflow
+## 0.6.1 (2018-05-11): High-order Program Processes
+
+Features
+- Without settling on a programs structure yet, wrapper processes are established.
+  These include budget scenarios and optimizations.
+
+Edits
+- PEP8 compliance worked towards in the majority of the codebase.
+
+## 0.6.0 (2018-04-27): Establishing Complex Workflow
 
 Features
 - A new file is set up to port and test workflow from Optima TB: test_tb.py
-- Custom databook pages enabled in the framework file.
+- Custom databook pages enabled in the framework file, plus a bonus hidden metadata page.
+- Time vector management updated, with ProjectSettings in charge of simulation time vectors.
+  WorkbookInstructions controls data time ranges.
+- Calibration, autocalibration and parameter scenarios established.
 
 Edits
-- Stylistic changes applied, primarily taking method/function names to snake case.
+- Stylistic changes in the process of being applied, primarily taking method/function names to snake case.
 
 ## 0.5.1 (2018-04-11): Improved Model Construction
 
@@ -63,7 +75,7 @@ Features
 - Templated out a `ProjectData` structure to store model values for a corresponding `ProjectFramework` structure.
 
 Edits
-- Major changes applied, with `FrameworkSettings` and `DatabookSettings` now deriving from new class `BaseStructuralSettings`.
+- Major changes applied, with `FrameworkSettings` and `DataSettings` now deriving from new class `BaseStructuralSettings`.
   Many features from previous versions have been upturned during this refactoring, such as the GUI process.
 - Consolidated workbook IO into file: workbook.py
 - Classes have been introduced as key wrappers to denote table type and content type during workbook construction.
@@ -82,10 +94,10 @@ Edits
 ## 0.3.2 (2018-01-16): Initial Databook Construction
 
 Features
-- Templated `Project.createDatabook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
+- Templated `Project.create_databook()` method to construct an Excel databook spreadsheet from the current loaded `Project.framework`.
 - Coded `DatabookInstructions` class to specify how many of each item, e.g. population and program, to produce in a databook.
-- Hard-coded the keys for the databook file via a `DatabookSettings` class.
-  Set up a configuration-loading decorator and class method for `DatabookSettings`.
+- Hard-coded the keys for the databook file via a `DataSettings` class.
+  Set up a configuration-loading decorator and class method for `DataSettings`.
   This loading is done upon initial importing.
 - Created sub-GUI class named `GUIDatabookCreation` to generate databooks from project frameworks.
   The user can select a number of databook items to create, which updates a GUI-attached `DatabookInstructions` object on the fly.
@@ -93,7 +105,7 @@ Features
 Edits
 - Overhauled semantics to distinguish between a `ProjectFramework` 'item' and its 'item type' detailed in `FrameworkSettings`.
 - Moved configuration-loading functionality into separate file: parser.py
-  This allows it to be used by both `FrameworkSettings` and `DatabookSettings`.
+  This allows it to be used by both `FrameworkSettings` and `DataSettings`.
 
 ## 0.3.1 (2018-01-11): Initial Framework Loading
 
@@ -168,7 +180,7 @@ Features
 - Created logging configuration file: logging.ini
 - Generated a logger named 'atomica' that prints debug statements to file.
   The file path can be varied with system setting variable `LOGGER_DEBUG_OUTPUT_PATH`.
-- Updated `print` statements in `logUsage()` function as `logger.debug` calls.
+- Updated `print` statements in `log_usage()` function as `logger.debug` calls.
 
 Edits
 - Removed date-inclusion system variable as that is currently in the domain of logging.ini.
@@ -188,8 +200,8 @@ Features
 - Fleshed out `Portfolio` and `Project` with a `name` attribute.
   Methods `setName` and `getName` included. 
 - Created system.py file for module-wide 'static' variables and functions.
-- Coded class decorator `applyToAllMethods()` to apply a function across all methods of a class.
-- Coded function decorator `logUsage()` to timestamp usage and measure elapsed time.
+- Coded class decorator `apply_to_all_methods()` to apply a function across all methods of a class.
+- Coded function decorator `log_usage()` to timestamp usage and measure elapsed time.
 - Coded class `SystemSettings` and introduced flag for including date in timestamps.
 
 ## 0.1.0 (2017-10-17): Module Initialization
