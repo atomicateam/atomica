@@ -35,7 +35,6 @@ def default_project(which='sir', do_run=True, **kwargs):
         logger.info("Creating an SIR epidemic project...")
 
         F = ProjectFramework(name=which, filepath=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
-<<<<<<< HEAD
         P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
 
     elif which=='tb':
@@ -43,9 +42,6 @@ def default_project(which='sir', do_run=True, **kwargs):
         
         F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
-=======
-        P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx")
->>>>>>> develop
 
     else:
         raise AtomicaException("Default project type '{0}' not understood; choices are 'sir', 'tb'.".format(which))
