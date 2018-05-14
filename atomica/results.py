@@ -1,27 +1,24 @@
-from atomica.system import AtomicaException, logger
-from atomica.structure_settings import FrameworkSettings as FS
-from sciris.core import uuid, odict, defaultrepr, objrepr
-#import optima_tb.settings as project_settings
-
 import numpy as np
-from math import ceil, floor
-from copy import deepcopy as dcp
-from collections import defaultdict
 import pandas as pd
+from sciris.core import uuid, objrepr
+
+
+# import optima_tb.settings as project_settings
 
 class Result(object):
-
     # A Result stores a single model run
-    def __init__(self, model,parset,name):
+    def __init__(self, model, parset, name):
         self.uuid = uuid()
         if name is None:
             self.name = parset.name
         else:
             self.name = name
-        self.model = model # The Result constructor is called in model.run_model and the Model is no longer returned, so this should be the only reference to that instance so no need to dcp
+        # The Result constructor is called in model.run_model and the Model is no longer returned.
+        # The following should be the only reference to that instance so no need to dcp.
+        self.model = model
         self.parset_name = parset.name
         self.parset_id = parset.uid
-        self.pop_names = [x.name for x in self.model.pops] # This gets frequently used, so save it as an actual output
+        self.pop_names = [x.name for x in self.model.pops]  # This gets frequently used, so save it as an actual output
 
     # Property methods trade off storage space against computation time. The property methods below
     # are cheap to compute or used less frequently, are read-only, and can always be changed to actual
@@ -37,7 +34,7 @@ class Result(object):
     @property
     def indices_observed_data(self):
         return np.where(self.t % 1.0 == 0)
-    
+
     @property
     def t_observed_data(self):
         return self.t[self.indices_observed_data]
@@ -45,19 +42,19 @@ class Result(object):
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have
     # different contents
-    def comp_names(self,pop_name):
+    def comp_names(self, pop_name):
         # Return compartment names for a given population
         return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
 
-    def charac_names(self,pop_name):
+    def charac_names(self, pop_name):
         # Return characteristic names for a given population
         return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
-    def par_names(self,pop_name):
+    def par_names(self, pop_name):
         # Return parteristic names for a given population
         return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
-    def link_names(self,pop_name):
+    def link_names(self, pop_name):
         # Return link names for a given population
         names = set()
         pop = self.model.get_pop(pop_name)
@@ -66,7 +63,7 @@ class Result(object):
         return sorted(names)
 
     def __repr__(self):
-        ''' Print out useful information when called'''
+        """ Print out useful information when called"""
         output = '====================================================================================\n'
         output += objrepr(self)
         return output
@@ -75,26 +72,26 @@ class Result(object):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self, filename=None,):
-        '''Convert output to a single DataFrame and optionally write it to a file'''
+    def export(self, filename=None, ):
+        """Convert output to a single DataFrame and optionally write it to a file"""
 
         # Assemble the outputs into a dict
         d = dict()
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('compartments',pop.name,comp.name)] = comp.vals
+                d[('compartments', pop.name, comp.name)] = comp.vals
             for charac in pop.characs:
                 if charac.vals is not None:
-                    d[('characteristics',pop.name,charac.name)] = charac.vals
+                    d[('characteristics', pop.name, charac.name)] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('parameters',pop.name,par.name)] = par.vals
+                    d[('parameters', pop.name, par.name)] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                key = ('flow rates',pop.name,link.name)
+                key = ('flow rates', pop.name, link.name)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
-                d[key] += link.vals/self.dt
+                d[key] += link.vals / self.dt
 
         # Create DataFrame from dict
         df = pd.DataFrame(d, index=self.t)
@@ -106,17 +103,16 @@ class Result(object):
 
         return df
 
-
-#"""
-#Defines the classes for storing results.
-#Version: 2018mar23
-#"""
+# """
+# Defines the classes for storing results.
+# Version: 2018mar23
+# """
 #
-#from atomica.system import AtomicaException
-#from sciris.core import uuid, odict, today, defaultrepr # Printing/file utilities
-#from numbers import Number
+# from atomica.system import AtomicaException
+# from sciris.core import uuid, odict, today, defaultrepr # Printing/file utilities
+# from numbers import Number
 
-#class Result(object):
+# class Result(object):
 #    ''' Class to hold individual results '''
 #    def __init__(self, label=None):
 #        self.label = label # label of this parameter
@@ -127,9 +123,11 @@ class Result(object):
 #        return output
 #
 #
-#class Resultset(object):
+# class Resultset(object):
 #    ''' Structure to hold results '''
-#    def __init__(self, raw=None, label=None, pars=None, simpars=None, project=None, settings=None, data=None, parsetlabel=None, progsetlabel=None, budget=None, coverage=None, budgetyears=None, domake=True, quantiles=None, keepraw=False, verbose=2, doround=True):
+#    def __init__(self, raw=None, label=None, pars=None, simpars=None, project=None, settings=None, data=None,
+# parsetlabel=None, progsetlabel=None, budget=None, coverage=None, budgetyears=None, domake=True, quantiles=None,
+# keepraw=False, verbose=2, doround=True):
 #        # Basic info
 #        self.created = today()
 #        self.label = label if label else 'default' # May be blank if automatically generated, but can be overwritten
@@ -137,14 +135,15 @@ class Result(object):
 #        self.other = odict() # For storing other results -- not available in the interface
 #
 #
-#class Multiresultset(Resultset):
+# class Multiresultset(Resultset):
 #    ''' Structure for holding multiple kinds of results, e.g. from an optimization, or scenarios '''
 #    def __init__(self, resultsetlist=None, label=None):
 #        # Basic info
 #        self.label = label if label else 'default'
 #        self.created = today()
 #        self.nresultsets = len(resultsetlist)
-#        self.resultsetlabels = [result.label for result in resultsetlist] # Pull the labels of the constituent resultsets
+#        self.resultsetlabels = [result.label for result in resultsetlist]
+#  Pull the labels of the constituent resultsets
 #        self.keys = []
 #        self.budgets = odict()
 #        self.coverages = odict()
@@ -152,12 +151,13 @@ class Result(object):
 #        self.setup = odict() # For storing the setup attributes (e.g. tvec)
 #        if type(resultsetlist)==list: pass # It's already a list, carry on
 #        elif type(resultsetlist) in [odict, dict]: resultsetlist = resultsetlist.values() # Convert from odict to list
-#        elif resultsetlist is None: raise AtomicaException('To generate multi-results, you must feed in a list of result sets: none provided')
+#        elif resultsetlist is None: raise AtomicaException('To generate multi-results,
+# you must feed in a list of result sets: none provided')
 #        else: raise AtomicaException('Resultsetlist type "%s" not understood' % str(type(resultsetlist)))
 #
 #
 #
-#def getresults(project=None, pointer=None, die=True):
+# def getresults(project=None, pointer=None, die=True):
 #    '''
 #    Function for returning the results associated with something. 'pointer' can eiher be a UID,
 #    a string representation of the UID, the actual pointer to the results, or a function to return the
@@ -179,12 +179,14 @@ class Result(object):
 #        return None 
 #    
 #    # Normal usage, e.g. getresults(P, 3) will retrieve the 3rd set of results
-#    elif isinstance(pointer, (str, unicode, Number, type(uuid()))): # CK: warning, should replace with sciris.utils.checktype()
+#    elif isinstance(pointer, (str, unicode, Number, type(uuid()))): # CK: warning,
+# should replace with sciris.utils.checktype()
 #        if project is not None:
 #            resultlabels = [res.label for res in project.results.values()]
 #            resultuids = [str(res.uid) for res in project.results.values()]
 #        else: 
-#            if die: raise AtomicaException('To get results using a key or index, getresults() must be given the project')
+#            if die: raise AtomicaException('To get results using a key or index,
+# getresults() must be given the project')
 #            else: return None
 #        try: # Try using pointer as key -- works if label
 #            results = project.results[pointer]
@@ -197,7 +199,8 @@ class Result(object):
 #                results = project.results[resultuids.index(str(pointer))]
 #                return results
 #            else: # Give up
-#                validchoices = ['#%i: label="%s", uid=%s' % (i, resultlabels[i], resultuids[i]) for i in range(len(resultlabels))]
+#                validchoices = ['#%i: label="%s", uid=%s' % (i, resultlabels[i], resultuids[i])
+# for i in range(len(resultlabels))]
 #                errormsg = 'Could not get result "%s": choices are:\n%s' % (pointer, '\n'.join(validchoices))
 #                if die: raise AtomicaException(errormsg)
 #                else: return None
@@ -218,5 +221,4 @@ class Result(object):
 #    else: 
 #        if die: raise AtomicaException('Could not retrieve results \n"%s"\n from project \n"%s"' % (pointer, project))
 #        else: return None
-#        
- 
+#

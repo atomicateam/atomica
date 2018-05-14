@@ -40,11 +40,16 @@ from atomica.project_settings import ProjectSettings
 from atomica.scenarios import ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
+<<<<<<< HEAD
 from atomica.workbook_export import writeWorkbook, makeInstructions
 from atomica.workbook_import import readWorkbook, loadprogramspreadsheet
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
 from atomica.workbook_import import readWorkbook
+=======
+from atomica.workbook_export import write_workbook, make_instructions
+from atomica.workbook_import import read_workbook
+>>>>>>> develop
 
 
 # from numpy.random import seed, randint
@@ -117,20 +122,20 @@ class Project(object):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
-        databook_instructions, _ = makeInstructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
+        databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if num_pops is not None:
-            databook_instructions.updateNumberOfItems(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
+            databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
         if num_progs is not None:
-            databook_instructions.updateNumberOfItems(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
-        databook_instructions.updateTimeVector(data_start=data_start, data_end=data_end, data_dt=data_dt)
-        writeWorkbook(workbook_path=databook_path, framework=self.framework, data=self.data,
-                      instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+            databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
+        databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)
+        write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
+                       instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """
         full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = readWorkbook(workbook_path=full_path, framework=self.framework, data=self.data,
-                                workbook_type=SS.STRUCTURE_KEY_DATA)
+        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=self.data,
+                                 workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookloaddate = today()  # Update date when spreadsheet was last loaded
         self.modified = today()
@@ -152,7 +157,7 @@ class Project(object):
             self.run_sim(parset="default")
 
         if metadata is not None and "data_start" in metadata:
-            self.settings.updateTimeVector(start=metadata["data_start"])  # Align sim start year with data start year.
+            self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
 
         if make_default_parset:
             self.make_parset(name="default")
@@ -168,7 +173,7 @@ class Project(object):
         # TODO: Develop some flag or check for data 'emptiness'.
         #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
         self.set_parset(parset_key=name, parset_object=ParameterSet(name=name), overwrite=overwrite)
-        self.parsets[name].makePars(self.data)
+        self.parsets[name].make_pars(self.data)
         return self.parsets[name]
 
 
@@ -285,6 +290,11 @@ class Project(object):
         self.set_structure(structure_key=parset_key, structure_object=parset_object, structure_list=self.parsets,
                            structure_string="parameter set", overwrite=overwrite)
 
+    def set_progset(self, progset_key, progset_object, overwrite=False):
+        """ 'Set' method for program sets to prevent overwriting unless explicit. """
+        self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets,
+                           structure_string="program set", overwrite=overwrite)
+
     def set_scenario(self, scenario_key, scenario_object, overwrite=False):
         """ 'Set' method for scenarios to prevent overwriting unless explicit. """
         self.set_structure(structure_key=scenario_key, structure_object=scenario_object, structure_list=self.scens,
@@ -327,6 +337,10 @@ class Project(object):
     def get_parset(self, parset):
         """ Allows for parsets to be retrieved from an object or string handle. """
         return self.get_structure(structure=parset, structure_list=self.parsets, structure_string="parameter set")
+
+    def get_progset(self, progset):
+        """ Allows for progsets to be retrieved from an object or string handle. """
+        return self.get_structure(structure=progset, structure_list=self.progsets, structure_string="program set")
 
     def get_scenario(self, scenario):
         """ Allows for scenarios to be retrieved from an object or string handle. """
@@ -527,22 +541,25 @@ class Project(object):
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """
-        self.settings.updateTimeVector(start=sim_start, end=sim_end, dt=sim_dt)
+        self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, options=None, store_results=True, result_type=None, result_name=None):
-        """ Run model using a selected parset and store/return results. """
+    def run_sim(self, parset=None, progset=None, progset_instructions=None,
+                store_results=True, result_type=None, result_name=None):
+        """
+        Run model using a selected parset and store/return results.
+        An optional program set and use instructions can be passed in to simulate budget-based interventions.
+        """
 
         parset = self.get_parset(parset=parset)
+        if progset is not None:     # Do not grab a default program set in case one does not exist.
+            progset = self.get_progset(progset=progset)
 
-        # if progset is None:
-        #    try: progset = self.progsets[progset_name]
-        #    except: logger.info("Initiating a standard run of project '{0}' "
-        #                        "(i.e. without the influence of programs).".format(self.name))
-        # if progset is not None:
-        #    if options is None:
-        #        logger.info("Program set '{0}' will be ignored while running project '{1}' "
-        #                    "due to no options specified.".format(progset.name, self.name))
-        #        progset = None
+        if progset is None:
+            logger.info("Initiating a standard run of project '{0}' "
+                        "(i.e. without the influence of programs).".format(self.name))
+        elif progset_instructions is None:
+            logger.info("Program set '{0}' will be ignored while running project '{1}' "
+                        "due to the absence of program set instructions.".format(progset.name, self.name))
 
         if result_name is None:
             base_name = "parset_" + parset.name
@@ -551,7 +568,7 @@ class Project(object):
             if result_type is not None:
                 base_name = result_type + "_" + base_name
 
-            k = 1  # consider making this 2?
+            k = 1
             result_name = base_name
             while result_name in self.results:
                 result_name = base_name + "_" + str(k)
@@ -559,7 +576,7 @@ class Project(object):
 
         tm = tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
-                           options=options, name=result_name)
+                           progset_instructions=progset_instructions, name=result_name)
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
@@ -619,13 +636,14 @@ class Project(object):
     #        ''' Function to get the outcome for a particular sim and objective'''
     #        pass
 
-    def run_scenario(self, scenario, parset=None, progset=None, options=None, store_results=True, result_name=None):
+    def run_scenario(self, scenario, parset=None, progset=None, progset_instructions=None,
+                     store_results=True, result_name=None):
         """ Run a scenario. """
         parset = self.get_parset(parset)
         scenario = self.get_scenario(scenario)
         scenario_parset = scenario.get_parset(parset, self.settings)
-        scenario_progset, scenario_options = scenario.get_progset(progset, self.settings, options)
-        return self.run_sim(parset=scenario_parset, progset=scenario_progset, options=scenario_options,
+        scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
+        return self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
                             store_results=store_results, result_type="scenario", result_name=result_name)
 
     #    def optimize(self):

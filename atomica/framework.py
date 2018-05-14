@@ -10,8 +10,8 @@ from atomica.parser_function import FunctionParser
 from atomica.structure import CoreProjectStructure, get_quantity_type_list
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
-from atomica.workbook_export import makeInstructions, writeWorkbook
-from atomica.workbook_import import readWorkbook
+from atomica.workbook_export import make_instructions, write_workbook
+from atomica.workbook_import import read_workbook
 
 
 @apply_to_all_methods(log_usage)
@@ -47,7 +47,7 @@ class ProjectFramework(CoreProjectStructure):
         for item_key in self.specs[FS.KEY_PARAMETER]:
             if not self.get_spec_value(item_key, FS.TERM_FUNCTION) is None:
                 self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER].append(item_key)
-                function_stack, dependencies = self.parser.produceStack(
+                function_stack, dependencies = self.parser.produce_stack(
                     self.get_spec_value(item_key, FS.TERM_FUNCTION).replace(" ", ""))
                 self.set_spec_value(item_key, attribute=FS.TERM_FUNCTION, value=function_stack)
                 self.set_spec_value(item_key, attribute="dependencies", value=dependencies)
@@ -148,7 +148,13 @@ class ProjectFramework(CoreProjectStructure):
                     raise AtomicaException("Parameter '{0}' is associated with transitions and is expressed as "
                                            "a custom function of other parameters. "
                                            "A format must be specified for it in a framework file.".format(item_key))
+            initial_comps = {}
             for link in links:
+                # Avoid discussions about how to disaggregate parameters with multiple links from the same compartment.
+                if link[0] in initial_comps:
+                    raise AtomicaException("Parameter '{0}' cannot be associated with two or more transitions "
+                                           "from the same compartment '{1}'.".format(item_key, link[0]))
+                initial_comps[link[0]] = True
                 # Validate parameter-related transitions with source/sink compartments.
                 if self.get_spec_value(link[0], "is_sink"):
                     raise AtomicaException("Parameter '{0}' cannot be associated with a transition from "
@@ -197,26 +203,26 @@ class ProjectFramework(CoreProjectStructure):
     @classmethod
     def create_template(cls, path, num_comps=None, num_characs=None, num_pars=None, num_datapages=None):
         """ Convenience class method for template creation in the absence of an instance. """
-        framework_instructions, _ = makeInstructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        framework_instructions, _ = make_instructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         if num_comps is not None:  # Set the number of compartments.
-            framework_instructions.updateNumberOfItems(FS.KEY_COMPARTMENT, num_comps)
+            framework_instructions.update_number_of_items(FS.KEY_COMPARTMENT, num_comps)
         if num_characs is not None:  # Set the number of characteristics.
-            framework_instructions.updateNumberOfItems(FS.KEY_CHARACTERISTIC, num_characs)
+            framework_instructions.update_number_of_items(FS.KEY_CHARACTERISTIC, num_characs)
         if num_pars is not None:  # Set the number of parameters.
-            framework_instructions.updateNumberOfItems(FS.KEY_PARAMETER, num_pars)
+            framework_instructions.update_number_of_items(FS.KEY_PARAMETER, num_pars)
         if num_datapages is not None:  # Set the number of custom databook pages.
-            framework_instructions.updateNumberOfItems(FS.KEY_DATAPAGE, num_datapages)
+            framework_instructions.update_number_of_items(FS.KEY_DATAPAGE, num_datapages)
 
-        writeWorkbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        write_workbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 
     def write_to_file(self, filename, data=None, instructions=None):
         """ Export a framework to file. """
-        # TODO: modify writeWorkbook so it can write framework specs to an excel file???
+        # TODO: modify write_workbook so it can write framework specs to an excel file???
         pass
 
     def read_from_file(self, filepath=None):
         """ Import a framework from file. """
-        readWorkbook(workbook_path=filepath, framework=self,
-                     workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        read_workbook(workbook_path=filepath, framework=self,
+                      workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         self.workbook_load_date = today()
         self.modified = today()

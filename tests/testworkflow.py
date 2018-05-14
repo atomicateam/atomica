@@ -5,8 +5,8 @@ Version:
 import atomica.ui as aui
 import os
 
-# TODO: Wrap up what the FE is likely to use into either Project or Result level method calls, rather than using functions.
-from atomica.plotting import PlotData, plotSeries, plotBars
+# TODO: Wrap up what FE is likely to use into either Project or Result level method calls, rather than using functions.
+from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
 #test = "tb"
@@ -92,8 +92,8 @@ if "makeplots" in torun:
         test_vars = ["sus","inf","rec","dead","ch_all","foi"]
         test_pop = "adults"
         decomp = ["sus","inf","rec","dead"]
-        deaths = ["inf-dead","rec-dead","sus-dead"]
-        grouped_deaths = {'inf':['inf-dead:flow'],'rec':['rec-dead:flow'],'sus':['sus-dead:flow']}
+        deaths = ["sus:dead","inf:dead","rec:dead"]
+        grouped_deaths = {'inf':['inf:dead'],'sus':['sus:dead'],'rec':['rec:dead']} # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
         plot_pop = [test_pop]
     if test == "tb":
         test_vars = ["sus","vac","spdu","alive","b_rate"]
@@ -110,12 +110,18 @@ if "makeplots" in torun:
     for var in test_vars: P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
+<<<<<<< HEAD
     d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
     plotSeries(d,plot_type="stacked")
+=======
+    d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
+    plot_series(d, plot_type="stacked")
+>>>>>>> develop
 
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
+<<<<<<< HEAD
         d = PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         plotBars(d,outer="results",stack_pops=[plot_pop])
 
@@ -131,6 +137,28 @@ if "makeplots" in torun:
     # Plot aggregate flows.
 #    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
 #    plotSeries(d,axis="pops")
+=======
+        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        plot_bars(d, outer="results", stack_pops=[plot_pop])
+
+        # Plot bars for deaths, aggregated by pop, stacked by strain
+        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
+
+        # Plot total death flow over time
+        # Plot death flow rate decomposition over all time
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        plot_series(d, plot_type='stacked', axis='outputs')
+    elif test == 'sir':
+        # Plot disaggregated flow into deaths over time
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        plot_series(d, plot_type='stacked', axis='outputs')
+
+
+    # Plot aggregate flows
+    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    plot_series(d, axis="pops")
+>>>>>>> develop
 
 
 if "export" in torun:
@@ -167,8 +195,13 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
+<<<<<<< HEAD
     d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plotSeries(d, axis="results", data=P.data)
+=======
+    d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    plot_series(d, axis="results", data=P.data)
+>>>>>>> develop
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
@@ -180,11 +213,12 @@ if "autocalibrate" in torun:
         # New name argument set to old name to do in-place calibration.
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
     if test == "tb":
-        # Shortcut for calibration inputs.
-        P.calibrate(parset="auto", new_name="auto", adjustables=["foi"], measurables=["ac_inf"], max_time=10)
+        # Shortcut for calibration measurables.
+        adjustables = [("foi", "15-64", 0.0, 3.0)]
+        P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-    plotSeries(d, axis='results', data=P.data)
+    plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     scvalues = dict()
@@ -216,10 +250,10 @@ if "parameterscenario" in torun:
     P.run_scenario(scenario="varying_infections", parset="auto", result_name="scen2")
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[0], pops=[scen_pop])
-    plotSeries(d, axis="results")
+    plot_series(d, axis="results")
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[-1], pops=[scen_pop])
-    plotSeries(d, axis="results")
+    plot_series(d, axis="results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

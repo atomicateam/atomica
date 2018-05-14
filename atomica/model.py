@@ -16,7 +16,9 @@ import matplotlib.pyplot as plt
 # Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
 parser = FunctionParser(debug=False)
 
-model_settings = dict()  # TODO - Change name to 'settings' and rename project settings accordingly
+# TODO: Consider renaming and decide what to do with project settings as an object.
+#       Maybe have Project methods for changing sim time ranges act on these model settings.
+model_settings = dict()
 model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
@@ -29,7 +31,7 @@ class Variable(object):
     Note: All non-dependent parameters correspond to links.
     """
 
-    def __init__(self, name='default'):
+    def __init__(self, pop, name='default'):
         self.uid = uuid()
         self.name = name
         self.t = None
@@ -37,6 +39,7 @@ class Variable(object):
         if 'vals' not in dir(self):  # characteristics already have a vals method
             self.vals = None
         self.units = 'unknown'  # 'unknown' units are distinct to dimensionless units, that have value ''
+        self.pop = pop  # Reference back to the Population containing this object
 
     def preallocate(self, tvec, dt):
         self.t = tvec
@@ -61,6 +64,12 @@ class Variable(object):
         # that depends on Links cannot itself be a dependency, will be enforced
         return
 
+    def unlink(self):
+        self.pop = self.pop.uid
+
+    def relink(self, objs):
+        self.pop = objs[self.pop]
+
     def __repr__(self):
         return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.uid)
 
@@ -68,8 +77,8 @@ class Variable(object):
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
 
-    def __init__(self, name='default'):
-        Variable.__init__(self, name=name)
+    def __init__(self, pop, name):
+        Variable.__init__(self, pop=pop, name=name)
         self.units = 'people'
         self.tag_birth = False  # Tag for whether this compartment contains unborn people.
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
@@ -80,10 +89,12 @@ class Compartment(Variable):
         self.inlinks = []
 
     def unlink(self):
+        Variable.unlink(self)
         self.outlinks = [x.uid for x in self.outlinks]
         self.inlinks = [x.uid for x in self.inlinks]
 
     def relink(self, objs):
+        Variable.relink(self, objs)
         self.outlinks = [objs[x] for x in self.outlinks]
         self.inlinks = [objs[x] for x in self.inlinks]
 
@@ -141,11 +152,11 @@ class Compartment(Variable):
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
 
-    def __init__(self, name='default'):
+    def __init__(self, pop, name):
         # includes is a list of Compartments, whose values are summed
         # the denominator is another Characteristic that normalizes this one
         # All passed by reference so minimal performance impact
-        Variable.__init__(self, name=name)
+        Variable.__init__(self, pop=pop, name=name)
         self.units = 'people'
         self.includes = []
         self.denominator = None
@@ -160,6 +171,15 @@ class Characteristic(Variable):
         self.t = tvec
         self.dt = dt
         self.internal_vals = np.ones(tvec.shape) * np.nan
+
+    def get_included_comps(self):
+        includes = []
+        for inc in self.includes:
+            if isinstance(inc, Characteristic):
+                includes += inc.get_included_comps()
+            else:
+                includes.append(inc)
+        return includes
 
     @property
     def vals(self):
@@ -183,25 +203,31 @@ class Characteristic(Variable):
     def set_dependent(self):
         self.dependency = True
 
+        for inc in self.includes:
+            inc.set_dependent()
+
+        if self.denominator is not None:
+            self.denominator.set_dependent()
+
     def unlink(self):
+        Variable.unlink(self)
         self.includes = [x.uid for x in self.includes]
         self.denominator = self.denominator.uid if self.denominator is not None else None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
+        Variable.relink(self, objs)
         self.includes = [objs[x] for x in self.includes]
         self.denominator = objs[self.denominator] if self.denominator is not None else None
 
     def add_include(self, x):
         assert isinstance(x, Compartment) or isinstance(x, Characteristic)
         self.includes.append(x)
-        x.set_dependent()
 
     def add_denom(self, x):
         assert isinstance(x, Compartment) or isinstance(x, Characteristic)
         self.denominator = x
-        x.set_dependent()
         self.units = ''
 
     def update(self, ti):
@@ -227,8 +253,8 @@ class Parameter(Variable):
     # and multiple Link instances that depend on the same Parameter instance
     #
     #  *** Parameter values are always annualized ***
-    def __init__(self, name='default'):
-        Variable.__init__(self, name=name)
+    def __init__(self, pop, name):
+        Variable.__init__(self, pop=pop, name=name)
         self.vals = None
         self.deps = None
         self.f_stack = None
@@ -250,21 +276,28 @@ class Parameter(Variable):
     def set_dependent(self):
         self.dependency = True
         if self.deps is not None:  # Make all dependencies dependent, this will propagate through dependent parameters.
-            for dep in self.deps:
-                if isinstance(dep, Link):
-                    raise AtomicaException("A Parameter that depends on transition flow rates cannot be a dependency, "
-                                           "it must be output only.")
-                dep.set_dependent()
+            for deps in self.deps.values():
+                for dep in deps:
+                    if isinstance(dep, Link):
+                        raise AtomicaException("A Parameter that depends on transition flow rates "
+                                               "cannot be a dependency, it must be output only.")
+                    dep.set_dependent()
 
     def unlink(self):
+        Variable.unlink(self)
         self.links = [x.uid for x in self.links]
-        self.deps = [x.uid for x in self.deps] if self.deps is not None else None
+        if self.deps is not None:
+            for dep_name in self.deps:
+                self.deps[dep_name] = [x.uid for x in self.deps[dep_name]]
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
+        Variable.relink(self, objs)
         self.links = [objs[x] for x in self.links]
-        self.deps = [objs[x] for x in self.deps] if self.deps is not None else None
+        if self.deps is not None:
+            for dep_name in self.deps:
+                self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
 
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
@@ -285,12 +318,14 @@ class Parameter(Variable):
             ti = np.array(ti)
 
         dep_vals = defaultdict(np.float64)
-        for dep in self.deps:
-            if isinstance(dep, Link):
-                dep_vals[dep.name] += dep.vals[[ti]] / dep.dt
-            else:
-                dep_vals[dep.name] += dep.vals[[ti]]
-        self.vals[ti] = parser.evaluateStack(stack=self.f_stack[0:], deps=dep_vals)  # self.f_stack[0:] makes a copy
+        for dep_name, deps in self.deps.items():
+            for dep in deps:
+                if isinstance(dep, Link):
+                    dep_vals[dep_name] += dep.vals[[ti]] / dep.dt
+                else:
+                    dep_vals[dep_name] += dep.vals[[ti]]
+
+        self.vals[ti] = parser.evaluate_stack(stack=self.f_stack[0:], deps=dep_vals)  # self.f_stack[0:] makes a copy
         self.vals[ti] *= self.scale_factor
 
     def source_popsize(self, ti):
@@ -322,16 +357,14 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, parameter, object_from, object_to, tag, is_transfer=False):
+    def __init__(self, pop, parameter, object_from, object_to, tag):
         # Note that the Link's name is the transition tag
-        Variable.__init__(self, name=tag)
+        Variable.__init__(self, pop=pop, name=tag)
         self.vals = None
-        self.tag = tag
         self.units = 'people'
 
         # Source parameter where unscaled link value is drawn from (a single parameter may have multiple links).
         self.parameter = parameter
-        self.parameter.dependency = True  # A transition parameter must be updated during integration
 
         self.source = object_from  # Compartment to remove people from
         self.dest = object_to  # Compartment to add people to
@@ -341,9 +374,8 @@ class Link(Variable):
         self.source.outlinks.append(self)
         self.dest.inlinks.append(self)
 
-        self.is_transfer = is_transfer  # A transfer connections compartments across populations
-
     def unlink(self):
+        Variable.unlink(self)
         self.parameter = self.parameter.uid
         self.source = self.source.uid
         self.dest = self.dest.uid
@@ -351,6 +383,7 @@ class Link(Variable):
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         # based on the UUID
+        Variable.relink(self, objs)
         self.parameter = objs[self.parameter]
         self.source = objs[self.source]
         self.dest = objs[self.dest]
@@ -449,6 +482,36 @@ class Population(object):
             return [self.par_lookup[name]]
         elif name in self.link_lookup:
             return self.link_lookup[name]
+        elif ':' in name:
+            # Link names in Atomica end in 'par_name:flow' so they are handled above
+            # This branch of the if statement is exclusively for compartment lookup
+            # Allowed syntax is
+            # 'source_name:' - All links going out from source
+            # ':dest_name' - All links going into destination
+            # 'source_name:dest_name' - All links from Source to Dest
+            # 'source_name:dest_name:par_name' - All links from Source to Dest belonging to a given Parameter
+            # ':dest:par_name'
+            # 'source::par_name' - As per above
+            # Note - because compartment names are resolved within compartments, this function currently cannot
+            # be used to look up transfer links
+            name_tokens = name.split(':')
+            if len(name_tokens) == 2:
+                name_tokens.append('')
+            src, dest, par = name_tokens
+
+            if src and dest:
+                links = [l for l in self.get_comp(src).outlinks if l.dest.name == dest]
+            elif src:
+                links = self.get_comp(src).outlinks
+            elif dest:
+                links = self.get_comp(dest).inlinks
+            else:
+                links = self.links
+
+            if par:
+                links = [l for l in links if l.parameter.name == par]
+
+            return links
         else:
             raise AtomicaException("Object '{0}' not found.".format(name))
 
@@ -486,7 +549,7 @@ class Population(object):
         # Instantiate Compartments
         for name in framework.specs[FS.KEY_COMPARTMENT]:
             spec = framework.get_spec(name)
-            self.comps.append(Compartment(name=name))
+            self.comps.append(Compartment(pop=self, name=name))
             if spec["is_source"]:
                 self.comps[-1].tag_birth = True
             if spec["is_sink"]:
@@ -497,7 +560,7 @@ class Population(object):
 
         # Characteristics first pass, instantiate objects
         for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            self.characs.append(Characteristic(name=name))
+            self.characs.append(Characteristic(pop=self, name=name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
@@ -513,14 +576,14 @@ class Population(object):
         # Parameters first pass, create parameter objects and links
         for name in framework.specs[FS.KEY_PARAMETER]:
             spec = framework.get_spec(name)
-            par = Parameter(name=name)
+            par = Parameter(pop=self, name=name)
             self.pars.append(par)
             if "links" in spec:
                 for pair in spec["links"]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
                     tag = par.name + ':flow'  # Temporary tag solution.
-                    new_link = Link(par, src, dst, tag)
+                    new_link = Link(self, par, src, dst, tag)
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
                     else:
@@ -542,9 +605,9 @@ class Population(object):
 
             if not spec[FS.TERM_FUNCTION] is None:
                 f_stack = dcp(spec[FS.TERM_FUNCTION])
-                deps = []
+                deps = {}
                 for dep_name in spec["dependencies"]:
-                    deps += self.get_variable(dep_name)
+                    deps[dep_name] = self.get_variable(dep_name)
                 par.set_f_stack(f_stack, deps)
 
     def preallocate(self, tvec, dt):
@@ -570,15 +633,6 @@ class Population(object):
         b = np.zeros((len(characs), 1))
         A = np.zeros((len(characs), len(comps)))
 
-        def extract_includes(charac):
-            includes = []
-            for inc in charac.includes:
-                if isinstance(inc, Characteristic):
-                    includes += extract_includes(inc)
-                else:
-                    includes.append(inc)
-            return includes
-
         #        print([(c,framework.get_spec_value(c.name,"datapage_order")) for c in self.characs])
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i, c in enumerate(characs):
@@ -593,7 +647,7 @@ class Population(object):
             except Exception:
                 pass
             try:
-                for inc in extract_includes(c):
+                for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             except Exception:
                 A[i, comp_indices[c.name]] = 1.0
@@ -634,7 +688,7 @@ class Population(object):
                 logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
                 for charac in characs:
                     try:
-                        if comps[i] in extract_includes(charac):
+                        if comps[i] in charac.get_included_comps():
                             report_characteristic(charac)
                     except Exception:
                         if comps[i] == charac:
@@ -648,7 +702,7 @@ class Population(object):
                                    "values.".format(residual, model_settings["tolerance"]))
 
         # Halt for any negative popsizes
-        if np.any(x < -model_settings['tolerance']):
+        if np.any(np.less(x, -model_settings['tolerance'])):
             raise AtomicaException('Negative initial popsizes')
 
         # Otherwise, insert the values
@@ -704,6 +758,7 @@ class Model(object):
         if any([not x.is_linked for x in self.pops]):
             # objs = {}
             for pop in self.pops:
+                objs[pop.uid] = pop
                 for obj in pop.comps + pop.characs + pop.pars + pop.links:
                     objs[obj.uid] = obj
 
@@ -738,11 +793,11 @@ class Model(object):
         pop_index = self.pop_ids[pop_name]
         return self.pops[pop_index]
 
-    def build(self, settings, framework, parset, progset=None, options=None):
+    def build(self, settings, framework, parset, progset=None, progset_instructions=None):
         """ Build the full model. """
 
-        if options is None:
-            options = dict()
+        if progset_instructions is None:
+            progset_instructions = dict()
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
@@ -793,7 +848,7 @@ class Model(object):
 
                         # Create the parameter object for this link (shared across all compartments)
                         par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
-                        par = Parameter(name=par_name)
+                        par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
                         val = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)
                         par.vals = val
@@ -810,7 +865,7 @@ class Model(object):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
                                 link_tag = par_name + '_' + source.name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
-                                link = Link(par, source, dest, link_tag, is_transfer=True)
+                                link = Link(pop, par, source, dest, link_tag)
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:
@@ -822,29 +877,30 @@ class Model(object):
         self.set_vars_by_pop()
 
         # Finally, prepare ModelProgramSet helper if programs are going to be used
-        if 'progs_start' in options:
+        if 'progs_start' in progset_instructions:
             if progset is not None:
                 self.programs_active = True
-                self.sim_settings['progs_start'] = options['progs_start']
+                self.sim_settings['progs_start'] = progset_instructions['progs_start']
 
-                if 'progs_end' in options:
-                    self.sim_settings['progs_end'] = options['progs_end']
+                if 'progs_end' in progset_instructions:
+                    self.sim_settings['progs_end'] = progset_instructions['progs_end']
                 else:
                     self.sim_settings['progs_end'] = np.inf  # Neverending programs
-                if 'init_alloc' in options:
-                    self.sim_settings['init_alloc'] = options['init_alloc']
+                if 'init_alloc' in progset_instructions:
+                    self.sim_settings['init_alloc'] = progset_instructions['init_alloc']
                 else:
                     self.sim_settings['init_alloc'] = {}
-                if 'constraints' in options:
-                    self.sim_settings['constraints'] = options['constraints']
+                if 'constraints' in progset_instructions:
+                    self.sim_settings['constraints'] = progset_instructions['constraints']
                 else:
                     self.sim_settings['constraints'] = None
-                if 'alloc_is_coverage' in options:
-                    self.sim_settings['alloc_is_coverage'] = options['alloc_is_coverage']
+                if 'alloc_is_coverage' in progset_instructions:
+                    self.sim_settings['alloc_is_coverage'] = progset_instructions['alloc_is_coverage']
                 else:
                     self.sim_settings['alloc_is_coverage'] = False
-                if 'saturate_with_default_budgets' in options:
-                    self.sim_settings['saturate_with_default_budgets'] = options['saturate_with_default_budgets']
+                if 'saturate_with_default_budgets' in progset_instructions:
+                    self.sim_settings['saturate_with_default_budgets'] = progset_instructions[
+                        'saturate_with_default_budgets']
                 for impact_name in progset.impacts:
                     if impact_name not in settings.par_funcs:
                         self.sim_settings['impact_pars_not_func'].append(impact_name)
@@ -955,9 +1011,8 @@ class Model(object):
                         #        converted_amt = comp_source.vals[ti] * converted_frac
                         #     elif link.parameter.units == 'number':
                         #        converted_amt = transition * dt
-                        #        if link.is_transfer:
-                        #            transfer_rescale = comp_source.vals[ti] / pop.popsize(ti)
-                        #            converted_amt *= transfer_rescale
+                        #        if len(link.parameter.links) > 1:
+                        #            converted_amt *= comp_source.vals[ti] / link.parameter.source_popsize(ti)
                         #     else:
                         #        raise AtomicaException('Unknown parameter units; "proportion" links can only appear '
                         #                               'in junctions')
@@ -994,9 +1049,10 @@ class Model(object):
 
         for pop in self.pops:
             for comp in pop.comps:
-                for link in comp.outlinks:
-                    link.source.vals[ti + 1] -= link.vals[ti]
-                    link.dest.vals[ti + 1] += link.vals[ti]
+                if not comp.is_junction:
+                    for link in comp.outlinks:
+                        link.source.vals[ti + 1] -= link.vals[ti]
+                        link.dest.vals[ti + 1] += link.vals[ti]
 
         # Guard against populations becoming negative due to numerical artifacts
         for pop in self.pops:
@@ -1031,7 +1087,7 @@ class Model(object):
 
                     if review_count == 1:
                         for link in junc.outlinks:
-                            link.vals[ti] = 0
+                            link.vals[ti_link] = 0
 
                     # If the compartment is numerically empty, make it empty
                     if junc.vals[ti] <= model_settings['tolerance']:  # Includes negative values.
@@ -1049,7 +1105,7 @@ class Model(object):
                             flow = current_size * link.parameter.vals[ti_link] / denom_val
                             link.source.vals[ti] -= flow
                             link.dest.vals[ti] += flow
-                            link.vals[ti] += flow
+                            link.vals[ti_link] += flow
                             if link.dest.is_junction:
                                 review_required = True  # Need to review if a junction received an inflow at this step
 
@@ -1104,63 +1160,63 @@ class Model(object):
                     if par.uid in prog_vals:
                         par.vals[ti] = prog_vals[par.uid]
 
-                    # # Handle parameters tagged with special rules. Overwrite vals if necessary.
-                    # if do_special and 'rules' in settings.linkpar_specs[par_name]:
-                    #     # All of the parameters with this name, across populations.
-                    #     # There should be one for each population (these are Parameters, not Links).
-                    #     pars = self.vars_by_pop[par_name]
-                    #
-                    #     old_vals = {par.uid: par.vals[ti] for par in self.vars_by_pop[par_name]}
-                    #
-                    #     rule = settings.linkpar_specs[par_name]['rules']
-                    #     for pop in self.pops:
-                    #        if rule == 'avg_contacts_in':
-                    #            from_list = self.contacts['into'][pop.name].keys()
-                    #
-                    #            # If interactions with a pop are initiated by the same pop...
-                    #            # No need to proceed with special calculations. Else, carry on.
-                    #            if not ((len(from_list) == 1 and from_list[0] == pop.name)):
-                    #
-                    #                if len(from_list) == 0:
-                    #                    new_val = 0.0
-                    #                else:
-                    #                    val_sum = 0.0
-                    #                    weights = 0.0
-                    #
-                    #                    for k,from_pop in enumerate(from_list):
-                    #                        # All transition links with the same par_name are identically valued.
-                    #                        # For calculations, only one is needed for reference.
-                    #                        par = self.get_pop(from_pop).get_par(par_name)
-                    #                        weight = self.contacts['into'][pop.name][from_pop]*\
-                    #                                 self.get_pop(from_pop).popsize(ti)
-                    #                        val_sum += old_vals[par.uid]*weight
-                    #                        weights += weight
-                    #
-                    #                    if abs(val_sum) > model_settings['tolerance']:
-                    #                        new_val = val_sum / weights
-                    #                    else:
-                    #                        # Only valid because if the weighted sum is zero, all pop_counts are zero.
-                    #                        # This meansthat the numerator is zero.
-                    #                        new_val = 0.0
-                    #
-                    #                # Update the parameter's value in this population.
-                    #                # Will propagate to links in next stage.
-                    #                pop.get_par(par_name).vals[ti] = new_val
+                        # # Handle parameters tagged with special rules. Overwrite vals if necessary.
+                        # if do_special and 'rules' in settings.linkpar_specs[par_name]:
+                        #     # All of the parameters with this name, across populations.
+                        #     # There should be one for each population (these are Parameters, not Links).
+                        #     pars = self.vars_by_pop[par_name]
+                        #
+                        #     old_vals = {par.uid: par.vals[ti] for par in self.vars_by_pop[par_name]}
+                        #
+                        #     rule = settings.linkpar_specs[par_name]['rules']
+                        #     for pop in self.pops:
+                        #        if rule == 'avg_contacts_in':
+                        #            from_list = self.contacts['into'][pop.name].keys()
+                        #
+                        #            # If interactions with a pop are initiated by the same pop...
+                        #            # No need to proceed with special calculations. Else, carry on.
+                        #            if not ((len(from_list) == 1 and from_list[0] == pop.name)):
+                        #
+                        #                if len(from_list) == 0:
+                        #                    new_val = 0.0
+                        #                else:
+                        #                    val_sum = 0.0
+                        #                    weights = 0.0
+                        #
+                        #                    for k,from_pop in enumerate(from_list):
+                        #                        # All transition links with the same par_name are identically valued.
+                        #                        # For calculations, only one is needed for reference.
+                        #                        par = self.get_pop(from_pop).get_par(par_name)
+                        #                        weight = self.contacts['into'][pop.name][from_pop]*\
+                        #                                 self.get_pop(from_pop).popsize(ti)
+                        #                        val_sum += old_vals[par.uid]*weight
+                        #                        weights += weight
+                        #
+                        #                    if abs(val_sum) > model_settings['tolerance']:
+                        #                        new_val = val_sum / weights
+                        #                    else:
+                        #                        # Only valid because if weighted sum is zero, all pop_counts are zero.
+                        #                        # This meansthat the numerator is zero.
+                        #                        new_val = 0.0
+                        #
+                        #                # Update the parameter's value in this population.
+                        #                # Will propagate to links in next stage.
+                        #                pop.get_par(par_name).vals[ti] = new_val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
                 par.constrain(ti)
 
 
-def run_model(settings, framework, parset, progset=None, options=None, name=None):
+def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
     """
     Processes the TB epidemiological model.
     Parset-based overwrites are generally done externally, so the parset is only used for model-building.
     Progset-based overwrites take place internally and must be part of the processing step.
-    The options dictionary is usually passed in with progset to specify when the overwrites take place.
-    - If full_output = False, non-output Parameters (and corresponding links) will be set to None
+    The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
     """
 
-    m = Model(settings, framework, parset, progset, options)
+    m = Model(settings, framework, parset, progset, progset_instructions)
     m.process(framework)
+    # TODO: Pass progset and instructions into results just like parset.
     return Result(model=m, parset=parset, name=name)

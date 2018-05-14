@@ -42,13 +42,13 @@ Manual calibration - set y-factor
 
 Insert data point
 
-	insertValuePair
+	insert_value_pair
 
 Remove data point
 
 	remove
 
-	removeBetween
+	remove_between
 
 Autocalibrate ParameterSet
 

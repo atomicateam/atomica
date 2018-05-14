@@ -8,7 +8,7 @@ ipython = get_ipython()
 if ipython is not None:
     ipython.magic('load_ext autoreload')
     ipython.magic('autoreload 2')
-from atomica.plotting import PlotData,plotSeries,plotBars
+from atomica.plotting import PlotData,plot_series,plot_bars
 from copy import deepcopy as dcp
 
 import atomica.ui as aui
@@ -36,7 +36,7 @@ def plot_calibration(adjustables,measurables,titlestr):
     new_parset = perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
     new_result = P.run_sim(new_parset)
     d = PlotData(new_result, outputs=['ch_prev'])
-    figs = plotSeries(d, axis='pops', data=P.data)
+    figs = plot_series(d, axis='pops', data=P.data)
     figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}".format(titlestr, new_parset.get_par('transpercontact').y_factor['adults'], new_parset.get_par('transpercontact').y_factor['children']))
 
 # Calibrate explicitly listing out the pops
