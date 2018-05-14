@@ -12,25 +12,25 @@ test = "sir"
 #test = "tb"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"makeprogramspreadsheet",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-#"makeplots",
-#"export",
-#"listspecs",
-#"manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-#"saveproject",
-#"loadproject",
+"makeplots",
+"export",
+"listspecs",
+"manualcalibrate",
+"autocalibrate",
+"parameterscenario",
+"saveproject",
+"loadproject",
 ]    
 
 tmpdir = "." + os.sep + "temp" + os.sep
@@ -110,34 +110,17 @@ if "makeplots" in torun:
     for var in test_vars: P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-<<<<<<< HEAD
-    d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
-    plotSeries(d,plot_type="stacked")
-=======
+#<<<<<<< HEAD
+#    d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
+#    plotSeries(d,plot_type="stacked")
+#=======
     d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
     plot_series(d, plot_type="stacked")
->>>>>>> develop
+#>>>>>>> develop
 
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
-<<<<<<< HEAD
-        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
-        plotBars(d,outer="results",stack_pops=[plot_pop])
-
-        # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
-        plotBars(d,stack_outputs=[list(grouped_deaths.keys())])
-
-        # Plot total death flow over time
-        # Plot death flow rate decomposition over all time
-        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
-        plotSeries(d,plot_type='stacked',axis='outputs')
-
-    # Plot aggregate flows.
-#    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
-#    plotSeries(d,axis="pops")
-=======
         d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         plot_bars(d, outer="results", stack_pops=[plot_pop])
 
@@ -158,7 +141,6 @@ if "makeplots" in torun:
     # Plot aggregate flows
     d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
     plot_series(d, axis="pops")
->>>>>>> develop
 
 
 if "export" in torun:
@@ -195,13 +177,8 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
-<<<<<<< HEAD
-    d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
-    plotSeries(d, axis="results", data=P.data)
-=======
     d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plot_series(d, axis="results", data=P.data)
->>>>>>> develop
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
