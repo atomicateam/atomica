@@ -342,10 +342,9 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
         return None
 
 
-def loadprogramspreadsheet(filename, verbose=2):
+def load_progbook(filename, verbose=2):
     '''
-    Loads the spreadsheet (i.e. reads its contents into the data).
-    Version: 1.0 (2016sep30)
+    Loads programs book (i.e. reads its contents into the data).
     '''
     ## Basic setup
     data = odict() # Create structure for holding data
