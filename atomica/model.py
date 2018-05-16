@@ -317,7 +317,7 @@ class Parameter(Variable):
         else:
             ti = np.array(ti)
 
-        dep_vals = defaultdict(np.float64)
+        dep_vals = dict.fromkeys(self.deps,0.0)
         for dep_name, deps in self.deps.items():
             for dep in deps:
                 if isinstance(dep, Link):
