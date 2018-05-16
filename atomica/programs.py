@@ -122,7 +122,7 @@ class Program(object):
         return True if self.ccdata['cost'] else False
 
 
-    def getcoverage(self, x, t, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
+    def getcoverage(self, budget=None, t=None, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
         '''Returns coverage for a time/spending vector'''
         pass
 
