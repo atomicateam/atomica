@@ -126,7 +126,7 @@ class Program(object):
         '''Returns coverage for a time/spending vector'''
         pass
 
-    def getbudget(self, x, t, parset=None, results=None, proportion=False, toplot=False, sample='best'):
+    def getbudget(self, t=None, parset=None, results=None, proportion=False, toplot=False, sample='best'):
         '''Returns budget for a coverage vector'''
         pass
 
