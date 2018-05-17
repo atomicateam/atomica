@@ -137,7 +137,7 @@ class Project(object):
         # Put the population keys somewhere easier to access- TEMP, TODO, fix
         self.popkeys = []
         self.popnames = []
-        for k,v in self.data.specs['pop'].iteritems():
+        for k,v in self.data.specs['pop'].items():
             self.popkeys.append(k)
             self.popnames.append(v['label'])
 
