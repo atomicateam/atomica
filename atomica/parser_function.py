@@ -7,6 +7,8 @@ def parse_function(fcn_str):
     # the dict that needs to be passed to fcn()
     # supported_functions is a dict mapping ast names to functors imported in the namespace of this file
     assert ';' not in fcn_str # Cannot have more than one expression in the string
+    assert '__' not in fcn_str # Cannot have double underscores...
+
     fcn_str = fcn_str.replace(':','___')
     supported_functions = {'exp':np.exp,'floor':np.floor}
     fcn_ast = ast.parse(fcn_str, mode='eval')
