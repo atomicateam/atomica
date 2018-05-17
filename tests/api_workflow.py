@@ -22,7 +22,7 @@ test = "sir"
 tmpdir = "." + os.sep + "temp" + os.sep
 
 F = aui.ProjectFramework.load(tmpdir+test+".frw")
-P = aui.Project(name=test.upper()+" project", framework=F)
+P = aui.Project(name=test.upper()+" project", framework=F,do_run=False)
 P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
