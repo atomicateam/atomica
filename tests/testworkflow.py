@@ -196,9 +196,10 @@ if "autocalibrate" in torun:
     
 if "parameterscenario" in torun:
     scvalues = dict()
-    scen_par = "infdeath"
-    scen_pop = "adults"
-    scen_outputs = ["inf","dead"]
+    if test == "sir":
+        scen_par = "infdeath"
+        scen_pop = "adults"
+        scen_outputs = ["inf","dead"]
     if test == "tb":
         scen_par = "spd_infxness"
         scen_pop = "15-64"
