@@ -485,7 +485,7 @@ class Population(object):
         # types except for links, but if that logic changes, simple modifications can
         # be made here
 
-        name = name.replace('___',':')
+        name = name.replace('___',':') # Parameter functions will convert ':' to '___' for use in variable names
 
         if name in self.comp_lookup:
             return [self.comp_lookup[name]]
@@ -507,9 +507,6 @@ class Population(object):
             # 'source::par_name' - As per above
             # Note - because compartment names are resolved within compartments, this function currently cannot
             # be used to look up transfer links
-            # On the backend, ':' gets converted to '___' as the latter are permitted
-            # in Python variable names (for parameter function evaluation)
-            # So they behave equivalently
             name_tokens = name.split(':')
             if len(name_tokens) == 2:
                 name_tokens.append('')
