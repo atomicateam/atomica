@@ -367,13 +367,13 @@ class FrameworkSettings(BaseStructuralSettings):
     NAME = SS.STRUCTURE_KEY_FRAMEWORK
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
+    # TODO: Decide whether to reintroduce program types as a page and an item, with subitem program attributes.
     ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION,
-                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
-                  BSS.KEY_PROGRAM_TYPE, BSS.KEY_PROGRAM_ATTRIBUTE, BSS.KEY_DATAPAGE]
+                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_DATAPAGE]
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_DATAPAGE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION,
-                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_PROGRAM_TYPE]
+                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
@@ -414,6 +414,7 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", cls.TERM_FUNCTION, "dependencies"])
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["is_impact"], content_type=SwitchType())
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["links"], content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
@@ -428,7 +429,6 @@ class FrameworkSettings(BaseStructuralSettings):
                                         content_type=ContentType(enforce_type=int))
         # Subitem type association is done after item types and attributes are defined, due to cross-referencing.
         cls.create_item_type_subitem_types(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
-        cls.create_item_type_subitem_types(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
 
 
 @create_specs
