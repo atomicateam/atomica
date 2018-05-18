@@ -10,6 +10,7 @@ def parse_function(fcn_str):
     # the dict that needs to be passed to fcn()
     # supported_functions is a dict mapping ast names to functors imported in the namespace of this file
     assert '__' not in fcn_str, 'Cannot use double underscores in functions'
+    assert len(fcn_str) < 1800 # Function string must be less than 1800 characters
     fcn_str = fcn_str.replace(':','___')
     fcn_ast = ast.parse(fcn_str, mode='eval')
     dep_list = []
