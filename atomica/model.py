@@ -261,13 +261,28 @@ class Parameter(Variable):
         self.source_popsize_cache_val = None
 
         self.fcn_str = None # String representation of parameter function
+        self.has_fcn = False # Set to True if the parameter ever had a function (even if that function was later dropped due to pickling)
         self.deps = None # Dict of dependencies containing lists of integration objects
         self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
         # TODO - Maybe it should be self.fcn if users are setting it directly (because they are passing their own functions in)
 
-    def set_fcn(self, fcn_str):
-        self.fcn_str = fcn_str
-        self._fcn, dep_list = parse_function(fcn_str)
+    def set_fcn(self, fcn_input, dep_list):
+        # fcn_input could be
+        # - string, which gets converted to a functor via parse_function()
+        # - functor, which gets stored in self._fcn directly
+        #
+        # Supported functions will be given as input a dict where the keys are
+        # the dependencies in dep_list, and the values are scalars computed from the
+        # current state of the model during integration
+
+        if isinstance(fcn_input,str):
+            self.fcn_str = fcn_input
+            self._fcn = parse_function(fcn_input)[0]
+        else:
+            self.fcn_str = None
+            self._fcn = fcn_input
+        self.has_fcn = True # Set this flag to True to permanently record if a function was used during integration
+
         deps = {}
         for dep_name in dep_list:
             deps[dep_name] = self.pop.get_variable(dep_name)
@@ -316,11 +331,9 @@ class Parameter(Variable):
         # by evaluating its f_stack function using the 
         # current values of all dependent variables at time index ti
 
-        # TODO - Just note that if the user dcps the Parameter then tries to update it, that won't work
-        # Users are definitely not supposed to do that! But just a note that this is the behaviour that will occur
-        # unless the function is re-parsed (but re-parsing won't be possible for functors the user passed in manually
-        # which is why we can't assume that we can just re-parse it when relinking)
-        if self._fcn is None:
+        # If the user pickled the Parameter and lost the function, self.has_fcn will still be
+        # True so an error will be thrown later on (rather than silently producing incorrect results)
+        if not self.has_fcn:
             return
 
         if ti is None:
@@ -336,7 +349,7 @@ class Parameter(Variable):
                 else:
                     dep_vals[dep_name] += dep.vals[[ti]]
 
-        self.vals[ti] = self.scale_factor*self._fcn(dep_vals)
+        self.vals[ti] = self.scale_factor*self._fcn(**dep_vals)
 
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
@@ -617,7 +630,7 @@ class Population(object):
             #                    par.limits[1] = spec['max']
 
             if not spec[FS.TERM_FUNCTION] is None:
-                par.set_fcn(spec[FS.TERM_FUNCTION])
+                par.set_fcn(spec[FS.TERM_FUNCTION],spec['dependencies'])
 
     def preallocate(self, tvec, dt):
         """
@@ -833,10 +846,10 @@ class Model(object):
                 par = pop.get_par(cascade_par.name)  # Find the parameter with the requested name
                 # If parameter has an f-stack then vals will be calculated during/after integration.
                 # This is opposed to values being supplied from databook.
-                if par.fcn_str is None:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                 par.scale_factor = cascade_par.y_factor[pop_name]
-                par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
+                if not par.has_fcn:
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
+                    par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
                 if par.links:
                     par.units = cascade_par.y_format[pop_name]
 

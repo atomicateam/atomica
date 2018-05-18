@@ -19,7 +19,9 @@ def parse_function(fcn_str):
         elif isinstance(node,ast.Call) and hasattr(node,'func') and hasattr(node.func,'id'):
             assert node.func.id in supported_functions, "Only calls to supported functions are allowed"
     compiled_code = compile(fcn_ast,filename="<ast>", mode="eval")
-    return (lambda deps: eval(compiled_code,deps,supported_functions),dep_list)
+    def fcn(**deps):
+        return eval(compiled_code,deps,supported_functions)
+    return (fcn,dep_list)
 
 ## Example usage below - This can be moved to documentation later
 if __name__ == '__main__':
@@ -27,7 +29,7 @@ if __name__ == '__main__':
     fcn,dep_list = parse_function(f_string)
     print(dep_list)
     deps = {'x':1,'y':2}
-    print(fcn(deps))
+    print(fcn(**deps))
     deps = {'x':1,'y':3}
-    print(fcn(deps))
+    print(fcn(**deps))
 
