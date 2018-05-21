@@ -31,7 +31,26 @@ torun = [
 "parameterscenario",
 "saveproject",
 "loadproject",
-]    
+]
+
+# Define plotting variables in case plots are generated
+if test == "sir":
+    test_vars = ["sus", "inf", "rec", "dead", "ch_all", "foi"]
+    test_pop = "adults"
+    decomp = ["sus", "inf", "rec", "dead"]
+    deaths = ["sus:dead", "inf:dead", "rec:dead"]
+    grouped_deaths = {'inf': ['inf:dead'], 'sus': ['sus:dead'], 'rec': ['rec:dead']}  # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
+    plot_pop = [test_pop]
+if test == "tb":
+    test_vars = ["sus", "vac", "spdu", "alive", "b_rate"]
+    test_pop = "0-4"
+    decomp = ["sus", "vac", "lt_inf", "ac_inf", "acr"]
+    # Just do untreated TB-related deaths for simplicity.
+    deaths = ["pd_term:flow", "pd_sad:flow", "nd_term:flow", "nd_sad:flow", "pm_term:flow", "pm_sad:flow", "nm_term:flow", "nm_sad:flow", "px_term:flow", "px_sad:flow", "nx_term:flow", "nx_sad:flow"]
+    grouped_deaths = {"ds_deaths": ["pd_term:flow", "pd_sad:flow", "nd_term:flow", "nd_sad:flow"],
+                      "mdr_deaths": ["pm_term:flow", "pm_sad:flow", "nm_term:flow", "nm_sad:flow"],
+                      "xdr_deaths": ["px_term:flow", "px_sad:flow", "nx_term:flow", "nx_sad:flow"]}
+    plot_pop = ['5-14', '15-64']
 
 tmpdir = "." + os.sep + "temp" + os.sep
 
@@ -54,7 +73,7 @@ if "makedatabook" in torun:
     if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2005, "data_end":2015, "data_dt":0.5}
     elif test == "tb": args = {"num_pops":12, "num_progs":31, "data_end":2018}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
-    
+
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
     P = aui.Project(name=test.upper()+" project", framework=F, do_run=False)
@@ -88,23 +107,6 @@ if "loadprogramspreadsheet" in torun:
     P.load_progbook(databook_path=filename)
 
 if "makeplots" in torun:
-    if test == "sir": 
-        test_vars = ["sus","inf","rec","dead","ch_all","foi"]
-        test_pop = "adults"
-        decomp = ["sus","inf","rec","dead"]
-        deaths = ["sus:dead","inf:dead","rec:dead"]
-        grouped_deaths = {'inf':['inf:dead'],'sus':['sus:dead'],'rec':['rec:dead']} # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
-        plot_pop = [test_pop]
-    if test == "tb":
-        test_vars = ["sus","vac","spdu","alive","b_rate"]
-        test_pop = "0-4"
-        decomp = ["sus","vac","lt_inf","ac_inf","acr"]
-        # Just do untreated TB-related deaths for simplicity.
-        deaths = ["pd_term:flow","pd_sad:flow","nd_term:flow","nd_sad:flow","pm_term:flow","pm_sad:flow","nm_term:flow","nm_sad:flow","px_term:flow","px_sad:flow","nx_term:flow","nx_sad:flow"]
-        grouped_deaths = {"ds_deaths":["pd_term:flow","pd_sad:flow","nd_term:flow","nd_sad:flow"],
-                  "mdr_deaths":["pm_term:flow","pm_sad:flow","nm_term:flow","nm_sad:flow"],
-                  "xdr_deaths":["px_term:flow","px_sad:flow","nx_term:flow","nx_sad:flow"]}
-        plot_pop = ['5-14','15-64']
 
     # Low level debug plots.
     for var in test_vars: P.results["parset_default"].get_variable(test_pop,var)[0].plot()
@@ -194,9 +196,10 @@ if "autocalibrate" in torun:
     
 if "parameterscenario" in torun:
     scvalues = dict()
-    scen_par = "infdeath"
-    scen_pop = "adults"
-    scen_outputs = ["inf","dead"]
+    if test == "sir":
+        scen_par = "infdeath"
+        scen_pop = "adults"
+        scen_outputs = ["inf","dead"]
     if test == "tb":
         scen_par = "spd_infxness"
         scen_pop = "15-64"

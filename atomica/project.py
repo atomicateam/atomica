@@ -137,18 +137,9 @@ class Project(object):
         # Put the population keys somewhere easier to access- TEMP, TODO, fix
         self.popkeys = []
         self.popnames = []
-        for k,v in self.data.specs['pop'].iteritems():
+        for k,v in self.data.specs['pop'].items():
             self.popkeys.append(k)
             self.popnames.append(v['label'])
-        
-        if metadata is not None and "data_start" in metadata:
-            self.settings.updateTimeVector(start = metadata["data_start"])  # Align sim start year with data start year.
-
-        if make_default_parset: self.make_parset(name="default")
-        if do_run: 
-            if not make_default_parset: logger.warning("Project has been requested to run a simulation after loading databook, despite no request to "
-                                                       "create a default parameter set.")
-            self.run_sim(parset="default")
 
         if metadata is not None and "data_start" in metadata:
             self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
