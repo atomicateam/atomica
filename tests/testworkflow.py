@@ -9,7 +9,7 @@ import os
 from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
-#test = "tb"
+# test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -75,16 +75,16 @@ if "makeprogramspreadsheet" in torun:
     from atomica.defaults import demo
     from atomica.workbook_export import makeprogramspreadsheet
 
-    P = demo(which='sir',do_plot=0)
-    filename = 'temp/programspreadsheet.xlsx'
+    P = demo(which=test, do_plot=0)
+    filename = "temp/progbook_" + test + "_blank.xlsx"
     makeprogramspreadsheet(filename, pops=2, progs=5)
 
 if "loadprogramspreadsheet" in torun:
     print('\n\n\nLoading programs spreadsheet ...')
     from atomica.defaults import demo
 
-    P = demo(which='sir',do_plot=0)
-    filename = 'databooks/programdata_sir.xlsx'
+    P = demo(which=test,do_plot=0)
+    filename = "databooks/progbook_" + test + ".xlsx"
     P.load_progbook(databook_path=filename)
 
 if "makeplots" in torun:
