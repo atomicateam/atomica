@@ -528,7 +528,7 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None,
+    def run_sim(self, parset=None, progset=None, instructions=None,
                 store_results=True, result_type=None, result_name=None):
         """
         Run model using a selected parset and store/return results.
@@ -542,7 +542,7 @@ class Project(object):
         if progset is None:
             logger.info("Initiating a standard run of project '{0}' "
                         "(i.e. without the influence of programs).".format(self.name))
-        elif progset_instructions is None:
+        elif instructions is None:
             logger.info("Program set '{0}' will be ignored while running project '{1}' "
                         "due to the absence of program set instructions.".format(progset.name, self.name))
 
@@ -561,7 +561,7 @@ class Project(object):
 
         tm = tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
-                           progset_instructions=progset_instructions, name=result_name)
+                           instructions=instructions, name=result_name)
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
@@ -628,7 +628,7 @@ class Project(object):
         scenario = self.get_scenario(scenario)
         scenario_parset = scenario.get_parset(parset, self.settings)
         scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
-        return self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
+        return self.run_sim(parset=scenario_parset, progset=scenario_progset, instructions=progset_instructions,
                             store_results=store_results, result_type="scenario", result_name=result_name)
 
     #    def optimize(self):

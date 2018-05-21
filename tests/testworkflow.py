@@ -19,16 +19,17 @@ torun = [
 "makedatabook",
 "makeproject",
 "loaddatabook",
+"makeprogbook",
+"loadprogbook",
 "makeparset",
 "runsim",
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
 "makeplots",
 "export",
 "listspecs",
 "manualcalibrate",
 "autocalibrate",
 "parameterscenario",
+"runsimprogs",
 "saveproject",
 "loadproject",
 ]
@@ -81,15 +82,8 @@ if "makeproject" in torun:
 if "loaddatabook" in torun:
     # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
     P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
-    
-if "makeparset" in torun:
-    P.make_parset(name="default")
-    
-if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    P.run_sim(parset="default", result_name="default")
-    
-if "makeprogramspreadsheet" in torun:
+
+if "makeprogbook" in torun:
     print('Making programs spreadsheet ...')
     from atomica.defaults import demo
     from atomica.workbook_export import makeprogramspreadsheet
@@ -98,13 +92,20 @@ if "makeprogramspreadsheet" in torun:
     filename = "temp/progbook_" + test + "_blank.xlsx"
     makeprogramspreadsheet(filename, pops=2, progs=5)
 
-if "loadprogramspreadsheet" in torun:
+if "loadprogbook" in torun:
     print('\n\n\nLoading programs spreadsheet ...')
     from atomica.defaults import demo
 
     P = demo(which=test,do_plot=0)
     filename = "databooks/progbook_" + test + ".xlsx"
     P.load_progbook(databook_path=filename)
+
+if "makeparset" in torun:
+    P.make_parset(name="default")
+    
+if "runsim" in torun:
+    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    P.run_sim(parset="default", result_name="default")
 
 if "makeplots" in torun:
 
@@ -229,6 +230,10 @@ if "parameterscenario" in torun:
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[-1], pops=[scen_pop])
     plot_series(d, axis="results")
+
+if "runsimprogs" in torun:
+    from atomica.programs import ProgramInstructions
+    P.run_sim(parset="default", progset="default", instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
