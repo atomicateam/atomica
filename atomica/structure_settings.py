@@ -413,8 +413,9 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_CHARACTERISTIC], ["default_value"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
-        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", "min", "max", cls.TERM_FUNCTION,
-                                                              "dependencies"])
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", "min", "max"],
+                                        content_type=ContentType(enforce_type=float))
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["is_impact"], content_type=SwitchType())
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["links"], content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],

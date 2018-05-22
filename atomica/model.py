@@ -596,12 +596,12 @@ class Population(object):
             spec = framework.get_spec(name)
             par = self.get_par(name)
 
-            #            if ('min' in spec) or ('max' in spec):
-            #                par.limits = [-np.inf, np.inf]
-            #                if 'min' in spec:
-            #                    par.limits[0] = spec['min']
-            #                if 'max' in spec:
-            #                    par.limits[1] = spec['max']
+            if ("min" in spec and spec["min"] is not None) or ("max" in spec and spec["max"] is not None):
+                par.limits = [-np.inf, np.inf]
+                if "min" in spec and spec["min"] is not None:
+                    par.limits[0] = spec["min"]
+                if "max" in spec and spec["max"] is not None:
+                    par.limits[1] = spec["max"]
 
             if not spec[FS.TERM_FUNCTION] is None:
                 f_stack = dcp(spec[FS.TERM_FUNCTION])

@@ -177,6 +177,7 @@ if "manualcalibrate" in torun:
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
+    print(P.results.keys())
     P.copy_parset(old_name="default", new_name="auto")
     if test == "sir":
         # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
@@ -188,7 +189,9 @@ if "autocalibrate" in torun:
         # Shortcut for calibration measurables.
         adjustables = [("foi", "15-64", 0.0, 3.0)]
         P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+    print(P.results.keys())
     P.run_sim(parset="auto", result_name="auto")
+    print(P.results.keys())
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     plot_series(d, axis='results', data=P.data)
     
@@ -230,6 +233,8 @@ if "parameterscenario" in torun:
 
 if "runsimprogs" in torun:
     from atomica.programs import ProgramInstructions
+
+    # instructions = ProgramInstructions(progset=P.progsets["default"])
     P.run_sim(parset="default", progset="default", instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
