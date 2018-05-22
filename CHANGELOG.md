@@ -3,11 +3,12 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.6.1 (2018-05-11): High-order Program Processes
+## 0.6.1 (2018-05-22): High-order Program Processes
 
 Features
 - Without settling on a programs structure yet, wrapper processes are established.
   These include budget scenarios and optimizations.
+- `ProgramInstructions` object introduced to instruct model how to use programs.
 
 Edits
 - PEP8 compliance worked towards in the majority of the codebase.
