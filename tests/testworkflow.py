@@ -28,8 +28,8 @@ torun = [
 "listspecs",
 "manualcalibrate",
 "autocalibrate",
-"parameterscenario",
-"runsimprogs",
+# "parameterscenario",
+# "runsimprogs",
 "saveproject",
 "loadproject",
 ]
@@ -71,7 +71,7 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2005, "data_end":2015, "data_dt":0.5}
+    if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2000, "data_end":2018, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_progs":31, "data_end":2018}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
@@ -160,9 +160,6 @@ if "listspecs" in torun:
     # Print list of populations.
     print("Populations...")
     print(P.data.specs[DS.KEY_POPULATION].keys())
-    # Print list of programs.
-    print("Programs...")
-    print(P.data.specs[DS.KEY_PROGRAM].keys())
     print()
     
 if "manualcalibrate" in torun:

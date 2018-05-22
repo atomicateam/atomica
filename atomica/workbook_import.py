@@ -139,25 +139,26 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
                     last_col = worksheet.ncols - 1
         else:
             for col in range(header_col + 1, last_col + 1):
-                val = str(worksheet.cell_value(row, col))
-                if not val == "":
-                    source_item = str(worksheet.cell_value(row, header_col))
-                    target_item = str(worksheet.cell_value(header_row, col))
-                    if table.storage_item_type is None:
-                        structure.set_spec_value(term=source_item, attribute=table.storage_attribute, value=val,
-                                                 subkey=target_item)
-                    else:
-                        # Allow connection matrices to use name tags before they are used for detailed items.
-                        # Only allow this for non-subitems.
-                        if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
-                            raise AtomicaException("Cannot import data from connection matrix where values are "
-                                                   "names of subitems, type '{0}'.".format(table.storage_item_type))
-                        try:
-                            structure.get_spec(val)
-                        except Exception:
-                            structure.create_item(item_name=val, item_type=table.storage_item_type)
-                        structure.append_spec_value(term=val, attribute=table.storage_attribute,
-                                                    value=(source_item, target_item))
+                total_val = str(worksheet.cell_value(row, col))
+                if not total_val == "":
+                    for val in [x.strip() for x in total_val.split(ES.LIST_SEPARATOR)]:
+                        source_item = str(worksheet.cell_value(row, header_col))
+                        target_item = str(worksheet.cell_value(header_row, col))
+                        if table.storage_item_type is None:
+                            structure.set_spec_value(term=source_item, attribute=table.storage_attribute, value=val,
+                                                     subkey=target_item)
+                        else:
+                            # Allow connection matrices to use name tags before they are used for detailed items.
+                            # Only allow this for non-subitems.
+                            if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
+                                raise AtomicaException("Cannot import data from connection matrix where values are "
+                                                       "names of subitems, type '{0}'.".format(table.storage_item_type))
+                            try:
+                                structure.get_spec(val)
+                            except Exception:
+                                structure.create_item(item_name=val, item_type=table.storage_item_type)
+                            structure.append_spec_value(term=val, attribute=table.storage_attribute,
+                                                        value=(source_item, target_item))
         row += 1
     next_row = row
     return next_row

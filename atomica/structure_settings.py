@@ -437,16 +437,17 @@ class DataSettings(BaseStructuralSettings):
     NAME = SS.STRUCTURE_KEY_DATA
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
-    ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
+    # TODO: Reintroduce BSS.KEY_PROGRAM as item and page in the databook if progbook does not work out.
+    ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION]
 
-    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
+    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
         cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
-        cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
+        # TODO: As above, delete the following comments if progbook is locked in.
+        # cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
-        # TODO: Determine how programs in the databook work.
         # cls.create_item_type_attributes(cls.KEY_PROGRAM, ["target_pops"],
         #                                 IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT], [cls.TERM_DATA], TimeSeriesType())
@@ -454,7 +455,8 @@ class DataSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_DATA], TimeSeriesType())
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type=cls.KEY_POPULATION))
-        cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
+        # TODO: As above, delete the following comment if progbook is locked in.
+        # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
