@@ -57,6 +57,12 @@ if plot_initial:
     d = PlotData(P.results[0],outputs=['sus:dead','rec:dead'],project=P)
     plot_series(d, plot_type='stacked')
 
+    # Summing via a function aggregation does the same thing
+    d = PlotData([P.results[0]], outputs={'Susdeaths': 'sus:dead+rec:dead'})
+    plot_series(d)
+
+
+
 # Make a scenario e.g. decreased infection rate
 scvalues = dict()
 scvalues['infdeath'] = dict()
@@ -110,7 +116,6 @@ calibrated_parset = perform_autofit(P, P.parsets[0], pars_to_adjust, output_quan
 calibrated_results = P.run_sim(calibrated_parset)
 d = PlotData([P.results[0],calibrated_results], outputs=['ch_prev'])
 plot_series(d, axis='results', data=P.data)
-
 
 import matplotlib.pyplot as plt
 plt.show()

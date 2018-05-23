@@ -18,12 +18,9 @@ from matplotlib.ticker import FuncFormatter
 from sciris.utils import odict
 
 from atomica.model import Compartment, Characteristic, Parameter, Link
-from atomica.parser_function import FunctionParser
 from atomica.results import Result
 from atomica.system import AtomicaException, logger
-
-# Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
-parser = FunctionParser(debug=False)
+from atomica.parser_function import parse_function
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -271,25 +268,25 @@ class PlotData(object):
                     if not isinstance(l, dict):
                         continue
 
-                    output_label, f_stack_str = list(l.items())[
-                        0]  # extract_labels has already ensured only one key is present
+                    output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
 
                     if not isinstance(f_stack_str, str):
                         continue
 
                     par = Parameter(pop=None, name=output_label)
-                    f_stack, dep_labels = parser.produce_stack(f_stack_str)
-                    deps = []
+                    fcn, dep_labels = parse_function(f_stack_str)
+                    deps = {}
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
-                        var = pop.get_variable(dep_label)
-                        if t_bins is not None and (isinstance(var, Link) or isinstance(var, Parameter)) and \
+                        vars = pop.get_variable(dep_label)
+                        if t_bins is not None and (isinstance(var[0], Link) or isinstance(var[0], Parameter)) and \
                                 time_aggregation == "sum" and not displayed_annualization_warning:
                             raise AtomicaException("Function includes Parameter/Link so annualized rates are being "
-                                                   "used. Aggregation may need to use 'average' rather than 'sum'.")
-                        deps += pop.get_variable(dep_label)
-                    par.f_stack = f_stack
+                                                   "used. Aggregation should use 'average' rather than 'sum'.")
+                        deps[dep_label] = vars
+                    par._fcn = fcn
                     par.deps = deps
+                    par.has_fcn = True
                     par.preallocate(tvecs[result_label], dt)
                     par.update()
                     data_dict[output_label] = par.vals
