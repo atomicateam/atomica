@@ -847,9 +847,10 @@ class Model(object):
                 # If parameter has an f-stack then vals will be calculated during/after integration.
                 # This is opposed to values being supplied from databook.
                 par.scale_factor = cascade_par.y_factor[pop_name]
-                if not par.has_fcn:
+                if cascade_par.has_values(pop_name):
                     par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                     par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
+                    par.has_fcn = False # Disable the function because actual values have been provided (e.g. via a scenario)
                 if par.links:
                     par.units = cascade_par.y_format[pop_name]
 
@@ -861,8 +862,7 @@ class Model(object):
             if parset.transfers[trans_type]:
                 for pop_source in parset.transfers[trans_type]:
 
-                    transfer_parameter = parset.transfers[trans_type][
-                        pop_source]  # This contains the data for all of the destrination pops
+                    transfer_parameter = parset.transfers[trans_type][pop_source]  # This contains the data for all of the destrination pops
 
                     pop = self.get_pop(pop_source)
 

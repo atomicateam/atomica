@@ -26,10 +26,10 @@ torun = [
 "makeplots",
 "export",
 "listspecs",
-"manualcalibrate",
-"autocalibrate",
+# "manualcalibrate",
+# "autocalibrate",
 "parameterscenario",
-"runsimprogs",
+# "runsimprogs",
 "saveproject",
 "loadproject",
 ]
@@ -211,7 +211,7 @@ if "parameterscenario" in torun:
 
     # Insert (or possibly overwrite) one value.
     scvalues[scen_par][scen_pop]["y"] = [0.125]
-    scvalues[scen_par][scen_pop]["t"] = [2015.]
+    scvalues[scen_par][scen_pop]["t"] = [2005.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
 
     P.make_scenario(name="varying_infections", instructions=scvalues)
@@ -219,7 +219,7 @@ if "parameterscenario" in torun:
 
     # Insert two values and eliminate everything between them.
     scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+    scvalues[scen_par][scen_pop]["t"] = [2005., 2010.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
 
     P.make_scenario(name="varying_infections", instructions=scvalues, overwrite=True)
