@@ -26,9 +26,9 @@ torun = [
 "makeplots",
 "export",
 "listspecs",
-"manualcalibrate",
-"autocalibrate",
-# "parameterscenario",
+# "manualcalibrate",
+# "autocalibrate",
+"parameterscenario",
 # "runsimprogs",
 "saveproject",
 "loadproject",
@@ -211,19 +211,19 @@ if "parameterscenario" in torun:
 
     # Insert (or possibly overwrite) one value.
     scvalues[scen_par][scen_pop]["y"] = [0.125]
-    scvalues[scen_par][scen_pop]["t"] = [2015.]
+    scvalues[scen_par][scen_pop]["t"] = [2005.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
 
     P.make_scenario(name="varying_infections", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections", parset="auto", result_name="scen1")
+    P.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
 
     # Insert two values and eliminate everything between them.
     scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+    scvalues[scen_par][scen_pop]["t"] = [2005., 2010.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
 
     P.make_scenario(name="varying_infections", instructions=scvalues, overwrite=True)
-    P.run_scenario(scenario="varying_infections", parset="auto", result_name="scen2")
+    P.run_scenario(scenario="varying_infections", parset="default", result_name="scen2")
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[0], pops=[scen_pop])
     plot_series(d, axis="results")

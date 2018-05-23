@@ -34,6 +34,9 @@ class ParameterScenario(Scenario):
                                          t : np.array or list with year values
                                          y : np.array or list with corresponding parameter values
 
+        IMPORTANT - The scenario values are assumed to be provided AFTER y-factor rescaling. That is, if the
+        parameter has a y-factor set, the value that gets inserted will be rescaled by this factor such that
+        after y-factor scaling during integration, the parameter value will match the overwrite value specified
 
         Example:
             scvalues = dict()
@@ -72,6 +75,13 @@ class ParameterScenario(Scenario):
             par = new_parset.get_par(par_label)  # This is the parameter we are updating
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
+
+                # If the Parameter had no data (e.g. it was a functional parameter) then use
+                # the first overwrite to provide the baseline value by inserting it now
+                if not par.has_values(pop_label):
+                    par.t[pop_label] = np.zeros((0,))
+                    par.y[pop_label] = np.zeros((0,))
+                    par.insert_value_pair(overwrite['t'][0], overwrite['y'][0] / par.y_factor[pop_label], pop_label)
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 

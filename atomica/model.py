@@ -4,7 +4,7 @@ from atomica.system import AtomicaException, logger
 from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure import convert_quantity
 from atomica.results import Result
-from atomica.parser_function import FunctionParser
+from atomica.parser_function import parse_function
 from collections import defaultdict
 from sciris.core import odict, uuid
 
@@ -12,9 +12,6 @@ import pickle
 import numpy as np
 from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
-
-# Decomposes and evaluates functions written as strings, in accordance with a grammar defined within the parser object.
-parser = FunctionParser(debug=False)
 
 # TODO: Consider renaming and decide what to do with project settings as an object.
 #       Maybe have Project methods for changing sim time ranges act on these model settings.
@@ -245,7 +242,7 @@ class Characteristic(Variable):
 
 
 class Parameter(Variable):
-    # A parameter is a Variable that can have a value computed via an f_stack and a list of 
+    # A parameter is a Variable that can have a value computed via an fcn_str and a list of
     # dependent Variables. This class may need to be relabeld to avoid confusion with
     # the class in Parameter.py which provides a means of computing the Parameter that is used by the model.
     # This is a Parameter in the cascade.xlsx sense - there is one Parameter object for every item in the 
@@ -256,8 +253,6 @@ class Parameter(Variable):
     def __init__(self, pop, name):
         Variable.__init__(self, pop=pop, name=name)
         self.vals = None
-        self.deps = None
-        self.f_stack = None
         self.limits = None  # Can be a two element vector [min,max]
         self.dependency = False
         self.scale_factor = 1.0
@@ -265,8 +260,32 @@ class Parameter(Variable):
         self.source_popsize_cache_time = None
         self.source_popsize_cache_val = None
 
-    def set_f_stack(self, f_stack, deps):
-        self.f_stack = f_stack
+        self.fcn_str = None # String representation of parameter function
+        self.has_fcn = False # Set to True if the parameter ever had a function (even if that function was later dropped due to pickling)
+        self.deps = None # Dict of dependencies containing lists of integration objects
+        self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
+        # TODO - Maybe it should be self.fcn if users are setting it directly (because they are passing their own functions in)
+
+    def set_fcn(self, fcn_input, dep_list):
+        # fcn_input could be
+        # - string, which gets converted to a functor via parse_function()
+        # - functor, which gets stored in self._fcn directly
+        #
+        # Supported functions will be given as input a dict where the keys are
+        # the dependencies in dep_list, and the values are scalars computed from the
+        # current state of the model during integration
+
+        if isinstance(fcn_input,str):
+            self.fcn_str = fcn_input
+            self._fcn = parse_function(fcn_input)[0]
+        else:
+            self.fcn_str = None
+            self._fcn = fcn_input
+        self.has_fcn = True # Set this flag to True to permanently record if a function was used during integration
+
+        deps = {}
+        for dep_name in dep_list:
+            deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
         # If this Parameter has links, it must be marked as dependent for evaluation during integration
@@ -289,6 +308,8 @@ class Parameter(Variable):
         if self.deps is not None:
             for dep_name in self.deps:
                 self.deps[dep_name] = [x.uid for x in self.deps[dep_name]]
+        if self._fcn is not None:
+            self._fcn = None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -309,7 +330,10 @@ class Parameter(Variable):
         # Update the value of this Parameter at time index ti
         # by evaluating its f_stack function using the 
         # current values of all dependent variables at time index ti
-        if self.f_stack is None:
+
+        # If the user pickled the Parameter and lost the function, self.has_fcn will still be
+        # True so an error will be thrown later on (rather than silently producing incorrect results)
+        if not self.has_fcn:
             return
 
         if ti is None:
@@ -325,8 +349,7 @@ class Parameter(Variable):
                 else:
                     dep_vals[dep_name] += dep.vals[[ti]]
 
-        self.vals[ti] = parser.evaluate_stack(stack=self.f_stack[0:], deps=dep_vals)  # self.f_stack[0:] makes a copy
-        self.vals[ti] *= self.scale_factor
+        self.vals[ti] = self.scale_factor*self._fcn(**dep_vals)
 
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
@@ -474,6 +497,9 @@ class Population(object):
         # At the moment, names are unique across object types and within object
         # types except for links, but if that logic changes, simple modifications can
         # be made here
+
+        name = name.replace('___',':') # Parameter functions will convert ':' to '___' for use in variable names
+
         if name in self.comp_lookup:
             return [self.comp_lookup[name]]
         elif name in self.charac_lookup:
@@ -604,11 +630,7 @@ class Population(object):
                     par.limits[1] = spec["max"]
 
             if not spec[FS.TERM_FUNCTION] is None:
-                f_stack = dcp(spec[FS.TERM_FUNCTION])
-                deps = {}
-                for dep_name in spec["dependencies"]:
-                    deps[dep_name] = self.get_variable(dep_name)
-                par.set_f_stack(f_stack, deps)
+                par.set_fcn(spec[FS.TERM_FUNCTION],spec['dependencies'])
 
     def preallocate(self, tvec, dt):
         """
@@ -824,10 +846,11 @@ class Model(object):
                 par = pop.get_par(cascade_par.name)  # Find the parameter with the requested name
                 # If parameter has an f-stack then vals will be calculated during/after integration.
                 # This is opposed to values being supplied from databook.
-                if par.f_stack is None:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                 par.scale_factor = cascade_par.y_factor[pop_name]
-                par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
+                if cascade_par.has_values(pop_name):
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
+                    par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
+                    par.has_fcn = False # Disable the function because actual values have been provided (e.g. via a scenario)
                 if par.links:
                     par.units = cascade_par.y_format[pop_name]
 
@@ -839,8 +862,7 @@ class Model(object):
             if parset.transfers[trans_type]:
                 for pop_source in parset.transfers[trans_type]:
 
-                    transfer_parameter = parset.transfers[trans_type][
-                        pop_source]  # This contains the data for all of the destrination pops
+                    transfer_parameter = parset.transfers[trans_type][pop_source]  # This contains the data for all of the destrination pops
 
                     pop = self.get_pop(pop_source)
 
