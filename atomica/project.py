@@ -68,7 +68,7 @@ class Project(object):
         # Define metadata
         self.uid = uuid()
         self.version = __version__
-        self.gitinfo = gitinfo()
+        self.gitinfo = gitinfo(__file__)
         self.created = today()
         self.modified = today()
         self.databookloaddate = 'Databook never loaded'
