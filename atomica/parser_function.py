@@ -31,6 +31,4 @@ if __name__ == '__main__':
     print(dep_list)
     deps = {'x':1,'y':2}
     print(fcn(**deps))
-    deps = {'x':1,'y':3}
-    print(fcn(**deps))
-
+    print(fcn(x=1,y=3)) # The use of **deps means you can write out keyword arguments for `fcn` directly
