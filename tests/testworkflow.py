@@ -23,11 +23,11 @@ torun = [
 "runsim",
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
-#"makeplots",
+"makeplots",
 "export",
 "listspecs",
-# "manualcalibrate",
-# "autocalibrate",
+"manualcalibrate",
+"autocalibrate",
 "parameterscenario",
 "saveproject",
 "loadproject",
@@ -224,10 +224,7 @@ if "parameterscenario" in torun:
     P.make_scenario(name="varying_infections", instructions=scvalues, overwrite=True)
     P.run_scenario(scenario="varying_infections", parset="default", result_name="scen2")
 
-    d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[0], pops=[scen_pop])
-    plot_series(d, axis="results")
-
-    d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs[-1], pops=[scen_pop])
+    d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     plot_series(d, axis="results")
     
 if "saveproject" in torun:
