@@ -274,12 +274,9 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
-        if isinstance(fcn_input,str):
-            self.fcn_str = fcn_input
-            self._fcn = parse_function(fcn_input)[0]
-        else:
-            self.fcn_str = None
-            self._fcn = fcn_input
+        assert isinstance(fcn_input,str), "Parameter function must be supplied as a string"
+        self.fcn_str = fcn_input
+        self._fcn = parse_function(self.fcn_str)[0]
 
         deps = {}
         for dep_name in dep_list:
@@ -317,6 +314,8 @@ class Parameter(Variable):
         if self.deps is not None:
             for dep_name in self.deps:
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
+        if self.fcn_str:
+            self._fcn = parse_function(self.fcn_str)[0]
 
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
