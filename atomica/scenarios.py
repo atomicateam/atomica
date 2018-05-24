@@ -102,9 +102,10 @@ class ParameterScenario(Scenario):
                         if i == 0:
                             # Interpolation does not rescale, so don't worry about it here
                             y = par.interpolate(np.array([t]), pop_label)
-                        else:
+                            par.insert_value_pair(t, y, pop_label)
+                        elif t > overwrite['t'][i-1]:
                             y = overwrite['y'][i - 1]
-                        par.insert_value_pair(t, y, pop_label)
+                            par.insert_value_pair(t, y, pop_label)
 
                         # Remove any intermediate values which are now smoothed via interpolation
                         par.remove_between([t, overwrite['t'][i]], pop_label)
