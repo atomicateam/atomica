@@ -261,7 +261,6 @@ class Parameter(Variable):
         self.source_popsize_cache_val = None
 
         self.fcn_str = None # String representation of parameter function
-        self.has_fcn = False # Set to True if the parameter ever had a function (even if that function was later dropped due to pickling)
         self.deps = None # Dict of dependencies containing lists of integration objects
         self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
         # TODO - Maybe it should be self.fcn if users are setting it directly (because they are passing their own functions in)
@@ -281,7 +280,6 @@ class Parameter(Variable):
         else:
             self.fcn_str = None
             self._fcn = fcn_input
-        self.has_fcn = True # Set this flag to True to permanently record if a function was used during integration
 
         deps = {}
         for dep_name in dep_list:
@@ -331,9 +329,7 @@ class Parameter(Variable):
         # by evaluating its f_stack function using the 
         # current values of all dependent variables at time index ti
 
-        # If the user pickled the Parameter and lost the function, self.has_fcn will still be
-        # True so an error will be thrown later on (rather than silently producing incorrect results)
-        if not self.has_fcn:
+        if not self.fcn_str:
             return
 
         if ti is None:
@@ -847,7 +843,7 @@ class Model(object):
                 # If parameter has an f-stack then vals will be calculated during/after integration.
                 # This is opposed to values being supplied from databook.
                 par.scale_factor = cascade_par.y_factor[pop_name]
-                if not par.has_fcn:
+                if not par.fcn_str:
                     par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                     par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
                 if par.links:
