@@ -5,7 +5,7 @@ Version: 2018mar26
 
 from copy import deepcopy as dcp
 import numpy as np
-
+from atomica.system import AtomicaException
 
 class Scenario(object):
     def __init__(self, name):
@@ -72,6 +72,9 @@ class ParameterScenario(Scenario):
             par = new_parset.get_par(par_label)  # This is the parameter we are updating
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
+
+                if not par.has_values(pop_label):
+                    raise AtomicaException("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
