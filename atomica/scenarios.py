@@ -5,7 +5,7 @@ Version: 2018mar26
 
 from copy import deepcopy as dcp
 import numpy as np
-
+from atomica.system import AtomicaException
 
 class Scenario(object):
     def __init__(self, name):
@@ -73,6 +73,9 @@ class ParameterScenario(Scenario):
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
+                if not par.has_values(pop_label):
+                    raise AtomicaException("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
+
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
                 if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
@@ -99,9 +102,10 @@ class ParameterScenario(Scenario):
                         if i == 0:
                             # Interpolation does not rescale, so don't worry about it here
                             y = par.interpolate(np.array([t]), pop_label)
-                        else:
+                            par.insert_value_pair(t, y, pop_label)
+                        elif t > overwrite['t'][i-1]:
                             y = overwrite['y'][i - 1]
-                        par.insert_value_pair(t, y, pop_label)
+                            par.insert_value_pair(t, y, pop_label)
 
                         # Remove any intermediate values which are now smoothed via interpolation
                         par.remove_between([t, overwrite['t'][i]], pop_label)
