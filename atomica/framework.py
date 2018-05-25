@@ -6,12 +6,12 @@ This includes a description of the Markov chain network underlying project dynam
 """
 from sciris.core import today, dcp
 
-from atomica.parser_function import FunctionParser
 from atomica.structure import CoreProjectStructure, get_quantity_type_list
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
 from atomica.workbook_export import make_instructions, write_workbook
 from atomica.workbook_import import read_workbook
+from atomica.parser_function import parse_function
 
 
 @apply_to_all_methods(log_usage)
@@ -21,9 +21,6 @@ class ProjectFramework(CoreProjectStructure):
     def __init__(self, filepath=None, **kwargs):
         """ Initialize the framework. """
         super(ProjectFramework, self).__init__(structure_key=SS.STRUCTURE_KEY_FRAMEWORK, **kwargs)
-
-        # One copy of a function parser stored for performance sake.
-        self.parser = FunctionParser()
 
         # Set up a filter for quick referencing items of a certain group.
         self.filter = {FS.TERM_FUNCTION + FS.KEY_PARAMETER: []}
@@ -47,9 +44,9 @@ class ProjectFramework(CoreProjectStructure):
         for item_key in self.specs[FS.KEY_PARAMETER]:
             if not self.get_spec_value(item_key, FS.TERM_FUNCTION) is None:
                 self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER].append(item_key)
-                function_stack, dependencies = self.parser.produce_stack(
-                    self.get_spec_value(item_key, FS.TERM_FUNCTION).replace(" ", ""))
-                self.set_spec_value(item_key, attribute=FS.TERM_FUNCTION, value=function_stack)
+                fcn_str = self.get_spec_value(item_key, FS.TERM_FUNCTION).replace(" ", "")
+                _, dependencies = parse_function(fcn_str)
+                self.set_spec_value(item_key, attribute=FS.TERM_FUNCTION, value=fcn_str)
                 self.set_spec_value(item_key, attribute="dependencies", value=dependencies)
 
     def create_databook_specs(self):
