@@ -415,9 +415,10 @@ def load_progbook(filename, verbose=2):
     lastdatacol, data['years'] = getyears(sheetdata)
     assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
     
-    ## Load program information
+    ## Load program spend information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
     data['progs'] = odict()
+    data['pars'] = odict()
     data['progs']['short'] = []
     data['progs']['name'] = []
     data['progs']['target_pops'] = []
@@ -478,6 +479,25 @@ def load_progbook(filename, verbose=2):
             checkblank = False if thisvar in ['num_covered', 'capacity'] else True # Don't check optional indicators, check everything else
             validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
             
+    ## Load parameter information
+    sheetdata = workbook.sheet_by_name('Program effects') # Load 
+    for row in range(sheetdata.nrows): 
+        if sheetdata.cell_value(row, 0)!='':
+            par_name = sheetdata.cell_value(row, 0) # Get the name of the parameter
+        elif sheetdata.cell_value(row, 1)!='': # Data row
+            pop_name = sheetdata.cell_value(row, 1)
+            data['pars'][par_name] = odict()
+            data['pars'][par_name][pop_name] = odict()
+            data['pars'][par_name][pop_name]['interactions'] = sheetdata.row_values(row, start_colx=2, end_colx=4) 
+            data['pars'][par_name][pop_name]['npi_val'] = sheetdata.cell_value(row, 5) if sheetdata.cell_value(row, 5)!='' else np.nan
+            data['pars'][par_name][pop_name]['max_val'] = sheetdata.cell_value(row, 6) if sheetdata.cell_value(row, 6)!='' else np.nan
+            data['pars'][par_name][pop_name]['prog_vals'] = blank2nan(sheetdata.row_values(row, start_colx=8, end_colx=8+len(data['progs']['short'])) )
+
+            
+        
+
+
+
     return data
 
 
