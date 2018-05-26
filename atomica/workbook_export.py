@@ -773,7 +773,7 @@ class SheetRange:
 def make_programs_range(name=None, popnames=None, items=None):
     """ 
     every programs item is a dictionary is expected to have the following fields:
-    short, name, targetpops
+    short, name, target_pops
     (2x str, 1x list of booleans)
     """
     column_names = ['Short name','Long name']+popnames
@@ -783,8 +783,8 @@ def make_programs_range(name=None, popnames=None, items=None):
         if type(item) is dict:
             name = item['name']
             short = item['short']
-            targetpops = [0 for popname in popnames]
-        coded_params.append([short, name]+targetpops)
+            target_pops = [0 for popname in popnames]
+        coded_params.append([short, name]+target_pops)
     return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params, assumption=False)
 
 def make_years_range(name=None, row_names=None, ref_range=None, data_start=None, data_end=None, data=None):
@@ -973,7 +973,7 @@ class ProgramSpreadsheet:
 
 
     def generate_costcovdata(self):
-        row_levels = ['Total spend', 'Unit cost', 'Coverage', 'Capacity constraint']
+        row_levels = ['Total spend', 'Unit cost', 'Number covered', 'Capacity constraint']
         self.current_sheet.set_column('C:C',20)
         current_row = 0
         current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row, row_names=self.ref_prog_range.param_refs(), row_formats = [AtomicaFormats.SCIENTIFIC,AtomicaFormats.GENERAL,AtomicaFormats.GENERAL,AtomicaFormats.GENERAL], assumption = True, row_levels = row_levels)

@@ -171,6 +171,7 @@ class Project(object):
         
         # Check if the populations match - if not, raise an error, if so, add the data
         if set(progdata['pops']) != set(self.popnames):
+            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
             raise AtomicaException(errormsg)
         self.progdata = progdata
@@ -202,11 +203,12 @@ class Project(object):
         
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
-            data = {k: progdata[pkey][k] for k in ('cost', 'coverage')}
+            data = {k: progdata[pkey][k] for k in ('cost', 'num_covered')}
             data['t'] = progdata['years']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
-                        targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]],
+                        target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
+                        target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][i]],
                         unitcost=progdata[pkey]['unitcost'],
                         capacity=progdata[pkey]['capacity'],
                         data=data

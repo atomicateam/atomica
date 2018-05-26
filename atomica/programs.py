@@ -67,18 +67,18 @@ class ProgramSet(object):
 class Program(object):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, data=None, unitcost=None, year=None, capacity=None, targetpops=None, targetpars=None):
+    def __init__(self,short=None, name=None, data=None, unitcost=None, year=None, capacity=None, target_pops=None, target_comps=None, target_pars=None):
         '''Initialize'''
         self.short = None
         self.name = None
-        self.targetpars = None
-        self.targetpops = None
+        self.target_pars = None
+        self.target_pops = None
         self.data       = None # Latest or estimated expenditure
         self.unitcost   = None # dataframe -- note, 'year' if supplied (not necessary) is stored inside here
         self.capacity   = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, data=data, unitcost=unitcost, year=year, capacity=capacity, targetpops=targetpops, targetpars=targetpars)
+        self.update(short=short, name=name, data=data, unitcost=unitcost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars)
         return None
 
 
@@ -86,21 +86,21 @@ class Program(object):
         ''' Print out useful info'''
         output = defaultrepr(self)
         output += '          Program name: %s\n'    % self.short
-        output += '  Targeted populations: %s\n'    % self.targetpops
-        output += '   Targeted parameters: %s\n'    % self.targetpars
+        output += '  Targeted populations: %s\n'    % self.target_pops
+        output += '   Targeted parameters: %s\n'    % self.target_pars
         output += '\n'
         return output
     
 
-    def update(self, short=None, name=None, data=None, capacity=None, unitcost=None, year=None, targetpops=None, targetpars=None):
+    def update(self, short=None, name=None, data=None, capacity=None, unitcost=None, year=None, target_pops=None, target_pars=None):
         ''' Add data to a program, or otherwise update the values '''
         
-        if short      is not None: self.short      = short
-        if name       is not None: self.name       = name 
-        if capacity   is not None: self.capacity   = capacity
-        if targetpops is not None: self.targetpops = targetpops
-        if data       is not None: self.data = data
-        if unitcost   is not None: self.unitcost = unitcost
+        if short       is not None: self.short       = short
+        if name        is not None: self.name        = name 
+        if capacity    is not None: self.capacity    = capacity
+        if target_pops is not None: self.target_pops = target_pops
+        if data        is not None: self.data        = data
+        if unitcost    is not None: self.unitcost    = unitcost
 #        if targetpars is not None: settargetpars(targetpars) # targeted parameters
         
         # Finally, check everything
@@ -108,8 +108,8 @@ class Program(object):
             errormsg = 'You must supply a short name for a program'
             raise AtomicaException(errormsg)
         if self.name is None:       self.name = self.short # If name not supplied, use short
-        if self.targetpops is None: self.targetpops = [] # Empty list
-        if self.targetpars is None: self.targetpars = [] # Empty list
+        if self.target_pops is None: self.target_pops = [] # Empty list
+        if self.target_pars is None: self.target_pars = [] # Empty list
             
         return None
 

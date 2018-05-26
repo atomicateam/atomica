@@ -411,7 +411,7 @@ def load_progbook(filename, verbose=2):
         raise AtomicaException(errormsg)
     
     ## Calculate columns for which data are entered, and store the year ranges
-    sheetdata = workbook.sheet_by_name('Program data') # Load this workbook
+    sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
     lastdatacol, data['years'] = getyears(sheetdata)
     assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
     
@@ -420,32 +420,43 @@ def load_progbook(filename, verbose=2):
     data['progs'] = odict()
     data['progs']['short'] = []
     data['progs']['name'] = []
-    data['progs']['targetpops'] = []
+    data['progs']['target_pops'] = []
+    data['progs']['target_comps'] = []
+    
+    colindices = []
     for row in range(sheetdata.nrows): 
-        if sheetdata.cell_value(row,0)=='':
+        if sheetdata.cell_value(row,0)!='':
+            for col in range(2,sheetdata.ncols):
+                cell_val = sheetdata.cell(row, col).value
+                if cell_val!='': colindices.append(col-1)
+        else:
             thesedata = sheetdata.row_values(row, start_colx=2) 
         
-            if sheetdata.cell_value(row,1)=='':
-                data['pops'] = thesedata[2:]
+            if row==1:
+                data['pops'] = thesedata[3:colindices[0]]
+                data['comps'] = thesedata[colindices[1]:]
             else:
-                progname = str(thesedata[0])
-                data['progs']['short'].append(progname)
-                data['progs']['name'].append(str(thesedata[1]))
-                data['progs']['targetpops'].append(thesedata[2:])
-                data[progname] = odict()
-                data[progname]['name'] = str(thesedata[1])
-                data[progname]['targetpops'] = thesedata[2:]
-                data[progname]['cost'] = []
-                data[progname]['coverage'] = []
-                data[progname]['unitcost'] = odict()
-                data[progname]['capacity'] = odict()
-                
+                if thesedata[0]:
+                    progname = str(thesedata[0])
+                    data['progs']['short'].append(progname)
+                    data['progs']['name'].append(str(thesedata[1]))
+                    data['progs']['target_pops'].append(thesedata[3:colindices[0]])
+                    data['progs']['target_comps'].append(thesedata[colindices[1]:])
+                    data[progname] = odict()
+                    data[progname]['name'] = str(thesedata[1])
+                    data[progname]['target_pops'] = thesedata[3:colindices[0]]
+                    data[progname]['target_comps'] = thesedata[colindices[1]:]
+                    data[progname]['cost'] = []
+                    data[progname]['num_covered'] = []
+                    data[progname]['unitcost'] = odict()
+                    data[progname]['capacity'] = odict()
+                    
     
     namemap = {'Total spend': 'cost',
                'Unit cost':'unitcost',
-               'Coverage': 'coverage',
+               'Number covered': 'num_covered',
                'Capacity constraints': 'capacity'} 
-    sheetdata = workbook.sheet_by_name('Program data') # Load 
+    sheetdata = workbook.sheet_by_name('Program spend data') # Load 
     
     
     for row in range(sheetdata.nrows): 
@@ -464,7 +475,7 @@ def load_progbook(filename, verbose=2):
                 thisvar = namemap[sheetdata.cell_value(row, 2).split(' - ')[0]]  # Get the name of the indicator
                 thisestimate = sheetdata.cell_value(row, 2).split(' - ')[1]
                 data[progname][thisvar][thisestimate] = thesedata # Store data
-            checkblank = False if thisvar in ['coverage', 'capacity'] else True # Don't check optional indicators, check everything else
+            checkblank = False if thisvar in ['num_covered', 'capacity'] else True # Don't check optional indicators, check everything else
             validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
             
     return data
