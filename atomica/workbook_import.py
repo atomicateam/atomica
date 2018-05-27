@@ -481,7 +481,13 @@ def load_progbook(filename, verbose=2):
             
     ## Load parameter information
     sheetdata = workbook.sheet_by_name('Program effects') # Load 
+    data['eff_years'] = []
     for row in range(sheetdata.nrows): 
+        if row==0:
+            for col in range(2,sheetdata.ncols):
+                cell_val = sheetdata.cell(row, col).value
+                if cell_val!='': data['eff_years'].append(cell_val)
+        nyears = len(data['eff_years'])
         if sheetdata.cell_value(row, 0)!='':
             par_name = sheetdata.cell_value(row, 0) # Get the name of the parameter
         elif sheetdata.cell_value(row, 1)!='': # Data row
@@ -489,14 +495,11 @@ def load_progbook(filename, verbose=2):
             data['pars'][par_name] = odict()
             data['pars'][par_name][pop_name] = odict()
             data['pars'][par_name][pop_name]['interactions'] = sheetdata.row_values(row, start_colx=2, end_colx=4) 
-            data['pars'][par_name][pop_name]['npi_val'] = sheetdata.cell_value(row, 5) if sheetdata.cell_value(row, 5)!='' else np.nan
-            data['pars'][par_name][pop_name]['max_val'] = sheetdata.cell_value(row, 6) if sheetdata.cell_value(row, 6)!='' else np.nan
-            data['pars'][par_name][pop_name]['prog_vals'] = blank2nan(sheetdata.row_values(row, start_colx=8, end_colx=8+len(data['progs']['short'])) )
-
-            
-        
-
-
+            lastval = len(data['progs']['short']) + 5 # The length of each year block
+            for yr in range(nyears):
+                data['pars'][par_name][pop_name]['npi_val'] = [[sheetdata.cell_value(row+i, 5+lastval*j) if sheetdata.cell_value(row+i, 5+lastval*j)!='' else np.nan for i in range(3)] for j in range(nyears)]
+                data['pars'][par_name][pop_name]['max_val'] = [[sheetdata.cell_value(row+i, 6+lastval*j) if sheetdata.cell_value(row+i, 6+lastval*j)!='' else np.nan for i in range(3)] for j in range(nyears)]
+                data['pars'][par_name][pop_name]['prog_vals'] = [[blank2nan(sheetdata.row_values(row+i, start_colx=8+lastval*j, end_colx=8+lastval*j+len(data['progs']['short'])) ) for i in range(3)] for j in range(nyears)]
 
     return data
 
