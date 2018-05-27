@@ -185,37 +185,9 @@ class Project(object):
     def make_progset(self, progdata=None, name="default",add=True):
         '''Make a progset from program spreadsheet data'''
         
-        # Sort out inputs
-        if progdata is None:
-            if self.progdata is None:
-                errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
-                raise AtomicaException(errormsg)
-            else:
-                progdata = self.progdata
-                
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.popnames):
-            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
-            raise AtomicaException(errormsg)
-                
-        nprogs = len(progdata['progs']['short'])
-        programs = []
-        
-        for np in range(nprogs):
-            pkey = progdata['progs']['short'][np]
-            data = {k: progdata[pkey][k] for k in ('cost', 'num_covered')}
-            data['t'] = progdata['years']
-            p = Program(short=pkey,
-                        name=progdata['progs']['short'][np],
-                        target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
-                        target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][i]],
-                        unitcost=progdata[pkey]['unitcost'],
-                        capacity=progdata[pkey]['capacity'],
-                        data=data
-                        )
-            programs.append(p)
-            
-        progset = ProgramSet(name=name,programs=programs)
+        progset = ProgramSet(name=name)
+        progset.make(self, progdata)
+
         if add:
             self.set_progset(progset_key=name,progset_object=progset)
             return None

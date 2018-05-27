@@ -21,7 +21,7 @@ class ProgramSet(object):
         self.default_interaction = default_interaction
         self.programs = odict()
         if programs is not None: self.addprograms(programs)
-        else: self.updateprogset()
+#        else: self.updateprogset()
         self.defaultbudget = odict()
         self.created = today()
         self.modified = today()
@@ -37,6 +37,43 @@ class ProgramSet(object):
         
         return output
 
+    def make(self, project=None, progdata=None):
+        '''Make a program set from program data.'''
+
+        # Sort out inputs
+        if progdata is None:
+            if project.progdata is None:
+                errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
+                raise AtomicaException(errormsg)
+            else:
+                progdata = project.progdata
+                
+        # Check if the populations match - if not, raise an error, if so, add the data
+        if set(progdata['pops']) != set(project.popnames):
+            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(project.popnames))
+            raise AtomicaException(errormsg)
+                
+        nprogs = len(progdata['progs']['short'])
+        programs = []
+        
+        for np in range(nprogs):
+            pkey = progdata['progs']['short'][np]
+            data = {k: progdata[pkey][k] for k in ('cost', 'num_covered')}
+            data['t'] = progdata['years']
+            p = Program(short=pkey,
+                        name=progdata['progs']['short'][np],
+                        target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
+                        target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][i]],
+                        unitcost=progdata[pkey]['unitcost'],
+                        capacity=progdata[pkey]['capacity'],
+                        data=data
+                        )
+            programs.append(p)
+        
+        self.addprograms(progs=programs)
+        
+        
+        
     def addprograms(self, progs=None, replace=False):
         ''' Add a list of programs '''
         
