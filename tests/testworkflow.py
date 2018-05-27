@@ -104,7 +104,7 @@ if "loadprogramspreadsheet" in torun:
 
     P = demo(which='sir',do_plot=0)
     filename = 'databooks/programdata_sir.xlsx'
-    P.load_progbook(databook_path=filename)
+    P.load_progbook(databook_path=filename, make_default_progset=True)
 
 if "makeplots" in torun:
 

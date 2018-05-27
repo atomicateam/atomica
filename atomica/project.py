@@ -171,7 +171,6 @@ class Project(object):
         
         # Check if the populations match - if not, raise an error, if so, add the data
         if set(progdata['pops']) != set(self.popnames):
-            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
             raise AtomicaException(errormsg)
         self.progdata = progdata

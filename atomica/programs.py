@@ -6,10 +6,10 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist, promotetoarray, indent, vec2obj
+from sciris.core import odict, today, getdate, defaultrepr, promotetolist, promotetoarray, indent, vec2obj, isnumber, sanitize
 from atomica.system import AtomicaException
 from numpy.random import uniform
-from numpy import array
+from numpy import array, nan
 
 
 #--------------------------------------------------------------------
@@ -22,6 +22,7 @@ class ProgramSet(object):
         self.name = name
         self.default_interaction = default_interaction
         self.programs = odict()
+        self.covout = odict()
         if programs is not None: self.addprograms(programs)
 #        else: self.updateprogset()
         self.defaultbudget = odict()
@@ -76,8 +77,22 @@ class ProgramSet(object):
         
         # Read in the information for covout functions
         prognames = progdata['progs']['short']
-        self.addcovouts(progdata['pars'], prognames)
-        
+        prog_effects = odict()
+        for par,pardata in progdata['pars'].iteritems():
+            prog_effects[par] = odict()
+            for pop,popdata in pardata.iteritems():
+                prog_effects[par][pop] = odict()
+                for pno in range(len(prognames)):
+                    bval = popdata['prog_vals'][0][pno]
+                    lval = popdata['prog_vals'][1][pno]
+                    hval = popdata['prog_vals'][2][pno]
+                    vals = [val for val in [bval,lval,hval] if isnumber(val) and val is not nan]
+                    if vals: prog_effects[par][pop][prognames[pno]] = vals
+                if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
+            if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
+            
+        self.addcovouts(progdata['pars'], prog_effects)
+        return None
         
     def addprograms(self, progs=None, replace=False):
         ''' Add a list of programs '''
@@ -103,13 +118,14 @@ class ProgramSet(object):
         return None
 
 
-    def addcovout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, progs=None, prognames=None):
+    def addcovout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None):
         ''' add a single coverage-outcome parameter '''
-        self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, progs=progs, prognames=prognames)
+        
+        self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, prog=prog)
         return None
 
 
-    def addcovouts(self, covouts=None, prognames=None):
+    def addcovouts(self, covouts=None, prog_effects=None):
         '''
         Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
         covouts[parname][popname] = odict()
@@ -126,8 +142,13 @@ class ProgramSet(object):
             raise AtomicaException(errormsg)
             
         for par,pardata in covouts.iteritems():
-            for pop,popdata in pardata.iteritems():
-                self.addcovout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=popdata['npi_val'], max_val=popdata['max_val'], progs=popdata['prog_vals'],prognames=prognames)
+            if par in prog_effects.keys():
+                for pop,popdata in covouts[par].iteritems():
+                    if pop in prog_effects[par].keys():
+                        # Sanitize inputs
+                        npi_val = sanitize(popdata['npi_val'])
+                        max_val = sanitize(popdata['max_val'])
+                        self.addcovout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -219,7 +240,7 @@ class Covout(object):
            )
     '''
     
-    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, progs=None, prognames=None):
+    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None):
         self.par = par
         self.pop = pop
         self.cov_interaction = cov_interaction
@@ -227,15 +248,15 @@ class Covout(object):
         self.npi_val = Val(npi_val)
         self.max_val = Val(max_val)
         self.progs = odict()
-        if progs is not None: self.add(progs=prognames, val=progs)
+        if prog is not None: self.add(prog=prog)
         return None
     
     def __repr__(self):
-        output = defaultrepr(self, showatt=False)
-        output += indent('   Parameter: ', self.par)
+#        output = defaultrepr(self)
+        output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
-        output += indent(' Lower limit: ', self.lowerlim.get('all'))
-        output += indent(' Upper limit: ', self.upperlim.get('all'))
+        output += indent('     NPI val: ', self.npi_val.get('all'))
+        output += indent('     Max val: ', self.max_val.get('all'))
         output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val.get('all')) for key,val in self.progs.items()]))
         output += '\n'
         return output
@@ -247,8 +268,6 @@ class Covout(object):
         self.add([{'FSW':[0.3,0.1,0.4]}, {'SBCC':[0.1,0.05,0.15]}])
         or
         self.add('FSW', 0.3)
-        or
-        self.add(prognames=['Prog1','Prog2'], [[0.3,0.1,0.4], [0.1,0.05,0.15]])
         '''
         if isinstance(prog, dict):
             for key,val in prog.items():
