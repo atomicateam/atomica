@@ -6,9 +6,10 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist, promotetoarray, indent
+from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist, promotetoarray, indent, vec2obj
 from atomica.system import AtomicaException
 from numpy.random import uniform
+from numpy import array
 
 
 #--------------------------------------------------------------------
@@ -74,9 +75,8 @@ class ProgramSet(object):
         self.addprograms(progs=programs)
         
         # Read in the information for covout functions
-        
-        
-        
+        prognames = progdata['progs']['short']
+        self.addcovouts(progdata['pars'], prognames)
         
         
     def addprograms(self, progs=None, replace=False):
@@ -101,7 +101,36 @@ class ProgramSet(object):
             self.programs[prog.short] = prog
 
         return None
+
+
+    def addcovout(self, par=None, pop=None, cov_interation=None, imp_interation=None, npi_val=None, max_val=None, progs=None, prognames=None):
+        ''' add a single coverage-outcome parameter '''
+        self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interation=cov_interation, imp_interation=imp_interation, npi_val=npi_val, max_val=max_val, progs=progs, prognames=prognames)
+        return None
+
+
+    def addcovouts(self, covouts=None, prognames=None):
+        '''
+        Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
+        covouts[parname][popname] = odict()
         
+        '''
+        # Process inputs
+        if covouts is not None:
+            if isinstance(covouts, list) or isinstance(covouts,type(array([]))):
+                errormsg = 'Expecting a dictionary with specific structure, not a list'
+                raise AtomicaException(errormsg)
+#                covouts = vec2obj(orig=self.getdefaultbudget(), newvec=covouts) # Input was a vector: convert to odict - NOT OPERATIONAL YET
+        else:
+            errormsg = 'Covout list not supplied.'
+            raise AtomicaException(errormsg)
+            
+        for par,pardata in covouts.iteritems():
+            for pop,popdata in pardata.iteritems():
+                self.addcovout(par=par, pop=pop, cov_interation=popdata['interations'][0], imp_interation=popdata['interactions'][1], npi_val=popdata['npi_val'], max_val=popdata['max_val'], progs=popdata['prog_vals'],prognames=prognames)
+        
+        return None
+
         
 #--------------------------------------------------------------------
 # Program class
@@ -183,19 +212,22 @@ class Covout(object):
     Example:
     Covout(par='contacts',
            pop='Adults',
+           
            npi_val=120,
            max_val=[10,5,15],
            progs={'Prog1':[15,10,10], 'Prog2':20}
            )
     '''
     
-    def __init__(self, par=None, pop=None, npi_val=None, max_val=None, progs=None):
+    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, progs=None, prognames=None):
         self.par = par
         self.pop = pop
+        self.cov_interaction = cov_interaction
+        self.imp_interaction = imp_interaction
         self.npi_val = Val(npi_val)
         self.max_val = Val(max_val)
         self.progs = odict()
-        if progs is not None: self.add(progs)
+        if progs is not None: self.add(progs=prognames, val=progs)
         return None
     
     def __repr__(self):
@@ -215,6 +247,8 @@ class Covout(object):
         self.add([{'FSW':[0.3,0.1,0.4]}, {'SBCC':[0.1,0.05,0.15]}])
         or
         self.add('FSW', 0.3)
+        or
+        self.add(prognames=['Prog1','Prog2'], [[0.3,0.1,0.4], [0.1,0.05,0.15]])
         '''
         if isinstance(prog, dict):
             for key,val in prog.items():
