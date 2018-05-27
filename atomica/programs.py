@@ -6,8 +6,9 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist
+from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist, promotetoarray, indent
 from atomica.system import AtomicaException
+from numpy.random import uniform
 
 
 #--------------------------------------------------------------------
@@ -56,6 +57,7 @@ class ProgramSet(object):
         nprogs = len(progdata['progs']['short'])
         programs = []
         
+        # Read in the information for programs
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
             data = {k: progdata[pkey][k] for k in ('cost', 'num_covered')}
@@ -69,8 +71,11 @@ class ProgramSet(object):
                         data=data
                         )
             programs.append(p)
-        
         self.addprograms(progs=programs)
+        
+        # Read in the information for covout functions
+        
+        
         
         
         
@@ -169,8 +174,200 @@ class Program(object):
 
 
 #--------------------------------------------------------------------
-# Functions 
+# Covout
 #--------------------------------------------------------------------
+class Covout(object):
+    '''
+    Coverage-outcome object 
 
+    Example:
+    Covout(par='contacts',
+           pop='Adults',
+           npi_val=120,
+           max_val=[10,5,15],
+           progs={'Prog1':[15,10,10], 'Prog2':20}
+           )
+    '''
+    
+    def __init__(self, par=None, pop=None, npi_val=None, max_val=None, progs=None):
+        self.par = par
+        self.pop = pop
+        self.npi_val = Val(npi_val)
+        self.max_val = Val(max_val)
+        self.progs = odict()
+        if progs is not None: self.add(progs)
+        return None
+    
+    def __repr__(self):
+        output = defaultrepr(self, showatt=False)
+        output += indent('   Parameter: ', self.par)
+        output += indent('  Population: ', self.pop)
+        output += indent(' Lower limit: ', self.lowerlim.get('all'))
+        output += indent(' Upper limit: ', self.upperlim.get('all'))
+        output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val.get('all')) for key,val in self.progs.items()]))
+        output += '\n'
+        return output
+        
+    
+    def add(self, prog=None, val=None):
+        ''' 
+        Accepts either
+        self.add([{'FSW':[0.3,0.1,0.4]}, {'SBCC':[0.1,0.05,0.15]}])
+        or
+        self.add('FSW', 0.3)
+        '''
+        if isinstance(prog, dict):
+            for key,val in prog.items():
+                self.progs[key] = Val(val)
+        elif isinstance(prog, (list, tuple)):
+            for key,val in prog:
+                self.progs[key] = Val(val)
+        elif isinstance(prog, basestring) and val is not None:
+            self.progs[prog] = Val(val)
+        else:
+            errormsg = 'Could not understand prog=%s and val=%s' % (prog, val)
+            raise AtomicaException(errormsg)
+        return None
+            
+
+#--------------------------------------------------------------------
+# Val
+#--------------------------------------------------------------------
+class Val(object):
+    '''
+    A single value including uncertainty
+    
+    Can be set the following ways:
+    v = Val(0.3)
+    v = Val([0.2, 0.4])
+    v = Val([0.3, 0.2, 0.4])
+    v = Val(best=0.3, low=0.2, high=0.4)
+    
+    Can be called the following ways:
+    v() # returns 0.3
+    v('best') # returns 0.3
+    v(what='best') # returns 0.3
+    v('rand') # returns value between low and high (assuming uniform distribution)
+    
+    Can be updated the following ways:
+    v(0.33) # resets best
+    v([0.22, 0.44]) # resets everything
+    v(best=0.33) # resets best
+    
+    '''
+    
+    def __init__(self, best=None, low=None, high=None, dist=None):
+        ''' Allow the object to be initialized, but keep the same infrastructure for updating '''
+        self.best = None
+        self.low = None
+        self.high = None
+        self.dist = None
+        self.update(best=best, low=low, high=high, dist=dist)
+        return None
+    
+    
+    def __repr__(self):
+        output = defaultrepr(self)
+        return output
+    
+    
+    def __call__(self, *args, **kwargs):
+        ''' Convenience function for both update and get '''
+        
+        # If it's None or if the key is a string (e.g. 'best'), get the values:
+        if len(args)+len(kwargs)==0 or 'what' in kwargs or (len(args) and type(args[0])==str):
+            return self.get(*args, **kwargs)
+        else: # Otherwise, try to set the values
+            self.update(*args, **kwargs)
+    
+    def __getitem__(self, *args, **kwargs):
+        ''' Allows you to call e.g. val['best'] instead of val('best') '''
+        return self.get(*args, **kwargs)
+    
+    
+    def update(self, best=None, low=None, high=None, dist=None):
+        ''' Actually set the values -- very convoluted, but should be flexible and work :)'''
+        
+        # Reset these values if already supplied
+        if best is None and self.best is not None: best = self.best
+        if low  is None and self.low  is not None: low  = self.low 
+        if high is None and self.high is not None: high = self.high 
+        if dist is None and self.dist is not None: dist = self.dist
+        
+        # Handle values
+        if best is None: # Best is not supplied, so use high and low, e.g. Val(low=0.2, high=0.4)
+            if low is None or high is None:
+                errormsg = 'If not supplying a best value, you must supply both low and high values'
+                raise AtomicaException(errormsg)
+            else:
+                best = (low+high)/2. # Take the average
+        elif isinstance(best, dict):
+            self.update(**best) # Assume it's a dict of args, e.g. Val({'best':0.3, 'low':0.2, 'high':0.4})
+        else: # Best is supplied
+            best = promotetoarray(best)
+            if len(best)==1: # Only a single value supplied, e.g. Val(0.3)
+                best = best[0] # Convert back to number
+                if low is None: low = best # If these are missing, just replace them with best
+                if high is None: high = best
+            elif len(best)==2: # If length 2, assume high-low supplied, e.g. Val([0.2, 0.4])
+                if low is not None and high is not None:
+                    errormsg = 'If first argument has length 2, you cannot supply high and low values'
+                    raise AtomicaException(errormsg)
+                low = best[0]
+                high = best[1]
+                best = (low+high)/2.
+            elif len(best)==3: # Assume it's called like Val([0.3, 0.2, 0.4])
+                low, best, high = sorted(best) # Allows values to be provided in any order
+            else:
+                errormsg = 'Could not understand input of best=%s, low=%s, high=%s' % (best, low, high)
+                raise AtomicaException(errormsg)
+        
+        # Handle distributions
+        validdists = ['uniform']
+        if dist is None: dist = validdists[0]
+        if dist not in validdists:
+            errormsg = 'Distribution "%s" not valid; choices are: %s' % (dist, validdists)
+            raise AtomicaException(errormsg) 
+        
+        # Store values
+        self.best = float(best)
+        self.low  = float(low)
+        self.high = float(high)
+        self.dist = dist
+        if not low<=best<=high:
+            errormsg = 'Values are out of order (check that low=%s <= best=%s <= high=%s)' % (low, best, high)
+            raise AtomicaException(errormsg) 
+        
+        return None
+    
+    
+    def get(self, what=None, n=1):
+        '''
+        Get the value from this distribution. Examples (with best=0.3, low=0.2, high=0.4):
+        
+        val.get() # returns 0.3
+        val.get('best') # returns 0.3
+        val.get(['low', 'best',' high']) # returns [0.2, 0.3, 0.4]
+        val.get('rand') # returns, say, 0.3664
+        val.get('all') # returns [0.3, 0.2, 0.4]
+        
+        The seed() call should ensure pseudorandomness.
+        '''
+        
+        if what is None or what is 'best': val = self.best# Haha this is funny but works
+        elif what is 'low':                val = self.low
+        elif what is 'high':               val = self.high
+        elif what is 'all':                val = [self.best, self.low, self.high]
+        elif what in ['rand','random']:
+            if self.dist=='uniform':       val = uniform(low=self.low, high=self.high, size=n)
+            else:
+                errormsg = 'Distribution %s is not implemented, sorry' % self.dist
+                raise AtomicaException(errormsg)
+        elif type(what)==list:             val = [self.get(wh) for wh in what]# Allow multiple values to be used
+        else:
+            errormsg = 'Could not understand %s, expecting a valid string (e.g. "best") or list' % what
+            raise AtomicaException(errormsg)
+        return val
+    
     
 
