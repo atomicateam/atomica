@@ -103,9 +103,9 @@ class ProgramSet(object):
         return None
 
 
-    def addcovout(self, par=None, pop=None, cov_interation=None, imp_interation=None, npi_val=None, max_val=None, progs=None, prognames=None):
+    def addcovout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, progs=None, prognames=None):
         ''' add a single coverage-outcome parameter '''
-        self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interation=cov_interation, imp_interation=imp_interation, npi_val=npi_val, max_val=max_val, progs=progs, prognames=prognames)
+        self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, progs=progs, prognames=prognames)
         return None
 
 
@@ -127,7 +127,7 @@ class ProgramSet(object):
             
         for par,pardata in covouts.iteritems():
             for pop,popdata in pardata.iteritems():
-                self.addcovout(par=par, pop=pop, cov_interation=popdata['interations'][0], imp_interation=popdata['interactions'][1], npi_val=popdata['npi_val'], max_val=popdata['max_val'], progs=popdata['prog_vals'],prognames=prognames)
+                self.addcovout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=popdata['npi_val'], max_val=popdata['max_val'], progs=popdata['prog_vals'],prognames=prognames)
         
         return None
 
