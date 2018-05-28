@@ -41,56 +41,21 @@ class DetailColumns(TableType):
         self.attribute_list = attribute_list
 
 
-class ConnectionMatrix(TableType):
-    """
-    Structure to define a matrix that connects two item types together.
-    If no target item type is specified, the connections are between the same type of item.
-    Connections are directional from row headers, e.g. zeroth column, to column headers, e.g. zeroth row.
-    The linking value is considered to be the 'name' of an item of this type.
-    A list of tuples containing source and target items is stored under 'storage_attribute' for the item.
-    Accordingly, errors will arise if the item has not yet been defined as part of the storage item type.
-
-    Note that only source_item_type and target_item_type are used when writing the matrix.
-    Only storage_item_type and storage_attribute are used when reading the matrix.
-
-    An example for writing matrices:
-        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
-                         storage_item_type="par", storage_attribute="links")
-        AND Framework.specs["whatever1"].keys() = ["source1", "source2"]
-        =>      target1 target2
-        source1
-        source2
-
-    An example for reading matrices:
-        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
-                         storage_item_type="par", storage_attribute="links")
-        AND     target1 target2
-        source1 par1
-        source2         par1
-        => specs["par"]["par1"]["links"][("source1","target1"),("source2","target2")]
-    """
-
-    def __init__(self, source_item_type, storage_item_type, storage_attribute, target_item_type=None):
-        super(ConnectionMatrix, self).__init__()
-        self.source_item_type = source_item_type
-        if target_item_type is None:
-            target_item_type = source_item_type
-        self.target_item_type = target_item_type
-        self.storage_item_type = storage_item_type
-        self.storage_attribute = storage_attribute
-
-
 class TableTemplate(TableType):
     """
     Structure indicating a table should be duplicated for each existing instance of an item type.
-    In settings, item key should always be left as None, with template to be instantiated by other external functions.
+    In settings, template item key should always be left as None.
+    The template should be instantiated by other external functions, e.g. following framework file import.
     Because item instances only exist after framework file is read in, this table type should only appear in databook.
+
+    Note that, if the template item type only exists in ProjectData and not ProjectFramework...
+    The template will be iterated according to the number of items to be constructed according to workbook instructions.
     """
 
-    def __init__(self, item_type, item_key=None):
+    def __init__(self, template_item_type, template_item_key=None):
         super(TableTemplate, self).__init__()
-        self.item_type = item_type
-        self.item_key = item_key
+        self.template_item_type = template_item_type
+        self.template_item_key = template_item_key
 
 
 class TimeDependentValuesEntry(TableTemplate):
@@ -103,6 +68,63 @@ class TimeDependentValuesEntry(TableTemplate):
         super(TimeDependentValuesEntry, self).__init__(**kwargs)
         self.iterated_type = iterated_type
         self.value_attribute = value_attribute
+
+
+class ConnectionMatrix(TableTemplate):
+    """
+    Structure to define a matrix that connects two item types together.
+    If no target item type is specified, the connections are between the same type of item.
+    Connections are directional from row headers, e.g. zeroth column, to column headers, e.g. zeroth row.
+    Connections are always depicted as a paired tuple of two strings, i.e. source item name and target item name.
+
+    If the table is not specified as a template, i.e. template_item_type is passed in explicitly or implicity as None...
+    The cell value denoting a connection becomes the 'connection)name' of the item this connection is attached to.
+    Connections are listed under: specs[storage_item_type][connection_name][storage_attribute]
+    If the table is specified as a template, i.e. template_item_type is not None...
+    The template key becomes the 'name' of the item this connection is attached to.
+    Accordingly, cell values marking the connection must be the system settings symbol for yes, e.g. 'y'.
+    Connections are listed under: specs[template_item_type][template_item_key][storage_attribute]
+
+    Note that only source_item_type and target_item_type are used when writing the matrix.
+    Only storage_item_type and storage_attribute are used when reading the matrix.
+    In the non-template case, errors will arise if the item has not yet been defined as part of the storage item type.
+
+    An example for writing matrices:
+        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
+                         storage_item_type="par", storage_attribute="links")
+        AND Framework.specs["whatever1"].keys() = ["source1", "source2"]
+        =>      target1 target2
+        source1 _______ _______
+        source2 _______ _______
+
+    An example for reading matrices:
+        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
+                         storage_item_type="par", storage_attribute="links")
+        AND     target1 target2
+        source1 par1    _______
+        source2 _______ par1
+        => specs["par"]["par1"]["links"][("source1","target1"),("source2","target2")]
+
+    An example for reading template matrices:
+        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
+                         storage_item_type=None, storage_attribute="links",
+                         template_item_type="transfer", template_item_key="aging")
+        AND     target1 target2
+        source1 y       n
+        source2 n       y
+        => specs["transfer"]["aging"]["links"][("source1","target1"),("source2","target2")]
+    """
+
+    def __init__(self, source_item_type, storage_item_type, storage_attribute, target_item_type=None,
+                 template_item_type=None):
+        super(ConnectionMatrix, self).__init__(template_item_type=template_item_type)
+        self.source_item_type = source_item_type
+        if target_item_type is None:
+            target_item_type = source_item_type
+        self.target_item_type = target_item_type
+        if template_item_type is not None:
+            self.storage_item_type = template_item_type
+        self.storage_attribute = storage_attribute
 
 
 class ContentType(object):
@@ -209,6 +231,8 @@ class BaseStructuralSettings(object):
     KEY_POPULATION_OPTION = KEY_POPULATION + TERM_OPTION
     KEY_PROGRAM_TYPE = KEY_PROGRAM + TERM_TYPE
     KEY_PROGRAM_ATTRIBUTE = KEY_PROGRAM + TERM_ATTRIBUTE
+    KEY_TRANSITIONS = KEY_TRANSITION + SS.DEFAULT_SUFFIX_PLURAL
+    KEY_POPULATION_LINKS = KEY_POPULATION + KEY_TRANSITION + SS.DEFAULT_SUFFIX_PLURAL
 
     ITEM_TYPES = []
 
@@ -343,7 +367,7 @@ class BaseStructuralSettings(object):
                         try:
                             config_value = get_config_value(config=cp,
                                                             section=SS.DEFAULT_SPACE_NAME.join(["attribute",
-                                                                                              item_type, attribute]),
+                                                                                                item_type, attribute]),
                                                             option=option)
                             cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute][option] = config_value
                         except Exception:
@@ -406,17 +430,17 @@ class FrameworkSettings(BaseStructuralSettings):
                     table = DetailColumns(item_type, attribute_list=["label"],
                                           exclude_not_include=False)
                 elif item_type == cls.KEY_PARAMETER:
-                    table = DetailColumns(item_type, attribute_list=["links", "dependencies"],
+                    table = DetailColumns(item_type, attribute_list=[cls.KEY_TRANSITIONS, "dependencies"],
                                           exclude_not_include=True)
                 else:
                     table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
         cls.PAGE_SPECS[cls.KEY_DATAPAGE]["can_skip"] = True
         # Ensure that transition matrix page is read after parameter page so that link names are already defined.
-        cls.PAGE_SPECS[cls.KEY_TRANSITION]["read_order"] = 1    # All other pages prioritised with read order value 0.
+        cls.PAGE_SPECS[cls.KEY_TRANSITION]["read_order"] = 1  # All other pages prioritised with read order value 0.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type=cls.KEY_COMPARTMENT,
                                                                              storage_item_type=cls.KEY_PARAMETER,
-                                                                             storage_attribute="links"))
+                                                                             storage_attribute=cls.KEY_TRANSITIONS))
 
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT], ["is_source", "is_sink", "is_junction"],
                                         content_type=SwitchType())
@@ -433,7 +457,8 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", cls.TERM_FUNCTION, "dependencies"])
-        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["links"], content_type=ContentType(is_list=True))
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
+                                        content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["tables"], content_type=ContentType(is_list=True))
@@ -472,24 +497,27 @@ class DataSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT], [cls.TERM_DATA], TimeSeriesType())
         cls.create_item_type_attributes([cls.KEY_CHARACTERISTIC], [cls.TERM_DATA], TimeSeriesType())
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_DATA], TimeSeriesType())
+        cls.create_item_type_attributes([cls.KEY_TRANSFER], [cls.TERM_DATA], TimeSeriesType())
+        cls.create_item_type_attributes([cls.KEY_TRANSFER], [cls.KEY_POPULATION_LINKS], ContentType(is_list=True))
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type=cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
-        # cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(ConnectionMatrix(source_item_type=cls.KEY_POPULATION,
-        #                                                                    storage_item_type=cls.KEY_TRANSFER,
-        #                                                                    storage_attribute="links"))
+        cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(ConnectionMatrix(template_item_type=cls.KEY_TRANSFER,
+                                                                           source_item_type=cls.KEY_POPULATION,
+                                                                           storage_item_type=None,
+                                                                           storage_attribute=cls.KEY_POPULATION_LINKS))
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
         #                                                                  storage_attribute = "target_pops"))
-        cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(TimeDependentValuesEntry(item_type=cls.KEY_PARAMETER,
-                                                                                    iterated_type=cls.KEY_POPULATION,
-                                                                                    value_attribute=cls.TERM_DATA))
+        table = TimeDependentValuesEntry(template_item_type=cls.KEY_PARAMETER, iterated_type=cls.KEY_POPULATION,
+                                         value_attribute=cls.TERM_DATA)
+        cls.PAGE_SPECS[cls.KEY_PARAMETER]["tables"].append(table)
         charac_tables = cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"]
-        charac_tables.append(TimeDependentValuesEntry(item_type=cls.KEY_COMPARTMENT,
+        charac_tables.append(TimeDependentValuesEntry(template_item_type=cls.KEY_COMPARTMENT,
                                                       iterated_type=cls.KEY_POPULATION,
                                                       value_attribute=cls.TERM_DATA))
         cls.PAGE_SPECS[cls.KEY_CHARACTERISTIC]["tables"].append(
-            TimeDependentValuesEntry(item_type=cls.KEY_CHARACTERISTIC,
+            TimeDependentValuesEntry(template_item_type=cls.KEY_CHARACTERISTIC,
                                      iterated_type=cls.KEY_POPULATION,
                                      value_attribute=cls.TERM_DATA))

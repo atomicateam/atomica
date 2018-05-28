@@ -240,7 +240,7 @@ def read_table(worksheet, table, start_row, start_col, framework=None, data=None
         row = read_connection_matrix(worksheet=worksheet, table=table, start_row=row,
                                      framework=framework, data=data, workbook_type=workbook_type)
     if isinstance(table, TimeDependentValuesEntry):
-        row = read_time_dependent_values_entry(worksheet=worksheet, item_type=table.item_type, item_key=table.item_key,
+        row = read_time_dependent_values_entry(worksheet=worksheet, item_type=table.template_item_type, item_key=table.template_item_key,
                                                value_attribute=table.value_attribute,
                                                start_row=start_row,
                                                framework=framework, data=data, workbook_type=workbook_type)

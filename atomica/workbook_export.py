@@ -530,9 +530,9 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
                                            workbook_type=workbook_type,
                                            formats=formats, temp_storage=temp_storage)
     if isinstance(table, TimeDependentValuesEntry):
-        if table.item_key is not None:
-            row, col = write_time_dependent_values_entry(worksheet=worksheet, item_type=table.item_type,
-                                                         item_key=table.item_key, iterated_type=table.iterated_type,
+        if table.template_item_key is not None:
+            row, col = write_time_dependent_values_entry(worksheet=worksheet, item_type=table.template_item_type,
+                                                         item_key=table.template_item_key, iterated_type=table.iterated_type,
                                                          start_row=row, start_col=col,
                                                          framework=framework, data=data, instructions=instructions,
                                                          workbook_type=workbook_type,
