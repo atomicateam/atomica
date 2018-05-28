@@ -44,23 +44,33 @@ class DetailColumns(TableType):
 class ConnectionMatrix(TableType):
     """
     Structure to define a matrix that connects two item types together.
-    The connections are directional from row headers, e.g. the zeroth column, to column headers, e.g. the zeroth row.
     If no target item type is specified, the connections are between the same type of item.
-    If no storage item type is specified, all values are stored in a dictionary within source item specs.
-    In this case, the attribute containing the dict is 'storage_attribute' and it is keyed by target item.
-    However, if storage item type is specified, the linking value is considered to be a 'name' of this type.
-    A list of tuples containing source and target items is stored under 'storage_attribute'.
-    For example:
-        ConnectionMatrix(source_item_type="whatever1", storage_attribute="links",
-                         target_item_type="whatever2", storage_item_type="par")
-        AND
-                target1 target2
+    Connections are directional from row headers, e.g. zeroth column, to column headers, e.g. zeroth row.
+    The linking value is considered to be the 'name' of an item of this type.
+    A list of tuples containing source and target items is stored under 'storage_attribute' for the item.
+    Accordingly, errors will arise if the item has not yet been defined as part of the storage item type.
+
+    Note that only source_item_type and target_item_type are used when writing the matrix.
+    Only storage_item_type and storage_attribute are used when reading the matrix.
+
+    An example for writing matrices:
+        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
+                         storage_item_type="par", storage_attribute="links")
+        AND Framework.specs["whatever1"].keys() = ["source1", "source2"]
+        =>      target1 target2
+        source1
+        source2
+
+    An example for reading matrices:
+        ConnectionMatrix(source_item_type="whatever1", target_item_type="whatever2",
+                         storage_item_type="par", storage_attribute="links")
+        AND     target1 target2
         source1 par1
         source2         par1
         => specs["par"]["par1"]["links"][("source1","target1"),("source2","target2")]
     """
 
-    def __init__(self, source_item_type, storage_attribute, target_item_type=None, storage_item_type=None):
+    def __init__(self, source_item_type, storage_item_type, storage_attribute, target_item_type=None):
         super(ConnectionMatrix, self).__init__()
         self.source_item_type = source_item_type
         if target_item_type is None:
@@ -402,8 +412,8 @@ class FrameworkSettings(BaseStructuralSettings):
                     table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
         cls.PAGE_SPECS[cls.KEY_DATAPAGE]["can_skip"] = True
-        cls.PAGE_SPECS[cls.KEY_TRANSITION][
-            "read_order"] = 1  # Ensure that transition matrix is read after parameter page.
+        # Ensure that transition matrix page is read after parameter page so that link names are already defined.
+        cls.PAGE_SPECS[cls.KEY_TRANSITION]["read_order"] = 1    # All other pages prioritised with read order value 0.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type=cls.KEY_COMPARTMENT,
                                                                              storage_item_type=cls.KEY_PARAMETER,
                                                                              storage_attribute="links"))

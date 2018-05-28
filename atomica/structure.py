@@ -360,7 +360,7 @@ class CoreProjectStructure(object):
                     value = content_type.enforce_type(intermediate_type(value)) if value is not None else None
         return value
 
-    def set_spec_value(self, term, attribute, value, subkey=None, content_type=None):
+    def set_spec_value(self, term, attribute, value, content_type=None):
         if content_type is not None:
             try:
                 value = self.enforce_value(value, content_type)
@@ -371,19 +371,15 @@ class CoreProjectStructure(object):
         spec = self.get_spec(term)
         if attribute not in spec:
             raise SemanticUnknownException(term=term, attribute=attribute)
-        if subkey is None:
-            spec[attribute] = value
-        else:
-            # if not attribute in spec: spec[attribute] = dict()
-            spec[attribute][subkey] = value
+        spec[attribute] = value
+        # Labels are special; construct a label-keyed semantic link to item specifications here.
         if attribute in ["label"]:
             item_name = self.get_spec_name(term)
             self.create_semantic(term=value, item_name=item_name, attribute=attribute)
 
-    def append_spec_value(self, term, attribute, value, subkey=None, content_type=None):
+    def append_spec_value(self, term, attribute, value, content_type=None):
         """
         Creates a list for a specification attribute if currently nonexistent, then extends or appends it by a value.
-        Attribute can be treated as a dictionary with key 'subkey'.
         """
         if content_type is not None:
             try:
@@ -393,22 +389,13 @@ class CoreProjectStructure(object):
                                        "has been assigned a value that cannot be enforced as type '{2}'. "
                                        "The value is: {3}".format(attribute, term, content_type.enforce_type, value))
         spec = self.get_spec(term)
-        if subkey is None:
-            try:
-                spec[attribute].append(value)
-            except Exception:
-                raise AtomicaException("Attribute '{0}' for specification associated with term '{1}' "
-                                       "can neither be extended nor appended by value '{2}'.".format(attribute, term,
-                                                                                                     value))
-        else:
-            if subkey not in spec[attribute]:
-                spec[attribute][subkey] = list()
-            try:
-                spec[attribute][subkey].append(value)
-            except Exception:
-                raise AtomicaException("Attribute '{0}', key '{1}', for specification associated with term '{2}' "
-                                       "can neither be extended nor appended by value '{3}'.".format(attribute, subkey,
-                                                                                                     term, value))
+        if attribute not in spec:
+            raise SemanticUnknownException(term=term, attribute=attribute)
+        try:
+            spec[attribute].append(value)
+        except Exception:
+            raise AtomicaException("Attribute '{0}' for specification associated with term '{1}' can neither be "
+                                   "extended nor appended by value '{2}'.".format(attribute, term, value))
 
     def get_spec_name(self, term):
         """ Returns the name corresponding to a provided term. """
