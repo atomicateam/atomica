@@ -102,13 +102,14 @@ class ParameterScenario(Scenario):
                         if i == 0:
                             # Interpolation does not rescale, so don't worry about it here
                             y = par.interpolate(np.array([t]), pop_label)
+                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
                             par.insert_value_pair(t, y, pop_label)
                         elif t > overwrite['t'][i-1]:
-                            y = overwrite['y'][i - 1]
+                            y = overwrite['y'][i - 1] / par.y_factor[pop_label]
+                            par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
                             par.insert_value_pair(t, y, pop_label)
-
-                        # Remove any intermediate values which are now smoothed via interpolation
-                        par.remove_between([t, overwrite['t'][i]], pop_label)
+                        else:
+                            par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
                     par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)
