@@ -50,6 +50,14 @@ class ConnectionMatrix(TableType):
     In this case, the attribute containing the dict is 'storage_attribute' and it is keyed by target item.
     However, if storage item type is specified, the linking value is considered to be a 'name' of this type.
     A list of tuples containing source and target items is stored under 'storage_attribute'.
+    For example:
+        ConnectionMatrix(source_item_type="whatever1", storage_attribute="links",
+                         target_item_type="whatever2", storage_item_type="par")
+        AND
+                target1 target2
+        source1 par1
+        source2         par1
+        => specs["par"]["par1"]["links"][("source1","target1"),("source2","target2")]
     """
 
     def __init__(self, source_item_type, storage_attribute, target_item_type=None, storage_item_type=None):
@@ -167,9 +175,10 @@ class BaseStructuralSettings(object):
 
     KEY_COMPARTMENT = "comp"
     KEY_CHARACTERISTIC = "charac"
-    KEY_TRANSITION = "trans"
+    KEY_TRANSITION = "link"
     KEY_PARAMETER = "par"
     KEY_POPULATION = "pop"
+    KEY_TRANSFER = "trans"
     KEY_PROGRAM = "prog"
     KEY_DATAPAGE = "datapage"
 
@@ -437,9 +446,10 @@ class DataSettings(BaseStructuralSettings):
     NAME = SS.STRUCTURE_KEY_DATA
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
-    ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_POPULATION, BSS.KEY_PROGRAM]
+    ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
+                  BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_PROGRAM]
 
-    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
+    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
@@ -455,6 +465,9 @@ class DataSettings(BaseStructuralSettings):
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type=cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
+        # cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(ConnectionMatrix(source_item_type=cls.KEY_POPULATION,
+        #                                                                    storage_item_type=cls.KEY_TRANSFER,
+        #                                                                    storage_attribute="links"))
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
