@@ -174,29 +174,6 @@ class ProgramSet(object):
         return None
 
 
-    def hasallcovoutpars(self, detail=False, verbose=2):
-        ''' Checks whether all the **required** coverage-outcome parameters are there for coverage-outcome rships'''
-        result = True
-        details = []
-        for thispar in self.covout.keys():
-            if not hasattr(self.covout.values()[thispar],'npi_val'):
-                print('WARNING: %s NPI value is missing' % (thispar))
-            else:
-                if not self.covout.values()[thispar].npi_val.get() and self.covout.values()[thispar].npi_val.get()!=0:
-                    result = False
-                    details.append(thispar)
-                for thisprog in self.progs_by_targetpar(thispartype)[thispop]: 
-                    printv('Checking %s program' % thisprog.short, 4, verbose)
-                    progeffect = self.covout[thispartype][thispop].ccopars.get(thisprog.short, None)
-                    if not(progeffect) and progeffect!=0:
-                        printv('WARNING: %s %s %s program effect is none' % (thispartype, str(thispop), thisprog.short), 4, verbose)
-                        result = False
-                        details.append(pars[thispartype].name)
-                    else:
-                        printv('%s %s %s program effect is %s' % (thispartype, str(thispop), thisprog.short, progeffect), 4, verbose)
-        if detail: return list(set(details))
-        else: return result
-
 
         
 #--------------------------------------------------------------------
