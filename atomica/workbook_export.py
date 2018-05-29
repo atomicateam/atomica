@@ -139,7 +139,7 @@ def create_attribute_cell_content(worksheet, row, col, attribute, item_type, ite
     content = ""
     sep = ""
     validation_source = None
-    rc = xlrc(row, col)
+    rc = xlrc(row, col, True, True)     # Make the reference absolute for user benefits, e.g. copying tables.
 
     # Content associated with standard content types is set up here.
     if isinstance(content_type, IDType):
