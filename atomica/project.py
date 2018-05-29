@@ -185,7 +185,7 @@ class Project(object):
         '''Make a progset from program spreadsheet data'''
         
         progset = ProgramSet(name=name)
-        progset.make(self, progdata)
+        progset.make(progdata=progdata, project=self)
 
         if add:
             self.set_progset(progset_key=name,progset_object=progset)

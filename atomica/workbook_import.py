@@ -367,6 +367,8 @@ def blank2nan(thesedata):
 def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklower=True, checkblank=True, startcol=0):
     ''' Do basic validation on the data: at least one point entered, between 0 and 1 or just above 0 if checkupper=False '''
     
+    result = odict()
+    result['isvalid'] = 1
     # Check that only numeric data have been entered
     for column,datum in enumerate(thesedata):
         if not isnumber(datum):
@@ -387,12 +389,13 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
             errormsg = 'Invalid entry in sheet "%s", parameter "%s":\n' % (sheetname, thispar) 
             errormsg += 'row=%i, invalid="%s", values="%s"\n' % (row+1, invalid, validdata)
             errormsg += 'Be sure that all values are >=0 (and <=1 if a probability)'
-            raise AtomicaException(errormsg)
+            result['isvalid'] = 0
+            result['errormsg'] = errormsg
     elif checkblank: # No data entered
         errormsg = 'No data or assumption entered for sheet "%s", parameter "%s", row=%i' % (sheetname, thispar, row) 
-        raise AtomicaException(errormsg)
-    else:
-        return None
+        result['isvalid'] = 0
+        result['errormsg'] = errormsg
+    return result
 
 
 def load_progbook(filename, verbose=2):
@@ -447,24 +450,24 @@ def load_progbook(filename, verbose=2):
                     data[progname]['name'] = str(thesedata[1])
                     data[progname]['target_pops'] = thesedata[3:colindices[0]]
                     data[progname]['target_comps'] = thesedata[colindices[1]:]
-                    data[progname]['cost'] = []
-                    data[progname]['num_covered'] = []
+                    data[progname]['spend'] = []
+                    data[progname]['basespend'] = []
+                    data[progname]['capacity'] = []
                     data[progname]['unitcost'] = odict()
-                    data[progname]['capacity'] = odict()
-                    
     
-    namemap = {'Total spend': 'cost',
+    namemap = {'Total spend': 'spend',
+               'Base spend':'basespend',
                'Unit cost':'unitcost',
-               'Number covered': 'num_covered',
                'Capacity constraints': 'capacity'} 
     sheetdata = workbook.sheet_by_name('Program spend data') # Load 
-    
+    validunitcosts = odict()
     
     for row in range(sheetdata.nrows): 
         sheetname = sheetdata.cell_value(row,0) # Sheet name
         progname = sheetdata.cell_value(row, 1) # Get the name of the program
 
         if progname != '': # The first column is blank: it's time for the data
+            validunitcosts[progname] = []
             thesedata = blank2nan(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
             assumptiondata = sheetdata.cell_value(row, assumptioncol)
             if assumptiondata != '': # There's an assumption entered
@@ -473,11 +476,21 @@ def load_progbook(filename, verbose=2):
                 thisvar = namemap[sheetdata.cell_value(row, 2)]  # Get the name of the indicator
                 data[progname][thisvar] = thesedata # Store data
             else:
-                thisvar = namemap[sheetdata.cell_value(row, 2).split(' - ')[0]]  # Get the name of the indicator
-                thisestimate = sheetdata.cell_value(row, 2).split(' - ')[1]
+                thisvar = namemap[sheetdata.cell_value(row, 2).split(': ')[0]]  # Get the name of the indicator
+                thisestimate = sheetdata.cell_value(row, 2).split(': ')[1]
                 data[progname][thisvar][thisestimate] = thesedata # Store data
-            checkblank = False if thisvar in ['num_covered', 'capacity'] else True # Don't check optional indicators, check everything else
-            validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
+            checkblank = False if thisvar in ['basespend','capacity'] else True # Don't check optional indicators, check everything else
+            result = validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
+            if thisvar in namemap.keys():
+                if result['isvalid']==0: raise AtomicaException(result['errormsg'])
+            elif thisvar=='unitcost': # For some variables we need to compare several
+                if result['isvalid']==0: validunitcosts.append(result['isvalid'])
+    
+    for progname in data['progs']['short']:
+        if validunitcosts[progname] in [[0,0,0],[0,0,1],[0,1,0]]:
+            errormsg = 'You need to enter either best+low+high, best, or low+high values for the unit costs. Values are incorrect for program %s' % (progname) 
+            raise AtomicaException(errormsg)
+
             
     ## Load parameter information
     sheetdata = workbook.sheet_by_name('Program effects') # Load 

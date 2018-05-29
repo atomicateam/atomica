@@ -6,10 +6,10 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr, promotetolist, promotetoarray, indent, isnumber, sanitize
+from sciris.core import odict, today, getdate, defaultrepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, getvalidyears
 from atomica.system import AtomicaException
 from numpy.random import uniform
-from numpy import array, nan
+from numpy import array, nan, isnan
 
 
 #--------------------------------------------------------------------
@@ -65,18 +65,37 @@ class ProgramSet(object):
         # Read in the information for programs
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
-            data = {k: progdata[pkey][k] for k in ('cost', 'num_covered')}
+            data = {k: progdata[pkey][k] for k in ('spend', 'basespend')}
             data['t'] = progdata['years']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
                         target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][i]],
-                        unitcost=progdata[pkey]['unitcost'],
                         capacity=progdata[pkey]['capacity'],
                         data=data
                         )
             programs.append(p)
         self.addprograms(progs=programs)
+        
+        # Update the unit costs (done separately as by year)
+        for np in range(nprogs):
+            pkey = progdata['progs']['short'][np]
+            for yrno,year in enumerate(progdata['years']):
+                unitcost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
+                if not (isnan(unitcost)).all():
+                    self.programs[np].update(unitcost=sanitize(unitcost), year=year)
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+#            if not (isnan(progdata[pkey]['unitcost'][0])).all(): # At least one value for one year: continue
+#                if not (isnan(progdata[pkey]['unitcost'][1])).all():
+#                    'hi'
+#            for blh in range(3):
+#                    if ~isnan(progdata[pkey]['unitcost'][blh][yrno]):
+#                        unitcost['hi'] = 0
+#                
+#                
+#                    getvalidyears(array(progdata['years']),~isnan(progdata[pkey]['unitcost']))
+#            unitcost{'year':yr, progdata[pkey]['unitcost']}
+
         
         # Read in the information for covout functions
         prognames = progdata['progs']['short']
@@ -189,7 +208,7 @@ class Program(object):
         self.target_pars = None
         self.target_pops = None
         self.data       = None # Latest or estimated expenditure
-        self.unitcost   = None # dataframe -- note, 'year' if supplied (not necessary) is stored inside here
+        self.unitcost   = None 
         self.capacity   = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
@@ -207,16 +226,129 @@ class Program(object):
         return output
     
 
-    def update(self, short=None, name=None, data=None, capacity=None, unitcost=None, year=None, target_pops=None, target_pars=None):
-        ''' Add data to a program, or otherwise update the values '''
+
+    def update(self, short=None, name=None, data=None, unitcost=None, capacity=None, year=None, target_pops=None, target_pars=None):
+        ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
-        if short       is not None: self.short       = short
-        if name        is not None: self.name        = name 
-        if capacity    is not None: self.capacity    = capacity
-        if target_pops is not None: self.target_pops = target_pops
+        def settargetpars(targetpars=None):
+            ''' Handle targetpars -- a little complicated since it's a list of dicts '''
+            targetparkeys = ['param', 'pop']
+            targetpars = promotetolist(targetpars) # Let's make sure it's a list before going further
+            for tp,targetpar in enumerate(targetpars):
+                if isinstance(targetpar, dict): # It's a dict, as it needs to be
+                    thesekeys = sorted(targetpar.keys())
+                    if thesekeys==targetparkeys: # Keys are correct -- main usage case!!
+                        targetpars[tp] = targetpar
+                    else:
+                        errormsg = 'Keys for a target parameter must be %s, not %s' % (targetparkeys, thesekeys)
+                        raise AtomicaException(errormsg)
+                elif isinstance(targetpar, basestring): # It's a single string: assume only the parameter is specified
+                    targetpars[tp] = {'param':targetpar, 'pop':'tot'} # Assume 'tot'
+                elif isinstance(targetpar, tuple): # It's a list, assume it's in the usual order
+                    if len(targetpar)==2:
+                        targetpars[tp] = {'param':targetpar[0], 'pop':targetpar[1]} # If a list or tuple, assume this order
+                    else:
+                        errormsg = 'When supplying a targetpar as a list or tuple, it must have length 2, not %s' % len(targetpar)
+                        raise AtomicaException(errormsg)
+                else:
+                    errormsg = 'Targetpar must be string, tuple, or dict, not %s' % type(targetpar)
+                    raise AtomicaException(errormsg)
+            self.targetpars = targetpars # Actually set it
+            return None
+        
+        def setunitcost(unitcost=None, year=None):
+            '''
+            Handle the unit cost, also complicated since have to convert to a dataframe. 
+            
+            Unit costs can be specified as a number, a tuple, or a dict. If a dict, they can be 
+            specified with val as a tuple, or best, low, high as keys. Examples:
+            
+            setunitcost(21) # Assumes current year and that this is the best value
+            setunitcost(21, year=2014) # Specifies year
+            setunitcost(year=2014, unitcost=(11, 31)) # Specifies year, low, and high
+            setunitcost({'year':2014', 'best':21}) # Specifies year and best
+            setunitcost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
+            setunitcost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
+            '''
+            
+            # Preprocessing
+            unitcostkeys = ['year', 'best', 'low', 'high']
+            if year is None: year = 2018. # TEMPORARY
+            if self.unitcost is None: self.unitcost = dataframe(cols=unitcostkeys) # Create dataframe
+            
+            # Handle cases
+            if isinstance(unitcost, dataframe): 
+                self.unitcost = unitcost # Right format already: use directly
+            elif checktype(unitcost, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
+                if isnumber(unitcost[0]): # It's a number (or at least the first entry is): convert to values and use
+                    best,low,high = Val(unitcost).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
+                    self.unitcost.addrow([year, best, low, high])
+                else: # It's not a list of numbers, so have to iterate
+                    for uc in unitcost: # Actually a list of unit costs
+                        if isinstance(uc, dict): 
+                            setunitcost(uc) # It's a dict: iterate recursively to add unit costs
+                        else:
+                            errormsg = 'Could not understand list of unit costs: expecting list of floats or list of dicts, not list containing %s' % uc
+                            raise AtomicaException(errormsg)
+            elif isinstance(unitcost, dict): # Other main usage case -- it's a dict
+                if any([key not in unitcostkeys+['val'] for key in unitcost.keys()]):
+                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (unitcost.keys(), unitcostkeys)
+                    raise AtomicaException(errormsg)
+                val = unitcost.get('val') # First try to get 'val'
+                if val is None: # If that fails, get other arguments
+                    val = [unitcost.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
+                best,low,high = Val(val).get('all') # ... then sanitize them via Val
+                self.unitcost.addrow([unitcost.get('year',year), best, low, high]) # Actually add to dataframe
+            else:
+                errormsg = 'Expecting unit cost of type dataframe, list/tuple/array, or dict, not %s' % type(unitcost)
+                raise AtomicaException(errormsg)
+            return None
+        
+        def setdata(data=None, year=None):
+            ''' Handle the spend-coverage, data, also complicated since have to convert to a dataframe '''
+            datakeys = ['year', 'spend', 'basespend']
+            if self.data is None: self.data = dataframe(cols=datakeys) # Create dataframe
+            if year is None: year = 2018. # TEMPORARY
+            
+            if isinstance(data, dataframe): 
+                self.data = data # Right format already: use directly
+            elif isinstance(data, dict):
+                newdata = [data.get(key) for key in datakeys] # Get full row
+                year = newdata[0] if newdata[0] is not None else year # Probably a simpler way of doing this, but use the year if it's supplied, else use the default
+                try: currentdata = self.data.get(rows=year) # Get current row as a dictionary
+                except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+                if currentdata:
+                    for i,key in enumerate(data.keys()):
+                        if newdata[i] is None: newdata[i] = currentdata[key] # Replace with old data if new data is None
+                self.data.addrow(newdata) # Add new data
+            elif isinstance(data, list): # Assume it's a list of dicts
+                for datum in data:
+                    if isinstance(datum, dict):
+                        setdata(datum) # It's a dict: iterate recursively to add unit costs
+                    else:
+                        errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
+                        raise AtomicaException(errormsg)
+            else:
+                errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % data
+                raise AtomicaException(errormsg)
+
+            return None
+        
+        # Actually set everything
+        if short       is not None: self.short          = short # short name
+        if name        is not None: self.name           = name # full name
+        if target_pops is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
+
+        if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
+#        if capacity    is not None: self.capacity    = capacity
+
+#        if target_pars is not None: settargetpars(target_pars) # targeted parameters
+
+        if unitcost    is not None: setunitcost(unitcost, year) # unit cost(s)
+#        if unitcost    is not None: self.unitcost    = unitcost
+
+#        if data        is not None: setdata(data, year) # unit cost(s)
         if data        is not None: self.data        = data
-        if unitcost    is not None: self.unitcost    = unitcost
-#        if targetpars is not None: settargetpars(targetpars) # targeted parameters
         
         # Finally, check everything
         if self.short is None: # self.short must exist
@@ -227,11 +359,85 @@ class Program(object):
         if self.target_pars is None: self.target_pars = [] # Empty list
             
         return None
+    
+    
+    def adddata(self, data=None, year=None, spend=None, basespend=None, coverage=None):
+        ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
+        if data is None:
+            data = {'year':year, 'spend':spend, 'basespend':basespend, 'coverage':coverage}
+        self.update(data=data)
+        return None
+        
+        
+    def addpars(self, unitcost=None, saturation=None, year=None):
+        ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unitcost. '''
+        self.update(unitcost=unitcost, saturation=saturation, year=year)
+        return None
+    
+    
+    def getspend(self, year=None, total=False, die=False):
+        ''' Convenience function for getting the current spending '''
+        if year is None: year = 2018. # TEMPORARY
+        try:
+            thisdata = self.data.getrow(year, closest=True, asdict=True) # Get data
+            spend = thisdata['spend']
+            if spend is None: spend = 0 # If not specified, assume 0
+            if total: 
+                basespend = thisdata['basespend'] # Add baseline spending
+                if basespend is None: basespend = 0 # Likewise assume 0
+                spend += basespend
+            return spend
+        except Exception as E:
+            if die:
+                errormsg = 'Retrieving spending failed: %s' % E.message
+                raise AtomicaException(errormsg)
+            else:
+                return None
+    
+    
+    def getunitcost(self, year=None, die=False):
+        ''' Convenience function for getting the current unit cost '''
+        if year is None: year = 2018. # TEMPORARY
+        try:
+            thisdata = self.unitcost.getrow(year, closest=True, asdict=True) # Get data
+            unitcost = thisdata['best']
+            return unitcost
+        except Exception as E:
+            if die:
+                errormsg = 'Retrieving unit cost failed: %s' % E.message
+                raise AtomicaException(errormsg)
+            else: # If not found, don't die, just return None
+                return None
+    
 
-
-    def optimizable(self):
-        return True if self.targetpars else False
-
+    def optimizable(self, doprint=False, partial=False):
+        '''
+        Return whether or not a program can be optimized.
+        
+        Arguments:
+            doprint = whether or not to print out why a program can't be optimized
+            partial = flag programs that are only partially ready for optimization (some data entered), skipping those that have no data entered
+        '''
+        valid = True # Assume the best
+        tests = {}
+        try:
+            tests['targetpops invalid'] = len(self.target_pops)<1
+            tests['targetpars invalid'] = len(self.target_pars)<1
+            tests['unitcost invalid']   = not(isnumber(self.getunitcost()))
+            tests['saturation invalid'] = self.saturation is None
+            if any(tests.values()):
+                valid = False # It's looking like it can't be optimized
+                if partial and all(tests.values()): valid = True # ...but it's probably just an other program, so skip it
+                if not valid and doprint:
+                    print('Program not optimizable for the following reasons: %s' % '\n'.join([key for key,val in tests.items() if val]))
+                
+        except Exception as E:
+            valid = False
+            if doprint:
+                print('Program not optimizable because an exception was encountered: %s' % E.message)
+        
+        return valid
+        
 
     def hasbudget(self):
         return True if self.ccdata['cost'] else False
