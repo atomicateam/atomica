@@ -503,6 +503,9 @@ class DataSettings(BaseStructuralSettings):
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type=cls.KEY_POPULATION))
         cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
+        cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(DetailColumns(item_type=cls.KEY_TRANSFER,
+                                                                        attribute_list=["label"],
+                                                                        exclude_not_include=False))
         cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(ConnectionMatrix(template_item_type=cls.KEY_TRANSFER,
                                                                            source_item_type=cls.KEY_POPULATION,
                                                                            storage_item_type=None,
