@@ -489,6 +489,7 @@ class DataSettings(BaseStructuralSettings):
     @classmethod
     def elaborate_structure(cls):
         cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
+        cls.ITEM_TYPE_SPECS[cls.KEY_TRANSFER]["instruction_allowed"] = True
         cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
         # TODO: Determine how programs in the databook work.

@@ -81,9 +81,10 @@ class ProjectFramework(CoreProjectStructure):
                             if isinstance(table, TableTemplate) and table.template_item_type is not None:
                                 item_type = table.template_item_type
                                 # If the template item type does not exist in the framework...
-                                # Delay duplication of the template to databook construction.
+                                # Delay duplication of the template to databook construction, but pass it along.
                                 if item_type not in self.specs:
-                                    continue
+                                    self.append_spec_value(term=page_key, attribute="tables", value=dcp(table))
+                                # Otherwise, apply the duplication later.
                                 else:
                                     for item_key in self.specs[item_type]:
                                         # Do not create tables for items that are marked not to be shown in a datapage.

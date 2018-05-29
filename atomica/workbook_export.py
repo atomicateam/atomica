@@ -370,8 +370,7 @@ def write_contents_dc(worksheet, table, start_row, header_column_map, item_type=
 
 
 def write_detail_columns(worksheet, table, start_row, start_col, framework=None, data=None, instructions=None,
-                         workbook_type=None,
-                         formats=None, format_variables=None, temp_storage=None):
+                         workbook_type=None, formats=None, format_variables=None, temp_storage=None):
     if temp_storage is None:
         temp_storage = odict()
 
@@ -386,9 +385,8 @@ def write_detail_columns(worksheet, table, start_row, start_col, framework=None,
     return next_row, next_col
 
 
-def write_connection_matrix(worksheet, source_item_type, target_item_type, start_row, start_col, framework=None,
-                            data=None, instructions=None, workbook_type=None,
-                            formats=None, temp_storage=None):
+def write_connection_matrix(worksheet, table, start_row, start_col, framework=None, data=None, instructions=None,
+                            workbook_type=None, formats=None, temp_storage=None):
     item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
                                                        workbook_type=workbook_type)
@@ -396,23 +394,49 @@ def write_connection_matrix(worksheet, source_item_type, target_item_type, start
     if temp_storage is None:
         temp_storage = odict()
 
+    source_item_type = table.source_item_type
+    target_item_type = table.target_item_type
+
+    # TODO: Handle the case where construction is based on framework/data contents rather than instructions.
+    # If the connection matrix is standard, iterate construction once.
+    template_iterations = 1
+    # If the connection matrix is templated with deferred instantiation...
+    if table.template_item_type is not None:
+        # Iterate for the number of template-related items specified by instructions.
+        if table.template_item_key is None:
+            template_iterations = instructions.num_items[table.template_item_type]
+        else:
+            # TODO: There is no current situation where a connection matrix is instantiated for an item ahead of time.
+            #       However, if this arises, set number of iterations here as one.
+            raise AtomicaException("Atomica does not know how to handle an instantiated template connection matrix.")
+
     row, col = start_row, start_col
-    source_row = start_row + 1
     if use_instructions:
-        for item_number in range(instructions.num_items[source_item_type]):
-            create_attribute_cell_content(worksheet=worksheet, row=source_row, col=start_col,
-                                          attribute="name", item_type=source_item_type, item_type_specs=item_type_specs,
-                                          item_number=item_number, formats=formats,
-                                          format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
-            source_row += 1
-        target_col = start_col + 1
-        for item_number in range(instructions.num_items[target_item_type]):
-            create_attribute_cell_content(worksheet=worksheet, row=start_row, col=target_col,
-                                          attribute="name", item_type=target_item_type, item_type_specs=item_type_specs,
-                                          item_number=item_number, formats=formats,
-                                          format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
-            target_col += 1
-    row = source_row + 2  # Extra row to space out following tables.
+        for template_number in range(template_iterations):
+            # In the template case, create 'corner' headers to identify table.
+            # Skip this in the non-template case.
+            # TODO: In the non-template/instantiated case, maybe implement 'corner' headers.
+            if table.template_item_type is not None:
+                create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col,
+                                              attribute="label", item_type=table.template_item_type,
+                                              item_type_specs=item_type_specs, item_number=template_number, formats=formats,
+                                              format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
+            source_row = start_row + 1
+            for item_number in range(instructions.num_items[source_item_type]):
+                create_attribute_cell_content(worksheet=worksheet, row=source_row, col=start_col,
+                                              attribute="name", item_type=source_item_type,
+                                              item_type_specs=item_type_specs, item_number=item_number, formats=formats,
+                                              format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
+                source_row += 1
+            target_col = start_col + 1
+            for item_number in range(instructions.num_items[target_item_type]):
+                create_attribute_cell_content(worksheet=worksheet, row=start_row, col=target_col,
+                                              attribute="name", item_type=target_item_type,
+                                              item_type_specs=item_type_specs, item_number=item_number, formats=formats,
+                                              format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
+                target_col += 1
+            row = source_row + 1    # Extra row to space out following tables.
+            start_row = row         # Update start row down the page for iterated tables.
 
     next_row, next_col = row, col
     return next_row, next_col
@@ -478,7 +502,7 @@ def write_time_dependent_values_entry(worksheet, item_type, item_key, iterated_t
             default_values = [1.0] * num_items
     else:
         # User's choice for parameters if a transition.
-        if "links" in item_specs[item_type][item_key] and len(item_specs[item_type][item_key]["links"]) > 0:
+        if FS.KEY_TRANSITIONS in item_specs[item_type][item_key] and len(item_specs[item_type][item_key]["links"]) > 0:
             quantity_types = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
         # If not a transition, the format of this parameter is meaningless.
         else:
@@ -513,6 +537,9 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
     if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]:
         raise WorkbookTypeException(workbook_type)
 
+    instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
+                                                       workbook_type=workbook_type)
+
     if temp_storage is None:
         temp_storage = odict()
 
@@ -523,12 +550,23 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
                                         workbook_type=workbook_type,
                                         formats=formats, format_variables=format_variables, temp_storage=temp_storage)
     if isinstance(table, ConnectionMatrix):
-        row, col = write_connection_matrix(worksheet=worksheet, source_item_type=table.source_item_type,
-                                           target_item_type=table.target_item_type,
-                                           start_row=row, start_col=col,
+        # template_key_list = []
+        # # If the table is a standard connection matrix, construct it once without special template rules.
+        # if table.template_item_type is None:
+        #     template_key_list = [None]
+        # else:
+        #     # If the table is a templated connection matrix, check if it is already instantiated for an item.
+        #     # If yes, construct one iteration of the table, but pass along the item name.
+        #     if table.template_item_key is not None:
+        #         template_key_list = [table.template_item_key]
+        #     # If not, and constructing a databook, loop through every available item in data, i.e. deferred iteration.
+        #     # Failing that, just abandon construction of the matrix by looping through a list of length zero.
+        #     elif workbook_type == SS.STRUCTURE_KEY_DATA and data is not None:
+        #         template_key_list = data.specs[table.template_item_type].keys()
+        # for template_key in template_key_list:
+        row, col = write_connection_matrix(worksheet=worksheet, table=table, start_row=row, start_col=col,
                                            framework=framework, data=data, instructions=instructions,
-                                           workbook_type=workbook_type,
-                                           formats=formats, temp_storage=temp_storage)
+                                           workbook_type=workbook_type, formats=formats, temp_storage=temp_storage)
     if isinstance(table, TimeDependentValuesEntry):
         if table.template_item_key is not None:
             row, col = write_time_dependent_values_entry(worksheet=worksheet, item_type=table.template_item_type,
