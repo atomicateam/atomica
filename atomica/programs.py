@@ -78,24 +78,13 @@ class ProgramSet(object):
         self.addprograms(progs=programs)
         
         # Update the unit costs (done separately as by year)
+        ## TODO : REVISE THIS, THE FORMAT ISN'T RIGHT
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
             for yrno,year in enumerate(progdata['years']):
                 unitcost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unitcost)).all():
                     self.programs[np].update(unitcost=sanitize(unitcost), year=year)
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-#            if not (isnan(progdata[pkey]['unitcost'][0])).all(): # At least one value for one year: continue
-#                if not (isnan(progdata[pkey]['unitcost'][1])).all():
-#                    'hi'
-#            for blh in range(3):
-#                    if ~isnan(progdata[pkey]['unitcost'][blh][yrno]):
-#                        unitcost['hi'] = 0
-#                
-#                
-#                    getvalidyears(array(progdata['years']),~isnan(progdata[pkey]['unitcost']))
-#            unitcost{'year':yr, progdata[pkey]['unitcost']}
-
         
         # Read in the information for covout functions
         prognames = progdata['progs']['short']
@@ -105,10 +94,10 @@ class ProgramSet(object):
             for pop,popdata in pardata.iteritems():
                 prog_effects[par][pop] = odict()
                 for pno in range(len(prognames)):
-                    bval = popdata['prog_vals'][0][pno]
-                    lval = popdata['prog_vals'][1][pno]
-                    hval = popdata['prog_vals'][2][pno]
-                    vals = [val for val in [bval,lval,hval] if isnumber(val) and val is not nan]
+                    vals = []
+                    for blh in range(3):
+                        val = popdata['prog_vals'][blh][pno]
+                        if isnumber(val) and val is not nan: vals.append(val) 
                     if vals: prog_effects[par][pop][prognames[pno]] = vals
                 if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
@@ -192,9 +181,20 @@ class ProgramSet(object):
         
         return None
 
+    ## TODO : WRITE THESE
+    def getpars(self, coverage=None, year=None):
+        pass
+
+    def defaultbudget(self, year=None):
+        pass
+
+    def reconcile(self):
+        pass
+
+    def compareoutcomes(self):
+        pass
 
 
-        
 #--------------------------------------------------------------------
 # Program class
 #--------------------------------------------------------------------
@@ -375,7 +375,8 @@ class Program(object):
         return None
     
     
-    def getspend(self, year=None, total=False, die=False):
+     # TODO: NOT WORKING
+     def getspend(self, year=None, total=False, die=False):
         ''' Convenience function for getting the current spending '''
         if year is None: year = 2018. # TEMPORARY
         try:
@@ -395,6 +396,7 @@ class Program(object):
                 return None
     
     
+     # TODO: NOT WORKING
     def getunitcost(self, year=None, die=False):
         ''' Convenience function for getting the current unit cost '''
         if year is None: year = 2018. # TEMPORARY
@@ -410,6 +412,7 @@ class Program(object):
                 return None
     
 
+     # TODO: NOT WORKING
     def optimizable(self, doprint=False, partial=False):
         '''
         Return whether or not a program can be optimized.
@@ -439,10 +442,11 @@ class Program(object):
         return valid
         
 
+# TODO: NOT WORKING
     def hasbudget(self):
         return True if self.ccdata['cost'] else False
 
-
+# TODO: WRITE THESE
     def getcoverage(self, budget=None, t=None, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
         '''Returns coverage for a time/spending vector'''
         pass
