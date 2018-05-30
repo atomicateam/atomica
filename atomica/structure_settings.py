@@ -231,8 +231,10 @@ class BaseStructuralSettings(object):
     KEY_POPULATION_OPTION = KEY_POPULATION + TERM_OPTION
     KEY_PROGRAM_TYPE = KEY_PROGRAM + TERM_TYPE
     KEY_PROGRAM_ATTRIBUTE = KEY_PROGRAM + TERM_ATTRIBUTE
+
     KEY_TRANSITIONS = KEY_TRANSITION + SS.DEFAULT_SUFFIX_PLURAL
     KEY_POPULATION_LINKS = KEY_POPULATION + KEY_TRANSITION + SS.DEFAULT_SUFFIX_PLURAL
+    KEY_TRANSFER_DATA = KEY_TRANSFER + TERM_DATA
 
     ITEM_TYPES = []
 
@@ -484,7 +486,8 @@ class DataSettings(BaseStructuralSettings):
     ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
                   BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_PROGRAM]
 
-    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
+    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_TRANSFER_DATA,
+                 BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
@@ -510,6 +513,10 @@ class DataSettings(BaseStructuralSettings):
                                                                            source_item_type=cls.KEY_POPULATION,
                                                                            storage_item_type=None,
                                                                            storage_attribute=cls.KEY_POPULATION_LINKS))
+        transfer_tables = cls.PAGE_SPECS[cls.KEY_TRANSFER_DATA]["tables"]
+        transfer_tables.append(TimeDependentValuesEntry(template_item_type=cls.KEY_TRANSFER,
+                                                        iterated_type=cls.KEY_POPULATION,
+                                                        value_attribute=cls.TERM_DATA))
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
