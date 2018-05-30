@@ -50,11 +50,23 @@ def read_contents_dc(worksheet, table, start_row, header_columns_map, item_type=
     if stop_row is None:
         stop_row = worksheet.nrows
     while row < stop_row:
-        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][
-            0]  # Only the first column matters for a name.
+        # Only the first column matters for a name.
+        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]
         test_name = str(worksheet.cell_value(row, name_col))
         if not test_name == "":
             item_name = test_name
+        else:
+            # If the name entry is blank, scan the entire row.
+            check_col = 0
+            while check_col < worksheet.ncols:
+                # If there is something to parse, e.g. a subitem, then proceed with parsing.
+                if not str(worksheet.cell_value(row, check_col)) == "":
+                    break
+                # If the final column is reached and everything is blank, stop reading the table.
+                if check_col == worksheet.ncols - 1:
+                    next_row = row + 1
+                    return next_row
+                check_col += 1
         if not item_name == "":
             try:
                 structure.get_spec(item_name)
@@ -269,6 +281,12 @@ def read_worksheet(workbook, page_key, framework=None, data=None, workbook_type=
     for table in page_spec["tables"]:
         row, col = read_table(worksheet=worksheet, table=table, start_row=row, start_col=col,
                               framework=framework, data=data, workbook_type=workbook_type)
+
+    # TODO: Consider whether this should be a warning rather than an exception.
+    if row < worksheet.nrows:
+        raise AtomicaException("Workbook parser has concluded for page '{0}' at row {1}, even though worksheet "
+                               "has {2} rows. An errant blank row may have truncated table "
+                               "parsing.".format(worksheet.name, row, worksheet.nrows))
 
 
 def read_reference_worksheet(workbook):
