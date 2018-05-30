@@ -21,8 +21,8 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
+# "makeprogramspreadsheet",
+# "loadprogramspreadsheet",
 "makeplots",
 "export",
 "listspecs",
@@ -95,22 +95,22 @@ if "makeprogramspreadsheet" in torun:
     from atomica.defaults import demo
     from atomica.workbook_export import makeprogramspreadsheet
 
-    P = demo(which='sir',do_plot=0)
-    filename = 'temp/programspreadsheet.xlsx'
+    P = demo(which=test,do_plot=0)
+    filename = "temp/programspreadsheet.xlsx"
     makeprogramspreadsheet(filename, pops=2, progs=5)
 
 if "loadprogramspreadsheet" in torun:
     print('\n\n\nLoading programs spreadsheet ...')
     from atomica.defaults import demo
 
-    P = demo(which='sir',do_plot=0)
-    filename = 'databooks/programdata_sir.xlsx'
+    P = demo(which=test,do_plot=0)
+    filename = "databooks/programdata_"+test+".xlsx"
     P.load_progbook(databook_path=filename)
 
 if "makeplots" in torun:
 
     # Low level debug plots.
-    for var in test_vars: P.results["parset_default"].get_variable(test_pop,var)[0].plot()
+    for var in test_vars: P.results["default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
     d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)

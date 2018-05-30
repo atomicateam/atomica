@@ -128,38 +128,78 @@ def read_detail_columns(worksheet, table, start_row, framework=None, data=None, 
 
 
 def read_connection_matrix(worksheet, table, start_row, framework=None, data=None, workbook_type=None):
+    """
+    Parse a connection matrix, whether standard or template.
+
+    Note that items with names referred to by connection matrices must be constructed first.
+    Ensure a logical read order in structure settings, even for different display order.
+    In practice, this means a relevant 'detail columns' table should get parsed before associated matrices.
+    """
     item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
 
-    header_row, header_col, last_col = None, 0, None
-    row, col = start_row, header_col + 1
-    keep_scanning_rows = True
-    while keep_scanning_rows and row < worksheet.nrows:
-        # Scan for header row of the matrix, recognising top-left cell may be empty, hence the non-zero start column.
-        if header_row is None:
-            check_label = str(worksheet.cell_value(row, col))
-            if not check_label == "":
-                header_row = row
-                # Upon finding the header row, locate its last column.
-                col += 1
-                while last_col is None and col < worksheet.ncols:
-                    check_label = str(worksheet.cell_value(row, col))
-                    if check_label == "":
-                        last_col = col - 1
-                    col += 1
-                if last_col is None:
-                    last_col = worksheet.ncols - 1
+    # If the connection matrix is standard, iterate parsing once.
+    iteration_amount = 1
+    # If the connection matrix was templated with deferred instantiation...
+    if table.template_item_type is not None:
+        # Iterate parsing for the number of template-related items already constructed.
+        # TODO: This is dangerous if connection matrices are parsed before associated detail columns.
+        #       If ever deciding to refactor, tighten table-order validations.
+        if table.template_item_key is None:
+            iteration_amount = len(structure.specs[table.template_item_type])
+            print(structure.specs[table.template_item_type])
         else:
-            for col in range(header_col + 1, last_col + 1):
-                val = str(worksheet.cell_value(row, col))
-                if not val == "":
-                    source_item = str(worksheet.cell_value(row, header_col))
+            # TODO: There is no current situation where a connection matrix is instantiated for an item ahead of time.
+            #       However, if this arises, set number of iterations here as one rather than an exception.
+            raise AtomicaException("Atomica does not know how to handle an instantiated template connection matrix. "
+                                   "Developers have possibly defined a connection matrix incorrectly in "
+                                   "structure settings.")
+
+    row = start_row
+    header_col = 0
+    for iteration in range(iteration_amount):
+        header_row, last_col = None, None    # Reset header-related locations for each matrix iteration.
+        col = header_col + 1
+        term = None
+        while row < worksheet.nrows:
+            # Scan for header row of matrix, recognising top-left cell may be empty, hence the non-zero start column.
+            if header_row is None:
+                check_label = str(worksheet.cell_value(row, col))
+                if not check_label == "":
+                    header_row = row
+                    # If this table is a deferred-instantiation template, it relates to an item with key in the corner.
+                    # Extract that term.
+                    if table.template_item_type is not None:
+                        term = str(worksheet.cell_value(header_row, header_col))
+                    # Upon finding the header row, locate its last column.
+                    col += 1
+                    while last_col is None and col < worksheet.ncols:
+                        check_label = str(worksheet.cell_value(row, col))
+                        if check_label == "":
+                            last_col = col - 1
+                        col += 1
+                    if last_col is None:
+                        last_col = worksheet.ncols - 1
+            else:
+                source_item = str(worksheet.cell_value(row, header_col))
+                # If there is no source item, the connection matrix must have ended.
+                if source_item == "":
+                    break
+                for col in range(header_col + 1, last_col + 1):
                     target_item = str(worksheet.cell_value(header_row, col))
-                    # Note that items with names referred to by connection matrices must be constructed first.
-                    # This means ensuring a logical read order in structure settings, even for different display order.
-                    structure.append_spec_value(term=val, attribute=table.storage_attribute,
-                                                value=(source_item, target_item))
-        row += 1
+                    val = str(worksheet.cell_value(row, col))
+                    # For standard connection matrices, item names related to connections are pulled from non-empty cells.
+                    if table.template_item_type is None:
+                        if not val == "":
+                            structure.append_spec_value(term=val, attribute=table.storage_attribute,
+                                                        value=(source_item, target_item))
+                    # For template connection matrices, the item name is in the 'corner' header.
+                    # Attach connections to that item in specs if a connection exists, i.e. is marked by 'y'.
+                    else:
+                        if val == SS.DEFAULT_SYMBOL_YES:
+                            structure.append_spec_value(term=term, attribute=table.storage_attribute,
+                                                        value=(source_item, target_item))
+            row += 1
     next_row = row
     return next_row
 
@@ -284,7 +324,7 @@ def read_worksheet(workbook, page_key, framework=None, data=None, workbook_type=
 
     # TODO: Consider whether this should be a warning rather than an exception.
     if row < worksheet.nrows:
-        raise AtomicaException("Workbook parser has concluded for page '{0}' at row {1}, even though worksheet "
+        raise AtomicaException("Workbook parser has concluded for page '{0}' before row {1}, even though worksheet "
                                "has {2} rows. An errant blank row may have truncated table "
                                "parsing.".format(worksheet.name, row, worksheet.nrows))
 
