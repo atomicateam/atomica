@@ -513,8 +513,7 @@ class Population(object):
             # 'source_name:dest_name:par_name' - All links from Source to Dest belonging to a given Parameter
             # ':dest:par_name'
             # 'source::par_name' - As per above
-            # Note - because compartment names are resolved within compartments, this function currently cannot
-            # be used to look up transfer links
+            # '::par_name' - All links with specified par_name (less efficient than 'par_name:flow')
             name_tokens = name.split(':')
             if len(name_tokens) == 2:
                 name_tokens.append('')

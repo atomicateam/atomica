@@ -149,7 +149,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
 
     args = {
         'project': project,
-        'parset': dcp(parset),
+        'parset': parset.copy(),
         'pars_to_adjust': pars_to_adjust,
         'output_quantities': output_quantities,
     }

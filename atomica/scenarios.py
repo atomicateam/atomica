@@ -6,10 +6,11 @@ Version: 2018mar26
 from copy import deepcopy as dcp
 import numpy as np
 from atomica.system import AtomicaException
+from atomica.slist import NamedItem
 
-class Scenario(object):
+class Scenario(NamedItem):
     def __init__(self, name):
-        self.name = name
+        NamedItem.__init__(self,name)
 
     def get_parset(self, parset, settings):
         return parset
