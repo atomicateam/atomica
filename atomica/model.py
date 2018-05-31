@@ -7,6 +7,7 @@ from atomica.results import Result
 from atomica.parser_function import parse_function
 from collections import defaultdict
 from sciris.core import odict, uuid
+from atomica.slist import NamedItem
 
 import pickle
 import numpy as np
@@ -20,7 +21,7 @@ model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
 
-class Variable(object):
+class Variable(NamedItem):
     """
     Lightweight abstract class to store variable array of values (presumably corresponding to an external time vector).
     Includes an attribute to describe the format of these values.
@@ -29,8 +30,7 @@ class Variable(object):
     """
 
     def __init__(self, pop, name='default'):
-        self.uid = uuid()
-        self.name = name
+        NamedItem.__init__(self,name)
         self.t = None
         self.dt = None
         if 'vals' not in dir(self):  # characteristics already have a vals method

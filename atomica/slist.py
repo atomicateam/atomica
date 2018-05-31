@@ -16,6 +16,9 @@ class NamedItem(object):
         x.uid = uuid4()
         return x
 
+    def __repr__(self):
+        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.uid)
+
 class SList(object):
     def __init__(self,allow_duplicates=False,enforce_type=None):
         self._objs = []
@@ -48,9 +51,9 @@ class SList(object):
 
     def __delitem__(self, item):
         if isinstance(item,UUID):
-            self._objs = filter(lambda x: x.uid != item, self._objs)
+            self._objs = [x for x in self._objs if x.uid != item]
         elif isinstance(item,str):
-            self._objs = filter(lambda x: x.name != item, self._objs)
+            self._objs = [x for x in self._objs if x.name != item]
         else:
             self._objs.pop(item)
 
@@ -110,20 +113,56 @@ class SList(object):
         del self[item]
 
     def __repr__(self):
-        return str(self._objs)
-
+        return '['+','.join(['{}:"{}"'.format(x.__class__.__name__,x.name) for x in self._objs]) + ']'
 
 ## Example usage below - This can be moved to documentation later
 if __name__ == '__main__':
-    # f_string = 'exp(x)+y**2'
-    # fcn,dep_list = parse_function(f_string)
-    # print(dep_list)
-    # deps = {'x':1,'y':2}
-    # print(fcn(**deps))
-    # print(fcn(x=1,y=3)) # The use of **deps means you can write out keyword arguments for `fcn` directly
+
     x = SList()
-    x.insert(NamedItem('a'))
-    x.insert(NamedItem('b'))
+    a = NamedItem('a')
+    b = NamedItem('b')
+    x.insert(a)
+    x.insert(b)
 
+    # Items can be retrieved by name
+    x['a']
+    x['b']
 
+    # Or by UID
+    x[a.uid]
+    x[b.uid]
+
+    # Or by index
+    x[0]
+    x[1]
+
+    # You can iterate over an SList
+    for y in x:
+        print(y)
+
+    # It can be turned into a normal list
+    list(x)
+
+    # You can rename entries
+    x.rename('a','c')
+
+    # You can copy entries
+    x.copy('c','d')
+
+    # You can delete entries
+    del x['d']
+    x.remove('c')
+
+    # You can't add the same entry more than once by default
+    x.insert(a)
+    try:
+        x.insert(a)
+    except NotAllowedError:
+        print('Error as expected')
+
+    # You can't rename if a conflict would occur
+    try:
+        x.rename('a','b')
+    except NotAllowedError:
+        print('Error as expected')
 
