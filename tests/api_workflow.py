@@ -1,5 +1,5 @@
 """
-Version:
+Note, need to run testworkflow.py first to generate the required files
 """
 
 # Romesh PyCharm commands

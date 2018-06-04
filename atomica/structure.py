@@ -257,10 +257,11 @@ class CoreProjectStructure(object):
         Initialize the attribute structure relating to specifications for a new item within a target dictionary.
         Should not be called directly as it is part of item creation.
         """
-        if position is None:
-            target_item_location[item_name] = sc.odict()
-        else:
-            target_item_location[item_name] = None # Note: cannot initialize as an odict since this will create a linked version 
+        target_item_location[item_name] = sc.odict()
+#        if position is None:
+#            target_item_location[item_name] = sc.odict()
+#        else:
+#            target_item_location.insert(pos=position, key=item_name, value=None) # Note: cannot initialize as an odict since this will create a linked version 
 
         if self.structure_key is not None:
             item_type_specs = None

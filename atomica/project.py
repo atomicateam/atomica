@@ -89,11 +89,11 @@ class Project(object):
         self.data = ProjectData()  # TEMPORARY
 
         # Define the structure sets
-        self.parsets = SList(enforce_type=ParameterSet)
-        self.progsets = SList(enforce_type=ProgramSet)
-        self.scens = SList(enforce_type=Scenario)
-        self.optims = SList(enforce_type=Optim)
-        self.results = SList(enforce_type=Result)
+        self.parsets  = SList()
+        self.progsets = SList()
+        self.scens    = SList()
+        self.optims   = SList()
+        self.results  = SList()
 
         # Define metadata
         self.uid = sc.uuid()

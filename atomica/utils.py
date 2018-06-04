@@ -22,7 +22,7 @@ class NamedItem(object):
 
 class SList(sc.odict):
     def __init__(self, *args, **kwargs):
-        sc.odict.__init__(*args, **kwargs)
+        sc.odict.__init__(self, *args, **kwargs)
 
     def __setitem__(self, key, item):
         if not isinstance(item,NamedItem):
