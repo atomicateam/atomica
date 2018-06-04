@@ -1,6 +1,6 @@
 from uuid import uuid4, UUID
 from sciris.utils import dcp, defaultrepr
-from atomica.system import NotAllowedError, NotFoundError, UnknownInputError
+from atomica.system import NotAllowedError, NotFoundError, AtomicaInputError
 
 
 class NamedItem(object):
@@ -69,7 +69,7 @@ class SList(object):
         elif isinstance(item,NamedItem):
             self._objs = [x for x in self._objs if x.uid != item.uid]
         else:
-            UnknownInputError('Item to delete must be a NamedItem, a UID, or a name')
+            AtomicaInputError('Item to delete must be a NamedItem, a UID, or a name')
 
     def __contains__(self, item):
         # Returns True if UUID or name is in this SList

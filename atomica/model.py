@@ -1,6 +1,6 @@
 # Imports
 
-from atomica.system import AtomicaException, logger, NotFoundError, UnknownInputError, NotAllowedError
+from atomica.system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
 from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure import convert_quantity
 from atomica.results import Result
@@ -109,9 +109,9 @@ class Compartment(Variable):
             elif link.parameter.units == 'number':
                 outflow_probability += link.parameter.vals[ti] * self.dt / self.vals[ti]
             else:
-                raise UnknownInputError('Unknown parameter units')
+                raise AtomicaInputError('Unknown parameter units')
 
-        remain_probability = 1 - outflow_probability
+        # remain_probability = 1 - outflow_probability
 
         dur = np.zeros(outflow_probability.shape)
         # From OSL/HMM-MAR:

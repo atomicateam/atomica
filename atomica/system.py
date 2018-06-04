@@ -102,7 +102,7 @@ class NotAllowedError(AtomicaException):
     # Throw this error if the user requested an illegal operation
     pass
 
-class UnknownInputError(AtomicaException):
+class AtomicaInputError(AtomicaException):
     # Throw this error if the code was not able to understand the user's input
     pass
 
