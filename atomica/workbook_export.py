@@ -139,7 +139,7 @@ def create_attribute_cell_content(worksheet, row, col, attribute, item_type, ite
     content = ""
     sep = ""
     validation_source = None
-    rc = xlrc(row, col, True, True)     # Make the reference absolute for user benefits, e.g. copying tables.
+    rc = xlrc(row, col, True, True)  # Make the reference absolute for user benefits, e.g. copying tables.
 
     # Content associated with standard content types is set up here.
     if isinstance(content_type, IDType):
@@ -452,14 +452,14 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
                                           item_type_specs=item_type_specs, item_number=item_number, formats=formats,
                                           format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
             target_col += 1
-        row = source_row + 1    # Extra row to space out following tables.
-        start_row = row         # Update start row down the page for iterated tables.
+        row = source_row + 1  # Extra row to space out following tables.
+        start_row = row  # Update start row down the page for iterated tables.
 
     next_row, next_col = row, col
     return next_row, next_col
 
 
-def write_time_dependent_values_entry(worksheet, item_type, item_key, iterated_type, start_row, start_col,
+def write_time_dependent_values_entry(worksheet, table, iteration, start_row, start_col,
                                       framework=None, data=None, instructions=None, workbook_type=None,
                                       formats=None, format_variables=None, temp_storage=None):
     item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
@@ -468,6 +468,10 @@ def write_time_dependent_values_entry(worksheet, item_type, item_key, iterated_t
                                                        workbook_type=workbook_type)
     if temp_storage is None:
         temp_storage = odict()
+
+    item_type = table.template_item_type
+    item_key = table.template_item_key
+    iterated_type = table.iterated_type
 
     if formats is None:
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
@@ -484,12 +488,20 @@ def write_time_dependent_values_entry(worksheet, item_type, item_key, iterated_t
     for format_variable_key in format_variables:
         if format_variable_key in attribute_spec:
             format_variables[format_variable_key] = attribute_spec[format_variable_key]
-    try:
-        header = item_specs[item_type][item_key][attribute]
-    except KeyError:
-        raise AtomicaException("No instantiation of item type '{0}' exists with the key of "
-                               "'{1}'.".format(item_type, item_key))
-    worksheet.write(row, col, header, formats[ES.FORMAT_KEY_CENTER_BOLD])
+    # If instantiated for an item, use that label as the header.
+    if item_key is not None:
+        try:
+            header = item_specs[item_type][item_key]["label"]
+        except KeyError:
+            raise AtomicaException("No instantiation of item type '{0}' exists with the key of "
+                                   "'{1}'.".format(item_type, item_key))
+        worksheet.write(start_row, start_col, header, formats[ES.FORMAT_KEY_CENTER_BOLD])
+    # If the instantiation was deferred to this workbook, create content according to iteration number.
+    else:
+        create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col, attribute="label",
+                                      item_type=item_type, item_type_specs=item_type_specs,
+                                      item_number=iteration, formats=formats,
+                                      format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
     if "comment" in attribute_spec:
         header_comment = attribute_spec["comment"]
         worksheet.write_comment(row, col, header_comment,
@@ -507,24 +519,26 @@ def write_time_dependent_values_entry(worksheet, item_type, item_key, iterated_t
     if item_type in [FS.KEY_COMPARTMENT,
                      FS.KEY_CHARACTERISTIC]:  # State variables are in number amounts unless normalized.
         if "denominator" in item_specs[item_type][item_key] and \
-                        item_specs[item_type][item_key]["denominator"] is not None:
+                item_specs[item_type][item_key]["denominator"] is not None:
             quantity_types = [FS.QUANTITY_TYPE_FRACTION.title()]
         else:
             quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
     # Modeller's choice for parameters.
-    elif "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:
+    elif item_type in [FS.KEY_PARAMETER] and \
+            "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:
         quantity_types = [item_specs[item_type][item_key]["format"].title()]
         # Make sure proportions do not default to a value of zero.
         if item_specs[item_type][item_key]["format"] == FS.QUANTITY_TYPE_PROPORTION:
             default_values = [1.0] * num_items
     else:
-        # User's choice for parameters if a transition.
-        if FS.KEY_TRANSITIONS in item_specs[item_type][item_key] and len(item_specs[item_type][item_key]["links"]) > 0:
+        # User choice if a transfer or a transition parameter.
+        if item_type in [FS.KEY_TRANSFER] or (FS.KEY_TRANSITIONS in item_specs[item_type][item_key] and
+                                              len(item_specs[item_type][item_key][FS.KEY_TRANSITIONS]) > 0):
             quantity_types = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
         # If not a transition, the format of this parameter is meaningless.
         else:
             quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
-    if "default_value" in item_specs[item_type][item_key] and \
+    if item_key is not None and "default_value" in item_specs[item_type][item_key] and \
             item_specs[item_type][item_key]["default_value"] is not None:
         default_values = [item_specs[item_type][item_key]["default_value"]] * num_items
     # TODO: Make sure this is robust when writing from framework/data rather than instructions.
@@ -581,9 +595,15 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
                                                framework=framework, data=data, instructions=instructions,
                                                workbook_type=workbook_type, formats=formats, temp_storage=temp_storage)
     if isinstance(table, TimeDependentValuesEntry):
-        if table.template_item_key is not None:
-            row, col = write_time_dependent_values_entry(worksheet=worksheet, item_type=table.template_item_type,
-                                                         item_key=table.template_item_key, iterated_type=table.iterated_type,
+        iteration_amount = 1
+        # If the connection matrix is templated...
+        if table.template_item_type is not None:
+            # Check if instantiation is deferred.
+            # If it is, iterate for the number of template-related items specified by instructions.
+            if table.template_item_key is None:
+                iteration_amount = instructions.num_items[table.template_item_type]
+        for iteration in range(iteration_amount):
+            row, col = write_time_dependent_values_entry(worksheet=worksheet, table=table, iteration=iteration,
                                                          start_row=row, start_col=col,
                                                          framework=framework, data=data, instructions=instructions,
                                                          workbook_type=workbook_type,
@@ -683,35 +703,33 @@ def write_workbook(workbook_path, framework=None, data=None, instructions=None, 
     workbook.close()
 
     logger.info("{0} construction complete.".format(display_name(workbook_type, as_title=True)))
-    
-    
-    
-#%% COMPLETELY INDEPENDENT CODE TO MAKE A SPREADSHEET FOR PROGRAMS.
-    # TODO: reconcile these!!!
-    
-    
+
+
+# %% COMPLETELY INDEPENDENT CODE TO MAKE A SPREADSHEET FOR PROGRAMS.
+# TODO: reconcile these!!!
+
+
 def makeprogramspreadsheet(filename, pops, progs, datastart=None, dataend=None, verbose=2):
     """ Generate the Atomica programs spreadsheet """
 
     # An integer argument is given: just create a pops dict using empty entries
     if isnumber(pops):
         npops = pops
-        pops = [] # Create real pops list
+        pops = []  # Create real pops list
         for p in range(npops):
-            pops.append('Pop %i'%(p+1)) 
-    
+            pops.append('Pop %i' % (p + 1))
+
     if isnumber(progs):
         nprogs = progs
-        progs = [] # Create real pops list
+        progs = []  # Create real pops list
         for p in range(nprogs):
-            progs.append({'short':'Prog %i'%(p+1), 'name':'Program %i'%(p+1)}) 
-    
-    # Ensure years are integers
-    if datastart is None: datastart = 2015. # TEMP
-    if dataend is None:   dataend   = 2018. # TEMP
+            progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
+
+            # Ensure years are integers
+    if datastart is None: datastart = 2015.  # TEMP
+    if dataend is None:   dataend = 2018.  # TEMP
     datastart, dataend = int(datastart), int(dataend)
-    
-    
+
     book = ProgramSpreadsheet(filename, pops, progs, datastart, dataend)
     book.create(filename)
 
@@ -739,60 +757,76 @@ class AtomicaFormats:
         self.formats = {}
         self.book = book
         # locked formats
-        self.formats['bold'] = self.book.add_format({'bold':1})
-        self.formats['center_bold'] = self.book.add_format({'bold':1, 'align':'center'})
+        self.formats['bold'] = self.book.add_format({'bold': 1})
+        self.formats['center_bold'] = self.book.add_format({'bold': 1, 'align': 'center'})
         self.formats['rc_title'] = {}
-        self.formats['rc_title']['right'] = self.book.add_format({'bold':1, 'align':'right'})
-        self.formats['rc_title']['left'] = self.book.add_format({'bold':1, 'align':'left'})
+        self.formats['rc_title']['right'] = self.book.add_format({'bold': 1, 'align': 'right'})
+        self.formats['rc_title']['left'] = self.book.add_format({'bold': 1, 'align': 'left'})
         # unlocked formats
-        self.formats['unlocked']     = self.book.add_format({'locked':0,                    'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['percentage']   = self.book.add_format({'locked':0, 'num_format':0x09, 'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['rate']         = self.book.add_format({'locked':0, 'num_format':0x09, 'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['decimal']      = self.book.add_format({'locked':0, 'num_format':0x0a, 'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['scientific']   = self.book.add_format({'locked':0, 'num_format':0x0b, 'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['number']       = self.book.add_format({'locked':0, 'num_format':0x04, 'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['general']      = self.book.add_format({'locked':0, 'num_format':0x00, 'bg_color':AtomicaFormats.BG_COLOR, 'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['optional']     = self.book.add_format({'locked':0, 'num_format':0x00, 'bg_color':AtomicaFormats.OPT_COLOR,'border':1, 'border_color':AtomicaFormats.BORDER_COLOR})
-        self.formats['info_header']  = self.book.add_format({'align':'center','valign':'vcenter', 'color':'#D5AA1D','fg_color':'#0E0655', 'font_size':20})
-        self.formats['grey']         = self.book.add_format({'fg_color':'#EEEEEE', 'text_wrap':True})
-        self.formats['orange']       = self.book.add_format({'fg_color':'#FFC65E', 'text_wrap':True})
-        self.formats['info_url']     = self.book.add_format({'fg_color':'#EEEEEE', 'text_wrap':True, 'color':'blue','align':'center'})
-        self.formats['grey_bold']    = self.book.add_format({'fg_color':'#EEEEEE','bold':True})
-        self.formats['merge_format'] = self.book.add_format({'bold': 1,'align': 'center','text_wrap':True})
-
+        self.formats['unlocked'] = self.book.add_format({'locked': 0, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+                                                         'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['percentage'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x09, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['rate'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x09, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['decimal'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x0a, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['scientific'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x0b, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['number'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x04, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['general'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x00, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['optional'] = self.book.add_format(
+            {'locked': 0, 'num_format': 0x00, 'bg_color': AtomicaFormats.OPT_COLOR, 'border': 1,
+             'border_color': AtomicaFormats.BORDER_COLOR})
+        self.formats['info_header'] = self.book.add_format(
+            {'align': 'center', 'valign': 'vcenter', 'color': '#D5AA1D', 'fg_color': '#0E0655', 'font_size': 20})
+        self.formats['grey'] = self.book.add_format({'fg_color': '#EEEEEE', 'text_wrap': True})
+        self.formats['orange'] = self.book.add_format({'fg_color': '#FFC65E', 'text_wrap': True})
+        self.formats['info_url'] = self.book.add_format(
+            {'fg_color': '#EEEEEE', 'text_wrap': True, 'color': 'blue', 'align': 'center'})
+        self.formats['grey_bold'] = self.book.add_format({'fg_color': '#EEEEEE', 'bold': True})
+        self.formats['merge_format'] = self.book.add_format({'bold': 1, 'align': 'center', 'text_wrap': True})
 
     def write_block_name(self, sheet, name, row):
         sheet.write(row, 0, name, self.formats['bold'])
 
-    def write_rowcol_name(self, sheet, row, col, name, align = 'right'):
+    def write_rowcol_name(self, sheet, row, col, name, align='right'):
         sheet.write(row, col, name, self.formats['rc_title'][align])
 
-    def write_option(self, sheet, row, col, name = 'OR'):
+    def write_option(self, sheet, row, col, name='OR'):
         sheet.write(row, col, name, self.formats['center_bold'])
 
-    #special processing for bool values (to keep the content separate from representation)
-    def write_unlocked(self, sheet, row, col, data, row_format = 'unlocked'):
-        if type(data)==bool:
+    # special processing for bool values (to keep the content separate from representation)
+    def write_unlocked(self, sheet, row, col, data, row_format='unlocked'):
+        if type(data) == bool:
             bool_data = 'TRUE' if data else 'FALSE'
             sheet.write(row, col, bool_data, self.formats[row_format])
         else:
             sheet.write(row, col, data, self.formats[row_format])
 
-    def write_empty_unlocked(self, sheet, row, col, row_format = 'unlocked'):
+    def write_empty_unlocked(self, sheet, row, col, row_format='unlocked'):
         sheet.write_blank(row, col, None, self.formats[row_format])
 
     def writeline(self, sheet, row, row_format='grey'):
         sheet.write_blank(row, 0, None, self.formats[row_format])
-        return row+1
+        return row + 1
 
-    def writeblock(self, sheet, row, text, row_format = 'grey', row_height = None, add_line = True):
+    def writeblock(self, sheet, row, text, row_format='grey', row_height=None, add_line=True):
         if row_height:
             sheet.set_row(row, row_height)
         sheet.write(row, 0, text, self.formats[row_format])
         if add_line:
-            return self.writeline(sheet, row+1)
+            return self.writeline(sheet, row + 1)
         else:
-            return row+1
+            return row + 1
 
 
 class SheetRange:
@@ -803,8 +837,8 @@ class SheetRange:
         self.num_rows = num_rows
         self.num_cols = num_cols
 
-        self.last_row = self.first_row + self.num_rows -1
-        self.last_col = self.first_col + self.num_cols -1
+        self.last_row = self.first_row + self.num_rows - 1
+        self.last_col = self.first_col + self.num_cols - 1
 
         self.start = self.get_cell_address(self.first_row, self.first_col)
         self.end = self.get_cell_address(self.last_row, self.last_col)
@@ -813,12 +847,14 @@ class SheetRange:
         return '%s:%s' % (self.start, self.end)
 
     def get_cell_address(self, row, col):
-        return xw.utility.xl_rowcol_to_cell(row, col, row_abs = True, col_abs = True)
+        return xw.utility.xl_rowcol_to_cell(row, col, row_abs=True, col_abs=True)
 
     """ gives the list of references to the entries in the row names (which are parameters) """
-    def param_refs(self, sheet_name, column_number = 1):
-        par_range = range(self.first_row, self.last_row +1)
-        return [ "='%s'!%s" % (sheet_name, self.get_cell_address(row, self.first_col + column_number)) for row in par_range ]
+
+    def param_refs(self, sheet_name, column_number=1):
+        par_range = range(self.first_row, self.last_row + 1)
+        return ["='%s'!%s" % (sheet_name, self.get_cell_address(row, self.first_col + column_number)) for row in
+                par_range]
 
 
 def make_programs_range(name=None, popnames=None, items=None):
@@ -827,21 +863,24 @@ def make_programs_range(name=None, popnames=None, items=None):
     short, name, targetpops
     (2x str, 1x list of booleans)
     """
-    column_names = ['Short name','Long name']+popnames
-    row_names = range(1, len(items)+1)
+    column_names = ['Short name', 'Long name'] + popnames
+    row_names = range(1, len(items) + 1)
     coded_params = []
     for item in items:
         if type(item) is dict:
             name = item['name']
             short = item['short']
             targetpops = [0 for popname in popnames]
-        coded_params.append([short, name]+targetpops)
-    return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params, assumption=False)
+        coded_params.append([short, name] + targetpops)
+    return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params,
+                          assumption=False)
+
 
 def make_years_range(name=None, row_names=None, ref_range=None, data_start=None, data_end=None, data=None):
     if ref_range is not None:
         row_names = ref_range.param_refs()
-    output = AtomicaContent(name=name, row_names=row_names, column_names=range(int(data_start), int(data_end+1)), data=data)
+    output = AtomicaContent(name=name, row_names=row_names, column_names=range(int(data_start), int(data_end + 1)),
+                            data=data)
     return output
 
 
@@ -856,91 +895,101 @@ class TitledRange(object):
         num_data_rows = len(self.content.row_names)
 
         if self.content.row_levels is not None:
-            first_data_col +=1
+            first_data_col += 1
             num_data_rows *= len(self.content.row_levels)
-            num_data_rows += len(self.content.row_names)-1
-        self.data_range = SheetRange(first_row+2, first_data_col, num_data_rows, len(self.content.column_names))
+            num_data_rows += len(self.content.row_names) - 1
+        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
         self.first_row = first_row
 
     def num_rows(self):
         return self.data_range.num_rows + 2
 
     """ emits the range and returns the new current row in the given sheet """
-    def emit(self, formats, rc_row_align = 'right', rc_title_align = 'right'): #only important for row/col titles
-        #top-top headers
+
+    def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+        # top-top headers
         formats.write_block_name(self.sheet, self.content.name, self.first_row)
 
-        if self.content.assumption and  self.first_row==0 and self.content.assumption_properties['title'] is not None:
-            formats.write_rowcol_name(self.sheet, self.first_row, self.data_range.last_col+2, self.content.assumption_properties['title'])
+        if self.content.assumption and self.first_row == 0 and self.content.assumption_properties['title'] is not None:
+            formats.write_rowcol_name(self.sheet, self.first_row, self.data_range.last_col + 2,
+                                      self.content.assumption_properties['title'])
 
-        #headers
+        # headers
         for i, name in enumerate(self.content.column_names):
-            formats.write_rowcol_name(self.sheet, self.first_row+1, self.data_range.first_col+i,name, rc_title_align)
+            formats.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
+                                      rc_title_align)
 
         if self.content.assumption:
             for index, col_name in enumerate(self.content.assumption_properties['columns']):
-                formats.write_rowcol_name(self.sheet, self.first_row+1, self.data_range.last_col+2+index, col_name)
+                formats.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.last_col + 2 + index,
+                                          col_name)
 
         current_row = self.data_range.first_row
         num_levels = len(self.content.row_levels) if self.content.row_levels is not None else 1
 
-        #iterate over rows, incrementing current_row as we go
+        # iterate over rows, incrementing current_row as we go
         for i, names_format in enumerate(zip(self.content.get_row_names(), self.content.get_row_formats())):
             names, row_format = names_format
             start_col = self.data_range.first_col - len(names)
-            #emit row name(s)
+            # emit row name(s)
             for n, name in enumerate(names):
-                formats.write_rowcol_name(self.sheet, current_row, start_col+n, name, rc_row_align)
-            #emit data if present
+                formats.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align)
+            # emit data if present
             savedata = False
             if self.content.data is not None:
                 try:
                     for j, item in enumerate(self.content.data[i]):
-                        formats.write_unlocked(self.sheet, current_row, self.data_range.first_col+j, item, row_format)
-                    savedata = True # It saved successfully
+                        formats.write_unlocked(self.sheet, current_row, self.data_range.first_col + j, item, row_format)
+                    savedata = True  # It saved successfully
                 except:
                     errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content.name, self.content.data)
                     print(errormsg)
                     savedata = False
             if not savedata:
                 for j in range(self.data_range.num_cols):
-                    formats.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col+j, row_format)
-            #emit assumption
+                    formats.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
+            # emit assumption
             if self.content.assumption:
-                formats.write_option(self.sheet, current_row, self.data_range.last_col+1, name = self.content.assumption_properties['connector'])
+                formats.write_option(self.sheet, current_row, self.data_range.last_col + 1,
+                                     name=self.content.assumption_properties['connector'])
                 for index, col_name in enumerate(self.content.assumption_properties['columns']):
                     saveassumptiondata = False
                     if self.content.assumption_data is not None:
                         try:
                             assumptiondata = self.content.assumption_data[i]
-                            if isinstance(assumptiondata, list): # Check to see if it's a list 
-                                if len(assumptiondata)!=1: # Check to see if it has the right length
-                                    errormsg = 'WARNING, assumption "%s" appears to have the wrong length:\n%s' % (self.content.name, assumptiondata)
+                            if isinstance(assumptiondata, list):  # Check to see if it's a list
+                                if len(assumptiondata) != 1:  # Check to see if it has the right length
+                                    errormsg = 'WARNING, assumption "%s" appears to have the wrong length:\n%s' % (
+                                    self.content.name, assumptiondata)
                                     print(errormsg)
                                     saveassumptiondata = False
-                                else: # It has length 1, it's good to go
-                                    assumptiondata = assumptiondata[0] # Just pull out the only element
-                            formats.write_unlocked(self.sheet, current_row, self.data_range.last_col+2+index, assumptiondata, row_format)
+                                else:  # It has length 1, it's good to go
+                                    assumptiondata = assumptiondata[0]  # Just pull out the only element
+                            formats.write_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
+                                                   assumptiondata, row_format)
                             saveassumptiondata = True
                         except Exception as E:
-                            errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (self.content.name, self.content.assumption_data, repr(E))
+                            errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (
+                            self.content.name, self.content.assumption_data, repr(E))
                             print(errormsg)
                             saveassumptiondata = False
                             raise E
                     if not saveassumptiondata:
-                        formats.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col+2+index, row_format)
-            current_row+=1
-            if num_levels > 1 and ((i+1) % num_levels)==0: # shift between the blocks
-                current_row +=1
-        #done! return the new current_row plus spacing
-        return current_row + TitledRange.ROW_INTERVAL # for spacing
+                        formats.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
+                                                     row_format)
+            current_row += 1
+            if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
+                current_row += 1
+        # done! return the new current_row plus spacing
+        return current_row + TitledRange.ROW_INTERVAL  # for spacing
 
-    def param_refs(self, column_number = 0):
+    def param_refs(self, column_number=0):
         return self.data_range.param_refs(self.sheet.get_name(), column_number)
 
 
 class AtomicaContent(object):
     """ the content of the data ranges (row names, column names, optional data and assumptions) """
+
     def __init__(self, name=None, row_names=None, column_names=None, data=None, assumption_data=None, assumption=True):
         self.name = name
         self.row_names = row_names
@@ -950,7 +999,7 @@ class AtomicaContent(object):
         self.row_levels = None
         self.row_format = AtomicaFormats.GENERAL
         self.row_formats = None
-        self.assumption_properties = {'title':None, 'connector':'OR', 'columns':['Assumption']}
+        self.assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
         self.assumption_data = assumption_data
 
     def get_row_names(self):
@@ -959,7 +1008,7 @@ class AtomicaContent(object):
         else:
             return [[name, level] for name in self.row_names for level in self.row_levels]
 
-    def get_row_formats(self): #assume that the number of row_formats is same as the number of row_levels
+    def get_row_formats(self):  # assume that the number of row_formats is same as the number of row_levels
         if not self.row_levels is not None:
             return [self.row_format for name in self.row_names]
         else:
@@ -969,13 +1018,12 @@ class AtomicaContent(object):
                 return [self.row_format for name in self.row_names for level in self.row_levels]
 
 
-
 class ProgramSpreadsheet:
-    def __init__(self, name, pops, progs, data_start=None, data_end=None, verbose = 0):
+    def __init__(self, name, pops, progs, data_start=None, data_end=None, verbose=0):
         self.sheet_names = odict([
-            ('targeting',   'Populations & programs'),
+            ('targeting', 'Populations & programs'),
             ('costcovdata', 'Program data'),
-            ])
+        ])
         self.name = name
         self.pops = pops
         self.progs = progs
@@ -988,29 +1036,28 @@ class ProgramSpreadsheet:
         self.current_sheet = None
         self.prog_range = None
         self.ref_pop_range = None
-        self.years_range = range(int(self.data_start), int(self.data_end+1))
+        self.years_range = range(int(self.data_start), int(self.data_end + 1))
 
         self.npops = len(pops)
         self.nprogs = len(progs)
 
     def generate_targeting(self):
-        self.current_sheet.set_column(2,2,15)
-        self.current_sheet.set_column(3,3,40)
-        self.current_sheet.set_column(6,6,12)
-        self.current_sheet.set_column(7,7,16)
-        self.current_sheet.set_column(8,8,16)
-        self.current_sheet.set_column(9,9,12)
+        self.current_sheet.set_column(2, 2, 15)
+        self.current_sheet.set_column(3, 3, 40)
+        self.current_sheet.set_column(6, 6, 12)
+        self.current_sheet.set_column(7, 7, 16)
+        self.current_sheet.set_column(8, 8, 16)
+        self.current_sheet.set_column(9, 9, 12)
         current_row = 0
 
         targeting_content = make_programs_range('Populations & programs', self.pops, self.progs)
         self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=targeting_content)
-        current_row = self.prog_range.emit(self.formats, rc_title_align = 'left')
+        current_row = self.prog_range.emit(self.formats, rc_title_align='left')
 
         self.ref_prog_range = self.prog_range
 
-
-    def emit_years_block(self, name, current_row, row_names, row_format = AtomicaFormats.GENERAL,
-        assumption = False, row_levels = None, row_formats = None):
+    def emit_years_block(self, name, current_row, row_names, row_format=AtomicaFormats.GENERAL,
+                         assumption=False, row_levels=None, row_formats=None):
         content = make_years_range(name=name, row_names=row_names, data_start=self.data_start, data_end=self.data_end)
         content.row_format = row_format
         content.assumption = assumption
@@ -1022,24 +1069,26 @@ class ProgramSpreadsheet:
         current_row = the_range.emit(self.formats)
         return current_row
 
-
     def generate_costcovdata(self):
         row_levels = ['Total spend', 'Unit cost', 'Coverage', 'Capacity constraint']
-        self.current_sheet.set_column('C:C',20)
+        self.current_sheet.set_column('C:C', 20)
         current_row = 0
-        current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row, row_names=self.ref_prog_range.param_refs(), row_formats = [AtomicaFormats.SCIENTIFIC,AtomicaFormats.GENERAL,AtomicaFormats.GENERAL,AtomicaFormats.GENERAL], assumption = True, row_levels = row_levels)
-
+        current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row,
+                                            row_names=self.ref_prog_range.param_refs(),
+                                            row_formats=[AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL,
+                                                         AtomicaFormats.GENERAL, AtomicaFormats.GENERAL],
+                                            assumption=True, row_levels=row_levels)
 
     def create(self, path):
-        if self.verbose >=1: 
+        if self.verbose >= 1:
             print("""Creating program spreadsheet %s with parameters:
             npops = %s, nprogs = %s, data_start = %s, data_end = %s""" % \
-            (path, self.npops, self.nprogs, self.data_start, self.data_end))
+                  (path, self.npops, self.nprogs, self.data_start, self.data_end))
         self.book = xw.Workbook(path)
         self.formats = AtomicaFormats(self.book)
         self.sheets = {}
         for name in self.sheet_names:
             self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
             self.current_sheet = self.sheets[name]
-            getattr(self, "generate_%s" % name)() # this calls the corresponding generate function
+            getattr(self, "generate_%s" % name)()  # this calls the corresponding generate function
         self.book.close()
