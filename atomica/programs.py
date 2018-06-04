@@ -26,7 +26,6 @@ class ProgramSet(object):
         self.covout = odict()
         if programs is not None: self.addprograms(programs)
         if covouts is not None: self.addcovouts(covouts)
-#        else: self.updateprogset()
         self.defaultbudget = odict()
         self.created = today()
         self.modified = today()
@@ -74,11 +73,13 @@ class ProgramSet(object):
                         capacity=progdata[pkey]['capacity'],
                         data=data
                         )
+#            for par,pardata in progdata['pars'].iteritems():
+#                for pop,popdata in pardata.iteritems():
+                    
             programs.append(p)
         self.addprograms(progs=programs)
         
         # Update the unit costs (done separately as by year)
-        ## TODO : REVISE THIS, THE FORMAT ISN'T RIGHT
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
             for yrno,year in enumerate(progdata['years']):
@@ -86,9 +87,11 @@ class ProgramSet(object):
                 if not (isnan(unitcost)).all():
                     self.programs[np].update(unitcost=sanitize(unitcost), year=year)
         
-        # Read in the information for covout functions
+        # Read in the information for covout functions and update the target pars
         prognames = progdata['progs']['short']
         prog_effects = odict()
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+
         for par,pardata in progdata['pars'].iteritems():
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
@@ -98,7 +101,9 @@ class ProgramSet(object):
                     for blh in range(3):
                         val = popdata['prog_vals'][blh][pno]
                         if isnumber(val) and val is not nan: vals.append(val) 
-                    if vals: prog_effects[par][pop][prognames[pno]] = vals
+                    if vals:
+                        prog_effects[par][pop][prognames[pno]] = vals
+                        self.programs[pno].update(target_pars=(par,pop))
                 if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
@@ -230,30 +235,28 @@ class Program(object):
     def update(self, short=None, name=None, data=None, unitcost=None, capacity=None, year=None, target_pops=None, target_pars=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
-        def settargetpars(targetpars=None):
+        def settargetpars(target_pars=None):
             ''' Handle targetpars -- a little complicated since it's a list of dicts '''
-            targetparkeys = ['param', 'pop']
-            targetpars = promotetolist(targetpars) # Let's make sure it's a list before going further
-            for tp,targetpar in enumerate(targetpars):
-                if isinstance(targetpar, dict): # It's a dict, as it needs to be
-                    thesekeys = sorted(targetpar.keys())
-                    if thesekeys==targetparkeys: # Keys are correct -- main usage case!!
-                        targetpars[tp] = targetpar
+            target_par_keys = ['param', 'pop']
+            target_pars = promotetolist(target_pars) # Let's make sure it's a list before going further
+            for tp,target_par in enumerate(target_pars):
+                if isinstance(target_par, dict): # It's a dict, as it needs to be
+                    thesekeys = sorted(target_par.keys())
+                    if thesekeys==target_par_keys: # Keys are correct -- main usage case!!
+                        target_pars[tp] = target_par
                     else:
-                        errormsg = 'Keys for a target parameter must be %s, not %s' % (targetparkeys, thesekeys)
+                        errormsg = 'Keys for a target parameter must be %s, not %s' % (target_par_keys, thesekeys)
                         raise AtomicaException(errormsg)
-                elif isinstance(targetpar, basestring): # It's a single string: assume only the parameter is specified
-                    targetpars[tp] = {'param':targetpar, 'pop':'tot'} # Assume 'tot'
-                elif isinstance(targetpar, tuple): # It's a list, assume it's in the usual order
-                    if len(targetpar)==2:
-                        targetpars[tp] = {'param':targetpar[0], 'pop':targetpar[1]} # If a list or tuple, assume this order
+                elif isinstance(target_par, tuple): # It's a list, assume it's in the usual order
+                    if len(target_par)==2:
+                        target_pars[tp] = {'param':target_par[0], 'pop':target_par[1]} # If a list or tuple, assume this order
                     else:
-                        errormsg = 'When supplying a targetpar as a list or tuple, it must have length 2, not %s' % len(targetpar)
+                        errormsg = 'When supplying a target_par as a list or tuple, it must have length 2, not %s' % len(target_par)
                         raise AtomicaException(errormsg)
                 else:
-                    errormsg = 'Targetpar must be string, tuple, or dict, not %s' % type(targetpar)
+                    errormsg = 'Targetpar must be string, tuple, or dict, not %s' % type(target_par)
                     raise AtomicaException(errormsg)
-            self.targetpars = targetpars # Actually set it
+            self.target_pars.extend(target_pars) # Add the new values
             return None
         
         def setunitcost(unitcost=None, year=None):
@@ -265,7 +268,7 @@ class Program(object):
             
             setunitcost(21) # Assumes current year and that this is the best value
             setunitcost(21, year=2014) # Specifies year
-            setunitcost(year=2014, unitcost=(11, 31)) # Specifies year, low, and high
+            setunitcost(year=2014, unitcost=[11, 31]) # Specifies year, low, and high
             setunitcost({'year':2014', 'best':21}) # Specifies year and best
             setunitcost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
             setunitcost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
@@ -342,9 +345,7 @@ class Program(object):
         if target_pops is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
-
-#        if target_pars is not None: settargetpars(target_pars) # targeted parameters
-
+        if target_pars is not None: settargetpars(target_pars) # targeted parameters
         if unitcost    is not None: setunitcost(unitcost, year) # unit cost(s)
         if data        is not None: setdata(data, year) # spend and coverage data
         
