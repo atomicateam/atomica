@@ -1,10 +1,9 @@
 from atomica.system import SystemSettings as SS
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import apply_to_all_methods, log_usage, AtomicaException
-from atomica._version import __version__
-from sciris.core import odict, today, gitinfo, objrepr, getdate, uuid, makefilepath, saveobj, loadobj
+from atomica.version import version
 from bisect import bisect
-
+import sciris.core as sc
 import numpy as np
 
 
@@ -203,10 +202,10 @@ class CoreProjectStructure(object):
             self.name = str()
         else:
             self.name = name
-        self.specs = odict()
+        self.specs = sc.odict()
 
         # Keep a dictionary linking any user-provided term with a reference to the appropriate specifications.
-        self.semantics = odict()
+        self.semantics = sc.odict()
 
         # Record what type of structure this is for specification initialization purposes.
         self.structure_key = structure_key
@@ -214,24 +213,24 @@ class CoreProjectStructure(object):
         self.init_specs()
 
         # Standard metadata.
-        self.uid = uuid()
-        self.created = today()
-        self.modified = today()
-        self.version = __version__
-        self.git_info = gitinfo()
+        self.uid = sc.uuid()
+        self.created = sc.today()
+        self.modified = sc.today()
+        self.version = version
+        self.git_info = sc.gitinfo(__file__)
         self.workbook_load_date = "N.A."
 
     def __repr__(self):
-        output = objrepr(self)
+        output = sc.objrepr(self)
         output += self.get_metadata_string()
         output += "=" * 60 + "\n"
         return output
 
     def get_metadata_string(self):
         meta = "   Atomica version: %s\n" % self.version
-        meta += "      Date created: %s\n" % getdate(self.created)
-        meta += "     Date modified: %s\n" % getdate(self.modified)
-        meta += "   Workbook loaded: %s\n" % getdate(self.workbook_load_date)
+        meta += "      Date created: %s\n" % sc.getdate(self.created)
+        meta += "     Date modified: %s\n" % sc.getdate(self.modified)
+        meta += "   Workbook loaded: %s\n" % sc.getdate(self.workbook_load_date)
         meta += "        Git branch: %s\n" % self.git_info['branch']
         meta += "          Git hash: %s\n" % self.git_info['hash']
         meta += "               UID: %s\n" % self.uid
@@ -251,7 +250,7 @@ class CoreProjectStructure(object):
             if item_type_specs is not None:
                 for item_type in item_type_specs:
                     if item_type_specs[item_type]["superitem_type"] is None:
-                        self.specs[item_type] = odict()
+                        self.specs[item_type] = sc.odict()
 
     def init_item(self, item_name, item_type, target_item_location, position=None):
         """
@@ -259,9 +258,9 @@ class CoreProjectStructure(object):
         Should not be called directly as it is part of item creation.
         """
         if position is None:
-            target_item_location[item_name] = odict()
+            target_item_location[item_name] = sc.odict()
         else:
-            target_item_location.insert(pos=position, key=item_name, value=odict())
+            target_item_location.insert(pos=position, key=item_name, value=None) # Note: cannot initialize as an odict since this will create a linked version 
 
         if self.structure_key is not None:
             item_type_specs = None
@@ -285,7 +284,7 @@ class CoreProjectStructure(object):
                     # If the attribute itself references another item type in settings, prepare it as a container.
                     # The container itself is for storing those corresponding items in specifications.
                     if "ref_item_type" in item_type_specs[item_type]["attributes"][attribute]:
-                        target_item_location[item_name][attribute] = odict()
+                        target_item_location[item_name][attribute] = sc.odict()
                     # If the content type for the attribute is marked as a list, instantiate that list.
                     elif content_type is not None and content_type.is_list:
                         target_item_location[item_name][attribute] = list()
@@ -504,10 +503,10 @@ class CoreProjectStructure(object):
             file_extension = SS.OBJECT_EXTENSION_FRAMEWORK
         if self.structure_key == SS.STRUCTURE_KEY_DATA:
             file_extension = SS.OBJECT_EXTENSION_DATA
-        filepath = makefilepath(filename=filepath, ext=file_extension, sanitize=True)  # Enforce file extension.
-        saveobj(filepath, self)
+        filepath = sc.makefilepath(filename=filepath, ext=file_extension, sanitize=True)  # Enforce file extension.
+        sc.saveobj(filepath, self)
 
     @classmethod
     def load(cls, filepath):
         """ Convenience class method for loading a project structure in the absence of an instance. """
-        return loadobj(filepath)
+        return sc.loadobj(filepath)

@@ -1,5 +1,4 @@
-from uuid import uuid4, UUID
-from sciris.utils import dcp, defaultrepr, promotetolist, odict
+import sciris.core as sc
 from atomica.system import NotAllowedError, NotFoundError, AtomicaInputError
 
 
@@ -7,16 +6,16 @@ class NamedItem(object):
     def __init__(self,name):
         assert name is not None, 'Name cannot be None'
         self.name = name
-        self.uid = uuid4()
+        self.uid = sc.uuid()
 
     def copy(self,name):
-        x = dcp(self)
+        x = sc.dcp(self)
         x.name = name
-        x.uid = uuid4()
+        x.uid = sc.uuid()
         return x
 
     def __repr__(self):
-        return defaultrepr(self)
+        return sc.desc(self)
 
 class SList(object):
     def __init__(self,allow_duplicates=False,enforce_type=None):
@@ -25,14 +24,12 @@ class SList(object):
         self.enforce_type = enforce_type
 
     def __getitem__(self, item):
-        if isinstance(item,UUID):
-            matches = [x for x in self._objs if x.uid == item]
-        elif isinstance(item,int):
-            return self._objs[item]
-        elif isinstance(item,str):
-            matches = [x for x in self._objs if x.name == item]
+        if sc.isnumber(item):
+            return self._objs[int(item)]
+        elif sc.isstring(item):
+            matches = [x for x in self._objs if str(x.name) == str(item)] + [x for x in self._objs if str(x.uid) == str(item)]
         else:
-            raise NotAllowedError('Cannot index SList using something other than int, UUID, str')
+            raise NotAllowedError('Cannot index SList using something other than int or str')
 
         if not matches:
             raise NotFoundError('"{0}" not present in SList.\nAvailable items are:\n{1}'.format(item,'\n'.join(self.keys())))
@@ -61,29 +58,19 @@ class SList(object):
     def __delitem__(self, item):
         if item not in self:
             raise NotFoundError('"{0}" not present in SList.\nAvailable items are:\n{1}'.format(item,'\n'.join(self.keys())))
-
-        if isinstance(item,UUID):
-            self._objs = [x for x in self._objs if x.uid != item]
-        elif isinstance(item,str):
-            self._objs = [x for x in self._objs if x.name != item]
-        elif isinstance(item,NamedItem):
-            self._objs = [x for x in self._objs if x.uid != item.uid]
         else:
-            AtomicaInputError('Item to delete must be a NamedItem, a UID, or a name')
+            del self.__getitem__(item)
+        return None
+
 
     def __contains__(self, item):
         # Returns True if UUID or name is in this SList
         # Note that the item itself will return False - the idea
         # is that if 'x in SList' returns True then 'SList[x]' will
         # return an object
-        if isinstance(item,str):
+        if sc.isstring(item):
             for x in self._objs:
-                if x.name == item:
-                    return True
-            return False
-        elif isinstance(item,UUID):
-            for x in self._objs:
-                if x.uid == item:
+                if str(x.name) == str(item) or str(x.uid) == str(item):
                     return True
             return False
         elif isinstance(item,NamedItem):
@@ -96,15 +83,16 @@ class SList(object):
             raise NotAllowedError('New name already exists')
 
         items = self[old_name]
-        items = promotetolist(items)
+        items = sc.promotetolist(items)
         for x in items:
             x.name = new_name
+        return NOne
 
     def __len__(self):
         return len(self._objs)
 
     def keys(self):
-        return list(odict.fromkeys([x.name for x in self._objs]))
+        return list(sc.odict.fromkeys([x.name for x in self._objs]))
 
     def insert(self,item):
         # Insert a storable item - a storable item has both a name and a UID

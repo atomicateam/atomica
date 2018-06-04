@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sciris.core import uuid, objrepr
+import sciris.core as sc
 from atomica.utils import NamedItem
 
 
@@ -65,8 +65,7 @@ class Result(NamedItem):
 
     def __repr__(self):
         """ Print out useful information when called"""
-        output = '====================================================================================\n'
-        output += objrepr(self)
+        output = sc.desc(self)
         return output
 
     def get_variable(self, pops, name):
@@ -110,8 +109,6 @@ class Result(NamedItem):
 # """
 #
 # from atomica.system import AtomicaException
-# from sciris.core import uuid, odict, today, defaultrepr # Printing/file utilities
-# from numbers import Number
 
 # class Result(object):
 #    ''' Class to hold individual results '''
@@ -180,8 +177,7 @@ class Result(NamedItem):
 #        return None 
 #    
 #    # Normal usage, e.g. getresults(P, 3) will retrieve the 3rd set of results
-#    elif isinstance(pointer, (str, unicode, Number, type(uuid()))): # CK: warning,
-# should replace with sciris.utils.checktype()
+#    elif isinstance(pointer, (str, unicode, Number, type(uuid()))): # CK: warning, should replace with sciris.utils.checktype()
 #        if project is not None:
 #            resultlabels = [res.label for res in project.results.values()]
 #            resultuids = [str(res.uid) for res in project.results.values()]
