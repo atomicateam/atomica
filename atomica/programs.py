@@ -26,7 +26,7 @@ class ProgramSet(object):
         self.covout = odict()
         if programs is not None: self.addprograms(programs)
         if covouts is not None: self.addcovouts(covouts)
-        self.defaultbudget = odict()
+#        self.defaultbudget = odict()
         self.created = today()
         self.modified = today()
         return None
@@ -214,6 +214,7 @@ class ProgramSet(object):
         
         return None
 
+
     def progs_by_target_pop(self, filter_pop=None):
         '''Return a dictionary with:
              keys: all populations targeted by programs
@@ -228,6 +229,7 @@ class ProgramSet(object):
         if filter_pop: return progs_by_targetpop[filter_pop]
         else: return progs_by_targetpop
 
+
     def progs_by_target_par_type(self, filter_partype=None):
         '''Return a dictionary with:
              keys: all populations targeted by programs
@@ -241,6 +243,7 @@ class ProgramSet(object):
                     progs_by_target_par_type[thispartype].append(thisprog)
         if filter_partype: return progs_by_target_par_type[filter_partype]
         else: return progs_by_target_par_type
+
 
     def progs_by_target_par(self, filter_partype=None):
         '''Return a dictionary with:
@@ -260,12 +263,26 @@ class ProgramSet(object):
         else: return progs_by_target_par
 
 
+    def defaultbudget(self, year=None, optimizable=None):
+        ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+        
+        defaultbudget = odict() # Initialise outputs
+
+        # Validate inputs
+        if year is not None: year = promotetoarray(year)
+        if optimizable is None: optimizable = False # Return only optimizable indices
+
+        # Get cost data for each program 
+        for program in self.programs.values():
+            defaultbudget[program.short] = program.getspend(year)
+
+        return defaultbudget
+
+
     ## TODO : WRITE THESE
     def getpars(self, coverage=None, year=None):
         pass
 
-    def defaultbudget(self, year=None):
-        pass
 
     def reconcile(self):
         pass
@@ -468,16 +485,18 @@ class Program(object):
     
     
     def getspend(self, year=None, total=False, die=False):
-        ''' Convenience function for getting the current spending '''
-        if year is None: year = 2018. # TEMPORARY
+        ''' Convenience function for getting spending data'''
         try:
-            thisdata = self.data.findrow(year, closest=True, asdict=True) # Get data
-            spend = thisdata['spend']
-            if spend is None: spend = 0 # If not specified, assume 0
-            if total: 
-                basespend = thisdata['basespend'] # Add baseline spending
-                if basespend is None: basespend = 0 # Likewise assume 0
-                spend += basespend
+            if year is not None:
+                thisdata = self.data.findrow(year, closest=True, asdict=True) # Get data
+                spend = thisdata['spend']
+                if spend is None: spend = 0 # If not specified, assume 0
+                if total: 
+                    basespend = thisdata['basespend'] # Add baseline spending
+                    if basespend is None: basespend = 0 # Likewise assume 0
+                    spend += basespend
+            else: # Just get the most recent non-nan number
+                spend = self.data['spend'][~isnan(array([x for x in self.data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
             return spend
         except Exception as E:
             if die:
@@ -485,6 +504,7 @@ class Program(object):
                 raise AtomicaException(errormsg)
             else:
                 return None
+            
     
     
     def getunitcost(self, year=None, die=False):
@@ -501,7 +521,7 @@ class Program(object):
             else: # If not found, don't die, just return None
                 return None
     
-#import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+
     def optimizable(self, doprint=False, partial=False):
         '''
         Return whether or not a program can be optimized.
@@ -533,6 +553,7 @@ class Program(object):
 
     def hasbudget(self):
         return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
+
 
 # TODO: WRITE THESE
     def getcoverage(self, budget=None, t=None, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
