@@ -6,9 +6,8 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist
+import sciris.core as sc
 from atomica.system import AtomicaException
-from sciris.utils import uuid
 from atomica.utils import NamedItem
 
 #--------------------------------------------------------------------
@@ -21,20 +20,20 @@ class ProgramSet(NamedItem):
         NamedItem.__init__(self,name)
 
         self.default_interaction = default_interaction
-        self.programs = odict()
+        self.programs = sc.odict()
         if programs is not None: self.addprograms(programs)
         else: self.updateprogset()
-        self.defaultbudget = odict()
-        self.created = today()
-        self.modified = today()
+        self.defaultbudget = sc.odict()
+        self.created = sc.today()
+        self.modified = sc.today()
 
     def __repr__(self):
         ''' Print out useful information'''
-        output = defaultrepr(self)
+        output = sc.desc(self)
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
-        output += '        Date created: %s\n'    % getdate(self.created)
-        output += '       Date modified: %s\n'    % getdate(self.modified)
+        output += '        Date created: %s\n'    % sc.getdate(self.created)
+        output += '       Date modified: %s\n'    % sc.getdate(self.modified)
         output += '============================================================\n'
         
         return output
@@ -44,12 +43,12 @@ class ProgramSet(NamedItem):
         
         # Process programs
         if progs is not None:
-            progs = promotetolist(progs)
+            progs = sc.promotetolist(progs)
         else:
             errormsg = 'Programs to add should not be None'
             raise AtomicaException(errormsg)
         if replace:
-            self.programs = odict()
+            self.programs = sc.odict()
         for prog in progs:
             if isinstance(prog, dict):
                 prog = Program(**prog)
@@ -87,7 +86,7 @@ class Program(NamedItem):
 
     def __repr__(self):
         ''' Print out useful info'''
-        output = defaultrepr(self)
+        output = sc.desc(self)
         output += '          Program name: %s\n'    % self.short
         output += '  Targeted populations: %s\n'    % self.targetpops
         output += '   Targeted parameters: %s\n'    % self.targetpars

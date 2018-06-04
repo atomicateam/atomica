@@ -4,8 +4,7 @@ Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-from sciris.core import today, dcp
-
+import sciris.core as sc
 from atomica.structure import CoreProjectStructure, get_quantity_type_list
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
@@ -99,7 +98,7 @@ class ProjectFramework(CoreProjectStructure):
                                         if FS.KEY_DATAPAGE in self.specs[item_type][item_key] and \
                                                 not self.specs[item_type][item_key][FS.KEY_DATAPAGE] is None:
                                             actual_page_key = self.specs[item_type][item_key][FS.KEY_DATAPAGE]
-                                        instantiated_table = dcp(table)
+                                        instantiated_table = sc.dcp(table)
                                         instantiated_table.item_key = item_key
                                         self.append_spec_value(term=actual_page_key, attribute="tables",
                                                                value=instantiated_table)
@@ -221,5 +220,5 @@ class ProjectFramework(CoreProjectStructure):
         """ Import a framework from file. """
         read_workbook(workbook_path=filepath, framework=self,
                       workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
-        self.workbook_load_date = today()
-        self.modified = today()
+        self.workbook_load_date = sc.today()
+        self.modified = sc.today()
