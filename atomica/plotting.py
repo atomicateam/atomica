@@ -286,7 +286,6 @@ class PlotData(object):
                         deps[dep_label] = vars
                     par._fcn = fcn
                     par.deps = deps
-                    par.has_fcn = True
                     par.preallocate(tvecs[result_label], dt)
                     par.update()
                     data_dict[output_label] = par.vals

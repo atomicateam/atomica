@@ -328,7 +328,7 @@ class Parameter(Variable):
         # by evaluating its f_stack function using the 
         # current values of all dependent variables at time index ti
 
-        if not self.fcn_str:
+        if not self._fcn:
             return
 
         if ti is None:
