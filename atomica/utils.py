@@ -1,6 +1,6 @@
 from uuid import uuid4, UUID
 from sciris.utils import dcp, defaultrepr
-from atomica.system import NotAllowedError, NotFoundError
+from atomica.system import NotAllowedError, NotFoundError, UnknownInputError
 
 
 class NamedItem(object):
@@ -22,7 +22,7 @@ class SList(object):
     def __init__(self,allow_duplicates=False,enforce_type=None):
         self._objs = []
         self.allow_duplicates = allow_duplicates # Allow duplicate names, duplicate UIDs never allowed
-        self.enforce_type = None
+        self.enforce_type = enforce_type
 
     def __getitem__(self, item):
         if isinstance(item,UUID):
@@ -42,19 +42,34 @@ class SList(object):
             return matches
 
     def __setitem__(self, key, item):
-        raise NotAllowedError('Can only insert items via .insert()')
+
+        if not isinstance(item,NamedItem):
+            raise NotAllowedError("Only NamedItems can be stored in SLists")
+
+        old_name = item.name
+        item.name = key
+        try:
+            self.insert(item)
+        except:
+            item.name = old_name
+            raise # re-raise the original error
 
     def __iter__(self):
         for x in self._objs:
             yield x
 
     def __delitem__(self, item):
+        if item not in self:
+            raise NotFoundError('Item not present in SList')
+
         if isinstance(item,UUID):
             self._objs = [x for x in self._objs if x.uid != item]
         elif isinstance(item,str):
             self._objs = [x for x in self._objs if x.name != item]
+        elif isinstance(item,NamedItem):
+            self._objs = [x for x in self._objs if x.uid != item.uid]
         else:
-            self._objs.pop(item)
+            UnknownInputError('Item to delete must be a NamedItem, a UID, or a name')
 
     def __contains__(self, item):
         # Returns True if UUID or name is in this SList
@@ -95,7 +110,7 @@ class SList(object):
         if self.enforce_type:
             assert isinstance(item,self.enforce_type)
         if item in self:
-            raise NotAllowedError('Item already present')
+            raise NotAllowedError('Item already present - cannot determine whether to rename or insert a copy') # NB. If the item is already present, it's not ambiguous whether the user wants to rename or insert a copy
         elif item.name in self and not self.allow_duplicates:
             raise NotAllowedError('An item with that name is already present')
         else:
@@ -115,55 +130,4 @@ class SList(object):
 
     def __repr__(self):
         return '['+','.join(['{}:"{}"'.format(x.__class__.__name__,x.name) for x in self._objs]) + ']'
-
-## Example usage below - This can be moved to documentation later
-if __name__ == '__main__':
-
-    x = SList()
-    a = NamedItem('a')
-    b = NamedItem('b')
-    x.insert(a)
-    x.insert(b)
-
-    # Items can be retrieved by name
-    x['a']
-    x['b']
-
-    # Or by UID
-    x[a.uid]
-    x[b.uid]
-
-    # Or by index
-    x[0]
-    x[1]
-
-    # You can iterate over an SList
-    for y in x:
-        print(y)
-
-    # It can be turned into a normal list
-    list(x)
-
-    # You can rename entries
-    x.rename('a','c')
-
-    # You can copy entries
-    x.copy('c','d')
-
-    # You can delete entries
-    del x['d']
-    x.remove('c')
-
-    # You can't add the same entry more than once by default
-    x.insert(a)
-    try:
-        x.insert(a)
-    except NotAllowedError:
-        print('Error as expected')
-
-    # You can't rename if a conflict would occur
-    try:
-        x.rename('a','b')
-    except NotAllowedError:
-        print('Error as expected')
 
