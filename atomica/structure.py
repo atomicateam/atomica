@@ -260,7 +260,7 @@ class CoreProjectStructure(object):
         if position is None:
             target_item_location[item_name] = sc.odict()
         else:
-            target_item_location.insert(pos=position, key=item_name, value=None) # Note: cannot initialize as an odict since this will create a linked version 
+            target_item_location[item_name] = None # Note: cannot initialize as an odict since this will create a linked version 
 
         if self.structure_key is not None:
             item_type_specs = None

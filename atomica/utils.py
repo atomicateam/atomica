@@ -1,124 +1,35 @@
 import sciris.core as sc
-from atomica.system import NotAllowedError, NotFoundError, AtomicaInputError
+from atomica.system import NotAllowedError
 
 
 class NamedItem(object):
-    def __init__(self,name):
-        assert name is not None, 'Name cannot be None'
+    def __init__(self,name=None):
+        if name is None:
+            name = '<unnamed>'
         self.name = name
         self.uid = sc.uuid()
 
-    def copy(self,name):
+    def copy(self, name=None):
         x = sc.dcp(self)
-        x.name = name
+        if name is not None:
+            x.name = name
         x.uid = sc.uuid()
         return x
 
     def __repr__(self):
         return sc.desc(self)
 
-class SList(object):
-    def __init__(self,allow_duplicates=False,enforce_type=None):
-        self._objs = []
-        self.allow_duplicates = allow_duplicates # Allow duplicate names, duplicate UIDs never allowed
-        self.enforce_type = enforce_type
 
-    def __getitem__(self, item):
-        if sc.isnumber(item):
-            return self._objs[int(item)]
-        elif sc.isstring(item):
-            matches = [x for x in self._objs if str(x.name) == str(item)] + [x for x in self._objs if str(x.uid) == str(item)]
-        else:
-            raise NotAllowedError('Cannot index SList using something other than int or str')
-
-        if not matches:
-            raise NotFoundError('"{0}" not present in SList.\nAvailable items are:\n{1}'.format(item,'\n'.join(self.keys())))
-        elif len(matches) == 1:
-            return matches[0]
-        else:
-            return matches
+class SList(sc.odict):
+    def __init__(self, *args, **kwargs):
+        sc.odict.__init__(*args, **kwargs)
 
     def __setitem__(self, key, item):
-
         if not isinstance(item,NamedItem):
             raise NotAllowedError("Only NamedItems can be stored in SLists")
-
-        old_name = item.name
         item.name = key
-        try:
-            self.insert(item)
-        except:
-            item.name = old_name
-            raise # re-raise the original error
-
-    def __iter__(self):
-        for x in self._objs:
-            yield x
-
-    def __delitem__(self, item):
-        if item not in self:
-            raise NotFoundError('"{0}" not present in SList.\nAvailable items are:\n{1}'.format(item,'\n'.join(self.keys())))
-        else:
-            del self.__getitem__(item)
+        sc.odict.__setitem__(key, item)
         return None
 
 
-    def __contains__(self, item):
-        # Returns True if UUID or name is in this SList
-        # Note that the item itself will return False - the idea
-        # is that if 'x in SList' returns True then 'SList[x]' will
-        # return an object
-        if sc.isstring(item):
-            for x in self._objs:
-                if str(x.name) == str(item) or str(x.uid) == str(item):
-                    return True
-            return False
-        elif isinstance(item,NamedItem):
-            return item.uid in self
-        else:
-            return False
-
-    def rename(self,old_name,new_name):
-        if new_name in self and not self.allow_duplicates:
-            raise NotAllowedError('New name already exists')
-
-        items = self[old_name]
-        items = sc.promotetolist(items)
-        for x in items:
-            x.name = new_name
-        return NOne
-
-    def __len__(self):
-        return len(self._objs)
-
-    def keys(self):
-        return list(sc.odict.fromkeys([x.name for x in self._objs]))
-
-    def insert(self,item):
-        # Insert a storable item - a storable item has both a name and a UID
-        assert isinstance(item,NamedItem)
-
-        if self.enforce_type:
-            assert isinstance(item,self.enforce_type)
-        if item in self:
-            raise NotAllowedError('Item already present - cannot determine whether to rename or insert a copy') # NB. If the item is already present, it's not ambiguous whether the user wants to rename or insert a copy
-        elif item.name in self and not self.allow_duplicates:
-            raise NotAllowedError('An item with that name is already present')
-        else:
-            self._objs.append(item)
-
-    def copy(self,old_name,new_name):
-        # Copying item assigns new UUID to copies
-        items = self[old_name]
-        items = promotetolist(items)
-
-        for y in items:
-            x = y.copy(new_name)
-            self.insert(x)
-
-    def remove(self,item):
-        del self[item]
-
-    def __repr__(self):
-        return '['+','.join(['{}:"{}"'.format(x.__class__.__name__,x.name) for x in self._objs]) + ']'
 

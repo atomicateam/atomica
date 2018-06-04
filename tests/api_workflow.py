@@ -9,7 +9,6 @@ if ipython is not None:
     ipython.magic('load_ext autoreload')
     ipython.magic('autoreload 2')
 from atomica.plotting import PlotData,plot_series,plot_bars
-from copy import deepcopy as dcp
 
 import atomica.ui as aui
 import os
