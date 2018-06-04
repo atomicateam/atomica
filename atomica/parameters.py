@@ -8,14 +8,14 @@ from sciris.core import odict, uuid
 from atomica.interpolation import interpolate_func
 from atomica.structure_settings import DataSettings as DS
 from atomica.system import AtomicaException, logger
-
+from atomica.utils import NamedItem
 
 # Parameter class that stores one array of values converted from raw project data
-class Parameter(object):
+class Parameter(NamedItem):
     """ Class to hold one set of parameter values disaggregated by populations. """
 
     def __init__(self, name, t=None, y=None, y_format=None, y_factor=None, autocalibrate=None):
-        self.name = name
+        NamedItem.__init__(self,name)
 
         # These ordered dictionaries have population names as keys.
         if t is None:
@@ -168,12 +168,11 @@ class Parameter(object):
 
 # Parset class that contains one set of parameters converted from raw project data
 
-class ParameterSet(object):
+class ParameterSet(NamedItem):
     """ Class to hold all parameters. """
 
     def __init__(self, name="default"):
-        self.name = name
-        self.uid = uuid()
+        NamedItem.__init__(self,name)
 
         self.pop_names = []  # List of population names.
         # Names are used throughout the codebase as variable names (technically dict keys).
@@ -190,20 +189,12 @@ class ParameterSet(object):
 
         logger.info("Created ParameterSet: {0}".format(self.name))
 
-    def change_id(self, new_name=None):
-        """
-        Change the name and uid of this parameter set.
-        This is a dangerous function that could break references by uid, so should only be used on duplicates.
-        """
-        new_name_string = ""
+    def copy(self,new_name=None):
+        x = dcp(self)
         if new_name is not None:
-            if new_name == self.name:
-                logger.warning(
-                    "A parameter set with name '{0}' has been explicitly requested to rename itself '{0}'".format(
-                        new_name))
-            self.name = new_name
-            new_name_string = "with name '{0}' ".format(new_name)
-        logger.warning("A parameter set {0}has been given a new uid.".format(new_name_string))
+            x.name = new_name
+        x.uid = uuid()
+        return x
 
     def set_scaling_factor(self, par_name, pop_name, scale):
         par = self.get_par(par_name)
