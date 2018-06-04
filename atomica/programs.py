@@ -73,9 +73,6 @@ class ProgramSet(object):
                         capacity=progdata[pkey]['capacity'],
                         data=data
                         )
-#            for par,pardata in progdata['pars'].iteritems():
-#                for pop,popdata in pardata.iteritems():
-                    
             programs.append(p)
         self.addprograms(progs=programs)
         
@@ -90,7 +87,6 @@ class ProgramSet(object):
         # Read in the information for covout functions and update the target pars
         prognames = progdata['progs']['short']
         prog_effects = odict()
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         for par,pardata in progdata['pars'].iteritems():
             prog_effects[par] = odict()
@@ -111,6 +107,37 @@ class ProgramSet(object):
         return None
 
         
+    def settargetpops(self):
+        '''Update populations targeted by some program in the response'''
+        self.target_pops = []
+        if self.programs:
+            for prog in self.programs.values():
+                for thispop in prog.target_pops: self.target_pops.append(thispop)
+            self.target_pops = list(set(self.target_pops))
+
+    def settargetpars(self):
+        '''Update model parameters targeted by some program in the response'''
+        self.target_pars = []
+        if self.programs:
+            for thisprog in self.programs.values():
+                for thispop in thisprog.target_pars: self.target_pars.append(thispop)
+
+    def settargetpartypes(self):
+        '''Update model parameter types targeted by some program in the response'''
+        self.target_par_types = []
+        if self.programs:
+            for thisprog in self.programs.values():
+                for thispartype in thisprog.target_par_types: self.target_par_types.append(thispartype)
+            self.target_par_types = list(set(self.target_par_types))
+
+    def updateprogset(self, verbose=2):
+        ''' Update (run this is you change something... )'''
+        self.settargetpars()
+#        self.settargetpartypes()
+        self.settargetpops()
+        return None
+
+
     def addprograms(self, progs=None, replace=False):
         ''' Add a list of programs '''
         
@@ -132,6 +159,7 @@ class ProgramSet(object):
             # Save it
             self.programs[prog.short] = prog
 
+        self.updateprogset()
         return None
 
 
@@ -186,6 +214,52 @@ class ProgramSet(object):
         
         return None
 
+    def progs_by_target_pop(self, filter_pop=None):
+        '''Return a dictionary with:
+             keys: all populations targeted by programs
+             values: programs targeting that population '''
+        progs_by_targetpop = odict()
+        for thisprog in self.programs.values():
+            target_pops = thisprog.target_pops if thisprog.target_pops else None
+            if target_pops:
+                for thispop in target_pops:
+                    if thispop not in progs_by_targetpop: progs_by_targetpop[thispop] = []
+                    progs_by_targetpop[thispop].append(thisprog)
+        if filter_pop: return progs_by_targetpop[filter_pop]
+        else: return progs_by_targetpop
+
+    def progs_by_target_par_type(self, filter_partype=None):
+        '''Return a dictionary with:
+             keys: all populations targeted by programs
+             values: programs targeting that population '''
+        progs_by_target_par_type = odict()
+        for thisprog in self.programs.values():
+            target_par_types = thisprog.target_par_types if thisprog.target_par_types else None
+            if target_par_types:
+                for thispartype in target_par_types:
+                    if thispartype not in progs_by_target_par_type: progs_by_target_par_type[thispartype] = []
+                    progs_by_target_par_type[thispartype].append(thisprog)
+        if filter_partype: return progs_by_target_par_type[filter_partype]
+        else: return progs_by_target_par_type
+
+    def progs_by_target_par(self, filter_partype=None):
+        '''Return a dictionary with:
+             keys: all populations targeted by programs
+             values: programs targeting that population '''
+        progs_by_target_par = odict()
+        for thispartype in self.target_par_types:
+            progs_by_target_par[thispartype] = odict()
+            for prog in self.progs_by_target_par_type(thispartype):
+                target_pars = prog.target_pars if prog.target_pars else None
+                for target_par in target_pars:
+                    if thispartype == target_par['param']:
+                        if target_par['pop'] not in progs_by_target_par[thispartype]: progs_by_target_par[thispartype][target_par['pop']] = []
+                        progs_by_target_par[thispartype][target_par['pop']].append(prog)
+            progs_by_target_par[thispartype] = progs_by_target_par[thispartype]
+        if filter_partype: return progs_by_target_par[filter_partype]
+        else: return progs_by_target_par
+
+
     ## TODO : WRITE THESE
     def getpars(self, coverage=None, year=None):
         pass
@@ -211,6 +285,7 @@ class Program(object):
         self.short = None
         self.name = None
         self.target_pars = None
+        self.target_par_types = None
         self.target_pops = None
         self.data       = None # Latest or estimated expenditure
         self.unitcost   = None 
@@ -239,17 +314,23 @@ class Program(object):
             ''' Handle targetpars -- a little complicated since it's a list of dicts '''
             target_par_keys = ['param', 'pop']
             target_pars = promotetolist(target_pars) # Let's make sure it's a list before going further
+            target_par_types = []
+            target_pops = []
             for tp,target_par in enumerate(target_pars):
                 if isinstance(target_par, dict): # It's a dict, as it needs to be
                     thesekeys = sorted(target_par.keys())
                     if thesekeys==target_par_keys: # Keys are correct -- main usage case!!
                         target_pars[tp] = target_par
+                        target_par_types.append(target_par['param'])
+                        target_pops.append(target_par['pop'])
                     else:
                         errormsg = 'Keys for a target parameter must be %s, not %s' % (target_par_keys, thesekeys)
                         raise AtomicaException(errormsg)
                 elif isinstance(target_par, tuple): # It's a list, assume it's in the usual order
                     if len(target_par)==2:
                         target_pars[tp] = {'param':target_par[0], 'pop':target_par[1]} # If a list or tuple, assume this order
+                        target_par_types.append(target_par[0])
+                        target_pops.append(target_par[1])
                     else:
                         errormsg = 'When supplying a target_par as a list or tuple, it must have length 2, not %s' % len(target_par)
                         raise AtomicaException(errormsg)
@@ -257,6 +338,13 @@ class Program(object):
                     errormsg = 'Targetpar must be string, tuple, or dict, not %s' % type(target_par)
                     raise AtomicaException(errormsg)
             self.target_pars.extend(target_pars) # Add the new values
+#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+            old_target_pops = self.target_pops
+            old_target_pops.extend(target_pops)
+            self.target_pops = list(set(old_target_pops)) # Add the new values
+            old_target_par_types = self.target_par_types
+            old_target_par_types.extend(target_par_types)
+            self.target_par_types = list(set(old_target_par_types)) # Add the new values
             return None
         
         def setunitcost(unitcost=None, year=None):
@@ -355,7 +443,9 @@ class Program(object):
             raise AtomicaException(errormsg)
         if self.name is None:       self.name = self.short # If name not supplied, use short
         if self.target_pops is None: self.target_pops = [] # Empty list
-        if self.target_pars is None: self.target_pars = [] # Empty list
+        if self.target_pars is None:
+            self.target_pars = [] # Empty list
+            self.target_par_types = [] # Empty list
             
         return None
     
