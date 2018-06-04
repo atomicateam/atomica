@@ -61,12 +61,15 @@ class TableTemplate(TableType):
 class TimeDependentValuesEntry(TableTemplate):
     """
     Template table requesting time-dependent values, with each instantiation iterating over an item type.
-    Argument 'value_attribute' specifies which attribute within item specs should contain values.
+    Argument 'value_attribute' specifies which attribute within item specs should contain the parsed values.
+    If argument 'iterate_over_links' is True, table rows are actually for links between items of the iterated type.
+    Self connections are not included in this table.
     """
 
-    def __init__(self, iterated_type, value_attribute, **kwargs):
+    def __init__(self, iterated_type, value_attribute, iterate_over_links=False, **kwargs):
         super(TimeDependentValuesEntry, self).__init__(**kwargs)
         self.iterated_type = iterated_type
+        self.iterate_over_links = iterate_over_links
         self.value_attribute = value_attribute
 
 
@@ -516,6 +519,7 @@ class DataSettings(BaseStructuralSettings):
         transfer_tables = cls.PAGE_SPECS[cls.KEY_TRANSFER_DATA]["tables"]
         transfer_tables.append(TimeDependentValuesEntry(template_item_type=cls.KEY_TRANSFER,
                                                         iterated_type=cls.KEY_POPULATION,
+                                                        iterate_over_links=True,
                                                         value_attribute=cls.TERM_DATA))
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
