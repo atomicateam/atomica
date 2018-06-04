@@ -856,8 +856,8 @@ class Model(object):
             if parset.transfers[trans_type]:
                 for pop_source in parset.transfers[trans_type]:
 
-                    transfer_parameter = parset.transfers[trans_type][
-                        pop_source]  # This contains the data for all of the destrination pops
+                    # This contains the data for all of the destination pops.
+                    transfer_parameter = parset.transfers[trans_type][pop_source]
 
                     pop = self.get_pop(pop_source)
 
