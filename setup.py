@@ -39,7 +39,7 @@ setup(
         'dill>=0.2.7.1',
         'xlsxwriter',
         'xlrd',
-        'PyQt5',
+        # 'PyQt5',
         'pyparsing',
         'pandas'
     ],
