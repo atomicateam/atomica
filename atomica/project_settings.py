@@ -5,7 +5,7 @@ Version: 2018mar26
 """
 
 import numpy as np
-from sciris.utils import defaultrepr
+from sciris.utils import desc
 
 from atomica.system import logger
 
@@ -25,7 +25,7 @@ class ProjectSettings(object):
 
     def __repr__(self):
         """ Print object """
-        output = defaultrepr(self)
+        output = desc(self)
         return output
 
     @property

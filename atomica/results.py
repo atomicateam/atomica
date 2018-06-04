@@ -109,7 +109,7 @@ class Result(object):
 # """
 #
 # from atomica.system import AtomicaException
-# from sciris.core import uuid, odict, today, defaultrepr # Printing/file utilities
+# from sciris.core import uuid, odict, today, desc # Printing/file utilities
 # from numbers import Number
 
 # class Result(object):
@@ -119,7 +119,7 @@ class Result(object):
 #    
 #    def __repr__(self):
 #        ''' Print out useful information when called '''
-#        output = defaultrepr(self)
+#        output = desc(self)
 #        return output
 #
 #

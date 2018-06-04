@@ -6,7 +6,7 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, defaultrepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, getvalidyears
+from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
 from atomica.system import AtomicaException
 from numpy.random import uniform
 from numpy import array, nan, isnan
@@ -34,7 +34,7 @@ class ProgramSet(object):
 
     def __repr__(self):
         ''' Print out useful information'''
-        output = defaultrepr(self)
+        output = desc(self)
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
         output += '        Date created: %s\n'    % getdate(self.created)
@@ -218,7 +218,7 @@ class Program(object):
 
     def __repr__(self):
         ''' Print out useful info'''
-        output = defaultrepr(self)
+        output = desc(self)
         output += '          Program name: %s\n'    % self.short
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
@@ -484,7 +484,7 @@ class Covout(object):
         return None
     
     def __repr__(self):
-#        output = defaultrepr(self)
+#        output = desc(self)
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
         output += indent('     NPI val: ', self.npi_val.get('all'))
@@ -552,7 +552,7 @@ class Val(object):
     
     
     def __repr__(self):
-        output = defaultrepr(self)
+        output = desc(self)
         return output
     
     
