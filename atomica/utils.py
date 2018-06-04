@@ -1,5 +1,5 @@
 from uuid import uuid4, UUID
-from sciris.utils import dcp, defaultrepr
+from sciris.utils import dcp, defaultrepr, promotetolist, odict
 from atomica.system import NotAllowedError, NotFoundError, AtomicaInputError
 
 
@@ -96,12 +96,15 @@ class SList(object):
             raise NotAllowedError('New name already exists')
 
         items = self[old_name]
-        items = [items] if not isinstance(items, list) else items
+        items = promotetolist(items)
         for x in items:
             x.name = new_name
 
     def __len__(self):
         return len(self._objs)
+
+    def keys(self):
+        return list(odict.fromkeys([x.name for x in self._objs]))
 
     def insert(self,item):
         # Insert a storable item - a storable item has both a name and a UID
@@ -119,7 +122,7 @@ class SList(object):
     def copy(self,old_name,new_name):
         # Copying item assigns new UUID to copies
         items = self[old_name]
-        items = [items] if not isinstance(items,list) else items
+        items = promotetolist(items)
 
         for y in items:
             x = y.copy(new_name)
