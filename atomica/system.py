@@ -92,9 +92,7 @@ logger = logging.getLogger("atomica")
 
 class AtomicaException(Exception):
     """ A wrapper class to allow for Atomica-specific exceptions. """
-
-    def __init__(self, *args, **kwargs):
-        super(AtomicaException, self).__init__(self, *args, **kwargs)
+    pass
 
 class NotFoundError(AtomicaException):
     # Throw this error if a user-specified input was not found
