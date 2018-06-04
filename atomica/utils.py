@@ -1,5 +1,5 @@
 from uuid import uuid4, UUID
-from sciris.utils import dcp
+from sciris.utils import dcp, defaultrepr
 from atomica.system import NotAllowedError, NotFoundError
 
 
@@ -16,7 +16,7 @@ class NamedItem(object):
         return x
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.uid)
+        return defaultrepr(self)
 
 class SList(object):
     def __init__(self,allow_duplicates=False,enforce_type=None):
