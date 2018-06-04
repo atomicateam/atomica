@@ -309,7 +309,7 @@ class Project(object):
 
         parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         if progset is not None:     # Do not grab a default program set in case one does not exist.
-            progset = progset if isinstance(progset, ParameterSet) else self.progsets[progset]
+            progset = progset if isinstance(progset, ProgramSet) else self.progsets[progset]
 
         if progset is None:
             logger.info("Initiating a standard run of project '{0}' "
@@ -398,7 +398,7 @@ class Project(object):
         """ Run a scenario. """
         parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         if progset:
-            progset = progset if isinstance(progset, ParameterSet) else self.progsets[progset]
+            progset = progset if isinstance(progset, ProgramSet) else self.progsets[progset]
 
         scenario = scenario if isinstance(scenario,Scenario) else self.scens[scenario]
         scenario_parset = scenario.get_parset(parset, self.settings)
