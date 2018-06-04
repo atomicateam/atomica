@@ -376,7 +376,7 @@ class Program(object):
     
     
      # TODO: NOT WORKING
-     def getspend(self, year=None, total=False, die=False):
+    def getspend(self, year=None, total=False, die=False):
         ''' Convenience function for getting the current spending '''
         if year is None: year = 2018. # TEMPORARY
         try:
@@ -411,7 +411,7 @@ class Program(object):
             else: # If not found, don't die, just return None
                 return None
     
-
+#import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
      # TODO: NOT WORKING
     def optimizable(self, doprint=False, partial=False):
         '''
