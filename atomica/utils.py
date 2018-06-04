@@ -35,7 +35,7 @@ class SList(object):
             raise NotAllowedError('Cannot index SList using something other than int, UUID, str')
 
         if not matches:
-            raise NotFoundError()
+            raise NotFoundError('"{0}" not present in SList.\nAvailable items are:\n{1}'.format(item,'\n'.join(self.keys())))
         elif len(matches) == 1:
             return matches[0]
         else:
@@ -60,7 +60,7 @@ class SList(object):
 
     def __delitem__(self, item):
         if item not in self:
-            raise NotFoundError('Item not present in SList')
+            raise NotFoundError('"{0}" not present in SList.\nAvailable items are:\n{1}'.format(item,'\n'.join(self.keys())))
 
         if isinstance(item,UUID):
             self._objs = [x for x in self._objs if x.uid != item]
