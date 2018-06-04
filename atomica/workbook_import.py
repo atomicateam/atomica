@@ -195,9 +195,14 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
     value_attribute = table.value_attribute
 
     row, id_col = start_row, 0
+    block_col = 1   # Column increment at which data entry block begins.
+    if table.iterate_over_links:
+        block_col = 3
+
     keep_scanning = True
     header_row = None
-    term = None
+    term = None         # The header for this entire table.
+    data_key = None     # The key with which to store data provided within a row of this table.
     while keep_scanning and row < worksheet.nrows:
         label = str(worksheet.cell_value(row, id_col))
         if not label == "":
@@ -220,7 +225,12 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
                         if quick_label == "":
                             quick_scan = False
                         else:
-                            keys.append(structure.get_spec_name(quick_label))
+                            # If table iterates over tupled items rather that just items, the tupled name pair is key.
+                            if table.iterate_over_links:
+                                keys.append((structure.get_spec_name(quick_label),
+                                             structure.get_spec_name(str(worksheet.cell_value(quick_row, id_col + 2)))))
+                            else:
+                                keys.append(structure.get_spec_name(quick_label))
                         quick_row += 1
                     # Check if the item already exists in parsed structure, which it must if instantiation is deferred.
                     # If not, the item key is the name and the header is the label; construct an item.
@@ -235,14 +245,19 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
-                col = id_col + 1
+                # Time series keys for standard items are their names.
+                data_key = structure.get_spec_name(label)
+                # Keys for time series that involve links between items are tuple-pairs of their names.
+                if table.iterate_over_links:
+                    data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))
+                col = id_col + block_col
                 while col < worksheet.ncols:
                     val = str(worksheet.cell_value(row, col))
                     if val not in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
                         header = str(worksheet.cell_value(header_row, col))
                         if header == ES.QUANTITY_TYPE_HEADER:
                             structure.get_spec(term=term)[value_attribute].set_format(
-                                key=structure.get_spec_name(label), value_format=val.lower())
+                                key=data_key, value_format=val.lower())
                             col += 1
                             continue
                         try:
@@ -252,7 +267,7 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
                                                    "of sheet '{2}'.".format(val, xlrc(row, col), worksheet.name))
                         if header == ES.ASSUMPTION_HEADER:
                             structure.get_spec(term=term)[value_attribute].set_value(
-                                key=structure.get_spec_name(label), value=val)
+                                key=data_key, value=val)
                         else:
                             try:
                                 time = float(header)
@@ -261,7 +276,7 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
                                                        "'{1}' of sheet '{2}'.".format(header, xlrc(header_row, col),
                                                                                       worksheet.name))
                             structure.get_spec(term=term)[value_attribute].set_value(
-                                key=structure.get_spec_name(label), value=val, t=time)
+                                key=data_key, value=val, t=time)
                     col += 1
 
         else:

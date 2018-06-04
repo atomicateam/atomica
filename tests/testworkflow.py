@@ -113,7 +113,7 @@ if "makeplots" in torun:
     for var in test_vars: P.results["default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
+    d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
     plot_series(d, plot_type="stacked")
 
     if test == "tb":
