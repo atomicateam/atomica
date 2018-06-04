@@ -221,11 +221,11 @@ class ParameterSet(object):
         self.pop_labels = [data.get_spec(pop_name)["label"] for pop_name in self.pop_names]
 
         # Cascade parameter and characteristic extraction.
-        for k in range(3):
-            item_key = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][k]
-            item_group = ["cascade", "comps", "characs"][k]
-            for l, name in enumerate(data.specs[item_key]):
-                self.par_ids[item_group][name] = l
+        for j in range(3):
+            item_key = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][j]
+            item_group = ["cascade", "comps", "characs"][j]
+            for k, name in enumerate(data.specs[item_key]):
+                self.par_ids[item_group][name] = k
                 self.pars[item_group].append(Parameter(name=name))
                 popdata = data.get_spec_value(name, DS.TERM_DATA)
                 for pop_id in popdata.keys():
@@ -235,6 +235,23 @@ class ParameterSet(object):
                     self.pars[item_group][-1].y_format[pop_id] = popdata.get_format(pop_id)
                     # TODO: Consider exposing scaling factors in the databook.
                     self.pars[item_group][-1].y_factor[pop_id] = 1.0
+
+        # Transfer extraction.
+        for name in data.specs[DS.KEY_TRANSFER]:
+            if name not in self.transfers:
+                self.transfers[name] = odict()
+            for pop_link in data.specs[DS.KEY_TRANSFER][name][DS.KEY_POPULATION_LINKS]:
+                source_pop = pop_link[0]
+                target_pop = pop_link[1]
+                if pop_link[0] not in self.transfers[name]:
+                    self.transfers[name][source_pop] = Parameter(name = name + "_from_" + source_pop)
+                transfer_data = data.get_spec_value(name, DS.TERM_DATA)
+                tvec, yvec = transfer_data.get_arrays(pop_link)
+                self.transfers[name][source_pop].t[target_pop] = tvec
+                self.transfers[name][source_pop].y[target_pop] = yvec
+                self.transfers[name][source_pop].y_format[target_pop] = transfer_data.get_format(pop_link)
+                # TODO: Consider exposing scaling factors in the databook.
+                self.transfers[name][source_pop].y_factor[target_pop] = 1.0
 
 # TODO: Clean this batch of comments once autocalibration tags are conclusively handled.
 # self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
@@ -262,20 +279,6 @@ class ParameterSet(object):
 #                    self.pars["characs"][-1].autocalibrate[pop_id] = True
 
 # TODO: Clean this batch of comments once interpopulation dynamics are conclusively handled.
-#        # Migrations, including aging.
-#        for trans_type in data["transfers"].keys():
-#            if trans_type not in self.transfers: self.transfers[trans_type] = odict()
-#            
-#            for source in data["transfers"][trans_type].keys():
-#                if source not in self.transfers[trans_type]: self.transfers[trans_type][source] =
-                    # Parameter(name = trans_type + "_from_" + source)
-#                for target in data["transfers"][trans_type][source].keys():
-#                    self.transfers[trans_type][source].t[target] = data["transfers"][trans_type][source][target]["t"]
-#                    self.transfers[trans_type][source].y[target] = data["transfers"][trans_type][source][target]["y"]
-#                    self.transfers[trans_type][source].y_format[target] =
-                    # data["transfers"][trans_type][source][target]["y_format"]
-#                    self.transfers[trans_type][source].y_factor[target] =
-                    # data["transfers"][trans_type][source][target]["y_factor"]
 #                    
 #        self.contacts = dcp(data["contacts"])   # Simple copying of the contacts structure into data.
                     # No need to be an object.

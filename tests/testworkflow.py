@@ -23,14 +23,14 @@ torun = [
 "runsim",
 # "makeprogramspreadsheet",
 # "loadprogramspreadsheet",
-"makeplots",
-"export",
-"listspecs",
-"manualcalibrate",
-"autocalibrate",
-"parameterscenario",
-"saveproject",
-"loadproject",
+# "makeplots",
+# "export",
+# "listspecs",
+# "manualcalibrate",
+# "autocalibrate",
+# "parameterscenario",
+# "saveproject",
+# "loadproject",
 ]
 
 # Define plotting variables in case plots are generated
@@ -132,17 +132,17 @@ if "makeplots" in torun:
         plot_series(d, plot_type='stacked', axis='outputs')
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         plot_series(d, plot_type='stacked', axis='outputs')
 
 
     # Plot aggregate flows
-    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
+    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
     plot_series(d, axis="pops")
 
 
 if "export" in torun:
-    P.results["parset_default"].export(tmpdir+test+"_results")
+    P.results["default"].export(tmpdir+test+"_results")
     
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
@@ -175,7 +175,7 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
-    d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:

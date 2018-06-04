@@ -8,6 +8,7 @@ The format adheres to Semantic Versioning.
 Features
 - New 'transfer' item introduced at the databook level for transitions between populations.
 - Template tables can now have instantiation deferred until databook construction.
+- Transfer items can be detailed by a user and loaded into a `ParameterSet` for a model run.
 
 ## 0.6.1 (2018-05-30): Programs
 
