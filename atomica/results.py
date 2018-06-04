@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sciris.core import uuid, objrepr
-from atomica.slist import NamedItem
+from atomica.utils import NamedItem
 
 
 # import optima_tb.settings as project_settings

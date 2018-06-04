@@ -7,7 +7,7 @@ from atomica.results import Result
 from atomica.parser_function import parse_function
 from collections import defaultdict
 from sciris.core import odict, uuid
-from atomica.slist import NamedItem
+from atomica.utils import NamedItem
 
 import pickle
 import numpy as np

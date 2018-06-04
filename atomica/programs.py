@@ -9,7 +9,7 @@ Version: 2018mar23
 from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist
 from atomica.system import AtomicaException
 from sciris.utils import uuid
-from atomica.slist import NamedItem
+from atomica.utils import NamedItem
 
 #--------------------------------------------------------------------
 # ProgramSet class

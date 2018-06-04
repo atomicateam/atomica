@@ -8,7 +8,7 @@ from sciris.core import odict, uuid
 from atomica.interpolation import interpolate_func
 from atomica.structure_settings import DataSettings as DS
 from atomica.system import AtomicaException, logger
-from atomica.slist import NamedItem
+from atomica.utils import NamedItem
 
 # Parameter class that stores one array of values converted from raw project data
 class Parameter(NamedItem):

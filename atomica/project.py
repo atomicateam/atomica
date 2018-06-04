@@ -44,7 +44,7 @@ from atomica.workbook_export import write_workbook, make_instructions
 from atomica.workbook_import import read_workbook, load_progbook
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
-from atomica.slist import SList
+from atomica.utils import SList
 from atomica.optimization import Optim
 from atomica.results import Result
 

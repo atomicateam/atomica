@@ -21,7 +21,7 @@ from atomica.model import Compartment, Characteristic, Parameter, Link
 from atomica.results import Result
 from atomica.system import AtomicaException, logger
 from atomica.parser_function import parse_function
-from atomica.slist import SList
+from atomica.utils import SList
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']

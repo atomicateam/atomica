@@ -6,7 +6,7 @@ Version: 2018mar26
 from copy import deepcopy as dcp
 import numpy as np
 from atomica.system import AtomicaException
-from atomica.slist import NamedItem
+from atomica.utils import NamedItem
 
 class Scenario(NamedItem):
     def __init__(self, name):
