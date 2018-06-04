@@ -303,6 +303,7 @@ class Program(object):
                 errormsg = 'Expecting unit cost of type dataframe, list/tuple/array, or dict, not %s' % type(unitcost)
                 raise AtomicaException(errormsg)
             return None
+
         
         def setdata(data=None, year=None):
             ''' Handle the spend-coverage, data, also complicated since have to convert to a dataframe '''
@@ -313,19 +314,19 @@ class Program(object):
             if isinstance(data, dataframe): 
                 self.data = data # Right format already: use directly
             elif isinstance(data, dict):
-                listdata = [promotetolist(data.get(key)) for key in datakeys] # Get full row
-                if listdata[0] is not None:
-                    for n,year in enumerate(listdata[0]):
-                        thesedata = [thisitem[n] for thisitem in listdata] # Get full row
-                        currentdata = self.data.findrow(year) # Get current row as a dictionary
-                        if currentdata:
-                            for i,key in enumerate(data.keys()):
-                                if listdata[i] is None: listdata[i] = currentdata[key] # Replace with old data if new data is None
+                data = {key:promotetolist(data.get(key)) for key in datakeys} # Get full row
+                if data['year'] is not None:
+                    for n,year in enumerate(data['year']):
+                        currentdata = self.data.findrow(year,asdict=True) # Get current row as a dictionary
+                        if currentdata is not None:
+                            for key in data.keys():
+                                if data[key][n] is None: data[key][n] = currentdata[key] # Replace with old data if new data is None
+                        thesedata = [data['year'][n], data['spend'][n], data['basespend'][n]] # Get full row - WARNING, FRAGILE TO ORDER!
                         self.data.addrow(thesedata) # Add new data
             elif isinstance(data, list): # Assume it's a list of dicts
                 for datum in data:
                     if isinstance(datum, dict):
-                        setdata(datum) # It's a dict: iterate recursively to add unit costs
+                        setdata(datum) # It's a dict: iterate recursively
                     else:
                         errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
                         raise AtomicaException(errormsg)
@@ -341,7 +342,6 @@ class Program(object):
         if target_pops is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
-#        if capacity    is not None: self.capacity    = capacity
 
 #        if target_pars is not None: settargetpars(target_pars) # targeted parameters
 
@@ -359,17 +359,20 @@ class Program(object):
         return None
     
     
-    def adddata(self, data=None, year=None, spend=None, basespend=None, coverage=None):
+    def adddata(self, data=None, year=None, spend=None, basespend=None):
         ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
         if data is None:
-            data = {'year':year, 'spend':spend, 'basespend':basespend, 'coverage':coverage}
+            data = {'year':float(year), 'spend':spend, 'basespend':basespend}
         self.update(data=data)
         return None
         
         
-    def addpars(self, unitcost=None, saturation=None, year=None):
+    def addpars(self, unitcost=None, capacity=None, year=None):
         ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unitcost. '''
-        self.update(unitcost=unitcost, saturation=saturation, year=year)
+        # Convert inputs
+        if year is not None: year=float(year)
+        if unitcost is not None: unitcost=promotetolist(unitcost)
+        self.update(unitcost=unitcost, capacity=capacity, year=year)
         return None
     
     
@@ -408,7 +411,6 @@ class Program(object):
                 return None
     
 #import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-     # TODO: NOT WORKING
     def optimizable(self, doprint=False, partial=False):
         '''
         Return whether or not a program can be optimized.
@@ -423,7 +425,7 @@ class Program(object):
             tests['targetpops invalid'] = len(self.target_pops)<1
             tests['targetpars invalid'] = len(self.target_pars)<1
             tests['unitcost invalid']   = not(isnumber(self.getunitcost()))
-            tests['saturation invalid'] = self.saturation is None
+            tests['capacity invalid']   = self.capacity is None
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized
                 if partial and all(tests.values()): valid = True # ...but it's probably just an other program, so skip it
@@ -438,9 +440,8 @@ class Program(object):
         return valid
         
 
-# TODO: NOT WORKING
     def hasbudget(self):
-        return True if self.ccdata['cost'] else False
+        return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 # TODO: WRITE THESE
     def getcoverage(self, budget=None, t=None, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
