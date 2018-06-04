@@ -1,8 +1,7 @@
 from uuid import uuid4, UUID
 from copy import deepcopy as dcp
 
-class NotFoundError(Exception): pass
-class NotAllowedError(Exception): pass
+
 
 class NamedItem(object):
     def __init__(self,name):

@@ -88,7 +88,7 @@ logging.config.fileConfig(atomica_path(subdir=SystemSettings.CODEBASE_DIRNAME) +
 logger = logging.getLogger("atomica")
 
 
-# Code for an exception specific to Atomica.
+# Code for exceptions specific to Atomica
 
 class AtomicaException(Exception):
     """ A wrapper class to allow for Atomica-specific exceptions. """
@@ -96,6 +96,17 @@ class AtomicaException(Exception):
     def __init__(self, *args, **kwargs):
         super(AtomicaException, self).__init__(self, *args, **kwargs)
 
+class NotFoundError(AtomicaException):
+    # Throw this error if a user-specified input was not found
+    pass
+
+class NotAllowedError(AtomicaException):
+    # Throw this error if the user requested an illegal operation
+    pass
+
+class UnknownInputError(AtomicaException):
+    # Throw this error if the code was not able to understand the user's input
+    pass
 
 # Code for timestamping function/method usage.
 

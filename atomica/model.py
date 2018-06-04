@@ -1,6 +1,6 @@
 # Imports
 
-from atomica.system import AtomicaException, logger
+from atomica.system import AtomicaException, logger, NotFoundError, UnknownInputError, NotAllowedError
 from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure import convert_quantity
 from atomica.results import Result
@@ -109,7 +109,7 @@ class Compartment(Variable):
             elif link.parameter.units == 'number':
                 outflow_probability += link.parameter.vals[ti] * self.dt / self.vals[ti]
             else:
-                raise AtomicaException('Unknown parameter units')
+                raise UnknownInputError('Unknown parameter units')
 
         remain_probability = 1 - outflow_probability
 
@@ -293,8 +293,7 @@ class Parameter(Variable):
             for deps in self.deps.values():
                 for dep in deps:
                     if isinstance(dep, Link):
-                        raise AtomicaException("A Parameter that depends on transition flow rates "
-                                               "cannot be a dependency, it must be output only.")
+                        raise NotAllowedError("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
                     dep.set_dependent()
 
     def unlink(self):
@@ -533,7 +532,7 @@ class Population(object):
 
             return links
         else:
-            raise AtomicaException("Object '{0}' not found.".format(name))
+            raise NotFoundError("Object '{0}' not found.".format(name))
 
     def get_comp(self, comp_name):
         """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """
@@ -549,7 +548,7 @@ class Population(object):
         elif name in self.link_lookup:
             return self.link_lookup[name]
         else:
-            raise AtomicaException("Object '{0}' not found.".format(name))
+            raise NotFoundError("Object '{0}' not found.".format(name))
 
     def get_charac(self, charac_name):
         """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
@@ -927,8 +926,7 @@ class Model(object):
                         # self.pset.update_cache(alloc,self.t,self.dt) # Perform precomputations
 
             else:
-                raise AtomicaException("A model run was initiated with instructions to activate programs, "
-                                       "but no program set was passed to the model.")
+                raise NotAllowedError("A model run was initiated with instructions to activate programs, but no program set was passed to the model.")
         else:
             self.programs_active = False
 
