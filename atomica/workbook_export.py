@@ -5,7 +5,7 @@ from atomica.excel import ExcelSettings as ES
 
 from atomica.system import logger, AtomicaException, accepts, prepare_filepath, display_name
 from atomica.excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
-from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, \
+from atomica.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
     IDType, IDRefType, SwitchType, QuantityFormatType
 from atomica.workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
     get_workbook_item_type_specs, get_workbook_item_specs
@@ -481,6 +481,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     format_variables = dcp(orig_format_variables)
 
     row, col = start_row, start_col
+    block_col = 1   # Column increment at which data entry block begins.
 
     # Set up a header for the table relating to the object for which the databook is requesting values.
     attribute = "label"
@@ -514,6 +515,11 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     num_items = 0
     if use_instructions:
         num_items = instructions.num_items[iterated_type]
+    # If the table actually iterates over connections between items rather than items themselves...
+    # Push the data entry block back and make space for more 'item to item' headers, self-connections excluded.
+    if table.iterate_over_links:
+        block_col = 3
+        num_items = num_items*(num_items-1)
     default_values = [0.0] * num_items
     # Decide what quantity types, a.k.a. value formats, are allowed for the item.
     if item_type in [FS.KEY_COMPARTMENT,
@@ -543,7 +549,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
         default_values = [item_specs[item_type][item_key]["default_value"]] * num_items
     # TODO: Make sure this is robust when writing from framework/data rather than instructions.
     time_vector = instructions.tvec
-    create_value_entry_block(excel_page=worksheet, start_row=start_row, start_col=start_col + 1,
+    create_value_entry_block(excel_page=worksheet, start_row=start_row, start_col=start_col + block_col,
                              num_items=num_items, time_vector=time_vector,
                              default_values=default_values, formats=formats,
                              quantity_types=quantity_types)
@@ -551,11 +557,25 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     # Fill in the appropriate 'keys' for the table.
     row += 1
     if use_instructions:
-        for item_number in range(instructions.num_items[iterated_type]):
-            create_attribute_cell_content(worksheet=worksheet, row=row, col=col,
-                                          attribute="label", item_type=iterated_type, item_type_specs=item_type_specs,
-                                          item_number=item_number, formats=formats, temp_storage=temp_storage)
-            row += 1
+        if table.iterate_over_links:
+            for source_number in range(instructions.num_items[iterated_type]):
+                for target_number in range(instructions.num_items[iterated_type]):
+                    if source_number == target_number:
+                        continue
+                    create_attribute_cell_content(worksheet=worksheet, row=row, col=col, attribute="label",
+                                                  item_type=iterated_type, item_type_specs=item_type_specs,
+                                                  item_number=source_number, formats=formats, temp_storage=temp_storage)
+                    worksheet.write(row, col+1, SS.DEFAULT_SYMBOL_TO, formats[ES.FORMAT_KEY_CENTER_BOLD])
+                    create_attribute_cell_content(worksheet=worksheet, row=row, col=col+2, attribute="label",
+                                                  item_type=iterated_type, item_type_specs=item_type_specs,
+                                                  item_number=target_number, formats=formats, temp_storage=temp_storage)
+                    row += 1
+        else:
+            for item_number in range(instructions.num_items[iterated_type]):
+                create_attribute_cell_content(worksheet=worksheet, row=row, col=col,
+                                              attribute="label", item_type=iterated_type, item_type_specs=item_type_specs,
+                                              item_number=item_number, formats=formats, temp_storage=temp_storage)
+                row += 1
     row += 1  # Extra row to space out following tables.
 
     next_row, next_col = row, col
@@ -581,7 +601,7 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
                                         framework=framework, data=data, instructions=instructions,
                                         workbook_type=workbook_type,
                                         formats=formats, format_variables=format_variables, temp_storage=temp_storage)
-    if isinstance(table, ConnectionMatrix):
+    if isinstance(table, TableTemplate):
         iteration_amount = 1
         # If the connection matrix is templated...
         if table.template_item_type is not None:
@@ -589,26 +609,20 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
             # If it is, iterate for the number of template-related items specified by instructions.
             if table.template_item_key is None:
                 iteration_amount = instructions.num_items[table.template_item_type]
-        for iteration in range(iteration_amount):
-            row, col = write_connection_matrix(worksheet=worksheet, table=table, iteration=iteration,
-                                               start_row=row, start_col=col,
-                                               framework=framework, data=data, instructions=instructions,
-                                               workbook_type=workbook_type, formats=formats, temp_storage=temp_storage)
-    if isinstance(table, TimeDependentValuesEntry):
-        iteration_amount = 1
-        # If the connection matrix is templated...
-        if table.template_item_type is not None:
-            # Check if instantiation is deferred.
-            # If it is, iterate for the number of template-related items specified by instructions.
-            if table.template_item_key is None:
-                iteration_amount = instructions.num_items[table.template_item_type]
-        for iteration in range(iteration_amount):
-            row, col = write_time_dependent_values_entry(worksheet=worksheet, table=table, iteration=iteration,
-                                                         start_row=row, start_col=col,
-                                                         framework=framework, data=data, instructions=instructions,
-                                                         workbook_type=workbook_type,
-                                                         formats=formats, format_variables=format_variables,
-                                                         temp_storage=temp_storage)
+        if isinstance(table, ConnectionMatrix):
+            for iteration in range(iteration_amount):
+                row, col = write_connection_matrix(worksheet=worksheet, table=table, iteration=iteration,
+                                                   start_row=row, start_col=col,
+                                                   framework=framework, data=data, instructions=instructions,
+                                                   workbook_type=workbook_type, formats=formats, temp_storage=temp_storage)
+        if isinstance(table, TimeDependentValuesEntry):
+            for iteration in range(iteration_amount):
+                row, col = write_time_dependent_values_entry(worksheet=worksheet, table=table, iteration=iteration,
+                                                             start_row=row, start_col=col,
+                                                             framework=framework, data=data, instructions=instructions,
+                                                             workbook_type=workbook_type,
+                                                             formats=formats, format_variables=format_variables,
+                                                             temp_storage=temp_storage)
 
     next_row, next_col = row, col
     return next_row, next_col
@@ -651,6 +665,7 @@ def write_worksheet(workbook, page_key, framework=None, data=None, instructions=
                                formats=formats, format_variables=format_variables, temp_storage=temp_storage)
 
 
+# TODO: Decide on what metadata sheet should actually contain and review if data time ranges are still necessary.
 def write_reference_worksheet(workbook, framework=None, data=None, instructions=None, workbook_type=None):
     """
     Creates a hidden worksheet for metadata and other values.

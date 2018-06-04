@@ -8,8 +8,8 @@ from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 from atomica.excel import ExcelSettings as ES
 from atomica.excel import extract_header_columns_mapping, extract_excel_sheet_value
 from atomica.structure import KeyData, SemanticUnknownException
-from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, \
-    QuantityFormatType
+from atomica.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
+    SwitchType, QuantityFormatType
 from atomica.system import SystemSettings as SS
 from atomica.system import logger, AtomicaException, accepts, display_name
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, get_workbook_page_keys, \
@@ -282,9 +282,9 @@ def read_table(worksheet, table, start_row, start_col, framework=None, data=None
     if isinstance(table, DetailColumns):
         row = read_detail_columns(worksheet=worksheet, table=table, start_row=row,
                                   framework=framework, data=data, workbook_type=workbook_type)
-    if isinstance(table, ConnectionMatrix):
+    if isinstance(table, TableTemplate):
         iteration_amount = 1
-        # If the connection matrix was templated with deferred instantiation...
+        # If the table was templated with deferred instantiation...
         if table.template_item_type is not None:
             # Check if instantiation is deferred.
             # If it is, iterate for the number of template-related items already constructed.
@@ -292,22 +292,14 @@ def read_table(worksheet, table, start_row, start_col, framework=None, data=None
             # It is dev responsibility to ensure structure settings have relevant detail columns tables parsed first.
             if table.template_item_key is None:
                 iteration_amount = len(structure.specs[table.template_item_type])
-        for iteration in range(iteration_amount):
-            row = read_connection_matrix(worksheet=worksheet, table=table, start_row=row,
-                                         framework=framework, data=data, workbook_type=workbook_type)
-    if isinstance(table, TimeDependentValuesEntry):
-        iteration_amount = 1
-        # If the TDVE table was templated with deferred instantiation...
-        if table.template_item_type is not None:
-            # Check if instantiation is deferred.
-            # If it is, iterate for the number of template-related items already constructed.
-            # Note that this is dangerous if the items are constructed later.
-            # It is dev responsibility to ensure structure settings have relevant detail columns tables parsed first.
-            if table.template_item_key is None:
-                iteration_amount = len(structure.specs[table.template_item_type])
-        for iteration in range(iteration_amount):
-            row = read_time_dependent_values_entry(worksheet=worksheet, table=table, start_row=row,
-                                                   framework=framework, data=data, workbook_type=workbook_type)
+        if isinstance(table, ConnectionMatrix):
+            for iteration in range(iteration_amount):
+                row = read_connection_matrix(worksheet=worksheet, table=table, start_row=row,
+                                             framework=framework, data=data, workbook_type=workbook_type)
+        if isinstance(table, TimeDependentValuesEntry):
+            for iteration in range(iteration_amount):
+                row = read_time_dependent_values_entry(worksheet=worksheet, table=table, start_row=row,
+                                                       framework=framework, data=data, workbook_type=workbook_type)
 
     next_row, next_col = row, col
     return next_row, next_col
