@@ -1,6 +1,6 @@
 from uuid import uuid4, UUID
-from copy import deepcopy as dcp
-
+from sciris.utils import dcp
+from atomica.system import NotAllowedError, NotFoundError
 
 
 class NamedItem(object):
