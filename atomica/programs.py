@@ -66,7 +66,7 @@ class ProgramSet(object):
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
             data = {k: progdata[pkey][k] for k in ('spend', 'basespend')}
-            data['t'] = progdata['years']
+            data['year'] = progdata['years']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
                         target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
@@ -313,14 +313,15 @@ class Program(object):
             if isinstance(data, dataframe): 
                 self.data = data # Right format already: use directly
             elif isinstance(data, dict):
-                newdata = [data.get(key) for key in datakeys] # Get full row
-                year = newdata[0] if newdata[0] is not None else year # Probably a simpler way of doing this, but use the year if it's supplied, else use the default
-                try: currentdata = self.data.get(rows=year) # Get current row as a dictionary
-                except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-                if currentdata:
-                    for i,key in enumerate(data.keys()):
-                        if newdata[i] is None: newdata[i] = currentdata[key] # Replace with old data if new data is None
-                self.data.addrow(newdata) # Add new data
+                listdata = [promotetolist(data.get(key)) for key in datakeys] # Get full row
+                if listdata[0] is not None:
+                    for n,year in enumerate(listdata[0]):
+                        thesedata = [thisitem[n] for thisitem in listdata] # Get full row
+                        currentdata = self.data.findrow(year) # Get current row as a dictionary
+                        if currentdata:
+                            for i,key in enumerate(data.keys()):
+                                if listdata[i] is None: listdata[i] = currentdata[key] # Replace with old data if new data is None
+                        self.data.addrow(thesedata) # Add new data
             elif isinstance(data, list): # Assume it's a list of dicts
                 for datum in data:
                     if isinstance(datum, dict):
@@ -345,10 +346,7 @@ class Program(object):
 #        if target_pars is not None: settargetpars(target_pars) # targeted parameters
 
         if unitcost    is not None: setunitcost(unitcost, year) # unit cost(s)
-#        if unitcost    is not None: self.unitcost    = unitcost
-
-#        if data        is not None: setdata(data, year) # unit cost(s)
-        if data        is not None: self.data        = data
+        if data        is not None: setdata(data, year) # spend and coverage data
         
         # Finally, check everything
         if self.short is None: # self.short must exist
@@ -375,12 +373,11 @@ class Program(object):
         return None
     
     
-     # TODO: NOT WORKING
     def getspend(self, year=None, total=False, die=False):
         ''' Convenience function for getting the current spending '''
         if year is None: year = 2018. # TEMPORARY
         try:
-            thisdata = self.data.getrow(year, closest=True, asdict=True) # Get data
+            thisdata = self.data.findrow(year, closest=True, asdict=True) # Get data
             spend = thisdata['spend']
             if spend is None: spend = 0 # If not specified, assume 0
             if total: 
@@ -396,12 +393,11 @@ class Program(object):
                 return None
     
     
-     # TODO: NOT WORKING
     def getunitcost(self, year=None, die=False):
         ''' Convenience function for getting the current unit cost '''
         if year is None: year = 2018. # TEMPORARY
         try:
-            thisdata = self.unitcost.getrow(year, closest=True, asdict=True) # Get data
+            thisdata = self.unitcost.findrow(year, closest=True, asdict=True) # Get data
             unitcost = thisdata['best']
             return unitcost
         except Exception as E:
