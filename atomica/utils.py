@@ -71,6 +71,8 @@ class SList(object):
                 if x.uid == item:
                     return True
             return False
+        elif isinstance(item,NamedItem):
+            return item.uid in self
         else:
             return False
 
