@@ -247,6 +247,8 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
             else:
                 # Time series keys for standard items are their names.
                 data_key = structure.get_spec_name(label)
+                if data_key == SS.DEFAULT_SYMBOL_IGNORE:
+                    continue
                 # Keys for time series that involve links between items are tuple-pairs of their names.
                 if table.iterate_over_links:
                     data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))
