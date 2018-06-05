@@ -136,9 +136,9 @@ class ProgramSet(NamedItem):
 
     def update_progset(self):
         ''' Update (run this is you change something... )'''
-        self.settargetpars()
-        self.settargetpartypes()
-        self.settargetpops()
+        self.set_target_pars()
+        self.set_targetpar_types()
+        self.set_target_pops()
         return None
 
 
@@ -167,7 +167,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def rmprograms(self, progs=None, die=True):
+    def rm_programs(self, progs=None, die=True):
         ''' Remove one or more programs from both the list of programs and also from the covout functions '''
         if progs is None:
             self.programs = odict() # Remove them all
@@ -224,63 +224,63 @@ class ProgramSet(NamedItem):
              keys: all populations targeted by programs
              values: programs targeting that population '''
         progs_by_targetpop = odict()
-        for thisprog in self.programs.values():
-            target_pops = thisprog.target_pops if thisprog.target_pops else None
+        for prog in self.programs.values():
+            target_pops = prog.target_pops if prog.target_pops else None
             if target_pops:
-                for thispop in target_pops:
-                    if thispop not in progs_by_targetpop: progs_by_targetpop[thispop] = []
-                    progs_by_targetpop[thispop].append(thisprog)
+                for pop in target_pops:
+                    if pop not in progs_by_targetpop: progs_by_targetpop[pop] = []
+                    progs_by_targetpop[pop].append(prog)
         if filter_pop: return progs_by_targetpop[filter_pop]
         else: return progs_by_targetpop
 
 
-    def progs_by_target_par_type(self, filter_partype=None):
+    def progs_by_target_par_type(self, filter_par_type=None):
         '''Return a dictionary with:
              keys: all populations targeted by programs
              values: programs targeting that population '''
         progs_by_target_par_type = odict()
-        for thisprog in self.programs.values():
-            target_par_types = thisprog.target_par_types if thisprog.target_par_types else None
+        for prog in self.programs.values():
+            target_par_types = prog.target_par_types if prog.target_par_types else None
             if target_par_types:
-                for thispartype in target_par_types:
-                    if thispartype not in progs_by_target_par_type: progs_by_target_par_type[thispartype] = []
-                    progs_by_target_par_type[thispartype].append(thisprog)
-        if filter_partype: return progs_by_target_par_type[filter_partype]
+                for this_par_type in target_par_types:
+                    if this_par_type not in progs_by_target_par_type: progs_by_target_par_type[this_par_type] = []
+                    progs_by_target_par_type[this_par_type].append(prog)
+        if filter_par_type: return progs_by_target_par_type[filter_par_type]
         else: return progs_by_target_par_type
 
 
-    def progs_by_target_par(self, filter_partype=None):
+    def progs_by_target_par(self, filter_par_type=None):
         '''Return a dictionary with:
              keys: all populations targeted by programs
              values: programs targeting that population '''
         progs_by_target_par = odict()
-        for thispartype in self.target_par_types:
-            progs_by_target_par[thispartype] = odict()
-            for prog in self.progs_by_target_par_type(thispartype):
+        for this_par_type in self.target_par_types:
+            progs_by_target_par[this_par_type] = odict()
+            for prog in self.progs_by_target_par_type(this_par_type):
                 target_pars = prog.target_pars if prog.target_pars else None
                 for target_par in target_pars:
-                    if thispartype == target_par['param']:
-                        if target_par['pop'] not in progs_by_target_par[thispartype]: progs_by_target_par[thispartype][target_par['pop']] = []
-                        progs_by_target_par[thispartype][target_par['pop']].append(prog)
-            progs_by_target_par[thispartype] = progs_by_target_par[thispartype]
-        if filter_partype: return progs_by_target_par[filter_partype]
+                    if this_par_type == target_par['param']:
+                        if target_par['pop'] not in progs_by_target_par[this_par_type]: progs_by_target_par[this_par_type][target_par['pop']] = []
+                        progs_by_target_par[this_par_type][target_par['pop']].append(prog)
+            progs_by_target_par[this_par_type] = progs_by_target_par[this_par_type]
+        if filter_par_type: return progs_by_target_par[filter_par_type]
         else: return progs_by_target_par
 
 
-    def defaultbudget(self, year=None, optimizable=None):
+    def default_budget(self, year=None, optimizable=None):
         ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
-        defaultbudget = odict() # Initialise outputs
+        default_budget = odict() # Initialise outputs
 
         # Validate inputs
         if year is not None: year = promotetoarray(year)
         if optimizable is None: optimizable = False # Return only optimizable indices
 
         # Get cost data for each program 
-        for program in self.programs.values():
-            defaultbudget[program.short] = program.getspend(year)
+        for prog in self.programs.values():
+            default_budget[prog.short] = prog.getspend(year)
 
-        return defaultbudget
+        return default_budget
 
 
     def getoutcomes(self, coverage=None, year=None, sample='best'):
@@ -306,49 +306,49 @@ class ProgramSet(NamedItem):
         maxvals  = odict()
 
         # Loop over parameter types
-        for thispartype in self.target_par_types:
-            outcomes[thispartype] = odict()
-            maxvals[thispartype] = odict()
+        for this_par_type in self.target_par_types:
+            outcomes[this_par_type] = odict()
+            maxvals[this_par_type] = odict()
             
             # Loop over populations relevant for this parameter type
-            for popno, thispop in enumerate(self.progs_by_target_par(thispartype).keys()):
+            for popno, thispop in enumerate(self.progs_by_target_par(this_par_type).keys()):
 
                 delta, thiscov = odict(), odict()
-                effects = odict([(k,v.get(sample)) for k,v in self.covout[(thispartype,thispop)].progs.iteritems()])
+                effects = odict([(k,v.get(sample)) for k,v in self.covout[(this_par_type,thispop)].progs.iteritems()])
                 best_prog = min(effects, key=effects.get)
                 best_eff  = effects[best_prog]
                 
                 # Loop over the programs that target this parameter/population combo
-                for thisprog in self.progs_by_target_par(thispartype)[thispop]:
-                    if not self.covout[(thispartype,thispop)].haspars():
+                for thisprog in self.progs_by_target_par(this_par_type)[thispop]:
+                    if not self.covout[(this_par_type,thispop)].haspars():
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (thisprog.short))
-                        outcomes[thispartype][thispop] = None
+                        outcomes[this_par_type][thispop] = None
                     else:
-                        outcomes[thispartype][thispop]  = self.covout[(thispartype,thispop)].npi_val.get(sample)
+                        outcomes[this_par_type][thispop]  = self.covout[(this_par_type,thispop)].npi_val.get(sample)
                         thiscov[thisprog.short]         = coverage[thisprog.short]
-                        delta[thisprog.short]           = self.covout[(thispartype,thispop)].progs[thisprog.short].get(sample) - outcomes[thispartype][thispop]
-                        maxvals[thispartype][thispop]   = self.covout[(thispartype,thispop)].max_val.get(sample)
+                        delta[thisprog.short]           = self.covout[(this_par_type,thispop)].progs[thisprog.short].get(sample) - outcomes[this_par_type][thispop]
+                        maxvals[this_par_type][thispop]   = self.covout[(this_par_type,thispop)].max_val.get(sample)
                         
                 # Pre-check for additive calc
-                if self.covout[(thispartype,thispop)].cov_interaction == 'Additive':
+                if self.covout[(this_par_type,thispop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(thispartype)[thispop]], [thispartype, thispop], sum(thiscov[:])))
-                        self.covout[(thispartype,thispop)].cov_interaction = 'Random'
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(this_par_type)[thispop]], [this_par_type, thispop], sum(thiscov[:])))
+                        self.covout[(this_par_type,thispop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
                 # NB, if there's only one program targeting this parameter, just do simple additive calc
                     
-                if self.covout[(thispartype,thispop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(thispartype)[thispop])==1:
+                if self.covout[(this_par_type,thispop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(this_par_type)[thispop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
-                    for thisprog in self.progs_by_target_par(thispartype)[thispop]:
-                        if not self.covout[(thispartype,thispop)].haspars():
-                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (thisprog.short, thispop, thispartype))
-                            outcomes[thispartype][thispop] = None
+                    for thisprog in self.progs_by_target_par(this_par_type)[thispop]:
+                        if not self.covout[(this_par_type,thispop)].haspars():
+                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (thisprog.short, thispop, this_par_type))
+                            outcomes[this_par_type][thispop] = None
                         else: 
-                            outcomes[thispartype][thispop] += thiscov[thisprog.short]*delta[thisprog.short]
+                            outcomes[this_par_type][thispop] += thiscov[thisprog.short]*delta[thisprog.short]
                         
                 # NESTED CALCULATION
-                elif self.covout[(thispartype,thispop)].cov_interaction == 'Nested':
+                elif self.covout[(this_par_type,thispop)].cov_interaction == 'Nested':
                     # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
                     cov,delt = [],[]
                     for thisprog in thiscov.keys():
@@ -358,10 +358,10 @@ class ProgramSet(NamedItem):
                     for j in range(len(cov_tuple)): # For each entry in here
                         if j == 0: c1 = cov_tuple[j][0]
                         else: c1 = cov_tuple[j][0]-cov_tuple[j-1][0]
-                        outcomes[thispartype][thispop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
+                        outcomes[this_par_type][thispop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
             
                 # RANDOM CALCULATION
-                elif self.covout[(thispartype,thispop)].cov_interaction == 'Random':
+                elif self.covout[(this_par_type,thispop)].cov_interaction == 'Random':
                     # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
 
                     for prog1 in thiscov.keys():
@@ -370,7 +370,7 @@ class ProgramSet(NamedItem):
                             if prog1 != prog2:
                                 product *= (1-thiscov[prog2])
         
-                        outcomes[thispartype][thispop] += delta[prog1]*thiscov[prog1]*product 
+                        outcomes[this_par_type][thispop] += delta[prog1]*thiscov[prog1]*product 
 
                     # Recursion over overlap levels
                     def overlap_calc(indexes,target_depth):
@@ -385,12 +385,12 @@ class ProgramSet(NamedItem):
                     # Iterate over overlap levels
                     for i in range(2,len(thiscov)): # Iterate over numbers of overlapping programs
                         for j in range(0,len(thiscov)-1): # Iterate over the index of the first program in the sum
-                            outcomes[thispartype][thispop] += overlap_calc([j],i)[0]
+                            outcomes[this_par_type][thispop] += overlap_calc([j],i)[0]
 
                     # All programs together
-                    outcomes[thispartype][thispop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
+                    outcomes[this_par_type][thispop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
 
-                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[thispartype][thispop].interaction)
+                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[this_par_type][thispop].interaction)
         
         return outcomes
         
