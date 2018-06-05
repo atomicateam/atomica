@@ -24,12 +24,12 @@ class SList(sc.odict):
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
 
-    def __setitem__(self, key, item):
-        if not isinstance(item,NamedItem):
-            raise NotAllowedError("Only NamedItems can be stored in SLists")
-        item.name = key
-        sc.odict.__setitem__(key, item)
-        return None
+#    def __setitem__(self, key, item):
+#        if not isinstance(item,NamedItem):
+#            raise NotAllowedError("Only NamedItems can be stored in SLists")
+#        item.name = key
+#        sc.odict.__setitem__(self, key, item)
+#        return None
 
 
 
