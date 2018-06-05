@@ -104,37 +104,37 @@ class ProgramSet(NamedItem):
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
         self.add_covouts(progdata['pars'], prog_effects)
-        self.updateprogset()
+        self.update_progset()
         return None
 
         
-    def settargetpops(self):
+    def set_target_pops(self):
         '''Update populations targeted by some program in the response'''
         self.target_pops = []
         if self.programs:
             for prog in self.programs.values():
-                for thispop in prog.target_pops: self.target_pops.append(thispop)
+                for this_pop in prog.target_pops: self.target_pops.append(this_pop)
             self.target_pops = list(set(self.target_pops))
 
 
-    def settargetpars(self):
+    def set_target_pars(self):
         '''Update model parameters targeted by some program in the response'''
         self.target_pars = []
         if self.programs:
-            for thisprog in self.programs.values():
-                for thispop in thisprog.target_pars: self.target_pars.append(thispop)
+            for prog in self.programs.values():
+                for this_pop in prog.target_pars: self.target_pars.append(this_pop)
 
 
-    def settargetpartypes(self):
+    def set_target_par_types(self):
         '''Update model parameter types targeted by some program in the response'''
         self.target_par_types = []
         if self.programs:
-            for thisprog in self.programs.values():
-                for thispartype in thisprog.target_par_types: self.target_par_types.append(thispartype)
+            for prog in self.programs.values():
+                for this_par_type in prog.target_par_types: self.target_par_types.append(this_par_type)
             self.target_par_types = list(set(self.target_par_types))
 
 
-    def updateprogset(self, verbose=2):
+    def update_progset(self):
         ''' Update (run this is you change something... )'''
         self.settargetpars()
         self.settargetpartypes()
@@ -163,7 +163,7 @@ class ProgramSet(NamedItem):
             # Save it
             self.programs[prog.short] = prog
 
-        self.updateprogset()
+        self.update_progset()
         return None
 
 
