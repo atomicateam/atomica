@@ -15,7 +15,7 @@ Last update: 2018-03-25
         </ul>
       </nav>
       <div class="copyright pull-center">
-        Copyright &copy; 2018 by the Optima Nutrition Working Group
+        &copy; 2018 by the Optima TB Working Group
       </div>
     </div>
   </footer>
