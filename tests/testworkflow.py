@@ -91,7 +91,7 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('Making programs spreadsheet ...')
+    print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
     from atomica.defaults import demo
     from atomica.workbook_export import makeprogramspreadsheet
 
