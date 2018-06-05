@@ -112,7 +112,7 @@ if "loadprogramspreadsheet" in torun:
                      ('Harm reduction 2',   .9),
                      ('Treatment 1',        .99),
                      ('Treatment 2',        .8)])
-    print(P.progsets[0].getoutcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+    print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
 if "makeplots" in torun:
 

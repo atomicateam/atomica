@@ -113,7 +113,7 @@ class ProgramSet(NamedItem):
         self.target_pops = []
         if self.programs:
             for prog in self.programs.values():
-                for this_pop in prog.target_pops: self.target_pops.append(this_pop)
+                for pop in prog.target_pops: self.target_pops.append(pop)
             self.target_pops = list(set(self.target_pops))
 
 
@@ -122,7 +122,7 @@ class ProgramSet(NamedItem):
         self.target_pars = []
         if self.programs:
             for prog in self.programs.values():
-                for this_pop in prog.target_pars: self.target_pars.append(this_pop)
+                for pop in prog.target_pars: self.target_pars.append(pop)
 
 
     def set_target_par_types(self):
@@ -130,7 +130,7 @@ class ProgramSet(NamedItem):
         self.target_par_types = []
         if self.programs:
             for prog in self.programs.values():
-                for this_par_type in prog.target_par_types: self.target_par_types.append(this_par_type)
+                for par_type in prog.target_par_types: self.target_par_types.append(par_type)
             self.target_par_types = list(set(self.target_par_types))
 
 
@@ -223,15 +223,15 @@ class ProgramSet(NamedItem):
         '''Return a dictionary with:
              keys: all populations targeted by programs
              values: programs targeting that population '''
-        progs_by_targetpop = odict()
+        progs_by_target_pop = odict()
         for prog in self.programs.values():
             target_pops = prog.target_pops if prog.target_pops else None
             if target_pops:
                 for pop in target_pops:
-                    if pop not in progs_by_targetpop: progs_by_targetpop[pop] = []
-                    progs_by_targetpop[pop].append(prog)
-        if filter_pop: return progs_by_targetpop[filter_pop]
-        else: return progs_by_targetpop
+                    if pop not in progs_by_target_pop: progs_by_target_pop[pop] = []
+                    progs_by_target_pop[pop].append(prog)
+        if filter_pop: return progs_by_target_pop[filter_pop]
+        else: return progs_by_target_pop
 
 
     def progs_by_target_par_type(self, filter_par_type=None):
@@ -242,9 +242,9 @@ class ProgramSet(NamedItem):
         for prog in self.programs.values():
             target_par_types = prog.target_par_types if prog.target_par_types else None
             if target_par_types:
-                for this_par_type in target_par_types:
-                    if this_par_type not in progs_by_target_par_type: progs_by_target_par_type[this_par_type] = []
-                    progs_by_target_par_type[this_par_type].append(prog)
+                for par_type in target_par_types:
+                    if par_type not in progs_by_target_par_type: progs_by_target_par_type[par_type] = []
+                    progs_by_target_par_type[par_type].append(prog)
         if filter_par_type: return progs_by_target_par_type[filter_par_type]
         else: return progs_by_target_par_type
 
@@ -254,15 +254,15 @@ class ProgramSet(NamedItem):
              keys: all populations targeted by programs
              values: programs targeting that population '''
         progs_by_target_par = odict()
-        for this_par_type in self.target_par_types:
-            progs_by_target_par[this_par_type] = odict()
-            for prog in self.progs_by_target_par_type(this_par_type):
+        for par_type in self.target_par_types:
+            progs_by_target_par[par_type] = odict()
+            for prog in self.progs_by_target_par_type(par_type):
                 target_pars = prog.target_pars if prog.target_pars else None
                 for target_par in target_pars:
-                    if this_par_type == target_par['param']:
-                        if target_par['pop'] not in progs_by_target_par[this_par_type]: progs_by_target_par[this_par_type][target_par['pop']] = []
-                        progs_by_target_par[this_par_type][target_par['pop']].append(prog)
-            progs_by_target_par[this_par_type] = progs_by_target_par[this_par_type]
+                    if par_type == target_par['param']:
+                        if target_par['pop'] not in progs_by_target_par[par_type]: progs_by_target_par[par_type][target_par['pop']] = []
+                        progs_by_target_par[par_type][target_par['pop']].append(prog)
+            progs_by_target_par[par_type] = progs_by_target_par[par_type]
         if filter_par_type: return progs_by_target_par[filter_par_type]
         else: return progs_by_target_par
 
@@ -278,12 +278,12 @@ class ProgramSet(NamedItem):
 
         # Get cost data for each program 
         for prog in self.programs.values():
-            default_budget[prog.short] = prog.getspend(year)
+            default_budget[prog.short] = prog.get_spend(year)
 
         return default_budget
 
 
-    def getoutcomes(self, coverage=None, year=None, sample='best'):
+    def get_outcomes(self, coverage=None, year=None, sample='best'):
         ''' Get a dictionary of parameter values associated with coverage levels'''
 
         # Validate inputs
@@ -293,75 +293,73 @@ class ProgramSet(NamedItem):
         if not isinstance(coverage, dict): # Only acceptable format at the moment
             errormsg = 'Expecting coverage to be a dict, not %s' % type(coverage)
             raise AtomicaException(errormsg)
-        for covkey, coventry in coverage.iteritems(): # Ensure coverage level values are arrays
+        for covkey in coverage.keys(): # Ensure coverage level values are arrays
             coverage[covkey] = promotetoarray(coverage[covkey])
-        for covkey, coventry in coverage.iteritems(): # Ensure coverage levels are between 0 and 1
-            for item in coventry:
+            for item in coverage[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
         
         # Initialise output
         outcomes = odict()
-        maxvals  = odict()
+        max_vals  = odict()
 
         # Loop over parameter types
-        for this_par_type in self.target_par_types:
-            outcomes[this_par_type] = odict()
-            maxvals[this_par_type] = odict()
+        for par_type in self.target_par_types:
+            outcomes[par_type] = odict()
+            max_vals[par_type] = odict()
             
             # Loop over populations relevant for this parameter type
-            for popno, thispop in enumerate(self.progs_by_target_par(this_par_type).keys()):
+            for popno, pop in enumerate(self.progs_by_target_par(par_type).keys()):
 
                 delta, thiscov = odict(), odict()
-                effects = odict([(k,v.get(sample)) for k,v in self.covout[(this_par_type,thispop)].progs.iteritems()])
+                effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
                 best_prog = min(effects, key=effects.get)
                 best_eff  = effects[best_prog]
                 
                 # Loop over the programs that target this parameter/population combo
-                for thisprog in self.progs_by_target_par(this_par_type)[thispop]:
-                    if not self.covout[(this_par_type,thispop)].haspars():
-                        print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (thisprog.short))
-                        outcomes[this_par_type][thispop] = None
+                for prog in self.progs_by_target_par(par_type)[pop]:
+                    if not self.covout[(par_type,pop)].haspars():
+                        print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
+                        outcomes[par_type][pop] = None
                     else:
-                        outcomes[this_par_type][thispop]  = self.covout[(this_par_type,thispop)].npi_val.get(sample)
-                        thiscov[thisprog.short]         = coverage[thisprog.short]
-                        delta[thisprog.short]           = self.covout[(this_par_type,thispop)].progs[thisprog.short].get(sample) - outcomes[this_par_type][thispop]
-                        maxvals[this_par_type][thispop]   = self.covout[(this_par_type,thispop)].max_val.get(sample)
+                        outcomes[par_type][pop]  = self.covout[(par_type,pop)].npi_val.get(sample)
+                        thiscov[prog.short]         = coverage[prog.short]
+                        delta[prog.short]           = self.covout[(par_type,pop)].progs[prog.short].get(sample) - outcomes[par_type][pop]
+                        max_vals[par_type][pop]   = self.covout[(par_type,pop)].max_val.get(sample)
                         
                 # Pre-check for additive calc
-                if self.covout[(this_par_type,thispop)].cov_interaction == 'Additive':
+                if self.covout[(par_type,pop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(this_par_type)[thispop]], [this_par_type, thispop], sum(thiscov[:])))
-                        self.covout[(this_par_type,thispop)].cov_interaction = 'Random'
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(par_type)[pop]], [par_type, pop], sum(thiscov[:])))
+                        self.covout[(par_type,pop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
                 # NB, if there's only one program targeting this parameter, just do simple additive calc
-                    
-                if self.covout[(this_par_type,thispop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(this_par_type)[thispop])==1:
+                if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(par_type)[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
-                    for thisprog in self.progs_by_target_par(this_par_type)[thispop]:
-                        if not self.covout[(this_par_type,thispop)].haspars():
-                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (thisprog.short, thispop, this_par_type))
-                            outcomes[this_par_type][thispop] = None
+                    for prog in self.progs_by_target_par(par_type)[pop]:
+                        if not self.covout[(par_type,pop)].haspars():
+                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
+                            outcomes[par_type][pop] = None
                         else: 
-                            outcomes[this_par_type][thispop] += thiscov[thisprog.short]*delta[thisprog.short]
+                            outcomes[par_type][pop] += thiscov[prog.short]*delta[prog.short]
                         
                 # NESTED CALCULATION
-                elif self.covout[(this_par_type,thispop)].cov_interaction == 'Nested':
+                elif self.covout[(par_type,pop)].cov_interaction == 'Nested':
                     # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
                     cov,delt = [],[]
-                    for thisprog in thiscov.keys():
-                        cov.append(thiscov[thisprog])
-                        delt.append(delta[thisprog])
+                    for prog in thiscov.keys():
+                        cov.append(thiscov[prog])
+                        delt.append(delta[prog])
                     cov_tuple = sorted(zip(cov,delt)) # A tuple storing the coverage and delta out, ordered by coverage
                     for j in range(len(cov_tuple)): # For each entry in here
                         if j == 0: c1 = cov_tuple[j][0]
                         else: c1 = cov_tuple[j][0]-cov_tuple[j-1][0]
-                        outcomes[this_par_type][thispop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
+                        outcomes[par_type][pop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
             
                 # RANDOM CALCULATION
-                elif self.covout[(this_par_type,thispop)].cov_interaction == 'Random':
+                elif self.covout[(par_type,pop)].cov_interaction == 'Random':
                     # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
 
                     for prog1 in thiscov.keys():
@@ -370,7 +368,7 @@ class ProgramSet(NamedItem):
                             if prog1 != prog2:
                                 product *= (1-thiscov[prog2])
         
-                        outcomes[this_par_type][thispop] += delta[prog1]*thiscov[prog1]*product 
+                        outcomes[par_type][pop] += delta[prog1]*thiscov[prog1]*product 
 
                     # Recursion over overlap levels
                     def overlap_calc(indexes,target_depth):
@@ -385,17 +383,17 @@ class ProgramSet(NamedItem):
                     # Iterate over overlap levels
                     for i in range(2,len(thiscov)): # Iterate over numbers of overlapping programs
                         for j in range(0,len(thiscov)-1): # Iterate over the index of the first program in the sum
-                            outcomes[this_par_type][thispop] += overlap_calc([j],i)[0]
+                            outcomes[par_type][pop] += overlap_calc([j],i)[0]
 
                     # All programs together
-                    outcomes[this_par_type][thispop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
+                    outcomes[par_type][pop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
 
-                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[this_par_type][thispop].interaction)
+                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[par_type][pop].interaction)
         
         return outcomes
         
         
-    def getpars(self, coverage=None, year=None, sample='best'):
+    def get_pars(self, coverage=None, year=None, sample='best'):
         ''' Get a full parset for given coverage levels'''
         pass
     
@@ -406,7 +404,7 @@ class ProgramSet(NamedItem):
     def reconcile(self):
         pass
 
-    def compareoutcomes(self):
+    def compare_outcomes(self):
         pass
 
 
@@ -447,7 +445,7 @@ class Program(NamedItem):
     def update(self, short=None, name=None, data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
-        def settargetpars(target_pars=None):
+        def set_target_pars(target_pars=None):
             ''' Handle targetpars -- a little complicated since it's a list of dicts '''
             target_par_keys = ['param', 'pop']
             target_pars = promotetolist(target_pars) # Let's make sure it's a list before going further
@@ -532,28 +530,28 @@ class Program(NamedItem):
             return None
 
         
-        def setdata(data=None, year=None):
+        def set_data(data=None, year=None):
             ''' Handle the spend-coverage, data, also complicated since have to convert to a dataframe '''
-            datakeys = ['year', 'spend', 'basespend']
-            if self.data is None: self.data = dataframe(cols=datakeys) # Create dataframe
+            data_keys = ['year', 'spend', 'basespend']
+            if self.data is None: self.data = dataframe(cols=data_keys) # Create dataframe
             if year is None: year = 2018. # TEMPORARY
             
             if isinstance(data, dataframe): 
                 self.data = data # Right format already: use directly
             elif isinstance(data, dict):
-                data = {key:promotetolist(data.get(key)) for key in datakeys} # Get full row
+                data = {key:promotetolist(data.get(key)) for key in data_keys} # Get full row
                 if data['year'] is not None:
                     for n,year in enumerate(data['year']):
-                        currentdata = self.data.findrow(year,asdict=True) # Get current row as a dictionary
-                        if currentdata is not None:
+                        current_data = self.data.findrow(year,asdict=True) # Get current row as a dictionary
+                        if current_data is not None:
                             for key in data.keys():
-                                if data[key][n] is None: data[key][n] = currentdata[key] # Replace with old data if new data is None
-                        thesedata = [data['year'][n], data['spend'][n], data['basespend'][n]] # Get full row - WARNING, FRAGILE TO ORDER!
-                        self.data.addrow(thesedata) # Add new data
+                                if data[key][n] is None: data[key][n] = current_data[key] # Replace with old data if new data is None
+                        these_data = [data['year'][n], data['spend'][n], data['basespend'][n]] # Get full row - WARNING, FRAGILE TO ORDER!
+                        self.data.addrow(these_data) # Add new data
             elif isinstance(data, list): # Assume it's a list of dicts
                 for datum in data:
                     if isinstance(datum, dict):
-                        setdata(datum) # It's a dict: iterate recursively
+                        set_data(datum) # It's a dict: iterate recursively
                     else:
                         errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
                         raise AtomicaException(errormsg)
@@ -569,9 +567,9 @@ class Program(NamedItem):
         if target_pops is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
-        if target_pars is not None: settargetpars(target_pars) # targeted parameters
+        if target_pars is not None: set_target_pars(target_pars) # targeted parameters
         if unit_cost    is not None: set_unit_cost(unit_cost, year) # unit cost(s)
-        if data        is not None: setdata(data, year) # spend and coverage data
+        if data        is not None: set_data(data, year) # spend and coverage data
         
         # Finally, check everything
         if self.short is None: # self.short must exist
@@ -586,15 +584,15 @@ class Program(NamedItem):
         return None
     
     
-    def adddata(self, data=None, year=None, spend=None, basespend=None):
+    def add_data(self, data=None, year=None, spend=None, base_spend=None):
         ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
         if data is None:
-            data = {'year':float(year), 'spend':spend, 'basespend':basespend}
+            data = {'year':float(year), 'spend':spend, 'basespend':base_spend}
         self.update(data=data)
         return None
         
         
-    def addpars(self, unit_cost=None, capacity=None, year=None):
+    def add_pars(self, unit_cost=None, capacity=None, year=None):
         ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unit_cost. '''
         # Convert inputs
         if year is not None: year=float(year)
@@ -603,7 +601,7 @@ class Program(NamedItem):
         return None
     
     
-    def getspend(self, year=None, total=False, die=False):
+    def get_spend(self, year=None, total=False, die=False):
         ''' Convenience function for getting spending data'''
         try:
             if year is not None:
@@ -611,9 +609,9 @@ class Program(NamedItem):
                 spend = thisdata['spend']
                 if spend is None: spend = 0 # If not specified, assume 0
                 if total: 
-                    basespend = thisdata['basespend'] # Add baseline spending
-                    if basespend is None: basespend = 0 # Likewise assume 0
-                    spend += basespend
+                    base_spend = thisdata['basespend'] # Add baseline spending
+                    if base_spend is None: base_spend = 0 # Likewise assume 0
+                    spend += base_spend
             else: # Just get the most recent non-nan number
                 spend = self.data['spend'][~isnan(array([x for x in self.data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
             return spend
@@ -629,8 +627,8 @@ class Program(NamedItem):
         ''' Convenience function for getting the current unit cost '''
         if year is None: year = 2018. # TEMPORARY
         try:
-            thisdata = self.unit_cost.findrow(year, closest=True, asdict=True) # Get data
-            unit_cost = thisdata['best']
+            this_data = self.unit_cost.findrow(year, closest=True, asdict=True) # Get data
+            unit_cost = this_data['best']
             return unit_cost
         except Exception as E:
             if die:
@@ -669,7 +667,7 @@ class Program(NamedItem):
         return valid
         
 
-    def hasbudget(self):
+    def has_budget(self):
         return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 
@@ -680,7 +678,7 @@ class Program(NamedItem):
         # Validate inputs
         if budget is None:
             try:
-                budget = self.getspend(year)
+                budget = self.get_spend(year)
             except Exception as E:
                 errormsg = 'Can''t get number covered without a spending amount: %s' % E.message
                 raise AtomicaException(errormsg)
