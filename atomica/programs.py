@@ -24,8 +24,8 @@ class ProgramSet(NamedItem):
         self.default_cov_interaction = default_cov_interaction
         self.default_imp_interaction = default_imp_interaction
         self.covout = odict()
-        if programs is not None: self.addprograms(programs)
-        if covouts is not None: self.addcovouts(covouts)
+        if programs is not None: self.add_programs(programs)
+        if covouts is not None: self.add_covouts(covouts)
         self.created = today()
         self.modified = today()
         return None
@@ -74,15 +74,15 @@ class ProgramSet(NamedItem):
                         data=data
                         )
             programs.append(p)
-        self.addprograms(progs=programs)
+        self.add_programs(progs=programs)
         
         # Update the unit costs (done separately as by year)
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
             for yrno,year in enumerate(progdata['years']):
-                unitcost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
-                if not (isnan(unitcost)).all():
-                    self.programs[np].update(unitcost=sanitize(unitcost), year=year)
+                unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
+                if not (isnan(unit_cost)).all():
+                    self.programs[np].update(unit_cost=sanitize(unit_cost), year=year)
         
         # Read in the information for covout functions and update the target pars
         prognames = progdata['progs']['short']
@@ -103,7 +103,7 @@ class ProgramSet(NamedItem):
                 if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
-        self.addcovouts(progdata['pars'], prog_effects)
+        self.add_covouts(progdata['pars'], prog_effects)
         self.updateprogset()
         return None
 
@@ -142,7 +142,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def addprograms(self, progs=None, replace=False):
+    def add_programs(self, progs=None, replace=False):
         ''' Add a list of programs '''
         
         # Process programs
@@ -184,7 +184,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def addcovout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None):
+    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None):
         ''' add a single coverage-outcome parameter '''
         # Process inputs
         if cov_interaction is None: cov_interaction = self.default_cov_interaction
@@ -193,7 +193,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def addcovouts(self, covouts=None, prog_effects=None):
+    def add_covouts(self, covouts=None, prog_effects=None):
         '''
         Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
         covouts[parname][popname] = odict()
@@ -214,7 +214,7 @@ class ProgramSet(NamedItem):
                         # Sanitize inputs
                         npi_val = sanitize(popdata['npi_val'])
                         max_val = sanitize(popdata['max_val'])
-                        self.addcovout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+                        self.add_covout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -416,7 +416,7 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, data=None, unitcost=None, year=None, capacity=None, target_pops=None, target_comps=None, target_pars=None):
+    def __init__(self,short=None, name=None, data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_comps=None, target_pars=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
@@ -425,11 +425,11 @@ class Program(NamedItem):
         self.target_par_types = None
         self.target_pops = None
         self.data       = None # Latest or estimated expenditure
-        self.unitcost   = None 
+        self.unit_cost   = None 
         self.capacity   = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, data=data, unitcost=unitcost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars)
+        self.update(short=short, name=name, data=data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars)
         return None
 
 
@@ -444,7 +444,7 @@ class Program(NamedItem):
     
 
 
-    def update(self, short=None, name=None, data=None, unitcost=None, capacity=None, year=None, target_pops=None, target_pars=None):
+    def update(self, short=None, name=None, data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def settargetpars(target_pars=None):
@@ -483,51 +483,51 @@ class Program(NamedItem):
             self.target_par_types = list(set(old_target_par_types)) # Add the new values
             return None
         
-        def setunitcost(unitcost=None, year=None):
+        def set_unit_cost(unit_cost=None, year=None):
             '''
             Handle the unit cost, also complicated since have to convert to a dataframe. 
             
             Unit costs can be specified as a number, a tuple, or a dict. If a dict, they can be 
             specified with val as a tuple, or best, low, high as keys. Examples:
             
-            setunitcost(21) # Assumes current year and that this is the best value
-            setunitcost(21, year=2014) # Specifies year
-            setunitcost(year=2014, unitcost=[11, 31]) # Specifies year, low, and high
-            setunitcost({'year':2014', 'best':21}) # Specifies year and best
-            setunitcost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
-            setunitcost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
+            set_unit_cost(21) # Assumes current year and that this is the best value
+            set_unit_cost(21, year=2014) # Specifies year
+            set_unit_cost(year=2014, unit_cost=[11, 31]) # Specifies year, low, and high
+            set_unit_cost({'year':2014', 'best':21}) # Specifies year and best
+            set_unit_cost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
+            set_unit_cost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
             '''
             
             # Preprocessing
-            unitcostkeys = ['year', 'best', 'low', 'high']
+            unit_cost_keys = ['year', 'best', 'low', 'high']
             if year is None: year = 2018. # TEMPORARY
-            if self.unitcost is None: self.unitcost = dataframe(cols=unitcostkeys) # Create dataframe
+            if self.unit_cost is None: self.unit_cost = dataframe(cols=unit_cost_keys) # Create dataframe
             
             # Handle cases
-            if isinstance(unitcost, dataframe): 
-                self.unitcost = unitcost # Right format already: use directly
-            elif checktype(unitcost, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
-                if isnumber(unitcost[0]): # It's a number (or at least the first entry is): convert to values and use
-                    best,low,high = Val(unitcost).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
-                    self.unitcost.addrow([year, best, low, high])
+            if isinstance(unit_cost, dataframe): 
+                self.unit_cost = unit_cost # Right format already: use directly
+            elif checktype(unit_cost, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
+                if isnumber(unit_cost[0]): # It's a number (or at least the first entry is): convert to values and use
+                    best,low,high = Val(unit_cost).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
+                    self.unit_cost.addrow([year, best, low, high])
                 else: # It's not a list of numbers, so have to iterate
-                    for uc in unitcost: # Actually a list of unit costs
+                    for uc in unit_cost: # Actually a list of unit costs
                         if isinstance(uc, dict): 
-                            setunitcost(uc) # It's a dict: iterate recursively to add unit costs
+                            set_unit_cost(uc) # It's a dict: iterate recursively to add unit costs
                         else:
                             errormsg = 'Could not understand list of unit costs: expecting list of floats or list of dicts, not list containing %s' % uc
                             raise AtomicaException(errormsg)
-            elif isinstance(unitcost, dict): # Other main usage case -- it's a dict
-                if any([key not in unitcostkeys+['val'] for key in unitcost.keys()]):
-                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (unitcost.keys(), unitcostkeys)
+            elif isinstance(unit_cost, dict): # Other main usage case -- it's a dict
+                if any([key not in unit_cost_keys+['val'] for key in unit_cost.keys()]):
+                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (unit_cost.keys(), unit_cost_keys)
                     raise AtomicaException(errormsg)
-                val = unitcost.get('val') # First try to get 'val'
+                val = unit_cost.get('val') # First try to get 'val'
                 if val is None: # If that fails, get other arguments
-                    val = [unitcost.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
+                    val = [unit_cost.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
                 best,low,high = Val(val).get('all') # ... then sanitize them via Val
-                self.unitcost.addrow([unitcost.get('year',year), best, low, high]) # Actually add to dataframe
+                self.unit_cost.addrow([unit_cost.get('year',year), best, low, high]) # Actually add to dataframe
             else:
-                errormsg = 'Expecting unit cost of type dataframe, list/tuple/array, or dict, not %s' % type(unitcost)
+                errormsg = 'Expecting unit cost of type dataframe, list/tuple/array, or dict, not %s' % type(unit_cost)
                 raise AtomicaException(errormsg)
             return None
 
@@ -570,7 +570,7 @@ class Program(NamedItem):
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
         if target_pars is not None: settargetpars(target_pars) # targeted parameters
-        if unitcost    is not None: setunitcost(unitcost, year) # unit cost(s)
+        if unit_cost    is not None: set_unit_cost(unit_cost, year) # unit cost(s)
         if data        is not None: setdata(data, year) # spend and coverage data
         
         # Finally, check everything
@@ -594,12 +594,12 @@ class Program(NamedItem):
         return None
         
         
-    def addpars(self, unitcost=None, capacity=None, year=None):
-        ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unitcost. '''
+    def addpars(self, unit_cost=None, capacity=None, year=None):
+        ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unit_cost. '''
         # Convert inputs
         if year is not None: year=float(year)
-        if unitcost is not None: unitcost=promotetolist(unitcost)
-        self.update(unitcost=unitcost, capacity=capacity, year=year)
+        if unit_cost is not None: unit_cost=promotetolist(unit_cost)
+        self.update(unit_cost=unit_cost, capacity=capacity, year=year)
         return None
     
     
@@ -625,14 +625,13 @@ class Program(NamedItem):
                 return None
             
     
-    
-    def getunitcost(self, year=None, die=False):
+    def get_unit_cost(self, year=None, die=False):
         ''' Convenience function for getting the current unit cost '''
         if year is None: year = 2018. # TEMPORARY
         try:
-            thisdata = self.unitcost.findrow(year, closest=True, asdict=True) # Get data
-            unitcost = thisdata['best']
-            return unitcost
+            thisdata = self.unit_cost.findrow(year, closest=True, asdict=True) # Get data
+            unit_cost = thisdata['best']
+            return unit_cost
         except Exception as E:
             if die:
                 errormsg = 'Retrieving unit cost failed: %s' % E.message
@@ -652,9 +651,9 @@ class Program(NamedItem):
         valid = True # Assume the best
         tests = {}
         try:
-            tests['targetpops invalid'] = len(self.target_pops)<1
-            tests['targetpars invalid'] = len(self.target_pars)<1
-            tests['unitcost invalid']   = not(isnumber(self.getunitcost()))
+            tests['target_pops invalid'] = len(self.target_pops)<1
+            tests['target_pars invalid'] = len(self.target_pars)<1
+            tests['unit_cost invalid']   = not(isnumber(self.get_unit_cost()))
             tests['capacity invalid']   = self.capacity is None
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized
@@ -674,7 +673,7 @@ class Program(NamedItem):
         return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 
-    def get_num_covered(self, unitcost=None, capacity=None, budget=None, year=None, total=True, sample='best'):
+    def get_num_covered(self, unit_cost=None, capacity=None, budget=None, year=None, total=True, sample='best'):
         '''Returns coverage for a time/spending vector'''
         num_covered = 0.
         
@@ -689,12 +688,12 @@ class Program(NamedItem):
                 errormsg = 'No spending associated with the year provided: %s' % E.message
                 raise AtomicaException(errormsg)
                 
-        if unitcost is None:
-            try: unitcost = self.getunitcost(year)
+        if unit_cost is None:
+            try: unit_cost = self.get_unit_cost(year)
             except Exception as E:
                 errormsg = 'Can''t get number covered without a unit cost: %s' % E.message
                 raise AtomicaException(errormsg)
-            if isnan(unitcost):
+            if isnan(unit_cost):
                 errormsg = 'No unit cost associated with the year provided: %s' % E.message
                 raise AtomicaException(errormsg)
             
@@ -703,11 +702,11 @@ class Program(NamedItem):
             
         # Use a linear cost function if capacity has not been set
         if capacity is not None:
-            num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unitcost)))-capacity
+            num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unit_cost)))-capacity
             
         # Use a saturating cost function if capacity has been set
         else:
-            num_covered = budget/unitcost
+            num_covered = budget/unit_cost
 
         return num_covered
 
