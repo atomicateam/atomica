@@ -20,12 +20,12 @@ class ProgramSet(NamedItem):
     def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
-        self.programs = odict()
+        self.programs   = odict()
+        self.covout     = odict()
+        if programs is not None: self.add_programs(programs)
+        if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
         self.default_imp_interaction = default_imp_interaction
-        self.covout = odict()
-        if programs is not None: self.add_programs(programs)
-        if covouts is not None: self.add_covouts(covouts)
         self.created = today()
         self.modified = today()
         return None
@@ -63,15 +63,15 @@ class ProgramSet(NamedItem):
         # Read in the information for programs
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
-            data = {k: progdata[pkey][k] for k in ('spend', 'basespend')}
-            data['year'] = progdata['years']
+            spend_data = {k: progdata[pkey][k] for k in ('spend', 'basespend')}
+            spend_data['year'] = progdata['years']
             capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
-                        target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
-                        target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][i]],
+                        target_pops =[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
+                        target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
                         capacity=capcacity,
-                        data=data
+                        spend_data=spend_data
                         )
             programs.append(p)
         self.add_programs(progs=programs)
@@ -414,20 +414,21 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_comps=None, target_pars=None):
+    def __init__(self,short=None, name=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
-        self.short = None
-        self.target_pars = None
-        self.target_par_types = None
-        self.target_pops = None
-        self.data       = None # Latest or estimated expenditure
-        self.unit_cost   = None 
-        self.capacity   = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
+        self.short              = None # Short name of program
+        self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
+        self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
+        self.target_pops        = None # Populations targeted by the program
+        self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
+        self.spend_data         = None # Latest or estimated expenditure
+        self.unit_cost          = None # Unit cost of program
+        self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, data=data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars)
+        self.update(short=short, name=name, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
@@ -437,16 +438,17 @@ class Program(NamedItem):
         output += '          Program name: %s\n'    % self.short
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
+        output += ' Targeted compartments: %s\n'    % self.target_comps
         output += '\n'
         return output
     
 
 
-    def update(self, short=None, name=None, data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None):
+    def update(self, short=None, name=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
-            ''' Handle targetpars -- a little complicated since it's a list of dicts '''
+            ''' Set target parameters'''
             target_par_keys = ['param', 'pop']
             target_pars = promotetolist(target_pars) # Let's make sure it's a list before going further
             target_par_types = []
@@ -483,7 +485,7 @@ class Program(NamedItem):
         
         def set_unit_cost(unit_cost=None, year=None):
             '''
-            Handle the unit cost, also complicated since have to convert to a dataframe. 
+            Set unit cost.
             
             Unit costs can be specified as a number, a tuple, or a dict. If a dict, they can be 
             specified with val as a tuple, or best, low, high as keys. Examples:
@@ -494,6 +496,8 @@ class Program(NamedItem):
             set_unit_cost({'year':2014', 'best':21}) # Specifies year and best
             set_unit_cost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
             set_unit_cost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
+            
+            Note, this function will typically not be called directly, but rather through the update() methods
             '''
             
             # Preprocessing
@@ -530,46 +534,47 @@ class Program(NamedItem):
             return None
 
         
-        def set_data(data=None, year=None):
-            ''' Handle the spend-coverage, data, also complicated since have to convert to a dataframe '''
+        def set_spend(spend_data=None, year=None):
+            ''' Handle the spend data'''
             data_keys = ['year', 'spend', 'basespend']
-            if self.data is None: self.data = dataframe(cols=data_keys) # Create dataframe
+            if self.spend_data is None: self.spend_data = dataframe(cols=data_keys) # Create dataframe
             if year is None: year = 2018. # TEMPORARY
             
-            if isinstance(data, dataframe): 
-                self.data = data # Right format already: use directly
-            elif isinstance(data, dict):
-                data = {key:promotetolist(data.get(key)) for key in data_keys} # Get full row
-                if data['year'] is not None:
-                    for n,year in enumerate(data['year']):
-                        current_data = self.data.findrow(year,asdict=True) # Get current row as a dictionary
+            if isinstance(spend_data, dataframe): 
+                self.spend_data = spend_data # Right format already: use directly
+            elif isinstance(spend_data, dict):
+                spend_data = {key:promotetolist(spend_data.get(key)) for key in data_keys} # Get full row
+                if spend_data['year'] is not None:
+                    for n,year in enumerate(spend_data['year']):
+                        current_data = self.spend_data.findrow(year,asdict=True) # Get current row as a dictionary
                         if current_data is not None:
-                            for key in data.keys():
-                                if data[key][n] is None: data[key][n] = current_data[key] # Replace with old data if new data is None
-                        these_data = [data['year'][n], data['spend'][n], data['basespend'][n]] # Get full row - WARNING, FRAGILE TO ORDER!
-                        self.data.addrow(these_data) # Add new data
-            elif isinstance(data, list): # Assume it's a list of dicts
-                for datum in data:
+                            for key in spend_data.keys():
+                                if spend_data[key][n] is None: spend_data[key][n] = current_data[key] # Replace with old data if new data is None
+                        these_data = [spend_data['year'][n], spend_data['spend'][n], spend_data['basespend'][n]] # Get full row - WARNING, FRAGILE TO ORDER!
+                        self.spend_data.addrow(these_data) # Add new data
+            elif isinstance(spend_data, list): # Assume it's a list of dicts
+                for datum in spend_data:
                     if isinstance(datum, dict):
-                        set_data(datum) # It's a dict: iterate recursively
+                        set_spend(datum) # It's a dict: iterate recursively
                     else:
                         errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
                         raise AtomicaException(errormsg)
             else:
-                errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % data
+                errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % spend_data
                 raise AtomicaException(errormsg)
 
             return None
         
         # Actually set everything
-        if short       is not None: self.short          = short # short name
-        if name        is not None: self.name           = name # full name
-        if target_pops is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
+        if short        is not None: self.short          = short # short name
+        if name         is not None: self.name           = name # full name
+        if target_pops  is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
+        if target_pars  is not None: set_target_pars(target_pars) # targeted parameters
+        if target_comps is not None: self.target_comps    = promotetolist(target_comps, 'string') # key(s) for targeted populations
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
-        if target_pars is not None: set_target_pars(target_pars) # targeted parameters
-        if unit_cost    is not None: set_unit_cost(unit_cost, year) # unit cost(s)
-        if data        is not None: set_data(data, year) # spend and coverage data
+        if unit_cost   is not None: set_unit_cost(unit_cost, year) # unit cost(s)
+        if spend_data  is not None: set_spend(spend_data, year) # spend and coverage data
         
         # Finally, check everything
         if self.short is None: # self.short must exist
