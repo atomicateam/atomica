@@ -6,7 +6,7 @@ Version: 2018jun04 by cliffk
 
 import sciris.scirisobjects as sobj
 import sciris.datastore as ds
-import nutrition as on
+import atomica as at
 import sciris.user as user
 import sciris.core as sc
 import os
@@ -201,7 +201,7 @@ def init_projects(app):
     # Else (no match)...
     else:
         # Load the data path holding the Excel files.
-        data_path = on.ONpath('data')
+        #data_path = on.ONpath('data')
     
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Creating a new ProjectCollection.') 
@@ -209,7 +209,7 @@ def init_projects(app):
         
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Starting a demo project.')
-        proj = on.Project(name='Bangladesh 1')  
+        proj = at.Project(name='Bangladesh 1')  
         projSO = ProjectSO(proj, user.get_scirisdemo_user())
         proj_collection.add_object(projSO)
         
