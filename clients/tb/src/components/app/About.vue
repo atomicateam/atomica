@@ -8,10 +8,10 @@ Last update: 2018may28
   <div class="SitePage">
     <div style="max-width:800px; margin:auto" v-model="getVersionInfo">
       <div style="text-align:center;">
-        <img src="static/img/optima-logo-nutrition.png" width="250px">
+        <img src="static/img/optima-logo-tb.png" width="250px">
       </div>
       <br/><br/>
-      <p>Optima Nutrition is currently under development. Development is supported through a partnership
+      <p>Optima TB is currently under development. Development is supported through a partnership
         between the <a href="http://www.burnet.edu.au">Burnet Institute</a> and the <a href="http://www.worldbank.org">World Bank</a>.</p>
 
     <p>Technical information:</p>
