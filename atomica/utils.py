@@ -32,12 +32,9 @@ class SList(sc.odict):
         sc.odict.__setitem__(self, key, item)
         return None
     
-    def insert(self, pos=None, key=None, value=None):
-        if key is None:
-            key = value.name
-        else:
-            value.name = key
-        sc.odict.insert(self, pos=pos, key=key, value=value)
+    def append(self, value):
+        key = value.name
+        sc.odict.append(self, key=key, value=value)
         return None
 
 

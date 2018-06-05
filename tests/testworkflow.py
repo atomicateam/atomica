@@ -167,7 +167,7 @@ if "listspecs" in torun:
     
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
-    P.parsets.copy(old_name="default", new_name="manual")
+    P.parsets.copy("default", "manual")
     if test == "sir":
         P.parsets["manual"].set_scaling_factor(par_name="transpercontact", pop_name="adults", scale=0.5)
         outputs = ["ch_prev"]

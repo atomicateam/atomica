@@ -184,7 +184,7 @@ class Project(object):
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-        self.parsets.insert(ParameterSet(name))
+        self.parsets.append(ParameterSet(name))
         self.parsets[name].make_pars(self.data)
         return self.parsets[name]
 
@@ -241,7 +241,7 @@ class Project(object):
             programs.append(prg)
             
         progset = ProgramSet(name=name,programs=programs)
-        self.progsets.insert(progset)
+        self.progsets.append(progset)
         return progset
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
@@ -268,7 +268,7 @@ class Project(object):
         
     def make_scenario(self, name="default", instructions=None):
         scenario = ParameterScenario(name=name, scenario_values=instructions)
-        self.scens.insert(scenario)
+        self.scens.append(scenario)
         return scenario
 
 
@@ -365,7 +365,7 @@ class Project(object):
         sc.toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
-            self.results.insert(result)
+            self.results.append(result)
 
         return result
 
@@ -413,7 +413,7 @@ class Project(object):
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
-            self.parsets.insert(new_parset)
+            self.parsets.append(new_parset)
 
         return new_parset
 
