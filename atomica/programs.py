@@ -8,10 +8,9 @@ Version: 2018mar23
 
 from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
 from atomica.system import AtomicaException
-from sciris.utils import uuid
 from atomica.utils import NamedItem
 from numpy.random import uniform
-from numpy import array, nan, isnan, maximum, exp, ones, prod
+from numpy import array, nan, isnan, exp, ones, prod
 
 #--------------------------------------------------------------------
 # ProgramSet class
