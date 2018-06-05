@@ -27,3 +27,6 @@ print(atomica_license)
 
 # Import things for the user
 from . import ui
+
+# Import flavors
+import tb

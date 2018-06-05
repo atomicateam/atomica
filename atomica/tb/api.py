@@ -5,10 +5,10 @@ from atomica.plotting import PlotData, plot_series
 
 def new_project(name, start, end, pops):
     # Todo - actually use start, end, pops
-    P = atomica.Project(self, name, framework='tb_gui_framework.xlsx', databook_path=None, do_run=False):
+    P = atomica.ui.Project(self, name, framework='tb_gui_framework.xlsx', databook_path=None, do_run=False)
     return P
 
-def run(P,start, end, parset_name)
+def run(P,start, end, parset_name):
     if end < start: raise AtomicaInputError
     if parset_name not in P.parsets: raise NotFoundError
 
