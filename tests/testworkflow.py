@@ -4,6 +4,7 @@ Version:
 
 import atomica.ui as aui
 import os
+from sciris.core import odict
 
 # TODO: Wrap up what FE is likely to use into either Project or Result level method calls, rather than using functions.
 from atomica.plotting import PlotData, plot_series, plot_bars
@@ -105,6 +106,13 @@ if "loadprogramspreadsheet" in torun:
     P = demo(which='sir',do_plot=0)
     filename = 'databooks/programdata_sir.xlsx'
     P.load_progbook(databook_path=filename, make_default_progset=True)
+    
+    coverage = odict([('Risk avoidance',     .99),
+                     ('Harm reduction 1',   .8),
+                     ('Harm reduction 2',   .9),
+                     ('Treatment 1',        .99),
+                     ('Treatment 2',        .8)])
+    print(P.progsets[0].getoutcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
 if "makeplots" in torun:
 

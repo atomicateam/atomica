@@ -9,7 +9,7 @@ Version: 2018mar23
 from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
 from atomica.system import AtomicaException
 from numpy.random import uniform
-from numpy import array, nan, isnan
+from numpy import array, nan, isnan, maximum, exp, ones, prod
 
 
 #--------------------------------------------------------------------
@@ -26,7 +26,6 @@ class ProgramSet(object):
         self.covout = odict()
         if programs is not None: self.addprograms(programs)
         if covouts is not None: self.addcovouts(covouts)
-#        self.defaultbudget = odict()
         self.created = today()
         self.modified = today()
         return None
@@ -66,11 +65,12 @@ class ProgramSet(object):
             pkey = progdata['progs']['short'][np]
             data = {k: progdata[pkey][k] for k in ('spend', 'basespend')}
             data['year'] = progdata['years']
+            capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
                         target_pops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][i]],
-                        capacity=progdata[pkey]['capacity'],
+                        capacity=capcacity,
                         data=data
                         )
             programs.append(p)
@@ -104,6 +104,7 @@ class ProgramSet(object):
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
         self.addcovouts(progdata['pars'], prog_effects)
+        self.updateprogset()
         return None
 
         
@@ -115,12 +116,14 @@ class ProgramSet(object):
                 for thispop in prog.target_pops: self.target_pops.append(thispop)
             self.target_pops = list(set(self.target_pops))
 
+
     def settargetpars(self):
         '''Update model parameters targeted by some program in the response'''
         self.target_pars = []
         if self.programs:
             for thisprog in self.programs.values():
                 for thispop in thisprog.target_pars: self.target_pars.append(thispop)
+
 
     def settargetpartypes(self):
         '''Update model parameter types targeted by some program in the response'''
@@ -130,10 +133,11 @@ class ProgramSet(object):
                 for thispartype in thisprog.target_par_types: self.target_par_types.append(thispartype)
             self.target_par_types = list(set(self.target_par_types))
 
+
     def updateprogset(self, verbose=2):
         ''' Update (run this is you change something... )'''
         self.settargetpars()
-#        self.settargetpartypes()
+        self.settargetpartypes()
         self.settargetpops()
         return None
 
@@ -279,11 +283,126 @@ class ProgramSet(object):
         return defaultbudget
 
 
-    ## TODO : WRITE THESE
-    def getpars(self, coverage=None, year=None):
+    def getoutcomes(self, coverage=None, year=None, sample='best'):
+        ''' Get a dictionary of parameter values associated with coverage levels'''
+
+        # Validate inputs
+        if year is None: year = 2018. # TEMPORARY
+        if coverage is None:
+            raise AtomicaException('Please provide coverage to calculate outcomes')
+        if not isinstance(coverage, dict): # Only acceptable format at the moment
+            errormsg = 'Expecting coverage to be a dict, not %s' % type(coverage)
+            raise AtomicaException(errormsg)
+        for covkey, coventry in coverage.iteritems(): # Ensure coverage level values are arrays
+            coverage[covkey] = promotetoarray(coverage[covkey])
+        for covkey, coventry in coverage.iteritems(): # Ensure coverage levels are between 0 and 1
+            for item in coventry:
+                if item<0 or item>1:
+                    errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
+                    raise AtomicaException(errormsg)
+        
+        # Initialise output
+        outcomes = odict()
+        maxvals  = odict()
+
+        # Loop over parameter types
+        for thispartype in self.target_par_types:
+            outcomes[thispartype] = odict()
+            maxvals[thispartype] = odict()
+            
+            # Loop over populations relevant for this parameter type
+            for popno, thispop in enumerate(self.progs_by_target_par(thispartype).keys()):
+
+                delta, thiscov = odict(), odict()
+                effects = odict([(k,v.get(sample)) for k,v in self.covout[(thispartype,thispop)].progs.iteritems()])
+                best_prog = min(effects, key=effects.get)
+                best_eff  = effects[best_prog]
+                
+                # Loop over the programs that target this parameter/population combo
+                for thisprog in self.progs_by_target_par(thispartype)[thispop]:
+                    if not self.covout[(thispartype,thispop)].haspars():
+                        print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (thisprog.short))
+                        outcomes[thispartype][thispop] = None
+                    else:
+                        outcomes[thispartype][thispop]  = self.covout[(thispartype,thispop)].npi_val.get(sample)
+                        thiscov[thisprog.short]         = coverage[thisprog.short]
+                        delta[thisprog.short]           = self.covout[(thispartype,thispop)].progs[thisprog.short].get(sample) - outcomes[thispartype][thispop]
+                        maxvals[thispartype][thispop]   = self.covout[(thispartype,thispop)].max_val.get(sample)
+                        
+                # Pre-check for additive calc
+                if self.covout[(thispartype,thispop)].cov_interaction == 'Additive':
+                    if sum(thiscov[:])>1: 
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(thispartype)[thispop]], [thispartype, thispop], sum(thiscov[:])))
+                        self.covout[(thispartype,thispop)].cov_interaction = 'Random'
+                        
+                # ADDITIVE CALCULATION
+                # NB, if there's only one program targeting this parameter, just do simple additive calc
+                    
+                if self.covout[(thispartype,thispop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(thispartype)[thispop])==1:
+                    # Outcome += c1*delta_out1 + c2*delta_out2
+                    for thisprog in self.progs_by_target_par(thispartype)[thispop]:
+                        if not self.covout[(thispartype,thispop)].haspars():
+                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (thisprog.short, thispop, thispartype))
+                            outcomes[thispartype][thispop] = None
+                        else: 
+                            outcomes[thispartype][thispop] += thiscov[thisprog.short]*delta[thisprog.short]
+                        
+                # NESTED CALCULATION
+                elif self.covout[(thispartype,thispop)].cov_interaction == 'Nested':
+                    # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
+                    cov,delt = [],[]
+                    for thisprog in thiscov.keys():
+                        cov.append(thiscov[thisprog])
+                        delt.append(delta[thisprog])
+                    cov_tuple = sorted(zip(cov,delt)) # A tuple storing the coverage and delta out, ordered by coverage
+                    for j in range(len(cov_tuple)): # For each entry in here
+                        if j == 0: c1 = cov_tuple[j][0]
+                        else: c1 = cov_tuple[j][0]-cov_tuple[j-1][0]
+                        outcomes[thispartype][thispop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
+            
+                # RANDOM CALCULATION
+                elif self.covout[(thispartype,thispop)].cov_interaction == 'Random':
+                    # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
+
+                    for prog1 in thiscov.keys():
+                        product = ones(thiscov[prog1].shape)
+                        for prog2 in thiscov.keys():
+                            if prog1 != prog2:
+                                product *= (1-thiscov[prog2])
+        
+                        outcomes[thispartype][thispop] += delta[prog1]*thiscov[prog1]*product 
+
+                    # Recursion over overlap levels
+                    def overlap_calc(indexes,target_depth):
+                        if len(indexes) < target_depth:
+                            accum = 0
+                            for j in range(indexes[-1]+1,len(thiscov)):
+                                accum += overlap_calc(indexes+[j],target_depth)
+                            return thiscov.values()[indexes[-1]]*accum
+                        else:
+                            return thiscov.values()[indexes[-1]]* max(abs(([delta.values()[x] for x in [0]],0)))
+
+                    # Iterate over overlap levels
+                    for i in range(2,len(thiscov)): # Iterate over numbers of overlapping programs
+                        for j in range(0,len(thiscov)-1): # Iterate over the index of the first program in the sum
+                            outcomes[thispartype][thispop] += overlap_calc([j],i)[0]
+
+                    # All programs together
+                    outcomes[thispartype][thispop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
+
+                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[thispartype][thispop].interaction)
+        
+        return outcomes
+        
+        
+    def getpars(self, coverage=None, year=None, sample='best'):
+        ''' Get a full parset for given coverage levels'''
         pass
+    
+    
 
 
+    ## TODO : WRITE THESE
     def reconcile(self):
         pass
 
@@ -355,7 +474,6 @@ class Program(object):
                     errormsg = 'Targetpar must be string, tuple, or dict, not %s' % type(target_par)
                     raise AtomicaException(errormsg)
             self.target_pars.extend(target_pars) # Add the new values
-#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             old_target_pops = self.target_pops
             old_target_pops.extend(target_pops)
             self.target_pops = list(set(old_target_pops)) # Add the new values
@@ -555,14 +673,44 @@ class Program(object):
         return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 
-# TODO: WRITE THESE
-    def getcoverage(self, budget=None, t=None, parset=None, results=None, total=True, proportion=False, toplot=False, sample='best'):
+    def get_num_covered(self, unitcost=None, capacity=None, budget=None, year=None, total=True, sample='best'):
         '''Returns coverage for a time/spending vector'''
-        pass
+        num_covered = 0.
+        
+        # Validate inputs
+        if budget is None:
+            try:
+                budget = self.getspend(year)
+            except Exception as E:
+                errormsg = 'Can''t get number covered without a spending amount: %s' % E.message
+                raise AtomicaException(errormsg)
+            if isnan(budget):
+                errormsg = 'No spending associated with the year provided: %s' % E.message
+                raise AtomicaException(errormsg)
+                
+        if unitcost is None:
+            try: unitcost = self.getunitcost(year)
+            except Exception as E:
+                errormsg = 'Can''t get number covered without a unit cost: %s' % E.message
+                raise AtomicaException(errormsg)
+            if isnan(unitcost):
+                errormsg = 'No unit cost associated with the year provided: %s' % E.message
+                raise AtomicaException(errormsg)
+            
+        if capacity is None:
+            if self.capacity is not None: capacity = self.capacity.get(sample)
+            
+        # Use a linear cost function if capacity has not been set
+        if capacity is not None:
+            num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unitcost)))-capacity
+            
+        # Use a saturating cost function if capacity has been set
+        else:
+            num_covered = budget/unitcost
 
-    def getbudget(self, t=None, parset=None, results=None, proportion=False, toplot=False, sample='best'):
-        '''Returns budget for a coverage vector'''
-        pass
+        return num_covered
+
+
 
 
 #--------------------------------------------------------------------
@@ -623,6 +771,27 @@ class Covout(object):
             raise AtomicaException(errormsg)
         return None
             
+
+    def haspars(self, doprint=False):
+        ''' Check whether the object has required parameters'''
+        valid = True # Assume the best
+        tests = {}
+        try:
+            tests['NPI values invalid']         = not(isnumber(self.npi_val.get() ))
+            tests['Max values invalid']         = not(isnumber(self.max_val.get() ))
+            tests['Program values invalid']     = not(array([isnumber(prog.get()) for prog in self.progs.values()]).any())
+            if any(tests.values()):
+                valid = False # It's looking like it can't be optimized
+                if not valid and doprint:
+                    print('Program not optimizable for the following reasons: %s' % '\n'.join([key for key,val in tests.items() if val]))
+                
+        except Exception as E:
+            valid = False
+            if doprint:
+                print('Program not optimizable because an exception was encountered: %s' % E.message)
+        
+        return valid
+
 
 #--------------------------------------------------------------------
 # Val
