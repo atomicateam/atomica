@@ -1,12 +1,13 @@
 # Imports
 
-from atomica.system import AtomicaException, logger
+from atomica.system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
 from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure import convert_quantity
 from atomica.results import Result
 from atomica.parser_function import parse_function
 from collections import defaultdict
 from sciris.core import odict, uuid
+from atomica.utils import NamedItem
 
 import pickle
 import numpy as np
@@ -20,7 +21,7 @@ model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
 
-class Variable(object):
+class Variable(NamedItem):
     """
     Lightweight abstract class to store variable array of values (presumably corresponding to an external time vector).
     Includes an attribute to describe the format of these values.
@@ -29,8 +30,7 @@ class Variable(object):
     """
 
     def __init__(self, pop, name='default'):
-        self.uid = uuid()
-        self.name = name
+        NamedItem.__init__(self,name)
         self.t = None
         self.dt = None
         if 'vals' not in dir(self):  # characteristics already have a vals method
@@ -109,9 +109,9 @@ class Compartment(Variable):
             elif link.parameter.units == 'number':
                 outflow_probability += link.parameter.vals[ti] * self.dt / self.vals[ti]
             else:
-                raise AtomicaException('Unknown parameter units')
+                raise AtomicaInputError('Unknown parameter units')
 
-        remain_probability = 1 - outflow_probability
+        # remain_probability = 1 - outflow_probability
 
         dur = np.zeros(outflow_probability.shape)
         # From OSL/HMM-MAR:
@@ -293,8 +293,7 @@ class Parameter(Variable):
             for deps in self.deps.values():
                 for dep in deps:
                     if isinstance(dep, Link):
-                        raise AtomicaException("A Parameter that depends on transition flow rates "
-                                               "cannot be a dependency, it must be output only.")
+                        raise NotAllowedError("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
                     dep.set_dependent()
 
     def unlink(self):
@@ -513,8 +512,7 @@ class Population(object):
             # 'source_name:dest_name:par_name' - All links from Source to Dest belonging to a given Parameter
             # ':dest:par_name'
             # 'source::par_name' - As per above
-            # Note - because compartment names are resolved within compartments, this function currently cannot
-            # be used to look up transfer links
+            # '::par_name' - All links with specified par_name (less efficient than 'par_name:flow')
             name_tokens = name.split(':')
             if len(name_tokens) == 2:
                 name_tokens.append('')
@@ -534,7 +532,7 @@ class Population(object):
 
             return links
         else:
-            raise AtomicaException("Object '{0}' not found.".format(name))
+            raise NotFoundError("Object '{0}' not found.".format(name))
 
     def get_comp(self, comp_name):
         """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """
@@ -550,7 +548,7 @@ class Population(object):
         elif name in self.link_lookup:
             return self.link_lookup[name]
         else:
-            raise AtomicaException("Object '{0}' not found.".format(name))
+            raise NotFoundError("Object '{0}' not found.".format(name))
 
     def get_charac(self, charac_name):
         """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
@@ -928,8 +926,7 @@ class Model(object):
                         # self.pset.update_cache(alloc,self.t,self.dt) # Perform precomputations
 
             else:
-                raise AtomicaException("A model run was initiated with instructions to activate programs, "
-                                       "but no program set was passed to the model.")
+                raise NotAllowedError("A model run was initiated with instructions to activate programs, but no program set was passed to the model.")
         else:
             self.programs_active = False
 

@@ -117,7 +117,8 @@ if "loadprogramspreadsheet" in torun:
 if "makeplots" in torun:
 
     # Low level debug plots.
-    for var in test_vars: P.results["parset_default"].get_variable(test_pop,var)[0].plot()
+    for var in test_vars:
+        P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
     d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
@@ -174,7 +175,7 @@ if "listspecs" in torun:
     
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
-    P.copy_parset(old_name="default", new_name="manual")
+    P.parsets.copy(old_name="default", new_name="manual")
     if test == "sir":
         P.parsets["manual"].set_scaling_factor(par_name="transpercontact", pop_name="adults", scale=0.5)
         outputs = ["ch_prev"]
@@ -187,17 +188,16 @@ if "manualcalibrate" in torun:
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
-    P.copy_parset(old_name="default", new_name="auto")
     if test == "sir":
         # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
         adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
         measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
         # New name argument set to old name to do in-place calibration.
-        P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
     if test == "tb":
         # Shortcut for calibration measurables.
         adjustables = [("foi", "15-64", 0.0, 3.0)]
-        P.calibrate(parset="auto", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
     d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     plot_series(d, axis='results', data=P.data)
@@ -229,8 +229,8 @@ if "parameterscenario" in torun:
     scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
 
-    P.make_scenario(name="varying_infections", instructions=scvalues, overwrite=True)
-    P.run_scenario(scenario="varying_infections", parset="default", result_name="scen2")
+    P.make_scenario(name="varying_infections2", instructions=scvalues)
+    P.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
 
     d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     plot_series(d, axis="results")

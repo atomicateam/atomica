@@ -8,18 +8,31 @@ Version: 2018mar23
 
 from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
 from atomica.system import AtomicaException
+<<<<<<< HEAD
 from numpy.random import uniform
 from numpy import array, nan, isnan, maximum, exp, ones, prod
 
+=======
+from sciris.utils import uuid
+from atomica.utils import NamedItem
+>>>>>>> develop
 
 #--------------------------------------------------------------------
 # ProgramSet class
 #--------------------------------------------------------------------
-class ProgramSet(object):
+class ProgramSet(NamedItem):
 
+<<<<<<< HEAD
     def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         self.name = name
+=======
+    def __init__(self, name="default", programs=None, default_interaction="additive"):
+        """ Class to hold all programs. """
+        NamedItem.__init__(self,name)
+
+        self.default_interaction = default_interaction
+>>>>>>> develop
         self.programs = odict()
         self.default_cov_interaction = default_cov_interaction
         self.default_imp_interaction = default_imp_interaction
@@ -413,16 +426,23 @@ class ProgramSet(object):
 #--------------------------------------------------------------------
 # Program class
 #--------------------------------------------------------------------
-class Program(object):
+class Program(NamedItem):
     ''' Defines a single program.'''
 
     def __init__(self,short=None, name=None, data=None, unitcost=None, year=None, capacity=None, target_pops=None, target_comps=None, target_pars=None):
         '''Initialize'''
+        NamedItem.__init__(self,name)
+
         self.short = None
+<<<<<<< HEAD
         self.name = None
         self.target_pars = None
         self.target_par_types = None
         self.target_pops = None
+=======
+        self.targetpars = None
+        self.targetpops = None
+>>>>>>> develop
         self.data       = None # Latest or estimated expenditure
         self.unitcost   = None 
         self.capacity   = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear

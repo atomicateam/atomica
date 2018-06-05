@@ -1,18 +1,19 @@
 import numpy as np
 import pandas as pd
 from sciris.core import uuid, objrepr
+from atomica.utils import NamedItem
 
 
 # import optima_tb.settings as project_settings
 
-class Result(object):
+class Result(NamedItem):
     # A Result stores a single model run
     def __init__(self, model, parset, name):
-        self.uuid = uuid()
         if name is None:
-            self.name = parset.name
-        else:
-            self.name = name
+            name = parset.name
+        NamedItem.__init__(self,name)
+
+
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.
         self.model = model

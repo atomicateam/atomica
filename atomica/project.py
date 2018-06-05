@@ -37,14 +37,16 @@ from atomica.parameters import ParameterSet
 from atomica.programs import Program, ProgramSet
 from atomica.calibration import perform_autofit
 from atomica.project_settings import ProjectSettings
-from atomica.scenarios import ParameterScenario
+from atomica.scenarios import Scenario, ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.workbook_export import write_workbook, make_instructions
 from atomica.workbook_import import read_workbook, load_progbook
 from atomica._version import __version__
 from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
-
+from atomica.utils import SList
+from atomica.optimization import Optim
+from atomica.results import Result
 
 # from numpy.random import seed, randint
 
@@ -59,11 +61,11 @@ class Project(object):
         self.data = ProjectData()  # TEMPORARY
 
         # Define the structure sets
-        self.parsets = odict()
-        self.progsets = odict()
-        self.scens = odict()
-        self.optims = odict()
-        self.results = odict()
+        self.parsets = SList(enforce_type=ParameterSet)
+        self.progsets = SList(enforce_type=ProgramSet)
+        self.scens = SList(enforce_type=Scenario)
+        self.optims = SList(enforce_type=Optim)
+        self.results = SList(enforce_type=Result)
 
         # Define metadata
         self.uid = uuid()
@@ -152,12 +154,9 @@ class Project(object):
                                "despite no request to create a default parameter set.")
             self.run_sim(parset="default")
 
-    def make_parset(self, name="default", overwrite=True):
+    def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-
-        # TODO: Develop some flag or check for data 'emptiness'.
-        #        if not self.data: raise AtomicaException("ERROR: No data exists for project '{0}'.".format(self.name))
-        self.set_parset(parset_key=name, parset_object=ParameterSet(name=name), overwrite=overwrite)
+        self.parsets.insert(ParameterSet(name))
         self.parsets[name].make_pars(self.data)
         return self.parsets[name]
 
@@ -181,19 +180,12 @@ class Project(object):
         if make_default_progset: self.make_progset(name="default")
         
 
-    def make_progset(self, progdata=None, name="default",add=True):
+    def make_progset(self, progdata=None, name="default"):
         '''Make a progset from program spreadsheet data'''
         
         progset = ProgramSet(name=name)
         progset.make(progdata=progdata, project=self)
-
-        if add:
-            self.set_progset(progset_key=name,progset_object=progset)
-            return None
-        else:
-            return progset
-
-
+        self.progsets.insert(progset)
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
@@ -217,234 +209,12 @@ class Project(object):
 #
 #        return None
         
-    def make_scenario(self, name="default", instructions=None, save_to_project=True, overwrite=False):
+    def make_scenario(self, name="default", instructions=None):
         scenario = ParameterScenario(name=name, scenario_values=instructions)
-        if save_to_project:
-            self.set_scenario(scenario_key=name, scenario_object=scenario, overwrite=overwrite)
+        self.scens.insert(scenario)
         return scenario
 
-    #######################################################################################################
-    # Methods to handle common tasks with structure lists
-    #######################################################################################################
 
-    @staticmethod
-    def set_structure(structure_key, structure_object, structure_list, structure_string, overwrite=True):
-        """
-        Base function for setting elements of structure lists to a structure object.
-        Contains optional overwrite validation.
-        """
-        if structure_key in structure_list:
-            if not overwrite:
-                raise AtomicaException(
-                    "A {0} is already attached to a project under the key '{1}'.".format(structure_string,
-                                                                                         structure_key))
-            else:
-                logger.warning("A {0} already attached to the project with key '{1}' is being overwritten.".format(
-                    structure_string, structure_key))
-        structure_list[structure_key] = structure_object
-
-    def set_parset(self, parset_key, parset_object, overwrite=False):
-        """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
-        self.set_structure(structure_key=parset_key, structure_object=parset_object, structure_list=self.parsets,
-                           structure_string="parameter set", overwrite=overwrite)
-
-    def set_progset(self, progset_key, progset_object, overwrite=False):
-        """ 'Set' method for program sets to prevent overwriting unless explicit. """
-        self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets,
-                           structure_string="program set", overwrite=overwrite)
-
-    def set_scenario(self, scenario_key, scenario_object, overwrite=False):
-        """ 'Set' method for scenarios to prevent overwriting unless explicit. """
-        self.set_structure(structure_key=scenario_key, structure_object=scenario_object, structure_list=self.scens,
-                           structure_string="scenario", overwrite=overwrite)
-
-    def copy_parset(self, old_name="default", new_name="copy"):
-        """ Deep copy an existent parameter set. """
-        parset_object = dcp(self.parsets[old_name])
-        parset_object.change_id(new_name=new_name)
-        self.set_parset(parset_key=new_name, parset_object=parset_object)
-
-    def get_structure(self, structure, structure_list, structure_string):
-        """
-        Base method that allows structures to be retrieved via an object or string handle.
-        If the latter, validates for existence.
-        """
-        if structure is None:
-            if len(structure_list) < 1:
-                raise AtomicaException("Project '{0}' appears to have no {1}s. "
-                                       "Cannot select a default to run process.".format(self.name, structure_string))
-            else:
-                try:
-                    structure = structure_list["default"]
-                    logger.warning("Project '{0}' has selected {1} with key 'default' "
-                                   "to run process.".format(self.name, structure_string))
-                except KeyError:
-                    structure = structure_list[0]
-                    logger.warning("In the absence of a parameter set with key 'default', project '{0}' "
-                                   "has selected {1} with name '{2}' to run process.".format(self.name,
-                                                                                             structure_string,
-                                                                                             structure.name))
-        else:
-            if isinstance(structure, str):
-                if structure not in structure_list:
-                    raise AtomicaException("Project '{0}' is lacking a {1} named '{2}'. "
-                                           "Cannot run process.".format(self.name, structure_string, structure))
-                structure = structure_list[structure]
-        return structure
-
-    def get_parset(self, parset):
-        """ Allows for parsets to be retrieved from an object or string handle. """
-        return self.get_structure(structure=parset, structure_list=self.parsets, structure_string="parameter set")
-
-    def get_progset(self, progset):
-        """ Allows for progsets to be retrieved from an object or string handle. """
-        return self.get_structure(structure=progset, structure_list=self.progsets, structure_string="program set")
-
-    def get_scenario(self, scenario):
-        """ Allows for scenarios to be retrieved from an object or string handle. """
-        return self.get_structure(structure=scenario, structure_list=self.scens, structure_string="scenario")
-
-    def set_progset(self, progset_key, progset_object, overwrite = False):
-        """ 'Set' method for parameter sets to prevent overwriting unless explicit. """
-        self.set_structure(structure_key=progset_key, structure_object=progset_object, structure_list=self.progsets, 
-                           structure_string="program set", overwrite=overwrite)
-
-#    def getwhat(self, item=None, what=None):
-#        '''
-#        Figure out what kind of structure list is being requested, e.g.
-#            structlist = getwhat('parameters')
-#        will return P.parset.
-#        '''
-#        if item is None and what is None: raise AtomicaException('No inputs provided')
-#        if what is not None: # Explicitly define the type
-#            if what in ['p', 'pars', 'parset', 'parameters']: structlist = self.parsets
-#            elif what in ['pr', 'progs', 'progset', 'progsets']: structlist = self.progsets 
-#            elif what in ['s', 'scen', 'scens', 'scenario', 'scenarios']: structlist = self.scens
-#            elif what in ['o', 'opt', 'opts', 'optim', 'optims', 'optimisation', 'optimization', 'optimisations', 'optimizations']: structlist = self.optims
-#            elif what in ['r', 'res', 'result', 'results']: structlist = self.results
-#            else: raise AtomicaException('Structure list "%s" not understood' % what)
-#        else: # Figure out the type based on the input
-#            if type(item)==Parameterset: structlist = self.parsets
-#            elif type(item)==Programset: structlist = self.progsets
-#            elif type(item)==Resultset: structlist = self.results
-#            else: raise AtomicaException('Structure list "%s" not understood' % str(type(item)))
-#        return structlist
-#
-#
-#    def checkname(self, what=None, checkexists=None, checkabsent=None, overwrite=True):
-#        ''' Check that a name exists if it needs to; check that a name doesn't exist if it's not supposed to '''
-#        if type(what)==odict: structlist=what # It's already a structlist
-#        else: structlist = self.getwhat(what=what)
-#        if isnumber(checkexists): # It's a numerical index
-#            try: checkexists = structlist.keys()[checkexists] # Convert from 
-#            except: raise AtomicaException('Index %i is out of bounds for structure list "%s" of length %i' % (checkexists, what, len(structlist)))
-#        if checkabsent is not None:
-#            if checkabsent in structlist:
-#                if overwrite==False:
-#                    raise AtomicaException('Structure list "%s" already has item named "%s"' % (what, checkabsent))
-#                else:
-#                    printv('Structure list already has item named "%s"' % (checkabsent), 3, self.settings.verbose)
-#                
-#        if checkexists is not None:
-#            if not checkexists in structlist:
-#                raise AtomicaException('Structure list has no item named "%s"' % (checkexists))
-#        return None
-#
-#
-#    def add(self, name=None, item=None, what=None, overwrite=True, consistentnames=True):
-#        ''' Add an entry to a structure list -- can be used as add('blah', obj), add(name='blah', item=obj), or add(item) '''
-#        if name is None:
-#            try: name = item.name # Try getting name from the item
-#            except: name = 'default' # If not, revert to default
-#        if item is None:
-#            if type(name)!=str: # Maybe an item has been supplied as the only argument
-#                try: 
-#                    item = name # It's actully an item, not a name
-#                    name = item.name # Try getting name from the item
-#                except: raise AtomicaException('Could not figure out how to add item with name "%s" and item "%s"' % (name, item))
-#            else: # No item has been supplied, add a default one
-#                if what=='parset':  
-#                    item = Parameterset(name=name, project=self)
-#                    item.makepars(self.data, verbose=self.settings.verbose) # Create parameters
-#                elif what=='progset': 
-#                    item = Programset(name=name, project=self)
-##                elif what=='scen':
-##                    item = Parscen(name=name)
-##                elif what=='optim': 
-##                    item = Optim(project=self, name=name)
-#                else:
-#                    raise AtomicaException('Unable to add item of type "%s", please supply explicitly' % what)
-#        structlist = self.getwhat(item=item, what=what)
-#        self.checkname(structlist, checkabsent=name, overwrite=overwrite)
-#        structlist[name] = item
-#        if consistentnames: structlist[name].name = name # Make sure names are consistent -- should be the case for everything except results, where keys are UIDs
-##        if hasattr(structlist[name], 'projectref'): structlist[name].projectref = Link(self) # Fix project links
-##        printv('Item "%s" added to "%s"' % (name, what), 3, self.settings.verbose)
-#        self.modified = today()
-#        return None
-#
-#
-#    def remove(self, what=None, name=None):
-#        ''' Remove an entry from a structure list by name '''
-#        if name is None: name = -1 # If no name is supplied, remove the last item
-#        structlist = self.getwhat(what=what)
-#        self.checkname(what, checkexists=name)
-#        structlist.pop(name)
-##        printv('%s "%s" removed' % (what, name), 3, self.settings.verbose)
-#        self.modified = today()
-#        return None
-#
-#
-#    def copy(self, what=None, orig=None, new=None, overwrite=True):
-#        ''' Copy an entry in a structure list '''
-#        if orig is None: orig = -1
-#        if new  is None: new = 'new'
-#        structlist = self.getwhat(what=what)
-#        self.checkname(what, checkexists=orig, checkabsent=new, overwrite=overwrite)
-#        structlist[new] = dcp(structlist[orig])
-#        structlist[new].name = new  # Update name
-#        structlist[new].created = today() # Update dates
-#        structlist[new].modified = today() # Update dates
-##        if hasattr(structlist[new], 'projectref'): structlist[new].projectref = Link(self) # Fix project links
-##        printv('%s "%s" copied to "%s"' % (what, orig, new), 3, self.settings.verbose)
-#        self.modified = today()
-#        return None
-#
-#
-#    def rename(self, what=None, orig=None, new=None, overwrite=True):
-#        ''' Rename an entry in a structure list '''
-#        if orig is None: orig = -1
-#        if new  is None: new = 'new'
-#        structlist = self.getwhat(what=what)
-#        self.checkname(what, checkexists=orig, checkabsent=new, overwrite=overwrite)
-#        structlist.rename(oldkey=orig, newkey=new)
-#        structlist[new].name = new # Update name
-##        printv('%s "%s" renamed "%s"' % (what, orig, new), 3, self.settings.verbose)
-#        self.modified = today()
-#        return None
-#        
-#
-#    def addparset(self,   name=None, parset=None,   overwrite=True): self.add(what='parset',   name=name, item=parset,  overwrite=overwrite)
-#    def addprogset(self,  name=None, progset=None,  overwrite=True): self.add(what='progset',  name=name, item=progset, overwrite=overwrite)
-#    def addscen(self,     name=None, scen=None,     overwrite=True): self.add(what='scen',     name=name, item=scen,    overwrite=overwrite)
-#    def addoptim(self,    name=None, optim=None,    overwrite=True): self.add(what='optim',    name=name, item=optim,   overwrite=overwrite)
-#
-#    def rmparset(self,   name=None): self.remove(what='parset',   name=name)
-#    def rmprogset(self,  name=None): self.remove(what='progset',  name=name)
-#    def rmscen(self,     name=None): self.remove(what='scen',     name=name)
-#    def rmoptim(self,    name=None): self.remove(what='optim',    name=name)
-#
-#
-#    def copyparset(self,  orig=None, new=None, overwrite=True): self.copy(what='parset',   orig=orig, new=new, overwrite=overwrite)
-#    def copyprogset(self, orig=None, new=None, overwrite=True): self.copy(what='progset',  orig=orig, new=new, overwrite=overwrite)
-#    def copyscen(self,    orig=None, new=None, overwrite=True): self.copy(what='scen',     orig=orig, new=new, overwrite=overwrite)
-#    def copyoptim(self,   orig=None, new=None, overwrite=True): self.copy(what='optim',    orig=orig, new=new, overwrite=overwrite)
-#
-#    def renameparset(self,  orig=None, new=None, overwrite=True): self.rename(what='parset',   orig=orig, new=new, overwrite=overwrite)
-#    def renameprogset(self, orig=None, new=None, overwrite=True): self.rename(what='progset',  orig=orig, new=new, overwrite=overwrite)
-#    def renamescen(self,    orig=None, new=None, overwrite=True): self.rename(what='scen',     orig=orig, new=new, overwrite=overwrite)
-#    def renameoptim(self,   orig=None, new=None, overwrite=True): self.rename(what='optim',    orig=orig, new=new, overwrite=overwrite)
-#
 #    #######################################################################################################
 #    ### Utilities
 #    #######################################################################################################
@@ -508,9 +278,9 @@ class Project(object):
         An optional program set and use instructions can be passed in to simulate budget-based interventions.
         """
 
-        parset = self.get_parset(parset=parset)
+        parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         if progset is not None:     # Do not grab a default program set in case one does not exist.
-            progset = self.get_progset(progset=progset)
+            progset = progset if isinstance(progset, ProgramSet) else self.progsets[progset]
 
         if progset is None:
             logger.info("Initiating a standard run of project '{0}' "
@@ -538,7 +308,7 @@ class Project(object):
         toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
-            self.results[result_name] = result
+            self.results.insert(result)
 
         return result
 
@@ -570,7 +340,7 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
-        parset = self.get_parset(parset=parset)
+        parset = self.parsets[parset]
         if adjustables is None:
             adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
         if measurables is None:
@@ -584,9 +354,9 @@ class Project(object):
                 measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = perform_autofit(project=self, parset=parset,
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
-        new_parset.change_id(new_name=new_name)  # The new parset is a calibrated copy of the old, so change id.
+        new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
-            self.set_parset(parset_key=new_parset.name, parset_object=new_parset, overwrite=True)
+            self.parsets.insert(new_parset)
 
         return new_parset
 
@@ -594,11 +364,14 @@ class Project(object):
     #        ''' Function to get the outcome for a particular sim and objective'''
     #        pass
 
-    def run_scenario(self, scenario, parset=None, progset=None, progset_instructions=None,
+    def run_scenario(self, scenario, parset, progset=None, progset_instructions=None,
                      store_results=True, result_name=None):
         """ Run a scenario. """
-        parset = self.get_parset(parset)
-        scenario = self.get_scenario(scenario)
+        parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
+        if progset:
+            progset = progset if isinstance(progset, ProgramSet) else self.progsets[progset]
+
+        scenario = scenario if isinstance(scenario,Scenario) else self.scens[scenario]
         scenario_parset = scenario.get_parset(parset, self.settings)
         scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
         return self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
