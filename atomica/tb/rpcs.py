@@ -381,7 +381,7 @@ def create_new_project(user_id):
     new_proj_name = get_unique_name('New project', other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
-    proj = at.Project(name=new_proj_name)  
+    proj = at.ui.Project(name=new_proj_name)  
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
@@ -486,7 +486,7 @@ def get_default_scenario_plot():
     ''' Plot the disease burden '''
     
     # Get the Project object.
-    proj = at.Project() # WARNING, just create new project
+    proj = at.ui.Project() # WARNING, just create new project
     proj.default_scens(dorun=True)
     result = proj.get_results('test1')
     fig = on.plotting.make_plots(result) # HARDCODED EXAMPLE
