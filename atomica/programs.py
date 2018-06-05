@@ -137,7 +137,7 @@ class ProgramSet(NamedItem):
     def update_progset(self):
         ''' Update (run this is you change something... )'''
         self.set_target_pars()
-        self.set_targetpar_types()
+        self.set_target_par_types()
         self.set_target_pops()
         return None
 
