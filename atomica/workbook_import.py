@@ -224,6 +224,9 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
                         quick_label = str(worksheet.cell_value(quick_row, id_col))
                         if quick_label == "":
                             quick_scan = False
+                        elif quick_label == SS.DEFAULT_SYMBOL_IGNORE:
+                            # TODO: PROBLEM WITH "..."
+                            pass
                         else:
                             # If table iterates over tupled items rather that just items, the tupled name pair is key.
                             if table.iterate_over_links:
@@ -245,10 +248,10 @@ def read_time_dependent_values_entry(worksheet, table, start_row,
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
+                if label == SS.DEFAULT_SYMBOL_IGNORE:
+                    continue
                 # Time series keys for standard items are their names.
                 data_key = structure.get_spec_name(label)
-                if data_key == SS.DEFAULT_SYMBOL_IGNORE:
-                    continue
                 # Keys for time series that involve links between items are tuple-pairs of their names.
                 if table.iterate_over_links:
                     data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))

@@ -541,7 +541,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                                  "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
     worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
 
-    # Create the standard value entry block, extracting the number of items from instructions.
+    # Prepare the standard value entry block, extracting the number of items from instructions.
     # TODO: Adjust this for when writing existing values to workbook.
     num_items = 0
     if use_instructions:
@@ -580,16 +580,14 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
         default_values = [item_specs[item_type][item_key]["default_value"]] * num_items
     # TODO: Make sure this is robust when writing from framework/data rather than instructions.
     time_vector = instructions.tvec
-    create_value_entry_block(excel_page=worksheet, start_row=start_row, start_col=start_col + block_col,
-                             num_items=num_items, time_vector=time_vector,
-                             default_values=default_values, formats=formats,
-                             quantity_types=quantity_types)
 
     # Fill in the appropriate 'keys' for the table.
     row += 1
+    condition_list = None
     if use_instructions:
         # Construct row headers for tuples of iterated item type, if appropriate.
         if table.iterate_over_links:
+            condition_list = []
             for source_number in range(instructions.num_items[iterated_type]):
                 for target_number in range(instructions.num_items[iterated_type]):
                     if source_number == target_number:
@@ -602,6 +600,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                         condition_string = "'{0}'!{1}<>\"{2}\"".format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
                     except KeyError:
                         condition_string = None
+                    condition_list.append("NOT(" + condition_string + ")")
                     create_attribute_cell_content(worksheet=worksheet, row=row, col=col, attribute="label",
                                                   item_type=iterated_type, item_type_specs=item_type_specs,
                                                   alt_content="\""+SS.DEFAULT_SYMBOL_IGNORE+"\"", alt_condition=condition_string,
@@ -623,6 +622,12 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                                               item_type_specs=item_type_specs,
                                               item_number=item_number, formats=formats, temp_storage=temp_storage)
                 row += 1
+
+        # Create the actual value entry block.
+        create_value_entry_block(excel_page=worksheet, start_row=start_row, start_col=start_col + block_col,
+                                 num_items=num_items, time_vector=time_vector,
+                                 default_values=default_values, condition_list=condition_list, formats=formats,
+                                 quantity_types=quantity_types)
     row += 1  # Extra row to space out following tables.
 
     next_row, next_col = row, col
