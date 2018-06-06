@@ -181,6 +181,7 @@ class ProgramSet(NamedItem):
                 else: print(errormsg)
             for co in self.covout.values(): # Remove from coverage-outcome functions too
                 co.progs.pop(prog, None)
+        self.update_progset()
         return None
 
 
