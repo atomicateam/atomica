@@ -21,6 +21,7 @@ from atomica.model import Compartment, Characteristic, Parameter, Link
 from atomica.results import Result
 from atomica.system import AtomicaException, logger
 from atomica.parser_function import parse_function
+from atomica.utils import SList
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -131,6 +132,8 @@ class PlotData(object):
             results = [result for _, result in results.items()]
         elif isinstance(results, Result):
             results = [results]
+        elif isinstance(results, SList):
+            results = list(results)
 
         result_names = [x.name for x in results]
         if len(set(result_names)) != len(result_names):
@@ -286,7 +289,6 @@ class PlotData(object):
                         deps[dep_label] = vars
                     par._fcn = fcn
                     par.deps = deps
-                    par.has_fcn = True
                     par.preallocate(tvecs[result_label], dt)
                     par.update()
                     data_dict[output_label] = par.vals

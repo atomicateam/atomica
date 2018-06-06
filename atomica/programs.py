@@ -8,16 +8,18 @@ Version: 2018mar23
 
 from sciris.core import odict, today, getdate, defaultrepr, dataframe, promotetolist
 from atomica.system import AtomicaException
-
+from sciris.utils import uuid
+from atomica.utils import NamedItem
 
 #--------------------------------------------------------------------
 # ProgramSet class
 #--------------------------------------------------------------------
-class ProgramSet(object):
+class ProgramSet(NamedItem):
 
     def __init__(self, name="default", programs=None, default_interaction="additive"):
         """ Class to hold all programs. """
-        self.name = name
+        NamedItem.__init__(self,name)
+
         self.default_interaction = default_interaction
         self.programs = odict()
         if programs is not None: self.addprograms(programs)
@@ -64,13 +66,14 @@ class ProgramSet(object):
 #--------------------------------------------------------------------
 # Program class
 #--------------------------------------------------------------------
-class Program(object):
+class Program(NamedItem):
     ''' Defines a single program.'''
 
     def __init__(self,short=None, name=None, data=None, unitcost=None, year=None, capacity=None, targetpops=None, targetpars=None):
         '''Initialize'''
+        NamedItem.__init__(self,name)
+
         self.short = None
-        self.name = None
         self.targetpars = None
         self.targetpops = None
         self.data       = None # Latest or estimated expenditure
