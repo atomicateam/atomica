@@ -985,7 +985,7 @@ class Model(object):
         """
 
         ti = self.t_index
-        np.seterr(all='raise')
+
         for pop in self.pops:
 
             # First, populate all of the link values without any outflow constraints
