@@ -28,8 +28,8 @@ class SList(sc.odict):
     def __setitem__(self, key, item):
         if not isinstance(item,NamedItem):
             raise NotAllowedError("Only NamedItems can be stored in SLists")
-        item.name = key
         sc.odict.__setitem__(self, key, item)
+        item.name = key
         return None
     
     def append(self, value):
