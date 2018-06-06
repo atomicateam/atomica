@@ -2,7 +2,6 @@
 
 from atomica.system import AtomicaException, logger
 from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure import convert_quantity
 from atomica.results import Result
 from atomica.parser_function import parse_function
 from collections import defaultdict
@@ -997,34 +996,34 @@ class Model(object):
                         for link in par.links:
                             link.vals[ti] = 0.0
                         continue
-                    elif par.units == 'probability':
-                        if transition > 1.0:
-                            # validation_level = settings.validation['transition_fraction']
-                            # if validation_level == project_settings.VALIDATION_ERROR:
-                            #     raise AtomicaException(warning)
-                            # elif validation_level == project_settings.VALIDATION_WARN:
-                            #     warning = "(t=%.2f) Link %s-%s (%s) has transition value = %.3f (>1)" % (self.t[ti], link.source.label, link.dest.label, pop.label, transition)
-                            #     logger.warn(warning)
-                            transition = 1.0
-                        converted_frac = 1 - (1 - transition) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
+                    quantity_type = par.units
 
+                    # An annual duration can be converted into an annual probability; do it.
+                    if quantity_type == FS.QUANTITY_TYPE_DURATION:
+                        transition = 1.0 - np.exp(-1.0 / transition)
+                        quantity_type = FS.QUANTITY_TYPE_PROBABILITY
+
+                    # Convert probability by Poisson distribution formula to a value appropriate for timestep.
+                    if quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
+                        if transition > 1.0:
+                            transition = 1.0
+                        converted_frac = 1 - (1 - transition) ** self.dt
                         for link in par.links:
-                            if link.source.tag_birth:
-                                n_alive = 0
-                                for p in self.pops:
-                                    n_alive += p.popsize(ti)
-                                link.vals[ti] = n_alive * converted_frac
-                            else:
-                                link.vals[ti] = link.source.vals[ti] * converted_frac
-                    elif par.units == 'number':
+                            link.vals[ti] = link.source.vals[ti] * converted_frac
+                    # Linearly convert number down to that appropriate for one timestep.
+                    # Disaggregate proportionally across all source compartment sizes related to all links.
+                    elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
                         converted_amt = transition * self.dt
                         if len(par.links) > 1:
                             for link in par.links:
                                 link.vals[ti] = converted_amt * link.source.vals[ti] / par.source_popsize(ti)
                         else:
                             par.links[0].vals[ti] = converted_amt
+                    elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
+                        raise AtomicaException("Encountered unknown quantity type '{0}' during model "
+                                               "run.".format(quantity_type))
 
-            # Then, adjust outflows to prevent negative popsizes
+            # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
                 if not (comp_source.is_junction or comp_source.tag_birth):
                     outflow = 0.0
@@ -1032,13 +1031,6 @@ class Model(object):
                         outflow += link.vals[ti]
 
                     if outflow > comp_source.vals[ti]:
-                        # validation_level = settings.validation['negative_population']
-                        # warning = "(t=%.2f) Negative value encountered for: (%s - %s) at ti=%g : popsize = %g, outflow = %g" % (self.t[ti],pop.label,comp_source.label,ti,comp_source.vals[ti],outflow)
-                        # if validation_level == project_settings.VALIDATION_ERROR:
-                        #     raise AtomicaException(warning)
-                        # elif validation_level == project_settings.VALIDATION_WARN:
-                        #     logger.warn(warning)
-
                         rescale = comp_source.vals[ti]/outflow
                         for link in comp_source.outlinks:
                             link.vals[ti] *= rescale

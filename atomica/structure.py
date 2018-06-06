@@ -28,55 +28,55 @@ def get_quantity_type_list(include_absolute=False, include_relative=False, inclu
     return quantity_types
 
 
-def convert_quantity(value, initial_type, final_type, set_size=None, dt=1.0):
-    """
-    Converts a quantity from one type to another and applies a time conversion if requested.
-    All values must be provided with respect to the project unit of time, e.g. a year.
-    Note: Time conversion should only be applied to rate-based quantities, not state variables.
-    """
-    absolute_types = [FS.QUANTITY_TYPE_NUMBER]
-    relative_types = [FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
-    initial_class = SS.QUANTITY_TYPE_ABSOLUTE if initial_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
-    final_class = SS.QUANTITY_TYPE_ABSOLUTE if final_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
-    value = float(value)  # Safety conversion for type.
-
-    if initial_type not in absolute_types + relative_types:
-        raise AtomicaException("An attempt to convert a quantity between types was made, "
-                               "but initial type '{0}' was not recognised.".format(initial_type))
-    if final_type not in absolute_types + relative_types:
-        raise AtomicaException("An attempt to convert a quantity between types was made, "
-                               "but final type '{0}' was not recognised.".format(final_type))
-
-    # Convert the value of all input quantities to standardised 'absolute' or 'relative' format.
-    if initial_type == FS.QUANTITY_TYPE_DURATION:
-        value = 1.0 - np.exp(-1.0 / value)
-
-    # Convert between standard 'absolute' and 'relative' formats, if applicable.
-    if not initial_class == final_class:
-        if set_size is None:
-            raise AtomicaException("An attempt to convert a quantity between absolute and relative types was made, "
-                                   "but no set size was provided as the denominator for conversion.")
-        if initial_class == SS.QUANTITY_TYPE_ABSOLUTE:
-            value = value / set_size
-        else:
-            value = value * set_size
-
-    # Convert value from standardised 'absolute' or 'relative' formats to that which is requested.
-    if final_type == FS.QUANTITY_TYPE_DURATION:
-        value = -1.0 / np.log(1.0 - value)
-
-    # Convert to the corresponding timestep value.
-    if not dt == 1.0:
-        if final_type == FS.QUANTITY_TYPE_DURATION:
-            value /= dt  # Average duration before transition in number of timesteps.
-        elif final_type == FS.QUANTITY_TYPE_PROBABILITY:
-            value = 1 - (1 - value) ** dt
-        elif final_type in [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_FRACTION]:
-            value *= dt
-        else:
-            raise AtomicaException("Time conversion for type '{0}' is not known.".format(final_type))
-
-    return value
+# def convert_quantity(value, initial_type, final_type, set_size=None, dt=1.0):
+#     """
+#     Converts a quantity from one type to another and applies a time conversion if requested.
+#     All values must be provided with respect to the project unit of time, e.g. a year.
+#     Note: Time conversion should only be applied to rate-based quantities, not state variables.
+#     """
+#     absolute_types = [FS.QUANTITY_TYPE_NUMBER]
+#     relative_types = [FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION]
+#     initial_class = SS.QUANTITY_TYPE_ABSOLUTE if initial_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
+#     final_class = SS.QUANTITY_TYPE_ABSOLUTE if final_type in absolute_types else SS.QUANTITY_TYPE_RELATIVE
+#     value = float(value)  # Safety conversion for type.
+#
+#     if initial_type not in absolute_types + relative_types:
+#         raise AtomicaException("An attempt to convert a quantity between types was made, "
+#                                "but initial type '{0}' was not recognised.".format(initial_type))
+#     if final_type not in absolute_types + relative_types:
+#         raise AtomicaException("An attempt to convert a quantity between types was made, "
+#                                "but final type '{0}' was not recognised.".format(final_type))
+#
+#     # Convert the value of all input quantities to standardised 'absolute' or 'relative' format.
+#     if initial_type == FS.QUANTITY_TYPE_DURATION:
+#         value = 1.0 - np.exp(-1.0 / value)
+#
+#     # Convert between standard 'absolute' and 'relative' formats, if applicable.
+#     if not initial_class == final_class:
+#         if set_size is None:
+#             raise AtomicaException("An attempt to convert a quantity between absolute and relative types was made, "
+#                                    "but no set size was provided as the denominator for conversion.")
+#         if initial_class == SS.QUANTITY_TYPE_ABSOLUTE:
+#             value = value / set_size
+#         else:
+#             value = value * set_size
+#
+#     # Convert value from standardised 'absolute' or 'relative' formats to that which is requested.
+#     if final_type == FS.QUANTITY_TYPE_DURATION:
+#         value = -1.0 / np.log(1.0 - value)
+#
+#     # Convert to the corresponding timestep value.
+#     if not dt == 1.0:
+#         if final_type == FS.QUANTITY_TYPE_DURATION:
+#             value /= dt  # Average duration before transition in number of timesteps.
+#         elif final_type == FS.QUANTITY_TYPE_PROBABILITY:
+#             value = 1 - (1 - value) ** dt
+#         elif final_type in [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_FRACTION]:
+#             value *= dt
+#         else:
+#             raise AtomicaException("Time conversion for type '{0}' is not known.".format(final_type))
+#
+#     return value
 
 
 class TimeSeries(object):
