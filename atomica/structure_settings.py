@@ -521,6 +521,8 @@ class DataSettings(BaseStructuralSettings):
                                                         iterated_type=cls.KEY_POPULATION,
                                                         iterate_over_links=True,
                                                         value_attribute=cls.TERM_DATA))
+        cls.PAGE_SPECS[cls.KEY_TRANSFER]["can_skip"] = True
+        cls.PAGE_SPECS[cls.KEY_TRANSFER_DATA]["can_skip"] = True
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
