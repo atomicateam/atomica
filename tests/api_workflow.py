@@ -8,7 +8,7 @@ ipython = get_ipython()
 if ipython is not None:
     ipython.magic('load_ext autoreload')
     ipython.magic('autoreload 2')
-from atomica.plotting import PlotData,plot_series,plot_bars
+from atomica.core.plotting import PlotData,plot_series,plot_bars # WARNING, import everything via atomica.ui
 
 import atomica.ui as aui
 import os
