@@ -12,8 +12,8 @@ from atomica.plotting import PlotData,plot_series,plot_bars
 
 import atomica.ui as aui
 import os
-from atomica.scenarios import ParameterScenario
-from atomica.calibration import perform_autofit
+from atomica.core.scenarios import ParameterScenario
+from atomica.core.calibration import perform_autofit
 
 plot_initial = True
 
