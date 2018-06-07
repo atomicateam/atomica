@@ -117,7 +117,7 @@ class Result(NamedItem):
 #    
 #    def __repr__(self):
 #        ''' Print out useful information when called '''
-#        output = defaultrepr(self)
+#        output = desc(self)
 #        return output
 #
 #

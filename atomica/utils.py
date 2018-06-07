@@ -24,7 +24,7 @@ class NamedItem(object):
         return sc.desc(self)
 
 
-class SDict(sc.odict):
+class NDict(sc.odict):
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
         return None

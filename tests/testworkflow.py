@@ -4,12 +4,13 @@ Version:
 
 import atomica.ui as aui
 import os
+from sciris.core import odict
 
 # TODO: Wrap up what FE is likely to use into either Project or Result level method calls, rather than using functions.
 from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
-# test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -21,16 +22,16 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-"makeprogramspreadsheet",
+#"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-"makeplots",
-"export",
-"listspecs",
-"manualcalibrate",
-"autocalibrate",
-"parameterscenario",
-"saveproject",
-"loadproject",
+#"makeplots",
+#"export",
+#"listspecs",
+#"manualcalibrate",
+#"autocalibrate",
+#"parameterscenario",
+#"saveproject",
+#"loadproject",
 ]
 
 # Define plotting variables in case plots are generated
@@ -70,8 +71,9 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = aui.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": args = {"num_pops":1, "num_progs":3, "data_start":2005, "data_end":2015, "data_dt":0.5}
-    elif test == "tb": args = {"num_pops":12, "num_progs":31, "data_end":2018}
+    if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
+                              "data_start":2000, "data_end":2015, "data_dt":1.0}
+    elif test == "tb": args = {"num_pops":12, "num_trans":5, "num_progs":31, "data_end":2018}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -90,30 +92,40 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('Making programs spreadsheet ...')
+    print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
     from atomica.defaults import demo
     from atomica.workbook_export import makeprogramspreadsheet
 
-    P = demo(which='sir',do_plot=0)
-    filename = 'temp/programspreadsheet.xlsx'
+    P = demo(which=test,do_plot=0)
+    filename = "temp/programspreadsheet.xlsx"
     makeprogramspreadsheet(filename, pops=2, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    print('\n\n\nLoading programs spreadsheet ...')
-    from atomica.defaults import demo
-
-    P = demo(which='sir',do_plot=0)
-    filename = 'databooks/programdata_sir.xlsx'
-    P.load_progbook(databook_path=filename)
+    if test=='tb':
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    else:
+        print('\n\n\nLoading programs spreadsheet ...')
+        from atomica.defaults import demo
+    
+        P = demo(which=test,do_plot=0)
+        filename = "databooks/programdata_"+test+".xlsx"
+        P.load_progbook(databook_path=filename, make_default_progset=True)
+        
+        coverage = odict([('Risk avoidance',     .99),
+                         ('Harm reduction 1',   .8),
+                         ('Harm reduction 2',   .9),
+                         ('Treatment 1',        .99),
+                         ('Treatment 2',        .8)])
+        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
 if "makeplots" in torun:
 
     # Low level debug plots.
     for var in test_vars:
-        P.results["parset_default"].get_variable(test_pop,var)[0].plot()
+        P.results["default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
+    d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
     plot_series(d, plot_type="stacked")
 
     if test == "tb":
@@ -132,17 +144,17 @@ if "makeplots" in torun:
         plot_series(d, plot_type='stacked', axis='outputs')
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
+        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         plot_series(d, plot_type='stacked', axis='outputs')
 
 
     # Plot aggregate flows
-    d = PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
+    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
     plot_series(d, axis="pops")
 
 
 if "export" in torun:
-    P.results["parset_default"].export(tmpdir+test+"_results")
+    P.results["default"].export(tmpdir+test+"_results")
     
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
@@ -175,7 +187,7 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
-    d = PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
     plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:

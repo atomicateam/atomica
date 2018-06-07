@@ -31,7 +31,7 @@ from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.model import run_model
 from atomica.parameters import ParameterSet
-from atomica.programs import Program, ProgramSet
+from atomica.programs import ProgramSet
 from atomica.scenarios import Scenario, ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
@@ -141,7 +141,7 @@ class Project(object):
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=None, num_progs=None, data_start=None, data_end=None,
+    def create_databook(self, databook_path=None, num_pops=None, num_trans=None, num_progs=None, data_start=None, data_end=None,
                         data_dt=None):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
@@ -149,6 +149,8 @@ class Project(object):
         databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if num_pops is not None:
             databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
+        if num_trans is not None:
+            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_trans)  # Set the number of transfers.
         if num_progs is not None:
             databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
         databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)
@@ -211,38 +213,9 @@ class Project(object):
     def make_progset(self, progdata=None, name="default"):
         '''Make a progset from program spreadsheet data'''
         
-        # Sort out inputs
-        if progdata is None:
-            if self.progdata is None:
-                errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
-                raise AtomicaException(errormsg)
-            else:
-                progdata = self.progdata
-                
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.popnames):
-            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
-            raise AtomicaException(errormsg)
-                
-        nprogs = len(progdata['progs']['short'])
-        programs = []
-        
-        for n in range(nprogs):
-            pkey = progdata['progs']['short'][n]
-            data = {k: progdata[pkey][k] for k in ('cost', 'coverage')}
-            data['t'] = progdata['years']
-            prg = Program(short=pkey,
-                        name=progdata['progs']['short'][n],
-                        targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]],
-                        unitcost=progdata[pkey]['unitcost'],
-                        capacity=progdata[pkey]['capacity'],
-                        data=data
-                        )
-            programs.append(prg)
-            
-        progset = ProgramSet(name=name,programs=programs)
+        progset = ProgramSet(name=name)
+        progset.make(progdata=progdata, project=self)
         self.progsets.append(progset)
-        return progset
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
