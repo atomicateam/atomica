@@ -2,7 +2,6 @@
 
 from atomica.system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
 from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure import convert_quantity
 from atomica.results import Result
 from atomica.parser_function import parse_function
 from collections import defaultdict
@@ -854,8 +853,8 @@ class Model(object):
             if parset.transfers[trans_type]:
                 for pop_source in parset.transfers[trans_type]:
 
-                    transfer_parameter = parset.transfers[trans_type][
-                        pop_source]  # This contains the data for all of the destrination pops
+                    # This contains the data for all of the destination pops.
+                    transfer_parameter = parset.transfers[trans_type][pop_source]
 
                     pop = self.get_pop(pop_source)
 
@@ -985,66 +984,53 @@ class Model(object):
 
         for pop in self.pops:
 
+            # First, populate all of the link values without any outflow constraints
+            for par in pop.pars:
+                if par.links:
+                    transition = par.vals[ti]
+
+                    if not transition:
+                        for link in par.links:
+                            link.vals[ti] = 0.0
+                        continue
+                    quantity_type = par.units
+
+                    # An annual duration can be converted into an annual probability; do it.
+                    if quantity_type == FS.QUANTITY_TYPE_DURATION:
+                        transition = 1.0 - np.exp(-1.0 / transition)
+                        quantity_type = FS.QUANTITY_TYPE_PROBABILITY
+
+                    # Convert probability by Poisson distribution formula to a value appropriate for timestep.
+                    if quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
+                        if transition > 1.0:
+                            transition = 1.0
+                        converted_frac = 1 - (1 - transition) ** self.dt
+                        for link in par.links:
+                            link.vals[ti] = link.source.vals[ti] * converted_frac
+                    # Linearly convert number down to that appropriate for one timestep.
+                    # Disaggregate proportionally across all source compartment sizes related to all links.
+                    elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
+                        converted_amt = transition * self.dt
+                        if len(par.links) > 1:
+                            for link in par.links:
+                                link.vals[ti] = converted_amt * link.source.vals[ti] / par.source_popsize(ti)
+                        else:
+                            par.links[0].vals[ti] = converted_amt
+                    elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
+                        raise AtomicaException("Encountered unknown quantity type '{0}' during model "
+                                               "run.".format(quantity_type))
+
+            # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
+                if not (comp_source.is_junction or comp_source.tag_birth):
+                    outflow = 0.0
+                    for link in comp_source.outlinks:
+                        outflow += link.vals[ti]
 
-                # Junctions collect inflows during this step. They do not process outflows here.
-                if not comp_source.is_junction:
-
-                    outlinks = comp_source.outlinks  # List of outgoing links
-                    outflow = np.zeros(
-                        len(comp_source.outlinks))  # Outflow for each link # TODO - store in the link objects?
-
-                    for i, link in enumerate(outlinks):
-
-                        # Compute the number of people that are going out of each link
-                        transition = link.parameter.vals[ti]
-
-                        if transition == 0.0:
-                            # Note that commands below are all multiplicative.
-                            # They cannot map an initial value of 0.0 to anything other than a flow rate of 0.
-                            # We can abort early here.
-                            outflow[i] = 0.0
-                            continue
-
-                        # if (link.parameter.scale_factor is not None and
-                        #             link.parameter.scale_factor != project_settings.DO_NOT_SCALE):
-                        #     transition *= link.parameter.scale_factor # scale factor should be available to be used
-                        #
-                        #     if link.parameter.units == 'fraction':
-                        #     # check if there are any violations, and if so, deal with them
-                        #     if transition > 1.:
-                        #        transition = checkTransitionFraction(transition, settings.validation)
-                        #     # A formula for converting from yearly fraction values to the dt equivalent.
-                        #     converted_frac = 1 - (1 - transition) ** dt
-                        #     if link.source.tag_birth:
-                        #        n_alive = 0
-                        #        for p in self.pops:
-                        #            n_alive += p.popsize(ti)
-                        #        converted_amt = n_alive * converted_frac
-                        #     else:
-                        #        converted_amt = comp_source.vals[ti] * converted_frac
-                        #     elif link.parameter.units == 'number':
-                        #        converted_amt = transition * dt
-                        #        if len(link.parameter.links) > 1:
-                        #            converted_amt *= comp_source.vals[ti] / link.parameter.source_popsize(ti)
-                        #     else:
-                        #        raise AtomicaException('Unknown parameter units; "proportion" links can only appear '
-                        #                               'in junctions')
-
-                        value = convert_quantity(value=transition, initial_type=link.parameter.units,
-                                                 final_type=FS.QUANTITY_TYPE_NUMBER,
-                                                 set_size=comp_source.vals[ti], dt=self.dt)
-
-                        outflow[i] = value
-
-                    # Prevent negative population by proportionately downscaling the outflow.
-                    # Is done if there are insufficient people currently in the compartment.
-                    if not comp_source.tag_birth and np.sum(outflow) > comp_source.vals[ti]:
-                        outflow = outflow / np.sum(outflow) * comp_source.vals[ti]
-
-                    # Store the normalized outflows
-                    for i, link in enumerate(outlinks):
-                        link.vals[ti] = outflow[i]
+                    if outflow > comp_source.vals[ti]:
+                        rescale = comp_source.vals[ti]/outflow
+                        for link in comp_source.outlinks:
+                            link.vals[ti] *= rescale
 
     def update_comps(self):
         """
