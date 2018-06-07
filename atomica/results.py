@@ -109,11 +109,6 @@ class Result(NamedItem):
 # """
 #
 # from atomica.system import AtomicaException
-<<<<<<< HEAD
-# from sciris.core import uuid, odict, today, desc # Printing/file utilities
-# from numbers import Number
-=======
->>>>>>> tb-gui-demo
 
 # class Result(object):
 #    ''' Class to hold individual results '''
