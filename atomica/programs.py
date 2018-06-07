@@ -6,11 +6,7 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-<<<<<<< HEAD
 import sciris.core as sc
-=======
-from sciris.core import odict, today, getdate, desc, dataframe, promotetolist
->>>>>>> develop
 from atomica.system import AtomicaException
 from atomica.utils import NamedItem
 
@@ -33,11 +29,7 @@ class ProgramSet(NamedItem):
 
     def __repr__(self):
         ''' Print out useful information'''
-<<<<<<< HEAD
         output = sc.desc(self)
-=======
-        output = desc(self)
->>>>>>> develop
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
         output += '        Date created: %s\n'    % sc.getdate(self.created)
@@ -94,11 +86,7 @@ class Program(NamedItem):
 
     def __repr__(self):
         ''' Print out useful info'''
-<<<<<<< HEAD
         output = sc.desc(self)
-=======
-        output = desc(self)
->>>>>>> develop
         output += '          Program name: %s\n'    % self.short
         output += '  Targeted populations: %s\n'    % self.targetpops
         output += '   Targeted parameters: %s\n'    % self.targetpars
