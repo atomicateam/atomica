@@ -9,18 +9,22 @@ class NamedItem(object):
         self.name = name
         self.uid = sc.uuid()
 
-    def copy(self, name=None):
+    def __copy__(self, name=None):
         x = sc.dcp(self)
         if name is not None:
             x.name = name
         x.uid = sc.uuid()
         return x
 
+    def __deepcopy__(self, name=None):
+        x = self.__copy__(name=name)
+        return x
+
     def __repr__(self):
         return sc.desc(self)
 
 
-class SList(sc.odict):
+class SDict(sc.odict):
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
         return None
