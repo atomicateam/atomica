@@ -7,3 +7,4 @@ from .core.workbook_utils import *  # Depends on structure_settings
 from .core.workbook_export import *  # Depends on workbook_utils
 from .core.framework import *  # Depends on workbook_import
 from .core.project import *  # Depends on workbook_export
+from .core.plotting import * # Depends on...?
