@@ -1,33 +1,30 @@
-import atomica
-from atomica.utils import NotFoundError, NotAllowedError, AtomicaInputError
 import sciris.core as sc
-from atomica.plotting import PlotData, plot_series
+import atomica.ui as au
 
 def new_project(name, start, end, pops):
     # Todo - actually use start, end, pops
-    P = atomica.ui.Project(self, name, framework='tb_gui_framework.xlsx', databook_path=None, do_run=False)
+    P = au.Project(name, framework='tb_gui_framework.xlsx', databook_path=None, do_run=False)
     return P
 
 def run(P,start, end, parset_name):
-    if end < start: raise AtomicaInputError
-    if parset_name not in P.parsets: raise NotFoundError
-
+    if end < start: raise au.AtomicaInputError
+    if parset_name not in P.parsets: raise au.NotFoundError
     P.settings.update_time_vector(start,end)
     return P.run(parset=parset_name,store_results=True)
 
 
 def calibrate(P,start, end, parset_name, mode, max_time):
-    if end < start: raise AtomicaInputError
-    if parset_name not in P.parsets: raise NotFoundError
-    if mode not in ['demographic','epi']: raise AtomicaInputError
+    if end < start: raise au.AtomicaInputError
+    if parset_name not in P.parsets: raise au.NotFoundError
+    if mode not in ['demographic','epi']: raise au.AtomicaInputError
 
     if mode == 'demographic':
-        adjustables, measurables = demographic_inputs(P.parsets[parset])
+        adjustables, measurables = demographic_inputs(P.parsets[parset_name])
     else:
-        adjustables, measurables = epi_inputs(P.parsets[parset])
+        adjustables, measurables = epi_inputs(P.parsets[parset_name])
 
     P.settings.update_time_vector(start,end)
-    new_parset = P.calibrate(parset, adjustables, measurables, max_time, save_to_project=True)
+    new_parset = P.calibrate(parset_name, adjustables, measurables, max_time, save_to_project=True)
     return new_parset
 
 def demographic_inputs(parset):
@@ -117,8 +114,8 @@ def plot(P,result_names,plot_names):
 
     h = []
     for plot_name in plot_names:
-        d = PlotData(results,outputs=supported_plots[plot_name],project=P)
+        d = au.PlotData(results,outputs=supported_plots[plot_name],project=P)
         # Todo - customize plot formatting here
-        h += plot_series(d,data=P.data)
+        h += au.plot_series(d,data=P.data)
 
     return h

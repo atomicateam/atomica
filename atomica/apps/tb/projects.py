@@ -6,7 +6,7 @@ Version: 2018jun04 by cliffk
 
 import sciris.scirisobjects as sobj
 import sciris.datastore as ds
-import atomica as at
+import atomica.ui as au
 import sciris.user as user
 import sciris.core as sc
 import os
@@ -209,7 +209,7 @@ def init_projects(app):
         
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Starting a demo project.')
-        proj = at.ui.Project(name='Bangladesh 1')  
+        proj = au.Project(name='Test 1')  
         projSO = ProjectSO(proj, user.get_scirisdemo_user())
         proj_collection.add_object(projSO)
         

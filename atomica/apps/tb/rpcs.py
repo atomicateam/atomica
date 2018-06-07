@@ -21,7 +21,8 @@ import sciris.user as user
 import sciris.core as sc
 import sciris.web as sw
 
-import atomica as at
+import atomica.ui as au
+import atomica.apps.tb as tb
 from . import projects as prj
 
 # Dictionary to hold all of the registered RPCs in this module.
@@ -224,8 +225,8 @@ def get_version_info():
 	''' Return the information about the project. '''
 	gitinfo = sc.gitinfo(__file__)
 	version_info = {
-	       'version':   at.version,
-	       'date':      at.versiondate,
+	       'version':   au.version,
+	       'date':      au.versiondate,
 	       'gitbranch': gitinfo['branch'],
 	       'githash':   gitinfo['hash'],
 	       'gitdate':   gitinfo['date'],
@@ -381,7 +382,7 @@ def create_new_project(user_id):
     new_proj_name = get_unique_name('New project', other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
-    proj = at.ui.Project(name=new_proj_name)  
+    proj = au.Project(name=new_proj_name)  
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
@@ -486,10 +487,10 @@ def get_default_scenario_plot():
     ''' Plot the disease burden '''
     
     # Get the Project object.
-    proj = at.ui.Project() # WARNING, just create new project
+    proj = au.Project() # WARNING, just create new project
     proj.default_scens(dorun=True)
     result = proj.get_results('test1')
-    fig = on.plotting.make_plots(result) # HARDCODED EXAMPLE
+    fig = tb.plot(result) # HARDCODED EXAMPLE
     
     figs = []
     figs.append(fig)
