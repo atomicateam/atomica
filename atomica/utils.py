@@ -1,11 +1,5 @@
-<<<<<<< HEAD
-from uuid import uuid4, UUID
-from sciris.utils import dcp, desc, promotetolist, odict
-from atomica.system import NotAllowedError, NotFoundError, AtomicaInputError
-=======
-import sciris.core as sc
 from atomica.system import NotAllowedError
->>>>>>> tb-gui-demo
+import sciris.core as sc
 
 
 class NamedItem(object):
@@ -23,11 +17,7 @@ class NamedItem(object):
         return x
 
     def __repr__(self):
-<<<<<<< HEAD
-        return desc(self)
-=======
         return sc.desc(self)
->>>>>>> tb-gui-demo
 
 
 class SList(sc.odict):
