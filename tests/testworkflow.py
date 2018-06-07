@@ -10,10 +10,9 @@ from sciris.core import odict
 from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
-test = "tb"
+#test = "tb"
 
 torun = [
-<<<<<<< HEAD
 #"makeframeworkfile",
 #"makeframework",
 #"saveframework",
@@ -33,27 +32,6 @@ torun = [
 #"parameterscenario",
 #"saveproject",
 #"loadproject",
-=======
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-# "makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-"makeplots",
-"export",
-# "listspecs",
-# "manualcalibrate",
-# "autocalibrate",
-# "parameterscenario",
-# "saveproject",
-# "loadproject",
->>>>>>> tb-gui-demo
 ]
 
 # Define plotting variables in case plots are generated
@@ -126,9 +104,8 @@ if "loadprogramspreadsheet" in torun:
     print('\n\n\nLoading programs spreadsheet ...')
     from atomica.defaults import demo
 
-<<<<<<< HEAD
-    P = demo(which='sir',do_plot=0)
-    filename = 'databooks/programdata_sir.xlsx'
+    P = demo(which=test,do_plot=0)
+    filename = "databooks/programdata_"+test+".xlsx"
     P.load_progbook(databook_path=filename, make_default_progset=True)
     
     coverage = odict([('Risk avoidance',     .99),
@@ -137,11 +114,6 @@ if "loadprogramspreadsheet" in torun:
                      ('Treatment 1',        .99),
                      ('Treatment 2',        .8)])
     print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
-=======
-    P = demo(which=test,do_plot=0)
-    filename = "databooks/programdata_"+test+".xlsx"
-    P.load_progbook(databook_path=filename)
->>>>>>> tb-gui-demo
 
 if "makeplots" in torun:
 
