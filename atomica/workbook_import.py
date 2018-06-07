@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 import xlrd
-from sciris.core import odict, dcp, isnumber
+import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
 from atomica.excel import ExcelSettings as ES
@@ -80,7 +80,7 @@ def read_contents_dc(worksheet, table, start_row, header_columns_map, item_type=
                     continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
-                    new_superitem_type_name_pairs = dcp(superitem_type_name_pairs)
+                    new_superitem_type_name_pairs = sc.dcp(superitem_type_name_pairs)
                     new_superitem_type_name_pairs.append([item_type, item_name])
                     read_contents_dc(worksheet=worksheet, table=table, item_type=attribute_spec["ref_item_type"],
                                      start_row=row, header_columns_map=header_columns_map, stop_row=row + 1,
@@ -440,7 +440,7 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
     
     # Check that only numeric data have been entered
     for column,datum in enumerate(thesedata):
-        if not isnumber(datum):
+        if not sc.isnumber(datum):
             errormsg = 'Invalid entry in sheet "%s", parameter "%s":\n' % (sheetname, thispar) 
             errormsg += 'row=%i, column=%s, value="%s"\n' % (row+1, xlrd.colname(column+startcol), datum)
             errormsg += 'Be sure all entries are numeric'
@@ -471,8 +471,8 @@ def load_progbook(filename, verbose=2):
     Loads programs book (i.e. reads its contents into the data).
     '''
     ## Basic setup
-    data = odict() # Create structure for holding data
-    data['meta'] = odict()
+    data = sc.odict() # Create structure for holding data
+    data['meta'] = sc.odict()
     data['meta']['sheets'] = ['Populations & programs','Program data'] # TODO - remove hardcoding
 
     ## Read in databook 
@@ -488,7 +488,7 @@ def load_progbook(filename, verbose=2):
     
     ## Load program information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
-    data['progs'] = odict()
+    data['progs'] = sc.odict()
     data['progs']['short'] = []
     data['progs']['name'] = []
     data['progs']['targetpops'] = []
@@ -503,13 +503,13 @@ def load_progbook(filename, verbose=2):
                 data['progs']['short'].append(progname)
                 data['progs']['name'].append(str(thesedata[1]))
                 data['progs']['targetpops'].append(thesedata[2:])
-                data[progname] = odict()
+                data[progname] = sc.odict()
                 data[progname]['name'] = str(thesedata[1])
                 data[progname]['targetpops'] = thesedata[2:]
                 data[progname]['cost'] = []
                 data[progname]['coverage'] = []
-                data[progname]['unitcost'] = odict()
-                data[progname]['capacity'] = odict()
+                data[progname]['unitcost'] = sc.odict()
+                data[progname]['capacity'] = sc.odict()
                 
     
     namemap = {'Total spend': 'cost',

@@ -5,8 +5,8 @@ from atomica.structure_settings import FrameworkSettings as FS
 from atomica.results import Result
 from atomica.parser_function import parse_function
 from collections import defaultdict
-from sciris.core import odict, uuid
 from atomica.utils import NamedItem
+import sciris.core as sc
 
 import pickle
 import numpy as np
@@ -420,7 +420,7 @@ class Population(object):
     """
 
     def __init__(self, framework, name='default'):
-        self.uid = uuid()
+        self.uid = sc.uuid()
         self.name = name  # Reference name for this object.
 
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
@@ -739,13 +739,13 @@ class Model(object):
         # The following maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) Populations.
         # Marks them with a weight.
         self.contacts = dict()
-        self.sim_settings = odict()
+        self.sim_settings = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.pset = None  # Instance of ModelProgramSet
         self.t = None
         self.dt = None
-        self.uid = uuid()
+        self.uid = sc.uuid()
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
         self.build(settings, framework, parset, progset, options)

@@ -5,8 +5,7 @@ Contains metadata describing the construction of a model framework.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 """
 
-from sciris.core import odict
-
+import sciris.core as sc
 from atomica.excel import ExcelSettings
 from atomica.parser_config import load_config_file, get_config_value, configparser
 from atomica.system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
@@ -245,11 +244,11 @@ class BaseStructuralSettings(object):
     PAGE_SPECS = None  # Class method makes this an ordered dictionary.
 
     ITEM_TYPE_SPECS = None  # Class method makes this a dictionary.
-    ITEM_TYPE_DESCRIPTOR_KEY = odict()  # A mapping from item type descriptors to type-key.
+    ITEM_TYPE_DESCRIPTOR_KEY = sc.odict()  # A mapping from item type descriptors to type-key.
 
     @classmethod
     def create_page_specs(cls):
-        cls.PAGE_SPECS = odict()
+        cls.PAGE_SPECS = sc.odict()
         for page_key in cls.PAGE_KEYS:
             cls.PAGE_SPECS[page_key] = {"label": page_key.title(), "can_skip": False, "read_order": 0}
             cls.PAGE_SPECS[page_key]["tables"] = []
@@ -278,10 +277,10 @@ class BaseStructuralSettings(object):
 
     @classmethod
     def create_item_type_specs(cls):
-        cls.ITEM_TYPE_SPECS = odict()
+        cls.ITEM_TYPE_SPECS = sc.odict()
         for item_type in cls.ITEM_TYPES:
-            cls.ITEM_TYPE_SPECS[item_type] = odict()
-            cls.ITEM_TYPE_SPECS[item_type]["attributes"] = odict()
+            cls.ITEM_TYPE_SPECS[item_type] = sc.odict()
+            cls.ITEM_TYPE_SPECS[item_type]["attributes"] = sc.odict()
             cls.ITEM_TYPE_SPECS[item_type]["default_amount"] = int()
             # The following key notes whether the item type appears in workbook instructions.
             cls.ITEM_TYPE_SPECS[item_type]["instruction_allowed"] = False

@@ -21,13 +21,10 @@ Methods for structure lists:
     3. copy -- copy a structure in the odict
     4. rename -- rename a structure in the odict
 
-Version: 2018mar22
+Version: 2018jun04
 """
 
-from sciris.core import tic, toc, odict, today, makefilepath, gitinfo, getdate, objrepr, dcp, saveobj, loadobj, uuid
-
-from atomica._version import __version__
-# from atomica.programs import Programset
+from atomica.version import version
 from atomica.calibration import perform_autofit
 from atomica.data import ProjectData
 from atomica.excel import ExcelSettings as ES
@@ -35,20 +32,51 @@ from atomica.framework import ProjectFramework
 from atomica.model import run_model
 from atomica.parameters import ParameterSet
 from atomica.programs import Program, ProgramSet
-from atomica.calibration import perform_autofit
-from atomica.project_settings import ProjectSettings
 from atomica.scenarios import Scenario, ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.workbook_export import write_workbook, make_instructions
 from atomica.workbook_import import read_workbook, load_progbook
-from atomica._version import __version__
-from sciris.core import tic, toc, odict, today, makefilepath, printv, isnumber, promotetolist, gitinfo, getdate, objrepr, Link, dcp, saveobj, loadobj, uuid
 from atomica.utils import SList
 from atomica.optimization import Optim
 from atomica.results import Result
+import sciris.core as sc
+import numpy as np
 
-# from numpy.random import seed, randint
+
+
+class ProjectSettings(object):
+    def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
+
+        self.sim_start = sim_start if sim_start is not None else 2000.0
+        self.sim_end = sim_end if sim_end is not None else 2030.0
+        self.sim_dt = sim_dt if sim_dt is not None else 1.0 / 4
+
+        # Other
+        #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
+        #        self.safetymargin = 0.5 # Do not move more than this fraction of people on a single timestep
+        #        self.infmoney = 1e10 # A lot of money
+        logger.info("Initialized project settings.")
+
+    def __repr__(self):
+        """ Print object """
+        output = sc.desc(self)
+        return output
+
+    @property
+    def tvec(self):
+        return np.arange(self.sim_start, self.sim_end + self.sim_dt / 2, self.sim_dt)
+
+    def update_time_vector(self, start=None, end=None, dt=None):
+        """ Calculate time vector. """
+        if start is not None:
+            self.sim_start = start
+        if end is not None:
+            self.sim_end = end
+        if dt is not None:
+            self.sim_dt = dt
+
+
 
 @apply_to_all_methods(log_usage)
 class Project(object):
@@ -61,18 +89,18 @@ class Project(object):
         self.data = ProjectData()  # TEMPORARY
 
         # Define the structure sets
-        self.parsets = SList(enforce_type=ParameterSet)
-        self.progsets = SList(enforce_type=ProgramSet)
-        self.scens = SList(enforce_type=Scenario)
-        self.optims = SList(enforce_type=Optim)
-        self.results = SList(enforce_type=Result)
+        self.parsets  = SList()
+        self.progsets = SList()
+        self.scens    = SList()
+        self.optims   = SList()
+        self.results  = SList()
 
         # Define metadata
-        self.uid = uuid()
-        self.version = __version__
-        self.gitinfo = gitinfo()
-        self.created = today()
-        self.modified = today()
+        self.uid = sc.uuid()
+        self.version = version
+        self.gitinfo = sc.gitinfo(__file__)
+        self.created = sc.today()
+        self.modified = sc.today()
         self.databookloaddate = 'Databook never loaded'
         self.programdatabookloaddate = 'Programs databook never loaded'
         self.settings = ProjectSettings() # Global settings
@@ -90,7 +118,7 @@ class Project(object):
 
     def __repr__(self):
         """ Print out useful information when called """
-        output = objrepr(self)
+        output = sc.objrepr(self)
         output += '      Project name: %s\n' % self.name
         output += '    Framework name: %s\n' % self.framework.name
         output += '\n'
@@ -101,9 +129,9 @@ class Project(object):
         output += '      Results sets: %i\n' % len(self.results)
         output += '\n'
         output += '   Atomica version: %s\n' % self.version
-        output += '      Date created: %s\n' % getdate(self.created)
-        output += '     Date modified: %s\n' % getdate(self.modified)
-        output += '  Datasheet loaded: %s\n' % getdate(self.databookloaddate)
+        output += '      Date created: %s\n' % sc.getdate(self.created)
+        output += '     Date modified: %s\n' % sc.getdate(self.modified)
+        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
         output += '        Git branch: %s\n' % self.gitinfo['branch']
         output += '          Git hash: %s\n' % self.gitinfo['hash']
         output += '               UID: %s\n' % self.uid
@@ -131,12 +159,12 @@ class Project(object):
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """
-        full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
         metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=self.data,
                                  workbook_type=SS.STRUCTURE_KEY_DATA)
 
-        self.databookloaddate = today()  # Update date when spreadsheet was last loaded
-        self.modified = today()
+        self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded
+        self.modified = sc.today()
         
         # Put the population keys somewhere easier to access- TEMP, TODO, fix
         self.popkeys = []
@@ -158,7 +186,7 @@ class Project(object):
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-        self.parsets.insert(ParameterSet(name))
+        self.parsets.append(ParameterSet(name))
         self.parsets[name].make_pars(self.data)
         return self.parsets[name]
 
@@ -167,7 +195,7 @@ class Project(object):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        full_path = makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
         progdata = load_progbook(filename=full_path)
         
         # Check if the populations match - if not, raise an error, if so, add the data
@@ -176,8 +204,8 @@ class Project(object):
             raise AtomicaException(errormsg)
         self.progdata = progdata
 
-        self.programdatabookloaddate = today() # Update date when spreadsheet was last loaded
-        self.modified = today()
+        self.programdatabookloaddate = sc.today() # Update date when spreadsheet was last loaded
+        self.modified = sc.today()
 
         if make_default_progset: self.make_progset(name="default")
         
@@ -201,21 +229,21 @@ class Project(object):
         nprogs = len(progdata['progs']['short'])
         programs = []
         
-        for np in range(nprogs):
-            pkey = progdata['progs']['short'][np]
+        for n in range(nprogs):
+            pkey = progdata['progs']['short'][n]
             data = {k: progdata[pkey][k] for k in ('cost', 'coverage')}
             data['t'] = progdata['years']
-            p = Program(short=pkey,
-                        name=progdata['progs']['short'][np],
+            prg = Program(short=pkey,
+                        name=progdata['progs']['short'][n],
                         targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]],
                         unitcost=progdata[pkey]['unitcost'],
                         capacity=progdata[pkey]['capacity'],
                         data=data
                         )
-            programs.append(p)
+            programs.append(prg)
             
         progset = ProgramSet(name=name,programs=programs)
-        self.progsets.insert(progset)
+        self.progsets.append(progset)
         return progset
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
@@ -242,7 +270,7 @@ class Project(object):
         
     def make_scenario(self, name="default", instructions=None):
         scenario = ParameterScenario(name=name, scenario_values=instructions)
-        self.scens.insert(scenario)
+        self.scens.append(scenario)
         return scenario
 
 
@@ -333,13 +361,13 @@ class Project(object):
                 result_name = base_name + "_" + str(k)
                 k += 1
 
-        tm = tic()
+        tm = sc.tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
                            progset_instructions=progset_instructions, name=result_name)
-        toc(tm, label="running '{0}' model".format(self.name))
+        sc.toc(tm, label="running '{0}' model".format(self.name))
 
         if store_results:
-            self.results.insert(result)
+            self.results.append(result)
 
         return result
 
@@ -387,7 +415,7 @@ class Project(object):
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
-            self.parsets.insert(new_parset)
+            self.parsets.append(new_parset)
 
         return new_parset
 
@@ -413,11 +441,12 @@ class Project(object):
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
-        filepath = makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT,
+        filepath = sc.makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT,
                                 sanitize=True)  # Enforce file extension.
-        saveobj(filepath, self)
+        sc.saveobj(filepath, self)
+        return None
 
     @classmethod
     def load(cls, filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
-        return loadobj(filepath)
+        return sc.loadobj(filepath)

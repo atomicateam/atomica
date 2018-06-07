@@ -15,8 +15,8 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
-from sciris.utils import odict
 
+import sciris.core as sc
 from atomica.model import Compartment, Characteristic, Parameter, Link
 from atomica.results import Result
 from atomica.system import AtomicaException, logger
@@ -128,7 +128,7 @@ class PlotData(object):
         #       - The string 'all' will maps to bin edges [-inf inf] aggregating over all time
 
         # Validate inputs
-        if isinstance(results, odict):
+        if isinstance(results, sc.odict):
             results = [result for _, result in results.items()]
         elif isinstance(results, Result):
             results = [results]
@@ -651,7 +651,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     figs.append(fig)
 
     rectangles = defaultdict(list)  # Accumulate the list of rectangles for each colour
-    color_legend = odict()
+    color_legend = sc.odict()
 
     # NOTE
     # pops, output - colour separates them. To merge colours, aggregate the data first
