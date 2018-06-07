@@ -93,9 +93,12 @@ def create_default_format_variables():
 
 
 def create_value_entry_block(excel_page, start_row, start_col, num_items,
-                             time_vector=None, default_values=None, formats=None,
-                             quantity_types=None):
-    """ Create a block where users enter values in a 'constant' column or as time-dependent array. """
+                             time_vector=None, default_values=None, quantity_types=None,
+                             condition_list=None, formats=None):
+    """
+    Create a block where users enter values in a 'constant' column or as time-dependent array.
+    A list of Excel-string conditions can be provided that decide, if true, that a row appears.
+    """
     # Generate standard formats if they do not exist.
     if formats is None:
         logger.warning("Formats were not passed to worksheet value-entry block construction.")
@@ -105,6 +108,8 @@ def create_value_entry_block(excel_page, start_row, start_col, num_items,
         time_vector = []
     if default_values is None:
         default_values = [0.0] * num_items
+    if condition_list is None:
+        condition_list = [None] * num_items
 
     # Start with the headers and column formats.
     row, col = start_row, start_col
@@ -134,22 +139,37 @@ def create_value_entry_block(excel_page, start_row, start_col, num_items,
         col = start_col
         row += 1
         if quantity_types is not None:
-            excel_page.write(row, col, quantity_types[0])
+            quantity_content = quantity_types[0]
+            if condition_list[item_number] is not None:
+                quantity_content = "=IF({0},{1},{2})".format(condition_list[item_number], "\"" + quantity_content + "\"", "\"\"")
+                excel_page.write(row, col, quantity_content, None, quantity_types[0])
+            else:
+                excel_page.write(row, col, quantity_types[0])
             excel_page.data_validation(xlrc(row, col),
                                        {"validate": "list", "source": quantity_types})
             col += 1
         if len(time_vector) > 0:
             rc_start = xlrc(row, year_col)
             rc_end = xlrc(row, year_col + len(time_vector) - 1)
-            excel_page.write(row, col,
-                             "=IF(SUMPRODUCT"
-                             "(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(),
-                                                                            default_values[item_number],
-                                                                            SS.DEFAULT_SYMBOL_INAPPLICABLE),
-                             None, default_values[item_number])
-            excel_page.write(row, col + 1, SS.DEFAULT_SYMBOL_OR, formats[ExcelSettings.FORMAT_KEY_CENTER])
+            def_content = "=IF(SUMPRODUCT(--({0}:{1}<>\"{2}\"))=0,{3},\"{4}\")".format(rc_start, rc_end, str(),
+                                                                                       default_values[item_number],
+                                                                                       SS.DEFAULT_SYMBOL_INAPPLICABLE)
+            or_content = SS.DEFAULT_SYMBOL_OR
+            if condition_list[item_number] is not None:
+                def_content = "=IF({0},{1},{2})".format(condition_list[item_number], def_content.lstrip("="), "\"\"")
+                or_content = "=IF({0},{1},{2})".format(condition_list[item_number], "\"" + or_content + "\"", "\"\"")
+                excel_page.write(row, col + 1, or_content, formats[ExcelSettings.FORMAT_KEY_CENTER],
+                                 SS.DEFAULT_SYMBOL_OR)
+            else:
+                excel_page.write(row, col + 1, or_content, formats[ExcelSettings.FORMAT_KEY_CENTER])
+            excel_page.write(row, col, def_content, None, default_values[item_number])
         else:
-            excel_page.write(row, col, default_values[item_number])
+            def_content = default_values[item_number]
+            if condition_list[item_number] is not None:
+                def_content = "=IF({0},{1},{2})".format(condition_list[item_number], def_content, "\"\"")
+                excel_page.write(row, col, def_content, None, default_values[item_number])
+            else:
+                excel_page.write(row, col, def_content)
 
     last_row, last_col = row, start_col + 1 + len(time_vector)
     return last_row, last_col

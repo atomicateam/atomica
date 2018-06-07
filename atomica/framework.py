@@ -4,8 +4,7 @@ Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-from sciris.core import today, dcp
-
+import sciris.core as sc
 from atomica.structure import CoreProjectStructure, get_quantity_type_list
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
@@ -78,6 +77,7 @@ class ProjectFramework(CoreProjectStructure):
                                             value=DS.PAGE_SPECS[page_key][page_attribute])
                     else:
                         for table in DS.PAGE_SPECS[page_key]["tables"]:
+<<<<<<< HEAD
                             if isinstance(table, TableTemplate):
                                 item_type = table.item_type
                                 for item_key in self.specs[item_type]:
@@ -99,10 +99,43 @@ class ProjectFramework(CoreProjectStructure):
                                         if FS.KEY_DATAPAGE in self.specs[item_type][item_key] and \
                                                 not self.specs[item_type][item_key][FS.KEY_DATAPAGE] is None:
                                             actual_page_key = self.specs[item_type][item_key][FS.KEY_DATAPAGE]
-                                        instantiated_table = dcp(table)
+                                        instantiated_table = sc.dcp(table)
                                         instantiated_table.item_key = item_key
                                         self.append_spec_value(term=actual_page_key, attribute="tables",
                                                                value=instantiated_table)
+=======
+                            if isinstance(table, TableTemplate) and table.template_item_type is not None:
+                                item_type = table.template_item_type
+                                # If the template item type does not exist in the framework...
+                                # Delay duplication of the template to databook construction, but pass it along.
+                                if item_type not in self.specs:
+                                    self.append_spec_value(term=page_key, attribute="tables", value=dcp(table))
+                                # Otherwise, apply the duplication later.
+                                else:
+                                    for item_key in self.specs[item_type]:
+                                        # Do not create tables for items that are marked not to be shown in a datapage.
+                                        # Warn if they should be.
+                                        if "datapage_order" in self.get_spec(item_key) and \
+                                                        self.get_spec_value(item_key, "datapage_order") == -1:
+                                            if ("setup_weight" in self.get_spec(item_key) and
+                                                    not self.get_spec_value(item_key, "setup_weight") == 0.0):
+                                                logger.warning("Item '{0}' of type '{1}' is associated with a non-zero "
+                                                               "setup weight of '{2}' but a databook ordering of '-1'. "
+                                                               "Users will not be able to supply important "
+                                                               "values.".format(item_key, item_type,
+                                                                                self.get_spec_value(item_key,
+                                                                                                    "setup_weight")))
+                                        # Otherwise create the tables.
+                                        else:
+                                            actual_page_key = page_key
+                                            if FS.KEY_DATAPAGE in self.specs[item_type][item_key] and \
+                                                    not self.specs[item_type][item_key][FS.KEY_DATAPAGE] is None:
+                                                actual_page_key = self.specs[item_type][item_key][FS.KEY_DATAPAGE]
+                                            instantiated_table = dcp(table)
+                                            instantiated_table.template_item_key = item_key
+                                            self.append_spec_value(term=actual_page_key, attribute="tables",
+                                                                   value=instantiated_table)
+>>>>>>> develop
                             else:
                                 self.append_spec_value(term=page_key, attribute="tables", value=table)
             # Keep framework specifications minimal by referring to settings when possible.
@@ -221,5 +254,5 @@ class ProjectFramework(CoreProjectStructure):
         """ Import a framework from file. """
         read_workbook(workbook_path=filepath, framework=self,
                       workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
-        self.workbook_load_date = today()
-        self.modified = today()
+        self.workbook_load_date = sc.today()
+        self.modified = sc.today()

@@ -19,8 +19,11 @@ License:
 """
 
 # Determine the version number and date of the module.
-from ._version import __version__, __updated__
+from .version import version, versiondate
 
 # Print the license.
-atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __updated__)
+atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (version, versiondate)
 print(atomica_license)
+
+# Import things for the user
+from . import ui

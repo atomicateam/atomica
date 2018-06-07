@@ -1,10 +1,7 @@
 # Imports
 
-from copy import deepcopy as dcp
-
 import numpy as np
-from sciris.core import odict, uuid
-
+import sciris.core as sc
 from atomica.interpolation import interpolate_func
 from atomica.structure_settings import DataSettings as DS
 from atomica.system import AtomicaException, logger
@@ -18,16 +15,11 @@ class Parameter(NamedItem):
         NamedItem.__init__(self,name)
 
         # These ordered dictionaries have population names as keys.
-        if t is None:
-            t = odict()
-        if y is None:
-            y = odict()
-        if y_format is None:
-            y_format = odict()
-        if y_factor is None:
-            y_factor = odict()
-        if autocalibrate is None:
-            autocalibrate = odict()
+        if t             is None: t             = sc.odict()
+        if y             is None: y             = sc.odict()
+        if y_format      is None: y_format      = sc.odict()
+        if y_factor      is None: y_factor      = sc.odict()
+        if autocalibrate is None: autocalibrate = sc.odict()
         self.t = t  # Time data
         self.y = y  # Value data
         self.y_format = y_format  # Value format data (e.g. Probability, Fraction or Number).
@@ -106,8 +98,8 @@ class Parameter(NamedItem):
         #     # Do not bother running interpolation loops if constant. Good for performance.
         #    output = np.ones(len(tvec))*(self.y[pop_name][0]*np.abs(self.y_factor[pop_name]))
         # else:
-        input_t = dcp(self.t[pop_name])
-        input_y = dcp(self.y[pop_name])  # *np.abs(self.y_factor[pop_name])
+        input_t = sc.dcp(self.t[pop_name])
+        input_y = sc.dcp(self.y[pop_name])  # *np.abs(self.y_factor[pop_name])
 
         # Eliminate np.nan from value array before interpolation. Makes sure timepoints are appropriately constrained.
         cleaned_times = input_t[~np.isnan(input_y)]  # NB. numpy advanced indexing here results in a copy
@@ -178,22 +170,22 @@ class ParameterSet(NamedItem):
         # Names are used throughout the codebase as variable names (technically dict keys).
         self.pop_labels = []  # List of population labels.
         # Labels are used only for user interface and can be more elaborate than simple names.
-        self.pars = odict()
+        self.pars = sc.odict()
         self.pars["cascade"] = []
         self.pars["comps"] = []
         self.pars["characs"] = []
         self.par_ids = {"cascade": {}, "comps": {}, "characs": {}}
 
-        self.transfers = odict()  # Dictionary of inter-population transitions.
-        self.contacts = odict()  # Dictionary of inter-population interaction weights.
+        self.transfers = sc.odict()  # Dictionary of inter-population transitions.
+        self.contacts  = sc.odict()  # Dictionary of inter-population interaction weights.
 
         logger.info("Created ParameterSet: {0}".format(self.name))
 
     def copy(self,new_name=None):
-        x = dcp(self)
+        x = sc.dcp(self)
         if new_name is not None:
             x.name = new_name
-        x.uid = uuid()
+        x.uid = sc.uuid()
         return x
 
     def set_scaling_factor(self, par_name, pop_name, scale):
@@ -212,11 +204,11 @@ class ParameterSet(NamedItem):
         self.pop_labels = [data.get_spec(pop_name)["label"] for pop_name in self.pop_names]
 
         # Cascade parameter and characteristic extraction.
-        for k in range(3):
-            item_key = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][k]
-            item_group = ["cascade", "comps", "characs"][k]
-            for l, name in enumerate(data.specs[item_key]):
-                self.par_ids[item_group][name] = l
+        for j in range(3):
+            item_key = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][j]
+            item_group = ["cascade", "comps", "characs"][j]
+            for k, name in enumerate(data.specs[item_key]):
+                self.par_ids[item_group][name] = k
                 self.pars[item_group].append(Parameter(name=name))
                 popdata = data.get_spec_value(name, DS.TERM_DATA)
                 for pop_id in popdata.keys():
@@ -226,6 +218,23 @@ class ParameterSet(NamedItem):
                     self.pars[item_group][-1].y_format[pop_id] = popdata.get_format(pop_id)
                     # TODO: Consider exposing scaling factors in the databook.
                     self.pars[item_group][-1].y_factor[pop_id] = 1.0
+
+        # Transfer extraction.
+        for name in data.specs[DS.KEY_TRANSFER]:
+            if name not in self.transfers:
+                self.transfers[name] = odict()
+            for pop_link in data.specs[DS.KEY_TRANSFER][name][DS.KEY_POPULATION_LINKS]:
+                source_pop = pop_link[0]
+                target_pop = pop_link[1]
+                if pop_link[0] not in self.transfers[name]:
+                    self.transfers[name][source_pop] = Parameter(name = name + "_from_" + source_pop)
+                transfer_data = data.get_spec_value(name, DS.TERM_DATA)
+                tvec, yvec = transfer_data.get_arrays(pop_link)
+                self.transfers[name][source_pop].t[target_pop] = tvec
+                self.transfers[name][source_pop].y[target_pop] = yvec
+                self.transfers[name][source_pop].y_format[target_pop] = transfer_data.get_format(pop_link)
+                # TODO: Consider exposing scaling factors in the databook.
+                self.transfers[name][source_pop].y_factor[target_pop] = 1.0
 
 # TODO: Clean this batch of comments once autocalibration tags are conclusively handled.
 # self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
@@ -253,20 +262,6 @@ class ParameterSet(NamedItem):
 #                    self.pars["characs"][-1].autocalibrate[pop_id] = True
 
 # TODO: Clean this batch of comments once interpopulation dynamics are conclusively handled.
-#        # Migrations, including aging.
-#        for trans_type in data["transfers"].keys():
-#            if trans_type not in self.transfers: self.transfers[trans_type] = odict()
-#            
-#            for source in data["transfers"][trans_type].keys():
-#                if source not in self.transfers[trans_type]: self.transfers[trans_type][source] =
-                    # Parameter(name = trans_type + "_from_" + source)
-#                for target in data["transfers"][trans_type][source].keys():
-#                    self.transfers[trans_type][source].t[target] = data["transfers"][trans_type][source][target]["t"]
-#                    self.transfers[trans_type][source].y[target] = data["transfers"][trans_type][source][target]["y"]
-#                    self.transfers[trans_type][source].y_format[target] =
-                    # data["transfers"][trans_type][source][target]["y_format"]
-#                    self.transfers[trans_type][source].y_factor[target] =
-                    # data["transfers"][trans_type][source][target]["y_factor"]
 #                    
 #        self.contacts = dcp(data["contacts"])   # Simple copying of the contacts structure into data.
                     # No need to be an object.

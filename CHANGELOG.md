@@ -3,11 +3,19 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
-## 0.6.1 (2018-05-11): High-order Program Processes
+## 0.6.2 (2018-06-04): Transfers
+
+Features
+- New 'transfer' item introduced at the databook level for transitions between populations.
+- Template tables can now have instantiation deferred until databook construction.
+- Transfer items can be detailed by a user and loaded into a `ParameterSet` for a model run.
+
+## 0.6.1 (2018-05-30): Programs
 
 Features
 - Without settling on a programs structure yet, wrapper processes are established.
   These include budget scenarios and optimizations.
+- NOTE: This is being developed on another branch and should be aligned later.
 
 Edits
 - PEP8 compliance worked towards in the majority of the codebase.

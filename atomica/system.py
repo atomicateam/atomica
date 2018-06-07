@@ -49,6 +49,8 @@ class SystemSettings(object):
     DEFAULT_SYMBOL_NO = "n"
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
     DEFAULT_SYMBOL_OR = "OR"
+    DEFAULT_SYMBOL_TO = "--->"
+    DEFAULT_SYMBOL_IGNORE = "..."
     DEFAULT_SUFFIX_PLURAL = "s"
 
 
@@ -56,7 +58,6 @@ class SystemSettings(object):
 
 def atomica_path(subdir=None, trailingsep=True):
     """ Returns the parent path of the Atomica module. If subdir is not None, include it in the path. """
-    import os
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if subdir is not None:
         if not isinstance(subdir, list):
@@ -66,19 +67,6 @@ def atomica_path(subdir=None, trailingsep=True):
             tojoin.append('')  # This ensures it ends with a separator.
         path = os.path.join(*tojoin)  # For example: ['/home/atomica', 'tests', '']
     return path
-
-
-# Code for creating a directory if it does not exist.
-
-def prepare_filepath(filepath):  # CK: duplicates makefilepath in sciris.utils
-    """
-    If a file path specifies directories that do not exist, an error will be thrown.
-    This function ensures that a file can be created in the desired location.
-    """
-    directory = os.path.dirname(filepath)
-    if not os.path.exists(directory):
-        logger.warning("Directory '{0}' does not exist and is being constructed.".format(directory))
-        os.makedirs(directory)
 
 
 # Code for setting up a logger.
