@@ -7,13 +7,11 @@ class NamedItem(object):
         if name is None:
             name = '<unnamed>'
         self.name = name
-        self.uid = sc.uuid()
 
     def __copy__(self, name=None):
         x = sc.dcp(self)
         if name is not None:
             x.name = name
-        x.uid = sc.uuid()
         return x
 
     def __deepcopy__(self, name=None):

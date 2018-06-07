@@ -61,13 +61,13 @@ class Variable(NamedItem):
         return
 
     def unlink(self):
-        self.pop = self.pop.uid
+        self.pop = self.pop.name
 
     def relink(self, objs):
         self.pop = objs[self.pop]
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.uid)
+        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.name)
 
 
 class Compartment(Variable):
@@ -86,8 +86,8 @@ class Compartment(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.outlinks = [x.uid for x in self.outlinks]
-        self.inlinks = [x.uid for x in self.inlinks]
+        self.outlinks = [x.name for x in self.outlinks]
+        self.inlinks = [x.name for x in self.inlinks]
 
     def relink(self, objs):
         Variable.relink(self, objs)
@@ -207,8 +207,8 @@ class Characteristic(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.includes = [x.uid for x in self.includes]
-        self.denominator = self.denominator.uid if self.denominator is not None else None
+        self.includes = [x.name for x in self.includes]
+        self.denominator = self.denominator.name if self.denominator is not None else None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -297,10 +297,10 @@ class Parameter(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.links = [x.uid for x in self.links]
+        self.links = [x.name for x in self.links]
         if self.deps is not None:
             for dep_name in self.deps:
-                self.deps[dep_name] = [x.uid for x in self.deps[dep_name]]
+                self.deps[dep_name] = [x.name for x in self.deps[dep_name]]
         if self._fcn is not None:
             self._fcn = None
 
@@ -392,9 +392,9 @@ class Link(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.parameter = self.parameter.uid
-        self.source = self.source.uid
-        self.dest = self.dest.uid
+        self.parameter = self.parameter.name
+        self.source = self.source.name
+        self.dest = self.dest.name
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -420,7 +420,7 @@ class Population(object):
     """
 
     def __init__(self, framework, name='default'):
-        self.uid = sc.uuid()
+        self.name = sc.uuid()
         self.name = name  # Reference name for this object.
 
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
@@ -444,7 +444,7 @@ class Population(object):
         self.is_linked = True  # Flag to manage double unlinking/relinking
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.uid)
+        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.name)
 
     def unlink(self):
         if not self.is_linked:
@@ -745,7 +745,7 @@ class Model(object):
         self.pset = None  # Instance of ModelProgramSet
         self.t = None
         self.dt = None
-        self.uid = sc.uuid()
+        self.name = sc.uuid()
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
         self.build(settings, framework, parset, progset, options)
@@ -772,9 +772,9 @@ class Model(object):
         if any([not x.is_linked for x in self.pops]):
             # objs = {}
             for pop in self.pops:
-                objs[pop.uid] = pop
+                objs[pop.name] = pop
                 for obj in pop.comps + pop.characs + pop.pars + pop.links:
-                    objs[obj.uid] = obj
+                    objs[obj.name] = obj
 
             for pop in self.pops:
                 pop.relink(objs)
@@ -1157,8 +1157,8 @@ class Model(object):
             # Then overwrite with program values
             if do_program_overwrite:
                 for par in pars:
-                    if par.uid in prog_vals:
-                        par.vals[ti] = prog_vals[par.uid]
+                    if par.name in prog_vals:
+                        par.vals[ti] = prog_vals[par.name]
 
                         # # Handle parameters tagged with special rules. Overwrite vals if necessary.
                         # if do_special and 'rules' in settings.linkpar_specs[par_name]:
@@ -1166,7 +1166,7 @@ class Model(object):
                         #     # There should be one for each population (these are Parameters, not Links).
                         #     pars = self.vars_by_pop[par_name]
                         #
-                        #     old_vals = {par.uid: par.vals[ti] for par in self.vars_by_pop[par_name]}
+                        #     old_vals = {par.name: par.vals[ti] for par in self.vars_by_pop[par_name]}
                         #
                         #     rule = settings.linkpar_specs[par_name]['rules']
                         #     for pop in self.pops:
@@ -1189,7 +1189,7 @@ class Model(object):
                         #                        par = self.get_pop(from_pop).get_par(par_name)
                         #                        weight = self.contacts['into'][pop.name][from_pop]*\
                         #                                 self.get_pop(from_pop).popsize(ti)
-                        #                        val_sum += old_vals[par.uid]*weight
+                        #                        val_sum += old_vals[par.name]*weight
                         #                        weights += weight
                         #
                         #                    if abs(val_sum) > model_settings['tolerance']:

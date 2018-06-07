@@ -18,7 +18,7 @@ class Result(NamedItem):
         # The following should be the only reference to that instance so no need to dcp.
         self.model = model
         self.parset_name = parset.name
-        self.parset_id = parset.uid
+        self.parset_id = parset.name
         self.pop_names = [x.name for x in self.model.pops]  # This gets frequently used, so save it as an actual output
 
     # Property methods trade off storage space against computation time. The property methods below

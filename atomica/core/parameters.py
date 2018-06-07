@@ -185,7 +185,6 @@ class ParameterSet(NamedItem):
         x = sc.dcp(self)
         if new_name is not None:
             x.name = new_name
-        x.uid = sc.uuid()
         return x
 
     def set_scaling_factor(self, par_name, pop_name, scale):
