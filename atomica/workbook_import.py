@@ -7,9 +7,9 @@ from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
 from atomica.excel import ExcelSettings as ES
 from atomica.excel import extract_header_columns_mapping, extract_excel_sheet_value
-from atomica.structure import KeyData
-from atomica.structure_settings import DetailColumns, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, \
-    QuantityFormatType
+from atomica.structure import KeyData, SemanticUnknownException
+from atomica.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
+    SwitchType, QuantityFormatType
 from atomica.system import SystemSettings as SS
 from atomica.system import logger, AtomicaException, accepts, display_name
 from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, get_workbook_page_keys, \
@@ -50,11 +50,23 @@ def read_contents_dc(worksheet, table, start_row, header_columns_map, item_type=
     if stop_row is None:
         stop_row = worksheet.nrows
     while row < stop_row:
-        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][
-            0]  # Only the first column matters for a name.
+        # Only the first column matters for a name.
+        name_col = header_columns_map[item_type_spec["attributes"]["name"]["header"]][0]
         test_name = str(worksheet.cell_value(row, name_col))
         if not test_name == "":
             item_name = test_name
+        else:
+            # If the name entry is blank, scan the entire row.
+            check_col = 0
+            while check_col < worksheet.ncols:
+                # If there is something to parse, e.g. a subitem, then proceed with parsing.
+                if not str(worksheet.cell_value(row, check_col)) == "":
+                    break
+                # If the final column is reached and everything is blank, stop reading the table.
+                if check_col == worksheet.ncols - 1:
+                    next_row = row + 1
+                    return next_row
+                check_col += 1
         if not item_name == "":
             try:
                 structure.get_spec(item_name)
@@ -116,18 +128,30 @@ def read_detail_columns(worksheet, table, start_row, framework=None, data=None, 
 
 
 def read_connection_matrix(worksheet, table, start_row, framework=None, data=None, workbook_type=None):
+    """
+    Parse a connection matrix, whether standard or template.
+
+    Note that items with names referred to by connection matrices must be constructed first.
+    Ensure a logical read order in structure settings, even for different display order.
+    In practice, this means a relevant 'detail columns' table should get parsed before associated matrices.
+    """
     item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
 
-    header_row, header_col, last_col = None, 0, None
+    header_row, header_col = None, 0
     row, col = start_row, header_col + 1
-    keep_scanning_rows = True
-    while keep_scanning_rows and row < worksheet.nrows:
-        # Scan for header row of the matrix, recognising top-left cell may be empty, hence the non-zero start column.
+    last_col = None
+    term = None
+    while row < worksheet.nrows:
+        # Scan for header row of matrix, recognising top-left cell may be empty, hence the non-zero start column.
         if header_row is None:
             check_label = str(worksheet.cell_value(row, col))
             if not check_label == "":
                 header_row = row
+                # If this table is a deferred-instantiation template, it relates to an item with key in the corner.
+                # Extract that term.
+                if table.template_item_type is not None:
+                    term = str(worksheet.cell_value(header_row, header_col))
                 # Upon finding the header row, locate its last column.
                 col += 1
                 while last_col is None and col < worksheet.ncols:
@@ -138,51 +162,60 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
                 if last_col is None:
                     last_col = worksheet.ncols - 1
         else:
+            source_item = str(worksheet.cell_value(row, header_col))
+            # If there is no source item, the connection matrix must have ended.
+            if source_item == "":
+                break
             for col in range(header_col + 1, last_col + 1):
+                target_item = str(worksheet.cell_value(header_row, col))
                 val = str(worksheet.cell_value(row, col))
-                if not val == "":
-                    source_item = str(worksheet.cell_value(row, header_col))
-                    target_item = str(worksheet.cell_value(header_row, col))
-                    if table.storage_item_type is None:
-                        structure.set_spec_value(term=source_item, attribute=table.storage_attribute, value=val,
-                                                 subkey=target_item)
-                    else:
-                        # Allow connection matrices to use name tags before they are used for detailed items.
-                        # Only allow this for non-subitems.
-                        if not item_type_specs[table.storage_item_type]["superitem_type"] is None:
-                            raise AtomicaException("Cannot import data from connection matrix where values are "
-                                                   "names of subitems, type '{0}'.".format(table.storage_item_type))
-                        try:
-                            structure.get_spec(val)
-                        except Exception:
-                            structure.create_item(item_name=val, item_type=table.storage_item_type)
+                # For standard connection matrices, item names related to connections are pulled from non-empty cells.
+                if table.template_item_type is None:
+                    if not val == "":
                         structure.append_spec_value(term=val, attribute=table.storage_attribute,
+                                                    value=(source_item, target_item))
+                # For template connection matrices, the item name is in the 'corner' header.
+                # Attach connections to that item in specs if a connection exists, i.e. is marked by 'y'.
+                else:
+                    if val == SS.DEFAULT_SYMBOL_YES:
+                        structure.append_spec_value(term=term, attribute=table.storage_attribute,
                                                     value=(source_item, target_item))
         row += 1
     next_row = row
     return next_row
 
 
-def read_time_dependent_values_entry(worksheet, item_type, item_key, value_attribute, start_row,
+def read_time_dependent_values_entry(worksheet, table, start_row,
                                      framework=None, data=None, workbook_type=None):
     item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
     structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
 
+    item_type = table.template_item_type
+    item_key = table.template_item_key
+    value_attribute = table.value_attribute
+
     row, id_col = start_row, 0
+    block_col = 1   # Column increment at which data entry block begins.
+    if table.iterate_over_links:
+        block_col = 3
+
     keep_scanning = True
     header_row = None
+    term = None         # The header for this entire table.
+    data_key = None     # The key with which to store data provided within a row of this table.
     while keep_scanning and row < worksheet.nrows:
         label = str(worksheet.cell_value(row, id_col))
         if not label == "":
             # The first label encounter is of the item that heads this table.
-            # Verify it matches the item name associated with the table.
+            # Verify it matches the item name associated with the table, provided no deferred instantiation took place.
             if header_row is None:
-                if not label == item_specs[item_type][item_key]["label"]:
+                if item_key is not None and not label == item_specs[item_type][item_key]["label"]:
                     raise AtomicaException(
                         "A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
                         "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name,
                                                                                                     item_key, label))
                 else:
+                    term = label
                     # Do a quick scan of all row headers to determine keys for a TimeSeries object.
                     quick_scan = True
                     quick_row = row + 1
@@ -191,24 +224,45 @@ def read_time_dependent_values_entry(worksheet, item_type, item_key, value_attri
                         quick_label = str(worksheet.cell_value(quick_row, id_col))
                         if quick_label == "":
                             quick_scan = False
+                        elif quick_label == SS.DEFAULT_SYMBOL_IGNORE:
+                            pass
                         else:
-                            keys.append(structure.get_spec_name(quick_label))
+                            # If table iterates over tupled items rather that just items, the tupled name pair is key.
+                            if table.iterate_over_links:
+                                keys.append((structure.get_spec_name(quick_label),
+                                             structure.get_spec_name(str(worksheet.cell_value(quick_row, id_col + 2)))))
+                            else:
+                                keys.append(structure.get_spec_name(quick_label))
                         quick_row += 1
-                    structure.create_item(item_name=item_key, item_type=item_type)
-                    structure.set_spec_value(term=item_key, attribute="label", value=label)
+                    # Check if the item already exists in parsed structure, which it must if instantiation is deferred.
+                    # If not, the item key is the name and the header is the label; construct an item.
+                    if item_key is not None:
+                        try:
+                            structure.get_spec(term=item_key)
+                        except SemanticUnknownException:
+                            structure.create_item(item_name=item_key, item_type=item_type)
+                            structure.set_spec_value(term=item_key, attribute="label", value=label)
                     time_series = KeyData(keys=keys)
-                    structure.set_spec_value(term=item_key, attribute=value_attribute, value=time_series)
+                    structure.set_spec_value(term=term, attribute=value_attribute, value=time_series)
                 header_row = row
             # All other label encounters are of an iterated type.
             else:
-                col = id_col + 1
+                if label == SS.DEFAULT_SYMBOL_IGNORE:
+                    row += 1
+                    continue
+                # Time series keys for standard items are their names.
+                data_key = structure.get_spec_name(label)
+                # Keys for time series that involve links between items are tuple-pairs of their names.
+                if table.iterate_over_links:
+                    data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))
+                col = id_col + block_col
                 while col < worksheet.ncols:
                     val = str(worksheet.cell_value(row, col))
                     if val not in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
                         header = str(worksheet.cell_value(header_row, col))
                         if header == ES.QUANTITY_TYPE_HEADER:
-                            structure.get_spec(term=item_key)[value_attribute].set_format(
-                                key=structure.get_spec_name(label), value_format=val.lower())
+                            structure.get_spec(term=term)[value_attribute].set_format(
+                                key=data_key, value_format=val.lower())
                             col += 1
                             continue
                         try:
@@ -217,8 +271,8 @@ def read_time_dependent_values_entry(worksheet, item_type, item_key, value_attri
                             raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' "
                                                    "of sheet '{2}'.".format(val, xlrc(row, col), worksheet.name))
                         if header == ES.ASSUMPTION_HEADER:
-                            structure.get_spec(term=item_key)[value_attribute].set_value(
-                                key=structure.get_spec_name(label), value=val)
+                            structure.get_spec(term=term)[value_attribute].set_value(
+                                key=data_key, value=val)
                         else:
                             try:
                                 time = float(header)
@@ -226,8 +280,8 @@ def read_time_dependent_values_entry(worksheet, item_type, item_key, value_attri
                                 raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell "
                                                        "'{1}' of sheet '{2}'.".format(header, xlrc(header_row, col),
                                                                                       worksheet.name))
-                            structure.get_spec(term=item_key)[value_attribute].set_value(
-                                key=structure.get_spec_name(label), value=val, t=time)
+                            structure.get_spec(term=term)[value_attribute].set_value(
+                                key=data_key, value=val, t=time)
                     col += 1
 
         else:
@@ -242,19 +296,30 @@ def read_table(worksheet, table, start_row, start_col, framework=None, data=None
     # Check workbook type.
     if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]:
         raise WorkbookTypeException(workbook_type)
+    structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
         row = read_detail_columns(worksheet=worksheet, table=table, start_row=row,
                                   framework=framework, data=data, workbook_type=workbook_type)
-    if isinstance(table, ConnectionMatrix):
-        row = read_connection_matrix(worksheet=worksheet, table=table, start_row=row,
-                                     framework=framework, data=data, workbook_type=workbook_type)
-    if isinstance(table, TimeDependentValuesEntry):
-        row = read_time_dependent_values_entry(worksheet=worksheet, item_type=table.item_type, item_key=table.item_key,
-                                               value_attribute=table.value_attribute,
-                                               start_row=start_row,
-                                               framework=framework, data=data, workbook_type=workbook_type)
+    if isinstance(table, TableTemplate):
+        iteration_amount = 1
+        # If the table was templated with deferred instantiation...
+        if table.template_item_type is not None:
+            # Check if instantiation is deferred.
+            # If it is, iterate for the number of template-related items already constructed.
+            # Note that this is dangerous if the items are constructed later.
+            # It is dev responsibility to ensure structure settings have relevant detail columns tables parsed first.
+            if table.template_item_key is None:
+                iteration_amount = len(structure.specs[table.template_item_type])
+        if isinstance(table, ConnectionMatrix):
+            for iteration in range(iteration_amount):
+                row = read_connection_matrix(worksheet=worksheet, table=table, start_row=row,
+                                             framework=framework, data=data, workbook_type=workbook_type)
+        if isinstance(table, TimeDependentValuesEntry):
+            for iteration in range(iteration_amount):
+                row = read_time_dependent_values_entry(worksheet=worksheet, table=table, start_row=row,
+                                                       framework=framework, data=data, workbook_type=workbook_type)
 
     next_row, next_col = row, col
     return next_row, next_col
@@ -280,6 +345,12 @@ def read_worksheet(workbook, page_key, framework=None, data=None, workbook_type=
     for table in page_spec["tables"]:
         row, col = read_table(worksheet=worksheet, table=table, start_row=row, start_col=col,
                               framework=framework, data=data, workbook_type=workbook_type)
+
+    # TODO: Consider whether this should be a warning rather than an exception.
+    if row < worksheet.nrows:
+        raise AtomicaException("Workbook parser has concluded for page '{0}' before row {1}, even though worksheet "
+                               "has {2} rows. An errant blank row may have truncated table "
+                               "parsing.".format(worksheet.name, row, worksheet.nrows))
 
 
 def read_reference_worksheet(workbook):

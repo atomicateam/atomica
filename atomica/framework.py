@@ -78,31 +78,37 @@ class ProjectFramework(CoreProjectStructure):
                                             value=DS.PAGE_SPECS[page_key][page_attribute])
                     else:
                         for table in DS.PAGE_SPECS[page_key]["tables"]:
-                            if isinstance(table, TableTemplate):
-                                item_type = table.item_type
-                                for item_key in self.specs[item_type]:
-                                    # Do not create tables for items that are marked not to be shown in a datapage.
-                                    # Warn if they should be.
-                                    if "datapage_order" in self.get_spec(item_key) and \
-                                                    self.get_spec_value(item_key, "datapage_order") == -1:
-                                        if ("setup_weight" in self.get_spec(item_key) and
-                                                not self.get_spec_value(item_key, "setup_weight") == 0.0):
-                                            logger.warning("Item '{0}' of type '{1}' is associated with a non-zero "
-                                                           "setup weight of '{2}' but a databook ordering of '-1'. "
-                                                           "Users will not be able to supply important "
-                                                           "values.".format(item_key, item_type,
-                                                                            self.get_spec_value(item_key,
-                                                                                                "setup_weight")))
-                                    # Otherwise create the tables.
-                                    else:
-                                        actual_page_key = page_key
-                                        if FS.KEY_DATAPAGE in self.specs[item_type][item_key] and \
-                                                not self.specs[item_type][item_key][FS.KEY_DATAPAGE] is None:
-                                            actual_page_key = self.specs[item_type][item_key][FS.KEY_DATAPAGE]
-                                        instantiated_table = dcp(table)
-                                        instantiated_table.item_key = item_key
-                                        self.append_spec_value(term=actual_page_key, attribute="tables",
-                                                               value=instantiated_table)
+                            if isinstance(table, TableTemplate) and table.template_item_type is not None:
+                                item_type = table.template_item_type
+                                # If the template item type does not exist in the framework...
+                                # Delay duplication of the template to databook construction, but pass it along.
+                                if item_type not in self.specs:
+                                    self.append_spec_value(term=page_key, attribute="tables", value=dcp(table))
+                                # Otherwise, apply the duplication later.
+                                else:
+                                    for item_key in self.specs[item_type]:
+                                        # Do not create tables for items that are marked not to be shown in a datapage.
+                                        # Warn if they should be.
+                                        if "datapage_order" in self.get_spec(item_key) and \
+                                                        self.get_spec_value(item_key, "datapage_order") == -1:
+                                            if ("setup_weight" in self.get_spec(item_key) and
+                                                    not self.get_spec_value(item_key, "setup_weight") == 0.0):
+                                                logger.warning("Item '{0}' of type '{1}' is associated with a non-zero "
+                                                               "setup weight of '{2}' but a databook ordering of '-1'. "
+                                                               "Users will not be able to supply important "
+                                                               "values.".format(item_key, item_type,
+                                                                                self.get_spec_value(item_key,
+                                                                                                    "setup_weight")))
+                                        # Otherwise create the tables.
+                                        else:
+                                            actual_page_key = page_key
+                                            if FS.KEY_DATAPAGE in self.specs[item_type][item_key] and \
+                                                    not self.specs[item_type][item_key][FS.KEY_DATAPAGE] is None:
+                                                actual_page_key = self.specs[item_type][item_key][FS.KEY_DATAPAGE]
+                                            instantiated_table = dcp(table)
+                                            instantiated_table.template_item_key = item_key
+                                            self.append_spec_value(term=actual_page_key, attribute="tables",
+                                                                   value=instantiated_table)
                             else:
                                 self.append_spec_value(term=page_key, attribute="tables", value=table)
             # Keep framework specifications minimal by referring to settings when possible.
