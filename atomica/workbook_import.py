@@ -435,7 +435,7 @@ def blank2newtype(thesedata, newtype=None):
     if newtype is None or newtype=='nan': newval = np.nan # For backward compatability
     elif newtype=='None': newval = None
     elif newtype=='zero': newval = 0
-    elif isnumber(newtype): newval = newtype
+    elif sc.isnumber(newtype): newval = newtype
     else: 
         errormsg = 'Cannot convert blanks to type %s, can only convert to types [''nan'', ''None'', ''zero''] or numbers' % (type(newtype)) 
         raise AtomicaException(errormsg)
@@ -445,7 +445,7 @@ def blank2newtype(thesedata, newtype=None):
 def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklower=True, checkblank=True, startcol=0):
     ''' Do basic validation on the data: at least one point entered, between 0 and 1 or just above 0 if checkupper=False '''
     
-    result = odict()
+    result = sc.odict()
     result['isvalid'] = 1
     # Check that only numeric data have been entered
     for column,datum in enumerate(thesedata):
@@ -498,12 +498,8 @@ def load_progbook(filename, verbose=2):
     
     ## Load program spend information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
-<<<<<<< HEAD
-    data['progs'] = odict()
-    data['pars'] = odict()
-=======
     data['progs'] = sc.odict()
->>>>>>> tb-gui-demo
+    data['pars'] = sc.odict()
     data['progs']['short'] = []
     data['progs']['name'] = []
     data['progs']['target_pops'] = []
@@ -522,42 +518,27 @@ def load_progbook(filename, verbose=2):
                 data['pops'] = thesedata[3:colindices[0]]
                 data['comps'] = thesedata[colindices[1]-1:]
             else:
-<<<<<<< HEAD
                 if thesedata[0]:
                     progname = str(thesedata[0])
                     data['progs']['short'].append(progname)
                     data['progs']['name'].append(str(thesedata[1]))
                     data['progs']['target_pops'].append(thesedata[3:colindices[0]])
                     data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
-                    data[progname] = odict()
+                    data[progname] = sc.odict()
                     data[progname]['name'] = str(thesedata[1])
                     data[progname]['target_pops'] = thesedata[3:colindices[0]]
                     data[progname]['target_comps'] = blank2newtype(thesedata[colindices[1]-1:], 0)
                     data[progname]['spend'] = []
                     data[progname]['basespend'] = []
                     data[progname]['capacity'] = []
-                    data[progname]['unitcost'] = odict()
-=======
-                progname = str(thesedata[0])
-                data['progs']['short'].append(progname)
-                data['progs']['name'].append(str(thesedata[1]))
-                data['progs']['targetpops'].append(thesedata[2:])
-                data[progname] = sc.odict()
-                data[progname]['name'] = str(thesedata[1])
-                data[progname]['targetpops'] = thesedata[2:]
-                data[progname]['cost'] = []
-                data[progname]['coverage'] = []
-                data[progname]['unitcost'] = sc.odict()
-                data[progname]['capacity'] = sc.odict()
-                
->>>>>>> tb-gui-demo
+                    data[progname]['unitcost'] = sc.odict()
     
     namemap = {'Total spend': 'spend',
                'Base spend':'basespend',
                'Unit cost':'unitcost',
                'Capacity constraints': 'capacity'} 
     sheetdata = workbook.sheet_by_name('Program spend data') # Load 
-    validunitcosts = odict()
+    validunitcosts = sc.odict()
     
     for row in range(sheetdata.nrows): 
         sheetname = sheetdata.cell_value(row,0) # Sheet name
@@ -596,8 +577,8 @@ def load_progbook(filename, verbose=2):
             par_name = sheetdata.cell_value(row, 0) # Get the name of the parameter
         elif sheetdata.cell_value(row, 1)!='': # Data row
             pop_name = sheetdata.cell_value(row, 1)
-            data['pars'][par_name] = odict()
-            data['pars'][par_name][pop_name] = odict()
+            data['pars'][par_name] = sc.odict()
+            data['pars'][par_name][pop_name] = sc.odict()
             data['pars'][par_name][pop_name]['interactions'] = sheetdata.row_values(row, start_colx=2, end_colx=4) 
             data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 5) if sheetdata.cell_value(row+i, 5)!='' else np.nan for i in range(3)]
             data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 6) if sheetdata.cell_value(row+i, 6)!='' else np.nan for i in range(3)]
