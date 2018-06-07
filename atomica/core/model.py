@@ -1,11 +1,11 @@
 # Imports
 
-from atomica.core.system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
-from atomica.core.structure_settings import FrameworkSettings as FS
-from atomica.core.results import Result
-from atomica.core.parser_function import parse_function
+from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
+from .structure_settings import FrameworkSettings as FS
+from .results import Result
+from .parser_function import parse_function
 from collections import defaultdict
-from atomica.core.utils import NamedItem
+from .utils import NamedItem
 import sciris.core as sc
 
 import pickle

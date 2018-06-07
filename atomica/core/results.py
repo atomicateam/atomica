@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import sciris.core as sc
-from atomica.core.utils import NamedItem
+from .utils import NamedItem
 
 
 # import optima_tb.settings as project_settings
@@ -108,7 +108,7 @@ class Result(NamedItem):
 # Version: 2018mar23
 # """
 #
-# from atomica.core.system import AtomicaException
+# from .system import AtomicaException
 
 # class Result(object):
 #    ''' Class to hold individual results '''

@@ -5,12 +5,12 @@ Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
 import sciris.core as sc
-from atomica.core.structure import CoreProjectStructure, get_quantity_type_list
-from atomica.core.structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
-from atomica.core.system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
-from atomica.core.workbook_export import make_instructions, write_workbook
-from atomica.core.workbook_import import read_workbook
-from atomica.core.parser_function import parse_function
+from .structure import CoreProjectStructure, get_quantity_type_list
+from .structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
+from .system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
+from .workbook_export import make_instructions, write_workbook
+from .workbook_import import read_workbook
+from .parser_function import parse_function
 
 
 @apply_to_all_methods(log_usage)

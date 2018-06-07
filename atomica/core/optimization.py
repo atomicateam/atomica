@@ -6,7 +6,7 @@ Version: 2018mar26
 import sciris.core as sc
 #import Link, today, getdate, objrepr  # Utilities
 
-from atomica.core.system import AtomicaException
+from .system import AtomicaException
 
 
 #######################################################################################################

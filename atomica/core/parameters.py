@@ -2,10 +2,10 @@
 
 import numpy as np
 import sciris.core as sc
-from atomica.core.interpolation import interpolate_func
-from atomica.core.structure_settings import DataSettings as DS
-from atomica.core.system import AtomicaException, logger
-from atomica.core.utils import NamedItem
+from .interpolation import interpolate_func
+from .structure_settings import DataSettings as DS
+from .system import AtomicaException, logger
+from .utils import NamedItem
 
 # Parameter class that stores one array of values converted from raw project data
 class Parameter(NamedItem):

@@ -8,8 +8,8 @@ Version: 2018mar23
 
 from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
 import sciris.core as sc
-from atomica.core.system import AtomicaException
-from atomica.core.utils import NamedItem
+from .system import AtomicaException
+from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod
 
