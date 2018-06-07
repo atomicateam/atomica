@@ -2,12 +2,9 @@
 Version:
 """
 
-import atomica.ui as aui
 import os
+import atomica.ui as aui
 from sciris.core import odict
-
-# TODO: Wrap up what FE is likely to use into either Project or Result level method calls, rather than using functions.
-from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
 test = "tb"
@@ -125,32 +122,32 @@ if "makeplots" in torun:
         P.results["default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
-    plot_series(d, plot_type="stacked")
+    d = aui.PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
+    aui.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
-        plot_bars(d, outer="results", stack_pops=[plot_pop])
+        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        aui.plot_bars(d, outer="results", stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
-        plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
+        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        aui.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
-        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
-        plot_series(d, plot_type='stacked', axis='outputs')
+        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        aui.plot_series(d, plot_type='stacked', axis='outputs')
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
-        plot_series(d, plot_type='stacked', axis='outputs')
+        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        aui.plot_series(d, plot_type='stacked', axis='outputs')
 
 
     # Plot aggregate flows
-    d = PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
-    plot_series(d, axis="pops")
+    d = aui.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    aui.plot_series(d, axis="pops")
 
 
 if "export" in torun:
@@ -187,8 +184,8 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
-    d = PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
-    plot_series(d, axis="results", data=P.data)
+    d = aui.PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    aui.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
@@ -203,8 +200,8 @@ if "autocalibrate" in torun:
         adjustables = [("foi", "15-64", 0.0, 3.0)]
         P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
-    d = PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-    plot_series(d, axis='results', data=P.data)
+    d = aui.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
+    aui.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     scvalues = dict()
@@ -236,8 +233,8 @@ if "parameterscenario" in torun:
     P.make_scenario(name="varying_infections2", instructions=scvalues)
     P.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
 
-    d = PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
-    plot_series(d, axis="results")
+    d = aui.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    aui.plot_series(d, axis="results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

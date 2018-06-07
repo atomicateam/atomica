@@ -1,4 +1,5 @@
 # The Atomica "user interface" -- import everything from submodules
+from .core.version import * # No dependencies
 from .core.system import *  # No dependencies
 from .core.excel import *  # Depends on system
 from .core.structure_settings import *  # Depends on Excel
