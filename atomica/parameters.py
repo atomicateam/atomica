@@ -222,7 +222,7 @@ class ParameterSet(NamedItem):
         # Transfer extraction.
         for name in data.specs[DS.KEY_TRANSFER]:
             if name not in self.transfers:
-                self.transfers[name] = odict()
+                self.transfers[name] = sc.odict()
             for pop_link in data.specs[DS.KEY_TRANSFER][name][DS.KEY_POPULATION_LINKS]:
                 source_pop = pop_link[0]
                 target_pop = pop_link[1]

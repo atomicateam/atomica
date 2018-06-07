@@ -10,18 +10,18 @@ from sciris.core import odict
 from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
-#test = "tb"
+test = "tb"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 #"makeplots",
@@ -101,19 +101,22 @@ if "makeprogramspreadsheet" in torun:
     makeprogramspreadsheet(filename, pops=2, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    print('\n\n\nLoading programs spreadsheet ...')
-    from atomica.defaults import demo
-
-    P = demo(which=test,do_plot=0)
-    filename = "databooks/programdata_"+test+".xlsx"
-    P.load_progbook(databook_path=filename, make_default_progset=True)
+    if test=='tb':
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    else:
+        print('\n\n\nLoading programs spreadsheet ...')
+        from atomica.defaults import demo
     
-    coverage = odict([('Risk avoidance',     .99),
-                     ('Harm reduction 1',   .8),
-                     ('Harm reduction 2',   .9),
-                     ('Treatment 1',        .99),
-                     ('Treatment 2',        .8)])
-    print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+        P = demo(which=test,do_plot=0)
+        filename = "databooks/programdata_"+test+".xlsx"
+        P.load_progbook(databook_path=filename, make_default_progset=True)
+        
+        coverage = odict([('Risk avoidance',     .99),
+                         ('Harm reduction 1',   .8),
+                         ('Harm reduction 2',   .9),
+                         ('Treatment 1',        .99),
+                         ('Treatment 2',        .8)])
+        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
 if "makeplots" in torun:
 
