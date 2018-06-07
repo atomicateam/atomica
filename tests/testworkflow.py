@@ -3,11 +3,11 @@ Version:
 """
 
 import os
-import atomica.ui as aui
-from sciris.core import odict
+import atomica.ui as au
+import sciris.core as sc
 
 test = "sir"
-test = "tb"
+#test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -55,19 +55,19 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
-    aui.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
+    au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
-    F = aui.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
+    F = au.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
     F.save(tmpdir+test+".frw")
 
 if "loadframework" in torun:
-    F = aui.ProjectFramework.load(tmpdir+test+".frw")
+    F = au.ProjectFramework.load(tmpdir+test+".frw")
 
 if "makedatabook" in torun:
-    P = aui.Project(framework=F) # Create a project with an empty data structure.
+    P = au.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_trans":5, "num_progs":31, "data_end":2018}
@@ -75,7 +75,7 @@ if "makedatabook" in torun:
 
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
-    P = aui.Project(name=test.upper()+" project", framework=F, do_run=False)
+    P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
     # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
@@ -90,29 +90,26 @@ if "runsim" in torun:
     
 if "makeprogramspreadsheet" in torun:
     print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
-    from atomica.defaults import demo
-    from atomica.workbook_export import makeprogramspreadsheet
 
-    P = demo(which=test,do_plot=0)
+    P = au.demo(which=test,do_plot=0)
     filename = "temp/programspreadsheet.xlsx"
-    makeprogramspreadsheet(filename, pops=2, progs=5)
+    au.makeprogramspreadsheet(filename, pops=2, progs=5)
 
 if "loadprogramspreadsheet" in torun:
     if test=='tb':
         print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
-        from atomica.defaults import demo
     
-        P = demo(which=test,do_plot=0)
+        P = au.demo(which=test,do_plot=0)
         filename = "databooks/programdata_"+test+".xlsx"
         P.load_progbook(databook_path=filename, make_default_progset=True)
         
-        coverage = odict([('Risk avoidance',     .99),
-                         ('Harm reduction 1',   .8),
-                         ('Harm reduction 2',   .9),
-                         ('Treatment 1',        .99),
-                         ('Treatment 2',        .8)])
+        coverage = sc.odict([('Risk avoidance',     .99),
+                             ('Harm reduction 1',   .8),
+                             ('Harm reduction 2',   .9),
+                             ('Treatment 1',        .99),
+                             ('Treatment 2',        .8)])
         print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
 if "makeplots" in torun:
@@ -122,32 +119,32 @@ if "makeplots" in torun:
         P.results["default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = aui.PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
-    aui.plot_series(d, plot_type="stacked")
+    d = au.PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
+    au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
-        aui.plot_bars(d, outer="results", stack_pops=[plot_pop])
+        d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        au.plot_bars(d, outer="results", stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
-        aui.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
+        d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        au.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
-        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
-        aui.plot_series(d, plot_type='stacked', axis='outputs')
+        d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        au.plot_series(d, plot_type='stacked', axis='outputs')
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = aui.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
-        aui.plot_series(d, plot_type='stacked', axis='outputs')
+        d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        au.plot_series(d, plot_type='stacked', axis='outputs')
 
 
     # Plot aggregate flows
-    d = aui.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
-    aui.plot_series(d, axis="pops")
+    d = au.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    au.plot_series(d, axis="pops")
 
 
 if "export" in torun:
@@ -155,8 +152,8 @@ if "export" in torun:
     
 if "listspecs" in torun:
     # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
-    FS = aui.FrameworkSettings
-    DS = aui.DataSettings
+    FS = au.FrameworkSettings
+    DS = au.DataSettings
     # Print list of characteristic names, i.e. state variables.
     print("\nCharacteristics...")
     print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
@@ -184,8 +181,8 @@ if "manualcalibrate" in torun:
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
     P.run_sim(parset="manual", result_name="manual")
-    d = aui.PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
-    aui.plot_series(d, axis="results", data=P.data)
+    d = au.PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+    au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
@@ -200,8 +197,8 @@ if "autocalibrate" in torun:
         adjustables = [("foi", "15-64", 0.0, 3.0)]
         P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
-    d = aui.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-    aui.plot_series(d, axis='results', data=P.data)
+    d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
+    au.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     scvalues = dict()
@@ -233,11 +230,11 @@ if "parameterscenario" in torun:
     P.make_scenario(name="varying_infections2", instructions=scvalues)
     P.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
 
-    d = aui.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
-    aui.plot_series(d, axis="results")
+    d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    au.plot_series(d, axis="results")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
 
 if "loadproject" in torun:
-    P = aui.Project.load(tmpdir+test+".prj")
+    P = au.Project.load(tmpdir+test+".prj")
