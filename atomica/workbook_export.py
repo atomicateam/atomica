@@ -401,7 +401,6 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
 
     if temp_storage is None:
         temp_storage = sc.odict()
-        temp_storage = odict()
     if formats is None:
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
 
@@ -938,17 +937,11 @@ def make_programs_range(name=None, popnames=None, items=None):
         if type(item) is dict:
             name = item['name']
             short = item['short']
-<<<<<<< HEAD
             target_pops = [0 for popname in popnames]
         coded_params.append([short, name]+target_pops)
-    return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params, assumption=False)
-=======
-            targetpops = [0 for popname in popnames]
-        coded_params.append([short, name] + targetpops)
     return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params,
                           assumption=False)
 
->>>>>>> tb-gui-demo
 
 def make_years_range(name=None, row_names=None, ref_range=None, data_start=None, data_end=None, data=None):
     if ref_range is not None:
@@ -1144,13 +1137,8 @@ class ProgramSpreadsheet:
         return current_row
 
     def generate_costcovdata(self):
-<<<<<<< HEAD
         row_levels = ['Total spend', 'Unit cost', 'Number covered', 'Capacity constraint']
-        self.current_sheet.set_column('C:C',20)
-=======
-        row_levels = ['Total spend', 'Unit cost', 'Coverage', 'Capacity constraint']
         self.current_sheet.set_column('C:C', 20)
->>>>>>> tb-gui-demo
         current_row = 0
         current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row,
                                             row_names=self.ref_prog_range.param_refs(),
