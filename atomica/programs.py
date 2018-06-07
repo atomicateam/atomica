@@ -6,11 +6,8 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-<<<<<<< HEAD
 from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
-=======
 import sciris.core as sc
->>>>>>> tb-gui-demo
 from atomica.system import AtomicaException
 from atomica.utils import NamedItem
 from numpy.random import uniform
@@ -24,9 +21,8 @@ class ProgramSet(NamedItem):
     def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
-<<<<<<< HEAD
-        self.programs   = odict()
-        self.covout     = odict()
+        self.programs   = sc.odict()
+        self.covout     = sc.odict()
         if programs is not None: self.add_programs(programs)
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
@@ -37,21 +33,7 @@ class ProgramSet(NamedItem):
 
     def __repr__(self):
         ''' Print out useful information'''
-        output = desc(self)
-=======
-
-        self.default_interaction = default_interaction
-        self.programs = sc.odict()
-        if programs is not None: self.addprograms(programs)
-        else: self.updateprogset()
-        self.defaultbudget = sc.odict()
-        self.created = sc.today()
-        self.modified = sc.today()
-
-    def __repr__(self):
-        ''' Print out useful information'''
         output = sc.desc(self)
->>>>>>> tb-gui-demo
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
         output += '        Date created: %s\n'    % sc.getdate(self.created)
@@ -454,11 +436,7 @@ class Program(NamedItem):
 
     def __repr__(self):
         ''' Print out useful info'''
-<<<<<<< HEAD
-        output = desc(self)
-=======
         output = sc.desc(self)
->>>>>>> tb-gui-demo
         output += '          Program name: %s\n'    % self.short
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
