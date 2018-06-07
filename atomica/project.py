@@ -31,7 +31,7 @@ from atomica.excel import ExcelSettings as ES
 from atomica.framework import ProjectFramework
 from atomica.model import run_model
 from atomica.parameters import ParameterSet
-from atomica.programs import Program, ProgramSet
+from atomica.programs import ProgramSet
 from atomica.scenarios import Scenario, ParameterScenario
 from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
 from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
@@ -213,44 +213,9 @@ class Project(object):
     def make_progset(self, progdata=None, name="default"):
         '''Make a progset from program spreadsheet data'''
         
-<<<<<<< HEAD
         progset = ProgramSet(name=name)
         progset.make(progdata=progdata, project=self)
-        self.progsets.insert(progset)
-=======
-        # Sort out inputs
-        if progdata is None:
-            if self.progdata is None:
-                errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
-                raise AtomicaException(errormsg)
-            else:
-                progdata = self.progdata
-                
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.popnames):
-            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
-            raise AtomicaException(errormsg)
-                
-        nprogs = len(progdata['progs']['short'])
-        programs = []
-        
-        for n in range(nprogs):
-            pkey = progdata['progs']['short'][n]
-            data = {k: progdata[pkey][k] for k in ('cost', 'coverage')}
-            data['t'] = progdata['years']
-            prg = Program(short=pkey,
-                        name=progdata['progs']['short'][n],
-                        targetpops=[val for i,val in enumerate(progdata['pops']) if progdata['progs']['targetpops'][i]],
-                        unitcost=progdata[pkey]['unitcost'],
-                        capacity=progdata[pkey]['capacity'],
-                        data=data
-                        )
-            programs.append(prg)
-            
-        progset = ProgramSet(name=name,programs=programs)
         self.progsets.append(progset)
-        return progset
->>>>>>> tb-gui-demo
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
