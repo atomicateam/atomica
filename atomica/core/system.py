@@ -23,7 +23,7 @@ else:
 class SystemSettings(object):
     """ Stores all 'system' variables used by the Atomica module. """
 
-    CODEBASE_DIRNAME = "atomica"
+    CODEBASE_DIRNAME = ["atomica", "core"]
     CONFIG_LOGGER_FILENAME = "logging.ini"
     CONFIG_FRAMEWORK_FILENAME = "format_framework.ini"
     CONFIG_DATABOOK_FILENAME = "format_databook.ini"
@@ -58,7 +58,7 @@ class SystemSettings(object):
 
 def atomica_path(subdir=None, trailingsep=True):
     """ Returns the parent path of the Atomica module. If subdir is not None, include it in the path. """
-    path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
     if subdir is not None:
         if not isinstance(subdir, list):
             subdir = [subdir]  # Ensure it's a list.

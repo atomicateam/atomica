@@ -37,9 +37,9 @@ from atomica.core.structure_settings import FrameworkSettings as FS, DataSetting
 from atomica.core.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from atomica.core.workbook_export import write_workbook, make_instructions
 from atomica.core.workbook_import import read_workbook, load_progbook
-from atomica.core.utils import SList
-from atomica.core.optimization import Optim
-from atomica.core.results import Result
+from atomica.core.utils import NDict
+#from atomica.core.optimization import Optim
+#from atomica.core.results import Result
 import sciris.core as sc
 import numpy as np
 
@@ -89,11 +89,11 @@ class Project(object):
         self.data = ProjectData()  # TEMPORARY
 
         # Define the structure sets
-        self.parsets  = SList()
-        self.progsets = SList()
-        self.scens    = SList()
-        self.optims   = SList()
-        self.results  = SList()
+        self.parsets  = NDict()
+        self.progsets = NDict()
+        self.scens    = NDict()
+        self.optims   = NDict()
+        self.results  = NDict()
 
         # Define metadata
         self.uid = sc.uuid()
