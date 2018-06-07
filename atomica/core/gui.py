@@ -5,15 +5,15 @@ Contains back-end GUI wrappers for codebase functionality.
 Note: Callback functions cannot be easily decorated, so logging is applied per method, not per class.
 """
 
-from atomica.system import SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure_settings import DataSettings as DS
-from atomica.excel import ExcelSettings as ES
+from atomica.core.system import SystemSettings as SS
+from atomica.core.structure_settings import FrameworkSettings as FS
+from atomica.core.structure_settings import DataSettings as DS
+from atomica.core.excel import ExcelSettings as ES
 
-from atomica.system import log_usage, accepts, returns, logger
-from atomica.framework import ProjectFramework
-from atomica.workbook_export import WorkbookInstructions, write_workbook
-from atomica.workbook_import import read_workbook
+from atomica.core.system import log_usage, accepts, returns, logger
+from atomica.core.framework import ProjectFramework
+from atomica.core.workbook_export import WorkbookInstructions, write_workbook
+from atomica.core.workbook_import import read_workbook
 
 import sys
 

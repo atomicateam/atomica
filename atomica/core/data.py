@@ -3,10 +3,10 @@
 Atomica data file.
 Sets out a structure to store context-specific databook-imported values relating to a model.
 """
-from atomica.system import SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
-from atomica.system import apply_to_all_methods, log_usage
-from atomica.structure import CoreProjectStructure, KeyData
+from atomica.core.system import SystemSettings as SS
+from atomica.core.structure_settings import FrameworkSettings as FS, DataSettings as DS
+from atomica.core.system import apply_to_all_methods, log_usage
+from atomica.core.structure import CoreProjectStructure, KeyData
 
 
 @apply_to_all_methods(log_usage)

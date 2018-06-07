@@ -24,22 +24,22 @@ Methods for structure lists:
 Version: 2018jun04
 """
 
-from atomica.version import version
-from atomica.calibration import perform_autofit
-from atomica.data import ProjectData
-from atomica.excel import ExcelSettings as ES
-from atomica.framework import ProjectFramework
-from atomica.model import run_model
-from atomica.parameters import ParameterSet
-from atomica.programs import ProgramSet
-from atomica.scenarios import Scenario, ParameterScenario
-from atomica.structure_settings import FrameworkSettings as FS, DataSettings as DS
-from atomica.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from atomica.workbook_export import write_workbook, make_instructions
-from atomica.workbook_import import read_workbook, load_progbook
-from atomica.utils import SList
-from atomica.optimization import Optim
-from atomica.results import Result
+from atomica.core.version import version
+from atomica.core.calibration import perform_autofit
+from atomica.core.data import ProjectData
+from atomica.core.excel import ExcelSettings as ES
+from atomica.core.framework import ProjectFramework
+from atomica.core.model import run_model
+from atomica.core.parameters import ParameterSet
+from atomica.core.programs import ProgramSet
+from atomica.core.scenarios import Scenario, ParameterScenario
+from atomica.core.structure_settings import FrameworkSettings as FS, DataSettings as DS
+from atomica.core.system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
+from atomica.core.workbook_export import write_workbook, make_instructions
+from atomica.core.workbook_import import read_workbook, load_progbook
+from atomica.core.utils import SList
+from atomica.core.optimization import Optim
+from atomica.core.results import Result
 import sciris.core as sc
 import numpy as np
 

@@ -1,5 +1,5 @@
 import sciris.core as sc
-from atomica.system import NotAllowedError, NotFoundError, AtomicaInputError
+from atomica.core.system import NotAllowedError, NotFoundError, AtomicaInputError
 
 
 class NamedItem(object):

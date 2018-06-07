@@ -4,7 +4,7 @@ Atomica portfolio definition file.
 Implements a container class for Atomica (and derived classes) projects of all types.
 """
 
-from atomica.system import apply_to_all_methods, log_usage
+from atomica.core.system import apply_to_all_methods, log_usage
 
 
 @apply_to_all_methods(log_usage)

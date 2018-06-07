@@ -2,8 +2,8 @@ from copy import deepcopy as dcp
 
 import numpy as np
 
-from atomica.asd import asd
-from atomica.interpolation import interpolate_func
+from atomica.core.asd import asd
+from atomica.core.interpolation import interpolate_func
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()

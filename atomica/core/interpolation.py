@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from atomica.system import AtomicaException
+from atomica.core.system import AtomicaException
 
 
 # General interpolation wrapper

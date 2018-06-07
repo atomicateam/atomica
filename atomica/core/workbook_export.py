@@ -1,15 +1,15 @@
-from atomica.system import SystemSettings as SS
-from atomica.structure_settings import FrameworkSettings as FS
-from atomica.structure_settings import DataSettings as DS
-from atomica.excel import ExcelSettings as ES
+from atomica.core.system import SystemSettings as SS
+from atomica.core.structure_settings import FrameworkSettings as FS
+from atomica.core.structure_settings import DataSettings as DS
+from atomica.core.excel import ExcelSettings as ES
 
-from atomica.system import logger, AtomicaException, accepts, display_name
-from atomica.excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
-from atomica.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
+from atomica.core.system import logger, AtomicaException, accepts, display_name
+from atomica.core.excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
+from atomica.core.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
     IDType, IDRefType, SwitchType, QuantityFormatType
-from atomica.workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
+from atomica.core.workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
     get_workbook_item_type_specs, get_workbook_item_specs
-from atomica.structure import get_quantity_type_list
+from atomica.core.structure import get_quantity_type_list
 
 import sciris.core as sc
 import xlsxwriter as xw

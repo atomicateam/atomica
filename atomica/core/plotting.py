@@ -17,11 +17,11 @@ from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
 import sciris.core as sc
-from atomica.model import Compartment, Characteristic, Parameter, Link
-from atomica.results import Result
-from atomica.system import AtomicaException, logger
-from atomica.parser_function import parse_function
-from atomica.utils import SList
+from atomica.core.model import Compartment, Characteristic, Parameter, Link
+from atomica.core.results import Result
+from atomica.core.system import AtomicaException, logger
+from atomica.core.parser_function import parse_function
+from atomica.core.utils import SList
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']

@@ -5,14 +5,14 @@ import xlrd
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
-from atomica.excel import ExcelSettings as ES
-from atomica.excel import extract_header_columns_mapping, extract_excel_sheet_value
-from atomica.structure import KeyData, SemanticUnknownException
-from atomica.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
+from atomica.core.excel import ExcelSettings as ES
+from atomica.core.excel import extract_header_columns_mapping, extract_excel_sheet_value
+from atomica.core.structure import KeyData, SemanticUnknownException
+from atomica.core.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
     SwitchType, QuantityFormatType
-from atomica.system import SystemSettings as SS
-from atomica.system import logger, AtomicaException, accepts, display_name
-from atomica.workbook_utils import WorkbookTypeException, WorkbookRequirementException, get_workbook_page_keys, \
+from atomica.core.system import SystemSettings as SS
+from atomica.core.system import logger, AtomicaException, accepts, display_name
+from atomica.core.workbook_utils import WorkbookTypeException, WorkbookRequirementException, get_workbook_page_keys, \
     get_workbook_page_specs, get_workbook_page_spec, get_workbook_item_type_specs, get_workbook_item_specs
 
 
