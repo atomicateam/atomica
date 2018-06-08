@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 import xlrd
-from sciris.core import odict, dcp, isnumber
+import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
 from atomica.excel import ExcelSettings as ES
@@ -80,7 +80,7 @@ def read_contents_dc(worksheet, table, start_row, header_columns_map, item_type=
                     continue
                 attribute_spec = item_type_spec["attributes"][attribute]
                 if "ref_item_type" in attribute_spec:
-                    new_superitem_type_name_pairs = dcp(superitem_type_name_pairs)
+                    new_superitem_type_name_pairs = sc.dcp(superitem_type_name_pairs)
                     new_superitem_type_name_pairs.append([item_type, item_name])
                     read_contents_dc(worksheet=worksheet, table=table, item_type=attribute_spec["ref_item_type"],
                                      start_row=row, header_columns_map=header_columns_map, stop_row=row + 1,
@@ -430,17 +430,26 @@ def getyears(sheetdata):
     return lastdatacol, years
    
    
-def blank2nan(thesedata):
-    ''' Convert a blank entry to a nan '''
-    return list(map(lambda val: np.nan if val=='' else val, thesedata))
+def blank2newtype(thesedata, newtype=None):
+    ''' Convert a blank entry to another type, e.g. nan, None or zero'''
+    if newtype is None or newtype=='nan': newval = np.nan # For backward compatability
+    elif newtype=='None': newval = None
+    elif newtype=='zero': newval = 0
+    elif sc.isnumber(newtype): newval = newtype
+    else: 
+        errormsg = 'Cannot convert blanks to type %s, can only convert to types [''nan'', ''None'', ''zero''] or numbers' % (type(newtype)) 
+        raise AtomicaException(errormsg)
+    return [newval if thisdatum=='' else thisdatum for thisdatum in thesedata ]
     
 
 def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklower=True, checkblank=True, startcol=0):
     ''' Do basic validation on the data: at least one point entered, between 0 and 1 or just above 0 if checkupper=False '''
     
+    result = sc.odict()
+    result['isvalid'] = 1
     # Check that only numeric data have been entered
     for column,datum in enumerate(thesedata):
-        if not isnumber(datum):
+        if not sc.isnumber(datum):
             errormsg = 'Invalid entry in sheet "%s", parameter "%s":\n' % (sheetname, thispar) 
             errormsg += 'row=%i, column=%s, value="%s"\n' % (row+1, xlrd.colname(column+startcol), datum)
             errormsg += 'Be sure all entries are numeric'
@@ -458,12 +467,13 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
             errormsg = 'Invalid entry in sheet "%s", parameter "%s":\n' % (sheetname, thispar) 
             errormsg += 'row=%i, invalid="%s", values="%s"\n' % (row+1, invalid, validdata)
             errormsg += 'Be sure that all values are >=0 (and <=1 if a probability)'
-            raise AtomicaException(errormsg)
+            result['isvalid'] = 0
+            result['errormsg'] = errormsg
     elif checkblank: # No data entered
         errormsg = 'No data or assumption entered for sheet "%s", parameter "%s", row=%i' % (sheetname, thispar, row) 
-        raise AtomicaException(errormsg)
-    else:
-        return None
+        result['isvalid'] = 0
+        result['errormsg'] = errormsg
+    return result
 
 
 def load_progbook(filename, verbose=2):
@@ -471,8 +481,8 @@ def load_progbook(filename, verbose=2):
     Loads programs book (i.e. reads its contents into the data).
     '''
     ## Basic setup
-    data = odict() # Create structure for holding data
-    data['meta'] = odict()
+    data = sc.odict() # Create structure for holding data
+    data['meta'] = sc.odict()
     data['meta']['sheets'] = ['Populations & programs','Program data'] # TODO - remove hardcoding
 
     ## Read in databook 
@@ -482,49 +492,61 @@ def load_progbook(filename, verbose=2):
         raise AtomicaException(errormsg)
     
     ## Calculate columns for which data are entered, and store the year ranges
-    sheetdata = workbook.sheet_by_name('Program data') # Load this workbook
+    sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
     lastdatacol, data['years'] = getyears(sheetdata)
     assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
     
-    ## Load program information
+    ## Load program spend information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
-    data['progs'] = odict()
+    data['progs'] = sc.odict()
+    data['pars'] = sc.odict()
     data['progs']['short'] = []
     data['progs']['name'] = []
-    data['progs']['targetpops'] = []
+    data['progs']['target_pops'] = []
+    data['progs']['target_comps'] = []
+    
+    colindices = []
     for row in range(sheetdata.nrows): 
-        if sheetdata.cell_value(row,0)=='':
+        if sheetdata.cell_value(row,0)!='':
+            for col in range(2,sheetdata.ncols):
+                cell_val = sheetdata.cell(row, col).value
+                if cell_val!='': colindices.append(col-1)
+        else:
             thesedata = sheetdata.row_values(row, start_colx=2) 
         
-            if sheetdata.cell_value(row,1)=='':
-                data['pops'] = thesedata[2:]
+            if row==1:
+                data['pops'] = thesedata[3:colindices[0]]
+                data['comps'] = thesedata[colindices[1]-1:]
             else:
-                progname = str(thesedata[0])
-                data['progs']['short'].append(progname)
-                data['progs']['name'].append(str(thesedata[1]))
-                data['progs']['targetpops'].append(thesedata[2:])
-                data[progname] = odict()
-                data[progname]['name'] = str(thesedata[1])
-                data[progname]['targetpops'] = thesedata[2:]
-                data[progname]['cost'] = []
-                data[progname]['coverage'] = []
-                data[progname]['unitcost'] = odict()
-                data[progname]['capacity'] = odict()
-                
+                if thesedata[0]:
+                    progname = str(thesedata[0])
+                    data['progs']['short'].append(progname)
+                    data['progs']['name'].append(str(thesedata[1]))
+                    data['progs']['target_pops'].append(thesedata[3:colindices[0]])
+                    data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
+                    data[progname] = sc.odict()
+                    data[progname]['name'] = str(thesedata[1])
+                    data[progname]['target_pops'] = thesedata[3:colindices[0]]
+                    data[progname]['target_comps'] = blank2newtype(thesedata[colindices[1]-1:], 0)
+                    data[progname]['spend'] = []
+                    data[progname]['basespend'] = []
+                    data[progname]['capacity'] = []
+                    data[progname]['unitcost'] = sc.odict()
     
-    namemap = {'Total spend': 'cost',
+    namemap = {'Total spend': 'spend',
+               'Base spend':'basespend',
                'Unit cost':'unitcost',
-               'Coverage': 'coverage',
                'Capacity constraints': 'capacity'} 
-    sheetdata = workbook.sheet_by_name('Program data') # Load 
-    
+    sheetdata = workbook.sheet_by_name('Program spend data') # Load 
+    validunitcosts = sc.odict()
     
     for row in range(sheetdata.nrows): 
         sheetname = sheetdata.cell_value(row,0) # Sheet name
         progname = sheetdata.cell_value(row, 1) # Get the name of the program
 
         if progname != '': # The first column is blank: it's time for the data
-            thesedata = blank2nan(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
+            validunitcosts[progname] = []
+            thesedata = blank2newtype(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
             assumptiondata = sheetdata.cell_value(row, assumptioncol)
             if assumptiondata != '': # There's an assumption entered
                 thesedata = [assumptiondata] # Replace the (presumably blank) data if a non-blank assumption has been entered
@@ -532,12 +554,36 @@ def load_progbook(filename, verbose=2):
                 thisvar = namemap[sheetdata.cell_value(row, 2)]  # Get the name of the indicator
                 data[progname][thisvar] = thesedata # Store data
             else:
-                thisvar = namemap[sheetdata.cell_value(row, 2).split(' - ')[0]]  # Get the name of the indicator
-                thisestimate = sheetdata.cell_value(row, 2).split(' - ')[1]
+                thisvar = namemap[sheetdata.cell_value(row, 2).split(': ')[0]]  # Get the name of the indicator
+                thisestimate = sheetdata.cell_value(row, 2).split(': ')[1]
                 data[progname][thisvar][thisestimate] = thesedata # Store data
-            checkblank = False if thisvar in ['coverage', 'capacity'] else True # Don't check optional indicators, check everything else
-            validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
+            checkblank = False if thisvar in ['basespend','capacity'] else True # Don't check optional indicators, check everything else
+            result = validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
+            if thisvar in namemap.keys():
+                if result['isvalid']==0: raise AtomicaException(result['errormsg'])
+            elif thisvar=='unitcost': # For some variables we need to compare several
+                if result['isvalid']==0: validunitcosts.append(result['isvalid'])
+    
+    for progname in data['progs']['short']:
+        if validunitcosts[progname] in [[0,0,0],[0,0,1],[0,1,0]]:
+            errormsg = 'You need to enter either best+low+high, best, or low+high values for the unit costs. Values are incorrect for program %s' % (progname) 
+            raise AtomicaException(errormsg)
+
             
+    ## Load parameter information
+    sheetdata = workbook.sheet_by_name('Program effects') # Load 
+    for row in range(sheetdata.nrows): 
+        if sheetdata.cell_value(row, 0)!='':
+            par_name = sheetdata.cell_value(row, 0) # Get the name of the parameter
+        elif sheetdata.cell_value(row, 1)!='': # Data row
+            pop_name = sheetdata.cell_value(row, 1)
+            data['pars'][par_name] = sc.odict()
+            data['pars'][par_name][pop_name] = sc.odict()
+            data['pars'][par_name][pop_name]['interactions'] = sheetdata.row_values(row, start_colx=2, end_colx=4) 
+            data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 5) if sheetdata.cell_value(row+i, 5)!='' else np.nan for i in range(3)]
+            data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 6) if sheetdata.cell_value(row+i, 6)!='' else np.nan for i in range(3)]
+            data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=8, end_colx=8+len(data['progs']['short'])) ) for i in range(3)]
+
     return data
 
 

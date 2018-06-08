@@ -1,10 +1,7 @@
 # Imports
 
-from copy import deepcopy as dcp
-
 import numpy as np
-from sciris.core import odict, uuid
-
+import sciris.core as sc
 from atomica.interpolation import interpolate_func
 from atomica.structure_settings import DataSettings as DS
 from atomica.system import AtomicaException, logger
@@ -18,16 +15,11 @@ class Parameter(NamedItem):
         NamedItem.__init__(self,name)
 
         # These ordered dictionaries have population names as keys.
-        if t is None:
-            t = odict()
-        if y is None:
-            y = odict()
-        if y_format is None:
-            y_format = odict()
-        if y_factor is None:
-            y_factor = odict()
-        if autocalibrate is None:
-            autocalibrate = odict()
+        if t             is None: t             = sc.odict()
+        if y             is None: y             = sc.odict()
+        if y_format      is None: y_format      = sc.odict()
+        if y_factor      is None: y_factor      = sc.odict()
+        if autocalibrate is None: autocalibrate = sc.odict()
         self.t = t  # Time data
         self.y = y  # Value data
         self.y_format = y_format  # Value format data (e.g. Probability, Fraction or Number).
@@ -106,8 +98,8 @@ class Parameter(NamedItem):
         #     # Do not bother running interpolation loops if constant. Good for performance.
         #    output = np.ones(len(tvec))*(self.y[pop_name][0]*np.abs(self.y_factor[pop_name]))
         # else:
-        input_t = dcp(self.t[pop_name])
-        input_y = dcp(self.y[pop_name])  # *np.abs(self.y_factor[pop_name])
+        input_t = sc.dcp(self.t[pop_name])
+        input_y = sc.dcp(self.y[pop_name])  # *np.abs(self.y_factor[pop_name])
 
         # Eliminate np.nan from value array before interpolation. Makes sure timepoints are appropriately constrained.
         cleaned_times = input_t[~np.isnan(input_y)]  # NB. numpy advanced indexing here results in a copy
@@ -178,22 +170,22 @@ class ParameterSet(NamedItem):
         # Names are used throughout the codebase as variable names (technically dict keys).
         self.pop_labels = []  # List of population labels.
         # Labels are used only for user interface and can be more elaborate than simple names.
-        self.pars = odict()
+        self.pars = sc.odict()
         self.pars["cascade"] = []
         self.pars["comps"] = []
         self.pars["characs"] = []
         self.par_ids = {"cascade": {}, "comps": {}, "characs": {}}
 
-        self.transfers = odict()  # Dictionary of inter-population transitions.
-        self.contacts = odict()  # Dictionary of inter-population interaction weights.
+        self.transfers = sc.odict()  # Dictionary of inter-population transitions.
+        self.contacts  = sc.odict()  # Dictionary of inter-population interaction weights.
 
         logger.info("Created ParameterSet: {0}".format(self.name))
 
     def copy(self,new_name=None):
-        x = dcp(self)
+        x = sc.dcp(self)
         if new_name is not None:
             x.name = new_name
-        x.uid = uuid()
+        x.uid = sc.uuid()
         return x
 
     def set_scaling_factor(self, par_name, pop_name, scale):
@@ -230,7 +222,7 @@ class ParameterSet(NamedItem):
         # Transfer extraction.
         for name in data.specs[DS.KEY_TRANSFER]:
             if name not in self.transfers:
-                self.transfers[name] = odict()
+                self.transfers[name] = sc.odict()
             for pop_link in data.specs[DS.KEY_TRANSFER][name][DS.KEY_POPULATION_LINKS]:
                 source_pop = pop_link[0]
                 target_pop = pop_link[1]

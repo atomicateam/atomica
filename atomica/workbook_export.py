@@ -3,7 +3,7 @@ from atomica.structure_settings import FrameworkSettings as FS
 from atomica.structure_settings import DataSettings as DS
 from atomica.excel import ExcelSettings as ES
 
-from atomica.system import logger, AtomicaException, accepts, prepare_filepath, display_name
+from atomica.system import logger, AtomicaException, accepts, display_name
 from atomica.excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
 from atomica.structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
     IDType, IDRefType, SwitchType, QuantityFormatType
@@ -11,8 +11,7 @@ from atomica.workbook_utils import WorkbookTypeException, get_workbook_page_keys
     get_workbook_item_type_specs, get_workbook_item_specs
 from atomica.structure import get_quantity_type_list
 
-from sciris.core import odict, isnumber
-from copy import deepcopy as dcp
+import sciris.core as sc
 import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import numpy as np
@@ -42,7 +41,7 @@ class WorkbookInstructions(object):
     def __init__(self, workbook_type=None):
         """ Initialize instructions that detail how to construct a workbook. """
         # Every relevant item must be included in a dictionary that lists how many should be created.
-        self.num_items = odict()
+        self.num_items = sc.odict()
         if workbook_type == SS.STRUCTURE_KEY_FRAMEWORK:
             item_type_specs = FS.ITEM_TYPE_SPECS
         elif workbook_type == SS.STRUCTURE_KEY_DATA:
@@ -114,7 +113,7 @@ def create_attribute_cell_content(worksheet, row, col, attribute, item_type, ite
     # Determine attribute information and prepare for content production.
     attribute_spec = item_type_specs[item_type]["attributes"][attribute]
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
     if formats is None:
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_key is None:
@@ -286,11 +285,11 @@ def write_headers_dc(worksheet, table, start_row, start_col, item_type=None, fra
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None:
         format_variables = create_default_format_variables()
-    orig_format_variables = dcp(format_variables)
-    format_variables = dcp(orig_format_variables)
+    orig_format_variables = sc.dcp(format_variables)
+    format_variables = sc.dcp(orig_format_variables)
     revert_format_variables = False
 
-    row, col, header_column_map = start_row, start_col, odict()
+    row, col, header_column_map = start_row, start_col, sc.odict()
     for attribute in item_type_spec["attributes"]:
         # Ignore explicitly excluded attributes or implicitly not-included attributes for table construction.
         # Item name is always in the table though.
@@ -326,7 +325,7 @@ def write_headers_dc(worksheet, table, start_row, start_col, item_type=None, fra
                                          "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
             worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
             if revert_format_variables:
-                format_variables = dcp(orig_format_variables)
+                format_variables = sc.dcp(orig_format_variables)
                 revert_format_variables = False
             col += 1
     row += 1
@@ -345,7 +344,7 @@ def write_contents_dc(worksheet, table, start_row, header_column_map, item_type=
                                                        workbook_type=workbook_type)
 
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
 
     row, new_row = start_row, start_row
     if use_instructions:
@@ -379,7 +378,7 @@ def write_contents_dc(worksheet, table, start_row, header_column_map, item_type=
 def write_detail_columns(worksheet, table, start_row, start_col, framework=None, data=None, instructions=None,
                          workbook_type=None, formats=None, format_variables=None, temp_storage=None):
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
 
     row, col = start_row, start_col
     row, _, header_column_map = write_headers_dc(worksheet=worksheet, table=table, start_row=row, start_col=col,
@@ -401,7 +400,7 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
                                                        workbook_type=workbook_type)
 
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
     if formats is None:
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
 
@@ -496,7 +495,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
                                                        workbook_type=workbook_type)
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
 
     item_type = table.template_item_type
     item_key = table.template_item_key
@@ -506,8 +505,8 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
     if format_variables is None:
         format_variables = create_default_format_variables()
-    orig_format_variables = dcp(format_variables)
-    format_variables = dcp(orig_format_variables)
+    orig_format_variables = sc.dcp(format_variables)
+    format_variables = sc.dcp(orig_format_variables)
 
     row, col = start_row, start_col
     block_col = 1  # Column increment at which data entry block begins.
@@ -645,7 +644,7 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
                                                        workbook_type=workbook_type)
 
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
 
     row, col = start_row, start_col
     if isinstance(table, DetailColumns):
@@ -698,7 +697,7 @@ def write_worksheet(workbook, page_key, framework=None, data=None, instructions=
     if format_variables is None:
         format_variables = create_default_format_variables()
     else:
-        format_variables = dcp(format_variables)
+        format_variables = sc.dcp(format_variables)
     for format_variable_key in format_variables:
         if format_variable_key in page_spec:
             format_variables[format_variable_key] = page_spec[format_variable_key]
@@ -708,7 +707,7 @@ def write_worksheet(workbook, page_key, framework=None, data=None, instructions=
         formats = create_standard_excel_formats(workbook)
 
     if temp_storage is None:
-        temp_storage = odict()
+        temp_storage = sc.odict()
 
     # Iteratively construct tables.
     row, col = 0, 0
@@ -753,13 +752,13 @@ def write_workbook(workbook_path, framework=None, data=None, instructions=None, 
     logger.info("Constructing a {0}: {1}".format(display_name(workbook_type), workbook_path))
 
     # Construct workbook and related formats.
-    prepare_filepath(workbook_path)
+    sc.makefilepath(workbook_path)
     workbook = xw.Workbook(workbook_path)
     formats = create_standard_excel_formats(workbook)
     format_variables = create_default_format_variables()
 
     # Create a storage dictionary for values and formulae that may persist between sections.
-    temp_storage = odict()
+    temp_storage = sc.odict()
 
     # Iteratively construct worksheets.
     for page_key in page_keys:
@@ -781,13 +780,13 @@ def makeprogramspreadsheet(filename, pops, progs, datastart=None, dataend=None, 
     """ Generate the Atomica programs spreadsheet """
 
     # An integer argument is given: just create a pops dict using empty entries
-    if isnumber(pops):
+    if sc.isnumber(pops):
         npops = pops
         pops = []  # Create real pops list
         for p in range(npops):
             pops.append('Pop %i' % (p + 1))
-
-    if isnumber(progs):
+    
+    if sc.isnumber(progs):
         nprogs = progs
         progs = []  # Create real pops list
         for p in range(nprogs):
@@ -928,7 +927,7 @@ class SheetRange:
 def make_programs_range(name=None, popnames=None, items=None):
     """ 
     every programs item is a dictionary is expected to have the following fields:
-    short, name, targetpops
+    short, name, target_pops
     (2x str, 1x list of booleans)
     """
     column_names = ['Short name', 'Long name'] + popnames
@@ -938,8 +937,8 @@ def make_programs_range(name=None, popnames=None, items=None):
         if type(item) is dict:
             name = item['name']
             short = item['short']
-            targetpops = [0 for popname in popnames]
-        coded_params.append([short, name] + targetpops)
+            target_pops = [0 for popname in popnames]
+        coded_params.append([short, name]+target_pops)
     return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params,
                           assumption=False)
 
@@ -1088,8 +1087,8 @@ class AtomicaContent(object):
 
 class ProgramSpreadsheet:
     def __init__(self, name, pops, progs, data_start=None, data_end=None, verbose=0):
-        self.sheet_names = odict([
-            ('targeting', 'Populations & programs'),
+        self.sheet_names = sc.odict([
+            ('targeting',   'Populations & programs'),
             ('costcovdata', 'Program data'),
         ])
         self.name = name
@@ -1138,7 +1137,7 @@ class ProgramSpreadsheet:
         return current_row
 
     def generate_costcovdata(self):
-        row_levels = ['Total spend', 'Unit cost', 'Coverage', 'Capacity constraint']
+        row_levels = ['Total spend', 'Unit cost', 'Number covered', 'Capacity constraint']
         self.current_sheet.set_column('C:C', 20)
         current_row = 0
         current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row,

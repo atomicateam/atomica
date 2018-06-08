@@ -4,6 +4,7 @@ Version:
 
 import atomica.ui as aui
 import os
+from sciris.core import odict
 
 # TODO: Wrap up what FE is likely to use into either Project or Result level method calls, rather than using functions.
 from atomica.plotting import PlotData, plot_series, plot_bars
@@ -21,16 +22,16 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-# "makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-"makeplots",
-"export",
-# "listspecs",
-# "manualcalibrate",
-# "autocalibrate",
-# "parameterscenario",
-# "saveproject",
-# "loadproject",
+#"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+#"makeplots",
+#"export",
+#"listspecs",
+#"manualcalibrate",
+#"autocalibrate",
+#"parameterscenario",
+#"saveproject",
+#"loadproject",
 ]
 
 # Define plotting variables in case plots are generated
@@ -91,7 +92,7 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('Making programs spreadsheet ...')
+    print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
     from atomica.defaults import demo
     from atomica.workbook_export import makeprogramspreadsheet
 
@@ -100,12 +101,22 @@ if "makeprogramspreadsheet" in torun:
     makeprogramspreadsheet(filename, pops=2, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    print('\n\n\nLoading programs spreadsheet ...')
-    from atomica.defaults import demo
-
-    P = demo(which=test,do_plot=0)
-    filename = "databooks/programdata_"+test+".xlsx"
-    P.load_progbook(databook_path=filename)
+    if test=='tb':
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    else:
+        print('\n\n\nLoading programs spreadsheet ...')
+        from atomica.defaults import demo
+    
+        P = demo(which=test,do_plot=0)
+        filename = "databooks/programdata_"+test+".xlsx"
+        P.load_progbook(databook_path=filename, make_default_progset=True)
+        
+        coverage = odict([('Risk avoidance',     .99),
+                         ('Harm reduction 1',   .8),
+                         ('Harm reduction 2',   .9),
+                         ('Treatment 1',        .99),
+                         ('Treatment 2',        .8)])
+        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
 if "makeplots" in torun:
 
@@ -168,7 +179,7 @@ if "listspecs" in torun:
     
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
-    P.parsets.copy(old_name="default", new_name="manual")
+    P.parsets.copy("default", "manual")
     if test == "sir":
         P.parsets["manual"].set_scaling_factor(par_name="transpercontact", pop_name="adults", scale=0.5)
         outputs = ["ch_prev"]
