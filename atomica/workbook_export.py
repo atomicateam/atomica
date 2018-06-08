@@ -776,7 +776,7 @@ def write_workbook(workbook_path, framework=None, data=None, instructions=None, 
 # TODO: reconcile these!!!
 
 
-def makeprogramspreadsheet(filename, pops, progs, datastart=None, dataend=None, verbose=2):
+def makeprogramspreadsheet(filename, pops, comps, progs, datastart=None, dataend=None, verbose=2):
     """ Generate the Atomica programs spreadsheet """
 
     # An integer argument is given: just create a pops dict using empty entries
@@ -785,6 +785,12 @@ def makeprogramspreadsheet(filename, pops, progs, datastart=None, dataend=None, 
         pops = []  # Create real pops list
         for p in range(npops):
             pops.append('Pop %i' % (p + 1))
+    
+    if sc.isnumber(comps):
+        ncomps = comps
+        comps = []  # Create real compartments list
+        for p in range(ncomps):
+            pops.append('Comp %i' % (p + 1))
     
     if sc.isnumber(progs):
         nprogs = progs
@@ -797,7 +803,7 @@ def makeprogramspreadsheet(filename, pops, progs, datastart=None, dataend=None, 
     if dataend is None:   dataend = 2018.  # TEMP
     datastart, dataend = int(datastart), int(dataend)
 
-    book = ProgramSpreadsheet(filename, pops, progs, datastart, dataend)
+    book = ProgramSpreadsheet(filename, pops, comps, progs, datastart, dataend)
     book.create(filename)
 
     return filename
@@ -924,21 +930,23 @@ class SheetRange:
                 par_range]
 
 
-def make_programs_range(name=None, popnames=None, items=None):
+def make_programs_range(name=None, popnames=None, compnames=None, items=None):
     """ 
-    every programs item is a dictionary is expected to have the following fields:
-    short, name, target_pops
+    Every programs item is a dictionary is expected to have the following fields:
+    short, name, target_pops, target_comps
     (2x str, 1x list of booleans)
     """
-    column_names = ['Short name', 'Long name'] + popnames
+    column_names = ['Short name', 'Long name',''] + popnames + [''] + compnames
     row_names = range(1, len(items) + 1)
+    name='Populations & programs'
     coded_params = []
     for item in items:
         if type(item) is dict:
             name = item['name']
-            short = item['short']
-            target_pops = [0 for popname in popnames]
-        coded_params.append([short, name]+target_pops)
+            short = item['short'] 
+            target_pops = [''] + ['' for popname in popnames]
+            target_comps = [''] + ['' for comp in compnames]
+        coded_params.append([short, name]+target_pops+target_comps)
     return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params,
                           assumption=False)
 
@@ -1086,13 +1094,15 @@ class AtomicaContent(object):
 
 
 class ProgramSpreadsheet:
-    def __init__(self, name, pops, progs, data_start=None, data_end=None, verbose=0):
+    def __init__(self, name, pops, comps, progs, data_start=None, data_end=None, verbose=0):
         self.sheet_names = sc.odict([
             ('targeting',   'Populations & programs'),
             ('costcovdata', 'Program data'),
+            ('covoutdata',  'Program effects'),
         ])
         self.name = name
         self.pops = pops
+        self.comps = comps
         self.progs = progs
         self.data_start = data_start
         self.data_end = data_end
@@ -1117,7 +1127,7 @@ class ProgramSpreadsheet:
         self.current_sheet.set_column(9, 9, 12)
         current_row = 0
 
-        targeting_content = make_programs_range('Populations & programs', self.pops, self.progs)
+        targeting_content = make_programs_range('Populations & programs', popnames=self.pops, compnames=self.comps, items=self.progs)
         self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=targeting_content)
         current_row = self.prog_range.emit(self.formats, rc_title_align='left')
 
@@ -1137,7 +1147,7 @@ class ProgramSpreadsheet:
         return current_row
 
     def generate_costcovdata(self):
-        row_levels = ['Total spend', 'Unit cost', 'Number covered', 'Capacity constraint']
+        row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high']
         self.current_sheet.set_column('C:C', 20)
         current_row = 0
         current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row,
@@ -1145,6 +1155,9 @@ class ProgramSpreadsheet:
                                             row_formats=[AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL,
                                                          AtomicaFormats.GENERAL, AtomicaFormats.GENERAL],
                                             assumption=True, row_levels=row_levels)
+
+    def generate_covoutdata(self):
+        pass
 
     def create(self, path):
         if self.verbose >= 1:

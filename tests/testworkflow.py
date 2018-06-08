@@ -10,19 +10,19 @@ from sciris.core import odict
 from atomica.plotting import PlotData, plot_series, plot_bars
 
 test = "sir"
-test = "tb"
+#test = "tb"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-#"makeprogramspreadsheet",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 #"makeplots",
 #"export",
@@ -98,7 +98,8 @@ if "makeprogramspreadsheet" in torun:
 
     P = demo(which=test,do_plot=0)
     filename = "temp/programspreadsheet.xlsx"
-    makeprogramspreadsheet(filename, pops=2, progs=5)
+    comps = [c['label'] for c in P.framework.specs['comp'].values()]
+    makeprogramspreadsheet(filename, pops=2, comps=comps, progs=5)
 
 if "loadprogramspreadsheet" in torun:
     if test=='tb':
