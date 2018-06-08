@@ -1,7 +1,7 @@
-from atomica.core.system import SystemSettings as SS
-from atomica.core.structure_settings import FrameworkSettings as FS, DataSettings as DS
-from atomica.core.system import apply_to_all_methods, log_usage, AtomicaException
-from atomica.core.version import version
+from .system import SystemSettings as SS
+from .structure_settings import FrameworkSettings as FS, DataSettings as DS
+from .system import apply_to_all_methods, log_usage, AtomicaException
+from .version import version
 from bisect import bisect
 import sciris.core as sc
 import numpy as np

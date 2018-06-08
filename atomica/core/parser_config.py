@@ -6,8 +6,8 @@ Contains functionality for parsing configuration files.
 
 import six
 
-from atomica.core.system import SystemSettings as SS
-from atomica.core.system import log_usage, accepts, logger
+from .system import SystemSettings as SS
+from .system import log_usage, accepts, logger
 
 if six.PY2:
     import ConfigParser as configparser  # Python 2 configuration file parsing.

@@ -17,11 +17,11 @@ from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
 import sciris.core as sc
-from atomica.core.model import Compartment, Characteristic, Parameter, Link
-from atomica.core.results import Result
-from atomica.core.system import AtomicaException, logger
-from atomica.core.parser_function import parse_function
-from atomica.core.utils import NDict
+from .model import Compartment, Characteristic, Parameter, Link
+from .results import Result
+from .system import AtomicaException, logger
+from .parser_function import parse_function
+from .utils import NDict
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -276,7 +276,9 @@ class PlotData(object):
                     if not isinstance(f_stack_str, str):
                         continue
 
-                    par = Parameter(pop=None, name=output_label)
+                    placeholder_pop = lambda: None
+                    placeholder_pop.name = 'None'
+                    par = Parameter(pop=placeholder_pop, name=output_label)
                     fcn, dep_labels = parse_function(f_stack_str)
                     deps = {}
                     displayed_annualization_warning = False

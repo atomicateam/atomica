@@ -6,9 +6,9 @@ The definitions are hard-coded, while interface semantics are drawn from a confi
 """
 
 import sciris.core as sc
-from atomica.core.excel import ExcelSettings
-from atomica.core.parser_config import load_config_file, get_config_value, configparser
-from atomica.core.system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
+from .excel import ExcelSettings
+from .parser_config import load_config_file, get_config_value, configparser
+from .system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
 
 
 class KeyUniquenessException(AtomicaException):

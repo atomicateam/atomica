@@ -3,11 +3,11 @@ Defines some defaults for Atomica projects
 Version: 2018mar27
 """
 
-from atomica.core.system import logger
-from atomica.core.framework import ProjectFramework
-from atomica.core.project import Project
-from atomica.core.system import AtomicaException
-from atomica.core.system import atomica_path
+from .system import logger
+from .framework import ProjectFramework
+from .project import Project
+from .system import AtomicaException
+from .system import atomica_path
 
 
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):

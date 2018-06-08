@@ -1,5 +1,5 @@
 import sciris.core as sc
-from atomica.core.system import NotAllowedError, NotFoundError, AtomicaInputError
+from .system import NotAllowedError
 
 
 class NamedItem(object):
@@ -7,17 +7,13 @@ class NamedItem(object):
         if name is None:
             name = '<unnamed>'
         self.name = name
-        self.uid = sc.uuid()
+        self.created = sc.today()
+        self.modified = sc.today()
 
-    def __copy__(self, name=None):
+    def copy(self, name=None):
         x = sc.dcp(self)
         if name is not None:
             x.name = name
-        x.uid = sc.uuid()
-        return x
-
-    def __deepcopy__(self, name=None):
-        x = self.__copy__(name=name)
         return x
 
     def __repr__(self):
@@ -31,9 +27,10 @@ class NDict(sc.odict):
 
     def __setitem__(self, key, item):
         if not isinstance(item,NamedItem):
-            raise NotAllowedError("Only NamedItems can be stored in SLists")
+            raise NotAllowedError("Only NamedItems can be stored in NDicts")
         sc.odict.__setitem__(self, key, item)
         item.name = key
+        item.modified = sc.today()
         return None
     
     def append(self, value):
