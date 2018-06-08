@@ -1,0 +1,42 @@
+import sciris.core as sc
+from .system import NotAllowedError
+
+
+class NamedItem(object):
+    def __init__(self,name=None):
+        if name is None:
+            name = '<unnamed>'
+        self.name = name
+        self.created = sc.today()
+        self.modified = sc.today()
+
+    def copy(self, name=None):
+        x = sc.dcp(self)
+        if name is not None:
+            x.name = name
+        return x
+
+    def __repr__(self):
+        return sc.desc(self)
+
+
+class NDict(sc.odict):
+    def __init__(self, *args, **kwargs):
+        sc.odict.__init__(self, *args, **kwargs)
+        return None
+
+    def __setitem__(self, key, item):
+        if not isinstance(item,NamedItem):
+            raise NotAllowedError("Only NamedItems can be stored in NDicts")
+        sc.odict.__setitem__(self, key, item)
+        item.name = key
+        item.modified = sc.today()
+        return None
+    
+    def append(self, value):
+        key = value.name
+        sc.odict.append(self, key=key, value=value)
+        return None
+
+
+
