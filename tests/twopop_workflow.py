@@ -8,35 +8,31 @@ ipython = get_ipython()
 if ipython is not None:
     ipython.magic('load_ext autoreload')
     ipython.magic('autoreload 2')
-from atomica.plotting import PlotData,plot_series,plot_bars
-from copy import deepcopy as dcp
 
-import atomica.ui as aui
+import atomica.ui as au
 import os
-from atomica.scenarios import ParameterScenario
-from atomica.calibration import perform_autofit
 
 plot_initial = True
 
 test = "sir"
 tmpdir = "." + os.sep + "temp" + os.sep
 
-F = aui.ProjectFramework.load(tmpdir+test+".frw")
-P = aui.Project(name=test.upper()+" project", framework=F)
+F = au.ProjectFramework.load(tmpdir+test+".frw")
+P = au.Project(name=test.upper()+" project", framework=F)
 P.load_databook(databook_path="./databooks/databook_sir_twopop.xlsx", make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
     
 P.save(tmpdir+test+".prj")
 
-P = aui.Project.load(tmpdir+test+".prj")
+P = au.Project.load(tmpdir+test+".prj")
 
 def plot_calibration(adjustables,measurables,titlestr):
     # Run calibration and plot results showing y-factors in title
-    new_parset = perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
+    new_parset = au.perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
     new_result = P.run_sim(new_parset)
-    d = PlotData(new_result, outputs=['ch_prev'])
-    figs = plot_series(d, axis='pops', data=P.data)
+    d = au.PlotData(new_result, outputs=['ch_prev'])
+    figs = au.plot_series(d, axis='pops', data=P.data)
     figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}".format(titlestr, new_parset.get_par('transpercontact').y_factor['adults'], new_parset.get_par('transpercontact').y_factor['children']))
 
 # Calibrate explicitly listing out the pops

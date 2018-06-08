@@ -5,7 +5,6 @@ from .structure_settings import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
-from .utils import NamedItem
 import sciris.core as sc
 
 import pickle
@@ -20,7 +19,7 @@ model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
 
-class Variable(NamedItem):
+class Variable(object):
     """
     Lightweight abstract class to store variable array of values (presumably corresponding to an external time vector).
     Includes an attribute to describe the format of these values.
@@ -28,14 +27,19 @@ class Variable(NamedItem):
     Note: All non-dependent parameters correspond to links.
     """
 
-    def __init__(self, pop, name='default'):
-        NamedItem.__init__(self,name)
+    def __init__(self, pop, id):
+        self.id = id # ID is a tuple that uniquely identifies the Variable within a model. The last entry in the Tuple is the cascade name
         self.t = None
         self.dt = None
         if 'vals' not in dir(self):  # characteristics already have a vals method
             self.vals = None
         self.units = 'unknown'  # 'unknown' units are distinct to dimensionless units, that have value ''
         self.pop = pop  # Reference back to the Population containing this object
+
+    @property
+    def name(self):
+        # Facilitate retrieving the cascade name e.g. for plotting
+        return self.id[-1]
 
     def preallocate(self, tvec, dt):
         self.t = tvec
@@ -67,14 +71,14 @@ class Variable(NamedItem):
         self.pop = objs[self.pop]
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.name)
+        return '%s "%s" %s' % (self.__class__.__name__, self.name, self.id)
 
 
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
 
     def __init__(self, pop, name):
-        Variable.__init__(self, pop=pop, name=name)
+        Variable.__init__(self, pop=pop, id=(pop.name,name))
         self.units = 'people'
         self.tag_birth = False  # Tag for whether this compartment contains unborn people.
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
@@ -86,8 +90,8 @@ class Compartment(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.outlinks = [x.name for x in self.outlinks]
-        self.inlinks = [x.name for x in self.inlinks]
+        self.outlinks = [x.id for x in self.outlinks]
+        self.inlinks = [x.id for x in self.inlinks]
 
     def relink(self, objs):
         Variable.relink(self, objs)
@@ -103,8 +107,7 @@ class Compartment(Variable):
         outflow_probability = 0
         for link in self.outlinks:
             if link.parameter.units == 'fraction':
-                outflow_probability += 1 - (1 - link.parameter.vals[
-                    ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
+                outflow_probability += 1 - (1 - link.parameter.vals[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
             elif link.parameter.units == 'number':
                 outflow_probability += link.parameter.vals[ti] * self.dt / self.vals[ti]
             else:
@@ -152,7 +155,7 @@ class Characteristic(Variable):
         # includes is a list of Compartments, whose values are summed
         # the denominator is another Characteristic that normalizes this one
         # All passed by reference so minimal performance impact
-        Variable.__init__(self, pop=pop, name=name)
+        Variable.__init__(self, pop=pop, id=(pop.name,name))
         self.units = 'people'
         self.includes = []
         self.denominator = None
@@ -207,12 +210,11 @@ class Characteristic(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.includes = [x.name for x in self.includes]
-        self.denominator = self.denominator.name if self.denominator is not None else None
+        self.includes = [x.id for x in self.includes]
+        self.denominator = self.denominator.id if self.denominator is not None else None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
-        # based on the UUID
         Variable.relink(self, objs)
         self.includes = [objs[x] for x in self.includes]
         self.denominator = objs[self.denominator] if self.denominator is not None else None
@@ -250,7 +252,7 @@ class Parameter(Variable):
     #
     #  *** Parameter values are always annualized ***
     def __init__(self, pop, name):
-        Variable.__init__(self, pop=pop, name=name)
+        Variable.__init__(self, pop=pop, id=(pop.name,name))
         self.vals = None
         self.limits = None  # Can be a two element vector [min,max]
         self.dependency = False
@@ -297,16 +299,15 @@ class Parameter(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.links = [x.name for x in self.links]
+        self.links = [x.id for x in self.links]
         if self.deps is not None:
             for dep_name in self.deps:
-                self.deps[dep_name] = [x.name for x in self.deps[dep_name]]
+                self.deps[dep_name] = [x.id for x in self.deps[dep_name]]
         if self._fcn is not None:
             self._fcn = None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
-        # based on the UUID
         Variable.relink(self, objs)
         self.links = [objs[x] for x in self.links]
         if self.deps is not None:
@@ -373,17 +374,17 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, pop, parameter, object_from, object_to, tag):
+    def __init__(self, pop, parameter, source, dest, tag):
         # Note that the Link's name is the transition tag
-        Variable.__init__(self, pop=pop, name=tag)
+        Variable.__init__(self, pop=pop, id=(pop.name,source.name,dest.name,tag)) # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.vals = None
         self.units = 'people'
 
         # Source parameter where unscaled link value is drawn from (a single parameter may have multiple links).
         self.parameter = parameter
 
-        self.source = object_from  # Compartment to remove people from
-        self.dest = object_to  # Compartment to add people to
+        self.source = source  # Compartment to remove people from
+        self.dest = dest  # Compartment to add people to
 
         # Wire up references to this object
         self.parameter.links.append(self)
@@ -392,13 +393,12 @@ class Link(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.parameter = self.parameter.name
-        self.source = self.source.name
-        self.dest = self.dest.name
+        self.parameter = self.parameter.id
+        self.source = self.source.id
+        self.dest = self.dest.id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
-        # based on the UUID
         Variable.relink(self, objs)
         self.parameter = objs[self.parameter]
         self.source = objs[self.source]
@@ -420,9 +420,8 @@ class Population(object):
     """
 
     def __init__(self, framework, name='default'):
-        self.name = sc.uuid()
-        self.name = name  # Reference name for this object.
 
+        self.name = name
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
         # List of characteristics and output parameters.
         # Dependencies computed during integration, pure outputs added after.
@@ -444,7 +443,7 @@ class Population(object):
         self.is_linked = True  # Flag to manage double unlinking/relinking
 
     def __repr__(self):
-        return '%s "%s" (%s)' % (self.__class__.__name__, self.name, self.name)
+        return '%s "%s"' % (self.__class__.__name__, self.name)
 
     def unlink(self):
         if not self.is_linked:
@@ -745,13 +744,12 @@ class Model(object):
         self.pset = None  # Instance of ModelProgramSet
         self.t = None
         self.dt = None
-        self.name = sc.uuid()
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
         self.build(settings, framework, parset, progset, options)
 
     def unlink(self):
-        # Break cycles when deepcopying or pickling by swapping them for UIDs
+        # Break cycles when deepcopying or pickling by swapping them for IDs
         # Primary storage is in the comps, links, and outputs properties
 
         # If we are already unlinked, do nothing
@@ -770,11 +768,10 @@ class Model(object):
         # Do we need to link any pops?
         objs = {}
         if any([not x.is_linked for x in self.pops]):
-            # objs = {}
             for pop in self.pops:
                 objs[pop.name] = pop
                 for obj in pop.comps + pop.characs + pop.pars + pop.links:
-                    objs[obj.name] = obj
+                    objs[obj.id] = obj
 
             for pop in self.pops:
                 pop.relink(objs)
@@ -1157,8 +1154,8 @@ class Model(object):
             # Then overwrite with program values
             if do_program_overwrite:
                 for par in pars:
-                    if par.name in prog_vals:
-                        par.vals[ti] = prog_vals[par.name]
+                    if par.id in prog_vals:
+                        par.vals[ti] = prog_vals[par.id]
 
                         # # Handle parameters tagged with special rules. Overwrite vals if necessary.
                         # if do_special and 'rules' in settings.linkpar_specs[par_name]:
@@ -1166,7 +1163,7 @@ class Model(object):
                         #     # There should be one for each population (these are Parameters, not Links).
                         #     pars = self.vars_by_pop[par_name]
                         #
-                        #     old_vals = {par.name: par.vals[ti] for par in self.vars_by_pop[par_name]}
+                        #     old_vals = {par.id: par.vals[ti] for par in self.vars_by_pop[par_name]}
                         #
                         #     rule = settings.linkpar_specs[par_name]['rules']
                         #     for pop in self.pops:
@@ -1189,7 +1186,7 @@ class Model(object):
                         #                        par = self.get_pop(from_pop).get_par(par_name)
                         #                        weight = self.contacts['into'][pop.name][from_pop]*\
                         #                                 self.get_pop(from_pop).popsize(ti)
-                        #                        val_sum += old_vals[par.name]*weight
+                        #                        val_sum += old_vals[par.id]*weight
                         #                        weights += weight
                         #
                         #                    if abs(val_sum) > model_settings['tolerance']:
