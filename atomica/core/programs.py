@@ -18,7 +18,7 @@ from numpy import array, nan, isnan, exp, ones, prod
 #--------------------------------------------------------------------
 class ProgramSet(NamedItem):
 
-    def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="additive", default_imp_interaction="best"):
+    def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="Additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
         self.programs   = sc.odict()
@@ -216,7 +216,7 @@ class ProgramSet(NamedItem):
                         # Sanitize inputs
                         npi_val = sanitize(popdata['npi_val'])
                         max_val = sanitize(popdata['max_val'])
-                        self.add_covout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -390,7 +390,7 @@ class ProgramSet(NamedItem):
                     # All programs together
                     outcomes[par_type][pop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
 
-                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[par_type][pop].interaction)
+                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[(par_type,pop)].cov_interaction)
         
         return outcomes
         

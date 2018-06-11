@@ -489,11 +489,6 @@ def load_progbook(filename, verbose=2):
         errormsg = 'Failed to load program spreadsheet: file "%s" not found or other problem' % filename
         raise AtomicaException(errormsg)
     
-    ## Calculate columns for which data are entered, and store the year ranges
-    sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
-    lastdatacol, data['years'] = getyears(sheetdata)
-    assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
-    
     ## Load program spend information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
     data['progs'] = sc.odict()
@@ -531,12 +526,18 @@ def load_progbook(filename, verbose=2):
                     data[progname]['capacity'] = []
                     data[progname]['unitcost'] = sc.odict()
     
+    ## Calculate columns for which data are entered, and store the year ranges
+    sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
+    lastdatacol, data['years'] = getyears(sheetdata)
+    assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
+    
     namemap = {'Total spend': 'spend',
                'Base spend':'basespend',
                'Unit cost':'unitcost',
                'Capacity constraints': 'capacity'} 
 
     validunitcosts = sc.odict()
+#    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     
     for row in range(sheetdata.nrows): 
         sheetname = sheetdata.cell_value(row,0) # Sheet name
@@ -567,20 +568,20 @@ def load_progbook(filename, verbose=2):
             errormsg = 'You need to enter either best+low+high, best, or low+high values for the unit costs. Values are incorrect for program %s' % (progname) 
             raise AtomicaException(errormsg)
 
-            
     ## Load parameter information
     sheetdata = workbook.sheet_by_name('Program effects') # Load 
     for row in range(sheetdata.nrows): 
-        if sheetdata.cell_value(row, 0)!='':
-            par_name = sheetdata.cell_value(row, 0) # Get the name of the parameter
-        elif sheetdata.cell_value(row, 1)!='': # Data row
-            pop_name = sheetdata.cell_value(row, 1)
-            data['pars'][par_name] = sc.odict()
-            data['pars'][par_name][pop_name] = sc.odict()
-            data['pars'][par_name][pop_name]['interactions'] = sheetdata.row_values(row, start_colx=2, end_colx=4) 
-            data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 5) if sheetdata.cell_value(row+i, 5)!='' else np.nan for i in range(3)]
-            data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 6) if sheetdata.cell_value(row+i, 6)!='' else np.nan for i in range(3)]
-            data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=8, end_colx=8+len(data['progs']['short'])) ) for i in range(3)]
+        if sheetdata.cell_value(row, 1)!='': # Data row
+            par_name = sheetdata.cell_value(row, 1) # Get the name of the parameter
+            pop_name = sheetdata.cell_value(row, 2).split(': ')[0]
+            est_name = sheetdata.cell_value(row, 2).split(': ')[1]
+#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+            if est_name == 'best':
+                data['pars'][par_name] = sc.odict()
+                data['pars'][par_name][pop_name] = sc.odict()
+                data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 3) if sheetdata.cell_value(row+i, 3)!='' else np.nan for i in range(3)]
+                data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 4) if sheetdata.cell_value(row+i, 4)!='' else np.nan for i in range(3)]
+                data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=6, end_colx=6+len(data['progs']['short'])) ) for i in range(3)]
 
     return data
 
