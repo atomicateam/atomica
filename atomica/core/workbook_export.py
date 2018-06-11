@@ -958,6 +958,11 @@ def make_years_range(name=None, row_names=None, ref_range=None, data_start=None,
     return output
 
 
+def make_prog_pars(name=None, column_names=None, row_names=None):
+    output = AtomicaContent(row_names=row_names, column_names=column_names)
+    return output
+
+
 class TitledRange(object):
     FIRST_COL = 2
     ROW_INTERVAL = 3
@@ -972,7 +977,9 @@ class TitledRange(object):
             first_data_col += 1
             num_data_rows *= len(self.content.row_levels)
             num_data_rows += len(self.content.row_names) - 1
-        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
+        
+        try: self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
+        except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         self.first_row = first_row
 
     def num_rows(self):
@@ -1133,38 +1140,36 @@ class ProgramSpreadsheet:
 
         self.ref_prog_range = self.prog_range
 
-    def emit_years_block(self, name, current_row, row_names, row_format=AtomicaFormats.GENERAL,
-                         assumption=False, row_levels=None, row_formats=None):
-        content = make_years_range(name=name, row_names=row_names, data_start=self.data_start, data_end=self.data_end)
+    def emit_prog_pars(self, current_row, row_names, column_names, row_format=AtomicaFormats.GENERAL, row_levels=None, row_formats=None):
+        '''Emit rows for parameters by program'''
+        content = make_prog_pars(row_names=row_names, column_names=column_names)
         content.row_format = row_format
-        content.assumption = assumption
-        if row_levels is not None:
-            content.row_levels = row_levels
-        if row_formats is not None:
-            content.row_formats = row_formats
         the_range = TitledRange(self.current_sheet, current_row, content)
         current_row = the_range.emit(self.formats)
         return current_row
-
-    def emit_prog_pars(self, current_row, row_names, row_format=AtomicaFormats.GENERAL,assumption=False, row_levels=None, row_formats=None):
-        '''Emit rows for parameters by program'''
-        pass
 
     def generate_costcovdata(self):
         row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high']
         self.current_sheet.set_column('C:C', 20)
         current_row = 0
-        current_row = self.emit_years_block(name='Cost & coverage', current_row=current_row,
-                                            row_names=self.ref_prog_range.param_refs(),
-                                            row_formats=[AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL,
-                                                         AtomicaFormats.GENERAL, AtomicaFormats.GENERAL],
-                                            assumption=True, row_levels=row_levels)
+        content = make_years_range(name='Cost & coverage', row_names=self.ref_prog_range.param_refs(), data_start=self.data_start, data_end=self.data_end)
+        content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL]
+        content.row_format = AtomicaFormats.GENERAL
+        content.assumption = True
+        if row_levels is not None:
+            content.row_levels = row_levels
+        the_range = TitledRange(self.current_sheet, current_row, content)
+        current_row = the_range.emit(self.formats)
 
     def generate_covoutdata(self):
         current_row = 0
-        par = self.pars[0]
-        column_names = [par[0], par[1]] + ['']*6 + ['Value for a person covered by this program alone:']
-        current_row = AtomicaContent(column_names=column_names)
+        row_levels = ['Adults']
+        current_row = self.emit_prog_pars(current_row=current_row,
+                                            row_levels=row_levels,
+                                            row_names=[p[0] for p in self.pars],
+                                            column_names=['Coverage interaction', 'Impact interaction','','Value with no interventions','Best attainable value',''],
+                                            row_formats=[AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL,
+                                                         AtomicaFormats.GENERAL, AtomicaFormats.GENERAL])
 
     def create(self, path):
         if self.verbose >= 1:
