@@ -833,8 +833,12 @@ class AtomicaFormats:
         self.formats['bold'] = self.book.add_format({'bold': 1})
         self.formats['center_bold'] = self.book.add_format({'bold': 1, 'align': 'center'})
         self.formats['rc_title'] = {}
-        self.formats['rc_title']['right'] = self.book.add_format({'bold': 1, 'align': 'right'})
-        self.formats['rc_title']['left'] = self.book.add_format({'bold': 1, 'align': 'left'})
+        self.formats['rc_title']['right'] = {}
+        self.formats['rc_title']['right']['T'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap':True})
+        self.formats['rc_title']['right']['F'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap':False})
+        self.formats['rc_title']['left'] = {}
+        self.formats['rc_title']['left']['T'] = self.book.add_format({'bold': 1, 'align': 'left', 'text_wrap': True})
+        self.formats['rc_title']['left']['F'] = self.book.add_format({'bold': 1, 'align': 'left', 'text_wrap': False})
         # unlocked formats
         self.formats['unlocked'] = self.book.add_format({'locked': 0, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
                                                          'border_color': AtomicaFormats.BORDER_COLOR})
@@ -871,8 +875,8 @@ class AtomicaFormats:
     def write_block_name(self, sheet, name, row):
         sheet.write(row, 0, name, self.formats['bold'])
 
-    def write_rowcol_name(self, sheet, row, col, name, align='right'):
-        sheet.write(row, col, name, self.formats['rc_title'][align])
+    def write_rowcol_name(self, sheet, row, col, name, align='right', wrap='T'):
+        sheet.write(row, col, name, self.formats['rc_title'][align][wrap])
 
     def write_option(self, sheet, row, col, name='OR'):
         sheet.write(row, col, name, self.formats['center_bold'])
@@ -922,45 +926,12 @@ class SheetRange:
     def get_cell_address(self, row, col):
         return xw.utility.xl_rowcol_to_cell(row, col, row_abs=True, col_abs=True)
 
-    """ gives the list of references to the entries in the row names (which are parameters) """
 
     def param_refs(self, sheet_name, column_number=1):
+        """ gives the list of references to the entries in the row names (which are parameters) """
         par_range = range(self.first_row, self.last_row + 1)
         return ["='%s'!%s" % (sheet_name, self.get_cell_address(row, self.first_col + column_number)) for row in
                 par_range]
-
-
-def make_programs_range(name=None, popnames=None, compnames=None, items=None):
-    """ 
-    Every programs item is a dictionary is expected to have the following fields:
-    name, label, target_pops, target_comps
-    """
-    column_names = ['Short name', 'Long name',''] + popnames + [''] + compnames
-    row_names = range(1, len(items) + 1)
-    name='Populations & programs'
-    coded_params = []
-    for item in items:
-        if type(item) is dict:
-            name = item['name']
-            short = item['short'] 
-            target_pops = [''] + ['' for popname in popnames]
-            target_comps = [''] + ['' for comp in compnames]
-        coded_params.append([short, name]+target_pops+target_comps)
-    return AtomicaContent(name=name, row_names=row_names, column_names=column_names, data=coded_params,
-                          assumption=False)
-
-
-def make_years_range(name=None, row_names=None, ref_range=None, data_start=None, data_end=None, data=None):
-    if ref_range is not None:
-        row_names = ref_range.param_refs()
-    output = AtomicaContent(name=name, row_names=row_names, column_names=range(int(data_start), int(data_end + 1)),
-                            data=data)
-    return output
-
-
-def make_prog_pars(name=None, column_names=None, row_names=None, row_levels=None):
-    output = AtomicaContent(row_names=row_names, column_names=column_names)
-    return output
 
 
 class TitledRange(object):
@@ -978,27 +949,26 @@ class TitledRange(object):
             num_data_rows *= len(self.content.row_levels)
             num_data_rows += len(self.content.row_names) - 1
         
-        try: self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
-        except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
         self.first_row = first_row
 
     def num_rows(self):
         return self.data_range.num_rows + 2
 
-    """ emits the range and returns the new current row in the given sheet """
 
     def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+        """ Emits the range and returns the new current row in the given sheet """
         # top-top headers
         formats.write_block_name(self.sheet, self.content.name, self.first_row)
 
         if self.content.assumption and self.first_row == 0 and self.content.assumption_properties['title'] is not None:
-            formats.write_rowcol_name(self.sheet, self.first_row, self.data_range.last_col + 2,
-                                      self.content.assumption_properties['title'])
+            formats.write_rowcol_name(sheet=self.sheet, row=self.first_row, col=self.data_range.last_col + 2,
+                                      name=self.content.assumption_properties['title'], align='left', wrap='F')
 
         # headers
         for i, name in enumerate(self.content.column_names):
             formats.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
-                                      rc_title_align)
+                                      rc_title_align, )
 
         if self.content.assumption:
             for index, col_name in enumerate(self.content.assumption_properties['columns']):
@@ -1014,7 +984,7 @@ class TitledRange(object):
             start_col = self.data_range.first_col - len(names)
             # emit row name(s)
             for n, name in enumerate(names):
-                formats.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align)
+                formats.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align, wrap='F')
             # emit data if present
             savedata = False
             if self.content.data is not None:
@@ -1071,7 +1041,7 @@ class TitledRange(object):
 class AtomicaContent(object):
     """ the content of the data ranges (row names, column names, optional data and assumptions) """
 
-    def __init__(self, name=None, row_names=None, column_names=None, row_levels=None, data=None, assumption_data=None, assumption=True):
+    def __init__(self, name=None, row_names=None, column_names=None, row_levels=None, data=None, assumption_properties=None, assumption_data=None, assumption=True):
         self.name = name
         self.row_names = row_names
         self.column_names = column_names
@@ -1080,7 +1050,10 @@ class AtomicaContent(object):
         self.row_levels = row_levels
         self.row_format = AtomicaFormats.GENERAL
         self.row_formats = None
-        self.assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
+        if assumption_properties is None:
+            self.assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
+        else: 
+            self.assumption_properties = assumption_properties 
         self.assumption_data = assumption_data
 
     def get_row_names(self):
@@ -1134,34 +1107,62 @@ class ProgramSpreadsheet:
         self.current_sheet.set_column(9, 9, 12)
         current_row = 0
 
-        targeting_content = make_programs_range('Populations & programs', popnames=self.pops, compnames=self.comps, items=self.progs)
-        self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=targeting_content)
+        coded_params = []
+        for item in self.progs:
+            if type(item) is dict:
+                name = item['name']
+                short = item['short'] 
+                target_pops = [''] + ['' for popname in self.pops]
+                target_comps = [''] + ['' for comp in self.comps]
+            coded_params.append([short, name]+target_pops+target_comps)
+    
+        column_names = ['Short name', 'Long name',''] + self.pops + [''] + self.comps
+        content = AtomicaContent(name='Populations & programs',
+                                 row_names=range(1, len(self.progs) + 1), 
+                                 column_names=column_names, 
+                                 data=coded_params,
+                                 assumption=False)
+        self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
         current_row = self.prog_range.emit(self.formats, rc_title_align='left')
-
         self.ref_prog_range = self.prog_range
 
     def generate_costcovdata(self):
-        row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high']
-        self.current_sheet.set_column('C:C', 20)
         current_row = 0
-        content = make_years_range(name='Cost & coverage', row_names=self.ref_prog_range.param_refs(), data_start=self.data_start, data_end=self.data_end)
+        self.current_sheet.set_column('C:C', 20)
+        row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high']
+        content = AtomicaContent(name='Cost & coverage',
+                                 row_names=self.ref_prog_range.param_refs(),
+                                 column_names=range(int(self.data_start), int(self.data_end + 1)))
         content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL]
         content.row_format = AtomicaFormats.GENERAL
         content.assumption = True
-        if row_levels is not None:
-            content.row_levels = row_levels
+        content.row_levels = row_levels
         the_range = TitledRange(self.current_sheet, current_row, content)
         current_row = the_range.emit(self.formats)
 
     def generate_covoutdata(self):
         current_row = 0
-        row_levels = ['Adults']
+        self.current_sheet.set_column(1, 1, 10)
+        self.current_sheet.set_column(2, 2, 12)
+        self.current_sheet.set_column(3, 3, 12)
+        self.current_sheet.set_column(4, 4, 12)
+        self.current_sheet.set_column(5, 5, 2)
+        row_levels = []
+        for p in self.pops:
+            row_levels.extend([p+': best', p+': low', p+': high'])
         content = AtomicaContent(row_names=[p[0] for p in self.pars],
-                                 column_names=['Coverage interaction', 'Impact interaction','','Value with no interventions','Best attainable value',''],
-                                 row_levels=row_levels)
+                                 column_names=['Value with no interventions','Best attainable value'])
         content.row_format = AtomicaFormats.GENERAL
+        content.row_levels = row_levels
+
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+        assumption_properties = {'title': 'Value for a person covered by this program alone:',
+                                 'connector': '',
+                                 'columns': [p['short'] for p in self.progs]}
+
+        content.assumption_properties = assumption_properties
         the_range = TitledRange(self.current_sheet, current_row, content)
-        current_row = the_range.emit(self.formats)
+        current_row = the_range.emit(self.formats, rc_title_align='left')
 
     def create(self, path):
         if self.verbose >= 1:
