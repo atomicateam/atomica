@@ -958,7 +958,7 @@ def make_years_range(name=None, row_names=None, ref_range=None, data_start=None,
     return output
 
 
-def make_prog_pars(name=None, column_names=None, row_names=None):
+def make_prog_pars(name=None, column_names=None, row_names=None, row_levels=None):
     output = AtomicaContent(row_names=row_names, column_names=column_names)
     return output
 
@@ -1071,13 +1071,13 @@ class TitledRange(object):
 class AtomicaContent(object):
     """ the content of the data ranges (row names, column names, optional data and assumptions) """
 
-    def __init__(self, name=None, row_names=None, column_names=None, data=None, assumption_data=None, assumption=True):
+    def __init__(self, name=None, row_names=None, column_names=None, row_levels=None, data=None, assumption_data=None, assumption=True):
         self.name = name
         self.row_names = row_names
         self.column_names = column_names
         self.data = data
         self.assumption = assumption
-        self.row_levels = None
+        self.row_levels = row_levels
         self.row_format = AtomicaFormats.GENERAL
         self.row_formats = None
         self.assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
@@ -1140,14 +1140,6 @@ class ProgramSpreadsheet:
 
         self.ref_prog_range = self.prog_range
 
-    def emit_prog_pars(self, current_row, row_names, column_names, row_format=AtomicaFormats.GENERAL, row_levels=None, row_formats=None):
-        '''Emit rows for parameters by program'''
-        content = make_prog_pars(row_names=row_names, column_names=column_names)
-        content.row_format = row_format
-        the_range = TitledRange(self.current_sheet, current_row, content)
-        current_row = the_range.emit(self.formats)
-        return current_row
-
     def generate_costcovdata(self):
         row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high']
         self.current_sheet.set_column('C:C', 20)
@@ -1164,12 +1156,12 @@ class ProgramSpreadsheet:
     def generate_covoutdata(self):
         current_row = 0
         row_levels = ['Adults']
-        current_row = self.emit_prog_pars(current_row=current_row,
-                                            row_levels=row_levels,
-                                            row_names=[p[0] for p in self.pars],
-                                            column_names=['Coverage interaction', 'Impact interaction','','Value with no interventions','Best attainable value',''],
-                                            row_formats=[AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL,
-                                                         AtomicaFormats.GENERAL, AtomicaFormats.GENERAL])
+        content = AtomicaContent(row_names=[p[0] for p in self.pars],
+                                 column_names=['Coverage interaction', 'Impact interaction','','Value with no interventions','Best attainable value',''],
+                                 row_levels=row_levels)
+        content.row_format = AtomicaFormats.GENERAL
+        the_range = TitledRange(self.current_sheet, current_row, content)
+        current_row = the_range.emit(self.formats)
 
     def create(self, path):
         if self.verbose >= 1:
