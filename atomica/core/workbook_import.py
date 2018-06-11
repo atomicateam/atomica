@@ -535,6 +535,7 @@ def load_progbook(filename, verbose=2):
                'Base spend':'basespend',
                'Unit cost':'unitcost',
                'Capacity constraints': 'capacity'} 
+
     validunitcosts = sc.odict()
     
     for row in range(sheetdata.nrows): 
