@@ -1155,7 +1155,6 @@ class ProgramSpreadsheet:
         content.row_format = AtomicaFormats.GENERAL
         content.row_levels = row_levels
 
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
                                  'columns': [p['short'] for p in self.progs]}

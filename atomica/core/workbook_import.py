@@ -537,7 +537,6 @@ def load_progbook(filename, verbose=2):
                'Capacity constraints': 'capacity'} 
 
     validunitcosts = sc.odict()
-#    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     
     for row in range(sheetdata.nrows): 
         sheetname = sheetdata.cell_value(row,0) # Sheet name
@@ -575,7 +574,6 @@ def load_progbook(filename, verbose=2):
             par_name = sheetdata.cell_value(row, 1) # Get the name of the parameter
             pop_name = sheetdata.cell_value(row, 2).split(': ')[0]
             est_name = sheetdata.cell_value(row, 2).split(': ')[1]
-#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             if est_name == 'best':
                 data['pars'][par_name] = sc.odict()
                 data['pars'][par_name][pop_name] = sc.odict()
