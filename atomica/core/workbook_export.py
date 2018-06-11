@@ -776,7 +776,7 @@ def write_workbook(workbook_path, framework=None, data=None, instructions=None, 
 # TODO: reconcile these!!!
 
 
-def makeprogramspreadsheet(filename, pops, comps, progs, pars, datastart=None, dataend=None, verbose=2):
+def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=None, verbose=2):
     """ Generate the Atomica programs spreadsheet """
 
     # An integer argument is given: just create a pops dict using empty entries
@@ -1150,7 +1150,7 @@ class ProgramSpreadsheet:
         row_levels = []
         for p in self.pops:
             row_levels.extend([p+': best', p+': low', p+': high'])
-        content = AtomicaContent(row_names=[p[0] for p in self.pars],
+        content = AtomicaContent(row_names=self.pars,
                                  column_names=['Value with no interventions','Best attainable value'])
         content.row_format = AtomicaFormats.GENERAL
         content.row_levels = row_levels
