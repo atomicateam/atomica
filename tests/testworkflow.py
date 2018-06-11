@@ -94,8 +94,9 @@ if "makeprogramspreadsheet" in torun:
     P = au.demo(which=test,do_plot=0)
     filename = "temp/programspreadsheet.xlsx"
     comps = [c['label'] for c in P.framework.specs['comp'].values()]
+    pars = [(k,v['label']) for k,v in P.data.specs['par'].iteritems()]
 #    makeprogramspreadsheet(filename, pops=2, comps=comps, progs=5)
-    au.makeprogramspreadsheet(filename, pops=2, comps=comps, progs=5)
+    au.makeprogramspreadsheet(filename, pops=2, comps=comps, progs=5, pars=pars)
 
 if "loadprogramspreadsheet" in torun:
     if test=='tb':
