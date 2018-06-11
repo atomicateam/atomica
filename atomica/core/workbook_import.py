@@ -482,8 +482,6 @@ def load_progbook(filename, verbose=2):
     '''
     ## Basic setup
     data = sc.odict() # Create structure for holding data
-    data['meta'] = sc.odict()
-    data['meta']['sheets'] = ['Populations & programs','Program data'] # TODO - remove hardcoding
 
     ## Read in databook 
     try: workbook = xlrd.open_workbook(filename) # Open workbook
@@ -537,7 +535,6 @@ def load_progbook(filename, verbose=2):
                'Base spend':'basespend',
                'Unit cost':'unitcost',
                'Capacity constraints': 'capacity'} 
-    sheetdata = workbook.sheet_by_name('Program spend data') # Load 
     validunitcosts = sc.odict()
     
     for row in range(sheetdata.nrows): 
