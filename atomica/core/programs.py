@@ -610,7 +610,6 @@ class Program(NamedItem):
     
     def get_spend(self, year=None, total=False, die=False):
         ''' Convenience function for getting spending data'''
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         try:
             if year is not None:
                 thisdata = self.spend_data.findrow(year, closest=True, asdict=True) # Get data
@@ -676,7 +675,7 @@ class Program(NamedItem):
         
 
     def has_budget(self):
-        return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
+        return True if not (isnan(array([x for x in self.spend_data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 
     def get_num_covered(self, unit_cost=None, capacity=None, budget=None, year=None, total=True, sample='best'):
