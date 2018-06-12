@@ -105,41 +105,39 @@ class ProgramSet(NamedItem):
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
         self.add_covouts(progdata['pars'], prog_effects)
-        self.update_progset()
+        self.update()
         return None
 
         
-    def set_target_pops(self):
-        '''Update populations targeted by some program in the response'''
-        self.target_pops = []
-        if self.programs:
-            for prog in self.programs.values():
-                for pop in prog.target_pops: self.target_pops.append(pop)
-            self.target_pops = list(set(self.target_pops))
-
-
-    def set_target_pars(self):
-        '''Update model parameters targeted by some program in the response'''
-        self.target_pars = []
-        if self.programs:
-            for prog in self.programs.values():
-                for pop in prog.target_pars: self.target_pars.append(pop)
-
-
-    def set_target_par_types(self):
-        '''Update model parameter types targeted by some program in the response'''
-        self.target_par_types = []
-        if self.programs:
-            for prog in self.programs.values():
-                for par_type in prog.target_par_types: self.target_par_types.append(par_type)
-            self.target_par_types = list(set(self.target_par_types))
-
-
-    def update_progset(self):
+    def update(self):
         ''' Update (run this is you change something... )'''
-        self.set_target_pars()
-        self.set_target_par_types()
-        self.set_target_pops()
+
+        def set_target_pars(self):
+            '''Update model parameters targeted by some program in the response'''
+            self.target_pars = []
+            if self.programs:
+                for prog in self.programs.values():
+                    for pop in prog.target_pars: self.target_pars.append(pop)
+        
+        def set_target_par_types(self):
+            '''Update model parameter types targeted by some program in the response'''
+            self.target_par_types = []
+            if self.programs:
+                for prog in self.programs.values():
+                    for par_type in prog.target_par_types: self.target_par_types.append(par_type)
+                self.target_par_types = list(set(self.target_par_types))
+    
+        def set_target_pops(self):
+            '''Update populations targeted by some program in the response'''
+            self.target_pops = []
+            if self.programs:
+                for prog in self.programs.values():
+                    for pop in prog.target_pops: self.target_pops.append(pop)
+                self.target_pops = list(set(self.target_pops))
+    
+            self.set_target_pars()
+            self.set_target_par_types()
+            self.set_target_pops()
         return None
 
 
@@ -164,7 +162,7 @@ class ProgramSet(NamedItem):
             # Save it
             self.programs[prog.short] = prog
 
-        self.update_progset()
+        self.update()
         return None
 
 
@@ -182,7 +180,7 @@ class ProgramSet(NamedItem):
                 else: print(errormsg)
             for co in self.covout.values(): # Remove from coverage-outcome functions too
                 co.progs.pop(prog, None)
-        self.update_progset()
+        self.update()
         return None
 
 
@@ -238,7 +236,7 @@ class ProgramSet(NamedItem):
 
     def progs_by_target_par_type(self, filter_par_type=None):
         '''Return a dictionary with:
-             keys: all populations targeted by programs
+             keys: all parameter types targeted by programs
              values: programs targeting that population '''
         progs_by_target_par_type = odict()
         for prog in self.programs.values():
@@ -253,7 +251,7 @@ class ProgramSet(NamedItem):
 
     def progs_by_target_par(self, filter_par_type=None):
         '''Return a dictionary with:
-             keys: all populations targeted by programs
+             keys: all parameters targeted by programs
              values: programs targeting that population '''
         progs_by_target_par = odict()
         for par_type in self.target_par_types:
@@ -269,7 +267,7 @@ class ProgramSet(NamedItem):
         else: return progs_by_target_par
 
 
-    def default_budget(self, year=None, optimizable=None):
+    def get_budgets(self, year=None, optimizable=None):
         ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
         default_budget = odict() # Initialise outputs
@@ -283,6 +281,22 @@ class ProgramSet(NamedItem):
             default_budget[prog.short] = prog.get_spend(year)
 
         return default_budget
+
+
+    def get_num_covered(self, year=None, optimizable=None):
+        ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+        
+        num_covered = odict() # Initialise outputs
+
+        # Validate inputs
+        if year is not None: year = promotetoarray(year)
+        if optimizable is None: optimizable = False # Return only optimizable indices
+
+        # Get cost data for each program 
+        for prog in self.programs.values():
+            num_covered[prog.short] = prog.get_num_covered(year)
+
+        return num_covered
 
 
     def get_outcomes(self, coverage=None, year=None, sample='best'):
@@ -395,18 +409,17 @@ class ProgramSet(NamedItem):
         return outcomes
         
         
+    ## TODO : WRITE THESE
     def get_pars(self, coverage=None, year=None, sample='best'):
         ''' Get a full parset for given coverage levels'''
         pass
     
-    
-
-
-    ## TODO : WRITE THESE
-    def reconcile(self):
+    def export(self):
+        '''Export progset data to a progbook'''
         pass
 
-    def compare_outcomes(self):
+    def reconcile(self):
+        '''Reconcile parameters'''
         pass
 
 
@@ -690,7 +703,7 @@ class Program(NamedItem):
                 errormsg = 'Can''t get number covered without a spending amount: %s' % E.message
                 raise AtomicaException(errormsg)
             if isnan(budget):
-                errormsg = 'No spending associated with the year provided: %s' % E.message
+                errormsg = 'No spending associated with the year provided: %s'
                 raise AtomicaException(errormsg)
                 
         if unit_cost is None:
