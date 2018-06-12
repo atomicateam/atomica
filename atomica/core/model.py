@@ -916,10 +916,10 @@ class Model(object):
                     if impact_name not in settings.par_funcs:
                         self.sim_settings['impact_pars_not_func'].append(impact_name)
 
-                        # self.pset = ModelProgramSet(progset,self.pops) # Make a ModelProgramSet wrapper
-                        # self.pset.load_constraints(self.sim_settings['constraints'])
-                        # alloc = self.pset.get_alloc(self.t,self.dt,self.sim_settings)[0]
-                        # self.pset.update_cache(alloc,self.t,self.dt) # Perform precomputations
+                # self.pset = ModelProgramSet(progset,self.pops) # Make a ModelProgramSet wrapper
+                # self.pset.load_constraints(self.sim_settings['constraints'])
+                # alloc = self.pset.get_alloc(self.t,self.dt,self.sim_settings)[0]
+                # self.pset.update_cache(alloc,self.t,self.dt) # Perform precomputations
 
             else:
                 raise NotAllowedError("A model run was initiated with instructions to activate programs, but no program set was passed to the model.")
