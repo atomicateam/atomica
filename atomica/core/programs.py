@@ -610,6 +610,7 @@ class Program(NamedItem):
     
     def get_spend(self, year=None, total=False, die=False):
         ''' Convenience function for getting spending data'''
+        
         try:
             if year is not None:
                 thisdata = self.data.findrow(year, closest=True, asdict=True) # Get data
