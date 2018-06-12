@@ -89,7 +89,7 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
+    print('\n\n\Making programs spreadsheet ... ')
 
     P = au.demo(which=test,do_plot=0)
     filename = "temp/programspreadsheet.xlsx"
