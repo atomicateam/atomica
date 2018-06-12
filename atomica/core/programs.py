@@ -790,7 +790,7 @@ class Covout(object):
         return None
             
 
-    def haspars(self, doprint=False):
+    def has_pars(self, doprint=False):
         ''' Check whether the object has required parameters'''
         valid = True # Assume the best
         tests = {}
