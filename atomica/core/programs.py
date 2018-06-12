@@ -591,11 +591,11 @@ class Program(NamedItem):
         return None
     
     
-    def add_data(self, data=None, year=None, spend=None, base_spend=None):
+    def add_data(self, spend_data=None, year=None, spend=None, base_spend=None):
         ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
-        if data is None:
-            data = {'year':float(year), 'spend':spend, 'basespend':base_spend}
-        self.update(data=data)
+        if spend_data is None:
+            spend_data = {'year':float(year), 'spend':spend, 'basespend':base_spend}
+        self.update(spend_data=spend_data)
         return None
         
         
@@ -610,10 +610,10 @@ class Program(NamedItem):
     
     def get_spend(self, year=None, total=False, die=False):
         ''' Convenience function for getting spending data'''
-        
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         try:
             if year is not None:
-                thisdata = self.data.findrow(year, closest=True, asdict=True) # Get data
+                thisdata = self.spend_data.findrow(year, closest=True, asdict=True) # Get data
                 spend = thisdata['spend']
                 if spend is None: spend = 0 # If not specified, assume 0
                 if total: 
@@ -621,7 +621,7 @@ class Program(NamedItem):
                     if base_spend is None: base_spend = 0 # Likewise assume 0
                     spend += base_spend
             else: # Just get the most recent non-nan number
-                spend = self.data['spend'][~isnan(array([x for x in self.data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
+                spend = self.spend_data['spend'][~isnan(array([x for x in self.spend_data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
             return spend
         except Exception as E:
             if die:
