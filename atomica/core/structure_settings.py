@@ -477,6 +477,9 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
                                         ["datapage_order"],
                                         content_type=ContentType(enforce_type=int))
+        cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC],
+                                        ["cascade_stage"],
+                                        content_type=ContentType(enforce_type=int))
         # Subitem type association is done after item types and attributes are defined, due to cross-referencing.
         cls.create_item_type_subitem_types(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
 
