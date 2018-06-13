@@ -7,7 +7,7 @@ import atomica.ui as au
 import sciris.core as sc
 
 test = "sir"
-test = "tb"
+# test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -244,7 +244,7 @@ if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions
 
     # instructions = ProgramInstructions(progset=P.progsets["default"])
-    P.run_sim(parset="default", progset="default", instructions=ProgramInstructions(), result_name="progtest")
+    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
