@@ -7,7 +7,7 @@ import atomica.ui as au
 import sciris.core as sc
 
 test = "sir"
-# test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",
@@ -20,9 +20,9 @@ torun = [
 "makeparset",
 "runsim",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
+# "loadprogramspreadsheet",
 "makeplots",
-#"export",
+"export",
 #"listspecs",
 #"manualcalibrate",
 #"autocalibrate",
