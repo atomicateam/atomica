@@ -168,18 +168,20 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
                 break
             for col in range(header_col + 1, last_col + 1):
                 target_item = str(worksheet.cell_value(header_row, col))
-                val = str(worksheet.cell_value(row, col))
-                # For standard connection matrices, item names related to connections are pulled from non-empty cells.
-                if table.template_item_type is None:
-                    if not val == "":
-                        structure.append_spec_value(term=val, attribute=table.storage_attribute,
-                                                    value=(source_item, target_item))
-                # For template connection matrices, the item name is in the 'corner' header.
-                # Attach connections to that item in specs if a connection exists, i.e. is marked by 'y'.
-                else:
-                    if val == SS.DEFAULT_SYMBOL_YES:
-                        structure.append_spec_value(term=term, attribute=table.storage_attribute,
-                                                    value=(source_item, target_item))
+                total_val = str(worksheet.cell_value(row, col))
+                for val in [x.strip() for x in total_val.split(ES.LIST_SEPARATOR)]:
+                    # For standard matrices, item names related to connections are pulled from non-empty cells.
+                    if table.template_item_type is None:
+                        if not val == "":
+                            structure.append_spec_value(term=val, attribute=table.storage_attribute,
+                                                        value=(source_item, target_item))
+                    # For template connection matrices, the item name is in the 'corner' header.
+                    # Attach connections to that item in specs if a connection exists, i.e. is marked by 'y'.
+                    else:
+                        if val == SS.DEFAULT_SYMBOL_YES:
+                            structure.append_spec_value(term=term, attribute=table.storage_attribute,
+                                                        value=(source_item, target_item))
+                            break   # Technically this treats 'y:n:y:what' as a marker. Probably pointless to validate.
         row += 1
     next_row = row
     return next_row

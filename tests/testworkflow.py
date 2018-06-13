@@ -23,7 +23,7 @@ torun = [
 "runsim",
 # "makeprogramspreadsheet",
 # "loadprogramspreadsheet",
-# "makeplots",
+"makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
