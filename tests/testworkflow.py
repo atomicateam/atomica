@@ -17,18 +17,21 @@ torun = [
 "makedatabook",
 "makeproject",
 "loaddatabook",
+"makeprogbook",
+"loadprogbook",
 "makeparset",
 "runsim",
-#"makeprogramspreadsheet",
+# "makeprogramspreadsheet",
 # "loadprogramspreadsheet",
-"makeplots",
-"export",
-#"listspecs",
-#"manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-#"saveproject",
-#"loadproject",
+# "makeplots",
+# "export",
+# "listspecs",
+# "manualcalibrate",
+# "autocalibrate",
+# "parameterscenario",
+# "runsimprogs",
+# "saveproject",
+# "loadproject"
 ]
 
 # Define plotting variables in case plots are generated
@@ -112,6 +115,13 @@ if "loadprogramspreadsheet" in torun:
                              ('Treatment 2',        .8)])
         print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
+if "makeparset" in torun:
+    P.make_parset(name="default")
+    
+if "runsim" in torun:
+    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    P.run_sim(parset="default", result_name="default")
+
 if "makeplots" in torun:
 
     # Low level debug plots.
@@ -166,9 +176,6 @@ if "listspecs" in torun:
     # Print list of populations.
     print("Populations...")
     print(P.data.specs[DS.KEY_POPULATION].keys())
-    # Print list of programs.
-    print("Programs...")
-    print(P.data.specs[DS.KEY_PROGRAM].keys())
     print()
     
 if "manualcalibrate" in torun:
@@ -232,6 +239,12 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+if "runsimprogs" in torun:
+    from atomica.programs import ProgramInstructions
+
+    # instructions = ProgramInstructions(progset=P.progsets["default"])
+    P.run_sim(parset="default", progset="default", instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

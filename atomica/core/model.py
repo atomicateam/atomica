@@ -613,12 +613,12 @@ class Population(object):
             spec = framework.get_spec(name)
             par = self.get_par(name)
 
-            #            if ('min' in spec) or ('max' in spec):
-            #                par.limits = [-np.inf, np.inf]
-            #                if 'min' in spec:
-            #                    par.limits[0] = spec['min']
-            #                if 'max' in spec:
-            #                    par.limits[1] = spec['max']
+            if ("min" in spec and spec["min"] is not None) or ("max" in spec and spec["max"] is not None):
+                par.limits = [-np.inf, np.inf]
+                if "min" in spec and spec["min"] is not None:
+                    par.limits[0] = spec["min"]
+                if "max" in spec and spec["max"] is not None:
+                    par.limits[1] = spec["max"]
 
             if not spec[FS.TERM_FUNCTION] is None:
                 par.set_fcn(spec[FS.TERM_FUNCTION],spec['dependencies'])
@@ -731,7 +731,7 @@ class Population(object):
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
-    def __init__(self, settings, framework, parset, progset=None, options=None):
+    def __init__(self, settings, framework, parset, progset=None, instructions=None):
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.pop_ids = dict()  # Maps name of a population to its position index within populations list.
@@ -746,7 +746,7 @@ class Model(object):
         self.dt = None
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
-        self.build(settings, framework, parset, progset, options)
+        self.build(settings, framework, parset, progset, instructions)
 
     def unlink(self):
         # Break cycles when deepcopying or pickling by swapping them for IDs
@@ -804,11 +804,11 @@ class Model(object):
         pop_index = self.pop_ids[pop_name]
         return self.pops[pop_index]
 
-    def build(self, settings, framework, parset, progset=None, progset_instructions=None):
+    def build(self, settings, framework, parset, progset=None, instructions=None):
         """ Build the full model. """
 
-        if progset_instructions is None:
-            progset_instructions = dict()
+        if instructions is None:
+            instructions = dict()
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
@@ -888,29 +888,29 @@ class Model(object):
         self.set_vars_by_pop()
 
         # Finally, prepare ModelProgramSet helper if programs are going to be used
-        if 'progs_start' in progset_instructions:
+        if 'progs_start' in instructions:
             if progset is not None:
                 self.programs_active = True
-                self.sim_settings['progs_start'] = progset_instructions['progs_start']
+                self.sim_settings['progs_start'] = instructions['progs_start']
 
-                if 'progs_end' in progset_instructions:
-                    self.sim_settings['progs_end'] = progset_instructions['progs_end']
+                if 'progs_end' in instructions:
+                    self.sim_settings['progs_end'] = instructions['progs_end']
                 else:
                     self.sim_settings['progs_end'] = np.inf  # Neverending programs
-                if 'init_alloc' in progset_instructions:
-                    self.sim_settings['init_alloc'] = progset_instructions['init_alloc']
+                if 'init_alloc' in instructions:
+                    self.sim_settings['init_alloc'] = instructions['init_alloc']
                 else:
                     self.sim_settings['init_alloc'] = {}
-                if 'constraints' in progset_instructions:
-                    self.sim_settings['constraints'] = progset_instructions['constraints']
+                if 'constraints' in instructions:
+                    self.sim_settings['constraints'] = instructions['constraints']
                 else:
                     self.sim_settings['constraints'] = None
-                if 'alloc_is_coverage' in progset_instructions:
-                    self.sim_settings['alloc_is_coverage'] = progset_instructions['alloc_is_coverage']
+                if 'alloc_is_coverage' in instructions:
+                    self.sim_settings['alloc_is_coverage'] = instructions['alloc_is_coverage']
                 else:
                     self.sim_settings['alloc_is_coverage'] = False
-                if 'saturate_with_default_budgets' in progset_instructions:
-                    self.sim_settings['saturate_with_default_budgets'] = progset_instructions[
+                if 'saturate_with_default_budgets' in instructions:
+                    self.sim_settings['saturate_with_default_budgets'] = instructions[
                         'saturate_with_default_budgets']
                 for impact_name in progset.impacts:
                     if impact_name not in settings.par_funcs:
@@ -1205,7 +1205,7 @@ class Model(object):
                 par.constrain(ti)
 
 
-def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
+def run_model(settings, framework, parset, progset=None, instructions=None, name=None):
     """
     Processes the TB epidemiological model.
     Parset-based overwrites are generally done externally, so the parset is only used for model-building.
@@ -1213,7 +1213,7 @@ def run_model(settings, framework, parset, progset=None, progset_instructions=No
     The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
     """
 
-    m = Model(settings, framework, parset, progset, progset_instructions)
+    m = Model(settings, framework, parset, progset, instructions)
     m.process(framework)
     # TODO: Pass progset and instructions into results just like parset.
     return Result(model=m, parset=parset, name=name)

@@ -414,13 +414,13 @@ class FrameworkSettings(BaseStructuralSettings):
     NAME = SS.STRUCTURE_KEY_FRAMEWORK
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
+    # TODO: Decide whether to reintroduce program types as a page and an item, with subitem program attributes.
     ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION,
-                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
-                  BSS.KEY_PROGRAM_TYPE, BSS.KEY_PROGRAM_ATTRIBUTE, BSS.KEY_DATAPAGE]
+                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_DATAPAGE]
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_DATAPAGE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION,
-                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_PROGRAM_TYPE]
+                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
@@ -460,14 +460,17 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_CHARACTERISTIC], ["default_value"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
-        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", cls.TERM_FUNCTION, "dependencies"])
+
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", "min", "max"],
+                                        content_type=ContentType(enforce_type=float))
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
                                         content_type=ContentType(is_list=True))
+
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["tables"], content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["can_skip"], content_type=SwitchType())
-        # TODO: ELABORATE DATA PAGE.
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
                                         [cls.KEY_DATAPAGE],
                                         content_type=IDRefType(attribute="name", item_types=[cls.KEY_DATAPAGE]))
@@ -476,7 +479,6 @@ class FrameworkSettings(BaseStructuralSettings):
                                         content_type=ContentType(enforce_type=int))
         # Subitem type association is done after item types and attributes are defined, due to cross-referencing.
         cls.create_item_type_subitem_types(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
-        cls.create_item_type_subitem_types(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
 
 
 @create_specs
@@ -486,18 +488,18 @@ class DataSettings(BaseStructuralSettings):
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
     ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
-                  BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_PROGRAM]
+                  BSS.KEY_POPULATION, BSS.KEY_TRANSFER]
 
     PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_TRANSFER_DATA,
-                 BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
+                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
         cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
         cls.ITEM_TYPE_SPECS[cls.KEY_TRANSFER]["instruction_allowed"] = True
-        cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
+        # TODO: As above, delete the following comments if progbook is locked in.
+        # cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
-        # TODO: Determine how programs in the databook work.
         # cls.create_item_type_attributes(cls.KEY_PROGRAM, ["target_pops"],
         #                                 IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT], [cls.TERM_DATA], TimeSeriesType())
@@ -507,7 +509,9 @@ class DataSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_TRANSFER], [cls.KEY_POPULATION_LINKS], ContentType(is_list=True))
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type=cls.KEY_POPULATION))
-        cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
+
+        # TODO: As above, delete the following comment if progbook is locked in.
+        # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
         cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(DetailColumns(item_type=cls.KEY_TRANSFER,
                                                                         attribute_list=["label"],
                                                                         exclude_not_include=False))
@@ -522,6 +526,7 @@ class DataSettings(BaseStructuralSettings):
                                                         value_attribute=cls.TERM_DATA))
         cls.PAGE_SPECS[cls.KEY_TRANSFER]["can_skip"] = True
         cls.PAGE_SPECS[cls.KEY_TRANSFER_DATA]["can_skip"] = True
+
         # TODO: Enable other connection matrices.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
