@@ -241,7 +241,7 @@ if "parameterscenario" in torun:
     au.plot_series(d, axis="results")
 
 if "runsimprogs" in torun:
-    from atomica.programs import ProgramInstructions
+    from atomica.core.programs import ProgramInstructions
 
     # instructions = ProgramInstructions(progset=P.progsets["default"])
     P.run_sim(parset="default", progset="default", instructions=ProgramInstructions(), result_name="progtest")

@@ -1205,7 +1205,7 @@ class Model(object):
                 par.constrain(ti)
 
 
-def run_model(settings, framework, parset, progset=None, instructions=None, name=None):
+def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
     """
     Processes the TB epidemiological model.
     Parset-based overwrites are generally done externally, so the parset is only used for model-building.
@@ -1213,7 +1213,7 @@ def run_model(settings, framework, parset, progset=None, instructions=None, name
     The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
     """
 
-    m = Model(settings, framework, parset, progset, instructions)
+    m = Model(settings, framework, parset, progset, progset_instructions)
     m.process(framework)
     # TODO: Pass progset and instructions into results just like parset.
     return Result(model=m, parset=parset, name=name)
