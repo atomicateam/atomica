@@ -257,11 +257,12 @@ class CoreProjectStructure(object):
         Initialize the attribute structure relating to specifications for a new item within a target dictionary.
         Should not be called directly as it is part of item creation.
         """
-#        target_item_location[item_name] = sc.odict()
+        #        target_item_location[item_name] = sc.odict()
         if position is None:
             target_item_location[item_name] = sc.odict()
         else:
-            target_item_location.insert(pos=position, key=item_name, value=sc.odict()) # Note: cannot initialize as an odict since this will create a linked version 
+            target_item_location.insert(pos=position, key=item_name,
+                                        value=sc.odict())  # Note: cannot initialize as an odict since this will create a linked version
 
         if self.structure_key is not None:
             item_type_specs = None
@@ -334,6 +335,35 @@ class CoreProjectStructure(object):
         # Create a semantic link between the name of the item and its specifications.
         self.create_semantic(term=item_name, item_type=item_type, item_name=item_name, attribute="name",
                              key_list=key_list)
+
+    # TODO: Develop a more robust item deletion method that is aware of subitems, either deleting them or validating.
+    #       Refactor the name to delete_item once this is done.
+    def delete_item_riskily(self, term):
+        """
+        Deletes the item from specs as well as associated semantics entries.
+        This item must have no subitems, otherwise...
+        - Their specifications will be deleted as part of the superitem spec.
+        - Their semantics will not be deleted.
+        However, the original design only introduced subitems for population attributes and program types.
+        Provided neither are implemented or, if implemented, items are not deleted with this method, risk is controlled.
+        """
+        semantic = self.get_semantic(self.get_spec_name(term))
+        key_list = semantic["key_list"]
+        check_keys = key_list[:-1]
+        last_key = key_list[-1]
+        # Clear semantics.
+        try:
+            label = self.get_spec_value(term=term, attribute="label")
+            del self.semantics[label]
+        except AtomicaException:
+            pass
+        name = self.get_spec_name(term)
+        del self.semantics[name]
+        # Delete spec.
+        spec = self.specs
+        for key in check_keys:
+            spec = spec[key]
+        del spec[last_key]
 
     @staticmethod
     def enforce_value(value, content_type):
@@ -438,8 +468,11 @@ class CoreProjectStructure(object):
         if term in self.semantics:
             other_attribute = self.semantics[term]["attribute"]
             other_name = self.semantics[term]["name"]
-            raise AtomicaException("The term '{0}' has been defined previously as the '{1}' of item '{2}'. "
-                                   "Duplicate terms are not allowed.".format(term, other_attribute, other_name))
+            other_type = self.get_spec_type(term)
+            this_type = "'" + item_type + "'" if item_type is not None else ""
+            raise AtomicaException("The {0} term '{1}' has been defined previously as the '{2}' of '{3}' item '{4}'. "
+                                   "Duplicate terms are not allowed.".format(this_type, term, other_attribute,
+                                                                             other_type, other_name))
         else:
             self.semantics[term] = {"name": item_name, "attribute": attribute}
             if attribute == "name":

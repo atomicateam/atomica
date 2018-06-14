@@ -7,7 +7,7 @@ import atomica.ui as au
 import sciris.core as sc
 
 test = "sir"
-# test = "tb"
+test = "tb"
 
 torun = [
 "makeframeworkfile",

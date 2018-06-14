@@ -213,6 +213,7 @@ class BaseStructuralSettings(object):
     KEY_PARAMETER = "par"
     KEY_POPULATION = "pop"
     KEY_TRANSFER = "trans"
+    KEY_INTERACTION = "interpop"
     KEY_PROGRAM = "prog"
     KEY_DATAPAGE = "datapage"
 
@@ -415,8 +416,8 @@ class FrameworkSettings(BaseStructuralSettings):
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
     # TODO: Decide whether to reintroduce program types as a page and an item, with subitem program attributes.
-    ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION,
-                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_DATAPAGE]
+    ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION, BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC,
+                  BSS.KEY_PARAMETER, BSS.KEY_INTERACTION, BSS.KEY_DATAPAGE]
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_DATAPAGE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION,
@@ -461,11 +462,15 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
 
-        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", "min", "max"],
+        cls.create_item_type_attributes([cls.KEY_PARAMETER, cls.KEY_INTERACTION], ["default_value", "min", "max"],
                                         content_type=ContentType(enforce_type=float))
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
                                         content_type=ContentType(is_list=True))
+        # Interaction items do not have a table in the framework file.
+        # Introduce marker for parameters that tells framework file parser to convert them into interaction items.
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["is_"+cls.KEY_INTERACTION],
+                                        content_type=SwitchType())
 
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
