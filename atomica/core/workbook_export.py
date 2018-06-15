@@ -454,8 +454,9 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
             if table.template_item_type is not None:
                 for other_number in range(target_amount):
                     rc = xlrc(source_row, start_col + other_number + 1)
-                    # Disable self-connections.
-                    if item_number == other_number and source_item_type == target_item_type:
+                    # Handle self-connections.
+                    if item_number == other_number and source_item_type == target_item_type \
+                            and not table.self_connections:
                         worksheet.write(rc, SS.DEFAULT_SYMBOL_INAPPLICABLE, formats[ES.FORMAT_KEY_CENTER])
                         worksheet.data_validation(rc, {"validate": "list",
                                                        "source": [SS.DEFAULT_SYMBOL_INAPPLICABLE]})
@@ -465,7 +466,8 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
                         item_type = table.template_item_type
                         source_type = table.source_item_type
                         target_type = table.target_item_type
-                        # target_key = target_keys[other_number]
+                        if item_type not in temp_storage:
+                            temp_storage[item_type] = dict()
                         if term not in temp_storage[item_type]:
                             temp_storage[item_type][term] = dict()
                         if (source_type,target_type) not in temp_storage[item_type][term]:
@@ -476,9 +478,13 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
                         temp_storage[item_type][term][(source_type,target_type)][(item_number, other_number)]["page_title"] = worksheet.name
 
                         # Actually fill the cell in with a 'yes or no' choice.
-                        worksheet.write(rc, SS.DEFAULT_SYMBOL_NO, formats[ES.FORMAT_KEY_CENTER])
+                        if item_number == other_number and source_item_type == target_item_type \
+                                and table.self_connections:
+                            worksheet.write(rc, SS.DEFAULT_SYMBOL_YES, formats[ES.FORMAT_KEY_CENTER])
+                        else:
+                            worksheet.write(rc, SS.DEFAULT_SYMBOL_NO, formats[ES.FORMAT_KEY_CENTER])
                         worksheet.data_validation(rc, {"validate": "list",
-                                                       "source": [SS.DEFAULT_SYMBOL_NO, SS.DEFAULT_SYMBOL_YES]})
+                                                       "source": [SS.DEFAULT_SYMBOL_YES, SS.DEFAULT_SYMBOL_NO]})
             source_row += 1
         row = source_row + 1  # Extra row to space out following tables.
         start_row = row  # Update start row down the page for iterated tables.
@@ -589,7 +595,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
             condition_list = []
             for source_number in range(instructions.num_items[iterated_type]):
                 for target_number in range(instructions.num_items[iterated_type]):
-                    if source_number == target_number:
+                    if not table.self_connections and source_number == target_number:
                         continue
                     item_type = table.template_item_type
                     iterated_type = table.iterated_type
@@ -598,7 +604,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                         page_title = temp_storage[item_type][term][(iterated_type,iterated_type)][(source_number, target_number)]["page_title"]
                         condition_string = "'{0}'!{1}<>\"{2}\"".format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
                     except KeyError:
-                        condition_string = None
+                        condition_string = "FALSE"
                     condition_list.append("NOT(" + condition_string + ")")
                     create_attribute_cell_content(worksheet=worksheet, row=row, col=col, attribute="label",
                                                   item_type=iterated_type, item_type_specs=item_type_specs,
