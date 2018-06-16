@@ -1,5 +1,5 @@
 import sciris.core as sc
-import atomica.ui as au
+import atomica.au as au
 
 def new_project(name, start, end, pops):
     # Todo - actually use start, end, pops

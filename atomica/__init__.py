@@ -20,7 +20,7 @@ License:
 
 # Import things for the user
 from . import core # All Atomica functions
-from . import au # The actual Atomica user interface
+from . import ui # The actual Atomica user interface
 
 # # Import app flavors
 # try:
@@ -32,7 +32,7 @@ from . import au # The actual Atomica user interface
 #     app_text = ' (without apps; see atomica.app_error for details)'
 
 # Print the license.
-atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (au.version, au.versiondate)
+atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (ui.version, ui.versiondate)
 print(atomica_license)
 
 # Tidy up

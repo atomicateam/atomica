@@ -4,13 +4,12 @@ Classes for handling projects as Sciris objects
 Version: 2018jun04 by cliffk
 '''
 
-import sciris.scirisobjects as sobj
-import sciris.datastore as ds
-import atomica.ui as au
-import sciris.user as user
-import sciris.core as sc
 import os
-
+import atomica.ui as au
+import sciris.core as sc
+import sciris.web as sw
+import sciris.weblib.user as user
+import sciris.weblib.datastore as ds
 
 #
 # Globals
@@ -25,7 +24,7 @@ proj_collection = None
 # Classes
 #
 
-class ProjectSO(sobj.ScirisObject):
+class ProjectSO(sw.ScirisObject):
     """
     A ScirisObject-wrapped Optima Nutrition Project object.
     
@@ -118,7 +117,7 @@ class ProjectSO(sobj.ScirisObject):
         return self.proj.name + ".prj"
     
         
-class ProjectCollection(sobj.ScirisCollection):
+class ProjectCollection(sw.ScirisCollection):
     """
     A collection of Projects.
     

@@ -22,7 +22,7 @@ import sciris.core as sc
 import sciris.web as sw
 
 import atomica.ui as au
-import atomica.apps.tb as tb
+import atomica_apps.tb as tb
 from . import projects as prj
 
 # Dictionary to hold all of the registered RPCs in this module.
