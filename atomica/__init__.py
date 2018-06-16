@@ -24,7 +24,7 @@ from . import ui as au # The actual Atomica user interface
 
 # Import app flavors
 try:
-    # from . import apps
+    from . import apps
     app_text = ' (with apps)'
 except Exception as E:
     import traceback
