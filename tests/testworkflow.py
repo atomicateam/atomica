@@ -10,18 +10,18 @@ test = "sir"
 # test = "tb"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-#"makeprogramspreadsheet",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-"makeplots",
+#"makeplots",
 #"export",
 #"listspecs",
 #"manualcalibrate",
@@ -89,11 +89,11 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
+    print('\n\n\Making programs spreadsheet ... ')
 
     P = au.demo(which=test,do_plot=0)
     filename = "temp/programspreadsheet.xlsx"
-    au.makeprogramspreadsheet(filename, pops=2, progs=5)
+    P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
     if test=='tb':
@@ -104,7 +104,8 @@ if "loadprogramspreadsheet" in torun:
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/programdata_"+test+".xlsx"
         P.load_progbook(databook_path=filename, make_default_progset=True)
-        
+        P.progsets[0].programs[0].get_spend(year=2015)
+        P.progsets[0].programs[0].get_num_covered(year=2015)
         coverage = sc.odict([('Risk avoidance',     .99),
                              ('Harm reduction 1',   .8),
                              ('Harm reduction 2',   .9),
