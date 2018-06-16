@@ -16,13 +16,12 @@ from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
 
-import sciris.fileio as fileio
-import sciris.user as user
+import sciris.corelib.fileio as fileio
+import sciris.weblib.user as user
 import sciris.core as sc
 import sciris.web as sw
 
 import atomica.ui as au
-import atomica_apps.tb as tb
 from . import projects as prj
 
 # Dictionary to hold all of the registered RPCs in this module.
@@ -490,7 +489,8 @@ def get_default_scenario_plot():
     proj = au.Project() # WARNING, just create new project
     proj.default_scens(dorun=True)
     result = proj.get_results('test1')
-    fig = tb.plot(result) # HARDCODED EXAMPLE
+    fig = None
+#    fig = tb.plot(result) # HARDCODED EXAMPLE
     
     figs = []
     figs.append(fig)
