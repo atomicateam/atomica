@@ -553,7 +553,7 @@ class DataSettings(BaseStructuralSettings):
         cls.PAGE_SPECS[cls.KEY_TRANSFER_DATA]["can_skip"] = True
         # cls.PAGE_SPECS[cls.KEY_INTERACTION]["can_skip"] = True
 
-        # TODO: Enable other connection matrices.
+        # TODO: As above, delete the following comment if progbook is locked in.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
         #                                                                  storage_attribute = "target_pops"))

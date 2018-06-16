@@ -404,6 +404,11 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
     if formats is None:
         raise AtomicaException("Excel formats have not been passed to workbook table construction.")
 
+    # Set up validation messages outside of loop.
+    validation_title = "Enter '{0}', a number or '{1}'.".format(SS.DEFAULT_SYMBOL_YES, SS.DEFAULT_SYMBOL_NO)
+    validation_error = ("Neither '{0}', '{1}' or a number was "
+                        "entered.").format(SS.DEFAULT_SYMBOL_YES, SS.DEFAULT_SYMBOL_NO)
+
     source_item_type = table.source_item_type
     target_item_type = table.target_item_type
     # Set up identifier for the item that this connection matrix is constructed for.
@@ -429,25 +434,26 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
             # If the instantiation was deferred to this workbook, create content according to iteration number.
             else:
                 # Grab the content that is created; the 'backup' content is better as it is a value without equations.
-                _, term = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col, attribute="label",
-                                                        item_type=table.template_item_type, item_type_specs=item_type_specs,
-                                                        item_number=iteration, formats=formats,
-                                                        format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
+                _, term = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col,
+                                                        attribute="label", item_type=table.template_item_type,
+                                                        item_type_specs=item_type_specs, item_number=iteration,
+                                                        formats=formats, format_key=ES.FORMAT_KEY_CENTER_BOLD,
+                                                        temp_storage=temp_storage)
         target_col = start_col + 1
-        # target_keys = list()    # Convenient list to store keys of all target iterated items.
         for item_number in range(target_amount):
             _, target_key = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=target_col,
                                                           attribute="name", item_type=target_item_type,
-                                                          item_type_specs=item_type_specs, item_number=item_number, formats=formats,
-                                                          format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
-            # target_keys.append(target_key)
+                                                          item_type_specs=item_type_specs, item_number=item_number,
+                                                          formats=formats, format_key=ES.FORMAT_KEY_CENTER_BOLD,
+                                                          temp_storage=temp_storage)
             target_col += 1
         source_row = start_row + 1
         for item_number in range(source_amount):
             _, source_key = create_attribute_cell_content(worksheet=worksheet, row=source_row, col=start_col,
                                                           attribute="name", item_type=source_item_type,
-                                                          item_type_specs=item_type_specs, item_number=item_number, formats=formats,
-                                                          format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
+                                                          item_type_specs=item_type_specs, item_number=item_number,
+                                                          formats=formats, format_key=ES.FORMAT_KEY_CENTER_BOLD,
+                                                          temp_storage=temp_storage)
             # Template connection matrices do not mark connections with an item name and leave the rest blank.
             # Because the matrix is defined for one item, the name of which relates to the header in the corner...
             # The existence of a connection is typically marked by a 'y' with any other value marking an absence.
@@ -477,14 +483,20 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
                         temp_storage[item_type][term][(source_type,target_type)][(item_number, other_number)]["cell"] = rc
                         temp_storage[item_type][term][(source_type,target_type)][(item_number, other_number)]["page_title"] = worksheet.name
 
-                        # Actually fill the cell in with a 'yes or no' choice.
+                        # Actually fill the cell in with a 'yes or no' choice, but allow for numeric values.
                         if item_number == other_number and source_item_type == target_item_type \
                                 and table.self_connections:
                             worksheet.write(rc, SS.DEFAULT_SYMBOL_YES, formats[ES.FORMAT_KEY_CENTER])
                         else:
                             worksheet.write(rc, SS.DEFAULT_SYMBOL_NO, formats[ES.FORMAT_KEY_CENTER])
-                        worksheet.data_validation(rc, {"validate": "list",
-                                                       "source": [SS.DEFAULT_SYMBOL_YES, SS.DEFAULT_SYMBOL_NO]})
+                        condition = "=OR(ISNUMBER({0}),{0}={1},{0}={2})".format(rc, "\"" + SS.DEFAULT_SYMBOL_YES + "\"",
+                                                                                "\"" + SS.DEFAULT_SYMBOL_NO + "\"")
+                        worksheet.data_validation(rc, {"validate": "custom",
+                                                       "value": condition,
+                                                       "show_input": True,
+                                                       "ignore_blank": True,
+                                                       "input_title": validation_title,
+                                                       "error_message": validation_error})
             source_row += 1
         row = source_row + 1  # Extra row to space out following tables.
         start_row = row  # Update start row down the page for iterated tables.
@@ -536,9 +548,9 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     # If the instantiation was deferred to this workbook, create content according to iteration number.
     else:
         _, term = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col, attribute="label",
-                                      item_type=item_type, item_type_specs=item_type_specs,
-                                      item_number=iteration, formats=formats,
-                                      format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
+                                                item_type=item_type, item_type_specs=item_type_specs,
+                                                item_number=iteration, formats=formats,
+                                                format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
     if "comment" in attribute_spec:
         header_comment = attribute_spec["comment"]
         worksheet.write_comment(row, col, header_comment,
@@ -555,7 +567,10 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     # Push the data entry block back and make space for more 'item to item' headers, self-connections excluded.
     if table.iterate_over_links:
         block_col = 3
-        num_items = num_items * (num_items - 1)
+        if table.self_connections:
+            num_items = num_items**2
+        else:
+            num_items = num_items * (num_items - 1)
     default_values = [0.0] * num_items
     # Decide what quantity types, a.k.a. value formats, are allowed for the item.
     if item_type in [FS.KEY_COMPARTMENT,
@@ -593,6 +608,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
         # Construct row headers for tuples of iterated item type, if appropriate.
         if table.iterate_over_links:
             condition_list = []
+            item_number = 0
             for source_number in range(instructions.num_items[iterated_type]):
                 for target_number in range(instructions.num_items[iterated_type]):
                     if not table.self_connections and source_number == target_number:
@@ -602,13 +618,19 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                     try:
                         rc = temp_storage[item_type][term][(iterated_type,iterated_type)][(source_number, target_number)]["cell"]
                         page_title = temp_storage[item_type][term][(iterated_type,iterated_type)][(source_number, target_number)]["page_title"]
-                        condition_string = "'{0}'!{1}<>\"{2}\"".format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
+                        # If a value exists for this connection elsewhere, show row if value is a 'y' or number.
+                        condition_string = ("OR('{0}'!{1}=\"{2}\","
+                                            "ISNUMBER('{0}'!{1}))").format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
+                        # If a value exists for this connection elsewhere, let default value be that value if numeric.
+                        default_values[item_number] = ("IF(ISNUMBER('{0}'!{1}),'{0}'!{1},"
+                                                       "{2})").format(page_title, rc, default_values[item_number])
                     except KeyError:
-                        condition_string = "FALSE"
-                    condition_list.append("NOT(" + condition_string + ")")
+                        condition_string = "TRUE"  # Always show the row if a condition cannot be generated.
+                    condition_list.append(condition_string)
                     create_attribute_cell_content(worksheet=worksheet, row=row, col=col, attribute="label",
                                                   item_type=iterated_type, item_type_specs=item_type_specs,
-                                                  alt_content="\""+SS.DEFAULT_SYMBOL_IGNORE+"\"", alt_condition=condition_string,
+                                                  alt_content="\""+SS.DEFAULT_SYMBOL_IGNORE+"\"",
+                                                  alt_condition="NOT("+condition_string+")",
                                                   item_number=source_number, formats=formats, temp_storage=temp_storage)
                     rc_check = xlrc(row, col + 2)
                     worksheet.write(row, col + 1, "=IF({0}=\"{1}\",\"{2}\",\"{3}\")".format(rc_check, str(), str(),
@@ -616,8 +638,9 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                                     formats[ES.FORMAT_KEY_CENTER_BOLD], "")
                     create_attribute_cell_content(worksheet=worksheet, row=row, col=col + 2, attribute="label",
                                                   item_type=iterated_type, item_type_specs=item_type_specs,
-                                                  alt_content="\"\"", alt_condition=condition_string,
+                                                  alt_content="\"\"", alt_condition="NOT("+condition_string+")",
                                                   item_number=target_number, formats=formats, temp_storage=temp_storage)
+                    item_number += 1
                     row += 1
         # Construct row headers for iterated item type.
         else:
