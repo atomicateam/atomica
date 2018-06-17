@@ -23,7 +23,7 @@ Last update: 2018jun04 (cliffk)
 SECRET_KEY = 'Pick something unique for your site here'
 
 # Directory containing the client code.
-CLIENT_DIR = '../../clients/tb/dist'
+CLIENT_DIR = '../../clients/cascade/dist'
 
 # Flag for setting whether we use the datastore functionality provided by 
 # Sciris in the webapp.
@@ -32,7 +32,7 @@ USE_DATASTORE = True
 # URL for the Redis database that the web app will use to manage 
 # persistence.  Note that the /N/ number at the end should match the 
 # database number you want to use.  (N=0 is the default Redis database.)
-REDIS_URL = 'redis://localhost:6379/7/'
+REDIS_URL = 'redis://localhost:6379/8/'
 
 # Flag for setting whether we use the users functionality provided by 
 # Sciris in the webapp.
@@ -44,7 +44,7 @@ USE_USERS = True
 REGISTER_AUTOACTIVATE = True
 
 # Default server port
-SERVER_PORT = 8093
+SERVER_PORT = 8094
 
 # Matplotlib backend
 MATPLOTLIB_BACKEND = 'Agg'
