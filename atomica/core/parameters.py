@@ -7,18 +7,19 @@ from .structure_settings import DataSettings as DS
 from .system import AtomicaException, logger
 from .utils import NamedItem
 
+
 # Parameter class that stores one array of values converted from raw project data
 class Parameter(NamedItem):
     """ Class to hold one set of parameter values disaggregated by populations. """
 
     def __init__(self, name, t=None, y=None, y_format=None, y_factor=None, autocalibrate=None):
-        NamedItem.__init__(self,name)
+        NamedItem.__init__(self, name)
 
         # These ordered dictionaries have population names as keys.
-        if t             is None: t             = sc.odict()
-        if y             is None: y             = sc.odict()
-        if y_format      is None: y_format      = sc.odict()
-        if y_factor      is None: y_factor      = sc.odict()
+        if t is None: t = sc.odict()
+        if y is None: y = sc.odict()
+        if y_format is None: y_format = sc.odict()
+        if y_factor is None: y_factor = sc.odict()
         if autocalibrate is None: autocalibrate = sc.odict()
         self.t = t  # Time data
         self.y = y  # Value data
@@ -127,30 +128,6 @@ class Parameter(NamedItem):
 
             output = interpolate_func(cleaned_times, cleaned_vals, tvec)
 
-        # if not extrapolate_nan:
-        #     # Pad the input vectors for interpolation with minimum and maximum timepoint values.
-        #     # This avoids extrapolated values blowing up.
-        #     ind_min, t_min = min(enumerate(self.t[pop_name]), key = lambda p: p[1])
-        #     ind_max, t_max = max(enumerate(self.t[pop_name]), key = lambda p: p[1])
-        #     y_at_t_min = self.y[pop_name][ind_min]
-        #     y_at_t_max = self.y[pop_name][ind_max]
-        #
-        #     # This padding keeps edge values constant for desired time ranges larger than data-provided time ranges.
-        #     if tvec[0] < t_min:
-        #         input_t = np.append(tvec[0], input_t)
-        #         input_y = np.append(y_at_t_min, input_y)
-        #     if tvec[-1] > t_max:
-        #         input_t = np.append(input_t, tvec[-1])
-        #         input_y = np.append(input_y, y_at_t_max)
-        #
-        # # The interpolation function currently complains about single data points.
-        # # This is the simplest hack for nan extrapolation.
-        # elif len(input_t) == 1:
-        #     input_t = np.append(input_t, input_t[-1] + 1e-12)
-        #     input_y = np.append(input_y, input_y[-1])
-        #
-        # output = interpolate_func(x = input_t, y = input_y, xnew = tvec, extrapolate_nan = extrapolate_nan)
-
         return output
 
     def __repr__(self, *args, **kwargs):
@@ -164,7 +141,7 @@ class ParameterSet(NamedItem):
     """ Class to hold all parameters. """
 
     def __init__(self, name="default"):
-        NamedItem.__init__(self,name)
+        NamedItem.__init__(self, name)
 
         self.pop_names = []  # List of population names.
         # Names are used throughout the codebase as variable names (technically dict keys).
@@ -177,11 +154,11 @@ class ParameterSet(NamedItem):
         self.par_ids = {"cascade": {}, "comps": {}, "characs": {}}
 
         self.transfers = sc.odict()  # Dictionary of inter-population transitions.
-        self.contacts  = sc.odict()  # Dictionary of inter-population interaction weights.
+        self.interactions = sc.odict()  # Dictionary of inter-population interactions.
 
         logger.info("Created ParameterSet: {0}".format(self.name))
 
-    def copy(self,new_name=None):
+    def copy(self, new_name=None):
         x = sc.dcp(self)
         if new_name is not None:
             x.name = new_name
@@ -204,9 +181,9 @@ class ParameterSet(NamedItem):
 
         # Cascade parameter and characteristic extraction.
         for j in range(3):
-            item_key = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][j]
+            item_type = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][j]
             item_group = ["cascade", "comps", "characs"][j]
-            for k, name in enumerate(data.specs[item_key]):
+            for k, name in enumerate(data.specs[item_type]):
                 self.par_ids[item_group][name] = k
                 self.pars[item_group].append(Parameter(name=name))
                 popdata = data.get_spec_value(name, DS.TERM_DATA)
@@ -215,25 +192,29 @@ class ParameterSet(NamedItem):
                     self.pars[item_group][-1].t[pop_id] = tvec
                     self.pars[item_group][-1].y[pop_id] = yvec
                     self.pars[item_group][-1].y_format[pop_id] = popdata.get_format(pop_id)
-                    # TODO: Consider exposing scaling factors in the databook.
                     self.pars[item_group][-1].y_factor[pop_id] = 1.0
 
-        # Transfer extraction.
-        for name in data.specs[DS.KEY_TRANSFER]:
-            if name not in self.transfers:
-                self.transfers[name] = sc.odict()
-            for pop_link in data.specs[DS.KEY_TRANSFER][name][DS.KEY_POPULATION_LINKS]:
+        # Transfer and interaction extraction.
+        for j in range(2):
+            item_type = [DS.KEY_TRANSFER, DS.KEY_INTERACTION][j]
+            item_storage = [self.transfers, self.interactions][j]
+        for name in data.specs[item_type]:
+            if name not in item_storage:
+                item_storage[name] = sc.odict()
+            # TODO: Consider whether pop-links really need to be stored from connection matrix.
+            #       Maybe pulling data from the TDVE tables is enough, iterating directly through those keys.
+            #       This alternative works if connection matrix elements only control TDVE visibility/defaults.
+            for pop_link in data.specs[item_type][name][DS.KEY_POPULATION_LINKS]:
                 source_pop = pop_link[0]
                 target_pop = pop_link[1]
-                if pop_link[0] not in self.transfers[name]:
-                    self.transfers[name][source_pop] = Parameter(name = name + "_from_" + source_pop)
-                transfer_data = data.get_spec_value(name, DS.TERM_DATA)
-                tvec, yvec = transfer_data.get_arrays(pop_link)
-                self.transfers[name][source_pop].t[target_pop] = tvec
-                self.transfers[name][source_pop].y[target_pop] = yvec
-                self.transfers[name][source_pop].y_format[target_pop] = transfer_data.get_format(pop_link)
-                # TODO: Consider exposing scaling factors in the databook.
-                self.transfers[name][source_pop].y_factor[target_pop] = 1.0
+                if pop_link[0] not in item_storage[name]:
+                    item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop)
+                item_data = data.get_spec_value(name, DS.TERM_DATA)
+                tvec, yvec = item_data.get_arrays(pop_link)
+                item_storage[name][source_pop].t[target_pop] = tvec
+                item_storage[name][source_pop].y[target_pop] = yvec
+                item_storage[name][source_pop].y_format[target_pop] = item_data.get_format(pop_link)
+                item_storage[name][source_pop].y_factor[target_pop] = 1.0
 
 # TODO: Clean this batch of comments once autocalibration tags are conclusively handled.
 # self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
@@ -259,8 +240,3 @@ class ParameterSet(NamedItem):
 #                else:
 #                    self.pars["characs"][-1].y_factor[pop_id] = data[DS.KEY_CHARACTERISTIC][name][pop_id]["y_factor"]
 #                    self.pars["characs"][-1].autocalibrate[pop_id] = True
-
-# TODO: Clean this batch of comments once interpopulation dynamics are conclusively handled.
-#                    
-#        self.contacts = dcp(data["contacts"])   # Simple copying of the contacts structure into data.
-                    # No need to be an object.

@@ -148,10 +148,18 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
             check_label = str(worksheet.cell_value(row, col))
             if not check_label == "":
                 header_row = row
-                # If this table is a deferred-instantiation template, it relates to an item with key in the corner.
+                # If this table is an instantiated template, it relates to an item with key in the corner.
                 # Extract that term.
                 if table.template_item_type is not None:
                     term = str(worksheet.cell_value(header_row, header_col))
+                    # Check if the item already exists in parsed structure, which it must if instantiation is deferred.
+                    # If not, the item key is the name and the header is the label; construct an item.
+                    if table.template_item_key is not None:
+                        try:
+                            structure.get_spec(term=table.template_item_key)
+                        except SemanticUnknownException:
+                            structure.create_item(item_name=table.template_item_key, item_type=table.template_item_type)
+                            structure.set_spec_value(term=table.template_item_key, attribute="label", value=term)
                 # Upon finding the header row, locate its last column.
                 col += 1
                 while last_col is None and col < worksheet.ncols:
@@ -176,12 +184,20 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
                             structure.append_spec_value(term=val, attribute=table.storage_attribute,
                                                         value=(source_item, target_item))
                     # For template connection matrices, the item name is in the 'corner' header.
-                    # Attach connections to that item in specs if a connection exists, i.e. is marked by 'y'.
+                    # Attach connections to that item in specs if a connection exists, i.e. is marked by 'y' or number.
                     else:
+                        append_value = False
+                        try:
+                            float(val)
+                            append_value = True
+                        except ValueError:
+                            pass
                         if val == SS.DEFAULT_SYMBOL_YES:
+                            append_value = True
+                        if append_value:
                             structure.append_spec_value(term=term, attribute=table.storage_attribute,
                                                         value=(source_item, target_item))
-                            break   # Technically this treats 'y:n:y:what' as a marker. Probably pointless to validate.
+                        break   # Technically this treats 'y:n:y:what' as a marker. Probably pointless to validate.
         row += 1
     next_row = row
     return next_row
