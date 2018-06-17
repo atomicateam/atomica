@@ -29,7 +29,7 @@ class SystemSettings(object):
     CONFIG_DATABOOK_FILENAME = "format_databook.ini"
     CONFIG_LIST_SEPARATOR = ","
 
-    LOGGER_DEBUG_OUTPUT_PATH = None # "./previous_session.log"
+    LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log" # None
 
     STRUCTURE_KEY_DATA = "databook"
     STRUCTURE_KEY_FRAMEWORK = "framework_file"
