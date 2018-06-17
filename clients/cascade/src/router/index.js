@@ -9,9 +9,10 @@ import DashboardLayout from '@/components/app/DashboardLayout.vue'
 
 // App views
 import NotFound from '@/components/generic/NotFoundPage.vue'
+import FrameworksPage from '@/components/app/FrameworksPage'
 import ProjectsPage from '@/components/app/ProjectsPage'
-import ScenariosPage from '@/components/app/ScenariosPage'
-import OptimizationsPage from '@/components/app/OptimizationsPage'
+import BaselinePage from '@/components/app/BaselinePage'
+import AnalysisPage from '@/components/app/AnalysisPage'
 import LoginPage from '@/components/app/LoginPage'
 import MainAdminPage from '@/components/app/MainAdminPage'
 import RegisterPage from '@/components/app/RegisterPage'
@@ -42,19 +43,24 @@ export default new Router({
       redirect: '/projects',
       children: [
         {
+          path: 'frameworks',
+          name: 'Manage frameworks',
+          component: FrameworksPage
+        },
+        {
           path: 'projects',
           name: 'Manage projects',
           component: ProjectsPage
         },
         {
-          path: 'scenarios',
-          name: 'Create scenarios',
-          component: ScenariosPage
+          path: 'baseline',
+          name: 'Baseline',
+          component: BaselinePage
         },
         {
-          path: 'optimizations',
-          name: 'Create optimizations',
-          component: OptimizationsPage
+          path: 'analysis',
+          name: 'Analysis',
+          component: AnalysisPage
         },
         {
           path: 'mainadmin',

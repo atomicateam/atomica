@@ -4,19 +4,24 @@ const SidebarStore = {
   showSidebar: false,
   sidebarLinks: [
     {
+      name: 'Frameworks',
+      icon: 'ti-ruler-pencil',
+      path: '/frameworks'
+    },
+    {
       name: 'Projects',
       icon: 'ti-view-grid',
       path: '/projects'
     },
     {
-      name: 'Scenarios',
-      icon: 'ti-control-shuffle',
-      path: '/scenarios'
+      name: 'Baseline',
+      icon: 'ti-pulse',
+      path: '/baseline'
     },
     {
-      name: 'Optimizations',
-      icon: 'ti-stats-up',
-      path: '/optimizations'
+      name: 'Analysis',
+      icon: 'ti-control-shuffle',
+      path: '/analysis'
     },
     {
       name: 'Help',
