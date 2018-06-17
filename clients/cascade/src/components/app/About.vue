@@ -47,7 +47,7 @@ Last update: 2018jun17
       <div class="divTable" style="width:100%">
         <div class="divTableBody">
           <div class="divTableRow">
-            <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/ucl-logo-transparent.png" height="60px"></div>
+            <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/copenhagen-logo.png" height="60px"></div>
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/gatesfoundation-logo.png" height="60px"></div>
           </div>
           <div class="divTableRow">
