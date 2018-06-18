@@ -35,5 +35,35 @@ except Exception as E:
 atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (au.version, au.versiondate)
 print(atomica_license+app_text)
 
+# Initialize logging
+import logging.config
+logging_conf = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)-20s %(levelname)-8s %(message)s',
+            'datefmt': '%d-%m-%y %H:%M:%S'
+        },
+    },
+    'handlers': {
+        'default': {
+            'level': 'DEBUG',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['default'],
+            'level': 'DEBUG',
+        },
+    }
+}
+logging.config.dictConfig(logging_conf)
+import logging
+logger = logging.getLogger()
+logger.setLevel('INFO')
+
 # Tidy up
 del atomica_license, app_text

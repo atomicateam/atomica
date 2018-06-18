@@ -20,7 +20,7 @@ torun = [
 "makeparset",
 "runsim",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
+# "loadprogramspreadsheet",
 "makeplots",
 #"export",
 #"listspecs",
