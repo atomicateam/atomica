@@ -266,7 +266,6 @@ class Parameter(Variable):
         self.fcn_str = None # String representation of parameter function
         self.deps = None # Dict of dependencies containing lists of integration objects
         self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
-        # TODO - Maybe it should be self.fcn if users are setting it directly (because they are passing their own functions in)
 
     def set_fcn(self, framework, spec):
         # fcn_input could be
@@ -283,8 +282,28 @@ class Parameter(Variable):
         assert isinstance(fcn_input,str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_input
         self._fcn = parse_function(self.fcn_str)[0]
-        if fcn_input.startswith("SRC_POP_AVG"):
-            self.pop_aggregation = True
+        if fcn_input.startswith("SRC_POP_AVG") or fcn_input.startswith("TGT_POP_AVG"):
+            # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
+            # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
+            special_function, temp_list = self.fcn_str.split("(")
+            function_args = temp_list.rstrip(")").split(ES.LIST_SEPARATOR)
+            if len(function_args) == 2: # If weighting variable not provided
+                function_args.append(None)
+
+            # Convert average variable to object reference
+            v1 = self.pop.get_variable(function_args[0])[0]
+            if isinstance(v1, Link):
+                raise NotAllowedError('Quantity cannot be aggregated across populations using a Link as a weight factor')
+            function_args[0] = v1
+
+            # Convert weighting variable to object reference
+            if len(function_args) == 3:
+                v2 = self.pop.get_variable(function_args[2])[0]
+                if isinstance(v2,Link):
+                    raise NotAllowedError('Parameter cannot be aggregated across populations using a Link as a weight factor')
+                function_args[-1] = v2
+
+            self.pop_aggregation = [special_function] + function_args
 
         deps = {}
         for dep_name in dep_list:
@@ -313,6 +332,8 @@ class Parameter(Variable):
                 self.deps[dep_name] = [x.id for x in self.deps[dep_name]]
         if self._fcn is not None:
             self._fcn = None
+        if self.pop_aggregation and len(self.pop_aggregation) == 4:
+            self.pop_aggregation[3] = self.pop_aggregation[3].id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -323,6 +344,8 @@ class Parameter(Variable):
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
         if self.fcn_str:
             self._fcn = parse_function(self.fcn_str)[0]
+        if self.pop_aggregation and len(self.pop_aggregation) == 4:
+            self.pop_aggregation[3] = objs[self.pop_aggregation[3]]
 
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
@@ -734,7 +757,6 @@ class Population(object):
             if c.tag_birth or c.tag_dead:
                 c.vals[0] = 0
 
-
 # Model class
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
@@ -819,10 +841,7 @@ class Model(object):
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
-        # # Program impact pars that are not functions of other parameters and thus already marked for dynamic updating.
-        # # This is only non-empty if a progset is being used in the model.
-        # self.sim_settings['impact_pars_not_func'] = []
-
+        # Instantiate all populations
         for k, pop_name in enumerate(parset.pop_names):
             self.pops.append(Population(framework=framework, name=pop_name))
             # TODO: Update preallocate case.
@@ -831,10 +850,15 @@ class Model(object):
             self.pop_ids[pop_name] = k
             self.pops[-1].initialize_compartments(parset, framework, self.t[0])
 
-        self.interactions = dcp(parset.interactions)  # Simple propagation of interaction details from parset to model.
+        # Expand interactions into matrix form
+        self.interactions = dict()
+        for name, weights in parset.interactions.items():
+            self.interactions[name] = np.zeros((len(self.pops), len(self.pops), len(self.t)))
+            for from_pop, par in weights.items():
+                for to_pop in par.pops:
+                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)
 
-        # Propagating cascade parameter parset values into ModelPops.
-        # Handle both 'tagged' links and 'untagged' dependencies.
+        # Insert values from parset into model objects
         for cascade_par in parset.pars['cascade']:
             for pop_name in parset.pop_names:
                 pop = self.get_pop(pop_name)
@@ -1165,46 +1189,24 @@ class Model(object):
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
-                function_key, temp_list = pars[0].fcn_str.split("(")
-                function_args = temp_list.rstrip(")").split(ES.LIST_SEPARATOR)
 
-                if function_key == "SRC_POP_AVG":
-                    input_vals = {par.id[0]: par.vals[ti] for par in self.vars_by_pop[function_args[0]]}
-                    avg_charac = {par.id[0]: par.vals[ti] for par in self.vars_by_pop[function_args[1]]}
-                    interaction_key = function_args[2]
+                par_vals = [par.pop_aggregation[1].vals[ti] for par in pars] # Value of variable being averaged
+                par_vals = np.array(par_vals).reshape(-1, 1)
 
-                    for target_pop in self.pops:
-                        from_list = []
-                        for source_pop in self.pops:
-                            if source_pop.name in self.interactions[interaction_key] \
-                                    and target_pop.name in self.interactions[interaction_key][source_pop.name].t:
-                                from_list.append(source_pop)
+                weights = self.interactions[pars[0].pop_aggregation[2]][:,:,ti]
+                if len(pars[0].pop_aggregation) == 4:
+                    charac_vals = [par.pop_aggregation[3].vals[ti] for par in pars] # Value of variable being averaged
+                    charac_vals = np.array(charac_vals).reshape(-1, 1)
 
-                        if len(from_list) == 0:
-                            new_val = 0.0
-                        else:
-                            val_sum = 0.0
-                            weights = 0.0
-
-                            for k, from_pop in enumerate(from_list):
-                                # All transition links with the same par_name are identically valued.
-                                # For calculations, only one is needed for reference.
-                                par_val = input_vals[from_pop.name]
-                                inter_val = self.interactions[interaction_key][from_pop.name].interpolate(tvec=[self.t[ti]], pop_name=target_pop.name)
-                                weight = avg_charac[from_pop.name] * inter_val
-                                val_sum += par_val * weight
-                                weights += weight
-
-                            if abs(val_sum) > model_settings['tolerance']:
-                                new_val = val_sum / weights
-                            else:
-                                # Only valid because if weighted sum is zero, all pop_counts are zero.
-                                # This means that the numerator is zero.
-                                new_val = 0.0
-
-                            # Update the parameter's value in this population.
-                            # Will propagate to links in next stage.
-                            target_pop.get_par(par_name).vals[ti] = new_val
+                    if pars[0].pop_aggregation[0] == 'SRC_POP_AVG':
+                        weights = weights.copy()*charac_vals
+                    else:
+                        # TODO - Implement TGT_POP_AVG weight rescaling here
+                        raise NotImplemented
+                weights /= np.sum(weights, axis=0) # Normalize the interaction
+                par_vals = np.matmul(weights.T, par_vals)
+                for par, val in zip(pars, par_vals):
+                    par.vals[ti] = val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
