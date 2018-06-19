@@ -36,6 +36,7 @@ atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (au.ve
 print(atomica_license+app_text)
 
 # Initialize logging
+import logging
 import logging.config
 logging_conf = {
     'version': 1,
@@ -60,10 +61,10 @@ logging_conf = {
         },
     }
 }
-logging.config.dictConfig(logging_conf)
-import logging
 logger = logging.getLogger()
-logger.setLevel('INFO')
+existing_level = logger.getEffectiveLevel()
+logging.config.dictConfig(logging_conf)
+logger.setLevel(existing_level)
 
 # Tidy up
 del atomica_license, app_text
