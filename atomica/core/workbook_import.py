@@ -90,9 +90,9 @@ def read_contents_dc(worksheet, table, start_row, header_columns_map, item_type=
                     try:
                         start_col, last_col = header_columns_map[attribute_spec["header"]]
                     except KeyError:
-                        logger.warning("Workbook import process could not locate attribute '{0}' for '{1}' item '{2}' "
-                                       "when parsing a detail-columns table. Ignoring and proceeding to next "
-                                       "attribute.".format(attribute, item_type, item_name))
+                        logger.debug("Workbook import process could not locate attribute '{0}' for '{1}' item '{2}' "
+                                     "when parsing a detail-columns table. Ignoring and proceeding to next "
+                                     "attribute.".format(attribute, item_type, item_name))
                         continue
                     content_type = attribute_spec["content_type"]
                     filters = []

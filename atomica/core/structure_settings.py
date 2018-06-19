@@ -359,15 +359,15 @@ class BaseStructuralSettings(object):
                     get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                      option="default_amount"))
             except Exception:
-                logger.warning("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
-                               "so these items will not be constructed in templates by default.".format(item_type))
+                logger.debug("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
+                             "so these items will not be constructed in templates by default.".format(item_type))
             try:
                 descriptor = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                               option="descriptor")
                 cls.create_item_type_descriptor(item_type=item_type, descriptor=descriptor)
             except Exception:
-                logger.warning("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
-                               "so the descriptor will be the key itself.".format(item_type))
+                logger.debug("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
+                             "so the descriptor will be the key itself.".format(item_type))
 
             for attribute in cls.ITEM_TYPE_SPECS[item_type]["attributes"]:
                 if "ref_item_type" not in cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]:
@@ -424,7 +424,7 @@ class FrameworkSettings(BaseStructuralSettings):
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_DATAPAGE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION,
-                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
+                 BSS.KEY_CHARACTERISTIC, BSS.KEY_INTERACTION, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
@@ -465,15 +465,13 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
 
-        cls.create_item_type_attributes([cls.KEY_PARAMETER, cls.KEY_INTERACTION], ["default_value", "min", "max"],
+        cls.create_item_type_attributes([cls.KEY_PARAMETER, cls.KEY_INTERACTION], ["default_value"],
+                                        content_type=ContentType(enforce_type=float))
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["min", "max"],
                                         content_type=ContentType(enforce_type=float))
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
                                         content_type=ContentType(is_list=True))
-        # Interaction items do not have a table in the framework file.
-        # Introduce marker for parameters that tells framework file parser to convert them into interaction items.
-        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["is_"+cls.KEY_INTERACTION],
-                                        content_type=SwitchType())
 
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)

@@ -2,7 +2,7 @@ import ast
 import numpy as np
 
 # Only calls to functions in the dict below will be permitted
-supported_functions = {'exp': np.exp, 'floor': np.floor, 'srcpopsum': None, 'tgtpopsum': None}
+supported_functions = {'exp': np.exp, 'floor': np.floor, 'srcpopavg': None}
 
 
 def parse_function(fcn_str):

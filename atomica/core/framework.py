@@ -50,19 +50,19 @@ class ProjectFramework(CoreProjectStructure):
                 _, dependencies = parse_function(fcn_str)
                 self.set_spec_value(item_key, attribute=FS.TERM_FUNCTION, value=fcn_str)
                 self.set_spec_value(item_key, attribute="dependencies", value=dependencies)
-            # If any parameters are flagged as interactions, convert them into actual interaction items.
-            if self.get_spec_value(item_key, "is_" + FS.KEY_INTERACTION):
-                spec = sc.dcp(self.get_spec(term=item_key))     # Get copy of parameter specs before deleting original.
-                self.delete_item_riskily(term=item_key)
-                self.create_item(item_name=item_key, item_type=FS.KEY_INTERACTION)
-                for attribute in FS.ITEM_TYPE_SPECS[FS.KEY_PARAMETER]["attributes"]:
-                    if attribute in FS.ITEM_TYPE_SPECS[FS.KEY_INTERACTION]["attributes"] and not attribute == "name":
-                        value = spec[attribute]
-                        content_type = None
-                        att_specs = FS.ITEM_TYPE_SPECS[FS.KEY_INTERACTION]["attributes"][attribute]
-                        if "content_type" in att_specs:
-                            content_type = att_specs["content_type"]
-                        self.set_spec_value(term=item_key, attribute=attribute, value=value, content_type=content_type)
+            # # If any parameters are flagged as interactions, convert them into actual interaction items.
+            # if self.get_spec_value(item_key, "is_" + FS.KEY_INTERACTION):
+            #     spec = sc.dcp(self.get_spec(term=item_key))     # Get copy of parameter specs before deleting original.
+            #     self.delete_item_riskily(term=item_key)
+            #     self.create_item(item_name=item_key, item_type=FS.KEY_INTERACTION)
+            #     for attribute in FS.ITEM_TYPE_SPECS[FS.KEY_PARAMETER]["attributes"]:
+            #         if attribute in FS.ITEM_TYPE_SPECS[FS.KEY_INTERACTION]["attributes"] and not attribute == "name":
+            #             value = spec[attribute]
+            #             content_type = None
+            #             att_specs = FS.ITEM_TYPE_SPECS[FS.KEY_INTERACTION]["attributes"][attribute]
+            #             if "content_type" in att_specs:
+            #                 content_type = att_specs["content_type"]
+            #             self.set_spec_value(term=item_key, attribute=attribute, value=value, content_type=content_type)
 
     def parse_cascade_specs(self):
         """ If any compartments/characteristics are marked as cascade stages, sort them into a quick refence list. """
