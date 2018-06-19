@@ -312,7 +312,7 @@ class Parameter(Variable):
         self.deps = deps
 
         # If this Parameter has links, it must be marked as dependent for evaluation during integration
-        if self.links:
+        if self.links or self.pop_aggregation:
             self.set_dependent()
 
     def set_dependent(self):
