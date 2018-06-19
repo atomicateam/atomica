@@ -444,6 +444,7 @@ class FrameworkSettings(BaseStructuralSettings):
                     table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
         cls.PAGE_SPECS[cls.KEY_DATAPAGE]["can_skip"] = True
+        cls.PAGE_SPECS[cls.KEY_INTERACTION]["can_skip"] = True
         # Ensure that transition matrix page is read after parameter page so that link names are already defined.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["read_order"] = 1  # All other pages prioritised with read order value 0.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type=cls.KEY_COMPARTMENT,

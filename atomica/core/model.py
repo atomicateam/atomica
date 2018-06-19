@@ -825,7 +825,7 @@ class Model(object):
             self.pop_ids[pop_name] = k
             self.pops[-1].initialize_compartments(parset, framework, self.t[0])
 
-        self.contacts = dcp(parset.contacts)  # Simple propagation of interaction details from parset to model.
+        self.contacts = dcp(parset.interactions)  # Simple propagation of interaction details from parset to model.
 
         # Propagating cascade parameter parset values into ModelPops.
         # Handle both 'tagged' links and 'untagged' dependencies.
