@@ -20,7 +20,12 @@ License:
 
 # Display version information using logging
 import logging
-logger = logging.getLogger()
+logger = logging.getLogger() # Get the root logger, keep its level
+h = logging.StreamHandler()
+h.setFormatter(logging.Formatter(fmt='%(asctime)-20s %(levelname)-8s %(message)s',datefmt='%d-%m-%y %H:%M:%S'))
+logger.addHandler(h)
+del h
+
 import atomica.core.version
 logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
 try:
@@ -30,35 +35,6 @@ try:
     del atomica_git
 except:
     pass
-
-# Configure the logger now
-import logging.config
-logging_conf = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)-20s %(levelname)-8s %(message)s',
-            'datefmt': '%d-%m-%y %H:%M:%S'
-        },
-    },
-    'handlers': {
-        'default': {
-            'level': 'DEBUG',
-            'formatter': 'standard',
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        '': {
-            'handlers': ['default'],
-            # 'level': 'DEBUG',
-        },
-    }
-}
-# existing_level = logger.getEffectiveLevel()
-logging.config.dictConfig(logging_conf)
-# logger.setLevel(existing_level)
 
 # Import things for the user
 from . import core # All Atomica functions
@@ -72,3 +48,6 @@ except Exception as E:
     import traceback
     app_error = traceback.format_exc()
     logger.error('Could not load apps - see atomica.app_error for details')
+
+# Finally, set default output level to INFO
+logger.setLevel('INFO')
