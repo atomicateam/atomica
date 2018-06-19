@@ -18,25 +18,20 @@ License:
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-# Import things for the user
-from . import core # All Atomica functions
-from . import ui as au # The actual Atomica user interface
-
-# Import app flavors
-try:
-    # from . import apps
-    app_text = ' (with apps)'
-except Exception as E:
-    import traceback
-    app_error = traceback.format_exc()
-    app_text = ' (without apps; see atomica.app_error for details)'
-
-# Print the license.
-atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (au.version, au.versiondate)
-print(atomica_license+app_text)
-
-# Initialize logging
+# Display version information using logging
 import logging
+logger = logging.getLogger()
+import atomica.core.version
+logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
+try:
+    import sciris.core as sc
+    atomica_git = sc.gitinfo(__file__)
+    logger.critical('git branch: %s (%s)' % (atomica_git['branch'],atomica_git['hash']))
+    del atomica_git
+except:
+    pass
+
+# Configure the logger now
 import logging.config
 logging_conf = {
     'version': 1,
@@ -57,14 +52,23 @@ logging_conf = {
     'loggers': {
         '': {
             'handlers': ['default'],
-            'level': 'DEBUG',
+            # 'level': 'DEBUG',
         },
     }
 }
-logger = logging.getLogger()
-existing_level = logger.getEffectiveLevel()
+# existing_level = logger.getEffectiveLevel()
 logging.config.dictConfig(logging_conf)
-logger.setLevel(existing_level)
+# logger.setLevel(existing_level)
 
-# Tidy up
-del atomica_license, app_text
+# Import things for the user
+from . import core # All Atomica functions
+from . import ui as au # The actual Atomica user interface
+
+# Import app flavors
+try:
+    # from . import apps
+    pass
+except Exception as E:
+    import traceback
+    app_error = traceback.format_exc()
+    logger.error('Could not load apps - see atomica.app_error for details')

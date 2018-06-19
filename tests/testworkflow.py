@@ -2,9 +2,17 @@
 Version:
 """
 
+
+import logging
+logger = logging.getLogger()
+h = logging.FileHandler('foo.log')
+logger.addHandler(h)
+# logger.setLevel('DEBUG')
+
 import os
 import atomica.ui as au
 import sciris.core as sc
+
 
 test = "sir"
 # test = "tb"
