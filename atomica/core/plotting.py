@@ -22,6 +22,7 @@ from .results import Result
 from .system import AtomicaException, logger
 from .parser_function import parse_function
 from .utils import NDict
+from .interpolation import interpolate_func
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -802,11 +803,6 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
 
 
 def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
-    # TODO: The following tasks.
-    # - Clean up doing aggregation separately
-    # - Implement separate figures as everything starting out on the same plot and then
-    #   distributing them across figures if requested? But does this still have those problems associated
-    #   with colours? Maybe the colours should be specified in a dict the same as the data?
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -845,11 +841,13 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                     ax.stackplot(plotdata[plotdata.results[0], pop, output].tvec, y,
                                  labels=[plotdata.result_names[x] for x in plotdata.results],
                                  colors=[plotdata[result, pop, output].color for result in plotdata.results])
+                    if plot_type == 'stacked' and data is not None:
+                        stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
                 else:
-                    for result in plotdata.results:
+                    for i,result in enumerate(plotdata.results):
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
                                 color=plotdata[result, pop, output].color, label=plotdata.result_names[result])
-                        if data is not None:
+                        if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
                 if settings['legend_mode'] == 'together':
@@ -877,6 +875,8 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                     ax.stackplot(plotdata[result, plotdata.pops[0], output].tvec, y,
                                  labels=[plotdata.pop_names[x] for x in plotdata.pops],
                                  colors=[plotdata[result, pop, output].color for pop in plotdata.pops])
+                    if plot_type == 'stacked' and data is not None:
+                        stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
                 else:
                     for pop in plotdata.pops:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
@@ -907,6 +907,8 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                     ax.stackplot(plotdata[result, pop, plotdata.outputs[0]].tvec, y,
                                  labels=[plotdata.output_names[x] for x in plotdata.outputs],
                                  colors=[plotdata[result, pop, output].color for output in plotdata.outputs])
+                    if plot_type == 'stacked' and data is not None:
+                        stack_data(ax,data,[plotdata[result, pop, output] for output in plotdata.outputs])
                 else:
                     for output in plotdata.outputs:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
@@ -924,8 +926,14 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 
     return figs
 
-
-def render_data(ax, data, series):
+def stack_data(ax,data,series):
+    # Stack a list of series in order
+    baselines = np.cumsum(np.stack([s.vals for s in series]),axis=0)
+    baselines = np.vstack([np.zeros((1,baselines.shape[1])),baselines]) # Insert row of zeros for first data row
+    for i,s in enumerate(series):
+        render_data(ax,data,s,baselines[i,:],True)
+            
+def render_data(ax, data, series,baseline=None,filled=False):
     # This function renders a scatter plot for a single variable (in a single population)
     # The scatter plot is drawn in the current axis
     # INPUTS
@@ -947,8 +955,15 @@ def render_data(ax, data, series):
     else:
         return
 
-    ax.scatter(t, y, marker='o', s=40, linewidths=3, facecolors='none',
-               color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
+    if baseline is not None:
+        y_data = interpolate_func(series.tvec, baseline, t, method='pchip', extrapolate_nan=False)
+        y = y + y_data
+
+    if filled:
+        ax.scatter(t,y,marker='o', s=40, linewidths=1, facecolors=series.color,color='k')#label='Data %s %s' % (name(pop,proj),name(output,proj)))
+    else:
+        ax.scatter(t,y,marker='o', s=40, linewidths=3, facecolors='none',color=series.color)#label='Data %s %s' % (name(pop,proj),name(output,proj)))
+
 
 
 def set_ytick_format(ax, formatter):
