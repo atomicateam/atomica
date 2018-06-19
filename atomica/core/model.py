@@ -2,6 +2,7 @@
 
 from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
 from .structure_settings import FrameworkSettings as FS
+from .excel import ExcelSettings as ES
 from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
@@ -256,6 +257,7 @@ class Parameter(Variable):
         self.vals = None
         self.limits = None  # Can be a two element vector [min,max]
         self.dependency = False
+        self.pop_aggregation = False    # If True, value update in Model.update_pars(), not self.update().
         self.scale_factor = 1.0
         self.links = []  # References to links that derive from this parameter
         self.source_popsize_cache_time = None
@@ -266,7 +268,7 @@ class Parameter(Variable):
         self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
         # TODO - Maybe it should be self.fcn if users are setting it directly (because they are passing their own functions in)
 
-    def set_fcn(self, fcn_input, dep_list):
+    def set_fcn(self, framework, spec):
         # fcn_input could be
         # - string, which gets converted to a functor via parse_function()
         # - functor, which gets stored in self._fcn directly
@@ -275,13 +277,19 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
+        fcn_input = spec[FS.TERM_FUNCTION]
+        dep_list = spec['dependencies']
+
         assert isinstance(fcn_input,str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_input
         self._fcn = parse_function(self.fcn_str)[0]
+        if fcn_input.startswith("SRC_POP_AVG"):
+            self.pop_aggregation = True
 
         deps = {}
         for dep_name in dep_list:
-            deps[dep_name] = self.pop.get_variable(dep_name)
+            if not (self.pop_aggregation and dep_name in framework.specs[FS.KEY_INTERACTION]):
+                deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
         # If this Parameter has links, it must be marked as dependent for evaluation during integration
@@ -327,7 +335,7 @@ class Parameter(Variable):
         # by evaluating its f_stack function using the 
         # current values of all dependent variables at time index ti
 
-        if not self._fcn:
+        if not self._fcn or self.pop_aggregation:
             return
 
         if ti is None:
@@ -621,7 +629,7 @@ class Population(object):
                     par.limits[1] = spec["max"]
 
             if not spec[FS.TERM_FUNCTION] is None:
-                par.set_fcn(spec[FS.TERM_FUNCTION],spec['dependencies'])
+                par.set_fcn(framework, spec)
 
     def preallocate(self, tvec, dt):
         """
@@ -735,9 +743,7 @@ class Model(object):
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.pop_ids = dict()  # Maps name of a population to its position index within populations list.
-        # The following maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) Populations.
-        # Marks them with a weight.
-        self.contacts = dict()
+        self.interactions = dict()
         self.sim_settings = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
         self.programs_active = None  # True or False depending on whether Programs will be used or not
@@ -825,7 +831,7 @@ class Model(object):
             self.pop_ids[pop_name] = k
             self.pops[-1].initialize_compartments(parset, framework, self.t[0])
 
-        self.contacts = dcp(parset.interactions)  # Simple propagation of interaction details from parset to model.
+        self.interactions = dcp(parset.interactions)  # Simple propagation of interaction details from parset to model.
 
         # Propagating cascade parameter parset values into ModelPops.
         # Handle both 'tagged' links and 'untagged' dependencies.
@@ -845,7 +851,7 @@ class Model(object):
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
         # For each compartment, instantiate a set of Links that all derive from that Parameter
-        # NB. If a Program somehow targets the transfer parameter, those values will automatically
+        # NB. If a Program somehow targets the transfer parameter, those values will automatically... what?
         for trans_type in parset.transfers:
             if parset.transfers[trans_type]:
                 for pop_source in parset.transfers[trans_type]:
@@ -1157,48 +1163,48 @@ class Model(object):
                     if par.id in prog_vals:
                         par.vals[ti] = prog_vals[par.id]
 
-            # # Handle parameters tagged with special rules. Overwrite vals if necessary.
-            # if do_special and 'rules' in settings.linkpar_specs[par_name]:
-            #     # All of the parameters with this name, across populations.
-            #     # There should be one for each population (these are Parameters, not Links).
-            #     pars = self.vars_by_pop[par_name]
-            #
-            #     old_vals = {par.id: par.vals[ti] for par in self.vars_by_pop[par_name]}
-            #
-            #     rule = settings.linkpar_specs[par_name]['rules']
-            #     for pop in self.pops:
-            #        if rule == 'avg_contacts_in':
-            #            from_list = self.contacts['into'][pop.name].keys()
-            #
-            #            # If interactions with a pop are initiated by the same pop...
-            #            # No need to proceed with special calculations. Else, carry on.
-            #            if not ((len(from_list) == 1 and from_list[0] == pop.name)):
-            #
-            #                if len(from_list) == 0:
-            #                    new_val = 0.0
-            #                else:
-            #                    val_sum = 0.0
-            #                    weights = 0.0
-            #
-            #                    for k,from_pop in enumerate(from_list):
-            #                        # All transition links with the same par_name are identically valued.
-            #                        # For calculations, only one is needed for reference.
-            #                        par = self.get_pop(from_pop).get_par(par_name)
-            #                        weight = self.contacts['into'][pop.name][from_pop]*\
-            #                                 self.get_pop(from_pop).popsize(ti)
-            #                        val_sum += old_vals[par.id]*weight
-            #                        weights += weight
-            #
-            #                    if abs(val_sum) > model_settings['tolerance']:
-            #                        new_val = val_sum / weights
-            #                    else:
-            #                        # Only valid because if weighted sum is zero, all pop_counts are zero.
-            #                        # This meansthat the numerator is zero.
-            #                        new_val = 0.0
-            #
-            #                # Update the parameter's value in this population.
-            #                # Will propagate to links in next stage.
-            #                pop.get_par(par_name).vals[ti] = new_val
+            # Handle parameters that aggregate over populations and use interactions in these functions.
+            if pars[0].pop_aggregation:
+                function_key, temp_list = pars[0].fcn_str.split("(")
+                function_args = temp_list.rstrip(")").split(ES.LIST_SEPARATOR)
+
+                if function_key == "SRC_POP_AVG":
+                    input_vals = {par.id[0]: par.vals[ti] for par in self.vars_by_pop[function_args[0]]}
+                    avg_charac = {par.id[0]: par.vals[ti] for par in self.vars_by_pop[function_args[1]]}
+                    interaction_key = function_args[2]
+
+                    for target_pop in self.pops:
+                        from_list = []
+                        for source_pop in self.pops:
+                            if source_pop.name in self.interactions[interaction_key] \
+                                    and target_pop.name in self.interactions[interaction_key][source_pop.name].t:
+                                from_list.append(source_pop)
+
+                        if len(from_list) == 0:
+                            new_val = 0.0
+                        else:
+                            val_sum = 0.0
+                            weights = 0.0
+
+                            for k, from_pop in enumerate(from_list):
+                                # All transition links with the same par_name are identically valued.
+                                # For calculations, only one is needed for reference.
+                                par_val = input_vals[from_pop.name]
+                                inter_val = self.interactions[interaction_key][from_pop.name].interpolate(tvec=[self.t[ti]], pop_name=target_pop.name)
+                                weight = avg_charac[from_pop.name] * inter_val
+                                val_sum += par_val * weight
+                                weights += weight
+
+                            if abs(val_sum) > model_settings['tolerance']:
+                                new_val = val_sum / weights
+                            else:
+                                # Only valid because if weighted sum is zero, all pop_counts are zero.
+                                # This means that the numerator is zero.
+                                new_val = 0.0
+
+                            # Update the parameter's value in this population.
+                            # Will propagate to links in next stage.
+                            target_pop.get_par(par_name).vals[ti] = new_val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
