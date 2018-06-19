@@ -81,8 +81,8 @@ Last update: 2018-03-25
 
       // Theme function
       routeName () {
-        const name = this.$route
-        return this.capitalizeFirstLetter(name)
+        const route_name = this.$route.name
+        return this.capitalizeFirstLetter(route_name)
       },
     },
 
