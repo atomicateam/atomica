@@ -23,18 +23,19 @@ test = "sir"
 # test = "tb"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-#"makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-# "makeplots",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+# "runsim_programs",
+#"makeplots",
 #"export",
 #"listspecs",
 #"manualcalibrate",
@@ -102,11 +103,11 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('Making programs spreadsheet ... NOT CURRENTLY WORKING!!!! It will write a sheet, but the format isn''t right')
+    print('\n\n\Making programs spreadsheet ... ')
 
     P = au.demo(which=test,do_plot=0)
     filename = "temp/programspreadsheet.xlsx"
-    au.makeprogramspreadsheet(filename, pops=2, progs=5)
+    P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
     if test=='tb':
@@ -117,13 +118,19 @@ if "loadprogramspreadsheet" in torun:
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/programdata_"+test+".xlsx"
         P.load_progbook(databook_path=filename, make_default_progset=True)
-        
+        P.progsets[0].programs[0].get_spend(year=2015)
+#        P.progsets[0].programs[0].get_num_covered(year=2015)
         coverage = sc.odict([('Risk avoidance',     .99),
                              ('Harm reduction 1',   .8),
                              ('Harm reduction 2',   .9),
                              ('Treatment 1',        .99),
                              ('Treatment 2',        .8)])
         print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+
+if "runsim_programs" in torun:
+    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    instructions = None # TODO - get default instructions
+    P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default")
 
 if "makeplots" in torun:
 
