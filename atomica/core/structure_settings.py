@@ -330,7 +330,7 @@ class BaseStructuralSettings(object):
                                                              option=format_variable_key, mute_warnings=True))
                     specs[format_variable_key] = value_overwrite
                 except ValueError:
-                    logger.warning("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
+                    logger.debug("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
                                    "converted to a float. Using a default value.".format(format_variable_key,
                                                                                          config_section))
                 except Exception:
@@ -355,14 +355,14 @@ class BaseStructuralSettings(object):
                     get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                      option="default_amount"))
             except Exception:
-                logger.warning("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
+                logger.debug("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
                                "so these items will not be constructed in templates by default.".format(item_type))
             try:
                 descriptor = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                               option="descriptor")
                 cls.create_item_type_descriptor(item_type=item_type, descriptor=descriptor)
             except Exception:
-                logger.warning("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
+                logger.debug("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
                                "so the descriptor will be the key itself.".format(item_type))
 
             for attribute in cls.ITEM_TYPE_SPECS[item_type]["attributes"]:

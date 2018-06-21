@@ -2,9 +2,22 @@
 Version:
 """
 
+import logging
+logger = logging.getLogger()
+
+## Write the log to a file
+# h = logging.FileHandler('testworkflow.log',mode='w')
+# logger.addHandler(h)
+
+## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
+# logger.setLevel('DEBUG')
+
 import os
 import atomica.ui as au
 import sciris.core as sc
+
+# Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
+logger.setLevel('DEBUG')
 
 test = "sir"
 # test = "tb"

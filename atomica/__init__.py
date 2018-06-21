@@ -18,6 +18,26 @@ License:
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+# Display version information using logging
+
+from datetime import datetime
+import logging
+logger = logging.getLogger() # Get the root logger, keep its level
+h = logging.StreamHandler()
+logger.addHandler(h)
+
+import atomica.core.version
+logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
+logger.critical(datetime.now())
+
+try:
+    import sciris.core as sc
+    atomica_git = sc.gitinfo(__file__)
+    logger.critical('git branch: %s (%s)' % (atomica_git['branch'],atomica_git['hash']))
+    del atomica_git
+except:
+    pass
+
 # Import things for the user
 from . import core # All Atomica functions
 from . import ui as au # The actual Atomica user interface
@@ -25,15 +45,11 @@ from . import ui as au # The actual Atomica user interface
 # Import app flavors
 try:
     # from . import apps
-    app_text = ' (with apps)'
+    pass
 except Exception as E:
     import traceback
     app_error = traceback.format_exc()
-    app_text = ' (without apps; see atomica.app_error for details)'
+    logger.error('Could not load apps - see atomica.app_error for details')
 
-# Print the license.
-atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (au.version, au.versiondate)
-print(atomica_license+app_text)
-
-# Tidy up
-del atomica_license, app_text
+# Finally, set default output level to INFO
+logger.setLevel('INFO')
