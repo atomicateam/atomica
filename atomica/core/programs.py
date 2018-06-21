@@ -135,9 +135,9 @@ class ProgramSet(NamedItem):
                     for pop in prog.target_pops: self.target_pops.append(pop)
                 self.target_pops = list(set(self.target_pops))
     
-            self.set_target_pars()
-            self.set_target_par_types()
-            self.set_target_pops()
+        set_target_pars(self)
+        set_target_par_types(self)
+        set_target_pops(self)
         return None
 
 
@@ -335,7 +335,7 @@ class ProgramSet(NamedItem):
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in self.progs_by_target_par(par_type)[pop]:
-                    if not self.covout[(par_type,pop)].haspars():
+                    if not self.covout[(par_type,pop)].has_pars():
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
                     else:

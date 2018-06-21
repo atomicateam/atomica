@@ -105,7 +105,7 @@ if "loadprogramspreadsheet" in torun:
         filename = "databooks/programdata_"+test+".xlsx"
         P.load_progbook(databook_path=filename, make_default_progset=True)
         P.progsets[0].programs[0].get_spend(year=2015)
-        P.progsets[0].programs[0].get_num_covered(year=2015)
+#        P.progsets[0].programs[0].get_num_covered(year=2015)
         coverage = sc.odict([('Risk avoidance',     .99),
                              ('Harm reduction 1',   .8),
                              ('Harm reduction 2',   .9),
