@@ -283,8 +283,8 @@ class ProgramSet(NamedItem):
         return default_budget
 
 
-    def get_num_covered(self, year=None, optimizable=None):
-        ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample='best', optimizable=None):
+        ''' Extract the number covered if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
         num_covered = odict() # Initialise outputs
 
@@ -294,9 +294,41 @@ class ProgramSet(NamedItem):
 
         # Get cost data for each program 
         for prog in self.programs.values():
-            num_covered[prog.short] = prog.get_num_covered(year)
+            num_covered[prog.short] = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
 
         return num_covered
+
+
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best', optimizable=None):
+        '''Returns proportion covered for a time/spending vector and denominator.
+        Denominator is expected to be a dictionary.'''
+        
+        prop_covered = odict() # Initialise outputs
+
+        # Make sure that denominator has been supplied
+        if denominator is None:
+            errormsg = 'Must provide denominators to calculate proportion covered.'
+            raise AtomicaException(errormsg)
+            
+        for prog in self.programs.values():
+            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            denom = denominator[prog.short]            
+            prop_covered = maximum(num/denom, 1.) # Ensure that coverage doesn't go above 1
+            
+        return prop_covered
+
+
+    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+        '''Returns proportion OR number covered for a time/spending vector.'''
+        
+        if as_proportion and denominator is None:
+            print('Can''t return proportions because denominators not supplied. Returning numbers instead.')
+            as_proportion = False
+            
+        if as_proportion:
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+        else:
+            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
 
 
     def get_outcomes(self, coverage=None, year=None, sample='best'):
