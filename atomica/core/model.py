@@ -257,7 +257,7 @@ class Parameter(Variable):
         self.vals = None
         self.limits = None  # Can be a two element vector [min,max]
         self.dependency = False
-        self.pop_aggregation = False    # If True, value update in Model.update_pars(), not self.update().
+        self.pop_aggregation = None    # If True, value update in Model.update_pars(), not self.update().
         self.scale_factor = 1.0
         self.links = []  # References to links that derive from this parameter
         self.source_popsize_cache_time = None
@@ -293,14 +293,14 @@ class Parameter(Variable):
             # Convert average variable to object reference
             v1 = self.pop.get_variable(function_args[0])[0]
             if isinstance(v1, Link):
-                raise NotAllowedError('Quantity cannot be aggregated across populations using a Link as a weight factor')
+                raise NotAllowedError('Links cannot be aggregated across populations')
             function_args[0] = v1
 
             # Convert weighting variable to object reference
             if len(function_args) == 3:
                 v2 = self.pop.get_variable(function_args[2])[0]
                 if isinstance(v2,Link):
-                    raise NotAllowedError('Parameter cannot be aggregated across populations using a Link as a weight factor')
+                    raise NotAllowedError('Links cannot be used to weight interactions')
                 function_args[-1] = v2
 
             self.pop_aggregation = [special_function] + function_args
@@ -1189,49 +1189,29 @@ class Model(object):
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
+                # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
 
                 par_vals = [par.pop_aggregation[1].vals[ti] for par in pars] # Value of variable being averaged
                 par_vals = np.array(par_vals).reshape(-1, 1)
 
-                if ti == 4:
-                    print("Original Parameter Values")
-                    print(par_vals)
-
                 weights = self.interactions[pars[0].pop_aggregation[2]][:,:,ti].copy()
 
-                if ti == 4:
-                    print("Interaction Matrix")
-                    print(weights)
+                if pars[0].pop_aggregation[0] == 'SRC_POP_AVG':
+                    weights = weights.T
+                elif pars[0].pop_aggregation[0] == 'TGT_POP_AVG':
+                    pass
+                else:
+                    raise AtomicaException("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
 
+                # If we are weighting by a variable, multiply the weights matrix accordingly
                 if len(pars[0].pop_aggregation) == 4:
-                    charac_vals = [par.pop_aggregation[3].vals[ti] for par in pars] # Value of variable being averaged
+                    charac_vals = [par.pop_aggregation[3].vals[ti] for par in pars] # Value of weighting variable
                     charac_vals = np.array(charac_vals).reshape(-1, 1)
+                    weights *= charac_vals.T
 
-                    if ti == 4:
-                        print("Weighting Characteristic")
-                        print(charac_vals)
-
-                    if pars[0].pop_aggregation[0] == 'SRC_POP_AVG':
-                        weights = weights.T
-                        if ti == 4:
-                            print("Transposing Interaction Matrix")
-                    elif pars[0].pop_aggregation[0] == 'TGT_POP_AVG':
-                        pass
-                    else:
-                        raise AtomicaException("Unknown aggregation function '{0}' was applied during parameter "
-                                               "updates.").format(pars[0].pop_aggregation[0])
-                weights = weights * charac_vals.T
-                if ti == 4:
-                    print("Characteristic-Weighted Interaction Matrix")
-                    print(weights)
                 weights /= np.sum(weights, axis=1, keepdims=1) # Normalize the interaction
-                if ti == 4:
-                    print("Normalized Interaction Matrix")
-                    print(weights)
                 par_vals = np.matmul(weights, par_vals)
-                if ti == 4:
-                    print("New Parameter Values (after averaging across normalised interaction matrix)")
-                    print(par_vals)
+
                 for par, val in zip(pars, par_vals):
                     par.vals[ti] = val
 
