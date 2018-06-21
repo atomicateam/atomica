@@ -21,6 +21,7 @@ torun = [
 #"runsim",
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
+# "runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -112,6 +113,11 @@ if "loadprogramspreadsheet" in torun:
                              ('Treatment 1',        .99),
                              ('Treatment 2',        .8)])
         print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+
+if "runsim_programs" in torun:
+    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    instructions = None # TODO - get default instructions
+    P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default")
 
 if "makeplots" in torun:
 
