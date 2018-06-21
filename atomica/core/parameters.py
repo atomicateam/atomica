@@ -198,23 +198,23 @@ class ParameterSet(NamedItem):
         for j in range(2):
             item_type = [DS.KEY_TRANSFER, DS.KEY_INTERACTION][j]
             item_storage = [self.transfers, self.interactions][j]
-        for name in data.specs[item_type]:
-            if name not in item_storage:
-                item_storage[name] = sc.odict()
-            # TODO: Consider whether pop-links really need to be stored from connection matrix.
-            #       Maybe pulling data from the TDVE tables is enough, iterating directly through those keys.
-            #       This alternative works if connection matrix elements only control TDVE visibility/defaults.
-            for pop_link in data.specs[item_type][name][DS.KEY_POPULATION_LINKS]:
-                source_pop = pop_link[0]
-                target_pop = pop_link[1]
-                if pop_link[0] not in item_storage[name]:
-                    item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop)
-                item_data = data.get_spec_value(name, DS.TERM_DATA)
-                tvec, yvec = item_data.get_arrays(pop_link)
-                item_storage[name][source_pop].t[target_pop] = tvec
-                item_storage[name][source_pop].y[target_pop] = yvec
-                item_storage[name][source_pop].y_format[target_pop] = item_data.get_format(pop_link)
-                item_storage[name][source_pop].y_factor[target_pop] = 1.0
+            for name in data.specs[item_type]:
+                if name not in item_storage:
+                    item_storage[name] = sc.odict()
+                # TODO: Consider whether pop-links really need to be stored from connection matrix.
+                #       Maybe pulling data from the TDVE tables is enough, iterating directly through those keys.
+                #       This alternative works if connection matrix elements only control TDVE visibility/defaults.
+                for pop_link in data.specs[item_type][name][DS.KEY_POPULATION_LINKS]:
+                    source_pop = pop_link[0]
+                    target_pop = pop_link[1]
+                    if pop_link[0] not in item_storage[name]:
+                        item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop)
+                    item_data = data.get_spec_value(name, DS.TERM_DATA)
+                    tvec, yvec = item_data.get_arrays(pop_link)
+                    item_storage[name][source_pop].t[target_pop] = tvec
+                    item_storage[name][source_pop].y[target_pop] = yvec
+                    item_storage[name][source_pop].y_format[target_pop] = item_data.get_format(pop_link)
+                    item_storage[name][source_pop].y_factor[target_pop] = 1.0
 
 # TODO: Clean this batch of comments once autocalibration tags are conclusively handled.
 # self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
