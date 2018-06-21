@@ -23,6 +23,8 @@ License:
 from datetime import datetime
 import logging
 logger = logging.getLogger() # Get the root logger, keep its level
+h = logging.StreamHandler()
+logger.addHandler(h)
 
 import atomica.core.version
 logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
