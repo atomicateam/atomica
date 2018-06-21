@@ -19,15 +19,15 @@ License:
 """
 
 # Display version information using logging
+
+from datetime import datetime
 import logging
 logger = logging.getLogger() # Get the root logger, keep its level
-h = logging.StreamHandler()
-h.setFormatter(logging.Formatter(fmt='%(asctime)-20s %(levelname)-8s %(message)s',datefmt='%d-%m-%y %H:%M:%S'))
-logger.addHandler(h)
-del h
 
 import atomica.core.version
 logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
+logger.critical(datetime.now())
+
 try:
     import sciris.core as sc
     atomica_git = sc.gitinfo(__file__)
