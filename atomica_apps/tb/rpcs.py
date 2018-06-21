@@ -373,6 +373,29 @@ def load_zip_of_prj_files(project_ids):
     return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
+def add_demo_project(user_id):
+    """
+    Add a demo Optima TB project
+    """
+    # Get a unique name for the project to be added.
+    new_proj_name = get_unique_name('Demo project', other_names=None)
+    
+    # Create the project, loading in the desired spreadsheets.
+    proj = au.demo(which='tb',do_plot=0) 
+    proj.name = new_proj_name
+    
+    # Display the call information.
+    # TODO: have this so that it doesn't show when logging is turned off
+    print(">> create_new_project %s" % (proj.name))    
+    
+    # Save the new project in the DataStore.
+    save_project_as_new(proj, user_id)
+    
+    # Return the new project UID in the return message.
+    return { 'projectId': str(proj.uid) }
+
+
+@register_RPC(validation_type='nonanonymous user')
 def create_new_project(user_id):
     """
     Create a new Optima Nutrition project.
@@ -392,7 +415,8 @@ def create_new_project(user_id):
     
     # Return the new project UID in the return message.
     return { 'projectId': str(proj.uid) }
- 
+
+
 @register_RPC(validation_type='nonanonymous user')
 def update_project_from_summary(project_summary):
     """

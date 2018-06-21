@@ -9,7 +9,9 @@ Last update: 2018-05-29
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn" @click="createNewProject">Create new project</button>
+        <button class="btn" @click="addDemoProject">Add demo project</button>
+        &nbsp; &nbsp;
+        <button class="btn" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
         <button class="btn" @click="uploadProjectFromFile">Upload project from file</button>
         &nbsp; &nbsp;
@@ -134,7 +136,12 @@ Last update: 2018-05-29
         <button class="btn" @click="downloadSelectedProjects">Download selected</button>
       </div>
     </div>
+
+    <modal name="hello-world">
+      hello, world!
+    </modal>
   </div>
+
 </template>
 
 <script>
@@ -280,23 +287,41 @@ export default {
       }) */
     },
 
-/*    addDemoProject() {
+    addDemoProject() {
       console.log('addDemoProject() called')
 
-      // Find the object in the default project summaries that matches what's
-      // selected in the select box.
-      let foundProject = this.demoProjectSummaries.find(demoProj =>
-        demoProj.project.name == this.selectedDemoProject)
+      // Have the server create a new project.
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
+        .then(response => {
+          // Update the project summaries so the new project shows up on the list.
+          this.updateProjectSummaries()
 
-      // Make a deep copy of the found object by JSON-stringifying the old
-      // object, and then parsing the result back into a new object.
-      let newProject = JSON.parse(JSON.stringify(foundProject));
+          this.$notifications.notify({
+            message: 'Demo project added',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
+        })
+    },
 
-      // Push the deep copy to the projectSummaries list.
-//      this.projectSummaries.push(newProject)
+    createNewProjectModal() {
 
-//      this.projectSummaries.push(this.demoProjectSummaries[0])
-    }, */
+      this.$modal.show('hello-world');
+
+//      // Alert object data
+//      var obj = {
+//        message: 'Are you sure you want to delete the selected projects?',
+//        useConfirmBtn: true,
+//        customConfirmBtnClass: 'btn __red',
+//        customCloseBtnClass: 'btn',
+//        onConfirm: this.deleteSelectedProjects
+//      }
+//      this.$Simplert.open(obj)
+    },
+
+
 
     createNewProject() {
       console.log('createNewProject() called')
