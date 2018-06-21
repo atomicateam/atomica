@@ -129,7 +129,7 @@ Last update: 2018-05-29
       </table>
 
       <div class="ControlsRow">
-        <button class="btn" @click="deleteSelectedProjects">Delete selected</button>
+        <button class="btn" @click="deleteModal()">Delete selected</button>
         &nbsp; &nbsp;
         <button class="btn" @click="downloadSelectedProjects">Download selected</button>
       </div>
@@ -491,6 +491,19 @@ export default {
 
 	    // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
+    },
+
+  // Confirmation alert
+    deleteModal() {
+      // Alert object data
+      var obj = {
+            message: 'Are you sure you want to delete the selected projects?',
+            useConfirmBtn: true,
+            customConfirmBtnClass: 'btn __red',
+            customCloseBtnClass: 'btn',
+            onConfirm: this.deleteSelectedProjects
+          }
+      this.$Simplert.open(obj)
     },
 
     deleteSelectedProjects() {

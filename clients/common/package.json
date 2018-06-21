@@ -1,7 +1,7 @@
 {
-  "name": "cascade-analysis-tools",
+  "name": "optima-tb",
   "version": "0.1.0",
-  "description": "Cascade Analysis Tools",
+  "description": "Optima TB",
   "author": "Optima Consortium for Decision Science <info@ocds.co>",
   "private": true,
   "scripts": {
@@ -23,6 +23,7 @@
     "vue": "^2.3.3",
     "vue-clickaway": "^2.1.0",
     "vue-router": "^2.6.0",
+    "vue2-simplert-plugin": "^0.4.1",
     "vuex": "^2.4.0"
   },
   "devDependencies": {

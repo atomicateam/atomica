@@ -129,7 +129,7 @@ Last update: 2018-05-29
       </table>
 
       <div class="ControlsRow">
-        <button class="btn" @click="deleteSelectedProjects">Delete selected</button>
+        <button class="btn" @click="deleteModal()">Delete selected</button>
         &nbsp; &nbsp;
         <button class="btn" @click="downloadSelectedProjects">Download selected</button>
       </div>
