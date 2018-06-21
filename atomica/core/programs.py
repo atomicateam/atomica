@@ -11,7 +11,7 @@ import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
-from numpy import array, nan, isnan, exp, ones, prod
+from numpy import array, nan, isnan, exp, ones, prod, maximum
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -691,8 +691,8 @@ class Program(NamedItem):
         return True if not (isnan(array([x for x in self.spend_data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 
-    def get_num_covered(self, unit_cost=None, capacity=None, budget=None, year=None, total=True, sample='best'):
-        '''Returns coverage for a time/spending vector'''
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+        '''Returns number covered for a time/spending vector'''
         num_covered = 0.
         
         # Validate inputs
@@ -729,6 +729,32 @@ class Program(NamedItem):
         return num_covered
 
 
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+        '''Returns proportion covered for a time/spending vector and denominator'''
+        
+        # Make sure that denominator has been supplied
+        if denominator is None:
+            errormsg = 'Must provide denominators to calculate proportion covered.'
+            raise AtomicaException(errormsg)
+            
+        # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
+        # Example: year = [2015,2016], denominator = [30000,40000]
+        num_covered = self.get_num_covered(unit_cost=None, capacity=None, budget=None, year=None, sample='best')
+        prop_covered = maximum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
+        return prop_covered
+
+
+    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+        '''Returns proportion OR number covered for a time/spending vector.'''
+        
+        if as_proportion and denominator is None:
+            print('Can''t return proportions because denominators not supplied. Returning numbers instead.')
+            as_proportion = False
+            
+        if as_proportion:
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=None, budget=None, sample='best')
+        else:
+            return self.get_num_covered(year=None, unit_cost=None, capacity=None, budget=None, sample='best')
 
 
 #--------------------------------------------------------------------
