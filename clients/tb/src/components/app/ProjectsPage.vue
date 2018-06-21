@@ -14,6 +14,11 @@ Last update: 2018-05-29
         <button class="btn" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
         <button class="btn" @click="uploadProjectFromFile">Upload project from file</button>
+        hi?
+        {{TEMPtime}}
+        and
+        {{TEMPthing}}
+        bye
         &nbsp; &nbsp;
       </div>
     </div>
@@ -147,6 +152,9 @@ Last update: 2018-05-29
            @before-open="beforeOpen"
            @before-close="beforeClose">
       <b>{{TEMPtime}}</b>
+      <input type="text"
+             class="txbox"
+             v-model="TEMPthing"/>
     </modal>
   </div>
 
@@ -199,7 +207,8 @@ export default {
       selectedCountry: 'Select country',
 
       TEMPtime: 0,
-      TEMPduration: 5000
+      TEMPduration: 5000,
+      TEMPthing: 5
     }
   },
 
