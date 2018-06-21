@@ -20,20 +20,20 @@ License:
 
 # Import things for the user
 from . import core # All Atomica functions
-from . import ui as au # The actual Atomica user interface
+from . import ui # The actual Atomica user interface
 
-# Import app flavors
-try:
-    # from . import apps
-    app_text = ' (with apps)'
-except Exception as E:
-    import traceback
-    app_error = traceback.format_exc()
-    app_text = ' (without apps; see atomica.app_error for details)'
+# # Import app flavors
+# try:
+#     from . import apps
+#     app_text = ' (with apps)'
+# except Exception as E:
+#     import traceback
+#     app_error = traceback.format_exc()
+#     app_text = ' (without apps; see atomica.app_error for details)'
 
 # Print the license.
-atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (au.version, au.versiondate)
-print(atomica_license+app_text)
+atomica_license = 'Atomica %s (%s) -- (c) the Atomica development team' % (ui.version, ui.versiondate)
+print(atomica_license)
 
 # Tidy up
-del atomica_license, app_text
+del atomica_license #, app_text

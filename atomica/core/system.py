@@ -29,7 +29,7 @@ class SystemSettings(object):
     CONFIG_DATABOOK_FILENAME = "format_databook.ini"
     CONFIG_LIST_SEPARATOR = ","
 
-    LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log"
+    LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log" # None
 
     STRUCTURE_KEY_DATA = "databook"
     STRUCTURE_KEY_FRAMEWORK = "framework_file"
@@ -70,9 +70,9 @@ def atomica_path(subdir=None, trailingsep=True):
 
 
 # Code for setting up a logger.
-
-logging.config.fileConfig(atomica_path(subdir=SystemSettings.CODEBASE_DIRNAME) + SystemSettings.CONFIG_LOGGER_FILENAME,
-                          defaults={"log_filename": "{0}".format(SystemSettings.LOGGER_DEBUG_OUTPUT_PATH)})
+if SystemSettings.LOGGER_DEBUG_OUTPUT_PATH is not None:
+    logging.config.fileConfig(atomica_path(subdir=SystemSettings.CODEBASE_DIRNAME) + SystemSettings.CONFIG_LOGGER_FILENAME,
+                              defaults={"log_filename": SystemSettings.LOGGER_DEBUG_OUTPUT_PATH})
 logger = logging.getLogger("atomica")
 
 
