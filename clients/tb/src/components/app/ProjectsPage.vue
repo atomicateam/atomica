@@ -140,6 +140,14 @@ Last update: 2018-05-29
     <modal name="hello-world">
       hello, world!
     </modal>
+
+    <modal name="example"
+           :width="300"
+           :height="300"
+           @before-open="beforeOpen"
+           @before-close="beforeClose">
+      <b>{{TEMPtime}}</b>
+    </modal>
   </div>
 
 </template>
@@ -181,40 +189,6 @@ export default {
       // Sort in reverse order?
       sortReverse: false,
 
-/* old project summaries stuff to get rid of
-        // List of summary objects for projects the user has
-        projectSummaries:
-        [
-          {
-            projectName: 'Afghanistan test 1',
-            country: 'Afghanistan',
-            creationTime: '2017-Jun-01 02:45 AM',
-            updateTime: '2017-Jun-02 05:41 AM',
-            uid: 1
-          },
-          {
-            projectName: 'Afghanistan HBP equity',
-            country: 'Afghanistan',
-            creationTime: '2017-Jun-03 03:12 PM',
-            updateTime: '2017-Jun-05 03:38 PM',
-            uid: 2
-          },
-          {
-            projectName: 'Final Afghanistan HBP',
-            country: 'Afghanistan',
-            creationTime: '2017-Jun-06 08:15 PM',
-            updateTime: '2017-Jun-06 08:20 PM',
-            uid: 3
-          },
-          {
-            projectName: 'Pakistan test 1',
-            country: 'Pakistan',
-            creationTime: '2017-Sep-21 08:44 AM',
-            updateTime: '2017-Sep-21 08:44 AM',
-            uid: 4
-          }
-        ], */
-
       // List of summary objects for projects the user has
       projectSummaries: [],
 
@@ -222,7 +196,10 @@ export default {
       countryList: [],
 
       // Country selected in the bottom select box
-      selectedCountry: 'Select country'
+      selectedCountry: 'Select country',
+
+      TEMPtime: 0,
+      TEMPduration: 5000
     }
   },
 
@@ -257,6 +234,21 @@ export default {
   },
 
   methods: {
+
+    beforeOpen (event) {
+      console.log(event)
+      // Set the opening time of the modal
+      this.TEMPtime = Date.now()
+    },
+
+    beforeClose (event) {
+      console.log(event)
+      // If modal was open less then 5000 ms - prevent closing it
+      if (this.TEMPtime + this.TEMPduration < Date.now()) {
+        event.stop()
+      }
+    },
+
     updateProjectSummaries() {
       console.log('updateProjectSummaries() called')
 
@@ -308,7 +300,7 @@ export default {
 
     createNewProjectModal() {
 
-      this.$modal.show('hello-world');
+      this.$modal.show('example');
 
 //      // Alert object data
 //      var obj = {
