@@ -668,5 +668,6 @@ def run_default_scenario(project_id):
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
     
+    print('Saving project...')
     save_project(proj)    
     return {'graphs':graphs}
