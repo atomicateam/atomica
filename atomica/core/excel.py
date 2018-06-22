@@ -50,9 +50,7 @@ class ExcelSettings(object):
                           "In this case, if any time-dependent values are entered, the "
                           "Excel sheet will attempt to explicitly mark the corresponding "
                           "cell as inapplicable.\n"
-                          "Alternatively, the user can leave the cell blank.\n"
-                          "However, any other value will override the time-dependent "
-                          "values during a model run.")
+                          "Time-dependent values always trump assumptions.")
     QUANTITY_TYPE_HEADER = "quantity_type".replace("_", " ").title()
     QUANTITY_TYPE_COLUMN_WIDTH = 15
     QUANTITY_TYPE_COMMENT_XSCALE = 3

@@ -21,8 +21,9 @@ class ProjectFramework(CoreProjectStructure):
         """ Initialize the framework. """
         super(ProjectFramework, self).__init__(structure_key=SS.STRUCTURE_KEY_FRAMEWORK, **kwargs)
 
-        # Set up a filter for quick referencing items of a certain group.
-        self.filter = {FS.TERM_FUNCTION + FS.KEY_PARAMETER: []}
+        # Set up a filter for quickly iterating through items of a certain group.
+        self.filter = {FS.TERM_FUNCTION + FS.KEY_PARAMETER: [],
+                       "stages": []}
 
         # Load framework file if provided.
         if filepath:
@@ -33,20 +34,46 @@ class ProjectFramework(CoreProjectStructure):
         A method for completing specifications that is called at the end of a file import.
         This delay is because some specifications rely on other definitions and values existing in the specs dictionary.
         """
-        self.parse_function_specs()
+        self.parse_parameter_specs()
+        self.parse_cascade_specs()
         self.create_databook_specs()  # Establish specifications for constructing a databook.
         self.validate_specs()
 
-    def parse_function_specs(self):
-        """ If any parameters are associated with functions, convert them into lists of tokens. """
+    def parse_parameter_specs(self):
+        """ Run through parsed parameters and apply special functions as required. """
         self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER] = []
-        for item_key in self.specs[FS.KEY_PARAMETER]:
+        for item_key in self.specs[FS.KEY_PARAMETER].keys():
+            # If any parameters are associated with functions, store those functions as strings plus a dependency list.
             if not self.get_spec_value(item_key, FS.TERM_FUNCTION) is None:
                 self.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER].append(item_key)
                 fcn_str = self.get_spec_value(item_key, FS.TERM_FUNCTION).replace(" ", "")
                 _, dependencies = parse_function(fcn_str)
                 self.set_spec_value(item_key, attribute=FS.TERM_FUNCTION, value=fcn_str)
                 self.set_spec_value(item_key, attribute="dependencies", value=dependencies)
+            # # If any parameters are flagged as interactions, convert them into actual interaction items.
+            # if self.get_spec_value(item_key, "is_" + FS.KEY_INTERACTION):
+            #     spec = sc.dcp(self.get_spec(term=item_key))     # Get copy of parameter specs before deleting original.
+            #     self.delete_item_riskily(term=item_key)
+            #     self.create_item(item_name=item_key, item_type=FS.KEY_INTERACTION)
+            #     for attribute in FS.ITEM_TYPE_SPECS[FS.KEY_PARAMETER]["attributes"]:
+            #         if attribute in FS.ITEM_TYPE_SPECS[FS.KEY_INTERACTION]["attributes"] and not attribute == "name":
+            #             value = spec[attribute]
+            #             content_type = None
+            #             att_specs = FS.ITEM_TYPE_SPECS[FS.KEY_INTERACTION]["attributes"][attribute]
+            #             if "content_type" in att_specs:
+            #                 content_type = att_specs["content_type"]
+            #             self.set_spec_value(term=item_key, attribute=attribute, value=value, content_type=content_type)
+
+    def parse_cascade_specs(self):
+        """ If any compartments/characteristics are marked as cascade stages, sort them into a quick refence list. """
+        temp_keys = []
+        temp_stages = []
+        for item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
+            for item_key in self.specs[item_type]:
+                if not self.get_spec_value(item_key, "cascade_stage") is None:
+                    temp_keys.append(item_key)
+                    temp_stages.append(self.get_spec_value(item_key, "cascade_stage"))
+        self.filter["stages"] = [x for x, _ in sorted(zip(temp_keys, temp_stages))]
 
     def create_databook_specs(self):
         """
@@ -89,7 +116,7 @@ class ProjectFramework(CoreProjectStructure):
                                         # Do not create tables for items that are marked not to be shown in a datapage.
                                         # Warn if they should be.
                                         if "datapage_order" in self.get_spec(item_key) and \
-                                                        self.get_spec_value(item_key, "datapage_order") == -1:
+                                                self.get_spec_value(item_key, "datapage_order") == -1:
                                             if ("setup_weight" in self.get_spec(item_key) and
                                                     not self.get_spec_value(item_key, "setup_weight") == 0.0):
                                                 logger.warning("Item '{0}' of type '{1}' is associated with a non-zero "
@@ -215,7 +242,8 @@ class ProjectFramework(CoreProjectStructure):
         if num_datapages is not None:  # Set the number of custom databook pages.
             framework_instructions.update_number_of_items(FS.KEY_DATAPAGE, num_datapages)
 
-        write_workbook(workbook_path=path, instructions=framework_instructions, workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        write_workbook(workbook_path=path, instructions=framework_instructions,
+                       workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
 
     def write_to_file(self, filename, data=None, instructions=None):
         """ Export a framework to file. """

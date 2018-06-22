@@ -105,12 +105,6 @@ class Project(object):
         self.programdatabookloaddate = 'Programs databook never loaded'
         self.settings = ProjectSettings() # Global settings
 
-        ## Load spreadsheet, if available
-        if framework and databook_path: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            self.load_databook(databook_path=databook_path, do_run=do_run)
-
-        return None
-
         # Load spreadsheet, if available
         if framework and databook_path:
             # TODO: Consider compatibility checks for framework/databook.
@@ -141,18 +135,20 @@ class Project(object):
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=None, num_trans=None, num_progs=None, data_start=None, data_end=None,
-                        data_dt=None):
+    def create_databook(self, databook_path=None, num_pops=None, num_trans=None, num_interpop=None, num_progs=None,
+                        data_start=None, data_end=None, data_dt=None):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
         databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if num_pops is not None:
-            databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set the number of populations.
+            databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set population amount.
         if num_trans is not None:
-            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_trans)  # Set the number of transfers.
+            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_trans)  # Set transfer amount.
+        if num_interpop is not None:
+            databook_instructions.update_number_of_items(DS.KEY_INTERACTION, num_interpop)  # Set interaction amount.
         if num_progs is not None:
-            databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set the number of programs.
+            databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set program amount.
         databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)
         write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
                        instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
