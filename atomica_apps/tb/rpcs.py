@@ -395,7 +395,7 @@ def add_demo_project(user_id):
     return { 'projectId': str(proj.uid) }
 
 
-@register_RPC(validation_type='nonanonymous user')
+@register_RPC(call_type='download', validation_type='nonanonymous user')
 def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
     """
     Create a new Optima Nutrition project.
