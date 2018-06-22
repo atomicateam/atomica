@@ -29,7 +29,7 @@ h1 = logging.StreamHandler(sys.stdout)
 h2 = logging.StreamHandler(sys.stderr)
 # h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
 h1.setLevel(0) # Handle all
-h1.addFilter(lambda logRecord: logRecord.levelno < logging.WARNING) # Display anything less than a warning
+#h1.addFilter(lambda logRecord: logRecord.levelno < logging.WARNING) # Display anything less than a warning
 h2.setLevel(logging.WARNING)
 
 logger.addHandler(h1)
