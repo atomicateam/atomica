@@ -105,12 +105,6 @@ class Project(object):
         self.programdatabookloaddate = 'Programs databook never loaded'
         self.settings = ProjectSettings() # Global settings
 
-        ## Load spreadsheet, if available
-        if framework and databook_path: # Should we somehow check if these are compatible? Or should a spreadsheet somehow dominate, maybe just loading a datasheet should be enough to generate a framework?
-            self.load_databook(databook_path=databook_path, do_run=do_run)
-
-        return None
-
         # Load spreadsheet, if available
         if framework and databook_path:
             # TODO: Consider compatibility checks for framework/databook.

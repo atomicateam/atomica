@@ -3,7 +3,19 @@
 Atomica structure settings file, in charge of defining the structure of both Framework and Data objects.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
 
-Architecture explanation:
+Architecture description:
+Upon importing Atomica, 'static' variables used throughout the codebase are established.
+These settings are encapsulated by classes SystemSettings, ExcelSettings, FrameworkSettings and DataSettings.
+None of these classes are instantiated as objects (i.e. no init/attributes/etc.); they are treated as namespace classes.
+In the cases of SystemSettings and ExcelSettings, the collections of variables are simple to import and understand.
+
+FrameworkSettings/DataSettings is more complicated to understand because 'static' variable values are soft-coded.
+Specifically, they are pulled from format_framework.ini/format_databook.ini, respectively, before becoming 'static'.
+E.g.; the name of a parameter framework Excel page can freely be set as "Frog" externally in an .ini file...
+...but Atomica will then statically expect, upon start-up, that framework Excel parameter pages are titled "Frog".
+
+...
+
 Every application (e.g. epidemiological) corresponds to one Project object.
 Each Project needs to load in a Framework object that defines the system (i.e. compartment objects, etc.).
 This is imported from a framework file filled out by a modeller.
