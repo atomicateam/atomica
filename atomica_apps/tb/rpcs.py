@@ -561,7 +561,6 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-@register_RPC(validation_type='nonanonymous user')    
 def get_plots(project_id, plot_names=None, pops='all'):
     
     import pylab as pl
@@ -609,3 +608,21 @@ def get_y_factors(project_id, parsetname=-1):
                 print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
     return y_factors
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def set_y_factors(project_id, y_factors, parsetname=-1):
+    print('Setting y factors...')
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for par in y_factors:
+        value = float(par['value'])
+        parset.get_par(par['parname']).y_factor[par['popname']] = value
+        if value != 1:
+            print(par)
+    
+    proj.modified = sc.today()
+    proj.run_sim(parset=parsetname, store_results=True)
+    save_project(proj)    
+    output = get_plots(proj.uid)
+    return output

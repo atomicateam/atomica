@@ -173,7 +173,7 @@ Last update: 2018-05-29
         console.log('makeGraphs() called')
 
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('get_plots', [project_id])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.parList])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
@@ -200,7 +200,17 @@ Last update: 2018-05-29
 
             // Set the server error.
             this.servererror = error.message
-          })
+          }).then( response => {
+            this.$notifications.notify({
+              message: 'Graphs created',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            }); 
+        })
+
+
       },
 
       clearGraphs() {
