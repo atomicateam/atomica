@@ -54,8 +54,8 @@ Last update: 2018-05-29
         </tbody>
       </table>
     </div>
-    <div style="margin-left:200px">
-      <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
+    <div style="margin-left:350px">
+      <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
         <!--mpld3 content goes here-->
       </div>
     </div>
@@ -160,12 +160,13 @@ Last update: 2018-05-29
         // Go to the server to get the diseases from the burden set.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id])
           .then(response => {
-            // Set the disease list.
-            this.parList = response.data
-
-            // Plot graphs
-//            this.makeGraph(burdenSet)
+            this.parList = response.data // Set the disease list.
           })
+
+//        // Set the active values from the loaded in data.
+//        for (let ind=0; ind < this.parList.length; ind++) {
+//          this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
+//        }
       },
 
       makeGraphs(project_id) {
