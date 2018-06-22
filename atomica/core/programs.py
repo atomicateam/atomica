@@ -24,7 +24,7 @@ class ProgramInstructions(object):
 #--------------------------------------------------------------------
 class ProgramSet(NamedItem):
 
-    def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="additive", default_imp_interaction="best"):
+    def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="Additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
         self.programs   = sc.odict()
@@ -111,41 +111,39 @@ class ProgramSet(NamedItem):
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
         self.add_covouts(progdata['pars'], prog_effects)
-        self.update_progset()
+        self.update()
         return None
 
         
-    def set_target_pops(self):
-        '''Update populations targeted by some program in the response'''
-        self.target_pops = []
-        if self.programs:
-            for prog in self.programs.values():
-                for pop in prog.target_pops: self.target_pops.append(pop)
-            self.target_pops = list(set(self.target_pops))
-
-
-    def set_target_pars(self):
-        '''Update model parameters targeted by some program in the response'''
-        self.target_pars = []
-        if self.programs:
-            for prog in self.programs.values():
-                for pop in prog.target_pars: self.target_pars.append(pop)
-
-
-    def set_target_par_types(self):
-        '''Update model parameter types targeted by some program in the response'''
-        self.target_par_types = []
-        if self.programs:
-            for prog in self.programs.values():
-                for par_type in prog.target_par_types: self.target_par_types.append(par_type)
-            self.target_par_types = list(set(self.target_par_types))
-
-
-    def update_progset(self):
+    def update(self):
         ''' Update (run this is you change something... )'''
-        self.set_target_pars()
-        self.set_target_par_types()
-        self.set_target_pops()
+
+        def set_target_pars(self):
+            '''Update model parameters targeted by some program in the response'''
+            self.target_pars = []
+            if self.programs:
+                for prog in self.programs.values():
+                    for pop in prog.target_pars: self.target_pars.append(pop)
+        
+        def set_target_par_types(self):
+            '''Update model parameter types targeted by some program in the response'''
+            self.target_par_types = []
+            if self.programs:
+                for prog in self.programs.values():
+                    for par_type in prog.target_par_types: self.target_par_types.append(par_type)
+                self.target_par_types = list(set(self.target_par_types))
+    
+        def set_target_pops(self):
+            '''Update populations targeted by some program in the response'''
+            self.target_pops = []
+            if self.programs:
+                for prog in self.programs.values():
+                    for pop in prog.target_pops: self.target_pops.append(pop)
+                self.target_pops = list(set(self.target_pops))
+    
+        set_target_pars(self)
+        set_target_par_types(self)
+        set_target_pops(self)
         return None
 
 
@@ -170,7 +168,7 @@ class ProgramSet(NamedItem):
             # Save it
             self.programs[prog.short] = prog
 
-        self.update_progset()
+        self.update()
         return None
 
 
@@ -188,7 +186,7 @@ class ProgramSet(NamedItem):
                 else: print(errormsg)
             for co in self.covout.values(): # Remove from coverage-outcome functions too
                 co.progs.pop(prog, None)
-        self.update_progset()
+        self.update()
         return None
 
 
@@ -222,7 +220,7 @@ class ProgramSet(NamedItem):
                         # Sanitize inputs
                         npi_val = sanitize(popdata['npi_val'])
                         max_val = sanitize(popdata['max_val'])
-                        self.add_covout(par=par, pop=pop, cov_interaction=popdata['interactions'][0], imp_interaction=popdata['interactions'][1], npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -244,7 +242,7 @@ class ProgramSet(NamedItem):
 
     def progs_by_target_par_type(self, filter_par_type=None):
         '''Return a dictionary with:
-             keys: all populations targeted by programs
+             keys: all parameter types targeted by programs
              values: programs targeting that population '''
         progs_by_target_par_type = odict()
         for prog in self.programs.values():
@@ -259,7 +257,7 @@ class ProgramSet(NamedItem):
 
     def progs_by_target_par(self, filter_par_type=None):
         '''Return a dictionary with:
-             keys: all populations targeted by programs
+             keys: all parameters targeted by programs
              values: programs targeting that population '''
         progs_by_target_par = odict()
         for par_type in self.target_par_types:
@@ -275,7 +273,7 @@ class ProgramSet(NamedItem):
         else: return progs_by_target_par
 
 
-    def default_budget(self, year=None, optimizable=None):
+    def get_budgets(self, year=None, optimizable=None):
         ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
         default_budget = odict() # Initialise outputs
@@ -289,6 +287,22 @@ class ProgramSet(NamedItem):
             default_budget[prog.short] = prog.get_spend(year)
 
         return default_budget
+
+
+    def get_num_covered(self, year=None, optimizable=None):
+        ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+        
+        num_covered = odict() # Initialise outputs
+
+        # Validate inputs
+        if year is not None: year = promotetoarray(year)
+        if optimizable is None: optimizable = False # Return only optimizable indices
+
+        # Get cost data for each program 
+        for prog in self.programs.values():
+            num_covered[prog.short] = prog.get_num_covered(year)
+
+        return num_covered
 
 
     def get_outcomes(self, coverage=None, year=None, sample='best'):
@@ -327,7 +341,7 @@ class ProgramSet(NamedItem):
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in self.progs_by_target_par(par_type)[pop]:
-                    if not self.covout[(par_type,pop)].haspars():
+                    if not self.covout[(par_type,pop)].has_pars():
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
                     else:
@@ -396,23 +410,22 @@ class ProgramSet(NamedItem):
                     # All programs together
                     outcomes[par_type][pop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
 
-                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[par_type][pop].interaction)
+                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[(par_type,pop)].cov_interaction)
         
         return outcomes
         
         
+    ## TODO : WRITE THESE
     def get_pars(self, coverage=None, year=None, sample='best'):
         ''' Get a full parset for given coverage levels'''
         pass
     
-    
-
-
-    ## TODO : WRITE THESE
-    def reconcile(self):
+    def export(self):
+        '''Export progset data to a progbook'''
         pass
 
-    def compare_outcomes(self):
+    def reconcile(self):
+        '''Reconcile parameters'''
         pass
 
 
@@ -597,11 +610,11 @@ class Program(NamedItem):
         return None
     
     
-    def add_data(self, data=None, year=None, spend=None, base_spend=None):
+    def add_data(self, spend_data=None, year=None, spend=None, base_spend=None):
         ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
-        if data is None:
-            data = {'year':float(year), 'spend':spend, 'basespend':base_spend}
-        self.update(data=data)
+        if spend_data is None:
+            spend_data = {'year':float(year), 'spend':spend, 'basespend':base_spend}
+        self.update(spend_data=spend_data)
         return None
         
         
@@ -618,7 +631,7 @@ class Program(NamedItem):
         ''' Convenience function for getting spending data'''
         try:
             if year is not None:
-                thisdata = self.data.findrow(year, closest=True, asdict=True) # Get data
+                thisdata = self.spend_data.findrow(year, closest=True, asdict=True) # Get data
                 spend = thisdata['spend']
                 if spend is None: spend = 0 # If not specified, assume 0
                 if total: 
@@ -626,7 +639,7 @@ class Program(NamedItem):
                     if base_spend is None: base_spend = 0 # Likewise assume 0
                     spend += base_spend
             else: # Just get the most recent non-nan number
-                spend = self.data['spend'][~isnan(array([x for x in self.data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
+                spend = self.spend_data['spend'][~isnan(array([x for x in self.spend_data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
             return spend
         except Exception as E:
             if die:
@@ -681,7 +694,7 @@ class Program(NamedItem):
         
 
     def has_budget(self):
-        return True if not (isnan(array([x for x in self.data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
+        return True if not (isnan(array([x for x in self.spend_data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
 
 
     def get_num_covered(self, unit_cost=None, capacity=None, budget=None, year=None, total=True, sample='best'):
@@ -696,7 +709,7 @@ class Program(NamedItem):
                 errormsg = 'Can''t get number covered without a spending amount: %s' % E.message
                 raise AtomicaException(errormsg)
             if isnan(budget):
-                errormsg = 'No spending associated with the year provided: %s' % E.message
+                errormsg = 'No spending associated with the year provided: %s'
                 raise AtomicaException(errormsg)
                 
         if unit_cost is None:
@@ -783,7 +796,7 @@ class Covout(object):
         return None
             
 
-    def haspars(self, doprint=False):
+    def has_pars(self, doprint=False):
         ''' Check whether the object has required parameters'''
         valid = True # Assume the best
         tests = {}

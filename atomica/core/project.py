@@ -35,7 +35,7 @@ from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario
 from .structure_settings import FrameworkSettings as FS, DataSettings as DS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from .workbook_export import write_workbook, make_instructions
+from .workbook_export import write_workbook, make_instructions, make_progbook
 from .workbook_import import read_workbook, load_progbook
 from .utils import NDict
 #from .optimization import Optim
@@ -191,6 +191,26 @@ class Project(object):
         self.parsets.append(ParameterSet(name))
         self.parsets[name].make_pars(self.data)
         return self.parsets[name]
+
+
+    def make_progbook(self, databook_path=None, progs=None):
+        ''' Make a programs databook'''
+
+        # Check imports
+        if progs is None:
+            errormsg = 'Please specify programs for making a program book.'
+            raise AtomicaException(errormsg)
+
+        ## Get filepath
+        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+
+        ## Get other inputs
+        F = self.framework
+        comps = [c['label'] for c in F.specs['comp'].values()]
+        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['datapage_order'] is not -1] # TODO: think about whether this makes sense
+
+        make_progbook(full_path, pops=self.popkeys, comps=comps, progs=5, pars=pars)
+        
 
 
     def load_progbook(self, databook_path=None, make_default_progset=True):

@@ -334,7 +334,7 @@ class BaseStructuralSettings(object):
                                                              option=format_variable_key, mute_warnings=True))
                     specs[format_variable_key] = value_overwrite
                 except ValueError:
-                    logger.warning("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
+                    logger.debug("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
                                    "converted to a float. Using a default value.".format(format_variable_key,
                                                                                          config_section))
                 except Exception:
@@ -361,6 +361,7 @@ class BaseStructuralSettings(object):
             except Exception:
                 logger.debug("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
                              "so these items will not be constructed in templates by default.".format(item_type))
+
             try:
                 descriptor = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                               option="descriptor")
