@@ -13,6 +13,12 @@ from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod, maximum, minimum
 
+class ProgramInstructions(object):
+    def __init__(self):
+        """ Set up a structure that stores instructions for a model on how to use programs. """
+
+        pass
+
 #--------------------------------------------------------------------
 # ProgramSet class
 #--------------------------------------------------------------------
