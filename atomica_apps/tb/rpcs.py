@@ -562,11 +562,11 @@ def get_supported_plots(only_keys=False):
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def get_plots(project_id, plot_names=None):
+def get_plots(project_id, plot_names=None, pops='all'):
     
     supported_plots = supported_plots_func() 
     
-    if plot_names is None: plot_names = supported_plots.keys()[0]
+    if plot_names is None: plot_names = supported_plots.keys()
 
     proj = load_project(project_id, raise_exception=True)
     
@@ -576,11 +576,16 @@ def get_plots(project_id, plot_names=None):
     figs = []
     graphs = []
     for plot_name in plot_names:
-        plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj)
-        figs += au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+        try:
+            plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj, pops=pops)
+            figs += au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+            print('Plot %s succeeded' % (plot_name))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (plot_name, repr(E)))
     
-    for fig in figs:
+    for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
         graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
 
-    return {'graphtemp':graphs[0]}
+    return {'graphs':graphs}

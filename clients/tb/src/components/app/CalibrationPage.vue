@@ -6,10 +6,10 @@ Last update: 2018-05-29
 
 <template>
   <div class="SitePage">
-    <button class="btn" @click="makeGraph(activeProjectID)">Get plots</button>
+    <button class="btn" @click="makeGraphs(activeProjectID)">Get plots</button>
 
-    <div>
-      <div id="fig01" style="float:left" ></div>
+    <div v-for="index in placeholders" :id="'fig'+index">
+      <!--mpld3 content goes here-->
     </div>
 
   </div>
@@ -39,6 +39,15 @@ Last update: 2018-05-29
           return this.$store.state.activeProject.project.id
         }
       },
+
+      placeholders() {
+        var indices = []
+        for (var i = 1; i <= 100; i++) {
+          indices.push(i);
+        }
+        return indices;
+      }
+
     },
 
     created() {
@@ -60,15 +69,25 @@ Last update: 2018-05-29
         });
       },
 
-      makeGraph(project_id) {
-        console.log('makeGraph() called')
+      makeGraphs(project_id) {
+        console.log('makeGraphs() called')
 
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('get_plots', [project_id])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
-            let theFig = response.data.graphtemp // Extract hack info.
-            mpld3.draw_figure('fig01', response.data.graphtemp) // Draw the figure.
+            var n_plots = response.data.graphs.length
+            console.log('Rendering '+n_plots+' graphs')
+
+            for (var index = 1; index <= n_plots; index++) {
+              console.log('Rendering plot '+index)
+              try {
+                mpld3.draw_figure('fig'+index, response.data.graphs[index]); // Draw the figure.
+              }
+              catch(err) {
+                console.log('failled:'+err.message);
+              }
+            }
           })
           .catch(error => {
             // Pull out the error message.
