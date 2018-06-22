@@ -619,10 +619,54 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
         value = float(par['value'])
         parset.get_par(par['parname']).y_factor[par['popname']] = value
         if value != 1:
-            print(par)
+            print('Modified: %s' % par)
     
     proj.modified = sc.today()
     proj.run_sim(parset=parsetname, store_results=True)
     save_project(proj)    
     output = get_plots(proj.uid)
     return output
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def run_default_scenario(project_id):
+    print('Running default scenario...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    scvalues = dict()
+
+    scen_par = "spd_infxness"
+    scen_pop = "15-64"
+    scen_outputs = ["lt_inf", "ac_inf"]
+
+    scvalues[scen_par] = dict()
+    scvalues[scen_par][scen_pop] = dict()
+
+    # Insert (or possibly overwrite) one value.
+    scvalues[scen_par][scen_pop]["y"] = [0.125]
+    scvalues[scen_par][scen_pop]["t"] = [2015.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
+
+    proj.make_scenario(name="varying_infections", instructions=scvalues)
+    proj.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
+
+    # Insert two values and eliminate everything between them.
+    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+
+    proj.make_scenario(name="varying_infections2", instructions=scvalues)
+    proj.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
+    
+    figs = []
+    graphs = []
+    d = au.PlotData([proj.results["scen1"],proj.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    figs += au.plot_series(d, axis="results")
+    
+    for f,fig in enumerate(figs):
+        graph_dict = make_mpld3_graph_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+    
+    save_project(proj)    
+    return {'graphs':graphs}
