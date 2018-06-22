@@ -20,21 +20,21 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 test = "sir"
-test = "tb"
+# test = "tb"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+# "runsim",
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-# "runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -117,7 +117,7 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/programdata_"+test+".xlsx"
-        P.load_progbook(databook_path=filename, make_default_progset=True)
+        P.load_progbook(progbook_path=filename, make_default_progset=True)
         P.progsets[0].programs[0].get_spend(year=2015)
         
         # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
@@ -144,9 +144,17 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    instructions = None # TODO - get default instructions
-    P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default")
+    if test=='tb':
+        raise NotImplemented
+    else:
+        P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+        alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
+        instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
+        P.run_sim(parset="default", result_name="default-noprogs")
+        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+        d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
+        au.plot_series(d, axis="results")
+
 
 if "makeplots" in torun:
 

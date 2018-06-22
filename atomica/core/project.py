@@ -193,7 +193,7 @@ class Project(object):
         return self.parsets[name]
 
 
-    def make_progbook(self, databook_path=None, progs=None):
+    def make_progbook(self, progbook_path=None, progs=None):
         ''' Make a programs databook'''
 
         # Check imports
@@ -202,7 +202,7 @@ class Project(object):
             raise AtomicaException(errormsg)
 
         ## Get filepath
-        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
 
         ## Get other inputs
         F = self.framework
@@ -213,11 +213,11 @@ class Project(object):
         
 
 
-    def load_progbook(self, databook_path=None, make_default_progset=True):
+    def load_progbook(self, progbook_path=None, make_default_progset=True):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
         progdata = load_progbook(filename=full_path)
         
         # Check if the populations match - if not, raise an error, if so, add the data

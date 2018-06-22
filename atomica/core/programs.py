@@ -11,13 +11,14 @@ import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
-from numpy import array, nan, isnan, exp, ones, prod, maximum, minimum
+from numpy import array, nan, isnan, exp, ones, prod, maximum, minimum, inf
 
 class ProgramInstructions(object):
-    def __init__(self):
+    def __init__(self,alloc,start_year=None,stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
-
-        pass
+        self.alloc = alloc
+        self.start_year = start_year if start_year else 2018.
+        self.stop_year = stop_year if stop_year else inf
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -51,6 +52,9 @@ class ProgramSet(NamedItem):
     def make(self, progdata=None, project=None):
         '''Make a program set from a program data object.'''
 
+        pop_short_name = project.data.get_spec_name
+        comp_short_name = project.framework.get_spec_name
+
         # Sort out inputs
         if progdata is None:
             if project.progdata is None:
@@ -73,8 +77,8 @@ class ProgramSet(NamedItem):
             capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
-                        target_pops =[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
-                        target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
+                        target_pops =[pop_short_name(val) for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
+                        target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
                         capacity=capcacity,
                         )
             programs.append(p)
@@ -105,6 +109,7 @@ class ProgramSet(NamedItem):
         for par,pardata in progdata['pars'].iteritems():
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
+                pop = pop_short_name(pop)
                 prog_effects[par][pop] = odict()
                 for pno in range(len(prognames)):
                     vals = []
@@ -117,11 +122,27 @@ class ProgramSet(NamedItem):
                 if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
             
-        self.add_covouts(progdata['pars'], prog_effects)
+        self.add_covouts(progdata['pars'], prog_effects, pop_short_name)
         self.update()
         return None
 
-        
+
+    def get_alloc(self,instructions,t,dt):
+        # Get time-varying alloc for each program
+        # Input
+        # - instructions : program instructions
+        # - t : np.array vector of time values (years)
+        #
+        # Returns a dict where the key is the program short name and
+        # the value is an array of spending values the same size as t
+        alloc = {}
+        for prog in self.programs.values():
+            if prog.short in instructions.alloc:
+                alloc[prog.short] = ones(t.shape)*instructions.alloc[prog.short]
+            else:
+                alloc[prog.short] = prog.get_spend(t)
+        return alloc
+
     def update(self):
         ''' Update (run this is you change something... )'''
 
@@ -206,7 +227,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def add_covouts(self, covouts=None, prog_effects=None):
+    def add_covouts(self, covouts=None, prog_effects=None,pop_short_name=None):
         '''
         Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
         covouts[parname][popname] = odict()
@@ -223,6 +244,7 @@ class ProgramSet(NamedItem):
         for par,pardata in covouts.iteritems():
             if par in prog_effects.keys():
                 for pop,popdata in covouts[par].iteritems():
+                    pop = pop_short_name(pop)
                     if pop in prog_effects[par].keys():
                         # Sanitize inputs
                         npi_val = sanitize(popdata['npi_val'])
@@ -296,7 +318,7 @@ class ProgramSet(NamedItem):
         return default_budget
 
 
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample='best', optimizable=None):
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, alloc=None, sample='best', optimizable=None):
         ''' Extract the number covered if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
         num_covered = odict() # Initialise outputs
@@ -307,15 +329,22 @@ class ProgramSet(NamedItem):
 
         # Get cost data for each program 
         for prog in self.programs.values():
-            num_covered[prog.short] = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            if alloc and prog.short in alloc:
+                spending = alloc[prog.short]
+            else:
+                spending = None
+
+            num_covered[prog.short] = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
 
         return num_covered
 
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best', optimizable=None):
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
         '''Returns proportion covered for a time/spending vector and denominator.
         Denominator is expected to be a dictionary.'''
-        
+        # INPUT
+        # denominator - dict of denominator values keyed by program short name
+        # alloc - dict of spending values (arrays) keyed by program short name (same thing returned by self.get_alloc)
         prop_covered = odict() # Initialise outputs
 
         # Make sure that denominator has been supplied
@@ -324,7 +353,12 @@ class ProgramSet(NamedItem):
             raise AtomicaException(errormsg)
             
         for prog in self.programs.values():
-            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            if alloc and prog.short in alloc:
+                spending = alloc[prog.short]
+            else:
+                spending = None
+
+            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
             denom = denominator[prog.short]            
             prop_covered[prog.short] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
             
