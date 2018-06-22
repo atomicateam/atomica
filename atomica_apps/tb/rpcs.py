@@ -596,6 +596,7 @@ def get_plots(project_id, plot_names=None, pops='all'):
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_y_factors(project_id, parsetname=-1):
+    print('Getting y factors...')
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
@@ -605,5 +606,6 @@ def get_y_factors(project_id, parsetname=-1):
             for popname,y_factor in thispar.y_factor.items():
                 thisdict = {'parname':parname, 'popname':popname, 'y_factor':y_factor}
                 y_factors.append(thisdict)
-    
+                print(thisdict)
+    print('Returning %s y-factors' % len(y_factors))
     return y_factors

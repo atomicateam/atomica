@@ -14,7 +14,45 @@ Last update: 2018-05-29
     <br>
 
     <div style="width:200px; float:left">
-      funk
+      <table class="table table-bordered table-hover table-striped" style="width: 100%">
+        <thead>
+        <tr>
+          <th @click="updateSorting('parameter')" class="sortable">
+            Parameter
+            <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+            <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+            <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+          </th>
+          <th @click="updateSorting('population')" class="sortable">
+            Population
+            <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+            <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+            <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+          </th>
+          <th @click="updateSorting('value')" class="sortable">
+            Value
+            <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+            <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+            <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+          </th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-for="par in sortedPars">
+          <td>
+            {{par.parname}}
+          </td>
+          <td>
+            {{par.popname}}
+          </td>
+          <td>
+            <input type="text"
+                   class="txbox"
+                   v-model="par.value"/>
+          </td>
+        </tr>
+        </tbody>
+      </table>
     </div>
     <div style="margin-left:200px">
       <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
@@ -40,6 +78,9 @@ Last update: 2018-05-29
     data() {
       return {
         serverresponse: 'no response',
+        sortColumn: 'parname',
+        sortReverse: false,
+        parList: [],
       }
     },
 
@@ -58,7 +99,13 @@ Last update: 2018-05-29
           indices.push(i);
         }
         return indices;
-      }
+      },
+
+      sortedPars() {
+        var sortedParList =  this.applySorting(this.parList);
+        console.log(sortedParList);
+        return sortedParList;
+      },
 
     },
 
@@ -66,6 +113,10 @@ Last update: 2018-05-29
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
+      }
+
+      else {
+        this.viewTable();
       }
     },
 
@@ -79,6 +130,42 @@ Last update: 2018-05-29
           verticalAlign: 'top',
           horizontalAlign: 'center',
         });
+      },
+
+      updateSorting(sortColumn) {
+        console.log('updateSorting() called')
+        if (this.sortColumn === sortColumn) {  // If the active sorting column is clicked... // Reverse the sort.
+          this.sortReverse = !this.sortReverse
+        }
+        else { // Otherwise.
+          this.sortColumn = sortColumn // Select the new column for sorting.
+          this.sortReverse = false // Set the sorting for non-reverse.
+        }
+      },
+
+      applySorting(pars) {
+        return pars.sort((par1, par2) =>
+          {
+            let sortDir = this.sortReverse ? -1: 1
+            if      (this.sortColumn === 'parname') { return par1[0] > par2[0] ? sortDir: -sortDir}
+            else if (this.sortColumn === 'popname') { return par1[1] > par2[1] ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1[2] > par2[2] ? sortDir: -sortDir}
+          }
+        )
+      },
+
+      viewTable() {
+        console.log('viewTable() called')
+
+        // Go to the server to get the diseases from the burden set.
+        rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id])
+          .then(response => {
+            // Set the disease list.
+            this.parList = response.data
+
+            // Plot graphs
+//            this.makeGraph(burdenSet)
+          })
       },
 
       makeGraphs(project_id) {
