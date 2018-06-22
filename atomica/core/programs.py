@@ -667,14 +667,6 @@ class Program(NamedItem):
         return None
         
         
-#    def add_base_spend(self, base_spend_data=None, year=None, base_spend=None):
-#        ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
-#        if base_spend_data is None:
-#            base_spend_data = {'year':float(year), 'basespend':base_spend}
-#        self.update(base_spend_data=base_spend_data, spend_type='base_spend')
-#        return None
-        
-        
     def add_pars(self, unit_cost=None, capacity=None, year=None):
         ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unit_cost. '''
         # Convert inputs
