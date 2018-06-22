@@ -24,7 +24,7 @@ torun = [
 # "makeprogramspreadsheet",
 # "loadprogramspreadsheet",
 "makeplots",
-"export",
+# "export",
 # "listspecs",
 # "manualcalibrate",
 # "autocalibrate",
@@ -88,7 +88,7 @@ if "makeparset" in torun:
     P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    P.update_settings(sim_start=2000.0, sim_end=2035, sim_dt=0.25)
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
@@ -115,13 +115,6 @@ if "loadprogramspreadsheet" in torun:
                              ('Treatment 2',        .8)])
         print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
-if "makeparset" in torun:
-    P.make_parset(name="default")
-    
-if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    P.run_sim(parset="default", result_name="default")
-
 if "makeplots" in torun:
 
     # Low level debug plots.
@@ -133,7 +126,6 @@ if "makeplots" in torun:
     au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
-        # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
         d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         au.plot_bars(d, outer="results", stack_pops=[plot_pop])
@@ -146,11 +138,14 @@ if "makeplots" in torun:
         # Plot death flow rate decomposition over all time
         d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
+
+        d = au.PlotData(P.results["default"], pops='0-4')
+        au.plot_series(d, plot_type='stacked')
+
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
         d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
-
 
     # Plot aggregate flows
     d = au.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
@@ -251,3 +246,6 @@ if "saveproject" in torun:
 
 if "loadproject" in torun:
     P = au.Project.load(tmpdir+test+".prj")
+
+
+
