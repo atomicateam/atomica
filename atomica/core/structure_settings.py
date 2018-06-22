@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Atomica project-framework settings file.
-Contains metadata describing the construction of a model framework.
+Atomica structure settings file, in charge of defining the structure of both Framework and Data objects.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
+
+Architecture explanation:
+Every application (e.g. epidemiological) corresponds to one Project object.
+Each Project needs to load in a Framework object that defines the system (i.e. compartment objects, etc.).
+This is imported from a framework file filled out by a modeller.
+Each Project needs to load in a corresponding Data object that fleshes out the system (i.e. compartment sizes, etc.).
+This is imported from a databook file filled out by a user; the databook is created once Project framework is loaded.
+Both are required for evolving a system and applying subsequent analyses.
+
+ProjectFramework and ProjectData are both
 """
 
 import sciris.core as sc
