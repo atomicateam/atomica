@@ -592,3 +592,18 @@ def get_plots(project_id, plot_names=None, pops='all'):
         print('Converted figure %s of %s' % (f+1, len(figs)))
 
     return {'graphs':graphs}
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_y_factors(project_id, parsetname=-1):
+    y_factors = []
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for par_type in ["cascade", "comps", "characs"]:
+        for parname in parset.par_ids[par_type].keys():
+            thispar = parset.get_par(parname)
+            for popname,y_factor in thispar.y_factor.items():
+                thisdict = {'parname':parname, 'popname':popname, 'y_factor':y_factor}
+                y_factors.append(thisdict)
+    
+    return y_factors

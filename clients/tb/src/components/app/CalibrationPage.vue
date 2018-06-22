@@ -8,14 +8,21 @@ Last update: 2018-05-29
   <div class="SitePage">
 
     <div>
-      <button class="btn" @click="makeGraphs(activeProjectID)">Get plots</button>
+      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
       <button class="btn" @click="clearGraphs()">Clear plots</button>
     </div>
     <br>
 
-    <div v-for="index in placeholders" :id="'fig'+index" style="width:700px; float:left;">
-      <!--mpld3 content goes here-->
+    <div style="width:200px; float:left">
+      funk
     </div>
+    <div style="margin-left:200px">
+      <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
+        <!--mpld3 content goes here-->
+      </div>
+    </div>
+
+
 
   </div>
 </template>
