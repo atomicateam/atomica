@@ -564,6 +564,8 @@ def get_supported_plots(only_keys=False):
 @register_RPC(validation_type='nonanonymous user')    
 def get_plots(project_id, plot_names=None, pops='all'):
     
+    import pylab as pl
+    
     supported_plots = supported_plots_func() 
     
     if plot_names is None: plot_names = supported_plots.keys()
@@ -579,6 +581,7 @@ def get_plots(project_id, plot_names=None, pops='all'):
         try:
             plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj, pops=pops)
             figs += au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+            pl.gca().set_facecolor('none')
             print('Plot %s succeeded' % (plot_name))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (plot_name, repr(E)))

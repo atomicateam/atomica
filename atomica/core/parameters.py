@@ -190,6 +190,10 @@ class ParameterSet(NamedItem):
     def set_scaling_factor(self, par_name, pop_name, scale):
         par = self.get_par(par_name)
         par.y_factor[pop_name] = scale
+        return None
+    
+    def get_scaling_factor(self,par_name,pop_name):
+        return self.get_par(par_name).y_factor[pop_name]
 
     def get_par(self, name):
         for par_type in ["cascade", "comps", "characs"]:

@@ -6,9 +6,14 @@ Last update: 2018-05-29
 
 <template>
   <div class="SitePage">
-    <button class="btn" @click="makeGraphs(activeProjectID)">Get plots</button>
 
-    <div v-for="index in placeholders" :id="'fig'+index">
+    <div>
+      <button class="btn" @click="makeGraphs(activeProjectID)">Get plots</button>
+      <button class="btn" @click="clearGraphs()">Clear plots</button>
+    </div>
+    <br>
+
+    <div v-for="index in placeholders" :id="'fig'+index" style="width:700px; float:left;">
       <!--mpld3 content goes here-->
     </div>
 
@@ -77,15 +82,20 @@ Last update: 2018-05-29
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
-            console.log('Rendering '+n_plots+' graphs')
+            console.log('Rendering ' + n_plots + ' graphs')
 
             for (var index = 1; index <= n_plots; index++) {
-              console.log('Rendering plot '+index)
-              try {
-                mpld3.draw_figure('fig'+index, response.data.graphs[index]); // Draw the figure.
+              console.log('Rendering plot ' + index)
+              var divlabel = 'fig' + index
+              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+              while (div.firstChild) {
+                div.removeChild(div.firstChild);
               }
-              catch(err) {
-                console.log('failled:'+err.message);
+              try {
+                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              }
+              catch (err) {
+                console.log('failled:' + err.message);
               }
             }
           })
@@ -98,7 +108,16 @@ Last update: 2018-05-29
           })
       },
 
-
+      clearGraphs() {
+        for (var index = 1; index <= 100; index++) {
+          console.log('Clearing plot ' + index)
+          var divlabel = 'fig' + index
+          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+          while (div.firstChild) {
+            div.removeChild(div.firstChild);
+          }
+        }
+      }
     }
   }
 </script>
