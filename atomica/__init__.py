@@ -20,11 +20,20 @@ License:
 
 # Display version information using logging
 
+import sys
 from datetime import datetime
 import logging
 logger = logging.getLogger() # Get the root logger, keep its level
-h = logging.StreamHandler()
-logger.addHandler(h)
+
+h1 = logging.StreamHandler(sys.stdout)
+h2 = logging.StreamHandler(sys.stderr)
+# h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
+h1.setLevel(0) # Handle all
+h1.addFilter(lambda logRecord: logRecord.levelno < logging.WARNING) # Display anything less than a warning
+h2.setLevel(logging.WARNING)
+
+logger.addHandler(h1)
+logger.addHandler(h2)
 
 import atomica.core.version
 logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
