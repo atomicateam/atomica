@@ -944,7 +944,7 @@ class Model(object):
             self.set_program_cache() # Cache the parameters and characteristics used for overwriting
 
             # TODO: Any extra processing of the alloc
-            alloc = self.progset.get_alloc(self.program_instructions,self.t, self.dt)
+            alloc = self.progset.get_alloc(self.program_instructions,self.t)
 
             # TODO: Any overwrites needed in progset.progs depending on progset_instructions
 

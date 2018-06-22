@@ -149,6 +149,7 @@ if "runsim_programs" in torun:
     else:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
+        instructions = au.ProgramInstructions() 
         instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
         P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")

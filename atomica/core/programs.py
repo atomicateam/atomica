@@ -11,10 +11,10 @@ import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
-from numpy import array, nan, isnan, exp, ones, prod, maximum, minimum, inf
+from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
 
 class ProgramInstructions(object):
-    def __init__(self,alloc,start_year=None,stop_year=None):
+    def __init__(self,alloc=None,start_year=None,stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
         self.alloc = alloc
         self.start_year = start_year if start_year else 2018.
@@ -127,7 +127,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def get_alloc(self,instructions,t,dt):
+    def get_alloc(self,instructions=None,tvec=None):
         # Get time-varying alloc for each program
         # Input
         # - instructions : program instructions
@@ -135,13 +135,26 @@ class ProgramSet(NamedItem):
         #
         # Returns a dict where the key is the program short name and
         # the value is an array of spending values the same size as t
-        alloc = {}
-        for prog in self.programs.values():
-            if prog.short in instructions.alloc:
-                alloc[prog.short] = ones(t.shape)*instructions.alloc[prog.short]
-            else:
-                alloc[prog.short] = prog.get_spend(t)
-        return alloc
+        
+        # Validate inputs
+        if tvec is None: tvec = 2018. # TEMPORARY
+        tvec = sc.promotetoarray(tvec)
+        if instructions is None: # If no instructions provided, just return the default budget
+            return self.get_budgets(year=tvec)
+        
+        else:
+            if instructions.alloc is None:
+                return self.get_budgets(year=tvec)
+                
+            else: 
+                alloc = sc.odict()
+                for prog in self.programs.values():
+                    if prog.short in instructions.alloc:
+                        alloc[prog.short] = ones(tvec.shape)*instructions.alloc[prog.short]
+                    else:
+                        alloc[prog.short] = prog.get_spend(tvec)
+                return alloc
+
 
     def update(self):
         ''' Update (run this is you change something... )'''
