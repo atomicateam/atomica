@@ -1,5 +1,5 @@
 # Set to True to print out as modules are being imported
-_debug = True
+_debug = False
 
 # The Atomica "user interface" -- import everything from submodules
 if _debug: print('Importing version...')
@@ -29,4 +29,6 @@ if _debug: print('Importing defaults...')
 from .core.defaults import * # Depends on ???
 if _debug: print('Importing plotting...')
 from .core.plotting import * # Depends on...?
+if _debug: print('Importing program instructions...')
+from .core.programs import ProgramInstructions, ProgramSet # Depends on...?
 if _debug: print('Done importing Atomica.')
