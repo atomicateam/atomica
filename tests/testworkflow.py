@@ -11,16 +11,16 @@ test = "sir"
 
 torun = [
 #"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
+#"makeframework",
+#"saveframework",
+#"loadframework",
 #"makedatabook",
-"makeproject",
-"loaddatabook",
+#"makeproject",
+#"loaddatabook",
 #"makeparset",
 #"runsim",
 #"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
+"loadprogramspreadsheet",
 # "runsim_programs",
 #"makeplots",
 #"export",
@@ -106,13 +106,29 @@ if "loadprogramspreadsheet" in torun:
         filename = "databooks/programdata_"+test+".xlsx"
         P.load_progbook(databook_path=filename, make_default_progset=True)
         P.progsets[0].programs[0].get_spend(year=2015)
-#        P.progsets[0].programs[0].get_num_covered(year=2015)
+        
+        # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
         coverage = sc.odict([('Risk avoidance',     .99),
                              ('Harm reduction 1',   .8),
                              ('Harm reduction 2',   .9),
                              ('Treatment 1',        .99),
                              ('Treatment 2',        .8)])
         print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+
+        # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
+        print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
+        print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+
+        # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+        denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
+                             ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
+                             ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
+                             ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
+                             ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+
+        print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
+        print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+
 
 if "runsim_programs" in torun:
     P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)

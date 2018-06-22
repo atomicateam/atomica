@@ -11,7 +11,7 @@ import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
-from numpy import array, nan, isnan, exp, ones, prod, maximum
+from numpy import array, nan, isnan, exp, ones, prod, maximum, minimum
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -320,7 +320,7 @@ class ProgramSet(NamedItem):
         for prog in self.programs.values():
             num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
             denom = denominator[prog.short]            
-            prop_covered = maximum(num/denom, 1.) # Ensure that coverage doesn't go above 1
+            prop_covered[prog.short] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
             
         return prop_covered
 
@@ -468,7 +468,7 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, sdata=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self,short=None, name=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
@@ -478,12 +478,12 @@ class Program(NamedItem):
         self.target_pops        = None # Populations targeted by the program
         self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
-        self.base_spend_data    = None # Latest or estimated expenditure
+        self.base_spend_data    = None # Latest or estimated base expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, sdata=sdata, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.update(short=short, name=name, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
@@ -499,7 +499,7 @@ class Program(NamedItem):
     
 
 
-    def update(self, short=None, name=None, sdata=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
+    def update(self, short=None, name=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
@@ -589,7 +589,7 @@ class Program(NamedItem):
             return None
 
         
-        def set_spend(sdata=None, year=None, spend_type='spend'):
+        def set_spend(spend_data=None, year=None, spend_type='spend'):
             ''' Handle the spend data'''
             data_keys = ['year', spend_type]
 
@@ -600,28 +600,27 @@ class Program(NamedItem):
                 errormsg = 'Unknown spend type %s' % spend_type
                 raise AtomicaException(errormsg)
             
-            if spend_type=='basespend': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             if self.__getattribute__(attr_to_set) is None:
                     self.__setattr__(attr_to_set,dataframe(cols=data_keys)) # Create dataframe
 
             if year is None: year = 2018. # TEMPORARY
             
             # Consider different input possibilities
-            if isinstance(sdata, dataframe): 
-                self.__setattr__(attr_to_set,sdata) # Right format already: use directly
-            elif isinstance(sdata, dict):
-                sdata = {key:promotetolist(sdata.get(key)) for key in data_keys} # Get full row
-                if sdata['year'] is not None:
-                    for n,year in enumerate(sdata['year']):
+            if isinstance(spend_data, dataframe): 
+                self.__setattr__(attr_to_set,spend_data) # Right format already: use directly
+            elif isinstance(spend_data, dict):
+                spend_data = {key:promotetolist(spend_data.get(key)) for key in data_keys} # Get full row
+                if spend_data['year'] is not None:
+                    for n,year in enumerate(spend_data['year']):
                         current_data = self.__getattribute__(attr_to_set).findrow(year,asdict=True) # Get current row as a dictionary
                         if current_data is not None:
-                            for key in sdata.keys():
-                                if sdata[key][n] is None: sdata[key][n] = current_data[key] # Replace with old data if new data is None
-                        these_data = [sdata['year'][n], sdata[spend_type][n]] # Get full row - WARNING, FRAGILE TO ORDER!
+                            for key in spend_data.keys():
+                                if spend_data[key][n] is None: spend_data[key][n] = current_data[key] # Replace with old data if new data is None
+                        these_data = [spend_data['year'][n], spend_data[spend_type][n]] # Get full row - WARNING, FRAGILE TO ORDER!
                         if attr_to_set == 'spend_data': self.spend_data.addrow(these_data) # Add new data
                         elif attr_to_set == 'base_spend_data': self.base_spend_data.addrow(these_data) # Add new data
-            elif isinstance(sdata, list): # Assume it's a list of dicts
-                for datum in sdata:
+            elif isinstance(spend_data, list): # Assume it's a list of dicts
+                for datum in spend_data:
                     if isinstance(datum, dict):
                         set_spend(datum) # It's a dict: iterate recursively
                     else:
@@ -642,10 +641,9 @@ class Program(NamedItem):
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
         if unit_cost   is not None: set_unit_cost(unit_cost, year) # unit cost(s)
-        if spend_data  is not None: set_spend(sdata=spend_data) # spend and coverage data
-        if base_spend_data  is not None:
-            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-            set_spend(sdata=base_spend_data,spend_type='basespend') # spend and coverage data
+        if spend_type is not None:
+            if spend_data  is not None:
+                set_spend(spend_data=spend_data,spend_type=spend_type) # Set spending data
         
         # Finally, check everything
         if self.short is None: # self.short must exist
@@ -660,17 +658,12 @@ class Program(NamedItem):
         return None
     
     
-    def add_spend(self, spend_data=None, base_spend_data=None, year=None, spend=None, spend_type='spend'):
+    def add_spend(self, spend_data=None, year=None, spend=None, spend_type='spend'):
         ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
-        sdata = spend_data if spend_type=='spend' else base_spend_data
-        if sdata is None:
-            sdata = {'year':float(year), spend_type:spend}
-            self.update(spend_data=sdata, spend_type=spend_type)
+        if spend_data is None:
+            spend_data = {'year':float(year), spend_type:spend}
+        self.update(spend_data=spend_data, spend_type=spend_type)
 
-#        if spend_type=='basespend': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-#        if base_spend_data is None:
-#            spend_data = {'year':float(year), 'basespend':spend}
-#        self.update(base_spend_data=base_spend_data, spend_type=spend_type)
         return None
         
         
@@ -779,18 +772,20 @@ class Program(NamedItem):
             except Exception as E:
                 errormsg = 'Can''t get number covered without a spending amount: %s' % E.message
                 raise AtomicaException(errormsg)
-            if isnan(budget):
+            if isnan(budget).any():
                 errormsg = 'No spending associated with the year provided: %s'
                 raise AtomicaException(errormsg)
+        budget = promotetoarray(budget)
                 
         if unit_cost is None:
             try: unit_cost = self.get_unit_cost(year)
             except Exception as E:
                 errormsg = 'Can''t get number covered without a unit cost: %s' % E.message
                 raise AtomicaException(errormsg)
-            if isnan(unit_cost):
+            if isnan(unit_cost).any():
                 errormsg = 'No unit cost associated with the year provided: %s' % E.message
                 raise AtomicaException(errormsg)
+        unit_cost = promotetoarray(unit_cost)
             
         if capacity is None:
             if self.capacity is not None: capacity = self.capacity.get(sample)
@@ -817,7 +812,7 @@ class Program(NamedItem):
         # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
         # Example: year = [2015,2016], denominator = [30000,40000]
         num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
-        prop_covered = maximum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
+        prop_covered = minimum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
         return prop_covered
 
 
