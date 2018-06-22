@@ -386,7 +386,7 @@ def add_demo_project(user_id):
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
-    print(">> create_new_project %s" % (proj.name))    
+    print(">> add_demo_project %s" % (proj.name))    
     
     # Save the new project in the DataStore.
     save_project_as_new(proj, user_id)
@@ -421,13 +421,15 @@ def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
         
     # Create a filename containing the project name followed by a .prj 
     # suffix.
-    file_name = '%s.prj' % proj.name
+    file_name = '%s.xlsx' % proj.name
         
     # Generate the full file name with path.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
     
     # Return the databook
     proj.create_databook(databook_path=full_file_name, **args)
+    
+    print(">> download_databook %s" % (full_file_name))
     
     # Return the new project UID in the return message.
     return full_file_name

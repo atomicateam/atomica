@@ -272,18 +272,19 @@ export default {
 
       // Have the server create a new project.
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
-      .then(response => {
-        // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries()
-
-        this.$notifications.notify({
-          message: 'New project "'+this.proj_name+'" created',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
-      })
+//      .then(response => {
+//        // Update the project summaries so the new project shows up on the list.
+//        this.updateProjectSummaries()
+//
+//        this.$notifications.notify({
+//          message: 'New project "'+this.
+// proj_name+'" created',
+//          icon: 'ti-check',
+//          type: 'success',
+//          verticalAlign: 'top',
+//          horizontalAlign: 'center',
+//        });
+//      })
     },
 
     uploadProjectFromFile() {
