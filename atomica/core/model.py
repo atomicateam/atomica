@@ -738,7 +738,7 @@ class Model(object):
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         # The following maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) Populations.
         # Marks them with a weight.
-        self.contacts = sc.dict()
+        self.contacts = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
