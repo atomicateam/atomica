@@ -100,6 +100,7 @@ Last update: 2018-05-29
               <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
               <button class="btn" @click="renameProject(projectSummary)">Rename</button>
               <button class="btn" @click="downloadProjectFile(projectSummary.project.id)">Download</button>
+              <button class="btn" @click="uploadDatabook(projectSummary.project.id)">Upload databook</button>
             </td>
           </tr>
         </tbody>
@@ -460,6 +461,28 @@ export default {
 
 	    // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
+    },
+
+    uploadDatabook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('uploadDatabook() called for ' + matchProject.project.name)
+
+      // Have the server copy the project, giving it a new name.
+      rpcservice.rpcUploadCall('upload_databook', [uid], {})
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateProjectSummaries()
+        })
+
+      this.$notifications.notify({
+        message: 'Data uploaded to project "'+matchProject.project.name+'"',
+        icon: 'ti-check',
+        type: 'success',
+        verticalAlign: 'top',
+        horizontalAlign: 'center',
+      });
     },
 
   // Confirmation alert

@@ -9,9 +9,6 @@ Last update: 2018jun04 by cliffk
 #
 
 import os
-import datetime
-import dateutil
-import dateutil.tz
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
@@ -35,10 +32,6 @@ register_RPC = sw.make_register_RPC(RPC_dict)
 # Other functions (mostly helpers for the RPCs)
 #
     
-def now_utc():
-    ''' Get the current time, in UTC time '''
-    now = datetime.datetime.now(dateutil.tz.tzutc())
-    return now
 
 def load_project_record(project_id, raise_exception=True):
     """
@@ -140,24 +133,7 @@ def save_project(proj):
     projSO = prj.ProjectSO(new_project, project_record.owner_uid)
     prj.proj_collection.update_object(projSO)
     
-def update_project_with_fn(project_id, update_project_fn):
-    """
-    Do an update of a hptool Project, given the UID and a function that 
-    does the actual Project updating.
-    """ 
-    
-    # Load the project.
-    proj = load_project(project_id)
-    
-    # Execute the passed-in function that modifies the project.
-    update_project_fn(proj)
-    
-    # Set the updating time to now.
-    proj.modified = now_utc()
-    
-    # Save the changed project.
-    save_project(proj) 
-    
+
 def save_project_as_new(proj, user_id):
     """
     Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
@@ -401,13 +377,14 @@ def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
     Create a new Optima Nutrition project.
     """
     
-    args = {"num_pops":num_pops, "data_start":data_start, "data_end":data_end}
+    args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     
     # Get a unique name for the project to be added.
     new_proj_name = get_unique_name(proj_name, other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
-    proj = au.Project(name=new_proj_name, )  
+    F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+    proj = au.Project(framework=F, name=new_proj_name)
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
@@ -435,6 +412,28 @@ def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
     return full_file_name
 
 
+@register_RPC(call_type='upload', validation_type='nonanonymous user')
+def upload_databook(databook_filename, project_id):
+    """
+    Upload a databook to a project.
+    """
+    
+    # Display the call information.
+    print(">> upload_databook '%s'" % databook_filename)
+    
+    proj = load_project(project_id, raise_exception=True)
+    
+    # Reset the project name to a new project name that is unique.
+    proj.load_databook(databook_path=databook_filename)
+    proj.modified = sc.today()
+    
+    # Save the new project in the DataStore.
+    save_project(proj)
+    
+    # Return the new project UID in the return message.
+    return { 'projectId': str(proj.uid) }
+
+
 @register_RPC(validation_type='nonanonymous user')
 def update_project_from_summary(project_summary):
     """
@@ -449,7 +448,7 @@ def update_project_from_summary(project_summary):
     proj.name = project_summary['project']['name']
     
     # Set the modified time to now.
-    proj.modified = now_utc()
+    proj.modified = sc.today()
     
     # Save the changed project to the DataStore.
     save_project(proj)
