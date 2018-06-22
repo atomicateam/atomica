@@ -102,7 +102,8 @@ Last update: 2018-05-29
       },
 
       sortedPars() {
-        var sortedParList =  this.applySorting(this.parList);
+//        var sortedParList = this.applySorting(this.parList);
+        var sortedParList = this.parList;
         console.log(sortedParList);
         return sortedParList;
       },
@@ -207,7 +208,7 @@ Last update: 2018-05-29
               type: 'success',
               verticalAlign: 'top',
               horizontalAlign: 'center',
-            }); 
+            });
         })
 
 
