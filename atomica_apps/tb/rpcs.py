@@ -522,25 +522,65 @@ def make_mpld3_graph_dict(fig):
     mpld3_dict = mpld3.fig_to_dict(fig)
     return mpld3_dict
 
-@register_RPC(validation_type='nonanonymous user')
-def get_default_scenario_plot():
-    ''' Plot the disease burden '''
+
+def supported_plots_func():
     
-    # Get the Project object.
-    proj = au.Project() # WARNING, just create new project
-    proj.default_scens(dorun=True)
-    result = proj.get_results('test1')
-    fig = None
-#    fig = tb.plot(result) # HARDCODED EXAMPLE
+    supported_plots = {
+            'Population size':'alive',
+            'Latent infections':'lt_inf',
+            'Active TB':'ac_inf',
+            'Active DS-TB':'ds_inf',
+            'Active MDR-TB':'mdr_inf',
+            'Active XDR-TB':'xdr_inf',
+            'New active DS-TB':{'New active DS-TB':['pd_div:flow','nd_div:flow']},
+            'New active MDR-TB':{'New active MDR-TB':['pm_div:flow','nm_div:flow']},
+            'New active XDR-TB':{'New active XDR-TB':['px_div:flow','nx_div:flow']},
+            'Smear negative active TB':'sn_inf',
+            'Smear positive active TB':'sp_inf',
+            'Latent diagnoses':{'Latent diagnoses':['le_treat:flow','ll_treat:flow']},
+            'New active TB diagnoses':{'Active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']},
+            'New active DS-TB diagnoses':{'Active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow']},
+            'New active MDR-TB diagnoses':{'Active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow']},
+            'New active XDR-TB diagnoses':{'Active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow']},
+            'Latent treatment':'ltt_inf',
+            'Active treatment':'num_treat',
+            'TB-related deaths':':ddis',
+            }
     
+    return supported_plots
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_supported_plots(only_keys=False):
+    
+    supported_plots = supported_plots_func()
+    
+    if only_keys:
+        return supported_plots.keys()
+    else:
+        return supported_plots
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_plots(project_id, plot_names=None):
+    
+    supported_plots = supported_plots_func() 
+    
+    if plot_names is None: plot_names = supported_plots.keys()
+
+    proj = load_project(project_id, raise_exception=True)
+    
+    plot_names = sc.promotetolist(plot_names)
+    result = proj.results[-1]
+
     figs = []
-    figs.append(fig)
-    
-    # Gather the list for all of the diseases.
     graphs = []
+    for plot_name in plot_names:
+        plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj)
+        figs += au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+    
     for fig in figs:
         graph_dict = make_mpld3_graph_dict(fig)
         graphs.append(graph_dict)
-    
-    # Return success -- WARNING, hard-coded
-    return {'graph1': graphs[0],}
+
+    return {'graphtemp':graphs[0]}
