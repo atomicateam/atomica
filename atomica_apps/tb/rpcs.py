@@ -566,7 +566,7 @@ def get_plots(project_id, plot_names=None):
     
     supported_plots = supported_plots_func() 
     
-    if plot_names is None: plot_names = supported_plots.keys()
+    if plot_names is None: plot_names = supported_plots.keys()[0]
 
     proj = load_project(project_id, raise_exception=True)
     
