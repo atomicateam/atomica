@@ -88,6 +88,7 @@ class Parameter(NamedItem):
         if tvec is None:
             raise AtomicaException("Cannot interpolate parameter '{0}' "
                                    "without providing a time vector.".format(self.name))
+        tvec = sc.promotetoarray(tvec)
         if not len(self.t[pop_name]) > 0:
             raise AtomicaException("There are no timepoint values for parameter '{0}', "
                                    "population '{1}'.".format(self.name, pop_name))
