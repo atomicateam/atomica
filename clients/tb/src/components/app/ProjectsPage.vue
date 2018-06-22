@@ -204,16 +204,6 @@ export default {
     else {
       // Load the project summaries of the current user.
       this.updateProjectSummaries()
-
-      // Initialize the countryList by picking out the (unique) country names.
-      // (First, a list is constructed pulling out the non-unique countries
-      // for each project, then this array is stuffed into a new Set (which
-      // will not duplicate array entries) and then the spread operator is
-      // used to pull the set items out into an array.)
-//      this.countryList = [...new Set(this.projectSummaries.map(theProj => theProj.country))]
-
-      // Initialize the selection of the demo project to the first element.
-//      this.selectedCountry = 'Select country...'
     }
   },
 
@@ -270,11 +260,10 @@ export default {
     },
 
     createNewProjectModal() {
-
+      // Open a model dialog for creating a new project
+      console.log('createNewProjectModal() called');
       this.$modal.show('create-project');
-
     },
-
 
 
     createNewProject() {
@@ -282,13 +271,13 @@ export default {
       this.$modal.hide('create-project')
 
       // Have the server create a new project.
-      rpcservice.rpcCall('create_new_project', [this.$store.state.currentUser.UID])
+      rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries()
 
         this.$notifications.notify({
-          message: 'New project created',
+          message: 'New project "'+this.proj_name+'" created',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',

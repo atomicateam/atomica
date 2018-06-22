@@ -396,15 +396,18 @@ def add_demo_project(user_id):
 
 
 @register_RPC(validation_type='nonanonymous user')
-def create_new_project(user_id):
+def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
     """
     Create a new Optima Nutrition project.
     """
+    
+    args = {"num_pops":num_pops, "data_start":data_start, "data_end":data_end}
+    
     # Get a unique name for the project to be added.
-    new_proj_name = get_unique_name('New project', other_names=None)
+    new_proj_name = get_unique_name(proj_name, other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
-    proj = au.Project(name=new_proj_name)  
+    proj = au.Project(name=new_proj_name, )  
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
@@ -413,8 +416,21 @@ def create_new_project(user_id):
     # Save the new project in the DataStore.
     save_project_as_new(proj, user_id)
     
+    # Use the downloads directory to put the file in.
+    dirname = fileio.downloads_dir.dir_path
+        
+    # Create a filename containing the project name followed by a .prj 
+    # suffix.
+    file_name = '%s.prj' % proj.name
+        
+    # Generate the full file name with path.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
+    
+    # Return the databook
+    proj.create_databook(databook_path=full_file_name, **args)
+    
     # Return the new project UID in the return message.
-    return { 'projectId': str(proj.uid) }
+    return full_file_name
 
 
 @register_RPC(validation_type='nonanonymous user')
