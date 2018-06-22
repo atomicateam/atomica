@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Atomica project-framework settings file.
-Contains metadata describing the construction of a model framework.
+Atomica structure settings file, in charge of defining the structure of both Framework and Data objects.
 The definitions are hard-coded, while interface semantics are drawn from a configuration file.
+
+Architecture explanation:
+Every application (e.g. epidemiological) corresponds to one Project object.
+Each Project needs to load in a Framework object that defines the system (i.e. compartment objects, etc.).
+This is imported from a framework file filled out by a modeller.
+Each Project needs to load in a corresponding Data object that fleshes out the system (i.e. compartment sizes, etc.).
+This is imported from a databook file filled out by a user; the databook is created once Project framework is loaded.
+Both are required for evolving a system and applying subsequent analyses.
+
+ProjectFramework and ProjectData are both
 """
 
 import sciris.core as sc
@@ -330,7 +339,7 @@ class BaseStructuralSettings(object):
                                                              option=format_variable_key, mute_warnings=True))
                     specs[format_variable_key] = value_overwrite
                 except ValueError:
-                    logger.warning("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
+                    logger.debug("Configuration file has an entry for '{0}' in section '{1}' that cannot be "
                                    "converted to a float. Using a default value.".format(format_variable_key,
                                                                                          config_section))
                 except Exception:
@@ -355,14 +364,14 @@ class BaseStructuralSettings(object):
                     get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                      option="default_amount"))
             except Exception:
-                logger.warning("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
+                logger.debug("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
                                "so these items will not be constructed in templates by default.".format(item_type))
             try:
                 descriptor = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                               option="descriptor")
                 cls.create_item_type_descriptor(item_type=item_type, descriptor=descriptor)
             except Exception:
-                logger.warning("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
+                logger.debug("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
                                "so the descriptor will be the key itself.".format(item_type))
 
             for attribute in cls.ITEM_TYPE_SPECS[item_type]["attributes"]:

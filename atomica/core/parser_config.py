@@ -25,11 +25,11 @@ def get_config_value(config, section, option, list_form=False, mute_warnings=Fal
     """
     if not config.has_section(section):
         if not mute_warnings:
-            logger.warning("Configuration file has no section with label '{0}'.".format(section))
+            logger.debug("Configuration file has no section with label '{0}'.".format(section))
         raise configparser.NoSectionError(section)
     if not config.has_option(section, option):
         if not mute_warnings:
-            logger.warning("Configuration file, section '{0}', has no option with label '{1}'.".format(section, option))
+            logger.debug("Configuration file, section '{0}', has no option with label '{1}'.".format(section, option))
         raise configparser.NoOptionError(section, option)
     if list_form:
         value = [item.strip() for item in config.get(section, option).strip().split(SS.CONFIG_LIST_SEPARATOR)]
