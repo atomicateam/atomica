@@ -734,10 +734,10 @@ class Model(object):
     def __init__(self, settings, framework, parset, progset=None, options=None):
 
         self.pops = list()  # List of population groups that this model subdivides into.
-        self.pop_ids = dict()  # Maps name of a population to its position index within populations list.
+        self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         # The following maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) Populations.
         # Marks them with a weight.
-        self.contacts = dict()
+        self.contacts = sc.odict()
         self.sim_settings = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
         self.programs_active = None  # True or False depending on whether Programs will be used or not

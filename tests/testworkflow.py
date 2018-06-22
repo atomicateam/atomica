@@ -6,19 +6,19 @@ import os
 import atomica.ui as au
 import sciris.core as sc
 
-test = "sir"
-# test = "tb"
+#test = "sir"
+test = "tb"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
 #"makeplots",
