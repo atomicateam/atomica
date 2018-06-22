@@ -949,7 +949,7 @@ class Model(object):
             # TODO: Any overwrites needed in progset.progs depending on progset_instructions
 
             # TODO: Update call to whatever the cache updating function actually is
-            self.progset.update_cache(self.t,self.dt,alloc)
+            # self.progset.update_cache(self.t,self.dt,alloc)
         else:
             self.programs_active = False
 
@@ -1157,13 +1157,14 @@ class Model(object):
         do_program_overwrite = self.programs_active and self.program_instructions['progs_start'] <= self.t[ti] <= self.program_instructions['progs_end']
         if do_program_overwrite:
             # Compute the compartment sizes
-            coverage = dict.fromkeys(self.program_cache_comps, 0.0)
+            num_covered = dict.fromkeys(self.program_cache_comps, 0.0)
             for k,comp_list in self.program_cache_comps.items():
                 for comp in comp_list:
-                    coverage[k] += comp.vals[ti]
+                    num_covered[k] += comp.vals[ti]
 
             # Compute the parameter values
-            prog_vals = self.progset.get_outcomes(coverage)
+            prop_covered = self.progset.get_prop_covered(year=self.t[ti], denominator=num_covered)
+            prog_vals = self.progset.get_outcomes(prop_covered)
 
         # TODO: Remember to involve program impact parameters that are not already marked as functions here.
         for par_name in (framework.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER]): # FS.PARAMETER
