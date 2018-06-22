@@ -83,13 +83,14 @@ class TimeDependentValuesEntry(TableTemplate):
     Template table requesting time-dependent values, with each instantiation iterating over an item type.
     Argument 'value_attribute' specifies which attribute within item specs should contain the parsed values.
     If argument 'iterate_over_links' is True, table rows are actually for links between items of the iterated type.
-    Self connections are not included in this table.
+    Self connections are not included by default, but can be turned on by an optional argument.
     """
 
-    def __init__(self, iterated_type, value_attribute, iterate_over_links=False, **kwargs):
+    def __init__(self, iterated_type, value_attribute, iterate_over_links=False, self_connections=False, **kwargs):
         super(TimeDependentValuesEntry, self).__init__(**kwargs)
         self.iterated_type = iterated_type
         self.iterate_over_links = iterate_over_links
+        self.self_connections = self_connections
         self.value_attribute = value_attribute
 
 
@@ -99,6 +100,7 @@ class ConnectionMatrix(TableTemplate):
     If no target item type is specified, the connections are between the same type of item.
     Connections are directional from row headers, e.g. zeroth column, to column headers, e.g. zeroth row.
     Connections are always depicted as a paired tuple of two strings, i.e. source item name and target item name.
+    Self-connections are disabled by default but can be turned on by an optional argument.
 
     If the table is not specified as a template, i.e. template_item_type is passed in explicitly or implicity as None...
     The cell value denoting a connection becomes the 'connection)name' of the item this connection is attached to.
@@ -139,7 +141,7 @@ class ConnectionMatrix(TableTemplate):
     """
 
     def __init__(self, source_item_type, storage_item_type, storage_attribute, target_item_type=None,
-                 template_item_type=None):
+                 template_item_type=None, self_connections=False):
         super(ConnectionMatrix, self).__init__(template_item_type=template_item_type)
         self.source_item_type = source_item_type
         if target_item_type is None:
@@ -148,6 +150,7 @@ class ConnectionMatrix(TableTemplate):
         if template_item_type is not None:
             self.storage_item_type = template_item_type
         self.storage_attribute = storage_attribute
+        self.self_connections = self_connections
 
 
 class ContentType(object):
@@ -234,6 +237,7 @@ class BaseStructuralSettings(object):
     KEY_PARAMETER = "par"
     KEY_POPULATION = "pop"
     KEY_TRANSFER = "trans"
+    KEY_INTERACTION = "interpop"
     KEY_PROGRAM = "prog"
     KEY_DATAPAGE = "datapage"
 
@@ -377,14 +381,15 @@ class BaseStructuralSettings(object):
                                      option="default_amount"))
             except Exception:
                 logger.debug("Configuration file cannot find a valid 'default_amount' for item type '{0}', "
-                               "so these items will not be constructed in templates by default.".format(item_type))
+                             "so these items will not be constructed in templates by default.".format(item_type))
+
             try:
                 descriptor = get_config_value(config=cp, section=SS.DEFAULT_SPACE_NAME.join(["itemtype", item_type]),
                                               option="descriptor")
                 cls.create_item_type_descriptor(item_type=item_type, descriptor=descriptor)
             except Exception:
                 logger.debug("Configuration file cannot find a valid 'descriptor' for item type '{0}', "
-                               "so the descriptor will be the key itself.".format(item_type))
+                             "so the descriptor will be the key itself.".format(item_type))
 
             for attribute in cls.ITEM_TYPE_SPECS[item_type]["attributes"]:
                 if "ref_item_type" not in cls.ITEM_TYPE_SPECS[item_type]["attributes"][attribute]:
@@ -435,13 +440,13 @@ class FrameworkSettings(BaseStructuralSettings):
     NAME = SS.STRUCTURE_KEY_FRAMEWORK
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_FRAMEWORK_FILENAME
 
-    ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION,
-                  BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
-                  BSS.KEY_PROGRAM_TYPE, BSS.KEY_PROGRAM_ATTRIBUTE, BSS.KEY_DATAPAGE]
+    # TODO: Decide whether to reintroduce program types as a page and an item, with subitem program attributes.
+    ITEM_TYPES = [BSS.KEY_POPULATION_ATTRIBUTE, BSS.KEY_POPULATION_OPTION, BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC,
+                  BSS.KEY_PARAMETER, BSS.KEY_INTERACTION, BSS.KEY_DATAPAGE]
 
     # TODO: Reintroduce BSS.KEY_POPULATION_ATTRIBUTE here when ready to develop population attribute functionality.
     PAGE_KEYS = [BSS.KEY_DATAPAGE, BSS.KEY_COMPARTMENT, BSS.KEY_TRANSITION,
-                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER, BSS.KEY_PROGRAM_TYPE]
+                 BSS.KEY_CHARACTERISTIC, BSS.KEY_INTERACTION, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
@@ -461,6 +466,7 @@ class FrameworkSettings(BaseStructuralSettings):
                     table = DetailColumns(item_type)
                 cls.PAGE_SPECS[item_type]["tables"].append(table)
         cls.PAGE_SPECS[cls.KEY_DATAPAGE]["can_skip"] = True
+        cls.PAGE_SPECS[cls.KEY_INTERACTION]["can_skip"] = True
         # Ensure that transition matrix page is read after parameter page so that link names are already defined.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["read_order"] = 1  # All other pages prioritised with read order value 0.
         cls.PAGE_SPECS[cls.KEY_TRANSITION]["tables"].append(ConnectionMatrix(source_item_type=cls.KEY_COMPARTMENT,
@@ -481,23 +487,30 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_CHARACTERISTIC], ["default_value"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["format"],
                                         content_type=QuantityFormatType())
-        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["default_value", cls.TERM_FUNCTION, "dependencies"])
+
+        cls.create_item_type_attributes([cls.KEY_PARAMETER, cls.KEY_INTERACTION], ["default_value"],
+                                        content_type=ContentType(enforce_type=float))
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["min", "max"],
+                                        content_type=ContentType(enforce_type=float))
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
                                         content_type=ContentType(is_list=True))
+
         cls.create_item_type_attributes([cls.KEY_DATAPAGE],
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["tables"], content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["can_skip"], content_type=SwitchType())
-        # TODO: ELABORATE DATA PAGE.
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
                                         [cls.KEY_DATAPAGE],
                                         content_type=IDRefType(attribute="name", item_types=[cls.KEY_DATAPAGE]))
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
                                         ["datapage_order"],
                                         content_type=ContentType(enforce_type=int))
+        cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC],
+                                        ["cascade_stage"],
+                                        content_type=ContentType(enforce_type=int))
         # Subitem type association is done after item types and attributes are defined, due to cross-referencing.
         cls.create_item_type_subitem_types(cls.KEY_POPULATION_ATTRIBUTE, [cls.KEY_POPULATION_OPTION])
-        cls.create_item_type_subitem_types(cls.KEY_PROGRAM_TYPE, [cls.KEY_PROGRAM_ATTRIBUTE])
 
 
 @create_specs
@@ -507,28 +520,31 @@ class DataSettings(BaseStructuralSettings):
     CONFIG_PATH = atomica_path(subdir=SS.CODEBASE_DIRNAME) + SS.CONFIG_DATABOOK_FILENAME
 
     ITEM_TYPES = [BSS.KEY_COMPARTMENT, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER,
-                  BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_PROGRAM]
+                  BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_INTERACTION]
 
-    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_TRANSFER_DATA,
-                 BSS.KEY_PROGRAM, BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
+    PAGE_KEYS = [BSS.KEY_POPULATION, BSS.KEY_TRANSFER, BSS.KEY_TRANSFER_DATA, BSS.KEY_INTERACTION,
+                 BSS.KEY_CHARACTERISTIC, BSS.KEY_PARAMETER]
 
     @classmethod
     def elaborate_structure(cls):
         cls.ITEM_TYPE_SPECS[cls.KEY_POPULATION]["instruction_allowed"] = True
         cls.ITEM_TYPE_SPECS[cls.KEY_TRANSFER]["instruction_allowed"] = True
-        cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
+        # TODO: As above, delete the following comments if progbook is locked in.
+        # cls.ITEM_TYPE_SPECS[cls.KEY_PROGRAM]["instruction_allowed"] = True
 
-        # TODO: Determine how programs in the databook work.
         # cls.create_item_type_attributes(cls.KEY_PROGRAM, ["target_pops"],
         #                                 IDRefType(attribute = "name", item_types = [cls.KEY_POPULATION]))
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT], [cls.TERM_DATA], TimeSeriesType())
         cls.create_item_type_attributes([cls.KEY_CHARACTERISTIC], [cls.TERM_DATA], TimeSeriesType())
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_DATA], TimeSeriesType())
-        cls.create_item_type_attributes([cls.KEY_TRANSFER], [cls.TERM_DATA], TimeSeriesType())
-        cls.create_item_type_attributes([cls.KEY_TRANSFER], [cls.KEY_POPULATION_LINKS], ContentType(is_list=True))
+        cls.create_item_type_attributes([cls.KEY_TRANSFER, cls.KEY_INTERACTION], [cls.TERM_DATA], TimeSeriesType())
+        cls.create_item_type_attributes([cls.KEY_TRANSFER, cls.KEY_INTERACTION], [cls.KEY_POPULATION_LINKS],
+                                        ContentType(is_list=True))
 
         cls.PAGE_SPECS[cls.KEY_POPULATION]["tables"].append(DetailColumns(item_type=cls.KEY_POPULATION))
-        cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
+
+        # TODO: As above, delete the following comment if progbook is locked in.
+        # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(DetailColumns(item_type=cls.KEY_PROGRAM))
         cls.PAGE_SPECS[cls.KEY_TRANSFER]["tables"].append(DetailColumns(item_type=cls.KEY_TRANSFER,
                                                                         attribute_list=["label"],
                                                                         exclude_not_include=False))
@@ -541,9 +557,24 @@ class DataSettings(BaseStructuralSettings):
                                                         iterated_type=cls.KEY_POPULATION,
                                                         iterate_over_links=True,
                                                         value_attribute=cls.TERM_DATA))
+
+        interaction_tables = cls.PAGE_SPECS[cls.KEY_INTERACTION]["tables"]
+        interaction_tables.append(ConnectionMatrix(template_item_type=cls.KEY_INTERACTION,
+                                                   source_item_type=cls.KEY_POPULATION,
+                                                   storage_item_type=None,
+                                                   storage_attribute=cls.KEY_POPULATION_LINKS,
+                                                   self_connections=True))
+        interaction_tables.append(TimeDependentValuesEntry(template_item_type=cls.KEY_INTERACTION,
+                                                           iterated_type=cls.KEY_POPULATION,
+                                                           iterate_over_links=True,
+                                                           value_attribute=cls.TERM_DATA,
+                                                           self_connections=True))
+
         cls.PAGE_SPECS[cls.KEY_TRANSFER]["can_skip"] = True
         cls.PAGE_SPECS[cls.KEY_TRANSFER_DATA]["can_skip"] = True
-        # TODO: Enable other connection matrices.
+        # cls.PAGE_SPECS[cls.KEY_INTERACTION]["can_skip"] = True
+
+        # TODO: As above, delete the following comment if progbook is locked in.
         # cls.PAGE_SPECS[cls.KEY_PROGRAM]["tables"].append(ConnectionMatrix(source_item_type = cls.KEY_PROGRAM,
         #                                                                  target_item_type = cls.KEY_POPULATION,
         #                                                                  storage_attribute = "target_pops"))

@@ -17,32 +17,34 @@ import atomica.ui as au
 import sciris.core as sc
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
-logger.setLevel('DEBUG')
+# logger.setLevel('DEBUG')
 
 test = "sir"
-# test = "tb"
+test = "tb"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-# "runsim_programs",
-#"makeplots",
-#"export",
-#"listspecs",
-#"manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-#"saveproject",
-#"loadproject",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeprogbook",
+"loadprogbook",
+"makeparset",
+"runsim",
+# "makeprogramspreadsheet",
+# "loadprogramspreadsheet",
+"makeplots",
+# "export",
+# "listspecs",
+# "manualcalibrate",
+# "autocalibrate",
+# "parameterscenario",
+# "runsimprogs",
+# "saveproject",
+# "loadproject"
 ]
 
 # Define plotting variables in case plots are generated
@@ -84,7 +86,7 @@ if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
-    elif test == "tb": args = {"num_pops":12, "num_trans":5, "num_progs":31, "data_end":2018}
+    elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -99,7 +101,7 @@ if "makeparset" in torun:
     P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    P.update_settings(sim_start=2000.0, sim_end=2035, sim_dt=0.25)
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
@@ -143,7 +145,6 @@ if "makeplots" in torun:
     au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
-        # TODO: Decide how to deal with aggregating parameters that are not transition-related, i.e. flows.
         # Plot bars for deaths, aggregated by strain, stacked by pop
         d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         au.plot_bars(d, outer="results", stack_pops=[plot_pop])
@@ -156,11 +157,14 @@ if "makeplots" in torun:
         # Plot death flow rate decomposition over all time
         d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
+
+        d = au.PlotData(P.results["default"], pops='0-4')
+        au.plot_series(d, plot_type='stacked')
+
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
         d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
-
 
     # Plot aggregate flows
     d = au.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
@@ -186,9 +190,6 @@ if "listspecs" in torun:
     # Print list of populations.
     print("Populations...")
     print(P.data.specs[DS.KEY_POPULATION].keys())
-    # Print list of programs.
-    print("Programs...")
-    print(P.data.specs[DS.KEY_PROGRAM].keys())
     print()
     
 if "manualcalibrate" in torun:
@@ -252,9 +253,18 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+if "runsimprogs" in torun:
+    from atomica.core.programs import ProgramInstructions
+
+    # instructions = ProgramInstructions(progset=P.progsets["default"])
+    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
 
 if "loadproject" in torun:
     P = au.Project.load(tmpdir+test+".prj")
+
+
+

@@ -3,6 +3,16 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.7.0 (2018-06-13): Interactions
+
+Features
+- Contact matrix for weighting force of infection term established.
+- Optional tag enabled to mark compartments and characteristics as cascade stages for plotting.
+
+Edits
+- New organizational structure for folders, with 'core' for the codebase.
+  The 'apps' folder stores API code for TB and other instantiations.
+
 ## 0.6.2 (2018-06-04): Transfers
 
 Features
