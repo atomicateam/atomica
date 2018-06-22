@@ -630,6 +630,9 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
 
 @register_RPC(validation_type='nonanonymous user')    
 def run_default_scenario(project_id):
+    
+    import pylab as pl
+    
     print('Running default scenario...')
     proj = load_project(project_id, raise_exception=True)
     
@@ -662,6 +665,7 @@ def run_default_scenario(project_id):
     graphs = []
     d = au.PlotData([proj.results["scen1"],proj.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     figs += au.plot_series(d, axis="results")
+    pl.gca().set_facecolor('none')
     
     for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
