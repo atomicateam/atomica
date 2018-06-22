@@ -5,7 +5,7 @@ Contains important functions that are used throughout Atomica.
 Examples include logging, type-checking, etc.
 """
 
-import logging.config
+import logging
 import os
 import datetime
 import inspect
@@ -24,12 +24,9 @@ class SystemSettings(object):
     """ Stores all 'system' variables used by the Atomica module. """
 
     CODEBASE_DIRNAME = ["atomica", "core"]
-    CONFIG_LOGGER_FILENAME = "logging.ini"
     CONFIG_FRAMEWORK_FILENAME = "format_framework.ini"
     CONFIG_DATABOOK_FILENAME = "format_databook.ini"
     CONFIG_LIST_SEPARATOR = ","
-
-    LOGGER_DEBUG_OUTPUT_PATH = "./previous_session.log" # None
 
     STRUCTURE_KEY_DATA = "databook"
     STRUCTURE_KEY_FRAMEWORK = "framework_file"
@@ -68,13 +65,8 @@ def atomica_path(subdir=None, trailingsep=True):
         path = os.path.join(*tojoin)  # For example: ['/home/atomica', 'tests', '']
     return path
 
-
 # Code for setting up a logger.
-if SystemSettings.LOGGER_DEBUG_OUTPUT_PATH is not None:
-    logging.config.fileConfig(atomica_path(subdir=SystemSettings.CODEBASE_DIRNAME) + SystemSettings.CONFIG_LOGGER_FILENAME,
-                              defaults={"log_filename": SystemSettings.LOGGER_DEBUG_OUTPUT_PATH})
-logger = logging.getLogger("atomica")
-
+logger = logging.getLogger(__name__)
 
 # Code for exceptions specific to Atomica
 

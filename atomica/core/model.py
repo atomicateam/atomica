@@ -728,25 +728,30 @@ class Population(object):
 
 
 # Model class
+
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
-    def __init__(self, settings, framework, parset, progset=None, options=None):
+    def __init__(self, settings, framework, parset, progset=None, instructions=None):
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         # The following maps interactions 'from' (i.e. a->b for [a][b]) and 'into' (i.e. a<-b for [a][b]) Populations.
         # Marks them with a weight.
-        self.contacts = sc.odict()
-        self.sim_settings = sc.odict()
+        self.contacts = sc.dict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
+
         self.programs_active = None  # True or False depending on whether Programs will be used or not
-        self.pset = None  # Instance of ModelProgramSet
+        self.progset = dcp(progset)
+        self.program_instructions = instructions
+        self.program_cache_comps = None # Dict with {prog_name:[comps reached]}
+        self.program_cache_pars = None # Dict with program_pars_reached[par_name][pop]=par to overwrite parameter values
+
         self.t = None
         self.dt = None
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
-        self.build(settings, framework, parset, progset, options)
+        self.build(settings, framework, parset)
 
     def unlink(self):
         # Break cycles when deepcopying or pickling by swapping them for IDs
@@ -758,9 +763,10 @@ class Model(object):
 
         for pop in self.pops:
             pop.unlink()
-        if self.pset is not None:
-            self.pset.unlink()
+
         self.vars_by_pop = None
+        self.program_cache_comps = None
+        self.program_cache_pars = None
 
     def relink(self):
         # Need to enumerate objects at Model level because transitions link across pops
@@ -779,9 +785,25 @@ class Model(object):
         if self.vars_by_pop is None:
             self.set_vars_by_pop()
 
-        if self.pset is not None:
-            self.pset.relink(objs)
-            raise NotImplemented  # ModelProgramSet should have an internal flag similar to Population
+        if self.progset and self.program_instructions:
+            self.set_program_cache()
+
+    def set_program_cache(self):
+        self.program_cache_comps = {}
+        self.program_cache_pars = {}
+
+        for prog in self.progset.programs.values():
+            self.program_cache_comps[prog.short] = []
+
+            for pop_name in prog.target_pops:
+                for comp_name in prog.target_comps:
+                    self.program_cache_comps[prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
+
+        for target_par in prog.target_pars:
+            if target_par['param'] not in self.program_cache_pars:
+                self.program_cache_pars[target_par['param']] = {}
+
+            self.program_cache_pars[target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
 
     def set_vars_by_pop(self):
         self.vars_by_pop = defaultdict(list)
@@ -804,18 +826,11 @@ class Model(object):
         pop_index = self.pop_ids[pop_name]
         return self.pops[pop_index]
 
-    def build(self, settings, framework, parset, progset=None, progset_instructions=None):
+    def build(self, settings, framework, parset):
         """ Build the full model. """
-
-        if progset_instructions is None:
-            progset_instructions = dict()
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
-
-        # # Program impact pars that are not functions of other parameters and thus already marked for dynamic updating.
-        # # This is only non-empty if a progset is being used in the model.
-        # self.sim_settings['impact_pars_not_func'] = []
 
         for k, pop_name in enumerate(parset.pop_names):
             self.pops.append(Population(framework=framework, name=pop_name))
@@ -887,52 +902,23 @@ class Model(object):
         # Now that all object have been created, update vars_by_pop() accordingly
         self.set_vars_by_pop()
 
-        # Finally, prepare ModelProgramSet helper if programs are going to be used
-        if 'progs_start' in progset_instructions:
-            if progset is not None:
-                self.programs_active = True
-                self.sim_settings['progs_start'] = progset_instructions['progs_start']
+        # Finally, prepare programs
+        if self.progset and self.program_instructions:
+            self.programs_active = True
 
-                if 'progs_end' in progset_instructions:
-                    self.sim_settings['progs_end'] = progset_instructions['progs_end']
-                else:
-                    self.sim_settings['progs_end'] = np.inf  # Neverending programs
-                if 'init_alloc' in progset_instructions:
-                    self.sim_settings['init_alloc'] = progset_instructions['init_alloc']
-                else:
-                    self.sim_settings['init_alloc'] = {}
-                if 'constraints' in progset_instructions:
-                    self.sim_settings['constraints'] = progset_instructions['constraints']
-                else:
-                    self.sim_settings['constraints'] = None
-                if 'alloc_is_coverage' in progset_instructions:
-                    self.sim_settings['alloc_is_coverage'] = progset_instructions['alloc_is_coverage']
-                else:
-                    self.sim_settings['alloc_is_coverage'] = False
-                if 'saturate_with_default_budgets' in progset_instructions:
-                    self.sim_settings['saturate_with_default_budgets'] = progset_instructions[
-                        'saturate_with_default_budgets']
-                for impact_name in progset.impacts:
-                    if impact_name not in settings.par_funcs:
-                        self.sim_settings['impact_pars_not_func'].append(impact_name)
+            self.set_program_cache()
 
-                # self.pset = ModelProgramSet(progset,self.pops) # Make a ModelProgramSet wrapper
-                # self.pset.load_constraints(self.sim_settings['constraints'])
-                # alloc = self.pset.get_alloc(self.t,self.dt,self.sim_settings)[0]
-                # self.pset.update_cache(alloc,self.t,self.dt) # Perform precomputations
+            # TODO: Any extra processing of the alloc
+            # alloc = self.progset.get_alloc(self.t, self.dt, self.progset_instructions)
+            alloc = self.progset_instructions['init_alloc']
 
-            else:
-                raise NotAllowedError("A model run was initiated with instructions to activate programs, but no program set was passed to the model.")
+            # TODO: Any overwrites needed in progset.progs depending on progset_instructions
+
+            # TODO: Update call to whatever the cache updating function actually is
+            self.progset.update_cache(self.t,self.dt,alloc)
+
         else:
             self.programs_active = False
-
-        # TODO: Check if necessary.
-        # set up sim_settings for later use wrt population tags
-        for tag in ["is_source", "is_sink", "is_junction"]:
-            self.sim_settings[tag] = []
-            for node_name in framework.specs[FS.KEY_COMPARTMENT]:
-                if framework.get_spec_value(node_name, tag):
-                    self.sim_settings[tag].append(node_name)
 
     def process(self, framework):
         """ Run the full model. """
@@ -1135,13 +1121,19 @@ class Model(object):
         # Looping through populations must be internal.
         # This allows all values to be calculated before special inter-population rules are applied.
         # We resolve one parameter at a time, in dependency order
-        do_program_overwrite = self.programs_active and \
-                               self.sim_settings['progs_start'] <= self.t[ti] <= self.sim_settings['progs_end']
+        do_program_overwrite = self.programs_active and self.program_instructions['progs_start'] <= self.t[ti] <= self.program_instructions['progs_end']
         if do_program_overwrite:
-            prog_vals = self.pset.compute_pars(ti)[0]
+            # Compute the compartment sizes
+            coverage = dict.fromkeys(self.program_cache_comps, 0.0)
+            for k,comp_list in self.program_cache_comps.items():
+                for comp in comp_list:
+                    coverage[k] += comp.vals[ti]
+
+            # Compute the parameter values
+            prog_vals = self.progset.get_outcomes(coverage)
 
         # TODO: Remember to involve program impact parameters that are not already marked as functions here.
-        for par_name in (framework.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER]):
+        for par_name in (framework.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER]): # FS.PARAMETER
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self.vars_by_pop[par_name]
@@ -1154,8 +1146,8 @@ class Model(object):
             # Then overwrite with program values
             if do_program_overwrite:
                 for par in pars:
-                    if par.id in prog_vals:
-                        par.vals[ti] = prog_vals[par.id]
+                    if par.name in prog_vals and par.pop.name in prog_vals[par.name]:
+                        par.vals[ti] = prog_vals[par.name][par.pop.name]
 
             # # Handle parameters tagged with special rules. Overwrite vals if necessary.
             # if do_special and 'rules' in settings.linkpar_specs[par_name]:
