@@ -64,27 +64,34 @@ class ProgramSet(NamedItem):
         # Read in the information for programs
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
-            spend_data = {k: progdata[pkey][k] for k in ('spend', 'basespend')}
-            spend_data['year'] = progdata['years']
             capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
                         target_pops =[val for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[val for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
                         capacity=capcacity,
-                        spend_data=spend_data
                         )
             programs.append(p)
+
         self.add_programs(progs=programs)
-        
-        # Update the unit costs (done separately as by year)
+
         for np in range(nprogs):
             pkey = progdata['progs']['short'][np]
             for yrno,year in enumerate(progdata['years']):
+
+                spend = progdata[pkey]['spend'][yrno]
+                base_spend = progdata[pkey]['basespend'][yrno]
+
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
                     self.programs[np].update(unit_cost=sanitize(unit_cost), year=year)
         
+                if not isnan(spend):
+                    self.programs[np].add_spend(spend=spend, year=year)
+                if not isnan(base_spend):
+                    self.programs[np].add_spend(spend=base_spend, year=year, spend_type='basespend')
+        
+
         # Read in the information for covout functions and update the target pars
         prognames = progdata['progs']['short']
         prog_effects = odict()
@@ -461,7 +468,7 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self,short=None, name=None, sdata=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
@@ -471,11 +478,12 @@ class Program(NamedItem):
         self.target_pops        = None # Populations targeted by the program
         self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
+        self.base_spend_data    = None # Latest or estimated expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.update(short=short, name=name, sdata=sdata, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
@@ -491,7 +499,7 @@ class Program(NamedItem):
     
 
 
-    def update(self, short=None, name=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None):
+    def update(self, short=None, name=None, sdata=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
@@ -581,26 +589,39 @@ class Program(NamedItem):
             return None
 
         
-        def set_spend(spend_data=None, year=None):
+        def set_spend(sdata=None, year=None, spend_type='spend'):
             ''' Handle the spend data'''
-            data_keys = ['year', 'spend', 'basespend']
-            if self.spend_data is None: self.spend_data = dataframe(cols=data_keys) # Create dataframe
+            data_keys = ['year', spend_type]
+
+            # Validate inputs
+            if spend_type=='spend': attr_to_set = 'spend_data'
+            elif spend_type=='basespend': attr_to_set = 'base_spend_data'
+            else:
+                errormsg = 'Unknown spend type %s' % spend_type
+                raise AtomicaException(errormsg)
+            
+            if spend_type=='basespend': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+            if self.__getattribute__(attr_to_set) is None:
+                    self.__setattr__(attr_to_set,dataframe(cols=data_keys)) # Create dataframe
+
             if year is None: year = 2018. # TEMPORARY
             
-            if isinstance(spend_data, dataframe): 
-                self.spend_data = spend_data # Right format already: use directly
-            elif isinstance(spend_data, dict):
-                spend_data = {key:promotetolist(spend_data.get(key)) for key in data_keys} # Get full row
-                if spend_data['year'] is not None:
-                    for n,year in enumerate(spend_data['year']):
-                        current_data = self.spend_data.findrow(year,asdict=True) # Get current row as a dictionary
+            # Consider different input possibilities
+            if isinstance(sdata, dataframe): 
+                self.__setattr__(attr_to_set,sdata) # Right format already: use directly
+            elif isinstance(sdata, dict):
+                sdata = {key:promotetolist(sdata.get(key)) for key in data_keys} # Get full row
+                if sdata['year'] is not None:
+                    for n,year in enumerate(sdata['year']):
+                        current_data = self.__getattribute__(attr_to_set).findrow(year,asdict=True) # Get current row as a dictionary
                         if current_data is not None:
-                            for key in spend_data.keys():
-                                if spend_data[key][n] is None: spend_data[key][n] = current_data[key] # Replace with old data if new data is None
-                        these_data = [spend_data['year'][n], spend_data['spend'][n], spend_data['basespend'][n]] # Get full row - WARNING, FRAGILE TO ORDER!
-                        self.spend_data.addrow(these_data) # Add new data
-            elif isinstance(spend_data, list): # Assume it's a list of dicts
-                for datum in spend_data:
+                            for key in sdata.keys():
+                                if sdata[key][n] is None: sdata[key][n] = current_data[key] # Replace with old data if new data is None
+                        these_data = [sdata['year'][n], sdata[spend_type][n]] # Get full row - WARNING, FRAGILE TO ORDER!
+                        if attr_to_set == 'spend_data': self.spend_data.addrow(these_data) # Add new data
+                        elif attr_to_set == 'base_spend_data': self.base_spend_data.addrow(these_data) # Add new data
+            elif isinstance(sdata, list): # Assume it's a list of dicts
+                for datum in sdata:
                     if isinstance(datum, dict):
                         set_spend(datum) # It's a dict: iterate recursively
                     else:
@@ -611,7 +632,7 @@ class Program(NamedItem):
                 raise AtomicaException(errormsg)
 
             return None
-        
+            
         # Actually set everything
         if short        is not None: self.short          = short # short name
         if name         is not None: self.name           = name # full name
@@ -621,7 +642,10 @@ class Program(NamedItem):
 
         if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
         if unit_cost   is not None: set_unit_cost(unit_cost, year) # unit cost(s)
-        if spend_data  is not None: set_spend(spend_data, year) # spend and coverage data
+        if spend_data  is not None: set_spend(sdata=spend_data) # spend and coverage data
+        if base_spend_data  is not None:
+            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+            set_spend(sdata=base_spend_data,spend_type='basespend') # spend and coverage data
         
         # Finally, check everything
         if self.short is None: # self.short must exist
@@ -636,12 +660,26 @@ class Program(NamedItem):
         return None
     
     
-    def add_data(self, spend_data=None, year=None, spend=None, base_spend=None):
+    def add_spend(self, spend_data=None, base_spend_data=None, year=None, spend=None, spend_type='spend'):
         ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
-        if spend_data is None:
-            spend_data = {'year':float(year), 'spend':spend, 'basespend':base_spend}
-        self.update(spend_data=spend_data)
+        sdata = spend_data if spend_type=='spend' else base_spend_data
+        if sdata is None:
+            sdata = {'year':float(year), spend_type:spend}
+            self.update(spend_data=sdata, spend_type=spend_type)
+
+#        if spend_type=='basespend': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+#        if base_spend_data is None:
+#            spend_data = {'year':float(year), 'basespend':spend}
+#        self.update(base_spend_data=base_spend_data, spend_type=spend_type)
         return None
+        
+        
+#    def add_base_spend(self, base_spend_data=None, year=None, base_spend=None):
+#        ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
+#        if base_spend_data is None:
+#            base_spend_data = {'year':float(year), 'basespend':base_spend}
+#        self.update(base_spend_data=base_spend_data, spend_type='base_spend')
+#        return None
         
         
     def add_pars(self, unit_cost=None, capacity=None, year=None):
@@ -655,15 +693,19 @@ class Program(NamedItem):
     
     def get_spend(self, year=None, total=False, die=False):
         ''' Convenience function for getting spending data'''
+        spend = []
         try:
             if year is not None:
-                thisdata = self.spend_data.findrow(year, closest=True, asdict=True) # Get data
-                spend = thisdata['spend']
-                if spend is None: spend = 0 # If not specified, assume 0
-                if total: 
-                    base_spend = thisdata['basespend'] # Add baseline spending
-                    if base_spend is None: base_spend = 0 # Likewise assume 0
-                    spend += base_spend
+                year = sc.promotetoarray(year)
+                for yr in year:
+                    this_data = self.spend_data.findrow(yr, closest=True, asdict=True) # Get data
+                    this_spend = this_data['spend']
+                    if this_spend is None: spend = 0 # If not specified, assume 0
+                    if total: 
+                        base_spend = this_data['basespend'] # Add baseline spending
+                        if base_spend is None: base_spend = 0 # Likewise assume 0
+                        this_spend += base_spend
+                    spend.append(this_spend)
             else: # Just get the most recent non-nan number
                 spend = self.spend_data['spend'][~isnan(array([x for x in self.spend_data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
             return spend
@@ -678,9 +720,12 @@ class Program(NamedItem):
     def get_unit_cost(self, year=None, die=False):
         ''' Convenience function for getting the current unit cost '''
         if year is None: year = 2018. # TEMPORARY
+        unit_cost = []
+        year = sc.promotetoarray(year)
         try:
-            this_data = self.unit_cost.findrow(year, closest=True, asdict=True) # Get data
-            unit_cost = this_data['best']
+            for yr in year:
+                this_data = self.unit_cost.findrow(yr, closest=True, asdict=True) # Get data
+                unit_cost.append(this_data['best'])
             return unit_cost
         except Exception as E:
             if die:
@@ -771,7 +816,7 @@ class Program(NamedItem):
             
         # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
         # Example: year = [2015,2016], denominator = [30000,40000]
-        num_covered = self.get_num_covered(unit_cost=None, capacity=None, budget=None, year=None, sample='best')
+        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
         prop_covered = maximum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
         return prop_covered
 
@@ -784,9 +829,9 @@ class Program(NamedItem):
             as_proportion = False
             
         if as_proportion:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=None, budget=None, sample='best')
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
         else:
-            return self.get_num_covered(year=None, unit_cost=None, capacity=None, budget=None, sample='best')
+            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
 
 
 #--------------------------------------------------------------------
