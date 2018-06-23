@@ -12,3 +12,4 @@ from .core.calibration import * # Depends on ???
 from .core.scenarios import * # Depends on ???
 from .core.defaults import * # Depends on ???
 from .core.plotting import * # Depends on...?
+from .core.programs import ProgramInstructions, ProgramSet # Depends on...?

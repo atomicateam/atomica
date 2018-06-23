@@ -771,9 +771,10 @@ class Model(object):
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = dcp(progset)
-        self.program_instructions = instructions
+        self.program_instructions = instructions # program instructions
         self.program_cache_comps = None # Dict with {prog_name:[comps reached]}
         self.program_cache_pars = None # Dict with program_pars_reached[par_name][pop]=par to overwrite parameter values
+        self.program_cache_coverage = None # Cache coverage numerator
 
         self.t = None
         self.dt = None
@@ -940,16 +941,15 @@ class Model(object):
         if self.progset and self.program_instructions:
             self.programs_active = True
 
-            self.set_program_cache()
+            self.set_program_cache() # Cache the parameters and characteristics used for overwriting
 
             # TODO: Any extra processing of the alloc
-            # alloc = self.progset.get_alloc(self.t, self.dt, self.progset_instructions)
-            alloc = self.progset_instructions['init_alloc']
+            alloc = self.progset.get_alloc(self.program_instructions,self.t)
 
             # TODO: Any overwrites needed in progset.progs depending on progset_instructions
 
-            # TODO: Update call to whatever the cache updating function actually is
-            self.progset.update_cache(self.t,self.dt,alloc)
+            self.program_cache_coverage = self.progset.get_num_covered(year=self.t,alloc=alloc)
+
         else:
             self.programs_active = False
 
@@ -1154,19 +1154,22 @@ class Model(object):
         # Looping through populations must be internal.
         # This allows all values to be calculated before special inter-population rules are applied.
         # We resolve one parameter at a time, in dependency order
-        do_program_overwrite = self.programs_active and self.program_instructions['progs_start'] <= self.t[ti] <= self.program_instructions['progs_end']
-        if do_program_overwrite:
-            # Compute the compartment sizes
-            coverage = dict.fromkeys(self.program_cache_comps, 0.0)
-            for k,comp_list in self.program_cache_comps.items():
-                for comp in comp_list:
-                    coverage[k] += comp.vals[ti]
+        do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
 
-            # Compute the parameter values
-            prog_vals = self.progset.get_outcomes(coverage)
+        if do_program_overwrite:
+            # Compute the fraction covered
+            prop_covered = dict.fromkeys(self.program_cache_comps, 0.0)
+            for k,comp_list in self.program_cache_comps.items():
+                n = 0.0
+                for comp in comp_list:
+                    n += comp.vals[ti]
+                prop_covered[k] = np.minimum(self.program_cache_coverage[k][ti]/n,1.)
+
+            # Compute the updated program values
+            prog_vals = self.progset.get_outcomes(prop_covered)
 
         # TODO: Remember to involve program impact parameters that are not already marked as functions here.
-        for par_name in (framework.filter[FS.TERM_FUNCTION + FS.KEY_PARAMETER]): # FS.PARAMETER
+        for par_name in framework.specs[FS.KEY_PARAMETER].keys(): # FS.PARAMETER
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self.vars_by_pop[par_name]
@@ -1181,6 +1184,8 @@ class Model(object):
                 for par in pars:
                     if par.name in prog_vals and par.pop.name in prog_vals[par.name]:
                         par.vals[ti] = prog_vals[par.name][par.pop.name]
+                    else:
+                        break
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
