@@ -15,6 +15,7 @@ logger = logging.getLogger()
 import os
 import atomica.ui as au
 import sciris.core as sc
+import numpy as np
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
@@ -34,7 +35,8 @@ torun = [
 # "runsim",
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-"runsim_programs",
+# "runsim_programs",
+"outcome_optimization",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -277,12 +279,23 @@ if "parameterscenario" in torun:
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
 
-if "runsimprogs" in torun:
-    from atomica.core.programs import ProgramInstructions
+if "outcome_optimization" in torun:
+    if test=='tb':
+        raise NotImplemented
 
-    # instructions = ProgramInstructions(progset=P.progsets["default"])
-    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
-    
+    instructions = au.ProgramInstructions(alloc=None,start_year=2020) # Instructions for default spending
+    adjustables = [('Risk avoidance','rel',0.0,2.0),('Harm reduction 1','rel',0.0,2.0)]
+    measurables = [('alive',1.0,None)] # Total number of people in all pops
+    P.make_optimization('default', adjustables, measurables, year_eval=[2020,np.inf]) # Evaluate from 2020 to end of simulation
+    optimized_instructions = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+
+    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
+    optimized_result = P.run_sim(parset="default", progset='default', progset_instructions=optimized_instructions, result_name="optimized")
+
+    d = au.PlotData([unoptimized_result, optimized_result], outputs=['transpercontact', 'contacts', 'recrate', 'infdeath', 'susdeath'],project=P)
+    au.plot_series(d, axis="results")
+
+
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
 

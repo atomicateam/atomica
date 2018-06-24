@@ -33,6 +33,7 @@ from .model import run_model
 from .parameters import ParameterSet
 from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario
+from .optimization import Optimization, optimize
 from .structure_settings import FrameworkSettings as FS, DataSettings as DS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from .workbook_export import write_workbook, make_instructions, make_progbook
@@ -260,6 +261,11 @@ class Project(object):
         self.scens.append(scenario)
         return scenario
 
+    def make_optimization(self, name='default', adjustables=None, measurables = None, year_eval = None):
+        optimization = Optimization(name, adjustables, measurables, year_eval)
+        self.optims.append(optimization)
+        return optimization
+
 
 #    #######################################################################################################
 #    ### Utilities
@@ -423,8 +429,14 @@ class Project(object):
         return self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
                             store_results=store_results, result_type="scenario", result_name=result_name)
 
-    #    def optimize(self):
-    #        '''Run an optimization'''
+    def run_optimization(self,optimization,parset,progset,progset_instructions):
+        '''Run an optimization'''
+        parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
+        progset = progset if isinstance(progset,ProgramSet) else self.progsets[progset]
+        optimization = optimization if isinstance(optimization,ProgramSet) else self.optims[optimization]
+
+        optimized_instructions = optimize(self,optimization,parset,progset,progset_instructions)
+        return self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """

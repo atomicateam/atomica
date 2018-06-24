@@ -145,11 +145,11 @@ class ProgramSet(NamedItem):
         else:
             if instructions.alloc is None:
                 return self.get_budgets(year=tvec)
-                
             else: 
                 alloc = sc.odict()
                 for prog in self.programs.values():
                     if prog.short in instructions.alloc:
+                        # TODO - instructions.alloc[prog.short] needs to be able to support time-varying inputs
                         alloc[prog.short] = ones(tvec.shape)*instructions.alloc[prog.short]
                     else:
                         alloc[prog.short] = prog.get_spend(tvec)
