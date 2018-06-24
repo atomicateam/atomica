@@ -137,7 +137,8 @@ class ProgramSet(NamedItem):
         # the value is an array of spending values the same size as t
         
         # Validate inputs
-        if tvec is None: tvec = 2018. # TEMPORARY
+        if tvec is None:
+            tvec = instructions.start_year
         tvec = sc.promotetoarray(tvec)
         if instructions is None: # If no instructions provided, just return the default budget
             return self.get_budgets(year=tvec)
