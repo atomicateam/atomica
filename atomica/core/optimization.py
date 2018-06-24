@@ -57,7 +57,7 @@ class Optimization(NamedItem):
 	def __repr__(self):
 		return sc.desc(self)
 
-	def update_instructions(self,instructions,asd_values):
+	def update_instructions(self,instructions,asd_values,hard_constraints):
 		# This is the core of the Optimization class - it maps an array of ASD values into an
 		# updated ProgramInstructions instance which in turn changes the outcome of the simulation
 		#
@@ -65,15 +65,25 @@ class Optimization(NamedItem):
 		# In the base case, instructions.alloc is an odict with one spending value per program defined,
 		# and the ASD values are a vector the same length as instructions.alloc
 
+		if not instructions.alloc:
+			instructions.alloc = dict()
+
 		for adjustable,val in zip(self.adjustables,asd_values):
-			if adjustable[0] in instructions.alloc:
-				# TODO - Could store additional information on how to insert a time-varying alloc
-				if isinstance(instructions.alloc[adjustable[0]],np.ndarray):
+			if adjustable[0] == 'start_year':
+				raise NotImplementedError
+			else: # Deal with other special cases above, as with start year
+				# TODO - Could store additional information on how to insert a time-varying alloc here
+				if adjustable[0] in instructions.alloc and isinstance(instructions.alloc[adjustable[0]],np.ndarray):
 					raise NotImplementedError # Time varying allocs not yet supported in ProgramInstructions although they are hooked into ProgramSet.get_alloc()
 				else:
 					instructions.alloc[adjustable[0]] = val
-			else:
-				raise NotImplementedError # This could be other things like changing the start year
+
+		print('Before constraining')
+		print(instructions.alloc)
+		self.constrain_alloc(instructions,hard_constraints)
+		print('After constraining')
+		print(instructions.alloc)
+		print('-------------------')
 
 	def get_hard_constraints(self,progset,instructions):
 		# Compute the hard constraints used by optimization.constrain_alloc based on
@@ -88,19 +98,21 @@ class Optimization(NamedItem):
 		if not self.constraints:
 			return hard_constraints
 
+		initial_spending = progset.get_alloc(instructions, self.year_opt)
 		for constraint_name,val in self.constraints.items():
-			if constraint_name == 'total_spend':
+			if constraint_name == 'total_spend': # Note - this is a constraint only on **adjustable** programs
 				hard_constraints[constraint_name] = 0.0
 				if val: # If total spend is to be calculated over some time period
 					raise NotImplementedError
 				else:
-					for spend in instructions.alloc.values():
-						hard_constraints[constraint_name] += spend
+					for adjustable in self.adjustables:
+						if adjustable[0] in initial_spending:
+							hard_constraints[constraint_name] += initial_spending[adjustable[0]][0]
 
 		# Constraints on upper/lower bounds that need to also be enforced when rescaling
 		_, xmin, xmax = self.get_initialization(progset,instructions)
 		for i, (name, limit_type, lower_limit, upper_limit) in enumerate(self.adjustables):
-			if name in instructions.alloc:
+			if name in initial_spending:
 				hard_constraints[name] = (xmin[i],xmax[i])
 
 		return hard_constraints
@@ -128,12 +140,13 @@ class Optimization(NamedItem):
 		x0 = sc.odict()
 		bounds = []
 		constraints = [] # List of constraints used by scipy.optimize.minimize
+
 		for name in hard_constraints:
-			if name in instructions.alloc:
-				x0['name'] = instructions.alloc[name]
+			if name in instructions.alloc: # Note - if a spending amount is being optimized, then it will appear in the alloc during iteration, even if it wasn't originally there
+				x0[name] = instructions.alloc[name]
 				bounds.append(hard_constraints[name])
 			elif name == 'total_spend':
-				total_spend = instructions.alloc[name]
+				total_spend = hard_constraints[name]
 				if len(sc.promotetoarray(total_spend)) == 1:
 					constraints.append({'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend}) # It must be equal to the total spend
 				else:
@@ -154,7 +167,7 @@ class Optimization(NamedItem):
 		if self.year_eval:
 			year_eval = sc.promotetoarray(self.year_eval)
 			if len(year_eval) == 2:
-				t_filter = (year_eval[0] <= model.t <= year_eval[1])
+				t_filter = ((year_eval[0] <= model.t) & (model.t <= year_eval[1]))
 			elif len(year_eval) == 1:
 				t_filter = (model.t == year_eval[0])
 			else:
@@ -165,7 +178,7 @@ class Optimization(NamedItem):
 		for var_name,weight,pop_name in self.measurables:
 			# measurable is a tuple (variable_name,weight,pops=None)
 			if var_name in model.vars_by_pop:
-				vars = model.vars_by_pop(var_name)
+				vars = model.vars_by_pop[var_name]
 				for var in vars:
 					if not pop_name or var.pop.name == pop_name: # If we are using this pop in the objective
 						if isinstance(var,Link):
@@ -193,11 +206,12 @@ class Optimization(NamedItem):
 		# This allows the Progset to supply the initial values for programs that are set to
 		# be optimized but where the initial value is the Program data value, rather than an
 		# an existing overwrite in the instructions
+		assert self.year_opt is None or len(sc.promotetoarray(self.year_opt)) == 1 # Only return 1 spending value
 		initial_spending = progset.get_alloc(instructions, self.year_opt)
 
 		for i,(name,limit_type,lower_limit,upper_limit) in enumerate(self.adjustables): # For each quantity we are adjusting
 			if name in initial_spending:
-				x0[i] = initial_spending[name]
+				x0[i] = initial_spending[name][0]
 			else:
 				raise NotImplemented # This could be other things like changing the start year or even year_opt - need to define allowed adjustable names e.g. 'start_year'
 
@@ -213,14 +227,14 @@ class Optimization(NamedItem):
 		return x0,xmin,xmax
 
 
-def _asd_objective(asd_values, pickled_model=None, optimization=None):
+def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints = None):
 	# Compute the objective in ASD
 
 	# Unpickle model
 	model = pickle.loads(pickled_model)
 
 	# Inject the ASD vector into the instructions
-	model.program_instructions = optimization.update_instructions(model.program_instructions, asd_values)
+	optimization.update_instructions(model.program_instructions, asd_values, hard_constraints)
 
 	# Use the updated instructions to run the model
 	model.process()
@@ -231,6 +245,7 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None):
 
 def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None):
 	# The ASD initialization, xmin and xmax values can optionally be
+
 	model = Model(project.settings, project.framework, parset, progset, instructions)
 	pickled_model = pickle.dumps(model)
 
@@ -254,14 +269,13 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
 		# 'sinc': proj.settings.autofit_params['sinc'],
 		# 'sdec': proj.settings.autofit_params['sdec'],
 		'fulloutput': False,
-		'reltol': None,
 		'xmin': xmin,
 		'xmax': xmax,
 	}
 
-	x_opt = asd(_asd_objective,x0,args,**optim_args)
-	optimized_instructions = optimization.update_instructions(model.program_instructions,x_opt)
-	return optimized_instructions
+	x_opt = asd(_asd_objective,x0,args,**optim_args)[0]
+	optimization.update_instructions(model.program_instructions,x_opt,hard_constraints)
+	return model.program_instructions # Return the modified instructions
 
 def parallel_optimize(project,optimization,parset,progset,program_instructions):
 

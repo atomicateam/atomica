@@ -261,8 +261,8 @@ class Project(object):
         self.scens.append(scenario)
         return scenario
 
-    def make_optimization(self, name='default', adjustables=None, measurables = None, year_eval = None):
-        optimization = Optimization(name, adjustables, measurables, year_eval)
+    def make_optimization(self, **kwargs):
+        optimization = Optimization(**kwargs)
         self.optims.append(optimization)
         return optimization
 
@@ -434,7 +434,6 @@ class Project(object):
         parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         progset = progset if isinstance(progset,ProgramSet) else self.progsets[progset]
         optimization = optimization if isinstance(optimization,ProgramSet) else self.optims[optimization]
-
         optimized_instructions = optimize(self,optimization,parset,progset,progset_instructions)
         return self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
 

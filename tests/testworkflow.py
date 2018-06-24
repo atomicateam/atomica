@@ -283,16 +283,21 @@ if "outcome_optimization" in torun:
     if test=='tb':
         raise NotImplemented
 
-    instructions = au.ProgramInstructions(alloc=None,start_year=2020) # Instructions for default spending
-    adjustables = [('Risk avoidance','rel',0.0,2.0),('Harm reduction 1','rel',0.0,2.0)]
-    measurables = [('alive',1.0,None)] # Total number of people in all pops
-    P.make_optimization('default', adjustables, measurables, year_eval=[2020,np.inf]) # Evaluate from 2020 to end of simulation
-    optimized_instructions = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',50.),
+                     ('Treatment 2', 1.)])
+
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustables = [('Treatment 1','rel',0.0,2.0),('Treatment 2','rel',0.0,2.0)]
+    measurables = [('ch_all',-1.0,None)] # Total number of people in all pops
+    P.make_optimization(name='default', adjustables=adjustables, measurables=measurables, year_eval=[2020,np.inf]) # Evaluate from 2020 to end of simulation
 
     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_sim(parset="default", progset='default', progset_instructions=optimized_instructions, result_name="optimized")
+    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
 
-    d = au.PlotData([unoptimized_result, optimized_result], outputs=['transpercontact', 'contacts', 'recrate', 'infdeath', 'susdeath'],project=P)
+    d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     au.plot_series(d, axis="results")
 
 
