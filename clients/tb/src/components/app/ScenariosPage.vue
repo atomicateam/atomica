@@ -33,32 +33,55 @@ Last update: 2018-05-29
 
       <div class="dialog-content">
         <div class="dialog-c-title">
-          Create blank project
+          Add new scenario
         </div>
         <div class="dialog-c-text">
-          Project name:<br>
+          Scenario name:<br>
           <input type="text"
                  class="txbox"
-                 v-model="proj_name"/><br>
-          Number of populations:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_pops"/><br>
-          First year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_start"/><br>
-          Final year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_end"/><br>
+                 v-model="scen_name"/><br>
+          <table>
+            <tr>
+              <td>Model parameter:</td>
+              <td>Population:</td>
+              <td>Start year:</td>
+              <td>Final year:</td>
+              <td>Start value:</td>
+              <td>Final value:</td>
+            </tr>
+            <tr>
+              <td>
+                <select name="pars">
+                  <option value="dx">Testing rate</option>
+                  <option value="tx">Treatment rate</option>
+                  <option value="vx">Vaccination rate</option>
+                  <option value="inf">Infection rate</option>
+                </select></td>
+              <td><input type="text"
+                         class="txbox"
+                         v-model="scen_pop"/></td>
+              <td><input type="text"
+                         class="txbox"
+                         v-model="scen_start_year"/></td>
+              <td><input type="text"
+                         class="txbox"
+                         v-model="scen_final_year"/></td>
+              <td><input type="text"
+                         class="txbox"
+                         v-model="scen_start_val"/></td>
+              <td><input type="text"
+                         class="txbox"
+                         v-model="scen_final_val"/></td>
+            </tr>
+          </table>
+          <br>
         </div>
         <div style="text-align:justify">
-          <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create project and download data entry spreadsheet
+          <button @click="$modal.hide('create-scenario')" class='btn __green' style="display:inline-block">
+            Add scenario
           </button>
 
-          <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+          <button @click="$modal.hide('create-scenario')" class='btn __red' style="display:inline-block">
             Cancel
           </button>
         </div>
