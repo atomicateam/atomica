@@ -20,19 +20,19 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 test = "sir"
-# test = "tb"
+test = "tb"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
+# "makeframeworkfile",
+# "makeframework",
+# "saveframework",
+# "loadframework",
+# "makedatabook",
+# "makeproject",
+# "loaddatabook",
+# "makeparset",
 #"runsim",
-#"makeprogramspreadsheet",
+"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 "runsim_programs",
 #"makeplots",
