@@ -290,7 +290,7 @@ if "outcome_optimization" in torun:
                      ('Treatment 2', 1.)])
 
     instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-    adjustables = [('Treatment 1','rel',0.0,2.0),('Treatment 2','rel',0.0,2.0)]
+    adjustables = [('Treatment 1','abs',0.0,100.0),('Treatment 2','abs',0.0,100.0)]
     measurables = [('ch_all',-1.0,None)] # Total number of people in all pops
     P.make_optimization(name='default', adjustables=adjustables, measurables=measurables, year_eval=[2020,np.inf]) # Evaluate from 2020 to end of simulation
 
