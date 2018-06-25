@@ -36,7 +36,8 @@ torun = [
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 # "runsim_programs",
-"outcome_optimization",
+# "outcome_optimization",
+"money_optimization",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -280,6 +281,9 @@ if "parameterscenario" in torun:
     au.plot_series(d, axis="results")
 
 if "outcome_optimization" in torun:
+    # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
+    # mostly allocated to Treatment 1, and the result of optimization should be that the budget gets
+    # reallocated to Treatment 2
     if test=='tb':
         raise NotImplemented
 
@@ -296,6 +300,40 @@ if "outcome_optimization" in torun:
 
     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
     optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+
+    for adjustable in adjustables:
+        print("%s - before=%.2f, after=%.2f" % (adjustable[0],unoptimized_result.model.program_instructions.alloc[adjustable[0]],optimized_result.model.program_instructions.alloc[adjustable[0]]))
+
+    d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
+    au.plot_series(d, axis="results")
+
+if "money_optimization" in torun:
+    # In this example, Treatment 2 is more effective than Treatment 1. If we spend
+    # $50 on Treatment 2, then there are 728.01 people alive in 2030. Since Treatment 2 is more
+    # effective, the cheapest way to achieve at least 728.01 people alive in 2030 is to
+    # spend only ~$50 on Treatment 2. So to do this optimization, we start by spending $100 on both
+    # Treatment 1 and Treatment 2 and demonstrate that money optimization where we minimize total
+    # spend subject to the constraint of the total people alive being at least 728.01
+    if test=='tb':
+        raise NotImplemented
+
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',50.),
+                     ('Treatment 2', 60.)])
+
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustables = [('Treatment 1','abs',0.0,100.0),('Treatment 2','abs',0.0,100.0)]
+    measurables = [('Treatment 1',1),('Treatment 2',1),('ch_all',lambda x: 10000*(x<728.01),None)] # Total number of people in all pops
+    constraints = {'total_spend':[0.0,np.inf]}
+    P.make_optimization(name='default', adjustables=adjustables, measurables=measurables, year_eval=[2030], constraints = constraints) # Evaluate from 2020 to end of simulation
+
+    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
+    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+
+    for adjustable in adjustables:
+        print("%s - before=%.2f, after=%.2f" % (adjustable[0],unoptimized_result.model.program_instructions.alloc[adjustable[0]],optimized_result.model.program_instructions.alloc[adjustable[0]]))
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     au.plot_series(d, axis="results")

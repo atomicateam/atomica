@@ -13,6 +13,9 @@ from .model import Model, Link
 import pickle
 import scipy.optimize
 
+import logging
+logger = logging.getLogger(__name__)
+
 # TODO
 #
 # - time varying allocs
@@ -20,7 +23,7 @@ import scipy.optimize
 #   - modify ProgramSet.get_alloc() to read time-varying allocs from the instructions
 #   - modify Optimization.update_instructions to use `Optimization.year_opt` to insert overwrites in the correct year
 #	- modify Optimization.get_hard_constraints() to extract hard constraint from correct years
-#   - modify Optimization.constrain_alloc() to check the correct years when constraining
+#   - modify Optimization.constrain_instructions() to check the correct years when constraining
 #
 # - money optimization
 #   - modify Optimization.compute_objective to threshold model output objective based on meeting/failing target
@@ -78,15 +81,15 @@ class Optimization(NamedItem):
 				else:
 					instructions.alloc[adjustable[0]] = val
 
-		print('Before constraining')
+		print('BEFORE')
 		print(instructions.alloc)
-		self.constrain_alloc(instructions,hard_constraints)
-		print('After constraining')
+		self.constrain_instructions(instructions,hard_constraints)
+		print('AFTER')
 		print(instructions.alloc)
-		print('-------------------')
+
 
 	def get_hard_constraints(self,progset,instructions):
-		# Compute the hard constraints used by optimization.constrain_alloc based on
+		# Compute the hard constraints used by optimization.constrain_instructions based on
 		# the constraint specification in optimization.constraints
 		#
 		# For example, optimization.constraints might specify that total spending needs to be constrained,
@@ -100,7 +103,8 @@ class Optimization(NamedItem):
 
 		initial_spending = progset.get_alloc(instructions, self.year_opt)
 		for constraint_name,val in self.constraints.items():
-			if constraint_name == 'total_spend': # Note - this is a constraint only on **adjustable** programs
+			if constraint_name == 'total_spend' and val is None:
+				# Note - this is a constraint only on **adjustable** programs
 				hard_constraints[constraint_name] = 0.0
 				if val: # If total spend is to be calculated over some time period
 					raise NotImplementedError
@@ -118,13 +122,13 @@ class Optimization(NamedItem):
 		return hard_constraints
 
 
-	def constrain_alloc(self,instructions,hard_constraints):
+	def constrain_instructions(self,instructions,hard_constraints):
 		# The hard_constraint passed in here is NOT optimization.constraints, it is
 		# hard_constraint = optimization.get_hard_constraints(instructions)
 		# This is because the constraint may depend on the initialization. For example
 		# optimization.constraints = [('total_spend',[2020,np.inf])] # specify how to calculate the hard constraint from initial instructions
 		# hard_constraint = optimization.get_hard_constraint(instructions) = {'total_spend':$100000} # the actual constraint corresponding to the actual initialization
-		# optimization.constrain_alloc(instructions,hard_constraint) # rescale 'total_spend' (from optimization.constraints) such that total spend from 2020-np.inf is equal to $100000
+		# optimization.constrain_instructions(instructions,hard_constraint) # rescale 'total_spend' (from optimization.constraints) such that total spend from 2020-np.inf is equal to $100000
 
 		# At the moment - only support standard time-invariant constraints
 		# We *could* probably do this directly based on x0 but we are not guaranteed that everything in x0 is a spending value
@@ -162,6 +166,10 @@ class Optimization(NamedItem):
 		# Take in a completed model run
 		# Compute the objective based on the settings in self.objective
 		# Program name will map to spending array for that program
+
+		# Reconstruct the alloc
+		alloc = model.progset.get_alloc(model.program_instructions, model.t)
+
 		objective = 0.0
 
 		if self.year_eval:
@@ -175,18 +183,26 @@ class Optimization(NamedItem):
 		else:
 			t_filter = np.full(model.t.shape, True)
 
-		for var_name,weight,pop_name in self.measurables:
+		for var_name,weight,*pop_names in self.measurables:
 			# measurable is a tuple (variable_name,weight,pops=None)
+			if not callable(weight):
+				weightfun = lambda x: x*weight
+			else:
+				weightfun = weight
+
 			if var_name in model.vars_by_pop:
 				vars = model.vars_by_pop[var_name]
+				contribution = 0.0
 				for var in vars:
-					if not pop_name or var.pop.name == pop_name: # If we are using this pop in the objective
+					if not pop_names[0] or var.pop.name in pop_names: # If we are using this pop in the objective
 						if isinstance(var,Link):
-							objective += weight*np.sum(var.vals[t_filter]/var.dt) # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
+							contribution += np.sum(var.vals[t_filter]/var.dt) # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
 						else:
-							objective += weight*np.sum(var.vals[t_filter])
+							contribution += np.sum(var.vals[t_filter])
+				print(contribution)
+				objective += weightfun(contribution)
 			else:
-				objective += weight*np.sum(model.program_cache['alloc'][var_name][t_filter])
+				objective += weightfun(np.sum(alloc[var_name][t_filter]))
 
 		return objective
 
@@ -209,8 +225,10 @@ class Optimization(NamedItem):
 		assert self.year_opt is None or len(sc.promotetoarray(self.year_opt)) == 1 # Only return 1 spending value
 		initial_spending = progset.get_alloc(instructions, self.year_opt)
 
-		for i,(name,limit_type,lower_limit,upper_limit) in enumerate(self.adjustables): # For each quantity we are adjusting
-			if name in initial_spending:
+		for i,(name,limit_type,lower_limit,upper_limit,*initial) in enumerate(self.adjustables): # For each quantity we are adjusting
+			if initial:
+				x0[i] = initial
+			elif name in initial_spending:
 				x0[i] = initial_spending[name][0]
 			else:
 				raise NotImplemented # This could be other things like changing the start year or even year_opt - need to define allowed adjustable names e.g. 'start_year'
