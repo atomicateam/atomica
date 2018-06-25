@@ -259,7 +259,7 @@ def create_attribute_cell_content(worksheet, row, col, attribute, item_type, ite
 
     # Modify content for optional conditions.
     if alt_condition is not None:
-        content = "=IF({0},{1},{2})".format(alt_condition,alt_content,content.lstrip("="))
+        content = "=IF({0},{1},{2})".format(alt_condition, alt_content, content.lstrip("="))
 
     # Actually write the content, using a backup value where the content is an equation and may not be calculated.
     # This lack of calculation occurs when Excel files are not opened before writing and reading phases.
@@ -476,12 +476,15 @@ def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
                             temp_storage[item_type] = dict()
                         if term not in temp_storage[item_type]:
                             temp_storage[item_type][term] = dict()
-                        if (source_type,target_type) not in temp_storage[item_type][term]:
-                            temp_storage[item_type][term][(source_type,target_type)] = dict()
-                        if (item_number, other_number) not in temp_storage[item_type][term][(source_type,target_type)]:
-                            temp_storage[item_type][term][(source_type,target_type)][(item_number, other_number)] = dict()
-                        temp_storage[item_type][term][(source_type,target_type)][(item_number, other_number)]["cell"] = rc
-                        temp_storage[item_type][term][(source_type,target_type)][(item_number, other_number)]["page_title"] = worksheet.name
+                        if (source_type, target_type) not in temp_storage[item_type][term]:
+                            temp_storage[item_type][term][(source_type, target_type)] = dict()
+                        if (item_number, other_number) not in temp_storage[item_type][term][(source_type, target_type)]:
+                            temp_storage[item_type][term][(source_type, target_type)][
+                                (item_number, other_number)] = dict()
+                        temp_storage[item_type][term][(source_type, target_type)][(item_number, other_number)][
+                            "cell"] = rc
+                        temp_storage[item_type][term][(source_type, target_type)][(item_number, other_number)][
+                            "page_title"] = worksheet.name
 
                         # Actually fill the cell in with a 'yes or no' choice, but allow for numeric values.
                         if item_number == other_number and source_item_type == target_item_type \
@@ -568,7 +571,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
     if table.iterate_over_links:
         block_col = 3
         if table.self_connections:
-            num_items = num_items**2
+            num_items = num_items ** 2
         else:
             num_items = num_items * (num_items - 1)
     default_values = [0.0] * num_items
@@ -616,8 +619,12 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                     item_type = table.template_item_type
                     iterated_type = table.iterated_type
                     try:
-                        rc = temp_storage[item_type][term][(iterated_type,iterated_type)][(source_number, target_number)]["cell"]
-                        page_title = temp_storage[item_type][term][(iterated_type,iterated_type)][(source_number, target_number)]["page_title"]
+                        rc = \
+                        temp_storage[item_type][term][(iterated_type, iterated_type)][(source_number, target_number)][
+                            "cell"]
+                        page_title = \
+                        temp_storage[item_type][term][(iterated_type, iterated_type)][(source_number, target_number)][
+                            "page_title"]
                         # If a value exists for this connection elsewhere, show row if value is a 'y' or number.
                         condition_string = ("OR('{0}'!{1}=\"{2}\","
                                             "ISNUMBER('{0}'!{1}))").format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
@@ -629,8 +636,8 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                     condition_list.append(condition_string)
                     create_attribute_cell_content(worksheet=worksheet, row=row, col=col, attribute="label",
                                                   item_type=iterated_type, item_type_specs=item_type_specs,
-                                                  alt_content="\""+SS.DEFAULT_SYMBOL_IGNORE+"\"",
-                                                  alt_condition="NOT("+condition_string+")",
+                                                  alt_content="\"" + SS.DEFAULT_SYMBOL_IGNORE + "\"",
+                                                  alt_condition="NOT(" + condition_string + ")",
                                                   item_number=source_number, formats=formats, temp_storage=temp_storage)
                     rc_check = xlrc(row, col + 2)
                     worksheet.write(row, col + 1, "=IF({0}=\"{1}\",\"{2}\",\"{3}\")".format(rc_check, str(), str(),
@@ -638,7 +645,7 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                                     formats[ES.FORMAT_KEY_CENTER_BOLD], "")
                     create_attribute_cell_content(worksheet=worksheet, row=row, col=col + 2, attribute="label",
                                                   item_type=iterated_type, item_type_specs=item_type_specs,
-                                                  alt_content="\"\"", alt_condition="NOT("+condition_string+")",
+                                                  alt_content="\"\"", alt_condition="NOT(" + condition_string + ")",
                                                   item_number=target_number, formats=formats, temp_storage=temp_storage)
                     item_number += 1
                     row += 1
@@ -814,13 +821,13 @@ def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=No
         pops = []  # Create real pops list
         for p in range(npops):
             pops.append('Pop %i' % (p + 1))
-    
+
     if sc.isnumber(comps):
         ncomps = comps
         comps = []  # Create real compartments list
         for p in range(ncomps):
             pops.append('Comp %i' % (p + 1))
-    
+
     if sc.isnumber(progs):
         nprogs = progs
         progs = []  # Create real pops list
@@ -863,8 +870,8 @@ class AtomicaFormats:
         self.formats['center_bold'] = self.book.add_format({'bold': 1, 'align': 'center'})
         self.formats['rc_title'] = {}
         self.formats['rc_title']['right'] = {}
-        self.formats['rc_title']['right']['T'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap':True})
-        self.formats['rc_title']['right']['F'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap':False})
+        self.formats['rc_title']['right']['T'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap': True})
+        self.formats['rc_title']['right']['F'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap': False})
         self.formats['rc_title']['left'] = {}
         self.formats['rc_title']['left']['T'] = self.book.add_format({'bold': 1, 'align': 'left', 'text_wrap': True})
         self.formats['rc_title']['left']['F'] = self.book.add_format({'bold': 1, 'align': 'left', 'text_wrap': False})
@@ -955,7 +962,6 @@ class SheetRange:
     def get_cell_address(self, row, col):
         return xw.utility.xl_rowcol_to_cell(row, col, row_abs=True, col_abs=True)
 
-
     def param_refs(self, sheet_name, column_number=1):
         """ gives the list of references to the entries in the row names (which are parameters) """
         par_range = range(self.first_row, self.last_row + 1)
@@ -977,13 +983,12 @@ class TitledRange(object):
             first_data_col += 1
             num_data_rows *= len(self.content.row_levels)
             num_data_rows += len(self.content.row_names) - 1
-        
+
         self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
         self.first_row = first_row
 
     def num_rows(self):
         return self.data_range.num_rows + 2
-
 
     def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
         """ Emits the range and returns the new current row in the given sheet """
@@ -1070,7 +1075,8 @@ class TitledRange(object):
 class AtomicaContent(object):
     """ the content of the data ranges (row names, column names, optional data and assumptions) """
 
-    def __init__(self, name=None, row_names=None, column_names=None, row_levels=None, data=None, assumption_properties=None, assumption_data=None, assumption=True):
+    def __init__(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
+                 assumption_properties=None, assumption_data=None, assumption=True):
         self.name = name
         self.row_names = row_names
         self.column_names = column_names
@@ -1081,8 +1087,8 @@ class AtomicaContent(object):
         self.row_formats = None
         if assumption_properties is None:
             self.assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
-        else: 
-            self.assumption_properties = assumption_properties 
+        else:
+            self.assumption_properties = assumption_properties
         self.assumption_data = assumption_data
 
     def get_row_names(self):
@@ -1104,9 +1110,9 @@ class AtomicaContent(object):
 class ProgramSpreadsheet:
     def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None, verbose=0):
         self.sheet_names = sc.odict([
-            ('targeting',   'Populations & programs'),
+            ('targeting', 'Populations & programs'),
             ('costcovdata', 'Program data'),
-            ('covoutdata',  'Program effects'),
+            ('covoutdata', 'Program effects'),
         ])
         self.name = name
         self.pops = pops
@@ -1140,15 +1146,15 @@ class ProgramSpreadsheet:
         for item in self.progs:
             if type(item) is dict:
                 name = item['name']
-                short = item['short'] 
+                short = item['short']
                 target_pops = [''] + ['' for popname in self.pops]
                 target_comps = [''] + ['' for comp in self.comps]
-            coded_params.append([short, name]+target_pops+target_comps)
-    
-        column_names = ['Short name', 'Long name',''] + self.pops + [''] + self.comps
+            coded_params.append([short, name] + target_pops + target_comps)
+
+        column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
         content = AtomicaContent(name='Populations & programs',
-                                 row_names=range(1, len(self.progs) + 1), 
-                                 column_names=column_names, 
+                                 row_names=range(1, len(self.progs) + 1),
+                                 column_names=column_names,
                                  data=coded_params,
                                  assumption=False)
         self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
@@ -1158,11 +1164,13 @@ class ProgramSpreadsheet:
     def generate_costcovdata(self):
         current_row = 0
         self.current_sheet.set_column('C:C', 20)
-        row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low', 'Unit cost: high']
+        row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
+                      'Unit cost: high']
         content = AtomicaContent(name='Cost & coverage',
                                  row_names=self.ref_prog_range.param_refs(),
                                  column_names=range(int(self.data_start), int(self.data_end + 1)))
-        content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL]
+        content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
+                               AtomicaFormats.GENERAL]
         content.row_format = AtomicaFormats.GENERAL
         content.assumption = True
         content.row_levels = row_levels
@@ -1178,9 +1186,9 @@ class ProgramSpreadsheet:
         self.current_sheet.set_column(5, 5, 2)
         row_levels = []
         for p in self.pops:
-            row_levels.extend([p+': best', p+': low', p+': high'])
+            row_levels.extend([p + ': best', p + ': low', p + ': high'])
         content = AtomicaContent(row_names=self.pars,
-                                 column_names=['Value with no interventions','Best attainable value'])
+                                 column_names=['Value with no interventions', 'Best attainable value'])
         content.row_format = AtomicaFormats.GENERAL
         content.row_levels = row_levels
 
@@ -1205,3 +1213,200 @@ class ProgramSpreadsheet:
             self.current_sheet = self.sheets[name]
             getattr(self, "generate_%s" % name)()  # this calls the corresponding generate function
         self.book.close()
+
+
+# %% Try something different for framework file and databook.
+
+class FrameworkFile:
+    def __init__(self, name, datapages, comps, characs, interpops, pars):
+        self.sheet_names = sc.odict([
+            ("datapage", "Custom Databook Pages"),
+            ("comp", "Compartments"),
+            ("link", "Transitions"),
+            ("charac", "Characteristics"),
+            ("interpop", "Interactions"),
+            ("par", "Parameters")
+        ])
+        self.name = name
+        self.datapages = datapages
+        self.comps = comps
+        self.characs = characs
+        self.interpops = interpops
+        self.pars = pars
+        self.book = None
+        self.sheets = None
+        self.formats = None
+        self.current_sheet = None
+        self.datapage_range = None
+        # self.ref_pop_range = None
+        # self.years_range = range(int(self.data_start), int(self.data_end + 1))
+        #
+        # self.npops = len(pops)
+        # self.nprogs = len(progs)
+
+    def generate_datapage(self):
+        # self.current_sheet.set_column(2, 2, 15)
+        # self.current_sheet.set_column(3, 3, 40)
+        # self.current_sheet.set_column(6, 6, 12)
+        # self.current_sheet.set_column(7, 7, 16)
+        # self.current_sheet.set_column(8, 8, 16)
+        # self.current_sheet.set_column(9, 9, 12)
+        current_row = 0
+
+        column_names = ["Datasheet Code Name", "Datasheet Title"]
+        content = AtomicaContent(name="Custom Databook Pages",
+                                 row_names=range(1, len(self.datapages) + 1),
+                                 column_names=column_names,
+                                 # data=coded_params,
+                                 assumption=False)
+        self.datapage_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
+        self.datapage_range.emit(self.formats, rc_title_align='left')
+
+        # coded_params = []
+        # for item in self.progs:
+        #     if type(item) is dict:
+        #         name = item['name']
+        #         short = item['short']
+        #         target_pops = [''] + ['' for popname in self.pops]
+        #         target_comps = [''] + ['' for comp in self.comps]
+        #     coded_params.append([short, name] + target_pops + target_comps)
+        #
+        # column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
+        # content = AtomicaContent(name='Populations & programs',
+        #                          row_names=range(1, len(self.progs) + 1),
+        #                          column_names=column_names,
+        #                          data=coded_params,
+        #                          assumption=False)
+        # self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
+        # current_row = self.prog_range.emit(self.formats, rc_title_align='left')
+        # self.ref_prog_range = self.prog_range
+
+    def generate_comp(self):
+        pass
+
+    def generate_link(self):
+        pass
+
+    def generate_charac(self):
+        pass
+
+    def generate_interpop(self):
+        pass
+
+    def generate_par(self):
+        pass
+
+    # def generate_targeting(self):
+    #     self.current_sheet.set_column(2, 2, 15)
+    #     self.current_sheet.set_column(3, 3, 40)
+    #     self.current_sheet.set_column(6, 6, 12)
+    #     self.current_sheet.set_column(7, 7, 16)
+    #     self.current_sheet.set_column(8, 8, 16)
+    #     self.current_sheet.set_column(9, 9, 12)
+    #     current_row = 0
+    #
+    #     coded_params = []
+    #     for item in self.progs:
+    #         if type(item) is dict:
+    #             name = item['name']
+    #             short = item['short']
+    #             target_pops = [''] + ['' for popname in self.pops]
+    #             target_comps = [''] + ['' for comp in self.comps]
+    #         coded_params.append([short, name] + target_pops + target_comps)
+    #
+    #     column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
+    #     content = AtomicaContent(name='Populations & programs',
+    #                              row_names=range(1, len(self.progs) + 1),
+    #                              column_names=column_names,
+    #                              data=coded_params,
+    #                              assumption=False)
+    #     self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
+    #     current_row = self.prog_range.emit(self.formats, rc_title_align='left')
+    #     self.ref_prog_range = self.prog_range
+    #
+    # def generate_costcovdata(self):
+    #     current_row = 0
+    #     self.current_sheet.set_column('C:C', 20)
+    #     row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
+    #                   'Unit cost: high']
+    #     content = AtomicaContent(name='Cost & coverage',
+    #                              row_names=self.ref_prog_range.param_refs(),
+    #                              column_names=range(int(self.data_start), int(self.data_end + 1)))
+    #     content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
+    #                            AtomicaFormats.GENERAL]
+    #     content.row_format = AtomicaFormats.GENERAL
+    #     content.assumption = True
+    #     content.row_levels = row_levels
+    #     the_range = TitledRange(self.current_sheet, current_row, content)
+    #     current_row = the_range.emit(self.formats)
+    #
+    # def generate_covoutdata(self):
+    #     current_row = 0
+    #     self.current_sheet.set_column(1, 1, 10)
+    #     self.current_sheet.set_column(2, 2, 12)
+    #     self.current_sheet.set_column(3, 3, 12)
+    #     self.current_sheet.set_column(4, 4, 12)
+    #     self.current_sheet.set_column(5, 5, 2)
+    #     row_levels = []
+    #     for p in self.pops:
+    #         row_levels.extend([p + ': best', p + ': low', p + ': high'])
+    #     content = AtomicaContent(row_names=self.pars,
+    #                              column_names=['Value with no interventions', 'Best attainable value'])
+    #     content.row_format = AtomicaFormats.GENERAL
+    #     content.row_levels = row_levels
+    #
+    #     assumption_properties = {'title': 'Value for a person covered by this program alone:',
+    #                              'connector': '',
+    #                              'columns': [p['short'] for p in self.progs]}
+    #
+    #     content.assumption_properties = assumption_properties
+    #     the_range = TitledRange(self.current_sheet, current_row, content)
+    #     current_row = the_range.emit(self.formats, rc_title_align='left')
+
+    def create(self, path):
+        logger.info("Creating framework file '{0}'".format(path))  # with parameters:")
+        # npops = %s, nprogs = %s, data_start = %s, data_end = %s""" % \
+        #       (path, self.npops, self.nprogs, self.data_start, self.data_end))
+        self.book = xw.Workbook(path)
+        self.formats = AtomicaFormats(self.book)
+        self.sheets = {}
+        for name in self.sheet_names:
+            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
+            self.current_sheet = self.sheets[name]
+            getattr(self, "generate_{0}".format(name))()  # this calls the corresponding generate function
+        self.book.close()
+
+
+def make_framework_file(filename, datapages, comps, characs, interpops, pars):
+    """ Generate the Atomica framework file. """
+
+    item_type_inputs = [datapages, comps, characs, interpops, pars]
+    for j in range(item_type_inputs):
+        item_type_input = item_type_inputs[k]
+        if sc.isnumber(item_type_input):    # An integer argument is given; just create a list using empty entries.
+            num_items = item_type_input
+            items = []
+            for k in range(num_items):
+                items.append({"name": "sh_{0}".format(k+1), "label": "Custom Databook Sheet {0}".format(k+1)})
+
+    # if sc.isnumber(comps):
+    #     ncomps = comps
+    #     comps = []  # Create real compartments list
+    #     for p in range(ncomps):
+    #         pops.append('Comp %i' % (p + 1))
+    #
+    # if sc.isnumber(progs):
+    #     nprogs = progs
+    #     progs = []  # Create real pops list
+    #     for p in range(nprogs):
+    #         progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
+    #
+    #         # Ensure years are integers
+    # if datastart is None: datastart = 2015.  # TEMP
+    # if dataend is None:   dataend = 2018.  # TEMP
+    # datastart, dataend = int(datastart), int(dataend)
+
+    book = FrameworkFile(filename, datapages, comps, characs, interpops, pars)
+    book.create(filename)
+
+    return filename
