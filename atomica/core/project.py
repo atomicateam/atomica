@@ -203,7 +203,7 @@ class Project(object):
         comps = [c['label'] for c in F.specs['comp'].values()]
         pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['datapage_order'] is not -1] # TODO: think about whether this makes sense
 
-        make_progbook(full_path, pops=self.popkeys, comps=comps, progs=5, pars=pars)
+        make_progbook(full_path, pops=self.popkeys, comps=comps, progs=progs, pars=pars)
         
 
 
