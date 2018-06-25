@@ -23,20 +23,20 @@ test = "sir"
 test = "tb"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeprogbook",
-"loadprogbook",
-"makeparset",
-"runsim",
-# "makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-"makeplots",
+# "makeframeworkfile",
+# "makeframework",
+# "saveframework",
+# "loadframework",
+# "makedatabook",
+# "makeproject",
+# "loaddatabook",
+# "makeprogbook",
+# "loadprogbook",
+# "makeparset",
+# "runsim",
+"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+# "makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
@@ -105,11 +105,14 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")
     
 if "makeprogramspreadsheet" in torun:
-    print('\n\n\Making programs spreadsheet ... ')
+    print('\n\n\nMaking programs spreadsheet ... ')
 
-    P = au.demo(which=test,do_plot=0)
-    filename = "temp/programspreadsheet.xlsx"
-    P.make_progbook(filename, progs=5)
+    P = au.demo(which=test, do_plot=0)
+    filename = "temp/progbook_"+test+"_blank.xlsx"
+    if test == "sir":
+        P.make_progbook(filename, progs=5)
+    elif test == "tb":
+        P.make_progbook(filename, progs=31)
 
 if "loadprogramspreadsheet" in torun:
     if test=='tb':
