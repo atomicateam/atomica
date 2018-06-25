@@ -57,9 +57,13 @@ Last update: 2018-05-29
                   <option value="vx">Vaccination rate</option>
                   <option value="inf">Infection rate</option>
                 </select></td>
-              <td><input type="text"
-                         class="txbox"
-                         v-model="scen_pop"/></td>
+              <td><select name="pop">
+                <option value="dx">0-1</option>
+                <option value="tx">2-5</option>
+                <option value="vx">6-14</option>
+                <option value="inf">15+</option>
+              </select>
+              </td>
               <td><input type="text"
                          class="txbox"
                          v-model="scen_start_year"/></td>
