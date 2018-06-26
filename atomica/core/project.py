@@ -200,8 +200,11 @@ class Project(object):
 
         ## Get other inputs
         F = self.framework
-        comps = [c['label'] for c in F.specs['comp'].values()]
-        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['datapage_order'] is not -1] # TODO: think about whether this makes sense
+        comps = [c['label'] for c in F.specs['comp'].values() if not (c['is_source'] or
+                                                                      c['is_sink'] or
+                                                                      c['is_junction'])]
+        # TODO: Think about whether the following makes sense.
+        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
 
         make_progbook(full_path, pops=self.popkeys, comps=comps, progs=progs, pars=pars)
         

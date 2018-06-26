@@ -493,6 +493,8 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["min", "max"],
                                         content_type=ContentType(enforce_type=float))
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["is_impact"],
+                                        content_type=SwitchType(default_on=True))
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
                                         content_type=ContentType(is_list=True))
 

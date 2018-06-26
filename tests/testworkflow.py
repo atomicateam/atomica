@@ -23,10 +23,10 @@ test = "sir"
 test = "tb"
 
 torun = [
-# "makeframeworkfile",
-# "makeframework",
-# "saveframework",
-# "loadframework",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
 # "makedatabook",
 # "makeproject",
 # "loaddatabook",
