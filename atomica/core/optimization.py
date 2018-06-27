@@ -12,7 +12,7 @@ import numpy as np
 from .model import Model, Link
 import pickle
 import scipy.optimize
-
+from collections import defaultdict
 import logging
 logger = logging.getLogger(__name__)
 
@@ -33,219 +33,352 @@ logger = logging.getLogger(__name__)
 #	- after time-varying optimization is finalized, partially integrate model prior to pickling
 #		- modify `model.py` to abort the integration loop in a specific year
 
-class Optimization(NamedItem):
-	""" An object for storing an optimization """
+class Adjustable(object):
 
-	def __init__(self,  name='default', adjustables=None, measurables = None, year_opt = None, year_eval = None, constraints = None,  maxtime = 10, maxiters=None):
-		# INPUTS
-		# - adjustables : A specification of what to change in the ProgramInstructions (upper/lower bounds, same length and order as the ASD vector)
-		# - measurables : A specification of what to include in the objective function and what weight to use
-		# - year_opt : Insert the adjustables into the ProgramInstructions at this year (if relevant)
-		# - year_eval : Specification of which years to use in the objective function
+	def __init__(self,name,limit_type='abs',lower_bound=-np.inf,upper_bound=np.inf,initial_value=None):
+		self.name = name # identify the adjustable
+		self.limit_type = limit_type # 'abs' or 'rel'
+		self.lower_bound = lower_bound
+		self.upper_bound = upper_bound
+		self.initial_value = initial_value # This could be None, but if it is None, then `extract_from_instructions` cannot be None
+
+	def get_hard_bounds(self,x0=None):
+		# Return hard bounds based the limit type and specified bounds
+		self.lower_bound = self.lower_bound if self.lower_bound else -np.inf
+		self.upper_bound = self.upper_bound if self.upper_bound else np.inf
+		xmin = self.lower_bound if self.limit_type == 'abs' else x0*self.lower_bound
+		xmax = self.upper_bound if self.limit_type == 'abs' else x0*self.upper_bound
+		return xmin, xmax
+
+class Adjustment(object):
+	def __init__(self,name):
+		self.name = name
+		self.adjustables = None
+
+	def get_initialization(self,progset,instructions):
+		# Return initial values for ASD
+		return [x.initial_value for x in self.adjustables]
+
+	def update_instructions(self,adjustable_values,instructions):
+		# adjustable_values contains the values for each adjustable in self.adjustables
+		# at the current ASD iteration. This function updates the provided instructions in place
+		return
+
+class SpendingAdjustment(Adjustment):
+	# This adjustment class represents making a spending quantity adjustable. By default, the
+	# base class simply overwrites the spending value at a particular point in time
+	# Standard overwrite at a specific point in time
+	def __init__(self,prog_name,t,limit_type='abs',lower=0.0,upper=np.inf,initial=None):
+		Adjustment.__init__(self,name=prog_name)
+		self.prog_name = prog_name
+		self.t = sc.promotetoarray(t) # Time at which to apply the adjustment
+		if isinstance(initial,list):
+			assert len(initial)==len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+		else:
+			initial = [initial]*len(self.t)
+		self.adjustables = [Adjustable(prog_name,limit_type,lower,upper,initial_value) for initial_value in initial]
+
+	def update_instructions(self,adjustable_values,instructions):
+		# There is one Adjustable for each time point, so the adjustable_values
+		# are a list of this same length, one value for each time point
+		for i,t in enumerate(self.t):
+			instructions.alloc[self.prog_name][t] = adjustable_values[i]
+
+	def get_initialization(self,progset,instructions):
+		initialization = []
+		for adjustable,t in zip(self.adjustables,self.t):
+			if adjustable.initial_value:
+				initialization.append(adjustable.initial_value)
+			else:
+				alloc = progset.get_alloc(instructions,t)
+				initialization.append(alloc[self.prog_name]) # The Adjustable's name corresponds to the name of the program being overwritten.
+		return initialization
+
+class StartTimeAdjustment(Adjustment):
+	# Example of an Adjustment that does not target a spending value
+
+	def __init__(self,name,lower,upper,initial):
+		Adjustment.__init__(self,name=name)
+		self.adjustables = [Adjustable('start_year',limit_type='abs',lower=lower,upper=upper,initial=initial)]
+
+	def update_instructions(self,adjustable_values,instructions):
+		instructions.start_year = adjustable_values[0]
+
+	def get_initialization(self,progset,instructions):
+		if self.initial_value:
+			return self.initial_value
+		else:
+			return instructions.start_year
+
+class ExponentialSpendingAdjustment(Adjustment):
+	# Example of a parametric time-varying budget where multiple parameters
+	# are mapped to spending via a function
+	#
+	# Time-varying spending using an exponential form
+	# The fact that this is a subclass of SpendingAdjustment means that
+	# the `prog_name` attribute is defined. For checking constraints, it's sufficient
+	# to check whether an adjustment is a SpendingAdjustment to decide whether
+	# a particular program is optimizable
+		def __init__(self,prog_name,t,t_0,t_end,p1,a1,a2):
+			Adjustment.__init__(self,name=prog_name)
+			self.prog_name = prog_name
+			self.t = t # Vector of time values instructions are updated at
+			self.t_0 = t_0# non-adjustable parameter
+			self.t_end = t_end # non_adjustable parameter
+			self.adjustables = [Adjustable('p1',initial=p1),Adjustable('a1',initial=a1),Adjustable('a2',initial=a2)] # Would need to specify initial values and limits for these parameters
+
+		# Note - we can use get_initialization from the base class because all of the Adjustables
+		# have explicit initial values. Note that it's essential to provide explicit initial values
+		# for any Adjustable that does not explicitly appear in the instructions. Although in theory,
+		# it would be possible to write a `get_initialization` function that fits the Adjustables
+		# to the initial spending...
+
+		def update_instructions(self,adjustable_values,instructions):
+			# p1*exp(a1*(t-t_0))*exp(b1*(t-t_end))
+			instructions.alloc[self.prog_name][self.t] = adjustable_values[0]*np.exp(adjustable_values[1]*(self.t-self.t_0))*np.exp(adjustable_values[2]*(self.t-self.t_end))
+
+
+class Measurable(object):
+
+	def __init__(self,measurable_name,t,pop_names=None,weight=1.0,fcn=None):
+		self.measurable_name = measurable_name
+		self.t = sc.promotetoarray(t) # Single year, or multiple years
+		self.weight = weight
+		self.pop_names = pop_names
+		self.fcn = fcn # transformation function to apply
+
+	def eval(self,model):
+		if len(self.t) == 1:
+			t_filter = model.t==self.t # boolean vector for whether to use the time point or not
+		else:
+			t_filter = (model.t >= self.t[0]) & (model.t < self.t[1]) # Don't include upper bound, so [2018,2019] will include exactly one year
+		if self.measure_name in model.vars_by_pop:
+			val = 0.0
+			for var in vars:
+				if not self.pop_names or var.pop.name in self.pop_names:  # If we are using this pop in the objective
+					if isinstance(var, Link):
+						val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
+					else:
+						val += np.sum(var.vals[t_filter])
+		else:
+			# For now, only other possibility is that it's a spending amount
+			alloc = model.progset.get_alloc(model.program_instructions,model.t)
+			val =  alloc[self.measure_name][t_filter]
+		if self.fcn:
+			val = self.fcn(val)
+		val *= self.weight
+		return val
+
+class MinimizeMeasurable(Measurable):
+	# Syntactic sugar for a measurable that minimizes its quantity
+	def __init__(self,measurable_name, t,pop_names=None):
+		Measurable.__init__(self,measurable_name,t=t,weight=1,pop_names=pop_names)
+
+class MaximizeMeasurable(Measurable):
+	# Syntactic sugar for a measurable that maximizes its quantity
+	def __init__(self,measurable_name, t,pop_names=None):
+		Measurable.__init__(self,measurable_name,t=t,weight=-1,pop_names=pop_names)
+
+class AtMostMeasurable(Measurable):
+	# A Measurable that impose a penalty if the quantity is larger than some threshold
+	# The initial points should be 'valid' in the sense that the quantity starts out
+	# below the threshold (and during ASD it will never be allowed to cross the threshold)
+	def __init__(self,measurable_name, t, threshold,pop_names=None):
+		Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
+		self.weight = np.inf
+		self.threshold = threshold
+		self.fcn = lambda x: (x>threshold)
+
+class AtLeastMeasurable(Measurable):
+	# A Measurable that impose a penalty if the quantity is smaller than some threshold
+	# The initial points should be 'valid' in the sense that the quantity starts out
+	# above the threshold (and during ASD it will never be allowed to cross the threshold)
+	def __init__(self,measurable_name, t, threshold,pop_names=None):
+		Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
+		self.weight = np.inf
+		self.threshold = threshold
+		self.fcn = lambda x: (x<threshold)
+
+class Constraint(object):
+	# A Constraint represents a condition that must be satisfied by the Instructions
+	# after the cumulative effect of all adjustments. The Instructions are rescaled to
+	# satisfy the constraint directly (rather than changing the value of the Adjustables)
+	# although this distinction really only matters in the context of parametric spending
+
+	def get_hard_constraint(optimization, instructions):
+		return
+
+	def constrain_instructions(instructions,hard_constraints):
+		# Constrains the instructions, returns a metric penalizing the constraint
+		# If there is no penalty associated with adjusting (perhaps if all of the Adjustments are
+		# parametric?) then this would be 0.0
+		return 0.0
+
+class TotalSpendConstraint(Constraint):
+	# This class implements a constraint on the total spend at every time point when a program
+	# is optimizable. A program is considered optimizable if an Adjustment reaches that program
+	# at the specified time. Spending is constrained independently at all times when any program
+	# is adjustable.
+
+	def __init__(self, total_spend = None):
+		# total_spend allows the total spending in a particular year to be explicitly specified
+		# rather than drawn from the initial allocation. This could be useful when using parametric
+		# programs.
+		self.total_spend = total_spend  # Optionally a number, or a list of tuples of time-spending pairs e.g. [(2018,10000),(2020,200000)]
+
+	def get_hard_constraint(self,optimization, instructions):
+		# First, at each time point where a program overwrite exists, we need to store
+		# the names of all of the programs being overwritten
+		# e.g.
+		# hard_constraints['programs'][2020] = ['Program 1','Program 2']
+		# hard_constraints['programs'][2030] = ['Program 2','Program 3']
+		# By convention, an Adjustable affecting a program should store the program's name in the
+		# `prog_name` attribute
+
+		hard_constraints = {}
+		hard_constraints['programs'] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
+		for adjustment in optimization:
+			if hasattr(adjustment, 'prog_name'):
+				for t in list(adjustment.t):
+					hard_constraints['programs'][t].add(adjustment.prog_name)
+
+		# Now we have a set of times and programs for which we need to get total spend, and
+		# also which programs should be included in the total for that year
 		#
+		# hard_constraints['total_spend'][2020] = 300
+		# hard_constraints['total_spend'][2030] = 400
+		hard_constraints['total_spend'] = {}
+		for t, progs in hard_constraints['programs'].items():
+			if isinstance(self.total_spend, list):
+				for spend in self.total_spend:
+					if t == spend[0]:
+						hard_constraints['total_spend'][t] = spend[1]
+			elif self.total_spend:
+				hard_constraints['total_spend'][t] = self.total_spend
+			else:
+				total_spend = 0.0
+				for prog in progs:
+					total_spend += instructions.alloc[prog][t]
+				hard_constraints['total_spend'][t] = total_spend
+
+		# Finally, for each adjustable, we need to store its upper and lower bounds
+		# _in the year that the adjustment is being made_
+		#
+		# This is because in the case where we have an multiple adjustables targeting the same Program at different
+		# time points, the upper/lower bounds might be different. For example, suppose we have spending on
+		# Program 1 specified somehow as 2020=$20 and 2030=$30. Then suppose we add an Adjustment for Program 1 in
+		# 2020 *and* 2030 with relative bounds of [0.5,2.0]. Then, in 2020 spending on Program 1 is limited to
+		# $10-40 while in 2030 it's limited to $15-$60. Thus the spending constraint could also be time-varying.
+		# In the case of a parametric overwrite, there will be no direct spending bounds based on the Adjustable. Then,
+		# the spending should only be restricted to a positive value.
+
+		hard_constraints['bounds'] = dict()
+
+		for t, progs in hard_constraints['programs'].items():  # For each time point being constrained, and for each program
+			hard_constraints['bounds'][t] = dict()
+			# If there is an Adjustable that reaches this Program in the appropriate year:
+			for adjustment in optimization.adjustments:
+				if hasattr(adjustment, 'prog_name') and adjustment.prog_name in progs and t in adjustment.t:
+					if isinstance(adjustment, SpendingAdjustment):
+						idx = np.where(adjustment.t == t)[0][0]
+						adjustable = adjustment.adjustables[idx]
+						hard_constraints['bounds'][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name][t])  # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
+					else:
+						hard_constraints['bounds'][t][adjustment.prog_name] = (0.0, np.inf)
+
+		return hard_constraints
+
+	def constrain_instructions(instructions, hard_constraints):
+
+		penalty = 0.0
+
+		for t, total_spend in hard_constraints.total_spend.items():
+			x0 = sc.odict()  # Order matters here
+			bounds = []
+			progs = hard_constraints['programs'][t]  # Programs eligible for constraining at this time
+			LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend}]  # Constrain spend
+
+			for prog in progs:
+				x0[prog] = instructions.alloc[prog][t]
+				bounds.append(hard_constraints['bounds'][t][prog])
+
+			x0_array = np.array(list(x0.values()))
+			res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array) ** 2)), x0_array, bounds=bounds,constraints=LinearConstraint)
+			# TODO - If there's a failure to constrain, return np.inf here
+
+			# TODO - If the penalty below doesn't seem to work properly, just return 0.0 to disable
+			penalty += np.sqrt(np.sum((res['x'] - x0_array))) # Penalty is the distance between the unconstrained budget and the constrained budget
+			for name, val in zip(x0.keys(), res['x']):
+				instructions.alloc[name][t] = val
+
+		return penalty
+
+class Optimization(NamedItem):
+	""" An object that defines an Optimization to perform """
+
+	def __init__(self,  name='default', adjustments=None, constraints = None, measurables = None,  maxtime = 10, maxiters=None):
+
 		NamedItem.__init__(self, name)
 
-		self.year_opt = year_opt # Year to insert modifications to the instructions (for time-varying adjustables)
-		self.year_eval = year_eval # Optionally specify time span for evaluation
 		self.maxiters = maxiters # Not snake_case to match ASD
 		self.maxtime = maxtime # Not snake_case to match ASD
-		self.adjustables = adjustables # (prog_name/quantity,limit_type,lower_limit,upper_limit) - Input for self.update_instructions(), information needed to map ASD array entry to instructions. Limit type is 'rel' or 'abs'
-		self.measurables = measurables # (variable_name,weight,pops=None) - vals for these are summed and summed
-
-		if constraints is None:
-			self.constraints = {'total_spend':None}  # Data required to calculate the hard constraints
-		else:
-			self.constraints = constraints # Data required to construct the constraint dict
+		self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
+		self.measurables = [measurables] if not isinstance(measurables,list) else measurables
+		self.constraints = [constraints] if not isinstance(constraints,list) else constraints
 
 	def __repr__(self):
 		return sc.desc(self)
 
-	def update_instructions(self,instructions,asd_values,hard_constraints):
-		# This is the core of the Optimization class - it maps an array of ASD values into an
-		# updated ProgramInstructions instance which in turn changes the outcome of the simulation
-		#
-		# Take in some ProgramInstructions and a vector of ASD values, insert them into the instructions
-		# In the base case, instructions.alloc is an odict with one spending value per program defined,
-		# and the ASD values are a vector the same length as instructions.alloc
+	def get_initialization(self,progset,instructions):
+		# Return arrays of lower and upper bounds for each adjustable
+		x0 = []
+		for adjustment in self.adjustments:
+			x0 += adjustment.get_initialization(progset, instructions)
+		x0 = np.array(x0)
+		xmin = np.zeros(x0.shape)
+		xmax = np.zeros(x0.shape)
 
-		if not instructions.alloc:
-			instructions.alloc = dict()
+		ptr = 0
+		for adjustment in self.adjustments:
+			for adjustable in adjustment.adjustables:
+				bounds = adjustable.get_hard_bounds(x0[ptr])
+				xmin[ptr] = bounds[0]
+				xmax[ptr] = bounds[1]
+				ptr += 1
 
-		for adjustable,val in zip(self.adjustables,asd_values):
-			if adjustable[0] == 'start_year':
-				raise NotImplementedError
-			else: # Deal with other special cases above, as with start year
-				# TODO - Could store additional information on how to insert a time-varying alloc here
-				if adjustable[0] in instructions.alloc and isinstance(instructions.alloc[adjustable[0]],np.ndarray):
-					raise NotImplementedError # Time varying allocs not yet supported in ProgramInstructions although they are hooked into ProgramSet.get_alloc()
-				else:
-					instructions.alloc[adjustable[0]] = val
+		return x0, xmin, xmax
 
-		print('BEFORE')
-		print(instructions.alloc)
-		self.constrain_instructions(instructions,hard_constraints)
-		print('AFTER')
-		print(instructions.alloc)
+	def update_instructions(self, asd_values, instructions):
+		idx = 0
+		for adjustment in self.adjustments:
+			adjustment.update_instructions(asd_values[idx:idx + len(adjustment.adjustables)], instructions)
+			idx += len(adjustment.adjustables)
 
-
-	def get_hard_constraints(self,progset,instructions):
-		# Compute the hard constraints used by optimization.constrain_instructions based on
-		# the constraint specification in optimization.constraints
-		#
-		# For example, optimization.constraints might specify that total spending needs to be constrained,
-	    # in which case this method will return the actual amount of total spending for the given instructions
-		#
-
-		hard_constraints = {}
-
-		if not self.constraints:
-			return hard_constraints
-
-		initial_spending = progset.get_alloc(instructions, self.year_opt)
-		for constraint_name,val in self.constraints.items():
-			if constraint_name == 'total_spend' and val is None:
-				# Note - this is a constraint only on **adjustable** programs
-				hard_constraints[constraint_name] = 0.0
-				if val: # If total spend is to be calculated over some time period
-					raise NotImplementedError
-				else:
-					for adjustable in self.adjustables:
-						if adjustable[0] in initial_spending:
-							hard_constraints[constraint_name] += initial_spending[adjustable[0]][0]
-
-		# Constraints on upper/lower bounds that need to also be enforced when rescaling
-		_, xmin, xmax = self.get_initialization(progset,instructions)
-		for i, (name, limit_type, lower_limit, upper_limit) in enumerate(self.adjustables):
-			if name in initial_spending:
-				hard_constraints[name] = (xmin[i],xmax[i])
-
-		return hard_constraints
-
+	def get_hard_constraints(self,x0,instructions):
+		# Return hard constraints based on the starting initialization
+		instructions = dcp(instructions)
+		self.update_instructions(x0,instructions)
+		return [x.get_hard_constraint(self,instructions) for x in self.constraints]
 
 	def constrain_instructions(self,instructions,hard_constraints):
-		# The hard_constraint passed in here is NOT optimization.constraints, it is
-		# hard_constraint = optimization.get_hard_constraints(instructions)
-		# This is because the constraint may depend on the initialization. For example
-		# optimization.constraints = [('total_spend',[2020,np.inf])] # specify how to calculate the hard constraint from initial instructions
-		# hard_constraint = optimization.get_hard_constraint(instructions) = {'total_spend':$100000} # the actual constraint corresponding to the actual initialization
-		# optimization.constrain_instructions(instructions,hard_constraint) # rescale 'total_spend' (from optimization.constraints) such that total spend from 2020-np.inf is equal to $100000
-
-		# At the moment - only support standard time-invariant constraints
-		# We *could* probably do this directly based on x0 but we are not guaranteed that everything in x0 is a spending value
-		# For instance, x0 could mix spending value and start year, that's why we map via the dict keys
-
-		# First, form the vector of adjustable spends
-
-		# If no constraints, no need to do anything. Note that bounds are already handled by ASD
-		# but they need to be included here too when rescaling
-		if not hard_constraints:
-			return
-
-		x0 = sc.odict()
-		bounds = []
-		constraints = [] # List of constraints used by scipy.optimize.minimize
-
-		for name in hard_constraints:
-			if name in instructions.alloc: # Note - if a spending amount is being optimized, then it will appear in the alloc during iteration, even if it wasn't originally there
-				x0[name] = instructions.alloc[name]
-				bounds.append(hard_constraints[name])
-			elif name == 'total_spend':
-				total_spend = hard_constraints[name]
-				if len(sc.promotetoarray(total_spend)) == 1:
-					constraints.append({'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend}) # It must be equal to the total spend
-				else:
-					constraints.append({'type': 'ineq', 'fun': lambda x: total_spend[0] <= np.sum(x) <= total_spend[1]})  # It must be within the spending range (typically would be 0 to upper bound)
-
-		x0_array = np.array(list(x0.values()))
-		res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array) ** 2)), x0_array, bounds=bounds, constraints=constraints)
-
-		for name,val in zip(x0.keys(),res['x']):
-			instructions.alloc[name] = val
+		constraint_penalty = 0.0
+		if self.constraints:
+			for constraint,hard_constraint in zip(self.constraints,hard_constraints):
+				constraint_penalty += constraint.constrain_instructions(instructions,hard_constraint)
+		return constraint_penalty
 
 	def compute_objective(self,model):
 		# Take in a completed model run
-		# Compute the objective based on the settings in self.objective
+		# Compute the objective based on the measurables
 		# Program name will map to spending array for that program
-
-		# Reconstruct the alloc
-		alloc = model.progset.get_alloc(model.program_instructions, model.t)
-
 		objective = 0.0
-
-		if self.year_eval:
-			year_eval = sc.promotetoarray(self.year_eval)
-			if len(year_eval) == 2:
-				t_filter = ((year_eval[0] <= model.t) & (model.t <= year_eval[1]))
-			elif len(year_eval) == 1:
-				t_filter = (model.t == year_eval[0])
-			else:
-				raise NotAllowedError('Optimization objective year_eval must be a scalar or have two elements')
-		else:
-			t_filter = np.full(model.t.shape, True)
-
-		for var_name,weight,*pop_names in self.measurables:
-			# measurable is a tuple (variable_name,weight,pops=None)
-			if not callable(weight):
-				weightfun = lambda x: x*weight
-			else:
-				weightfun = weight
-
-			if var_name in model.vars_by_pop:
-				vars = model.vars_by_pop[var_name]
-				contribution = 0.0
-				for var in vars:
-					if not pop_names[0] or var.pop.name in pop_names: # If we are using this pop in the objective
-						if isinstance(var,Link):
-							contribution += np.sum(var.vals[t_filter]/var.dt) # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
-						else:
-							contribution += np.sum(var.vals[t_filter])
-				print(contribution)
-				objective += weightfun(contribution)
-			else:
-				objective += weightfun(np.sum(alloc[var_name][t_filter]))
-
+		for measurable in self.measurables:
+			objective += measurable.eval(model)
 		return objective
 
-	def get_initialization(self,progset,instructions):
-		# This is the default initial ASD values - typically these would be spending but in theory
-		# they could be anything supported by self.update_instructions() (e.g. start year)
-		#
-		# Returns xmin and xmax as absolute values - they will persist in parallel optimization
-		# or resumed/continued optimization whereas x0 might change (important because relative
-		# bounds are assumed to be relative to the initial values fed in)
-
-		x0   = np.zeros((len(self.adjustables,)))
-		xmin = np.zeros((len(self.adjustables,)))
-		xmax = np.zeros((len(self.adjustables,)))
-
-		# First, get the spending values on all programs in `year_opt`
-		# This allows the Progset to supply the initial values for programs that are set to
-		# be optimized but where the initial value is the Program data value, rather than an
-		# an existing overwrite in the instructions
-		assert self.year_opt is None or len(sc.promotetoarray(self.year_opt)) == 1 # Only return 1 spending value
-		initial_spending = progset.get_alloc(instructions, self.year_opt)
-
-		for i,(name,limit_type,lower_limit,upper_limit,*initial) in enumerate(self.adjustables): # For each quantity we are adjusting
-			if initial:
-				x0[i] = initial
-			elif name in initial_spending:
-				x0[i] = initial_spending[name][0]
-			else:
-				raise NotImplemented # This could be other things like changing the start year or even year_opt - need to define allowed adjustable names e.g. 'start_year'
-
-			if limit_type == 'rel':
-				xmin[i] = x0[i]*lower_limit if lower_limit else 0.0
-				xmax[i] = x0[i]*upper_limit if upper_limit else np.inf
-			elif limit_type == 'abs':
-				xmin[i] = lower_limit if lower_limit else 0.0
-				xmax[i] = upper_limit if upper_limit else np.inf
-			else:
-				raise NotAllowedError('limit_type must be "rel" or "abs"')
-
-		return x0,xmin,xmax
 
 
-def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints = None):
+def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
 	# Compute the objective in ASD
 
 	# Unpickle model
@@ -254,14 +387,17 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 	# Inject the ASD vector into the instructions
 	optimization.update_instructions(model.program_instructions, asd_values, hard_constraints)
 
+	# Constrain the alloc
+	constraint_penalty = optimization.constrain_instructions(model.program_instructions,hard_constraints)
+
 	# Use the updated instructions to run the model
 	model.process()
 
 	# Compute the objective function based on the model calculated values and return it
-	return optimization.compute_objective(model)
+	return constraint_penalty + optimization.compute_objective(model)
 
 
-def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None):
+def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None,hard_constraints=None):
 	# The ASD initialization, xmin and xmax values can optionally be
 
 	model = Model(project.settings, project.framework, parset, progset, instructions)
@@ -272,7 +408,8 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
 	xmin = xmin if xmin is not None else initialization[1]
 	xmax = xmax if xmax is not None else initialization[2]
 
-	hard_constraints = optimization.get_hard_constraints(progset,model.program_instructions) # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
+	if not hard_constraints:
+		hard_constraints = optimization.get_hard_constraints(x0,model.program_instructions) # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
 
 	args = {
 		'pickled_model': pickled_model,

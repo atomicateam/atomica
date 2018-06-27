@@ -36,8 +36,8 @@ torun = [
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 # "runsim_programs",
-# "outcome_optimization",
-"money_optimization",
+"outcome_optimization",
+# "money_optimization",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -235,14 +235,14 @@ if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
     if test == "sir":
         # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
-        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+        adjustments = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
         measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
         # New name argument set to old name to do in-place calibration.
-        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+        P.calibrate(parset="default", new_name="auto", adjustments=adjustments, measurables=measurables, max_time=30)
     if test == "tb":
         # Shortcut for calibration measurables.
-        adjustables = [("foi", "15-64", 0.0, 3.0)]
-        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+        adjustments = [("foi", "15-64", 0.0, 3.0)]
+        P.calibrate(parset="default", new_name="auto", adjustments=adjustments, measurables=["ac_inf"], max_time=30)
     P.run_sim(parset="auto", result_name="auto")
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
@@ -294,14 +294,17 @@ if "outcome_optimization" in torun:
                      ('Treatment 2', 1.)])
 
     instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-    adjustables = [('Treatment 1','abs',0.0,100.0),('Treatment 2','abs',0.0,100.0)]
-    measurables = [('ch_all',-1.0,None)] # Total number of people in all pops
-    P.make_optimization(name='default', adjustables=adjustables, measurables=measurables, year_eval=[2020,np.inf]) # Evaluate from 2020 to end of simulation
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
+    measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
+    constraints = au.TotalSpendConstraint() # Cap total spending in 2020
+    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
     optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
 
-    for adjustable in adjustables:
+    for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable[0],unoptimized_result.model.program_instructions.alloc[adjustable[0]],optimized_result.model.program_instructions.alloc[adjustable[0]]))
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
@@ -324,15 +327,15 @@ if "money_optimization" in torun:
                      ('Treatment 2', 60.)])
 
     instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-    adjustables = [('Treatment 1','abs',0.0,100.0),('Treatment 2','abs',0.0,100.0)]
+    adjustments = [('Treatment 1','abs',0.0,100.0),('Treatment 2','abs',0.0,100.0)]
     measurables = [('Treatment 1',1),('Treatment 2',1),('ch_all',lambda x: 10000*(x<728.01),None)] # Total number of people in all pops
     constraints = {'total_spend':[0.0,np.inf]}
-    P.make_optimization(name='default', adjustables=adjustables, measurables=measurables, year_eval=[2030], constraints = constraints) # Evaluate from 2020 to end of simulation
+    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables, year_eval=[2030], constraints = constraints) # Evaluate from 2020 to end of simulation
 
     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
     optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
 
-    for adjustable in adjustables:
+    for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable[0],unoptimized_result.model.program_instructions.alloc[adjustable[0]],optimized_result.model.program_instructions.alloc[adjustable[0]]))
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
