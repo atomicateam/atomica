@@ -113,16 +113,17 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=31)
 
 if "loadprogramspreadsheet" in torun:
+    print('\n\n\nLoading programs spreadsheet ...')
+
+    P = au.demo(which=test,do_plot=0)
     if test=='tb':
-        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+        filename = "databooks/progbook_" + test + ".xlsx"
+        P.load_progbook(progbook_path=filename, make_default_progset=True)
     else:
-        print('\n\n\nLoading programs spreadsheet ...')
-    
-        P = au.demo(which=test,do_plot=0)
         filename = "databooks/programdata_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
         P.progsets[0].programs[0].get_spend(year=2015)
-        
+
         # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
         coverage = sc.odict([('Risk avoidance',     .99),
                              ('Harm reduction 1',   .8),
