@@ -1011,6 +1011,7 @@ class TitledRange(object):
 
         current_row = self.data_range.first_row
         num_levels = len(self.content.row_levels) if self.content.row_levels is not None else 1
+#        if self.sheet.name=='Program data':import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         # iterate over rows, incrementing current_row as we go
         for i, names_format in enumerate(zip(self.content.get_row_names(), self.content.get_row_formats())):
@@ -1062,11 +1063,11 @@ class TitledRange(object):
                     if not saveassumptiondata:
                         formats.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
                                                      row_format)
-            current_row += 1
-            if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
-                current_row += 1
-        # done! return the new current_row plus spacing
-        return current_row + TitledRange.ROW_INTERVAL  # for spacing
+            current_row+=1
+            if num_levels > 1 and ((i+1) % num_levels)==0: # shift between the blocks
+                current_row +=1
+        #done! return the new current_row plus spacing
+        return current_row + TitledRange.ROW_INTERVAL # for spacing
 
     def param_refs(self, column_number=0):
         return self.data_range.param_refs(self.sheet.get_name(), column_number)
@@ -1098,6 +1099,7 @@ class AtomicaContent(object):
             return [[name, level] for name in self.row_names for level in self.row_levels]
 
     def get_row_formats(self):  # assume that the number of row_formats is same as the number of row_levels
+        if self.name=='Program data': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         if not self.row_levels is not None:
             return [self.row_format for name in self.row_names]
         else:
@@ -1171,10 +1173,10 @@ class ProgramSpreadsheet:
                                  column_names=range(int(self.data_start), int(self.data_end + 1)))
         content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
                                AtomicaFormats.GENERAL]
-        content.row_format = AtomicaFormats.GENERAL
         content.assumption = True
         content.row_levels = row_levels
         the_range = TitledRange(self.current_sheet, current_row, content)
+        content.get_row_formats()
         current_row = the_range.emit(self.formats)
 
     def generate_covoutdata(self):
@@ -1194,7 +1196,8 @@ class ProgramSpreadsheet:
 
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
-                                 'columns': [p['short'] for p in self.progs]}
+                                 'columns': self.ref_prog_range.param_refs()}
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         content.assumption_properties = assumption_properties
         the_range = TitledRange(self.current_sheet, current_row, content)
