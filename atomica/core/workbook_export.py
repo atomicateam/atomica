@@ -1256,6 +1256,15 @@ class FrameworkFile:
         # self.current_sheet.set_column(9, 9, 12)
         current_row = 0
 
+        # coded_params = []
+        # for item in self.progs:
+        #     if type(item) is dict:
+        #         name = item['name']
+        #         short = item['short']
+        #         target_pops = [''] + ['' for popname in self.pops]
+        #         target_comps = [''] + ['' for comp in self.comps]
+        #     coded_params.append([short, name] + target_pops + target_comps)
+
         column_names = ["Datasheet Code Name", "Datasheet Title"]
         content = AtomicaContent(name="Custom Databook Pages",
                                  row_names=range(1, len(self.datapages) + 1),
@@ -1265,26 +1274,14 @@ class FrameworkFile:
         self.datapage_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
         self.datapage_range.emit(self.formats, rc_title_align='left')
 
-        # coded_params = []
-        # for item in self.progs:
-        #     if type(item) is dict:
-        #         name = item['name']
-        #         short = item['short']
-        #         target_pops = [''] + ['' for popname in self.pops]
-        #         target_comps = [''] + ['' for comp in self.comps]
-        #     coded_params.append([short, name] + target_pops + target_comps)
-        #
-        # column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
-        # content = AtomicaContent(name='Populations & programs',
-        #                          row_names=range(1, len(self.progs) + 1),
-        #                          column_names=column_names,
-        #                          data=coded_params,
-        #                          assumption=False)
         # self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
         # current_row = self.prog_range.emit(self.formats, rc_title_align='left')
         # self.ref_prog_range = self.prog_range
 
     def generate_comp(self):
+        column_names = ["Code Name", "Display Name", "Is Source", "Is Sink", "Is Junction",
+                        "Setup Weight", "Databook Page", "Databook Order"]
+
         pass
 
     def generate_link(self):
@@ -1384,32 +1381,21 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars):
     """ Generate the Atomica framework file. """
 
     item_type_inputs = [datapages, comps, characs, interpops, pars]
-    for j in range(item_type_inputs):
-        item_type_input = item_type_inputs[k]
+    for j in range(len(item_type_inputs)):
+        item_type_input = item_type_inputs[j]
         if sc.isnumber(item_type_input):    # An integer argument is given; just create a list using empty entries.
             num_items = item_type_input
             items = []
             for k in range(num_items):
                 items.append({"name": "sh_{0}".format(k+1), "label": "Custom Databook Sheet {0}".format(k+1)})
+            item_type_inputs[j] = items
 
-    # if sc.isnumber(comps):
-    #     ncomps = comps
-    #     comps = []  # Create real compartments list
-    #     for p in range(ncomps):
-    #         pops.append('Comp %i' % (p + 1))
-    #
-    # if sc.isnumber(progs):
-    #     nprogs = progs
-    #     progs = []  # Create real pops list
-    #     for p in range(nprogs):
-    #         progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
-    #
     #         # Ensure years are integers
     # if datastart is None: datastart = 2015.  # TEMP
     # if dataend is None:   dataend = 2018.  # TEMP
     # datastart, dataend = int(datastart), int(dataend)
 
-    book = FrameworkFile(filename, datapages, comps, characs, interpops, pars)
+    book = FrameworkFile(filename, *item_type_inputs)
     book.create(filename)
 
     return filename
