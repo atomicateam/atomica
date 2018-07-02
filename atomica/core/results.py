@@ -105,7 +105,7 @@ class Result(NamedItem):
         return df
 
 
-    def get_cascade_vals(self, project=None, framework=None):
+    def get_cascade_vals(self, project=None):
         '''
         Gets values for populating a cascade plot
         See https://docs.google.com/presentation/d/1lEEyPFORH3UeFpmaxEAGTKyHAbJRnKTm5YIsfV1iJjc/edit?usp=sharing
@@ -115,21 +115,25 @@ class Result(NamedItem):
             conv: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion converted by year
             t: list of the years
         '''
-        if project is None and framework is None:
-            errormsg = 'You need to supply either a project with a framework or a framework in order to plot the cascade.'
+        if project is None:
+            errormsg = 'You need to supply a project in order to plot the cascade.'
             raise AtomicaException(errormsg)
             
         cascade = sc.odict()
         cascade['vals'] = sc.odict()
         cascade['loss'] = sc.odict()
         cascade['conv'] = sc.odict()
-        F = project.framework if framework is None else framework
+        F = project.framework
         for sno,stage in enumerate(F.filter['stages']):
-            cascade['vals'][stage] = self.get_variable('adults',stage)[0].vals
-            cascade['t'] = self.get_variable('adults',stage)[0].t
-            if sno > 0:
-                cascade['conv'][stage] = (cascade['vals'][stage], cascade['vals'][sno]/cascade['vals'][sno-1])
-                cascade['loss'][stage] = (cascade['vals'][sno-1]-cascade['vals'][sno], 1.-cascade['conv'][stage][1])
+            cascade['vals'][stage] = sc.odict()
+            cascade['conv'][stage] = sc.odict()
+            cascade['loss'][stage] = sc.odict()
+            for pno,pop in enumerate(project.popkeys):
+                cascade['vals'][stage][pop] = self.get_variable(pop,stage)[0].vals
+                cascade['t'] = self.get_variable(pop,stage)[0].t
+                if sno > 0:
+                    cascade['conv'][stage][pop] = (cascade['vals'][stage][pop], cascade['vals'][sno][pop]/cascade['vals'][sno-1][pop])
+                    cascade['loss'][stage][pop] = (cascade['vals'][sno-1][pop]-cascade['vals'][sno][pop], 1.-cascade['conv'][stage][pop][1])
                 
         return cascade
 
