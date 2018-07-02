@@ -1057,11 +1057,11 @@ class TitledRange(object):
                     if not saveassumptiondata:
                         formats.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
                                                      row_format)
-            current_row += 1
-            if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
-                current_row += 1
-        # done! return the new current_row plus spacing
-        return current_row + TitledRange.ROW_INTERVAL  # for spacing
+            current_row+=1
+            if num_levels > 1 and ((i+1) % num_levels)==0: # shift between the blocks
+                current_row +=1
+        #done! return the new current_row plus spacing
+        return current_row + TitledRange.ROW_INTERVAL # for spacing
 
     def param_refs(self, column_number=0):
         return self.data_range.param_refs(self.sheet.get_name(), column_number)
@@ -1162,11 +1162,11 @@ class ProgramSpreadsheet:
         content = AtomicaContent(name='Cost & coverage',
                                  row_names=self.ref_prog_range.param_refs(),
                                  column_names=range(int(self.data_start), int(self.data_end + 1)))
-        content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL]
         content.row_format = AtomicaFormats.GENERAL
         content.assumption = True
         content.row_levels = row_levels
         the_range = TitledRange(self.current_sheet, current_row, content)
+        content.get_row_formats()
         current_row = the_range.emit(self.formats)
 
     def generate_covoutdata(self):
@@ -1186,7 +1186,7 @@ class ProgramSpreadsheet:
 
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
-                                 'columns': [p['short'] for p in self.progs]}
+                                 'columns': self.ref_prog_range.param_refs()}
 
         content.assumption_properties = assumption_properties
         the_range = TitledRange(self.current_sheet, current_row, content)
