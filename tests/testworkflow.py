@@ -19,9 +19,9 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-#test = "sir"
-#test = "tb"
-#test = "diabetes"
+test = "sir"
+test = "tb"
+test = "diabetes"
 test = "service"
 
 torun = [
@@ -107,8 +107,11 @@ if "makeparset" in torun:
     P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2035, sim_dt=0.25)
+    P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     P.run_sim(parset="default", result_name="default")
+        
+    cascade = P.results[-1].get_cascade_vals(project=P)
+            
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\Making programs spreadsheet ... ')
