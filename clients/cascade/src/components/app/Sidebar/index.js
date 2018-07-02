@@ -15,13 +15,18 @@ const SidebarStore = {
     },
     {
       name: 'Baseline',
-      icon: 'ti-pulse',
-      path: '/baseline'
+      icon: 'ti-ruler-alt-2',
+      path: '/calibration'
     },
     {
-      name: 'Analysis',
+      name: 'Scenarios',
       icon: 'ti-control-shuffle',
-      path: '/analysis'
+      path: '/scenarios'
+    },
+    {
+      name: 'Optimizations',
+      icon: 'ti-stats-up',
+      path: '/optimizations'
     },
     {
       name: 'Help',
