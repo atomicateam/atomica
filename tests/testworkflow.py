@@ -20,19 +20,20 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 #test = "sir"
-test = "tb"
+#test = "tb"
+test = "diabetes"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
 #"makeproject",
 #"loaddatabook",
 #"makeparset",
 # "runsim",
-"makeprogramspreadsheet",
+#"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
 #"runsim_programs",
 #"makeplots",
@@ -69,6 +70,7 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
+    elif test == "diabetes": args = {"num_comps":10, "num_characs":5, "num_pars":10}
     au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
@@ -85,6 +87,8 @@ if "makedatabook" in torun:
     if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:

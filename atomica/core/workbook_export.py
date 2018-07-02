@@ -1006,7 +1006,6 @@ class TitledRange(object):
 
         current_row = self.data_range.first_row
         num_levels = len(self.content.row_levels) if self.content.row_levels is not None else 1
-#        if self.sheet.name=='Program data':import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         # iterate over rows, incrementing current_row as we go
         for i, names_format in enumerate(zip(self.content.get_row_names(), self.content.get_row_formats())):
@@ -1093,7 +1092,6 @@ class AtomicaContent(object):
             return [[name, level] for name in self.row_names for level in self.row_levels]
 
     def get_row_formats(self):  # assume that the number of row_formats is same as the number of row_levels
-        if self.name=='Program data': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         if not self.row_levels is not None:
             return [self.row_format for name in self.row_names]
         else:
@@ -1189,7 +1187,6 @@ class ProgramSpreadsheet:
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
                                  'columns': self.ref_prog_range.param_refs()}
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         content.assumption_properties = assumption_properties
         the_range = TitledRange(self.current_sheet, current_row, content)
