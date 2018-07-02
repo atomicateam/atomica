@@ -1,8 +1,8 @@
 {
-  "name": "optima-tb",
+  "name": "cascade-analysis-tools",
   "version": "0.10.0",
-  "description": "Optima TB",
-  "author": "Optima Consortium for Decision Science <info@ocds.co>",
+  "description": "Cascade Analysis Tools",
+  "author": "Robyn Stuart <robyn@math.ku.de>",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
