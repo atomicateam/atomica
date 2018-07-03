@@ -20,9 +20,9 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 #test = "sir"
-#test = "tb"
+test = "tb"
 #test = "diabetes"
-test = "service"
+# test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -116,7 +116,10 @@ if "runsim" in torun:
     if test in ['diabetes']:
         print('\n\n\nDatabook not yet filled in for diabetes example.')
     else:
-        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+        if test in ["tb"]:
+            P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+        else:
+            P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
         P.run_sim(parset="default", result_name="default")
         
         cascade = P.results[-1].get_cascade_vals(project=P)
