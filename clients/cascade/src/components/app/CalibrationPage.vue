@@ -57,6 +57,7 @@ Last update: 2018-05-29
     <div style="margin-left:350px">
       <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
         <!--mpld3 content goes here-->
+        {{ index }}
       </div>
     </div>
 
@@ -180,7 +181,7 @@ Last update: 2018-05-29
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 1; index <= n_plots; index++) {
+            for (var index = 0; index <= n_plots; index++) {
               console.log('Rendering plot ' + index)
               console.log('0Working with '+divlabel+' and '+index)
               var divlabel = 'fig' + index
@@ -190,14 +191,15 @@ Last update: 2018-05-29
                 console.log('2Working with '+divlabel+' and '+index)
                 div.removeChild(div.firstChild);
               }
-              try {
-                console.log('3Working with '+divlabel+' and '+index)
-                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-                console.log('4Working with '+divlabel+' and '+index)
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
+              console.log('3Working with '+divlabel+' and '+index)
+              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              console.log('4Working with '+divlabel+' and '+index)
+//              try {
+//
+//              }
+//              catch (err) {
+//                console.log('failled:' + err.message);
+//              }
             }
           })
           .catch(error => {
@@ -220,7 +222,7 @@ Last update: 2018-05-29
       },
 
       clearGraphs() {
-        for (var index = 1; index <= 100; index++) {
+        for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
           var divlabel = 'fig' + index
           var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
