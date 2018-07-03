@@ -1,8 +1,15 @@
-h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6, p, .navbar, .brand, a, .td-name, td {
+h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6 {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
-  font-family: 'Fjalla One', "Times New Roman", Arial, sans-serif;
+  font-family: 'Fjalla One', "Helvetica", Arial, sans-serif;
 }
+
+p, .navbar, .brand, a, .td-name, td {
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  font-family: 'Avenir', "Helvetica", Arial, sans-serif;
+}
+
 
 h1, .h1, h2, .h2, h3, .h3, h4, .h4 {
   font-weight: $font-weight-normal;

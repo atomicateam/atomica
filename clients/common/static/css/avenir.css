@@ -2,5 +2,5 @@
   font-family: 'Avenir';
   font-style: normal;
   font-weight: 400;
-  src: local('Avenir'), local('Avenir Medium'), local('Avenir-Medium'), url(/static/fonts/Avenir-Medium.ttf) format('truetype');
+  src: local('Avenir'), local('Avenir-Medium'), url(../fonts/Avenir-Medium.ttf) format('truetype');
 }

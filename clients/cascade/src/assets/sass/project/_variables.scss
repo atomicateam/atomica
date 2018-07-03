@@ -221,7 +221,8 @@ $select-coordinates: 50% -40px !default;
 
 $padding-zero: 0px !default;
 
-$sidebar-width: calc(100% - 200px) !default;
+$sidebar-real-width: 210px;
+$sidebar-width: calc(100% - #{$sidebar-real-width}) !default;
 $medium-dark-gray: #AAAAAA !default;
 
 //variables used in cards
