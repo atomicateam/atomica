@@ -20,21 +20,23 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 #test = "sir"
-test = "tb"
+#test = "tb"
+#test = "diabetes"
+test = "service"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-# "runsim",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
 "makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -69,6 +71,8 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
+    elif test == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
+    elif test == "service": args = {"num_comps":7, "num_characs":4, "num_pars":10}
     au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
@@ -85,6 +89,10 @@ if "makedatabook" in torun:
     if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "service": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -92,31 +100,45 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.make_parset(name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2035, sim_dt=0.25)
-    P.run_sim(parset="default", result_name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+        P.run_sim(parset="default", result_name="default")
+        
+        cascade = P.results[-1].get_cascade_vals(project=P)
+            
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\Making programs spreadsheet ... ')
 
-    P = au.demo(which=test,do_plot=0)
-    filename = "temp/programspreadsheet.xlsx"
-    P.make_progbook(filename, progs=5)
+    # Not implemented for the new demos
+    if test not in ['diabetes']:
+        P = au.demo(which=test,do_plot=0)
+        filename = "temp/progbook_"+test+"_blank.xlsx"
+        P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    if test=='tb':
-        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    if test in ['tb','diabetes','service']:
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
         P = au.demo(which=test,do_plot=0)
-        filename = "databooks/programdata_"+test+".xlsx"
+        filename = "databooks/progbook_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
         P.progsets[0].programs[0].get_spend(year=2015)
         
@@ -144,8 +166,8 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    if test=='tb':
-        raise NotImplemented
+    if test in ['tb','diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
     else:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
