@@ -208,7 +208,7 @@ def init_frameworks(app):
         
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Starting a demo framework.')
-        frame = au.Framework(name='Test 1')  
+        frame = au.ProjectFramework(name='Test 1')  
         frameSO = FrameworkSO(frame, user.get_scirisdemo_user())
         frame_collection.add_object(frameSO)
         
