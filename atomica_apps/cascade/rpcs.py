@@ -974,45 +974,72 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-
-def get_plots(project_id, plot_names=None, pops='all'):
+def do_get_plots(project_id):
+    import nutrition.ui as nu
     
-    import pylab as pl
+    print('Running scenarios...')
+    proj = nu.demo()
+    proj.default_scens()
+#    proj = load_project(project_id, raise_exception=True)
     
-    supported_plots = supported_plots_func() 
-    
-    if plot_names is None: plot_names = supported_plots.keys()
-
-    proj = load_project(project_id, raise_exception=True)
-    
-    plot_names = sc.promotetolist(plot_names)
-    result = proj.results[-1]
-
-    figs = []
+    proj.run_scens()
+    figs = proj.plot(toplot=['prevs', 'outputs']) # Do not plot allocation
     graphs = []
-    
-    print('WARNING, TEMP')
-    cascade = result.get_cascade_vals(project=proj)
-    ydata = []
-    keys = cascade['vals'].keys()
-    for key in keys:
-        pop = 0
-        year = 0
-        ydata.append(cascade['vals'][key][pop][year])
-    xdata = range(len(ydata))
-    fig = pl.figure()
-    pl.bar(xdata,ydata)
-    pl.gca().set_xticks(xdata)
-    pl.gca().set_xticklabels(keys)
-    figs.append(fig)
-    
-    for f,fig in enumerate(figs):
-        graph_dict = make_mpld3_graph_dict(fig)
+    for f,fig in enumerate(figs.values()):
+        for ax in fig.get_axes():
+            ax.set_facecolor('none')
+        graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
-        print(graph_dict)
+    
+    print('Saving project...')
+#    save_project(proj)    
+    return {'graphs': graphs}
 
-    return {'graphs':graphs}
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_plots(project_id):
+    return do_get_plots(project_id)
+
+
+#def get_plots(project_id, plot_names=None, pops='all'):
+#    
+#    import pylab as pl
+#    
+#    supported_plots = supported_plots_func() 
+#    
+#    if plot_names is None: plot_names = supported_plots.keys()
+#
+#    proj = load_project(project_id, raise_exception=True)
+#    
+#    plot_names = sc.promotetolist(plot_names)
+#    result = proj.results[-1]
+#
+#    figs = []
+#    graphs = []
+#    
+#    print('WARNING, TEMP')
+#    cascade = result.get_cascade_vals(project=proj)
+#    ydata = []
+#    keys = cascade['vals'].keys()
+#    for key in keys:
+#        pop = 0
+#        year = 0
+#        ydata.append(cascade['vals'][key][pop][year])
+#    xdata = range(len(ydata))
+#    fig = pl.figure()
+#    pl.plot(xdata,ydata)
+##    pl.gca().set_xticks(xdata)
+##    pl.gca().set_xticklabels(keys)
+#    figs.append(fig)
+#    
+#    for f,fig in enumerate(figs):
+#        graph_dict = make_mpld3_graph_dict(fig)
+#        graphs.append(graph_dict)
+#        print('Converted figure %s of %s' % (f+1, len(figs)))
+#        print(graph_dict)
+#
+#    return {'graphs':graphs}
 
 
 
@@ -1049,7 +1076,7 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
     proj.modified = sc.today()
     proj.run_sim(parset=parsetname, store_results=True)
     save_project(proj)    
-    output = get_plots(proj.uid)
+    output = do_get_plots(proj.uid)
     return output
 
 
