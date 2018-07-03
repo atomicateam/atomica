@@ -994,7 +994,43 @@ def do_get_plots(project_id):
     
     print('Saving project...')
 #    save_project(proj)    
-    return {'graphs': graphs}
+#    return {'graphs': graphs}
+    
+    print('TESSSSSSSSSSSSSST1')
+    print(graphs)
+    
+    import pylab as pl
+    proj = load_project(project_id, raise_exception=True)
+    result = proj.results[-1]
+
+    figs = []
+    graphs = []
+    
+    print('WARNING, TEMP')
+    cascade = result.get_cascade_vals(project=proj)
+    ydata = []
+    keys = cascade['vals'].keys()
+    for key in keys:
+        pop = 0
+        year = 0
+        ydata.append(cascade['vals'][key][pop][year])
+    xdata = range(len(ydata))
+    fig = pl.figure()
+    pl.plot(xdata,ydata)
+#    pl.gca().set_xticks(xdata)
+#    pl.gca().set_xticklabels(keys)
+    figs.append(fig)
+    
+    for f,fig in enumerate(figs):
+        graph_dict = make_mpld3_graph_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+        print(graph_dict)
+    
+    print('TESSSSSSSSSSSSSST2')
+    print(graphs)
+
+    return {'graphs':graphs}
 
 
 @register_RPC(validation_type='nonanonymous user')    
