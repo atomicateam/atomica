@@ -974,10 +974,7 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-
-@register_RPC(validation_type='nonanonymous user')    
-def get_plots(project_id):
-    
+def do_get_plots(project_id):
     import nutrition.ui as nu
     
     print('Running scenarios...')
@@ -997,7 +994,12 @@ def get_plots(project_id):
     
     print('Saving project...')
 #    save_project(proj)    
-    return {'graphs':graphs}
+    return {'graphs': graphs}
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_plots(project_id):
+    return do_get_plots(project_id)
 
 
 #def get_plots(project_id, plot_names=None, pops='all'):
@@ -1074,7 +1076,7 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
     proj.modified = sc.today()
     proj.run_sim(parset=parsetname, store_results=True)
     save_project(proj)    
-    output = get_plots(proj.uid)
+    output = do_get_plots(proj.uid)
     return output
 
 

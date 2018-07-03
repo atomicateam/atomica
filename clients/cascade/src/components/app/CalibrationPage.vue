@@ -203,20 +203,18 @@ Last update: 2018-05-29
             // Set the server error.
             this.servererror = error.message
           }).then( response => {
-            this.$notifications.notify({
-              message: 'Graphs created',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+          this.$notifications.notify({
+            message: 'Graphs created',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
         })
-
-
       },
 
       clearGraphs() {
-        for (var index = 1; index <= 100; index++) {
+        for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
           var divlabel = 'fig' + index
           var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
