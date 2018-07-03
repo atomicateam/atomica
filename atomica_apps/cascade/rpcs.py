@@ -1049,7 +1049,7 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
     proj.modified = sc.today()
     proj.run_sim(parset=parsetname, store_results=True)
     save_project(proj)    
-    output = do_get_plots(proj.uid)
+    output = get_plots(proj.uid)
     return output
 
 
