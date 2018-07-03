@@ -991,38 +991,16 @@ def make_figs(project_id):
         ydata.append(cascade['vals'][key][pop][year])
     xdata = range(len(ydata))
     fig = pl.figure()
-    pl.plot(xdata,ydata)
+    pl.bar(xdata,ydata)
     print xdata
     print ydata
-#    pl.gca().set_xticks(xdata)
-#    pl.gca().set_xticklabels(keys)
+    pl.gca().set_xticks(xdata)
+    pl.gca().set_xticklabels(keys)
     figs.append(fig)
     return figs
 
 def do_get_plots(project_id):
-#    import nutrition.ui as nu
-#    
-#    print('Running scenarios...')
-#    proj = nu.demo()
-#    proj.default_scens()
-##    proj = load_project(project_id, raise_exception=True)
-#    
-#    proj.run_scens()
-#    figs = proj.plot(toplot=['prevs', 'outputs']) # Do not plot allocation
     graphs = []
-#    for f,fig in enumerate(figs.values()):
-#        for ax in fig.get_axes():
-#            ax.set_facecolor('none')
-#        graph_dict = mpld3.fig_to_dict(fig)
-#        graphs.append(graph_dict)
-#        print('Converted figure %s of %s' % (f+1, len(figs)))
-#    
-#    print('Saving project...')
-##    save_project(proj)    
-##    return {'graphs': graphs}
-#    
-#    print('TESSSSSSSSSSSSSST1')
-#    print(graphs)
     
     figs = make_figs(project_id)
     
@@ -1032,9 +1010,6 @@ def do_get_plots(project_id):
         print('Converted figure %s of %s' % (f+1, len(figs)))
         print(graph_dict)
     
-    print('TESSSSSSSSSSSSSST2')
-    print(graphs)
-
     return {'graphs':graphs}
 
 

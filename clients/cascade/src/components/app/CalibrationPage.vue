@@ -57,7 +57,6 @@ Last update: 2018-05-29
     <div style="margin-left:350px">
       <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
         <!--mpld3 content goes here-->
-        {{ index }}
       </div>
     </div>
 
