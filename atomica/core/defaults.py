@@ -20,6 +20,17 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     pass
 
 
+def default_framework(which='sir', **kwargs):
+
+    if   which == "sir":      args = {"num_comps":4, "num_characs":8, "num_pars":6}
+    elif which == "tb":       args = {"num_comps":40, "num_characs":70, "num_pars":140}
+    elif which == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
+    elif which == "service":  args = {"num_comps":7, "num_characs":4, "num_pars":10}
+#    path = ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
+    F = ProjectFramework(name=which.upper(), filepath=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
+    return F
+
+
 def default_project(which='sir', do_run=True, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
@@ -38,7 +49,7 @@ def default_project(which='sir', do_run=True, **kwargs):
         P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
 
     elif which=='tb':
-        logger.info("Creating an SIR epidemic project...")
+        logger.info("Creating a TB epidemic project...")
         
         F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
@@ -48,9 +59,13 @@ def default_project(which='sir', do_run=True, **kwargs):
     return P
 
 
-def demo(doplot=False, **kwargs):
+def demo(kind=None, doplot=False, **kwargs):
     """ Create a simple demo project"""
-    P = default_project(**kwargs)
+    
+    if kind is None: kind == 'project'
+    
+    if kind == 'framework': output = default_framework(**kwargs)
+    elif kind == 'project': output = default_project(**kwargs)
     if doplot:
         logger.warning("Plotting not implemented yet.")
-    return P
+    return output

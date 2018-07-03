@@ -71,10 +71,7 @@ Last update: 2018-05-29
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
           </th>
-          <th>Framework</th>
-          <th>Details</th>
-          <th>Databook</th>
-          <th>Program book</th>
+          <th>Framework book</th>
         </tr>
         </thead>
         <tbody>
@@ -102,18 +99,8 @@ Last update: 2018-05-29
           <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime:
             'No modification' }}</td>
           <td>
-            TBC
-          </td>
-          <td>
-            TBC
-          </td>
-          <td>
             <button class="btn __blue" @click="uploadDatabook(frameworkSummary.framework.id)">Upload</button>
             <button class="btn" @click="downloadDatabook(frameworkSummary.framework.id)">Download</button>
-          </td>
-          <td style="white-space: nowrap">
-            <button class="btn __blue" @click="uploadProgbook(frameworkSummary.framework.id)">Upload</button>
-            <button class="btn" @click="downloadProgbook(frameworkSummary.framework.id)">Download</button>
           </td>
         </tr>
         </tbody>
@@ -143,25 +130,19 @@ Last update: 2018-05-29
           Framework name:<br>
           <input type="text"
                  class="txbox"
-                 v-model="proj_name"/><br>
-          Framework [TBC]:<br>
-          <select v-model="currentFramework">
-            <option v-for='frw in frameworkOptions'>
-              {{ frw }}
-            </option>
-          </select><br><br>
-          Number of populations:<br>
+                 v-model="frame_name"/><br>
+          Number of compartments:<br>
           <input type="text"
                  class="txbox"
-                 v-model="num_pops"/><br>
-          First year for data entry:<br>
+                 v-model="num_comps"/><br>
+          Number of characteristics:<br>
           <input type="text"
                  class="txbox"
-                 v-model="data_start"/><br>
-          Final year for data entry:<br>
+                 v-model="num_chars"/><br>
+          Number of parameters:<br>
           <input type="text"
                  class="txbox"
-                 v-model="data_end"/><br>
+                 v-model="num_pars"/><br>
         </div>
         <div style="text-align:justify">
           <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
@@ -200,10 +181,10 @@ Last update: 2018-05-29
         sortColumn: 'name',  // Column of table used for sorting the frameworks: name, country, creationTime, updatedTime, dataUploadTime
         sortReverse: false, // Sort in reverse order?
         frameworkSummaries: [], // List of summary objects for frameworks the user has
-        proj_name: '', // For creating a new framework: number of populations
-        num_pops: 5, // For creating a new framework: number of populations
-        data_start: 2000, // For creating a new framework: number of populations
-        data_end: 2020, // For creating a new framework: number of populations
+        frame_name: '', // For creating a new framework: number of populations
+        num_comps: 5, // For creating a new framework: number of populations
+        num_chars: 10, // For creating a new framework: number of populations
+        num_pars: 20, // For creating a new framework: number of populations
         frameworkOptions: ['Framework 1', 'Framework 2'],
         currentFramework: 'Framework 1'
       }
@@ -255,9 +236,9 @@ Last update: 2018-05-29
             this.frameworkSummaries = response.data.frameworks
 
             // Set select flags for false initially.
-            this.frameworkSummaries.forEach(theProj => {
-              theProj.selected = false
-              theProj.renaming = ''
+            this.frameworkSummaries.forEach(theFrame => {
+              theFrame.selected = false
+              theFrame.renaming = ''
             })
           })
       },
@@ -312,7 +293,7 @@ Last update: 2018-05-29
         console.log('uploadFrameworkFromFile() called')
 
         // Have the server upload the framework.
-        rpcservice.rpcUploadCall('create_framework_from_prj_file', [this.$store.state.currentUser.UID], {})
+        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {})
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
             this.updateFrameworkSummaries()
@@ -393,12 +374,12 @@ Last update: 2018-05-29
        if (this.selectedCountry === 'Select country...')
        return frameworks
        else
-       return frameworks.filter(theProj => theProj.country === this.selectedCountry)
+       return frameworks.filter(theFrame => theFrame.country === this.selectedCountry)
        }, */
 
       openFramework(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('openFramework() called for ' + matchFramework.framework.name)
 
@@ -416,7 +397,7 @@ Last update: 2018-05-29
 
       copyFramework(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('copyFramework() called for ' + matchFramework.framework.name)
 
@@ -476,7 +457,7 @@ Last update: 2018-05-29
 
       downloadFrameworkFile(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('downloadFrameworkFile() called for ' + matchFramework.framework.name)
 
@@ -486,7 +467,7 @@ Last update: 2018-05-29
 
       downloadDatabook(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('downloadDatabook() called for ' + matchFramework.framework.name)
 
@@ -496,7 +477,7 @@ Last update: 2018-05-29
 
       downloadProgbook(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('downloadProgbook() called for ' + matchFramework.framework.name)
 
@@ -506,7 +487,7 @@ Last update: 2018-05-29
 
       downloadDefaults(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('downloadDefaults() called for ' + matchFramework.framework.name)
 
@@ -514,11 +495,11 @@ Last update: 2018-05-29
         rpcservice.rpcDownloadCall('download_defaults', [uid])
       },
 
-      uploadDatabook(uid) {
+      uploadFrameworkbook(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
-        console.log('uploadDatabook() called for ' + matchFramework.framework.name)
+        console.log('uploadFrameworkbook() called for ' + matchFramework.framework.name)
 
         // Have the server copy the framework, giving it a new name.
         rpcservice.rpcUploadCall('upload_databook', [uid], {})
@@ -538,7 +519,7 @@ Last update: 2018-05-29
 
       uploadProgbook(uid) {
         // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theProj => theProj.framework.id === uid)
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('uploadProgbook() called for ' + matchFramework.framework.name)
 
@@ -573,8 +554,8 @@ Last update: 2018-05-29
 
       deleteSelectedFrameworks() {
         // Pull out the names of the frameworks that are selected.
-        let selectFrameworksUIDs = this.frameworkSummaries.filter(theProj =>
-          theProj.selected).map(theProj => theProj.framework.id)
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
+          theFrame.selected).map(theFrame => theFrame.framework.id)
 
         console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
 
@@ -590,8 +571,8 @@ Last update: 2018-05-29
 
       downloadSelectedFrameworks() {
         // Pull out the names of the frameworks that are selected.
-        let selectFrameworksUIDs = this.frameworkSummaries.filter(theProj =>
-          theProj.selected).map(theProj => theProj.framework.id)
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
+          theFrame.selected).map(theFrame => theFrame.framework.id)
 
         console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
 

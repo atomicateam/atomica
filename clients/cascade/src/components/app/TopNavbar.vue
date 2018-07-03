@@ -21,6 +21,14 @@ Last update: 2018-03-25
         <ul class="nav navbar-nav navbar-right">
           <li>
             <a href="#" class="btn-rotate">
+              <i class="ti-ruler-pencil"></i>
+              <p>
+                Framework: <span>{{ activeFrameworkName }}</span>
+              </p>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="btn-rotate">
               <i class="ti-view-grid"></i>
               <p>
                 Project: <span>{{ activeProjectName }}</span>
@@ -56,6 +64,14 @@ Last update: 2018-03-25
       // Health prior function
       currentUser(){
         return userService.currentUser()
+      },
+
+      activeFrameworkName() {
+        if (this.$store.state.activeFramework.framework === undefined) {
+          return 'none'
+        } else {
+          return this.$store.state.activeFramework.framework.name
+        }
       },
 
       activeProjectName() {

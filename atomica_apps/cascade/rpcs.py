@@ -426,7 +426,7 @@ def add_demo_framework(user_id):
     new_frame_name = get_unique_name('Demo framework', other_names=None)
     
     # Create the framework, loading in the desired spreadsheets.
-    frame = au.demo(which='tb',do_plot=0) 
+    frame = au.demo(kind='framework', which='service') 
     frame.name = new_frame_name
     
     # Display the call information.
@@ -482,7 +482,7 @@ def create_new_framework(user_id, frame_name, num_pops, data_start, data_end):
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
-def upload_databook(databook_filename, framework_id):
+def upload_frameworkbook(databook_filename, framework_id):
     """
     Upload a databook to a framework.
     """
@@ -493,29 +493,7 @@ def upload_databook(databook_filename, framework_id):
     frame = load_framework(framework_id, raise_exception=True)
     
     # Reset the framework name to a new framework name that is unique.
-    frame.load_databook(databook_path=databook_filename)
-    frame.modified = sc.today()
-    
-    # Save the new framework in the DataStore.
-    save_framework(frame)
-    
-    # Return the new framework UID in the return message.
-    return { 'frameworkId': str(frame.uid) }
-
-
-@register_RPC(call_type='upload', validation_type='nonanonymous user')
-def upload_progbook(progbook_filename, framework_id):
-    """
-    Upload a program book to a framework.
-    """
-    
-    # Display the call information.
-    print(">> upload_progbook '%s'" % progbook_filename)
-    
-    frame = load_framework(framework_id, raise_exception=True)
-    
-    # Reset the framework name to a new framework name that is unique.
-    frame.load_progbook(progbook_path=progbook_filename)
+    frame.load(databook_path=databook_filename)
     frame.modified = sc.today()
     
     # Save the new framework in the DataStore.
@@ -771,7 +749,7 @@ def add_demo_project(user_id):
     new_proj_name = get_unique_name('Demo project', other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
-    proj = au.demo(which='tb',do_plot=0) 
+    proj = au.demo(which='service',do_plot=0) 
     proj.name = new_proj_name
     
     # Display the call information.

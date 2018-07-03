@@ -41,7 +41,7 @@ export default new Router({
     {
       path: '/',
       component: DashboardLayout,
-      redirect: '/projects',
+      redirect: '/frameworks',
       children: [
         {
           path: 'frameworks',

@@ -411,7 +411,7 @@ def read_workbook(workbook_path, framework=None, data=None, workbook_type=None):
     try:
         workbook = xlrd.open_workbook(workbook_path)
     except:
-        raise AtomicaException("Workbook was not found.")
+        raise AtomicaException("Workbook '%s' was not found." % workbook_path)
 
     # Check workbook type and initialise output
     if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]:

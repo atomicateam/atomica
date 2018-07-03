@@ -14,7 +14,7 @@ Last update: 2/2/18 (gchadder3)
         <!-- Below requires a userService -->
         <li>
           <a href="#" class="btn-rotate">
-            <i class="ti-view-grid"></i>
+            <i class="ti-ruler-pencil"></i>
             <p>
               Framework: <span>{{ activeFrameworkName }}</span>
             </p>

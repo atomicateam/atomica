@@ -244,6 +244,7 @@ class ProjectFramework(CoreProjectStructure):
 
         write_workbook(workbook_path=path, instructions=framework_instructions,
                        workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        return path
 
     def write_to_file(self, filename, data=None, instructions=None):
         """ Export a framework to file. """
