@@ -181,25 +181,19 @@ Last update: 2018-05-29
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 0; index <= n_plots; index++) {
+            for (var index = 1; index <= n_plots; index++) {
               console.log('Rendering plot ' + index)
-              console.log('0Working with '+divlabel+' and '+index)
               var divlabel = 'fig' + index
               var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              console.log('1Working with '+divlabel+' and '+index)
               while (div.firstChild) {
-                console.log('2Working with '+divlabel+' and '+index)
                 div.removeChild(div.firstChild);
               }
-              console.log('3Working with '+divlabel+' and '+index)
-              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-              console.log('4Working with '+divlabel+' and '+index)
-//              try {
-//
-//              }
-//              catch (err) {
-//                console.log('failled:' + err.message);
-//              }
+              try {
+                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              }
+              catch (err) {
+                console.log('failled:' + err.message);
+              }
             }
           })
           .catch(error => {
@@ -209,16 +203,14 @@ Last update: 2018-05-29
             // Set the server error.
             this.servererror = error.message
           }).then( response => {
-            this.$notifications.notify({
-              message: 'Graphs created',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+          this.$notifications.notify({
+            message: 'Graphs created',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
         })
-
-
       },
 
       clearGraphs() {
