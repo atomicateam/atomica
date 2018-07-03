@@ -1,8 +1,8 @@
 {
-  "name": "cascade-analysis-tools",
+  "name": "atomica",
   "version": "0.10.0",
-  "description": "Cascade Analysis Tools",
-  "author": "Robyn Stuart <robyn@math.ku.de>",
+  "description": "Atomica",
+  "author": "Optima Consortium for Decision Science <info@ocds.co>",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
