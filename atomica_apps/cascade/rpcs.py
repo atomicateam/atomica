@@ -1000,17 +1000,21 @@ def get_plots(project_id, plot_names=None, pops='all'):
         ydata.append(cascade['vals'][key][pop][year])
     xdata = range(len(ydata))
     fig = pl.figure()
-    pl.bar(xdata,ydata)
-    pl.gca().set_xticks(xdata)
-    pl.gca().set_xticklabels(keys)
+    pl.plot(xdata,ydata)
+#    pl.gca().set_xticks(xdata)
+#    pl.gca().set_xticklabels(keys)
     figs.append(fig)
     
     for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
+        print(graph_dict)
 
     return {'graphs':graphs}
+
+
+
 
 
 @register_RPC(validation_type='nonanonymous user')    

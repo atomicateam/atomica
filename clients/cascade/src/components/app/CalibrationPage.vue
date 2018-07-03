@@ -182,13 +182,18 @@ Last update: 2018-05-29
 
             for (var index = 1; index <= n_plots; index++) {
               console.log('Rendering plot ' + index)
+              console.log('0Working with '+divlabel+' and '+index)
               var divlabel = 'fig' + index
               var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+              console.log('1Working with '+divlabel+' and '+index)
               while (div.firstChild) {
+                console.log('2Working with '+divlabel+' and '+index)
                 div.removeChild(div.firstChild);
               }
               try {
+                console.log('3Working with '+divlabel+' and '+index)
                 mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+                console.log('4Working with '+divlabel+' and '+index)
               }
               catch (err) {
                 console.log('failled:' + err.message);
