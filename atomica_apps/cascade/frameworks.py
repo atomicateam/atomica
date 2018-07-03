@@ -17,7 +17,7 @@ import sciris.weblib.datastore as ds
 
 # The frameworkCollection object for all of the app's frameworks.  Gets 
 # initialized by and loaded by init_frameworks().
-proj_collection = None
+frame_collection = None
 
 
 #
@@ -29,7 +29,7 @@ class FrameworkSO(sw.ScirisObject):
     A ScirisObject-wrapped Optima Nutrition Framework object.
     
     Methods:
-        __init__(proj: Framework, owner_uid: UUID, uid: UUID [None]): 
+        __init__(frame: Framework, owner_uid: UUID, uid: UUID [None]): 
             void -- constructor
         load_from_copy(other_object): void -- assuming other_object is another 
             object of our type, copy its contents to us (calls the 
@@ -42,14 +42,14 @@ class FrameworkSO(sw.ScirisObject):
             framework in a file there and return the file name
                     
     Attributes:
-        proj (Framework) -- the actual Framework object being wrapped
+        frame (Framework) -- the actual Framework object being wrapped
         owner_uid (UUID) -- the UID of the User that owns the Framework
         
     Usage:
-        >>> my_framework = FrameworkSO(proj, owner_uid)                      
+        >>> my_framework = FrameworkSO(frame, owner_uid)                      
     """
     
-    def  __init__(self, proj, owner_uid, uid=None):
+    def  __init__(self, frame, owner_uid, uid=None):
         # NOTE: uid argument is ignored but kept here to not mess up
         # inheritance.
         
@@ -60,10 +60,10 @@ class FrameworkSO(sw.ScirisObject):
         # If we have a valid UUID...
         if valid_uuid is not None:       
             # Set superclass parameters.
-            super(FrameworkSO, self).__init__(proj.uid)
+            super(FrameworkSO, self).__init__(frame.uid)
                                    
             # Set the framework to the Optima Framework that is passed in.
-            self.proj = proj
+            self.frame = frame
             
             # Set the owner (User) UID.
             self.owner_uid = valid_uuid
@@ -74,7 +74,7 @@ class FrameworkSO(sw.ScirisObject):
             super(FrameworkSO, self).load_from_copy(other_object)
             
             # Copy the Framework object itself.
-            self.proj = sc.dcp(other_object.proj)
+            self.frame = sc.dcp(other_object.frame)
             
             # Copy the owner UID.
             self.owner_uid = other_object.owner_uid
@@ -86,35 +86,35 @@ class FrameworkSO(sw.ScirisObject):
         # Show the Optima defined display text for the framework.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
-        print 'Framework Name: %s' % self.proj.name
-        print 'Creation Time: %s' % self.proj.created
-        print 'Update Time: %s' % self.proj.modified
+        print 'Framework Name: %s' % self.frame.name
+        print 'Creation Time: %s' % self.frame.created
+        print 'Update Time: %s' % self.frame.modified
             
     def get_user_front_end_repr(self):
         obj_info = {
             'framework': {
                 'id': self.uid,
-                'name': self.proj.name,
+                'name': self.frame.name,
                 'userId': self.owner_uid,
-                'creationTime': self.proj.created,
-                'updatedTime': self.proj.modified     
+                'creationTime': self.frame.created,
+                'updatedTime': self.frame.modified     
             }
         }
         return obj_info
     
     def save_as_file(self, load_dir):
-        # Create a filename containing the framework name followed by a .prj 
+        # Create a filename containing the framework name followed by a .frw 
         # suffix.
-        file_name = '%s.prj' % self.proj.name
+        file_name = '%s.frw' % self.frame.name
         
         # Generate the full file name with path.
         full_file_name = '%s%s%s' % (load_dir, os.sep, file_name)   
      
         # Write the object to a Gzip string pickle file.
-        ds.object_to_gzip_string_pickle_file(full_file_name, self.proj)
+        ds.object_to_gzip_string_pickle_file(full_file_name, self.frame)
         
         # Return the filename (not the full one).
-        return self.proj.name + ".prj"
+        return self.frame.name + ".frw"
     
         
 class FrameworkCollection(sw.ScirisCollection):
@@ -132,7 +132,7 @@ class FrameworkCollection(sw.ScirisCollection):
             that match the owning User UID in a list
         
     Usage:
-        >>> proj_collection = FrameworkCollection(uuid.UUID('12345678123456781234567812345678'))                      
+        >>> frame_collection = FrameworkCollection(uuid.UUID('12345678123456781234567812345678'))                      
     """
     
     def __init__(self, uid, type_prefix='frameworkscoll', file_suffix='.pc', 
@@ -181,21 +181,21 @@ class FrameworkCollection(sw.ScirisCollection):
 #
 
 def init_frameworks(app):
-    global proj_collection  # need this to allow modification within the module
+    global frame_collection  # need this to allow modification within the module
     
     # Look for an existing FrameworkCollection.
-    proj_collection_uid = ds.data_store.get_uid_from_instance('frameworkscoll', 
+    frame_collection_uid = ds.data_store.get_uid_from_instance('frameworkscoll', 
         'Frameworks Collection')
     
     # Create the frameworks collection object.  Note, that if no match was found, 
     # this will be assigned a new UID.    
-    proj_collection = FrameworkCollection(proj_collection_uid)
+    frame_collection = FrameworkCollection(frame_collection_uid)
     
     # If there was a match...
-    if proj_collection_uid is not None:
+    if frame_collection_uid is not None:
         if app.config['LOGGING_MODE'] == 'FULL':
             print '>> Loading FrameworkCollection from the DataStore.'
-        proj_collection.load_from_data_store() 
+        frame_collection.load_from_data_store() 
     
     # Else (no match)...
     else:
@@ -204,14 +204,14 @@ def init_frameworks(app):
     
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Creating a new FrameworkCollection.') 
-        proj_collection.add_to_data_store()
+        frame_collection.add_to_data_store()
         
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Starting a demo framework.')
-        proj = au.Framework(name='Test 1')  
-        projSO = FrameworkSO(proj, user.get_scirisdemo_user())
-        proj_collection.add_object(projSO)
+        frame = au.Framework(name='Test 1')  
+        frameSO = FrameworkSO(frame, user.get_scirisdemo_user())
+        frame_collection.add_object(frameSO)
         
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the FrameworkCollection.    
-        proj_collection.show()
+        frame_collection.show()
