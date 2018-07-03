@@ -96,7 +96,7 @@ Last update: 2018-05-29
 
       placeholders() {
         var indices = []
-        for (var i = 1; i <= 100; i++) {
+        for (var i = 0; i <= 100; i++) {
           indices.push(i);
         }
         return indices;
@@ -181,7 +181,7 @@ Last update: 2018-05-29
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 1; index <= n_plots; index++) {
+            for (var index = 0; index <= n_plots; index++) {
               console.log('Rendering plot ' + index)
               var divlabel = 'fig' + index
               var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
