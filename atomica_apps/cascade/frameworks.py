@@ -1,0 +1,217 @@
+'''
+Classes for handling frameworks as Sciris objects
+
+Version: 2018jun04 by cliffk
+'''
+
+import os
+import atomica.ui as au
+import sciris.core as sc
+import sciris.web as sw
+import sciris.weblib.user as user
+import sciris.weblib.datastore as ds
+
+#
+# Globals
+#
+
+# The frameworkCollection object for all of the app's frameworks.  Gets 
+# initialized by and loaded by init_frameworks().
+proj_collection = None
+
+
+#
+# Classes
+#
+
+class FrameworkSO(sw.ScirisObject):
+    """
+    A ScirisObject-wrapped Optima Nutrition Framework object.
+    
+    Methods:
+        __init__(proj: Framework, owner_uid: UUID, uid: UUID [None]): 
+            void -- constructor
+        load_from_copy(other_object): void -- assuming other_object is another 
+            object of our type, copy its contents to us (calls the 
+            ScirisObject superclass version of this method also)   
+        show(): void -- print the contents of the object
+        get_user_front_end_repr(): dict -- get a JSON-friendly dictionary 
+            representation of the object state the front-end uses for non-
+            admin purposes  
+        save_as_file(load_dir: str): str -- given a load dictionary, save the 
+            framework in a file there and return the file name
+                    
+    Attributes:
+        proj (Framework) -- the actual Framework object being wrapped
+        owner_uid (UUID) -- the UID of the User that owns the Framework
+        
+    Usage:
+        >>> my_framework = FrameworkSO(proj, owner_uid)                      
+    """
+    
+    def  __init__(self, proj, owner_uid, uid=None):
+        # NOTE: uid argument is ignored but kept here to not mess up
+        # inheritance.
+        
+        # Make sure the owner UID argument is a valid UUID, converting a hex 
+        # text to a UUID object, if needed.        
+        valid_uuid = sc.uuid(owner_uid)
+        
+        # If we have a valid UUID...
+        if valid_uuid is not None:       
+            # Set superclass parameters.
+            super(FrameworkSO, self).__init__(proj.uid)
+                                   
+            # Set the framework to the Optima Framework that is passed in.
+            self.proj = proj
+            
+            # Set the owner (User) UID.
+            self.owner_uid = valid_uuid
+        
+    def load_from_copy(self, other_object):
+        if type(other_object) == type(self):
+            # Do the superclass copying.
+            super(FrameworkSO, self).load_from_copy(other_object)
+            
+            # Copy the Framework object itself.
+            self.proj = sc.dcp(other_object.proj)
+            
+            # Copy the owner UID.
+            self.owner_uid = other_object.owner_uid
+                
+    def show(self):
+        # Show superclass attributes.
+        super(FrameworkSO, self).show()  
+        
+        # Show the Optima defined display text for the framework.
+        print '---------------------'
+        print 'Owner User UID: %s' % self.owner_uid.hex
+        print 'Framework Name: %s' % self.proj.name
+        print 'Creation Time: %s' % self.proj.created
+        print 'Update Time: %s' % self.proj.modified
+            
+    def get_user_front_end_repr(self):
+        obj_info = {
+            'framework': {
+                'id': self.uid,
+                'name': self.proj.name,
+                'userId': self.owner_uid,
+                'creationTime': self.proj.created,
+                'updatedTime': self.proj.modified     
+            }
+        }
+        return obj_info
+    
+    def save_as_file(self, load_dir):
+        # Create a filename containing the framework name followed by a .prj 
+        # suffix.
+        file_name = '%s.prj' % self.proj.name
+        
+        # Generate the full file name with path.
+        full_file_name = '%s%s%s' % (load_dir, os.sep, file_name)   
+     
+        # Write the object to a Gzip string pickle file.
+        ds.object_to_gzip_string_pickle_file(full_file_name, self.proj)
+        
+        # Return the filename (not the full one).
+        return self.proj.name + ".prj"
+    
+        
+class FrameworkCollection(sw.ScirisCollection):
+    """
+    A collection of Frameworks.
+    
+    Methods:
+        __init__(uid: UUID [None], type_prefix: str ['frameworkscoll'], 
+            file_suffix: str ['.pc'], 
+            instance_label: str ['Frameworks Collection']): void -- constructor  
+        get_user_front_end_repr(owner_uid: UUID): list -- return a list of dicts 
+            containing JSON-friendly framework contents for each framework that 
+            is owned by the specified user UID
+        get_framework_entries_by_user(owner_uid: UUID): list -- return the FrameworkSOs 
+            that match the owning User UID in a list
+        
+    Usage:
+        >>> proj_collection = FrameworkCollection(uuid.UUID('12345678123456781234567812345678'))                      
+    """
+    
+    def __init__(self, uid, type_prefix='frameworkscoll', file_suffix='.pc', 
+        instance_label='Frameworks Collection'):
+        # Set superclass parameters.
+        super(FrameworkCollection, self).__init__(uid, type_prefix, file_suffix, 
+             instance_label)
+            
+    def get_user_front_end_repr(self, owner_uid):
+        # Make sure the argument is a valid UUID, converting a hex text to a
+        # UUID object, if needed.        
+        valid_uuid = sc.uuid(owner_uid)
+        
+        # If we have a valid UUID...
+        if valid_uuid is not None:               
+            # Get dictionaries for each Framework in the dictionary.
+            frameworks_info = [self.obj_dict[key].get_user_front_end_repr() \
+                for key in self.obj_dict \
+                if self.obj_dict[key].owner_uid == valid_uuid]
+            return frameworks_info
+        
+        # Otherwise, return an empty list.
+        else:
+            return []
+        
+    def get_framework_entries_by_user(self, owner_uid):
+        # Make sure the argument is a valid UUID, converting a hex text to a
+        # UUID object, if needed.        
+        valid_uuid = sc.uuid(owner_uid)
+        
+        # If we have a valid UUID...
+        if valid_uuid is not None:    
+            # Get FrameworkSO entries for each Framework in the dictionary.
+            framework_entries = [self.obj_dict[key] \
+                for key in self.obj_dict \
+                if self.obj_dict[key].owner_uid == valid_uuid]
+            return framework_entries
+        
+        # Otherwise, return an empty list.
+        else:
+            return []
+
+
+#
+# Initialization function
+#
+
+def init_frameworks(app):
+    global proj_collection  # need this to allow modification within the module
+    
+    # Look for an existing FrameworkCollection.
+    proj_collection_uid = ds.data_store.get_uid_from_instance('frameworkscoll', 
+        'Frameworks Collection')
+    
+    # Create the frameworks collection object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    proj_collection = FrameworkCollection(proj_collection_uid)
+    
+    # If there was a match...
+    if proj_collection_uid is not None:
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print '>> Loading FrameworkCollection from the DataStore.'
+        proj_collection.load_from_data_store() 
+    
+    # Else (no match)...
+    else:
+        # Load the data path holding the Excel files.
+        #data_path = on.ONpath('data')
+    
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print('>> Creating a new FrameworkCollection.') 
+        proj_collection.add_to_data_store()
+        
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print('>> Starting a demo framework.')
+        proj = au.Framework(name='Test 1')  
+        projSO = FrameworkSO(proj, user.get_scirisdemo_user())
+        proj_collection.add_object(projSO)
+        
+    if app.config['LOGGING_MODE'] == 'FULL':
+        # Show what's in the FrameworkCollection.    
+        proj_collection.show()

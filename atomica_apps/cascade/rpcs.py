@@ -20,6 +20,7 @@ import sciris.web as sw
 
 import atomica.ui as au
 from . import projects as prj
+from . import frameworks as frw
 
 # Dictionary to hold all of the registered RPCs in this module.
 RPC_dict = {}
@@ -27,10 +28,11 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
+
         
-#
-# Other functions (mostly helpers for the RPCs)
-#
+###############################################################
+#%% Other functions (mostly helpers for the RPCs)
+##############################################################
     
 
 def load_project_record(project_id, raise_exception=True):
@@ -79,7 +81,7 @@ def load_project_summary_from_project_record(project_record):
   
 def load_current_user_project_summaries2():
     """
-    Return project summaries for all projects the user has to the client.
+    Return project summaries for all projects the user has to the client. -- WARNING, fix!
     """ 
     
     # Get the prj.ProjectSO entries matching the user UID.
@@ -126,6 +128,7 @@ def save_project(proj):
     
     # Copy the project, only save what we want...
     new_project = sc.dcp(proj)
+    new_project.modified = sc.today()
          
     # Create the new project entry and enter it into the ProjectCollection.
     # Note: We don't need to pass in project.uid as a 3rd argument because 
@@ -157,44 +160,15 @@ def save_project_as_new(proj, user_id):
     
     return None
 
-def get_burden_set_fe_repr(burdenset):
-    obj_info = {
-        'burdenset': {
-            'name': burdenset.name,
-            'uid': burdenset.uid,
-            'creationTime': burdenset.created,
-            'updateTime': burdenset.modified
-        }
-    }
-    return obj_info
 
-def get_interv_set_fe_repr(interv_set):
-    obj_info = {
-        'intervset': {
-            'name': interv_set.name,
-            'uid': interv_set.uid,
-            'creationTime': interv_set.created,
-            'updateTime': interv_set.modified
-        }
-    }
-    return obj_info
 
-def get_package_set_fe_repr(packageset):
-    obj_info = {
-        'packageset': {
-            'name': packageset.name,
-            'uid': packageset.uid,
-            'creationTime': packageset.created,
-            'updateTime': packageset.modified
-        }
-    }
-    return obj_info
 
-#
-# RPC functions
-#
 
-# RPC definitions
+##################################################################################
+#%% Project RPCs
+##################################################################################
+
+# Not a project RPC, but doesn't really belong
 @register_RPC()
 def get_version_info():
 	''' Return the information about the project. '''
@@ -208,10 +182,6 @@ def get_version_info():
 	}
 	return version_info
 
-
-##
-## Project RPCs
-##
     
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
@@ -249,6 +219,7 @@ def load_project_summary(project_id):
     # Return a project summary from the accessed prj.ProjectSO entry.
     return load_project_summary_from_project_record(project_entry)
 
+
 @register_RPC(validation_type='nonanonymous user')
 def load_current_user_project_summaries():
     """
@@ -256,6 +227,7 @@ def load_current_user_project_summaries():
     """ 
     
     return load_current_user_project_summaries2()
+
 
 @register_RPC(validation_type='nonanonymous user')                
 def load_all_project_summaries():
@@ -293,29 +265,41 @@ def download_project(project_id):
     For the passed in project UID, get the Project on the server, save it in a 
     file, minus results, and pass the full path of this file back.
     """
-    
-    # Load the project with the matching UID.
-    proj = load_project(project_id, raise_exception=True)
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-        
-    # Create a filename containing the project name followed by a .prj 
-    # suffix.
-    file_name = '%s.prj' % proj.name
-        
-    # Generate the full file name with path.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
-        
-    # Write the object to a Gzip string pickle file.
-    fileio.object_to_gzip_string_pickle_file(full_file_name, proj)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> download_project %s" % (full_file_name))
-    
-    # Return the full filename.
-    return full_file_name
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s.prj' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    fileio.object_to_gzip_string_pickle_file(full_file_name, proj) # Write the object to a Gzip string pickle file.
+    print(">> download_project %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def download_databook(project_id):
+    """
+    Download databook
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.dataset().demo_data.spreadsheet.save(full_file_name)
+    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def download_defaults(project_id):
+    """
+    Download defaults
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_defaults.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.dataset().default_params.spreadsheet.save(full_file_name)
+    print(">> download_defaults %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
 def load_zip_of_prj_files(project_ids):
