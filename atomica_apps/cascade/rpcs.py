@@ -9,9 +9,6 @@ Last update: 2018jun04 by cliffk
 #
 
 import os
-import datetime
-import dateutil
-import dateutil.tz
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
@@ -35,10 +32,6 @@ register_RPC = sw.make_register_RPC(RPC_dict)
 # Other functions (mostly helpers for the RPCs)
 #
     
-def now_utc():
-    ''' Get the current time, in UTC time '''
-    now = datetime.datetime.now(dateutil.tz.tzutc())
-    return now
 
 def load_project_record(project_id, raise_exception=True):
     """
@@ -140,24 +133,7 @@ def save_project(proj):
     projSO = prj.ProjectSO(new_project, project_record.owner_uid)
     prj.proj_collection.update_object(projSO)
     
-def update_project_with_fn(project_id, update_project_fn):
-    """
-    Do an update of a hptool Project, given the UID and a function that 
-    does the actual Project updating.
-    """ 
-    
-    # Load the project.
-    proj = load_project(project_id)
-    
-    # Execute the passed-in function that modifies the project.
-    update_project_fn(proj)
-    
-    # Set the updating time to now.
-    proj.modified = now_utc()
-    
-    # Save the changed project.
-    save_project(proj) 
-    
+
 def save_project_as_new(proj, user_id):
     """
     Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
@@ -373,15 +349,42 @@ def load_zip_of_prj_files(project_ids):
     return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
-def create_new_project(user_id):
+def add_demo_project(user_id):
+    """
+    Add a demo Optima TB project
+    """
+    # Get a unique name for the project to be added.
+    new_proj_name = get_unique_name('Demo project', other_names=None)
+    
+    # Create the project, loading in the desired spreadsheets.
+    proj = au.demo(which='tb',do_plot=0) 
+    proj.name = new_proj_name
+    
+    # Display the call information.
+    # TODO: have this so that it doesn't show when logging is turned off
+    print(">> add_demo_project %s" % (proj.name))    
+    
+    # Save the new project in the DataStore.
+    save_project_as_new(proj, user_id)
+    
+    # Return the new project UID in the return message.
+    return { 'projectId': str(proj.uid) }
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
+def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
     """
     Create a new Optima Nutrition project.
     """
+    
+    args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
+    
     # Get a unique name for the project to be added.
-    new_proj_name = get_unique_name('New project', other_names=None)
+    new_proj_name = get_unique_name(proj_name, other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
-    proj = au.Project(name=new_proj_name)  
+    F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+    proj = au.Project(framework=F, name=new_proj_name)
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
@@ -390,9 +393,47 @@ def create_new_project(user_id):
     # Save the new project in the DataStore.
     save_project_as_new(proj, user_id)
     
+    # Use the downloads directory to put the file in.
+    dirname = fileio.downloads_dir.dir_path
+        
+    # Create a filename containing the project name followed by a .prj 
+    # suffix.
+    file_name = '%s.xlsx' % proj.name
+        
+    # Generate the full file name with path.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
+    
+    # Return the databook
+    proj.create_databook(databook_path=full_file_name, **args)
+    
+    print(">> download_databook %s" % (full_file_name))
+    
+    # Return the new project UID in the return message.
+    return full_file_name
+
+
+@register_RPC(call_type='upload', validation_type='nonanonymous user')
+def upload_databook(databook_filename, project_id):
+    """
+    Upload a databook to a project.
+    """
+    
+    # Display the call information.
+    print(">> upload_databook '%s'" % databook_filename)
+    
+    proj = load_project(project_id, raise_exception=True)
+    
+    # Reset the project name to a new project name that is unique.
+    proj.load_databook(databook_path=databook_filename)
+    proj.modified = sc.today()
+    
+    # Save the new project in the DataStore.
+    save_project(proj)
+    
     # Return the new project UID in the return message.
     return { 'projectId': str(proj.uid) }
- 
+
+
 @register_RPC(validation_type='nonanonymous user')
 def update_project_from_summary(project_summary):
     """
@@ -407,7 +448,7 @@ def update_project_from_summary(project_summary):
     proj.name = project_summary['project']['name']
     
     # Set the modified time to now.
-    proj.modified = now_utc()
+    proj.modified = sc.today()
     
     # Save the changed project to the DataStore.
     save_project(proj)
@@ -481,25 +522,156 @@ def make_mpld3_graph_dict(fig):
     mpld3_dict = mpld3.fig_to_dict(fig)
     return mpld3_dict
 
-@register_RPC(validation_type='nonanonymous user')
-def get_default_scenario_plot():
-    ''' Plot the disease burden '''
+
+def supported_plots_func():
     
-    # Get the Project object.
-    proj = au.Project() # WARNING, just create new project
-    proj.default_scens(dorun=True)
-    result = proj.get_results('test1')
-    fig = None
-#    fig = tb.plot(result) # HARDCODED EXAMPLE
+    supported_plots = {
+            'Population size':'alive',
+            'Latent infections':'lt_inf',
+            'Active TB':'ac_inf',
+            'Active DS-TB':'ds_inf',
+            'Active MDR-TB':'mdr_inf',
+            'Active XDR-TB':'xdr_inf',
+            'New active DS-TB':{'New active DS-TB':['pd_div:flow','nd_div:flow']},
+            'New active MDR-TB':{'New active MDR-TB':['pm_div:flow','nm_div:flow']},
+            'New active XDR-TB':{'New active XDR-TB':['px_div:flow','nx_div:flow']},
+            'Smear negative active TB':'sn_inf',
+            'Smear positive active TB':'sp_inf',
+            'Latent diagnoses':{'Latent diagnoses':['le_treat:flow','ll_treat:flow']},
+            'New active TB diagnoses':{'Active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']},
+            'New active DS-TB diagnoses':{'Active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow']},
+            'New active MDR-TB diagnoses':{'Active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow']},
+            'New active XDR-TB diagnoses':{'Active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow']},
+            'Latent treatment':'ltt_inf',
+            'Active treatment':'num_treat',
+            'TB-related deaths':':ddis',
+            }
     
+    return supported_plots
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_supported_plots(only_keys=False):
+    
+    supported_plots = supported_plots_func()
+    
+    if only_keys:
+        return supported_plots.keys()
+    else:
+        return supported_plots
+
+
+def get_plots(project_id, plot_names=None, pops='all'):
+    
+    import pylab as pl
+    
+    supported_plots = supported_plots_func() 
+    
+    if plot_names is None: plot_names = supported_plots.keys()
+
+    proj = load_project(project_id, raise_exception=True)
+    
+    plot_names = sc.promotetolist(plot_names)
+    result = proj.results[-1]
+
     figs = []
-    figs.append(fig)
-    
-    # Gather the list for all of the diseases.
     graphs = []
-    for fig in figs:
+    for plot_name in plot_names:
+        try:
+            plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj, pops=pops)
+            figs += au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+            pl.gca().set_facecolor('none')
+            print('Plot %s succeeded' % (plot_name))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (plot_name, repr(E)))
+    
+    for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
         graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+
+    return {'graphs':graphs}
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_y_factors(project_id, parsetname=-1):
+    print('Getting y factors...')
+    y_factors = []
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for par_type in ["cascade", "comps", "characs"]:
+        for parname in parset.par_ids[par_type].keys():
+            thispar = parset.get_par(parname)
+            for popname,y_factor in thispar.y_factor.items():
+                thisdict = {'parname':parname, 'popname':popname, 'value':y_factor}
+                y_factors.append(thisdict)
+                print(thisdict)
+    print('Returning %s y-factors' % len(y_factors))
+    return y_factors
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def set_y_factors(project_id, y_factors, parsetname=-1):
+    print('Setting y factors...')
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for par in y_factors:
+        value = float(par['value'])
+        parset.get_par(par['parname']).y_factor[par['popname']] = value
+        if value != 1:
+            print('Modified: %s' % par)
     
-    # Return success -- WARNING, hard-coded
-    return {'graph1': graphs[0],}
+    proj.modified = sc.today()
+    proj.run_sim(parset=parsetname, store_results=True)
+    save_project(proj)    
+    output = get_plots(proj.uid)
+    return output
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def run_default_scenario(project_id):
+    
+    import pylab as pl
+    
+    print('Running default scenario...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    scvalues = dict()
+
+    scen_par = "spd_infxness"
+    scen_pop = "15-64"
+    scen_outputs = ["lt_inf", "ac_inf"]
+
+    scvalues[scen_par] = dict()
+    scvalues[scen_par][scen_pop] = dict()
+
+    # Insert (or possibly overwrite) one value.
+    scvalues[scen_par][scen_pop]["y"] = [0.125]
+    scvalues[scen_par][scen_pop]["t"] = [2015.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
+
+    proj.make_scenario(name="varying_infections", instructions=scvalues)
+    proj.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
+
+    # Insert two values and eliminate everything between them.
+    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+
+    proj.make_scenario(name="varying_infections2", instructions=scvalues)
+    proj.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
+    
+    figs = []
+    graphs = []
+    d = au.PlotData([proj.results["scen1"],proj.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    figs += au.plot_series(d, axis="results")
+    pl.gca().set_facecolor('none')
+    
+    for f,fig in enumerate(figs):
+        graph_dict = make_mpld3_graph_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+    
+    print('Saving project...')
+    save_project(proj)    
+    return {'graphs':graphs}
