@@ -202,15 +202,16 @@ Last update: 2018-05-29
 
             // Set the server error.
             this.servererror = error.message
-          }).then( response => {
-          this.$notifications.notify({
-            message: 'Graphs created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          });
-        })
+          })
+          .then(response => {
+            this.$notifications.notify({
+              message: 'Graphs created',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            });
+          })
       },
 
       clearGraphs() {
