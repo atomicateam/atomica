@@ -503,6 +503,9 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["tables"], content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["can_skip"], content_type=SwitchType())
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
+                                        ["can_calibrate"],
+                                        content_type=SwitchType(default_on=True))
+        cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
                                         [cls.KEY_DATAPAGE],
                                         content_type=IDRefType(attribute="name", item_types=[cls.KEY_DATAPAGE]))
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
