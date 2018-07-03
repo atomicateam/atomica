@@ -9,11 +9,11 @@ Last update: 2018-05-29
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn" @click="addDemoProject">Add demo project</button>
+        <button class="btn __blue" @click="addDemoProject">Create demo project</button>
         &nbsp; &nbsp;
-        <button class="btn" @click="createNewProjectModal">Create blank project</button>
+        <button class="btn __blue" @click="createNewProjectModal">Create blank project</button>
         &nbsp; &nbsp;
-        <button class="btn" @click="uploadProjectFromFile">Upload project from file</button>
+        <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
         &nbsp; &nbsp;
       </div>
     </div>
@@ -46,7 +46,7 @@ Last update: 2018-05-29
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Select</th>
+            <th>Actions</th>
             <th @click="updateSorting('creationTime')" class="sortable">
               Created on
               <span v-show="sortColumn == 'creationTime' && !sortReverse">
@@ -71,7 +71,10 @@ Last update: 2018-05-29
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Actions</th>
+            <th>Framework</th>
+            <th>Details</th>
+            <th>Databook</th>
+            <th>Program book</th>
           </tr>
         </thead>
         <tbody>
@@ -91,16 +94,26 @@ Last update: 2018-05-29
 			      </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
-            </td>
-<!--            <td>{{ projectSummary.country }}</td> -->
-            <td>{{ projectSummary.project.creationTime }}</td>
-            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
-              'No modification' }}</td>
-            <td style="white-space: nowrap">
               <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
               <button class="btn" @click="renameProject(projectSummary)">Rename</button>
               <button class="btn" @click="downloadProjectFile(projectSummary.project.id)">Download</button>
-              <button class="btn" @click="uploadDatabook(projectSummary.project.id)">Upload databook</button>
+            </td>
+            <td>{{ projectSummary.project.creationTime }}</td>
+            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
+              'No modification' }}</td>
+            <td>
+              TBC
+            </td>
+            <td>
+              TBC
+            </td>
+            <td>
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)">Upload</button>
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)">Download</button>
+            </td>
+            <td style="white-space: nowrap">
+              <button class="btn __blue" @click="uploadProgrambook(projectSummary.project.id)">Upload</button>
+              <button class="btn" @click="downloadProgrambook(projectSummary.project.id)">Download</button>
             </td>
           </tr>
         </tbody>
@@ -461,6 +474,26 @@ export default {
 
 	    // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
+    },
+
+    downloadDatabook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('downloadDatabook() called for ' + matchProject.project.name)
+
+      // Make the server call to download the project to a .prj file.
+      rpcservice.rpcDownloadCall('download_databook', [uid])
+    },
+
+    downloadDefaults(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('downloadDefaults() called for ' + matchProject.project.name)
+
+      // Make the server call to download the project to a .prj file.
+      rpcservice.rpcDownloadCall('download_defaults', [uid])
     },
 
     uploadDatabook(uid) {
