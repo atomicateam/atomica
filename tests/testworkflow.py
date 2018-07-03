@@ -21,7 +21,7 @@ import sciris.core as sc
 
 test = "sir"
 test = "tb"
-#test = "diabetes"
+# test = "diabetes"
 # test = "service"
 
 torun = [
@@ -144,29 +144,30 @@ if "loadprogramspreadsheet" in torun:
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
-        P.progsets[0].programs[0].get_spend(year=2015)
+        if test not in ["tb"]:      # TODO: Test TB progset after successful progset construction.
+            P.progsets[0].programs[0].get_spend(year=2015)
 
-        # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
-        coverage = sc.odict([('Risk avoidance',     .99),
-                             ('Harm reduction 1',   .8),
-                             ('Harm reduction 2',   .9),
-                             ('Treatment 1',        .99),
-                             ('Treatment 2',        .8)])
-        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+            # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
+            coverage = sc.odict([('Risk avoidance',     .99),
+                                 ('Harm reduction 1',   .8),
+                                 ('Harm reduction 2',   .9),
+                                 ('Treatment 1',        .99),
+                                 ('Treatment 2',        .8)])
+            print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
-        # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
-        print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
-        print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+            # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
+            print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
+            print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
 
-        # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
-        denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
-                             ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
-                             ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+            # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+            denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
+                                 ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
+                                 ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
 
-        print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
-        print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+            print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
+            print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
 
 
 if "runsim_programs" in torun:
