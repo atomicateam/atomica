@@ -452,8 +452,7 @@ def create_new_framework(user_id, frame_name, num_pops, data_start, data_end):
     new_frame_name = get_unique_name(frame_name, other_names=None)
     
     # Create the framework, loading in the desired spreadsheets.
-    F = au.FrameworkFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
-    frame = au.Framework(framework=F, name=new_frame_name)
+    frame = au.ProjectFramework(name=new_frame_name)
     
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
@@ -990,14 +989,21 @@ def get_plots(project_id, plot_names=None, pops='all'):
 
     figs = []
     graphs = []
-    for plot_name in plot_names:
-        try:
-            plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj, pops=pops)
-            figs += au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
-            pl.gca().set_facecolor('none')
-            print('Plot %s succeeded' % (plot_name))
-        except Exception as E:
-            print('WARNING: plot %s failed (%s)' % (plot_name, repr(E)))
+    
+    print('WARNING, TEMP')
+    cascade = result.get_cascade_vals(project=proj)
+    ydata = []
+    keys = cascade['vals'].keys()
+    for key in keys:
+        pop = 0
+        year = 0
+        ydata.append(cascade['vals'][key][pop][year])
+    xdata = range(len(ydata))
+    fig = pl.figure()
+    pl.bar(xdata,ydata)
+    pl.gca().set_xticks(xdata)
+    pl.gca().set_xticklabels(keys)
+    figs.append(fig)
     
     for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
