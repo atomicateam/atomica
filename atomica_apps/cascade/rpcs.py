@@ -385,33 +385,6 @@ def download_framework(framework_id):
     print(">> download_framework %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
-def download_databook(framework_id):
-    """
-    Download databook
-    """
-    frame = load_framework(framework_id, raise_exception=True) # Load the framework with the matching UID.
-    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s_databook.xlsx' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    frame.dataset().demo_data.spreadsheet.save(full_file_name)
-    print(">> download_databook %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
-
-
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
-def download_defaults(framework_id):
-    """
-    Download defaults
-    """
-    frame = load_framework(framework_id, raise_exception=True) # Load the framework with the matching UID.
-    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s_defaults.xlsx' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    frame.dataset().default_params.spreadsheet.save(full_file_name)
-    print(">> download_defaults %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
-
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
 def load_zip_of_frw_files(framework_ids):
@@ -640,8 +613,6 @@ def create_framework_from_frw_file(frw_filename, user_id):
 ##################################################################################
 
 
-
-    
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
