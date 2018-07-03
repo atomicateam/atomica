@@ -10,7 +10,7 @@ Vue.use(Vuex)
 const store = new Vuex.Store({
   state: {
     currentUser: {},  // The currently logged in user
-    activeProject: {} // The project currently chosen by the user
+    activeProject: {}, // The project currently chosen by the user
     activeFramework: {} // The framework currently chosen by the user
   },
 
@@ -18,6 +18,10 @@ const store = new Vuex.Store({
     newUser(state, user) {
       state.currentUser = user
     }, 
+
+    newActiveFramework(state, framework) {
+      state.activeFramework = framework
+    },
 
     newActiveProject(state, project) {
       state.activeProject = project
