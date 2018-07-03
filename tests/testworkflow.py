@@ -19,9 +19,9 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-test = "sir"
-test = "tb"
-test = "diabetes"
+#test = "sir"
+#test = "tb"
+#test = "diabetes"
 test = "service"
 
 torun = [
@@ -126,9 +126,9 @@ if "makeprogramspreadsheet" in torun:
     print('\n\n\Making programs spreadsheet ... ')
 
     # Not implemented for the new demos
-    if test in ['sir','tb']:
+    if test not in ['diabetes']:
         P = au.demo(which=test,do_plot=0)
-        filename = "temp/programspreadsheet.xlsx"
+        filename = "temp/progbook_"+test+"_blank.xlsx"
         P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
@@ -138,7 +138,7 @@ if "loadprogramspreadsheet" in torun:
         print('\n\n\nLoading programs spreadsheet ...')
     
         P = au.demo(which=test,do_plot=0)
-        filename = "databooks/programdata_"+test+".xlsx"
+        filename = "databooks/progbook_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
         P.progsets[0].programs[0].get_spend(year=2015)
         
