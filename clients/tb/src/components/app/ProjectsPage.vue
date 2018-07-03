@@ -9,7 +9,9 @@ Last update: 2018-05-29
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn" @click="createNewProject">Create new project</button>
+        <button class="btn" @click="addDemoProject">Add demo project</button>
+        &nbsp; &nbsp;
+        <button class="btn" @click="createNewProjectModal">Create blank project</button>
         &nbsp; &nbsp;
         <button class="btn" @click="uploadProjectFromFile">Upload project from file</button>
         &nbsp; &nbsp;
@@ -45,18 +47,6 @@ Last update: 2018-05-29
               </span>
             </th>
             <th>Select</th>
- <!--           <th @click="updateSorting('country')" class="sortable">
-              Country
-              <span v-show="sortColumn == 'country' && !sortReverse">
-                <i class="fas fa-caret-down"></i>
-              </span>
-              <span v-show="sortColumn == 'country' && sortReverse">
-                <i class="fas fa-caret-up"></i>
-              </span>
-              <span v-show="sortColumn != 'country'">
-                <i class="fas fa-caret-up" style="visibility: hidden"></i>
-              </span>
-            </th> -->
             <th @click="updateSorting('creationTime')" class="sortable">
               Created on
               <span v-show="sortColumn == 'creationTime' && !sortReverse">
@@ -110,31 +100,68 @@ Last update: 2018-05-29
               <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
               <button class="btn" @click="renameProject(projectSummary)">Rename</button>
               <button class="btn" @click="downloadProjectFile(projectSummary.project.id)">Download</button>
+              <button class="btn" @click="uploadDatabook(projectSummary.project.id)">Upload databook</button>
             </td>
           </tr>
-<!--          <tr>
-            <td>
-              <button class="btn" @click="createNewProject">Create new project</button>
-            </td>
-<!-- comment out for now            <td>
-              <select v-model="selectedCountry">
-                <option>Select country...</option>
-                <option v-for="choice in countryList">
-                  {{ choice }}
-                </option>
-              </select>
-            </td>
-          </tr> -->
         </tbody>
       </table>
 
       <div class="ControlsRow">
-        <button class="btn" @click="deleteSelectedProjects">Delete selected</button>
+        <button class="btn" @click="deleteModal()">Delete selected</button>
         &nbsp; &nbsp;
         <button class="btn" @click="downloadSelectedProjects">Download selected</button>
       </div>
     </div>
+
+    <modal name="create-project"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create blank project
+        </div>
+        <div class="dialog-c-text">
+          Project name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="proj_name"/><br>
+          Number of populations:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="num_pops"/><br>
+          First year for data entry:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="data_start"/><br>
+          Final year for data entry:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="data_end"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="createNewProject()" class='btn __green' style="display:inline-block">
+            Create project and download data entry spreadsheet
+          </button>
+
+          <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+
+      <div>
+
+      </div>
+    </modal>
   </div>
+
 </template>
 
 <script>
@@ -142,80 +169,22 @@ import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
 import router from '@/router'
-//import PaperNotification from './components/generic/NotificationPlugin/Notification.vue'
-//import PaperNotification from './components/generic/NotificationPlugin'
 
 export default {
   name: 'ProjectsPage',
 
   data() {
     return {
-      // List of projects to choose from (by project name)
-      demoProjectList: [],
-
-      // Selected demo project (by name)
-      selectedDemoProject: '',
-
-      // List of demo project summaries
-      demoProjectSummaries: [],
-
-      // Placeholder text for table filter box
-      filterPlaceholder: 'Type here to filter projects',
-
-      // Text in the table filter box
-      filterText: '',
-
-      // Are all of the projects selected?
-      allSelected: false,
-
-      // Column of table used for sorting the projects
-      sortColumn: 'name',  // name, country, creationTime, updatedTime, dataUploadTime
-
-      // Sort in reverse order?
-      sortReverse: false,
-
-/* old project summaries stuff to get rid of
-        // List of summary objects for projects the user has
-        projectSummaries:
-        [
-          {
-            projectName: 'Afghanistan test 1',
-            country: 'Afghanistan',
-            creationTime: '2017-Jun-01 02:45 AM',
-            updateTime: '2017-Jun-02 05:41 AM',
-            uid: 1
-          },
-          {
-            projectName: 'Afghanistan HBP equity',
-            country: 'Afghanistan',
-            creationTime: '2017-Jun-03 03:12 PM',
-            updateTime: '2017-Jun-05 03:38 PM',
-            uid: 2
-          },
-          {
-            projectName: 'Final Afghanistan HBP',
-            country: 'Afghanistan',
-            creationTime: '2017-Jun-06 08:15 PM',
-            updateTime: '2017-Jun-06 08:20 PM',
-            uid: 3
-          },
-          {
-            projectName: 'Pakistan test 1',
-            country: 'Pakistan',
-            creationTime: '2017-Sep-21 08:44 AM',
-            updateTime: '2017-Sep-21 08:44 AM',
-            uid: 4
-          }
-        ], */
-
-      // List of summary objects for projects the user has
-      projectSummaries: [],
-
-      // Available countries
-      countryList: [],
-
-      // Country selected in the bottom select box
-      selectedCountry: 'Select country'
+      filterPlaceholder: 'Type here to filter projects', // Placeholder text for table filter box
+      filterText: '',  // Text in the table filter box
+      allSelected: false, // Are all of the projects selected?
+      sortColumn: 'name',  // Column of table used for sorting the projects: name, country, creationTime, updatedTime, dataUploadTime
+      sortReverse: false, // Sort in reverse order?
+      projectSummaries: [], // List of summary objects for projects the user has
+      proj_name: '', // For creating a new project: number of populations
+      num_pops: 5, // For creating a new project: number of populations
+      data_start: 2000, // For creating a new project: number of populations
+      data_end: 2020, // For creating a new project: number of populations
     }
   },
 
@@ -236,20 +205,25 @@ export default {
     else {
       // Load the project summaries of the current user.
       this.updateProjectSummaries()
-
-      // Initialize the countryList by picking out the (unique) country names.
-      // (First, a list is constructed pulling out the non-unique countries
-      // for each project, then this array is stuffed into a new Set (which
-      // will not duplicate array entries) and then the spread operator is
-      // used to pull the set items out into an array.)
-//      this.countryList = [...new Set(this.projectSummaries.map(theProj => theProj.country))]
-
-      // Initialize the selection of the demo project to the first element.
-//      this.selectedCountry = 'Select country...'
     }
   },
 
   methods: {
+
+    beforeOpen (event) {
+      console.log(event)
+      // Set the opening time of the modal
+      this.TEMPtime = Date.now()
+    },
+
+    beforeClose (event) {
+      console.log(event)
+      // If modal was open less then 5000 ms - prevent closing it
+      if (this.TEMPtime + this.TEMPduration < Date.now()) {
+        event.stop()
+      }
+    },
+
     updateProjectSummaries() {
       console.log('updateProjectSummaries() called')
 
@@ -265,50 +239,46 @@ export default {
 		      theProj.renaming = ''
 		    })
       })
-
-      // Get the demo project summaries from the server.
-/*      rpcservice.rpcCall('get_scirisdemo_projects')
-      .then(response => {
-        // Set the demo projects to what we received.
-        this.demoProjectSummaries = response.data.projects
-
-        // Initialize the demoProjectList by picking out the project names.
-        this.demoProjectList = this.demoProjectSummaries.map(demoProj => demoProj.project.name)
-
-        // Initialize the selection of the demo project to the first element.
-        this.selectedDemoProject = this.demoProjectList[0]
-      }) */
     },
 
-/*    addDemoProject() {
+    addDemoProject() {
       console.log('addDemoProject() called')
 
-      // Find the object in the default project summaries that matches what's
-      // selected in the select box.
-      let foundProject = this.demoProjectSummaries.find(demoProj =>
-        demoProj.project.name == this.selectedDemoProject)
+      // Have the server create a new project.
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
+        .then(response => {
+          // Update the project summaries so the new project shows up on the list.
+          this.updateProjectSummaries()
 
-      // Make a deep copy of the found object by JSON-stringifying the old
-      // object, and then parsing the result back into a new object.
-      let newProject = JSON.parse(JSON.stringify(foundProject));
+          this.$notifications.notify({
+            message: 'Demo project added',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
+        })
+    },
 
-      // Push the deep copy to the projectSummaries list.
-//      this.projectSummaries.push(newProject)
+    createNewProjectModal() {
+      // Open a model dialog for creating a new project
+      console.log('createNewProjectModal() called');
+      this.$modal.show('create-project');
+    },
 
-//      this.projectSummaries.push(this.demoProjectSummaries[0])
-    }, */
 
     createNewProject() {
       console.log('createNewProject() called')
+      this.$modal.hide('create-project')
 
       // Have the server create a new project.
-      rpcservice.rpcCall('create_new_project', [this.$store.state.currentUser.UID])
+      rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries()
 
         this.$notifications.notify({
-          message: 'New project created',
+          message: 'New project "'+this.proj_name+'" created',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
@@ -493,6 +463,41 @@ export default {
       rpcservice.rpcDownloadCall('download_project', [uid])
     },
 
+    uploadDatabook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('uploadDatabook() called for ' + matchProject.project.name)
+
+      // Have the server copy the project, giving it a new name.
+      rpcservice.rpcUploadCall('upload_databook', [uid], {})
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateProjectSummaries()
+        })
+
+      this.$notifications.notify({
+        message: 'Data uploaded to project "'+matchProject.project.name+'"',
+        icon: 'ti-check',
+        type: 'success',
+        verticalAlign: 'top',
+        horizontalAlign: 'center',
+      });
+    },
+
+  // Confirmation alert
+    deleteModal() {
+      // Alert object data
+      var obj = {
+            message: 'Are you sure you want to delete the selected projects?',
+            useConfirmBtn: true,
+            customConfirmBtnClass: 'btn __red',
+            customCloseBtnClass: 'btn',
+            onConfirm: this.deleteSelectedProjects
+          }
+      this.$Simplert.open(obj)
+    },
+
     deleteSelectedProjects() {
       // Pull out the names of the projects that are selected.
       let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
@@ -526,5 +531,59 @@ export default {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style lang="scss" scoped>
+<!--<style lang="scss" scoped>-->
+<!--</style>-->
+<style>
+  .vue-dialog div {
+    box-sizing: border-box;
+  }
+  .vue-dialog .dialog-flex {
+    width: 100%;
+    height: 100%;
+  }
+  .vue-dialog .dialog-content {
+    flex: 1 0 auto;
+    width: 100%;
+    padding: 15px;
+    font-size: 14px;
+  }
+  .vue-dialog .dialog-c-title {
+    font-weight: 600;
+    padding-bottom: 15px;
+  }
+  .vue-dialog .dialog-c-text {
+  }
+  .vue-dialog .vue-dialog-buttons {
+    display: flex;
+    flex: 0 1 auto;
+    width: 100%;
+    border-top: 1px solid #eee;
+  }
+  .vue-dialog .vue-dialog-buttons-none {
+    width: 100%;
+    padding-bottom: 15px;
+  }
+  .vue-dialog-button {
+    font-size: 12px !important;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    cursor: pointer;
+    box-sizing: border-box;
+    line-height: 40px;
+    height: 40px;
+    color: inherit;
+    font: inherit;
+    outline: none;
+  }
+  .vue-dialog-button:hover {
+    background: rgba(0, 0, 0, 0.01);
+  }
+  .vue-dialog-button:active {
+    background: rgba(0, 0, 0, 0.025);
+  }
+  .vue-dialog-button:not(:first-of-type) {
+    border-left: 1px solid #eee;
+  }
 </style>

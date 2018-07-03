@@ -2,6 +2,11 @@
 // (runtime-only or standalone) has been set in webpack.base.conf with an alias.
 import Vue from 'vue'
 // Plugins
+// Simple alert plugin
+import Simplert from 'vue2-simplert-plugin'
+require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
+import VModal from 'vue-js-modal'
+
 import GlobalComponents from './globalComponents'
 import GlobalDirectives from './globalDirectives'
 import Notifications from './components/generic/NotificationPlugin'
@@ -22,7 +27,8 @@ Vue.use(GlobalComponents);
 Vue.use(GlobalDirectives);
 Vue.use(Notifications); // WARNING, not used?
 Vue.use(SideBar);
-
+Vue.use(Simplert);
+Vue.use(VModal);
 // global library setup
 Object.defineProperty(Vue.prototype, '$Chartist', {
   get () {
