@@ -46,7 +46,7 @@ Last update: 2018-05-29
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Actions</th>
+            <th>Project actions</th>
             <th @click="updateSorting('creationTime')" class="sortable">
               Created on
               <span v-show="sortColumn == 'creationTime' && !sortReverse">
@@ -112,8 +112,8 @@ Last update: 2018-05-29
               <button class="btn" @click="downloadDatabook(projectSummary.project.id)">Download</button>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __blue" @click="uploadProgrambook(projectSummary.project.id)">Upload</button>
-              <button class="btn" @click="downloadProgrambook(projectSummary.project.id)">Download</button>
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)">Upload</button>
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)">Download</button>
             </td>
           </tr>
         </tbody>
@@ -144,6 +144,12 @@ Last update: 2018-05-29
           <input type="text"
                  class="txbox"
                  v-model="proj_name"/><br>
+          Framework [TBC]:<br>
+          <select v-model="currentFramework">
+            <option v-for='frw in frameworkOptions'>
+              {{ frw }}
+            </option>
+          </select><br><br>
           Number of populations:<br>
           <input type="text"
                  class="txbox"
@@ -198,6 +204,8 @@ export default {
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
+      frameworkOptions: ['Framework 1', 'Framework 2'],
+      currentFramework: 'Framework 1'
     }
   },
 
@@ -486,6 +494,16 @@ export default {
       rpcservice.rpcDownloadCall('download_databook', [uid])
     },
 
+    downloadProgbook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('downloadProgbook() called for ' + matchProject.project.name)
+
+      // Make the server call to download the project to a .prj file.
+      rpcservice.rpcDownloadCall('download_progbook', [uid])
+    },
+
     downloadDefaults(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
@@ -511,6 +529,28 @@ export default {
 
       this.$notifications.notify({
         message: 'Data uploaded to project "'+matchProject.project.name+'"',
+        icon: 'ti-check',
+        type: 'success',
+        verticalAlign: 'top',
+        horizontalAlign: 'center',
+      });
+    },
+
+    uploadProgbook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('uploadProgbook() called for ' + matchProject.project.name)
+
+      // Have the server copy the project, giving it a new name.
+      rpcservice.rpcUploadCall('upload_progbook', [uid], {})
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateProjectSummaries()
+        })
+
+      this.$notifications.notify({
+        message: 'Programs uploaded to project "'+matchProject.project.name+'"',
         icon: 'ti-check',
         type: 'success',
         verticalAlign: 'top',

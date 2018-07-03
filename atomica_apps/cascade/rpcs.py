@@ -434,6 +434,28 @@ def upload_databook(databook_filename, project_id):
     return { 'projectId': str(proj.uid) }
 
 
+@register_RPC(call_type='upload', validation_type='nonanonymous user')
+def upload_progbook(progbook_filename, project_id):
+    """
+    Upload a program book to a project.
+    """
+    
+    # Display the call information.
+    print(">> upload_progbook '%s'" % progbook_filename)
+    
+    proj = load_project(project_id, raise_exception=True)
+    
+    # Reset the project name to a new project name that is unique.
+    proj.load_progbook(progbook_path=progbook_filename)
+    proj.modified = sc.today()
+    
+    # Save the new project in the DataStore.
+    save_project(proj)
+    
+    # Return the new project UID in the return message.
+    return { 'projectId': str(proj.uid) }
+
+
 @register_RPC(validation_type='nonanonymous user')
 def update_project_from_summary(project_summary):
     """
