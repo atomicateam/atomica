@@ -34,9 +34,9 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-#"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -100,29 +100,40 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.make_parset(name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    P.run_sim(parset="default", result_name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+        P.run_sim(parset="default", result_name="default")
         
-    cascade = P.results[-1].get_cascade_vals(project=P)
+        cascade = P.results[-1].get_cascade_vals(project=P)
             
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\Making programs spreadsheet ... ')
 
-    P = au.demo(which=test,do_plot=0)
-    filename = "temp/programspreadsheet.xlsx"
-    P.make_progbook(filename, progs=5)
+    # Not implemented for the new demos
+    if test in ['sir','tb']:
+        P = au.demo(which=test,do_plot=0)
+        filename = "temp/programspreadsheet.xlsx"
+        P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    if test=='tb':
-        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    if test in ['tb','diabetes','service']:
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
@@ -155,8 +166,8 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    if test=='tb':
-        raise NotImplemented
+    if test in ['tb','diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
     else:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
