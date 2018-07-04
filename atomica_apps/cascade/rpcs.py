@@ -1018,6 +1018,7 @@ def get_plots(project_id):
     return do_get_plots(project_id)
 
 
+# Time series plots
 #def get_plots(project_id, plot_names=None, pops='all'):
 #    
 #    import pylab as pl
