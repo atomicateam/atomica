@@ -238,8 +238,8 @@ export default {
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
-      projectOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service intervention'],
-      currentProject: 'Service intervention'
+      projectOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
+      currentProject: 'Service delivery'
     }
   },
 

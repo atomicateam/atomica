@@ -31,7 +31,7 @@ register_RPC = sw.make_register_RPC(RPC_dict)
 label_mapping = {'SIR model':'sir',
                  'Tuberculosis':'tb',
                  'Diabetes':'diabetes',
-                 'Service intervention':'service'}
+                 'Service delivery':'service'}
 
 
 def get_unique_name(name, other_names=None):

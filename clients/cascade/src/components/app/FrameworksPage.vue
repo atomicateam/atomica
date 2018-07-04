@@ -202,8 +202,8 @@ Last update: 2018-05-29
         frameworkSummaries: [], // List of summary objects for frameworks the user has
         frame_name: 'Default', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
-        frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service intervention'],
-        currentFramework: 'Service intervention'
+        frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
+        currentFramework: 'Service delivery'
 
       }
     },
