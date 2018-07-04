@@ -143,11 +143,6 @@ Last update: 2018-05-29
           </button>
         </div>
       </div>
-
-
-      <div>
-
-      </div>
     </modal>
 
     <modal name="create-framework"
@@ -182,11 +177,6 @@ Last update: 2018-05-29
             Cancel
           </button>
         </div>
-      </div>
-
-
-      <div>
-
       </div>
     </modal>
   </div>

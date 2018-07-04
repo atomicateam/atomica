@@ -9,9 +9,9 @@ Last update: 2018-05-29
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoProject">Create demo project</button>
+        <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
         &nbsp; &nbsp;
-        <button class="btn __blue" @click="createNewProjectModal">Create blank project</button>
+        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
         &nbsp; &nbsp;
@@ -126,6 +126,38 @@ Last update: 2018-05-29
       </div>
     </div>
 
+    <modal name="demo-project"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create demo project
+        </div>
+        <div class="dialog-c-text">
+          <select v-model="currentProject">
+            <option v-for='project in projectOptions'>
+              {{ project }}
+            </option>
+          </select><br><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="addDemoProject()" class='btn __green' style="display:inline-block">
+            Add selected
+          </button>
+
+          <button @click="$modal.hide('demo-project')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </modal>
+
     <modal name="create-project"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
@@ -204,8 +236,8 @@ export default {
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
-      frameworkOptions: ['Framework 1', 'Framework 2'],
-      currentFramework: 'Framework 1'
+      projectOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service intervention'],
+      currentProject: 'Service intervention'
     }
   },
 
@@ -264,21 +296,27 @@ export default {
 
     addDemoProject() {
       console.log('addDemoProject() called')
-
-      // Have the server create a new project.
-      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
+      this.$modal.hide('demo-project')
+      // Have the server create a new framework.
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID, this.currentProject])
         .then(response => {
-          // Update the project summaries so the new project shows up on the list.
+          // Update the framework summaries so the new framework shows up on the list.
           this.updateProjectSummaries()
 
           this.$notifications.notify({
-            message: 'Demo project added',
+            message: 'Demo project "'+which+'" loaded',
             icon: 'ti-check',
             type: 'success',
             verticalAlign: 'top',
             horizontalAlign: 'center',
           });
         })
+    },
+
+    addDemoProjectModal() {
+      // Open a model dialog for creating a new project
+      console.log('addDemoProjectModal() called');
+      this.$modal.show('demo-project');
     },
 
     createNewProjectModal() {

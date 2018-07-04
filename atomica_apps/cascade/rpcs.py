@@ -731,7 +731,7 @@ def add_demo_project(user_id, project_name):
     except Exception:
         errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
         raise Exception(errormsg)
-    new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added.
+    new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.demo(which=which,do_plot=0)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
     print(">> add_demo_project %s" % (proj.name))     
