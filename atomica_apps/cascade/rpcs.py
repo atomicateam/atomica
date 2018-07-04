@@ -469,7 +469,7 @@ def upload_frameworkbook(databook_filename, framework_id):
     frame = load_framework(framework_id, raise_exception=True)
     
     # Reset the framework name to a new framework name that is unique.
-    frame.load(databook_path=databook_filename)
+    frame.read_from_file(filepath=databook_filename)
     frame.modified = sc.today()
     
     # Save the new framework in the DataStore.

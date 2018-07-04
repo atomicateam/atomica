@@ -99,8 +99,8 @@ Last update: 2018-05-29
           <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime:
             'No modification' }}</td>
           <td>
-            <button class="btn __blue" @click="uploadDatabook(frameworkSummary.framework.id)">Upload</button>
-            <button class="btn" @click="downloadDatabook(frameworkSummary.framework.id)">Download</button>
+            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)">Upload</button>
+            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)">Download</button>
           </td>
         </tr>
         </tbody>
@@ -530,7 +530,7 @@ Last update: 2018-05-29
         console.log('uploadFrameworkbook() called for ' + matchFramework.framework.name)
 
         // Have the server copy the framework, giving it a new name.
-        rpcservice.rpcUploadCall('upload_databook', [uid], {})
+        rpcservice.rpcUploadCall('upload_frameworkbook', [uid], {})
           .then(response => {
             // Update the framework summaries so the copied program shows up on the list.
             this.updateFrameworkSummaries()

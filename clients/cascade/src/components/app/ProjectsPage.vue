@@ -553,13 +553,21 @@ export default {
 
     downloadDatabook(uid) {
       // Find the project that matches the UID passed in.
-      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+//      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+//
+//      console.log('downloadDatabook() called for ' + matchProject.project.name)
+//
+//      // Make the server call to download the project to a .prj file.
+//      rpcservice.rpcDownloadCall('download_databook', [uid])
+        this.$notifications.notify({
+          message: 'This is not yet implemented, please check back soon.',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        });
 
-      console.log('downloadDatabook() called for ' + matchProject.project.name)
-
-      // Make the server call to download the project to a .prj file.
-      rpcservice.rpcDownloadCall('download_databook', [uid])
-    },
+      },
 
     downloadProgbook(uid) {
       // Find the project that matches the UID passed in.
