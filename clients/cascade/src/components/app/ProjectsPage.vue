@@ -320,6 +320,11 @@ export default {
 		      theProj.selected = false
 		      theProj.renaming = ''
 		    })
+        
+        // Set the first project to be active.
+        if (this.projectSummaries.length > 0) {
+          this.openProject(this.projectSummaries[0].project.id)
+        }        
       })
     },
 
