@@ -489,7 +489,7 @@ Last update: 2018-05-29
         rpcservice.rpcDownloadCall('download_framework', [uid])
       },
 
-      downloadDatabook(uid) {
+      downloadFrameworkbook(uid) {
         this.$notifications.notify({
           message: 'This is not yet implemented, please check back soon.',
           icon: 'ti-face-sad',
@@ -502,16 +502,7 @@ Last update: 2018-05-29
 //        console.log('downloadDatabook() called for ' + matchFramework.framework.name)
 //        rpcservice.rpcDownloadCall('download_databook', [uid]) // Make the server call to download the framework to a .prj file.
       },
-
-      downloadProgbook(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
-        console.log('downloadProgbook() called for ' + matchFramework.framework.name)
-
-        // Make the server call to download the framework to a .prj file.
-        rpcservice.rpcDownloadCall('download_progbook', [uid])
-      },
+      
 
       downloadDefaults(uid) {
         // Find the framework that matches the UID passed in.
@@ -538,28 +529,6 @@ Last update: 2018-05-29
 
         this.$notifications.notify({
           message: 'Data uploaded to framework "'+matchFramework.framework.name+'"',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
-      },
-
-      uploadProgbook(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
-        console.log('uploadProgbook() called for ' + matchFramework.framework.name)
-
-        // Have the server copy the framework, giving it a new name.
-        rpcservice.rpcUploadCall('upload_progbook', [uid], {})
-          .then(response => {
-            // Update the framework summaries so the copied program shows up on the list.
-            this.updateFrameworkSummaries()
-          })
-
-        this.$notifications.notify({
-          message: 'Programs uploaded to framework "'+matchFramework.framework.name+'"',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',

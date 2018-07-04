@@ -102,10 +102,10 @@ Last update: 2018-05-29
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
             <td>
-              TBC
+              <!--TBC-->
             </td>
             <td>
-              TBC
+              <!--TBC-->
             </td>
             <td>
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)">Upload</button>
