@@ -1105,7 +1105,7 @@ class ProgramSpreadsheet:
     def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None, verbose=0):
         self.sheet_names = sc.odict([
             ('targeting',   'Populations & programs'),
-            ('costcovdata', 'Program data'),
+            ('costcovdata', 'Program spend data'),
             ('covoutdata',  'Program effects'),
         ])
         self.name = name
@@ -1144,7 +1144,11 @@ class ProgramSpreadsheet:
                 target_pops = [''] + ['' for popname in self.pops]
                 target_comps = [''] + ['' for comp in self.comps]
             coded_params.append([short, name]+target_pops+target_comps)
-    
+
+        # Hard-coded writing of target descriptions in sheet.
+        self.current_sheet.write(0, 5, "Targeted to (populations)", self.formats.formats["center_bold"])
+        self.current_sheet.write(0, 6+len(self.pops), "Targeted to (compartments)", self.formats.formats["center_bold"])
+
         column_names = ['Short name', 'Long name',''] + self.pops + [''] + self.comps
         content = AtomicaContent(name='Populations & programs',
                                  row_names=range(1, len(self.progs) + 1), 

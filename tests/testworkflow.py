@@ -19,9 +19,9 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-#test = "sir"
+test = "sir"
 test = "tb"
-#test = "diabetes"
+# test = "diabetes"
 # test = "service"
 
 torun = [
@@ -37,14 +37,14 @@ torun = [
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
 "runsim_programs",
-#"makeplots",
-#"export",
-#"listspecs",
-#"manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-#"saveproject",
-#"loadproject",
+# "makeplots",
+# "export",
+# "listspecs",
+# "manualcalibrate",
+# "autocalibrate",
+# "parameterscenario",
+# "saveproject",
+# "loadproject",
 ]
 
 # Define plotting variables in case plots are generated
@@ -126,16 +126,17 @@ if "runsim" in torun:
             
     
 if "makeprogramspreadsheet" in torun:
-    print('\n\n\Making programs spreadsheet ... ')
-
-    # Not implemented for the new demos
+    print('\n\n\nMaking programs spreadsheet ... ')
     if test not in ['diabetes']:
-        P = au.demo(which=test,do_plot=0)
+        P = au.demo(which=test, do_plot=0)
         filename = "temp/progbook_"+test+"_blank.xlsx"
-        P.make_progbook(filename, progs=5)
+        if test == "tb":
+            P.make_progbook(filename, progs=31)
+        else:
+            P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    if test in ['tb','diabetes','service']:
+    if test in ['diabetes','service']:
         print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
@@ -143,29 +144,30 @@ if "loadprogramspreadsheet" in torun:
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
-        P.progsets[0].programs[0].get_spend(year=2015)
-        
-        # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
-        coverage = sc.odict([('Risk avoidance',     .99),
-                             ('Harm reduction 1',   .8),
-                             ('Harm reduction 2',   .9),
-                             ('Treatment 1',        .99),
-                             ('Treatment 2',        .8)])
-        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+        if test not in ["tb"]:      # TODO: Test TB progset after successful progset construction.
+            P.progsets[0].programs[0].get_spend(year=2015)
 
-        # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
-        print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
-        print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+            # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
+            coverage = sc.odict([('Risk avoidance',     .99),
+                                 ('Harm reduction 1',   .8),
+                                 ('Harm reduction 2',   .9),
+                                 ('Treatment 1',        .99),
+                                 ('Treatment 2',        .8)])
+            print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
-        # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
-        denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
-                             ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
-                             ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+            # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
+            print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
+            print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
 
-        print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
-        print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+            # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+            denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
+                                 ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
+                                 ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+
+            print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
+            print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
 
 
 if "runsim_programs" in torun:
@@ -301,12 +303,6 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
-
-if "runsimprogs" in torun:
-    from atomica.core.programs import ProgramInstructions
-
-    # instructions = ProgramInstructions(progset=P.progsets["default"])
-    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

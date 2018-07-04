@@ -493,6 +493,8 @@ class FrameworkSettings(BaseStructuralSettings):
         cls.create_item_type_attributes([cls.KEY_PARAMETER], ["min", "max"],
                                         content_type=ContentType(enforce_type=float))
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.TERM_FUNCTION, "dependencies"])
+        cls.create_item_type_attributes([cls.KEY_PARAMETER], ["is_impact"],
+                                        content_type=SwitchType(default_on=True))
         cls.create_item_type_attributes([cls.KEY_PARAMETER], [cls.KEY_TRANSITIONS],
                                         content_type=ContentType(is_list=True))
 
@@ -500,6 +502,9 @@ class FrameworkSettings(BaseStructuralSettings):
                                         ["read_order", "refer_to_settings"] + ExcelSettings.FORMAT_VARIABLE_KEYS)
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["tables"], content_type=ContentType(is_list=True))
         cls.create_item_type_attributes([cls.KEY_DATAPAGE], ["can_skip"], content_type=SwitchType())
+        cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
+                                        ["can_calibrate"],
+                                        content_type=SwitchType(default_on=True))
         cls.create_item_type_attributes([cls.KEY_COMPARTMENT, cls.KEY_CHARACTERISTIC, cls.KEY_PARAMETER],
                                         [cls.KEY_DATAPAGE],
                                         content_type=IDRefType(attribute="name", item_types=[cls.KEY_DATAPAGE]))
