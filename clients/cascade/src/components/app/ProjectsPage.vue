@@ -176,10 +176,10 @@ Last update: 2018-05-29
           <input type="text"
                  class="txbox"
                  v-model="proj_name"/><br>
-          Framework [TBC]:<br>
+          Framework:<br>
           <select v-model="currentFramework">
-            <option v-for='frw in frameworkOptions'>
-              {{ frw }}
+            <option v-for='frameworkSummary in frameworkSummaries'>
+              {{ frameworkSummary.name }}
             </option>
           </select><br><br>
           Number of populations:<br>
@@ -232,6 +232,8 @@ export default {
       sortColumn: 'name',  // Column of table used for sorting the projects: name, country, creationTime, updatedTime, dataUploadTime
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
+      frameworkSummaries: [],
+      currentFramework: '',
       proj_name: '', // For creating a new project: number of populations
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
@@ -258,6 +260,7 @@ export default {
     else {
       // Load the project summaries of the current user.
       this.updateProjectSummaries()
+      this.updateFrameworkSummaries()
     }
   },
 
@@ -275,6 +278,30 @@ export default {
       if (this.TEMPtime + this.TEMPduration < Date.now()) {
         event.stop()
       }
+    },
+
+    updateFrameworkSummaries() {
+      console.log('updateFrameworkSummaries() called')
+
+      // Get the current user's framework summaries from the server.
+      rpcservice.rpcCall('load_current_user_framework_summaries')
+        .then(response => {
+          // Set the frameworks to what we received.
+          this.frameworkSummaries = response.data.frameworks
+          if (this.frameworkSummaries.length) {
+            console.log('Framework summaries found')
+            this.currentFramework = this.frameworkSummaries[0].name
+          } else {
+            console.log('No framework summaries found')
+          }
+
+
+          // Set select flags for false initially.
+          this.frameworkSummaries.forEach(theFrame => {
+            theFrame.selected = false
+            theFrame.renaming = ''
+          })
+        })
     },
 
     updateProjectSummaries() {
