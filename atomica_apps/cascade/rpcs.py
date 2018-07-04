@@ -453,43 +453,20 @@ def add_demo_framework(user_id, framework_name):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_framework(user_id, frame_name, num_pops, data_start, data_end):
+def create_new_framework(user_id, frame_name, num_comps):
     """
     Create a new framework.
     """
-    
-    args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
-    
-    # Get a unique name for the framework to be added.
-    new_frame_name = get_unique_name(frame_name, other_names=None)
-    
-    # Create the framework, loading in the desired spreadsheets.
-    frame = au.ProjectFramework(name=new_frame_name)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
+    new_frame_name = get_unique_name(frame_name, other_names=None) # Get a unique name for the framework to be added.
+    frame = au.ProjectFramework(name=new_frame_name) # Create the framework, loading in the desired spreadsheets.
     print(">> create_new_framework %s" % (frame.name))    
-    
-    # Save the new framework in the DataStore.
-    save_framework_as_new(frame, user_id)
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-        
-    # Create a filename containing the framework name followed by a .frw 
-    # suffix.
-    file_name = '%s.xlsx' % frame.name
-        
-    # Generate the full file name with path.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
-    
-    # Return the databook
-    frame.create_databook(databook_path=full_file_name, **args)
-    
+    save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s.xlsx' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    frame.create_template(path=full_file_name, num_comps=num_comps) # Return the databook
     print(">> download_databook %s" % (full_file_name))
-    
-    # Return the new framework UID in the return message.
-    return full_file_name
+    return full_file_name # Return the filename
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')

@@ -11,7 +11,7 @@ Last update: 2018-05-29
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
         &nbsp; &nbsp;
-        <button class="btn __blue" @click="createNewFrameworkModal">Create blank framework</button>
+        <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadFrameworkFromFile">Upload framework from file</button>
         &nbsp; &nbsp;
@@ -164,7 +164,7 @@ Last update: 2018-05-29
           Create new framework
         </div>
         <div class="dialog-c-text">
-          Framework name:<br>
+          Name:<br>
           <input type="text"
                  class="txbox"
                  v-model="frame_name"/><br>
@@ -172,14 +172,6 @@ Last update: 2018-05-29
           <input type="text"
                  class="txbox"
                  v-model="num_comps"/><br>
-          Number of characteristics:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_chars"/><br>
-          Number of parameters:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_pars"/><br>
         </div>
         <div style="text-align:justify">
           <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
@@ -218,10 +210,8 @@ Last update: 2018-05-29
         sortColumn: 'name',  // Column of table used for sorting the frameworks: name, country, creationTime, updatedTime, dataUploadTime
         sortReverse: false, // Sort in reverse order?
         frameworkSummaries: [], // List of summary objects for frameworks the user has
-        frame_name: '', // For creating a new framework: number of populations
+        frame_name: 'Default', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
-        num_chars: 10, // For creating a new framework: number of populations
-        num_pars: 20, // For creating a new framework: number of populations
         frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service intervention'],
         currentFramework: 'Service intervention'
 
@@ -318,13 +308,13 @@ Last update: 2018-05-29
         this.$modal.hide('create-framework')
 
         // Have the server create a new framework.
-        rpcservice.rpcDownloadCall('create_new_framework', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
+        rpcservice.rpcDownloadCall('create_new_framework', [this.$store.state.currentUser.UID, this.frame_name, this.num_comps])
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
             this.updateFrameworkSummaries()
 
             this.$notifications.notify({
-              message: 'New framework "'+this.proj_name+'" created',
+              message: 'New framework "'+this.frame_name+'" created',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
