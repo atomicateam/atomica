@@ -555,9 +555,12 @@ def create_framework_from_frw_file(frw_filename, user_id):
     print(">> create_framework_from_frw_file '%s'" % frw_filename)
     
     # Try to open the .frw file, and return an error message if this fails.
+    print('Trying to open the file')
     try:
+        
         frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
     except Exception:
+        print('ERROR, load failed')
         return { 'frameworkId': 'BadFileFormatError' }
     
     # Reset the framework name to a new framework name that is unique.
@@ -565,6 +568,8 @@ def create_framework_from_frw_file(frw_filename, user_id):
     
     # Save the new framework in the DataStore.
     save_framework_as_new(frame, user_id)
+    
+    print('Created new framework %s, uid:%s' % (frame.name, frame.uid))
     
     # Return the new framework UID in the return message.
     return { 'frameworkId': str(frame.uid) }
