@@ -418,15 +418,27 @@ def load_zip_of_frw_files(framework_ids):
     return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
-def add_demo_framework(user_id):
+def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
     """
+    
+    mapping = {'SIR model':'sir',
+               'Tuberculosis':'tb',
+               'Diabetes':'diabetes',
+               'Service intervention':'service'}
+    
+    try:
+        which = mapping[framework_name]
+    except Exception:
+        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (mapping.keys(), framework_name)
+        raise Exception(errormsg)
+    
     # Get a unique name for the framework to be added.
-    new_frame_name = get_unique_name('Demo framework', other_names=None)
+    new_frame_name = get_unique_name(framework_name, other_names=None)
     
     # Create the framework, loading in the desired spreadsheets.
-    frame = au.demo(kind='framework', which='service') 
+    frame = au.demo(kind='framework', which=which) 
     frame.name = new_frame_name
     
     # Display the call information.

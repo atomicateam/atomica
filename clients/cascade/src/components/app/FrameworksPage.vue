@@ -134,7 +134,7 @@ Last update: 2018-05-29
           </select><br><br>
         </div>
         <div style="text-align:justify">
-          <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
+          <button @click="addDemoFramework()" class='btn __green' style="display:inline-block">
             Add selected
           </button>
 
@@ -281,11 +281,11 @@ Last update: 2018-05-29
           })
       },
 
-      addDemoFramework(which) {
+      addDemoFramework() {
         console.log('addDemoFramework() called')
-
+        this.$modal.hide('demo-framework')
         // Have the server create a new framework.
-        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, which])
+        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
             this.updateFrameworkSummaries()
