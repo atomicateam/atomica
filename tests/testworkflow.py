@@ -19,10 +19,10 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-test = "sir"
-test = "tb"
-# test = "diabetes"
-# test = "service"
+#test = "sir"
+#test = "tb"
+#test = "diabetes"
+test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -34,6 +34,7 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
+'plotcascade',
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
 "runsim_programs",
