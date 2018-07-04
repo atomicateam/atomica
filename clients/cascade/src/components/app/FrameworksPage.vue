@@ -9,7 +9,7 @@ Last update: 2018-05-29
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoFramework">Create demo framework</button>
+        <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewFrameworkModal">Create blank framework</button>
         &nbsp; &nbsp;
@@ -187,6 +187,7 @@ Last update: 2018-05-29
         num_pars: 20, // For creating a new framework: number of populations
         frameworkOptions: ['Framework 1', 'Framework 2'],
         currentFramework: 'Framework 1'
+
       }
     },
 
@@ -243,23 +244,29 @@ Last update: 2018-05-29
           })
       },
 
-      addDemoFramework() {
+      addDemoFramework(which) {
         console.log('addDemoFramework() called')
 
         // Have the server create a new framework.
-        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID])
+        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, which])
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
             this.updateFrameworkSummaries()
 
             this.$notifications.notify({
-              message: 'Demo framework added',
+              message: 'Library framework "'+which+'" loaded',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
               horizontalAlign: 'center',
             });
           })
+      },
+
+      addDemoFrameworkModal() {
+        // Open a model dialog for creating a new framework
+        console.log('addDemoFrameworkModal() called');
+        this.$modal.show('load-demo-framework');
       },
 
       createNewFrameworkModal() {
