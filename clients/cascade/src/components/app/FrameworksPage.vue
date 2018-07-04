@@ -500,13 +500,17 @@ Last update: 2018-05-29
       },
 
       downloadDatabook(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
+        this.$notifications.notify({
+          message: 'This is not yet implemented, please check back soon.',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        });
 
-        console.log('downloadDatabook() called for ' + matchFramework.framework.name)
-
-        // Make the server call to download the framework to a .prj file.
-        rpcservice.rpcDownloadCall('download_databook', [uid])
+//        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
+//        console.log('downloadDatabook() called for ' + matchFramework.framework.name)
+//        rpcservice.rpcDownloadCall('download_databook', [uid]) // Make the server call to download the framework to a .prj file.
       },
 
       downloadProgbook(uid) {
