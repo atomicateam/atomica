@@ -956,9 +956,10 @@ def get_supported_plots(only_keys=False):
 
 def get_cascade_plot_data(project_id):
     POPULATION = 0
-    print('WARNING, population hard-coded!')
+    RESULT = -1
+    print('WARNING, population and result hard-coded!')
     proj = load_project(project_id, raise_exception=True)
-    result = proj.results[-1]
+    result = proj.results[RESULT]
     cascade = result.get_cascade_vals(project=proj)
     data = dict()
     data['t'] = cascade['t'].tolist()
@@ -1092,8 +1093,11 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
         if value != 1:
             print('Modified: %s' % par)
     
+    print('Rerunning model with updated y factors...')
     proj.modified = sc.today()
+    print('Resultsets before run: %s' % len(proj.results))
     proj.run_sim(parset=parsetname, store_results=True)
+    print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
     output = do_get_plots(proj.uid)
     return output
