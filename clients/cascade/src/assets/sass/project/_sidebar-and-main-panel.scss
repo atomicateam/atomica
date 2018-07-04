@@ -11,7 +11,7 @@
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    width: 260px;
+    width: $sidebar-real-width;
     z-index: 4;
     box-shadow: inset -1px 0px 0px 0px $medium-gray;
   }
@@ -98,7 +98,7 @@
       margin: 0;
       line-height: 30px;
       font-size: 14px; // CK: font size for side panel
-      font-weight: 600;
+      font-weight: 400;
       text-transform: uppercase;
     }
 

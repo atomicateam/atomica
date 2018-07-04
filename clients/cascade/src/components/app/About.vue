@@ -11,9 +11,13 @@ Last update: 2018jun17
         <img src="static/img/cascade-logo-black.png" width="250px">
       </div>
       <br/><br/>
-      <p>Cascade Analysis Tools is currently under development. Development is supported through a partnership
-        between the <a href="http://www.ku.dk">University of Copenhagen</a> and the <a href="http://www.burnet.edu.au">Burnet Institute</a>,
-        under the auspices of the <a href="http://www.gatesfoundation.org">Bill and Melinda Gates Foundation</a> and the <a href="http://www.worldbank.org">World Bank</a>.</p>
+      <p>
+        Cascade Analysis Tools is currently under development. Development is
+        supported through the
+        <a href="http://www.ku.dk">University of Copenhagen</a> under the
+        auspices of the
+        <a href="http://www.gatesfoundation.org">Bill and Melinda Gates Foundation</a>.
+      </p>
 
     <p>Technical information:</p>
 

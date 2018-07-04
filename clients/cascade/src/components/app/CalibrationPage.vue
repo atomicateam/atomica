@@ -95,7 +95,7 @@ Last update: 2018-05-29
 
       placeholders() {
         var indices = []
-        for (var i = 1; i <= 100; i++) {
+        for (var i = 0; i <= 100; i++) {
           indices.push(i);
         }
         return indices;
@@ -180,7 +180,7 @@ Last update: 2018-05-29
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 1; index <= n_plots; index++) {
+            for (var index = 0; index <= n_plots; index++) {
               console.log('Rendering plot ' + index)
               var divlabel = 'fig' + index
               var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
@@ -188,6 +188,7 @@ Last update: 2018-05-29
                 div.removeChild(div.firstChild);
               }
               try {
+                console.log(response.data.graphs[index]);
                 mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
               }
               catch (err) {
@@ -202,18 +203,18 @@ Last update: 2018-05-29
             // Set the server error.
             this.servererror = error.message
           }).then( response => {
-            this.$notifications.notify({
-              message: 'Graphs created',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+          this.$notifications.notify({
+            message: 'Graphs created',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
         })
       },
 
       clearGraphs() {
-        for (var index = 1; index <= 100; index++) {
+        for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
           var divlabel = 'fig' + index
           var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first

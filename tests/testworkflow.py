@@ -20,9 +20,9 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 #test = "sir"
-test = "tb"
+#test = "tb"
 #test = "diabetes"
-# test = "service"
+test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -123,7 +123,24 @@ if "runsim" in torun:
         P.run_sim(parset="default", result_name="default")
         
         cascade = P.results[-1].get_cascade_vals(project=P)
-            
+
+if 'plotcascade' in torun:
+    import pylab as pl
+    cascade = P.results[-1].get_cascade_vals(project=P)
+    ydata = []
+    keys = cascade['vals'].keys()
+    for key in keys:
+        pop = 0
+        year = 0
+        ydata.append(cascade['vals'][key][pop][year])
+    xdata = range(len(ydata))
+    fig = pl.figure()
+    pl.bar(xdata,ydata)
+    pl.gca().set_xticks(xdata)
+    pl.gca().set_xticklabels(keys)
+    
+    
+    
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\Making programs spreadsheet ... ')

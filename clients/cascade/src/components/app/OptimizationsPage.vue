@@ -1,5 +1,5 @@
 <!--
-Placeholder
+Define equity
 
 Last update: 2018-03-25
 -->
