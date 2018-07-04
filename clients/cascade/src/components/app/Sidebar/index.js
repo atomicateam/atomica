@@ -34,11 +34,6 @@ const SidebarStore = {
       path: '/help'
     },
     {
-      name: 'Contact',
-      icon: 'ti-comment-alt',
-      path: '/contact'
-    },
-    {
       name: 'About',
       icon: 'ti-shine',
       path: '/about'
