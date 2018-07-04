@@ -92,13 +92,25 @@ class ProjectSO(sw.ScirisObject):
         print 'Update Time: %s' % self.proj.modified
             
     def get_user_front_end_repr(self):
+        try:    
+            framework_name = self.proj.framework.name
+        except: 
+            print('Could not load framework name for project')
+            framework_name = 'N/A'
+        try:    
+            n_pops = len(self.proj.parsets[0].pop_names)
+        except: 
+            print('Could not load populations for project')
+            n_pops = 'N/A'
         obj_info = {
             'project': {
                 'id': self.uid,
                 'name': self.proj.name,
                 'userId': self.owner_uid,
                 'creationTime': self.proj.created,
-                'updatedTime': self.proj.modified     
+                'updatedTime': self.proj.modified,
+                'framework': framework_name,
+                'n_pops': n_pops
             }
         }
         return obj_info

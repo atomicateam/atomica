@@ -13,7 +13,7 @@ Last update: 2018-05-29
     </div>
     <br>
 
-    <div style="width:200px; float:left">
+    <div style="width:500px; float:left">
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
         <tr>
@@ -40,10 +40,10 @@ Last update: 2018-05-29
         <tbody>
         <tr v-for="par in sortedPars">
           <td>
-            {{par.parname}}
+            {{par.parlabel}}
           </td>
           <td>
-            {{par.popname}}
+            {{par.poplabel}}
           </td>
           <td>
             <input type="text"

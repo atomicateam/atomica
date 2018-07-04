@@ -70,8 +70,8 @@ def demo(which=None, kind=None, doplot=False, **kwargs):
     
     if kind is None: kind = 'project'
     
-    if kind == 'framework': output = default_framework(**kwargs)
-    elif kind == 'project': output = default_project(**kwargs)
+    if kind == 'framework': output = default_framework(which=which, **kwargs)
+    elif kind == 'project': output = default_project(which=which, **kwargs)
     else:                   print('Sorry, no: %s' % kind)
     if doplot:
         logger.warning("Plotting not implemented yet.")

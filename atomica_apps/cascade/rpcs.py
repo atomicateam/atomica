@@ -747,6 +747,7 @@ def add_demo_project(user_id, project_name):
     """
     try:
         which = label_mapping[project_name]
+        print('Adding demo project %s/%s...' % (project_name, which))
     except Exception:
         errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
         raise Exception(errormsg)
@@ -1071,7 +1072,9 @@ def get_y_factors(project_id, parsetname=-1):
         for parname in parset.par_ids[par_type].keys():
             thispar = parset.get_par(parname)
             for popname,y_factor in thispar.y_factor.items():
-                thisdict = {'parname':parname, 'popname':popname, 'value':y_factor}
+                parlabel = proj.framework.get_spec_value(parname,'label')
+                poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
+                thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
                 y_factors.append(thisdict)
                 print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
