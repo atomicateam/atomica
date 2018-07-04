@@ -113,6 +113,43 @@ Last update: 2018-05-29
       </div>
     </div>
 
+    <modal name="demo-framework"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Load framework from library
+        </div>
+        <div class="dialog-c-text">
+          <select v-model="currentFramework">
+            <option v-for='framework in frameworkOptions'>
+              {{ framework }}
+            </option>
+          </select><br><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
+            Add selected
+          </button>
+
+          <button @click="$modal.hide('demo-framework')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+
+      <div>
+
+      </div>
+    </modal>
+
     <modal name="create-framework"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
@@ -124,7 +161,7 @@ Last update: 2018-05-29
 
       <div class="dialog-content">
         <div class="dialog-c-title">
-          Create blank framework
+          Create new framework
         </div>
         <div class="dialog-c-text">
           Framework name:<br>
@@ -146,7 +183,7 @@ Last update: 2018-05-29
         </div>
         <div style="text-align:justify">
           <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
-            Create framework and download data entry spreadsheet
+            Create
           </button>
 
           <button @click="$modal.hide('create-framework')" class='btn __red' style="display:inline-block">
@@ -185,8 +222,8 @@ Last update: 2018-05-29
         num_comps: 5, // For creating a new framework: number of populations
         num_chars: 10, // For creating a new framework: number of populations
         num_pars: 20, // For creating a new framework: number of populations
-        frameworkOptions: ['Framework 1', 'Framework 2'],
-        currentFramework: 'Framework 1'
+        frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service intervention'],
+        currentFramework: 'Service intervention'
 
       }
     },
@@ -266,7 +303,7 @@ Last update: 2018-05-29
       addDemoFrameworkModal() {
         // Open a model dialog for creating a new framework
         console.log('addDemoFrameworkModal() called');
-        this.$modal.show('load-demo-framework');
+        this.$modal.show('demo-framework');
       },
 
       createNewFrameworkModal() {
