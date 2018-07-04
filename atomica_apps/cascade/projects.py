@@ -26,7 +26,7 @@ proj_collection = None
 
 class ProjectSO(sw.ScirisObject):
     """
-    A ScirisObject-wrapped Optima Nutrition Project object.
+    A ScirisObject-wrapped Project object.
     
     Methods:
         __init__(proj: Project, owner_uid: UUID, uid: UUID [None]): 
@@ -62,7 +62,7 @@ class ProjectSO(sw.ScirisObject):
             # Set superclass parameters.
             super(ProjectSO, self).__init__(proj.uid)
                                    
-            # Set the project to the Optima Project that is passed in.
+            # Set the project to the Project that is passed in.
             self.proj = proj
             
             # Set the owner (User) UID.
@@ -83,7 +83,7 @@ class ProjectSO(sw.ScirisObject):
         # Show superclass attributes.
         super(ProjectSO, self).show()  
         
-        # Show the Optima defined display text for the project.
+        # Show the defined display text for the project.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
         print 'Project Name: %s' % self.proj.name

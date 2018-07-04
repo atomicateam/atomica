@@ -26,7 +26,7 @@ frame_collection = None
 
 class FrameworkSO(sw.ScirisObject):
     """
-    A ScirisObject-wrapped Optima Nutrition Framework object.
+    A ScirisObject-wrapped Framework object.
     
     Methods:
         __init__(frame: Framework, owner_uid: UUID, uid: UUID [None]): 
@@ -62,7 +62,7 @@ class FrameworkSO(sw.ScirisObject):
             # Set superclass parameters.
             super(FrameworkSO, self).__init__(frame.uid)
                                    
-            # Set the framework to the Optima Framework that is passed in.
+            # Set the framework to the Framework that is passed in.
             self.frame = frame
             
             # Set the owner (User) UID.
@@ -83,7 +83,7 @@ class FrameworkSO(sw.ScirisObject):
         # Show superclass attributes.
         super(FrameworkSO, self).show()  
         
-        # Show the Optima defined display text for the framework.
+        # Show the defined display text for the framework.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
         print 'Framework Name: %s' % self.frame.name
