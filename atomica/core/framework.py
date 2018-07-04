@@ -73,7 +73,7 @@ class ProjectFramework(CoreProjectStructure):
                 if not self.get_spec_value(item_key, "cascade_stage") is None:
                     temp_keys.append(item_key)
                     temp_stages.append(self.get_spec_value(item_key, "cascade_stage"))
-        self.filter["stages"] = [x for x, _ in sorted(zip(temp_keys, temp_stages))]
+        self.filter["stages"] = [x for _, x in sorted(zip(temp_stages, temp_keys))]
 
     def create_databook_specs(self):
         """

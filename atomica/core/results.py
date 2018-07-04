@@ -128,7 +128,7 @@ class Result(NamedItem):
             cascade['vals'][stage] = sc.odict()
             cascade['conv'][stage] = sc.odict()
             cascade['loss'][stage] = sc.odict()
-            for pno,pop in enumerate(project.popkeys):
+            for pno,pop in enumerate(project.pop_names):
                 cascade['vals'][stage][pop] = self.get_variable(pop,stage)[0].vals
                 cascade['t'] = self.get_variable(pop,stage)[0].t
                 if sno > 0:

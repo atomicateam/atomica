@@ -162,12 +162,12 @@ class Project(object):
         self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded
         self.modified = sc.today()
         
-        # Put the population keys somewhere easier to access- TEMP, TODO, fix
-        self.popkeys = []
-        self.popnames = []
+        # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
+        self.pop_names = []
+        self.pop_labels = []
         for k,v in self.data.specs['pop'].items():
-            self.popkeys.append(k)
-            self.popnames.append(v['label'])
+            self.pop_names.append(k)
+            self.pop_labels.append(v['label'])
 
         if metadata is not None and "data_start" in metadata:
             self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
@@ -200,10 +200,13 @@ class Project(object):
 
         ## Get other inputs
         F = self.framework
-        comps = [c['label'] for c in F.specs['comp'].values()]
-        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['datapage_order'] is not -1] # TODO: think about whether this makes sense
+        comps = [c['label'] for c in F.specs['comp'].values() if not (c['is_source'] or
+                                                                      c['is_sink'] or
+                                                                      c['is_junction'])]
+        # TODO: Think about whether the following makes sense.
+        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
 
-        make_progbook(full_path, pops=self.popkeys, comps=comps, progs=5, pars=pars)
+        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars)
         
 
 
@@ -215,8 +218,8 @@ class Project(object):
         progdata = load_progbook(filename=full_path)
         
         # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.popnames):
-            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
+        if set(progdata['pops']) != set(self.pop_labels):
+            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
             raise AtomicaException(errormsg)
         self.progdata = progdata
 
