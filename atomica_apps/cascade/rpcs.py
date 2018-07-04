@@ -974,35 +974,55 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def make_figs(project_id):
-    import pylab as pl
+def get_cascade_plot_data(project_id):
+    POPULATION = 0
+    print('WARNING, population hard-coded!')
     proj = load_project(project_id, raise_exception=True)
     result = proj.results[-1]
+    cascade = result.get_cascade_vals(project=proj)
+    data = dict()
+    data['t'] = cascade['t'].tolist()
+    data['keys'] = cascade['vals'].keys()
+    data['labels'] = []
+    for key in data['keys']:
+        data['labels'].append(proj.framework.get_spec_value(key,'label'))
+    data['x'] = range(len(data['keys']))
+    for datakey in ['vals','loss']:
+        data[datakey] = []
+        for i in range(len(data['t'])):
+            data[datakey].append([])
+            for key in data['keys']:
+                data[datakey][i].append(cascade['vals'][key][POPULATION][i])
+    
+    print('Cascade plot data:')
+    print(data)
+    
+    return data
+    
+
+def make_cascade_plot(project_id, year=None):
+    print('Making cascade plot')
+    import pylab as pl
+    
+    if year is None: year = 0
+    
+    data = get_cascade_plot_data(project_id)
 
     figs = []
     
-    print('WARNING, TEMP')
-    cascade = result.get_cascade_vals(project=proj)
-    ydata = []
-    keys = cascade['vals'].keys()
-    for key in keys:
-        pop = 0
-        year = 0
-        ydata.append(cascade['vals'][key][pop][year])
-    xdata = range(len(ydata))
     fig = pl.figure()
-    pl.bar(xdata,ydata)
-    print xdata
-    print ydata
-    pl.gca().set_xticks(xdata)
-    pl.gca().set_xticklabels(keys)
+    pl.bar(data['x'], data['vals'][year])
+    pl.gca().set_xticks(data['x'])
+    pl.gca().set_xticklabels(data['labels'])
     figs.append(fig)
     return figs
 
-def do_get_plots(project_id):
+def do_get_plots(project_id, year=None):
+    print('do_get_plots')
     graphs = []
     
-    figs = make_figs(project_id)
+    figs = make_cascade_plot(project_id, year)
+    print('Number of figures: %s' % len(figs))
     
     for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
@@ -1014,8 +1034,8 @@ def do_get_plots(project_id):
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def get_plots(project_id):
-    return do_get_plots(project_id)
+def get_plots(project_id, year=None):
+    return do_get_plots(project_id, year=None)
 
 
 # Time series plots
