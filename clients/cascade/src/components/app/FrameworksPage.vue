@@ -317,7 +317,7 @@ Last update: 2018-05-29
         console.log('uploadFrameworkFromFile() called')
 
         // Have the server upload the framework.
-        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {})
+        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.frw')
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
             this.updateFrameworkSummaries()

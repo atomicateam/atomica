@@ -532,6 +532,7 @@ def copy_framework(framework_id):
     # Return the UID for the new frameworks record.
     return { 'frameworkId': copy_framework_id }
 
+
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
 def create_framework_from_frw_file(frw_filename, user_id):
     """
@@ -547,8 +548,8 @@ def create_framework_from_frw_file(frw_filename, user_id):
     try:
         
         frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
-    except Exception:
-        print('ERROR, load failed')
+    except Exception as E:
+        print('ERROR, load failed: %s' % repr(E))
         return { 'frameworkId': 'BadFileFormatError' }
     
     # Reset the framework name to a new framework name that is unique.
@@ -876,6 +877,7 @@ def copy_project(project_id):
 
     # Return the UID for the new projects record.
     return { 'projectId': copy_project_id }
+
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
 def create_project_from_prj_file(prj_filename, user_id):
