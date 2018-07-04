@@ -72,7 +72,7 @@ Last update: 2018-05-29
               </span>
             </th>
             <th>Framework</th>
-            <th>Details</th>
+            <th>Populations</th>
             <th>Databook</th>
             <th>Program book</th>
           </tr>
@@ -102,7 +102,7 @@ Last update: 2018-05-29
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
             <td>
-              {{ projectSummary.project.framework_name }}
+              {{ projectSummary.project.framework }}
             </td>
             <td>
               {{ projectSummary.project.n_pops }}
