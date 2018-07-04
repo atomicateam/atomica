@@ -420,7 +420,7 @@ def load_zip_of_frw_files(framework_ids):
 @register_RPC(validation_type='nonanonymous user')
 def add_demo_framework(user_id):
     """
-    Add a demo Optima TB framework
+    Add a demo framework
     """
     # Get a unique name for the framework to be added.
     new_frame_name = get_unique_name('Demo framework', other_names=None)
@@ -443,7 +443,7 @@ def add_demo_framework(user_id):
 @register_RPC(call_type='download', validation_type='nonanonymous user')
 def create_new_framework(user_id, frame_name, num_pops, data_start, data_end):
     """
-    Create a new Optima Nutrition framework.
+    Create a new framework.
     """
     
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
@@ -742,7 +742,7 @@ def load_zip_of_prj_files(project_ids):
 @register_RPC(validation_type='nonanonymous user')
 def add_demo_project(user_id):
     """
-    Add a demo Optima TB project
+    Add a demo project
     """
     # Get a unique name for the project to be added.
     new_proj_name = get_unique_name('Demo project', other_names=None)
@@ -765,7 +765,7 @@ def add_demo_project(user_id):
 @register_RPC(call_type='download', validation_type='nonanonymous user')
 def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
     """
-    Create a new Optima Nutrition project.
+    Create a new project.
     """
     
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
