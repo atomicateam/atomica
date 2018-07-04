@@ -10,6 +10,7 @@ import sciris.core as sc
 import sciris.web as sw
 import sciris.weblib.user as user
 import sciris.weblib.datastore as ds
+import sciris.corelib.fileio as fileio
 
 #
 # Globals
@@ -111,7 +112,7 @@ class FrameworkSO(sw.ScirisObject):
         full_file_name = '%s%s%s' % (load_dir, os.sep, file_name)   
      
         # Write the object to a Gzip string pickle file.
-        ds.object_to_gzip_string_pickle_file(full_file_name, self.frame)
+        fileio.object_to_gzip_string_pickle_file(full_file_name, self.frame)
         
         # Return the filename (not the full one).
         return self.frame.name + ".frw"

@@ -616,7 +616,7 @@ Last update: 2018-05-29
 
         // Have the server download the selected frameworks.
         if (selectFrameworksUIDs.length > 0)
-          rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectFrameworksUIDs])
+          rpcservice.rpcDownloadCall('load_zip_of_frw_files', [selectFrameworksUIDs])
       }
     }
   }

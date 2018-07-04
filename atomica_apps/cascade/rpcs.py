@@ -28,6 +28,11 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
+label_mapping = {'SIR model':'sir',
+                 'Tuberculosis':'tb',
+                 'Diabetes':'diabetes',
+                 'Service intervention':'service'}
+
 
 def get_unique_name(name, other_names=None):
     """
@@ -401,7 +406,7 @@ def load_zip_of_frw_files(framework_ids):
     frws = [load_framework_record(id).save_as_file(dirname) for id in framework_ids]
     
     # Make the zip file name and the full server file path version of the same..
-    zip_fname = '%s.zip' % str(sc.uuid())
+    zip_fname = 'Frameworks %s.zip' % sc.getdate()
     server_zip_fname = os.path.join(dirname, zip_fname)
     
     # Create the zip file, putting all of the .frw files in a frameworks 
@@ -422,34 +427,17 @@ def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
     """
-    
-    mapping = {'SIR model':'sir',
-               'Tuberculosis':'tb',
-               'Diabetes':'diabetes',
-               'Service intervention':'service'}
-    
     try:
-        which = mapping[framework_name]
+        which = label_mapping[framework_name]
     except Exception:
-        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (mapping.keys(), framework_name)
+        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), framework_name)
         raise Exception(errormsg)
-    
-    # Get a unique name for the framework to be added.
-    new_frame_name = get_unique_name(framework_name, other_names=None)
-    
-    # Create the framework, loading in the desired spreadsheets.
-    frame = au.demo(kind='framework', which=which) 
+    new_frame_name = get_unique_name(framework_name, other_names=None) # Get a unique name for the framework to be added.
+    frame = au.demo(kind='framework', which=which)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
     print(">> add_demo_framework %s" % (frame.name))    
-    
-    # Save the new framework in the DataStore.
-    save_framework_as_new(frame, user_id)
-    
-    # Return the new framework UID in the return message.
-    return { 'frameworkId': str(frame.uid) }
+    save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
+    return { 'frameworkId': str(frame.uid) } # Return the new framework UID in the return message.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
@@ -717,7 +705,7 @@ def load_zip_of_prj_files(project_ids):
     prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids]
     
     # Make the zip file name and the full server file path version of the same..
-    zip_fname = '%s.zip' % str(sc.uuid())
+    zip_fname = 'Projects %s.zip' % sc.getdate()
     server_zip_fname = os.path.join(dirname, zip_fname)
     
     # Create the zip file, putting all of the .prj files in a projects 
@@ -734,26 +722,21 @@ def load_zip_of_prj_files(project_ids):
     return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
-def add_demo_project(user_id):
+def add_demo_project(user_id, project_name):
     """
     Add a demo project
     """
-    # Get a unique name for the project to be added.
-    new_proj_name = get_unique_name('Demo project', other_names=None)
-    
-    # Create the project, loading in the desired spreadsheets.
-    proj = au.demo(which='service',do_plot=0) 
+    try:
+        which = label_mapping[project_name]
+    except Exception:
+        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
+        raise Exception(errormsg)
+    new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added.
+    proj = au.demo(which=which,do_plot=0)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> add_demo_project %s" % (proj.name))    
-    
-    # Save the new project in the DataStore.
-    save_project_as_new(proj, user_id)
-    
-    # Return the new project UID in the return message.
-    return { 'projectId': str(proj.uid) }
+    print(">> add_demo_project %s" % (proj.name))     
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
+    return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
