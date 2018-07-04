@@ -2,7 +2,7 @@
   "name": "atomica",
   "version": "0.10.0",
   "description": "Atomica",
-  "author": "Optima Consortium for Decision Science <info@ocds.co>",
+  "author": "University of Copenhagen <cascade.tools>",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
