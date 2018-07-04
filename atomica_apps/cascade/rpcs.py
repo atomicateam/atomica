@@ -668,14 +668,32 @@ def download_databook(project_id):
     """
     Download databook
     """
+    N_POPS = 5
+    print('WARNING, N_POPS HARDCODED')
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.dataset().demo_data.spreadsheet.save(full_file_name)
+    proj.create_databook(full_file_name, num_pops=N_POPS)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def download_progbook(project_id):
+    """
+    Download program book
+    """
+    N_PROGS = 5
+    print("WARNING, PROGRAMS HARD_CODED")
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.make_progbook(full_file_name, progs=N_PROGS)
+    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+    
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_defaults(project_id):
@@ -786,21 +804,12 @@ def upload_databook(databook_filename, project_id):
     """
     Upload a databook to a project.
     """
-    
-    # Display the call information.
     print(">> upload_databook '%s'" % databook_filename)
-    
     proj = load_project(project_id, raise_exception=True)
-    
-    # Reset the project name to a new project name that is unique.
-    proj.load_databook(databook_path=databook_filename)
+    proj.load_databook(databook_path=databook_filename) 
     proj.modified = sc.today()
-    
-    # Save the new project in the DataStore.
-    save_project(proj)
-    
-    # Return the new project UID in the return message.
-    return { 'projectId': str(proj.uid) }
+    save_project(proj) # Save the new project in the DataStore.
+    return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
@@ -808,20 +817,11 @@ def upload_progbook(progbook_filename, project_id):
     """
     Upload a program book to a project.
     """
-    
-    # Display the call information.
     print(">> upload_progbook '%s'" % progbook_filename)
-    
     proj = load_project(project_id, raise_exception=True)
-    
-    # Reset the project name to a new project name that is unique.
-    proj.load_progbook(progbook_path=progbook_filename)
+    proj.load_progbook(progbook_path=progbook_filename) 
     proj.modified = sc.today()
-    
-    # Save the new project in the DataStore.
     save_project(proj)
-    
-    # Return the new project UID in the return message.
     return { 'projectId': str(proj.uid) }
 
 

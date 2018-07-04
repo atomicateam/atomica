@@ -502,7 +502,7 @@ Last update: 2018-05-29
 //        console.log('downloadDatabook() called for ' + matchFramework.framework.name)
 //        rpcservice.rpcDownloadCall('download_databook', [uid]) // Make the server call to download the framework to a .prj file.
       },
-      
+
 
       downloadDefaults(uid) {
         // Find the framework that matches the UID passed in.
