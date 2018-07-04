@@ -179,7 +179,7 @@ Last update: 2018-05-29
           Framework:<br>
           <select v-model="currentFramework">
             <option v-for='frameworkSummary in frameworkSummaries'>
-              {{ frameworkSummary.name }}
+              {{ frameworkSummary.framework.name }}
             </option>
           </select><br><br>
           Number of populations:<br>
@@ -290,7 +290,9 @@ export default {
           this.frameworkSummaries = response.data.frameworks
           if (this.frameworkSummaries.length) {
             console.log('Framework summaries found')
-            this.currentFramework = this.frameworkSummaries[0].name
+            console.log(this.frameworkSummaries)
+            this.currentFramework = this.frameworkSummaries[0].framework.name
+            console.log('Current framework: '+this.currentFramework)
           } else {
             console.log('No framework summaries found')
           }
