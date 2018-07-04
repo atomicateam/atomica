@@ -916,95 +916,12 @@ def make_mpld3_graph_dict(fig):
     return mpld3_dict
 
 
-def supported_plots_func():
-    
-    supported_plots = {
-            'Population size':'alive',
-            'Latent infections':'lt_inf',
-            'Active TB':'ac_inf',
-            'Active DS-TB':'ds_inf',
-            'Active MDR-TB':'mdr_inf',
-            'Active XDR-TB':'xdr_inf',
-            'New active DS-TB':{'New active DS-TB':['pd_div:flow','nd_div:flow']},
-            'New active MDR-TB':{'New active MDR-TB':['pm_div:flow','nm_div:flow']},
-            'New active XDR-TB':{'New active XDR-TB':['px_div:flow','nx_div:flow']},
-            'Smear negative active TB':'sn_inf',
-            'Smear positive active TB':'sp_inf',
-            'Latent diagnoses':{'Latent diagnoses':['le_treat:flow','ll_treat:flow']},
-            'New active TB diagnoses':{'Active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']},
-            'New active DS-TB diagnoses':{'Active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow']},
-            'New active MDR-TB diagnoses':{'Active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow']},
-            'New active XDR-TB diagnoses':{'Active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow']},
-            'Latent treatment':'ltt_inf',
-            'Active treatment':'num_treat',
-            'TB-related deaths':':ddis',
-            }
-    
-    return supported_plots
-
-
-@register_RPC(validation_type='nonanonymous user')    
-def get_supported_plots(only_keys=False):
-    
-    supported_plots = supported_plots_func()
-    
-    if only_keys:
-        return supported_plots.keys()
-    else:
-        return supported_plots
-
-
-def get_cascade_plot_data(project_id):
-    POPULATION = 0
-    RESULT = -1
-    print('WARNING, population and result hard-coded!')
-    proj = load_project(project_id, raise_exception=True)
-    result = proj.results[RESULT]
-    cascade = result.get_cascade_vals(project=proj)
-    data = dict()
-    data['t'] = cascade['t'].tolist()
-    data['keys'] = cascade['vals'].keys()
-    data['labels'] = []
-    for key in data['keys']:
-        data['labels'].append(proj.framework.get_spec_value(key,'label'))
-    data['x'] = range(len(data['keys']))
-    for datakey in ['vals','loss']:
-        data[datakey] = []
-        for i in range(len(data['t'])):
-            data[datakey].append([])
-            for key in data['keys']:
-                data[datakey][i].append(cascade['vals'][key][POPULATION][i])
-    
-    print('Cascade plot data:')
-    print(data)
-    
-    return data
-    
-
-def make_cascade_plot(project_id, year=None):
-    print('Making cascade plot')
-    import pylab as pl
-    
-    if year is None: year = 0
-    
-    data = get_cascade_plot_data(project_id)
-
-    figs = []
-    
-    fig = pl.figure()
-    pl.bar(data['x'], data['vals'][year])
-    pl.gca().set_xticks(data['x'])
-    pl.gca().set_xticklabels(data['labels'])
-    figs.append(fig)
-    return figs
-
-def do_get_plots(project_id, year=None):
+def do_get_plots(project_id, year=None, pop=None):
     print('do_get_plots')
+    proj = load_project(project_id, raise_exception=True)
     graphs = []
-    
-    figs = make_cascade_plot(project_id, year)
+    figs = au.plot_cascade(proj, year=year, pop=pop)
     print('Number of figures: %s' % len(figs))
-    
     for f,fig in enumerate(figs):
         graph_dict = make_mpld3_graph_dict(fig)
         graphs.append(graph_dict)
@@ -1017,50 +934,6 @@ def do_get_plots(project_id, year=None):
 @register_RPC(validation_type='nonanonymous user')    
 def get_plots(project_id, year=None):
     return do_get_plots(project_id, year=None)
-
-
-# Time series plots
-#def get_plots(project_id, plot_names=None, pops='all'):
-#    
-#    import pylab as pl
-#    
-#    supported_plots = supported_plots_func() 
-#    
-#    if plot_names is None: plot_names = supported_plots.keys()
-#
-#    proj = load_project(project_id, raise_exception=True)
-#    
-#    plot_names = sc.promotetolist(plot_names)
-#    result = proj.results[-1]
-#
-#    figs = []
-#    graphs = []
-#    
-#    print('WARNING, TEMP')
-#    cascade = result.get_cascade_vals(project=proj)
-#    ydata = []
-#    keys = cascade['vals'].keys()
-#    for key in keys:
-#        pop = 0
-#        year = 0
-#        ydata.append(cascade['vals'][key][pop][year])
-#    xdata = range(len(ydata))
-#    fig = pl.figure()
-#    pl.plot(xdata,ydata)
-##    pl.gca().set_xticks(xdata)
-##    pl.gca().set_xticklabels(keys)
-#    figs.append(fig)
-#    
-#    for f,fig in enumerate(figs):
-#        graph_dict = make_mpld3_graph_dict(fig)
-#        graphs.append(graph_dict)
-#        print('Converted figure %s of %s' % (f+1, len(figs)))
-#        print(graph_dict)
-#
-#    return {'graphs':graphs}
-
-
-
 
 
 @register_RPC(validation_type='nonanonymous user')    

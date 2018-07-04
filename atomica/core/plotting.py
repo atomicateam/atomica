@@ -926,6 +926,45 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 
     return figs
 
+
+def plot_cascade(project=None, year=None, pop=None):
+    print('Making cascade plot')
+    import pylab as pl
+    
+    if year is None: year = 0
+    POPULATION = 0
+    RESULT = -1
+    print('WARNING, population and result hard-coded!')
+    
+    result = project.results[RESULT]
+    cascade = result.get_cascade_vals(project=project)
+    data = dict()
+    data['t'] = cascade['t'].tolist()
+    data['keys'] = cascade['vals'].keys()
+    data['labels'] = []
+    for key in data['keys']:
+        data['labels'].append(project.framework.get_spec_value(key,'label'))
+    data['x'] = range(len(data['keys']))
+    for datakey in ['vals','loss']:
+        data[datakey] = []
+        for i in range(len(data['t'])):
+            data[datakey].append([])
+            for key in data['keys']:
+                data[datakey][i].append(cascade['vals'][key][POPULATION][i])
+    
+    print('Cascade plot data:')
+    print(data)
+
+    figs = []
+    
+    fig = pl.figure()
+    pl.bar(data['x'], data['vals'][year])
+    pl.gca().set_xticks(data['x'])
+    pl.gca().set_xticklabels(data['labels'])
+    figs.append(fig)
+    return figs
+
+
 def stack_data(ax,data,series):
     # Stack a list of series in order
     baselines = np.cumsum(np.stack([s.vals for s in series]),axis=0)
