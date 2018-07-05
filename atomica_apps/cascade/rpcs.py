@@ -447,6 +447,11 @@ def create_new_framework(user_id, frame_name, num_comps):
     """
     Create a new framework.
     """
+    try:
+        num_comps = int(num_comps)
+    except Exception as E:
+        errormsg = 'You must enter an integer number of compartments, not %s (%s)' % (num_comps, repr(E))
+        raise Exception(errormsg)
     new_frame_name = get_unique_name(frame_name, other_names=None) # Get a unique name for the framework to be added.
     frame = au.ProjectFramework(name=new_frame_name) # Create the framework, loading in the desired spreadsheets.
     print(">> create_new_framework %s" % (frame.name))    
@@ -471,7 +476,7 @@ def upload_frameworkbook(databook_filename, framework_id):
     frame = load_framework(framework_id, raise_exception=True)
     
     # Reset the framework name to a new framework name that is unique.
-    frame.read_from_file(filepath=databook_filename)
+    frame.read_from_file(filepath=databook_filename, overwrite=True)
     frame.modified = sc.today()
     
     # Save the new framework in the DataStore.
@@ -814,7 +819,7 @@ def upload_databook(databook_filename, project_id):
     """
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_databook(databook_path=databook_filename) 
+    proj.load_databook(databook_path=databook_filename, overwrite=True) 
     proj.modified = sc.today()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
@@ -946,12 +951,13 @@ def get_y_factors(project_id, parsetname=-1):
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
             thispar = parset.get_par(parname)
-            for popname,y_factor in thispar.y_factor.items():
-                parlabel = proj.framework.get_spec_value(parname,'label')
-                poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
-                thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
-                y_factors.append(thisdict)
-                print(thisdict)
+            if proj.framework.get_spec_value(parname, "can_calibrate"):
+                for popname,y_factor in thispar.y_factor.items():
+                    parlabel = proj.framework.get_spec_value(parname,'label')
+                    poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
+                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
+                    y_factors.append(thisdict)
+                    print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
     return y_factors
 
@@ -968,6 +974,22 @@ def set_y_factors(project_id, y_factors, year=None, parsetname=-1):
             print('Modified: %s' % par)
     
     print('Rerunning model with updated y factors...')
+    proj.modified = sc.today()
+    print('Resultsets before run: %s' % len(proj.results))
+    proj.run_sim(parset=parsetname, store_results=True)
+    print('Resultsets after run: %s' % len(proj.results))
+    save_project(proj)    
+    output = do_get_plots(proj.uid, year=year)
+    return output
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def automatic_calibration(project_id, year=None, parsetname=-1):
+    
+    print('Running automatic calibration...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    print('Rerunning calibrated model...')
     proj.modified = sc.today()
     print('Resultsets before run: %s' % len(proj.results))
     proj.run_sim(parset=parsetname, store_results=True)
@@ -1024,3 +1046,20 @@ def run_default_scenario(project_id):
     print('Saving project...')
     save_project(proj)    
     return {'graphs':graphs}
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
+def export_results(project_id, resultset=-1):
+    """
+    Create a new framework.
+    """
+    print('Exporting results...')
+    proj = load_project(project_id, raise_exception=True)
+    result = proj.results[resultset]
+    
+    dirname = fileio.downloads_dir.dir_path 
+    file_name = '%s.xlsx' % result.name 
+    full_file_name = os.path.join(dirname, file_name)
+    result.export(full_file_name)
+    print(">> export_results %s" % (full_file_name))
+    return full_file_name # Return the filename

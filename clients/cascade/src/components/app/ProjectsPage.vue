@@ -94,9 +94,15 @@ Last update: 2018-07-04
 			      </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
-              <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
-              <button class="btn" @click="renameProject(projectSummary)">Rename</button>
-              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)">Download</button>
+              <button class="btn" @click="copyProject(projectSummary.project.id)" title="Copy">
+                <i class="ti-files"></i>
+              </button>
+              <button class="btn" @click="renameProject(projectSummary)" title="Rename">
+                <i class="ti-pencil"></i>
+              </button>
+              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
             <td>{{ projectSummary.project.creationTime }}</td>
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
@@ -108,12 +114,20 @@ Last update: 2018-07-04
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
-              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)">Upload</button>
-              <button class="btn" @click="downloadDatabook(projectSummary.project.id)">Download</button>
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
+                <i class="ti-upload"></i>
+              </button>
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)">Upload</button>
-              <button class="btn" @click="downloadProgbook(projectSummary.project.id)">Download</button>
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
+                <i class="ti-upload"></i>
+              </button>
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
           </tr>
         </tbody>
@@ -197,7 +211,7 @@ Last update: 2018-07-04
         </div>
         <div style="text-align:justify">
           <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create project and download data entry spreadsheet
+            Create
           </button>
 
           <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
@@ -238,7 +252,7 @@ export default {
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
-      projectOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
+      projectOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
       currentProject: 'Service delivery'
     }
   },
