@@ -110,7 +110,9 @@ class ProjectSO(sw.ScirisObject):
                 'creationTime': self.proj.created,
                 'updatedTime': self.proj.modified,
                 'framework': framework_name,
-                'n_pops': n_pops
+                'n_pops': n_pops,
+                'sim_start': self.proj.settings.sim_start,
+                'sim_end': self.proj.settings.sim_end
             }
         }
         return obj_info

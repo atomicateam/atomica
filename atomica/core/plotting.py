@@ -935,7 +935,6 @@ def plot_cascade(project=None, year=None, pop=None):
     
     figsize = (10,6)
     axsize = [0.4,0.15,0.45,0.8]
-    if year is None: year = 0
     POPULATION = 0
     RESULT = -1
     print('WARNING, population and result hard-coded!')
@@ -944,6 +943,13 @@ def plot_cascade(project=None, year=None, pop=None):
     cascade = result.get_cascade_vals(project=project)
     data = dict()
     data['t'] = cascade['t'].tolist()
+    if year is not None: year = int(year)
+    if year in data['t']:
+        ind = sc.findnearest(data['t'], year)
+    else:
+        if year is None: year = 0
+        ind = year
+        year = data['t'][ind]
     data['keys'] = cascade['vals'].keys()
     data['labels'] = []
     for key in data['keys']:
@@ -972,21 +978,22 @@ def plot_cascade(project=None, year=None, pop=None):
     figs = []
     fig = pl.figure(figsize=figsize)
     fig.add_axes(axsize)
-    pl.barh(data['x'], data['vals'][year], height=1)
+    pl.barh(data['x'], data['vals'][ind], height=1)
     pl.gca().set_yticks(data['x'])
     pl.gca().set_yticklabels(data['labels'])
     pl.xlabel('Number of people')
+    pl.title('Cascade for %s' % year)
     sc.boxoff()
     sc.SIticks(fig=fig, axis='x')
     pl.gca().spines['left'].set_visible(False)
     
     # Add labels
     for x,xval in enumerate(data['x']):
-        thisval = data['vals'][year][x]
+        thisval = data['vals'][ind][x]
         label = ' '+sc.sigfig(thisval, sigfigs=3, sep=True)
         pl.text(thisval, xval, label, verticalalignment='center')
     for x,xval in enumerate(data['x'][:-1]):
-        label = ' Loss: %s' % sc.sigfig(data['loss'][year][x], sigfigs=3, sep=True)
+        label = ' Loss: %s' % sc.sigfig(data['loss'][ind][x], sigfigs=3, sep=True)
         pl.text(0,xval-1,label, verticalalignment='center', color=(0.8,0.2,0.2))
     figs.append(fig)
     return figs

@@ -126,7 +126,7 @@ if "runsim" in torun:
         cascade = P.results[-1].get_cascade_vals(project=P)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(project=P)
+    au.plot_cascade(project=P, year=2020)
     
     
     
