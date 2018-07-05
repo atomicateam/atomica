@@ -581,7 +581,7 @@ Last update: 2018-07-04
           rpcservice.rpcCall('delete_frameworks', [selectFrameworksUIDs])
             .then(response => {
               // Get the active framework ID.
-              let activeFrameworkId = this.$store.state.activeFramework.framework.id
+/*              let activeFrameworkId = this.$store.state.activeFramework.framework.id
               if (activeFrameworkId === undefined) {
                 activeFrameworkId = null
               } 
@@ -591,7 +591,9 @@ Last update: 2018-07-04
               // TODO: This will cause problems until we add a check to 
               // updateFrameworkSummaries() to make sure a framework still exists with 
               // that ID.
-              this.updateFrameworkSummaries(activeFrameworkId)
+              this.updateFrameworkSummaries(activeFrameworkId) */
+              
+              this.updateFrameworkSummaries(null)
             })
         }
       },
