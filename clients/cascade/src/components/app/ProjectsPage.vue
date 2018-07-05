@@ -511,8 +511,8 @@ export default {
           termination: 300
         }) */
         
-      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
-//      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
+//      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
+      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
       .then(response => { 
         this.$Progress.finish()         
       })
