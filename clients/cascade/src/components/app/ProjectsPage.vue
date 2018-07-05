@@ -763,4 +763,21 @@ export default {
   .vue-dialog-button:not(:first-of-type) {
     border-left: 1px solid #eee;
   }
+
+  select {
+    background-color: #eee; /* fallback color if gradients are not supported */
+    background-position: center right;
+    background-repeat: no-repeat;
+    border: 1px solid #AAA;
+    border-radius: 2px;
+    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+    color: #555;
+    font-size: inherit;
+    margin: 0;
+    overflow: hidden;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 </style>
