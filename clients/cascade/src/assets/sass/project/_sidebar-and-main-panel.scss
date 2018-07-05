@@ -88,7 +88,7 @@
         opacity: 1;
       }
 
-      &.active > a {
+      &.router-link-active > a {
         color: $primary-color;
         opacity: 1;
       }
