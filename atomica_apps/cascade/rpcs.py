@@ -984,6 +984,22 @@ def set_y_factors(project_id, y_factors, year=None, parsetname=-1):
 
 
 @register_RPC(validation_type='nonanonymous user')    
+def automatic_calibration(project_id, year=None, parsetname=-1):
+    
+    print('Running automatic calibration...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    print('Rerunning calibrated model...')
+    proj.modified = sc.today()
+    print('Resultsets before run: %s' % len(proj.results))
+    proj.run_sim(parset=parsetname, store_results=True)
+    print('Resultsets after run: %s' % len(proj.results))
+    save_project(proj)    
+    output = do_get_plots(proj.uid, year=year)
+    return output
+
+
+@register_RPC(validation_type='nonanonymous user')    
 def run_default_scenario(project_id):
     
     import pylab as pl

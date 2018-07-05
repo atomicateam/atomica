@@ -16,8 +16,8 @@ Last update: 2018-05-29
           <option v-for='year in cascadeYears'>
             {{ year }}
           </option>
-        </select>
-
+        </select> &nbsp; &nbsp; &nbsp;
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
       </div>
 
       <br>
@@ -250,6 +250,58 @@ Last update: 2018-05-29
             horizontalAlign: 'center',
           });
         })
+      },
+
+      autoCalibrate(project_id) {
+
+        this.$notifications.notify({
+          message: 'This is not yet implemented, please check back soon.',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        });
+
+//        console.log('autoCalibrate() called')
+//
+//        // Go to the server to get the results from the package set.
+//        rpcservice.rpcCall('automatic_calibration', [project_id, this.cascadeYear])
+//          .then(response => {
+//            this.serverresponse = response.data // Pull out the response data.
+//            var n_plots = response.data.graphs.length
+//            console.log('Rendering ' + n_plots + ' graphs')
+//
+//            for (var index = 0; index <= n_plots; index++) {
+//              console.log('Rendering plot ' + index)
+//              var divlabel = 'fig' + index
+//              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+//              while (div.firstChild) {
+//                div.removeChild(div.firstChild);
+//              }
+//              try {
+//                console.log(response.data.graphs[index]);
+//                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+//              }
+//              catch (err) {
+//                console.log('failled:' + err.message);
+//              }
+//            }
+//          })
+//          .catch(error => {
+//            // Pull out the error message.
+//            this.serverresponse = 'There was an error: ' + error.message
+//
+//            // Set the server error.
+//            this.servererror = error.message
+//          }).then( response => {
+//          this.$notifications.notify({
+//            message: 'Graphs created',
+//            icon: 'ti-check',
+//            type: 'success',
+//            verticalAlign: 'top',
+//            horizontalAlign: 'center',
+//          });
+//        })
       },
 
       clearGraphs() {

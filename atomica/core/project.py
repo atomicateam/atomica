@@ -363,7 +363,7 @@ class Project(object):
 
         return result
 
-    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
         """
         Method to perform automatic calibration.
@@ -391,6 +391,7 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
+        if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
             adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
