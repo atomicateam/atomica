@@ -432,6 +432,8 @@ def add_demo_framework(user_id, framework_name):
     except Exception:
         errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), framework_name)
         raise Exception(errormsg)
+    # TODO: other_names needs to have the array of framework names passed in, 
+    # not left with the None default.
     new_frame_name = get_unique_name(framework_name, other_names=None) # Get a unique name for the framework to be added.
     frame = au.demo(kind='framework', which=which)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name

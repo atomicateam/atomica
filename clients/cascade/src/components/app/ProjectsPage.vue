@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-05-29
+Last update: 2018-07-04
 -->
 
 <template>
@@ -323,7 +323,7 @@ export default {
         
         // If we have a project on the list...
         if (this.projectSummaries.length > 0) {
-          // If no ID is passed, in set the active project to the first one in 
+          // If no ID is passed in, set the active project to the first one in 
           // the list.
           // TODO: We should write a function that extracts the last-created 
           // project and then uses the UID for that as the thing to set.
@@ -335,7 +335,7 @@ export default {
           else {
             this.openProject(setActiveID)
           }
-        }     
+        }
       })
     },
 
@@ -677,18 +677,17 @@ export default {
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
           // Get the active project ID.
-          // TODO: This stuff seems to foul up deletion.  Figure out a workaround.
-/*          activeProjectId = this.$store.state.activeProject.project.id
+          let activeProjectId = this.$store.state.activeProject.project.id
           if (activeProjectId === undefined) {
             activeProjectId = null
-          } */
+          } 
           
           // Update the project summaries so the deletions show up on the list. 
           // Make sure it tries to set the project that was active.
           // TODO: This will cause problems until we add a check to 
           // updateProjectSummaries() to make sure a project still exists with 
           // that ID.
-          this.updateProjectSummaries(null)
+          this.updateProjectSummaries(activeProjectId)
         })
 	    }
     },
