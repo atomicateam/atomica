@@ -19,10 +19,10 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-test = "sir"
-test = "tb"
-# test = "diabetes"
-# test = "service"
+#test = "sir"
+#test = "tb"
+#test = "diabetes"
+test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -34,6 +34,7 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
+'plotcascade',
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
 "runsim_programs",
@@ -123,7 +124,11 @@ if "runsim" in torun:
         P.run_sim(parset="default", result_name="default")
         
         cascade = P.results[-1].get_cascade_vals(project=P)
-            
+
+if 'plotcascade' in torun:
+    au.plot_cascade(project=P, year=2020)
+    
+    
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
@@ -303,6 +308,12 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+if "runsimprogs" in torun:
+    from atomica.core.programs import ProgramInstructions
+
+    # instructions = ProgramInstructions(progset=P.progsets["default"])
+    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

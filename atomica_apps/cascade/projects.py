@@ -10,6 +10,7 @@ import sciris.core as sc
 import sciris.web as sw
 import sciris.weblib.user as user
 import sciris.weblib.datastore as ds
+import sciris.corelib.fileio as fileio
 
 #
 # Globals
@@ -26,7 +27,7 @@ proj_collection = None
 
 class ProjectSO(sw.ScirisObject):
     """
-    A ScirisObject-wrapped Optima Nutrition Project object.
+    A ScirisObject-wrapped Project object.
     
     Methods:
         __init__(proj: Project, owner_uid: UUID, uid: UUID [None]): 
@@ -62,7 +63,7 @@ class ProjectSO(sw.ScirisObject):
             # Set superclass parameters.
             super(ProjectSO, self).__init__(proj.uid)
                                    
-            # Set the project to the Optima Project that is passed in.
+            # Set the project to the Project that is passed in.
             self.proj = proj
             
             # Set the owner (User) UID.
@@ -83,7 +84,7 @@ class ProjectSO(sw.ScirisObject):
         # Show superclass attributes.
         super(ProjectSO, self).show()  
         
-        # Show the Optima defined display text for the project.
+        # Show the defined display text for the project.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
         print 'Project Name: %s' % self.proj.name
@@ -91,13 +92,27 @@ class ProjectSO(sw.ScirisObject):
         print 'Update Time: %s' % self.proj.modified
             
     def get_user_front_end_repr(self):
+        try:    
+            framework_name = self.proj.framework.name
+        except: 
+            print('Could not load framework name for project')
+            framework_name = 'N/A'
+        try:    
+            n_pops = len(self.proj.parsets[0].pop_names)
+        except: 
+            print('Could not load populations for project')
+            n_pops = 'N/A'
         obj_info = {
             'project': {
                 'id': self.uid,
                 'name': self.proj.name,
                 'userId': self.owner_uid,
                 'creationTime': self.proj.created,
-                'updatedTime': self.proj.modified     
+                'updatedTime': self.proj.modified,
+                'framework': framework_name,
+                'n_pops': n_pops,
+                'sim_start': self.proj.settings.sim_start,
+                'sim_end': self.proj.settings.sim_end
             }
         }
         return obj_info
@@ -111,7 +126,7 @@ class ProjectSO(sw.ScirisObject):
         full_file_name = '%s%s%s' % (load_dir, os.sep, file_name)   
      
         # Write the object to a Gzip string pickle file.
-        ds.object_to_gzip_string_pickle_file(full_file_name, self.proj)
+        fileio.object_to_gzip_string_pickle_file(full_file_name, self.proj)
         
         # Return the filename (not the full one).
         return self.proj.name + ".prj"

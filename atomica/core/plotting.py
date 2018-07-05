@@ -926,6 +926,81 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 
     return figs
 
+
+def plot_cascade(project=None, year=None, pop=None):
+    print('Making cascade plot')
+    import pylab as pl
+    from matplotlib.pyplot import rc 
+    rc('font', size=14)
+    
+    figsize = (9,6)
+    axsize = [0.35,0.15,0.55,0.8]
+    POPULATION = 0
+    RESULT = -1
+    print('WARNING, population and result hard-coded!')
+    
+    result = project.results[RESULT]
+    cascade = result.get_cascade_vals(project=project)
+    data = dict()
+    data['t'] = cascade['t'].tolist()
+    if year is not None: year = int(year)
+    if year in data['t']:
+        ind = sc.findnearest(data['t'], year)
+    else:
+        if year is None: year = 0
+        ind = year
+        year = data['t'][ind]
+    data['keys'] = cascade['vals'].keys()
+    data['labels'] = []
+    for key in data['keys']:
+        data['labels'].append(project.framework.get_spec_value(key,'label'))
+    data['x'] = np.arange(2*len(data['keys']),0,-2)
+    data['vals'] = []
+    for i in range(len(data['t'])):
+        data['vals'].append([])
+        for key in data['keys']:
+            data['vals'][i].append(cascade['vals'][key][POPULATION][i])
+    data['loss'] = []
+    data['lossfrac'] = []
+    for i in range(len(data['t'])):
+        data['loss'].append([])
+        data['lossfrac'].append([])
+        for key in data['keys']:
+            try:
+                data['loss'][i].append(cascade['loss'][key][POPULATION][0][i])
+                data['lossfrac'][i].append(cascade['loss'][key][POPULATION][1][i])
+            except:
+                pass
+    
+    print('Cascade plot data:')
+    print(data)
+
+    figs = []
+    fig = pl.figure(figsize=figsize)
+    fig.add_axes(axsize)
+    pl.barh(data['x'], data['vals'][ind], height=1)
+    pl.gca().set_yticks(data['x'])
+    pl.gca().set_yticklabels(data['labels'])
+    pl.xlabel('Number of people')
+    pl.title('Cascade for %s' % year)
+    sc.boxoff()
+    sc.SIticks(fig=fig, axis='x')
+    pl.gca().spines['left'].set_visible(False)
+    xlims = pl.xlim()
+    pl.xlim([xlims[0], 1.1*xlims[1]])
+    
+    # Add labels
+    for x,xval in enumerate(data['x']):
+        thisval = data['vals'][ind][x]
+        label = ' '+sc.sigfig(thisval, sigfigs=3, sep=True)
+        pl.text(thisval, xval, label, verticalalignment='center')
+    for x,xval in enumerate(data['x'][:-1]):
+        label = ' Loss: %s' % sc.sigfig(data['loss'][ind][x], sigfigs=3, sep=True)
+        pl.text(0,xval-1,label, verticalalignment='center', color=(0.8,0.2,0.2))
+    figs.append(fig)
+    return figs
+
+
 def stack_data(ax,data,series):
     # Stack a list of series in order
     baselines = np.cumsum(np.stack([s.vals for s in series]),axis=0)
