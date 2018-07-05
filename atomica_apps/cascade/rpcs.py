@@ -11,7 +11,7 @@ Last update: 2018jun04 by cliffk
 import os
 from zipfile import ZipFile
 from flask_login import current_user
-import mpld3
+from mpld3 import fig_to_dict as make_mpld3_graph_dict
 
 import sciris.corelib.fileio as fileio
 import sciris.weblib.user as user
@@ -906,14 +906,7 @@ def create_project_from_prj_file(prj_filename, user_id):
     return { 'projectId': str(proj.uid) }
 
 
-
-
-# TODO: move this into the helper functions.  It's here now for testing 
-# purposes.  Or, maybe remove dependency on this entirely, since it's a one-
-# liner.
-def make_mpld3_graph_dict(fig):
-    mpld3_dict = mpld3.fig_to_dict(fig)
-    return mpld3_dict
+#%% Plotting
 
 
 def do_get_plots(project_id, year=None, pop=None):

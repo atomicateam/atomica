@@ -931,6 +931,8 @@ def plot_cascade(project=None, year=None, pop=None):
     print('Making cascade plot')
     import pylab as pl
     
+    figsize = (5,3)
+    axsize = [0.4,0.15,0.5,0.8]
     if year is None: year = 0
     POPULATION = 0
     RESULT = -1
@@ -944,7 +946,7 @@ def plot_cascade(project=None, year=None, pop=None):
     data['labels'] = []
     for key in data['keys']:
         data['labels'].append(project.framework.get_spec_value(key,'label'))
-    data['x'] = range(len(data['keys']))
+    data['x'] = range(len(data['keys']))[::-1]
     for datakey in ['vals','loss']:
         data[datakey] = []
         for i in range(len(data['t'])):
@@ -957,10 +959,15 @@ def plot_cascade(project=None, year=None, pop=None):
 
     figs = []
     
-    fig = pl.figure()
-    pl.bar(data['x'], data['vals'][year])
-    pl.gca().set_xticks(data['x'])
-    pl.gca().set_xticklabels(data['labels'])
+    fig = pl.figure(figsize=figsize)
+    fig.add_axes(axsize)
+    pl.barh(data['x'], data['vals'][year])
+    pl.gca().set_yticks(data['x'])
+    pl.gca().set_yticklabels(data['labels'])
+    pl.xlabel('Number of people')
+    sc.boxoff()
+    sc.SIticks(fig=fig, axis='x')
+    pl.gca().spines['left'].set_visible(False)
     figs.append(fig)
     return figs
 
