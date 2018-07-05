@@ -21,8 +21,8 @@ import sciris.core as sc
 
 #test = "sir"
 #test = "tb"
-test = "diabetes"
-#test = "service"
+#test = "diabetes"
+test = "service"
 
 torun = [
 "makeframeworkfile",
