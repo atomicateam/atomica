@@ -1007,35 +1007,47 @@ def run_default_scenario(project_id):
     print('Running default scenario...')
     proj = load_project(project_id, raise_exception=True)
     
-    scvalues = dict()
-
-    scen_par = "spd_infxness"
-    scen_pop = "15-64"
-    scen_outputs = ["lt_inf", "ac_inf"]
-
-    scvalues[scen_par] = dict()
-    scvalues[scen_par][scen_pop] = dict()
-
-    # Insert (or possibly overwrite) one value.
-    scvalues[scen_par][scen_pop]["y"] = [0.125]
-    scvalues[scen_par][scen_pop]["t"] = [2015.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
-
-    proj.make_scenario(name="varying_infections", instructions=scvalues)
-    proj.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
-
-    # Insert two values and eliminate everything between them.
-    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-
-    proj.make_scenario(name="varying_infections2", instructions=scvalues)
-    proj.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
-    
     figs = []
     graphs = []
-    d = au.PlotData([proj.results["scen1"],proj.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    
+    P = proj
+    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
+    instructions = au.ProgramInstructions() 
+    instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
+    P.run_sim(parset="default", result_name="default-noprogs")
+    P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+    d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
     figs += au.plot_series(d, axis="results")
+        
+#    scvalues = dict()
+#
+#    scen_par = "spd_infxness"
+#    scen_pop = "15-64"
+#    scen_outputs = ["lt_inf", "ac_inf"]
+#
+#    scvalues[scen_par] = dict()
+#    scvalues[scen_par][scen_pop] = dict()
+#
+#    # Insert (or possibly overwrite) one value.
+#    scvalues[scen_par][scen_pop]["y"] = [0.125]
+#    scvalues[scen_par][scen_pop]["t"] = [2015.]
+#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
+#
+#    proj.make_scenario(name="varying_infections", instructions=scvalues)
+#    proj.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
+#
+#    # Insert two values and eliminate everything between them.
+#    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+#    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+#
+#    proj.make_scenario(name="varying_infections2", instructions=scvalues)
+#    proj.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
+    
+    
+#    d = au.PlotData([proj.results["scen1"],proj.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+#    figs += au.plot_series(d, axis="results")
     pl.gca().set_facecolor('none')
     
     for f,fig in enumerate(figs):
