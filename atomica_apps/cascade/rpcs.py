@@ -447,6 +447,11 @@ def create_new_framework(user_id, frame_name, num_comps):
     """
     Create a new framework.
     """
+    try:
+        num_comps = int(num_comps)
+    except Exception as E:
+        errormsg = 'You must enter an integer number of compartments, not %s (%s)' % (num_comps, repr(E))
+        raise Exception(errormsg)
     new_frame_name = get_unique_name(frame_name, other_names=None) # Get a unique name for the framework to be added.
     frame = au.ProjectFramework(name=new_frame_name) # Create the framework, loading in the desired spreadsheets.
     print(">> create_new_framework %s" % (frame.name))    
