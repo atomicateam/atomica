@@ -460,7 +460,7 @@ export default {
         {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
-            return (proj1.project.name > proj2.project.name ? sortDir: -sortDir)
+            return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
           }
 /*          else if (this.sortColumn === 'country') {
             return proj1.country > proj2.country ? sortDir: -sortDir
