@@ -8,6 +8,21 @@ Last update: 2018-05-29
   <div class="SitePage">
 
     <div style="width:500px; float:left">
+
+      <div>
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
+        <button class="btn" @click="clearGraphs()">Clear plots</button> &nbsp; &nbsp; &nbsp;
+        Select cascade year:
+        <select v-model="cascadeYear">
+          <option v-for='year in cascadeYears'>
+            {{ year }}
+          </option>
+        </select>
+
+      </div>
+
+      <br>
+
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
         <tr>
@@ -49,21 +64,6 @@ Last update: 2018-05-29
       </table>
     </div>
     <div style="margin-left:550px">
-
-      <div>
-        Select cascade year:
-        <select v-model="cascadeYear">
-          <option v-for='year in cascadeYears'>
-            {{ year }}
-          </option>
-        </select> &nbsp; &nbsp; &nbsp;
-        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-        &nbsp; &nbsp; &nbsp;
-        <button class="btn" @click="clearGraphs()">Clear plots</button>
-      </div>
-
-      <br>
-
       <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
         <!--mpld3 content goes here-->
       </div>
@@ -214,7 +214,7 @@ Last update: 2018-05-29
         console.log('makeGraphs() called')
 
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.parList, this.cascadeYear])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length

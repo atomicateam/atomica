@@ -933,8 +933,8 @@ def plot_cascade(project=None, year=None, pop=None):
     from matplotlib.pyplot import rc 
     rc('font', size=14)
     
-    figsize = (8,6)
-    axsize = [0.4,0.15,0.45,0.8]
+    figsize = (9,6)
+    axsize = [0.35,0.15,0.55,0.8]
     POPULATION = 0
     RESULT = -1
     print('WARNING, population and result hard-coded!')
@@ -986,6 +986,8 @@ def plot_cascade(project=None, year=None, pop=None):
     sc.boxoff()
     sc.SIticks(fig=fig, axis='x')
     pl.gca().spines['left'].set_visible(False)
+    xlims = pl.xlim()
+    pl.xlim([xlims[0], 1.1*xlims[1]])
     
     # Add labels
     for x,xval in enumerate(data['x']):

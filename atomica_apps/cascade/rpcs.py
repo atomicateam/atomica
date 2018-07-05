@@ -907,8 +907,6 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 #%% Plotting
-
-
 def do_get_plots(project_id, year=None, pop=None):
     print('do_get_plots')
     proj = load_project(project_id, raise_exception=True)
@@ -949,7 +947,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, y_factors, parsetname=-1):
+def set_y_factors(project_id, y_factors, year=None, parsetname=-1):
     print('Setting y factors...')
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
@@ -965,7 +963,7 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
     proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
-    output = do_get_plots(proj.uid)
+    output = do_get_plots(proj.uid, year=year)
     return output
 
 
