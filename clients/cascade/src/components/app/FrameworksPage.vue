@@ -75,8 +75,9 @@ Last update: 2018-07-04
         </tr>
         </thead>
         <tbody>
-        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries"
-            :class="{ highlighted: frameworkIsActive(frameworkSummary.framework.id) }">
+<!--        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries"
+            :class="{ highlighted: frameworkIsActive(frameworkSummary.framework.id) }">  -->      
+        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries">
           <td>
             <input type="checkbox" @click="uncheckSelectAll()" v-model="frameworkSummary.selected"/>
           </td>
@@ -90,7 +91,7 @@ Last update: 2018-07-04
             {{ frameworkSummary.framework.name }}
           </td>
           <td>
-            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button>
+<!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
             <button class="btn" @click="copyFramework(frameworkSummary.framework.id)">Copy</button>
             <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
             <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
@@ -260,7 +261,7 @@ Last update: 2018-07-04
             })
             
             // If we have a framework on the list...
-            if (this.frameworkSummaries.length > 0) {
+/*            if (this.frameworkSummaries.length > 0) {
               // If no ID is passed in, set the active framework to the first one in 
               // the list.
               // TODO: We should write a function that extracts the last-created 
@@ -273,7 +274,7 @@ Last update: 2018-07-04
               else {
                 this.openFramework(setActiveID)
               }
-            }            
+            } */        
           })
       },
 

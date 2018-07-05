@@ -67,11 +67,16 @@ Last update: 2018-03-25
       },
 
       activeFrameworkName() {
-        if (this.$store.state.activeFramework.framework === undefined) {
+        if (this.$store.state.activeProject.project === undefined) {
+          return 'none'
+        } else {
+          return this.$store.state.activeProject.project.name + "'s Framework"
+        }      
+/*        if (this.$store.state.activeFramework.framework === undefined) {
           return 'none'
         } else {
           return this.$store.state.activeFramework.framework.name
-        }
+        } */
       },
 
       activeProjectName() {
