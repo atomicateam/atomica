@@ -8,14 +8,15 @@ Last update: 2018-05-29
   <div class="SitePage">
 
     <div>
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      <button class="btn" @click="clearGraphs()">Clear plots</button>
       Select cascade year:
       <select v-model="cascadeYear">
         <option v-for='year in cascadeYears'>
           {{ year }}
         </option>
-      </select>
+      </select> &nbsp; &nbsp; &nbsp;
+      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+      &nbsp; &nbsp; &nbsp;
+      <button class="btn" @click="clearGraphs()">Clear plots</button>
     </div>
     <br>
 
@@ -100,6 +101,22 @@ Last update: 2018-05-29
         }
       },
 
+      active_sim_start() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_start
+        }
+      },
+
+      active_sim_end() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_end
+        }
+      },
+
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -109,12 +126,15 @@ Last update: 2018-05-29
       },
 
       cascadeYears() {
+        console.log('cascadeYears called')
+        console.log(this.active_sim_start)
+        console.log(this.active_sim_end)
+        console.log('cascadeYears ok')
         let years = []
-        let sim_start = this.$store.state.activeProject.project.sim_start
-        let sim_end   = this.$store.state.activeProject.project.sim_end
-        for (let i = sim_start; i <= sim_end; i++) {
+        for (let i = this.active_sim_start; i <= this.active_sim_end; i++) {
           years.push(i);
         }
+        console.log('Cascade years: '+years)
         return years;
       },
 
