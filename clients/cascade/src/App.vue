@@ -1,7 +1,7 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 2/2/18 (gchadder3)
+Last update: 7/5/18 (gchadder3)
 -->
 
 <template>
@@ -51,11 +51,16 @@ export default {
     },
 
     activeFrameworkName() {
-      if (this.$store.state.activeFramework.framework === undefined) {
+      if (this.$store.state.activeProject.project === undefined) {
+        return 'none'
+      } else {
+        return this.$store.state.activeProject.project.name + "'s Framework"
+      }    
+/*      if (this.$store.state.activeFramework.framework === undefined) {
         return 'none'
       } else {
         return this.$store.state.activeFramework.framework.name
-      }
+      } */
     },
 
     activeProjectName() {

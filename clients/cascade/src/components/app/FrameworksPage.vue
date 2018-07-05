@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-05-29
+Last update: 2018-07-04
 -->
 
 <template>
@@ -75,8 +75,9 @@ Last update: 2018-05-29
         </tr>
         </thead>
         <tbody>
-        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries"
-            :class="{ highlighted: frameworkIsActive(frameworkSummary.framework.id) }">
+<!--        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries"
+            :class="{ highlighted: frameworkIsActive(frameworkSummary.framework.id) }">  -->      
+        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries">
           <td>
             <input type="checkbox" @click="uncheckSelectAll()" v-model="frameworkSummary.selected"/>
           </td>
@@ -90,7 +91,7 @@ Last update: 2018-05-29
             {{ frameworkSummary.framework.name }}
           </td>
           <td>
-            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button>
+<!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
             <button class="btn" @click="copyFramework(frameworkSummary.framework.id)">Copy</button>
             <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
             <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
@@ -224,7 +225,7 @@ Last update: 2018-05-29
       // Otherwise...
       else {
         // Load the framework summaries of the current user.
-        this.updateFrameworkSummaries()
+        this.updateFrameworkSummaries(null)
       }
     },
 
@@ -244,7 +245,7 @@ Last update: 2018-05-29
         }
       },
 
-      updateFrameworkSummaries() {
+      updateFrameworkSummaries(setActiveID) {
         console.log('updateFrameworkSummaries() called')
 
         // Get the current user's framework summaries from the server.
@@ -258,6 +259,22 @@ Last update: 2018-05-29
               theFrame.selected = false
               theFrame.renaming = ''
             })
+            
+            // If we have a framework on the list...
+/*            if (this.frameworkSummaries.length > 0) {
+              // If no ID is passed in, set the active framework to the first one in 
+              // the list.
+              // TODO: We should write a function that extracts the last-created 
+              // framework and then uses the UID for that as the thing to set.
+              if (setActiveID == null) {
+                this.openFramework(this.frameworkSummaries[0].framework.id)
+              }
+          
+              // Otherwise, set the active framework to the one passed in.
+              else {
+                this.openFramework(setActiveID)
+              }
+            } */        
           })
       },
 
@@ -268,7 +285,7 @@ Last update: 2018-05-29
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
-            this.updateFrameworkSummaries()
+            this.updateFrameworkSummaries(response.data.frameworkId)
 
             this.$notifications.notify({
               message: 'Library framework "'+which+'" loaded',
@@ -301,7 +318,10 @@ Last update: 2018-05-29
         rpcservice.rpcDownloadCall('create_new_framework', [this.$store.state.currentUser.UID, this.frame_name, this.num_comps])
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
-            this.updateFrameworkSummaries()
+            // Note: There's no easy way to get the new framework UID to tell the 
+            // framework update to choose the new framework because the RPC cannot pass 
+            // it back.            
+            this.updateFrameworkSummaries(null)
 
             this.$notifications.notify({
               message: 'New framework "'+this.frame_name+'" created',
@@ -320,7 +340,7 @@ Last update: 2018-05-29
         rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.frw')
           .then(response => {
             // Update the framework summaries so the new framework shows up on the list.
-            this.updateFrameworkSummaries()
+            this.updateFrameworkSummaries(response.data.frameworkId)
           })
       },
 
@@ -429,7 +449,7 @@ Last update: 2018-05-29
         rpcservice.rpcCall('copy_framework', [uid])
           .then(response => {
             // Update the framework summaries so the copied program shows up on the list.
-            this.updateFrameworkSummaries()
+            this.updateFrameworkSummaries(response.data.frameworkId)
           })
 
         this.$notifications.notify({
@@ -463,7 +483,7 @@ Last update: 2018-05-29
           rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary])
             .then(response => {
               // Update the framework summaries so the rename shows up on the list.
-              this.updateFrameworkSummaries()
+              this.updateFrameworkSummaries(newFrameworkSummary.framework.id)
 
               // Turn off the renaming mode.
               frameworkSummary.renaming = ''
@@ -524,7 +544,7 @@ Last update: 2018-05-29
         rpcservice.rpcUploadCall('upload_frameworkbook', [uid], {})
           .then(response => {
             // Update the framework summaries so the copied program shows up on the list.
-            this.updateFrameworkSummaries()
+            this.updateFrameworkSummaries(uid)
           })
 
         this.$notifications.notify({
@@ -560,8 +580,20 @@ Last update: 2018-05-29
         if (selectFrameworksUIDs.length > 0) {
           rpcservice.rpcCall('delete_frameworks', [selectFrameworksUIDs])
             .then(response => {
-              // Update the framework summaries so the deletions show up on the list.
-              this.updateFrameworkSummaries()
+              // Get the active framework ID.
+/*              let activeFrameworkId = this.$store.state.activeFramework.framework.id
+              if (activeFrameworkId === undefined) {
+                activeFrameworkId = null
+              } 
+          
+              // Update the framework summaries so the deletions show up on the list. 
+              // Make sure it tries to set the framework that was active.
+              // TODO: This will cause problems until we add a check to 
+              // updateFrameworkSummaries() to make sure a framework still exists with 
+              // that ID.
+              this.updateFrameworkSummaries(activeFrameworkId) */
+              
+              this.updateFrameworkSummaries(null)
             })
         }
       },

@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-05-29
+Last update: 2018-07-04
 -->
 
 <template>
@@ -259,7 +259,7 @@ export default {
     // Otherwise...
     else {
       // Load the project summaries of the current user.
-      this.updateProjectSummaries()
+      this.updateProjectSummaries(null)
       this.updateFrameworkSummaries()
     }
   },
@@ -306,7 +306,7 @@ export default {
         })
     },
 
-    updateProjectSummaries() {
+    updateProjectSummaries(setActiveID) {
       console.log('updateProjectSummaries() called')
 
       // Get the current user's project summaries from the server.
@@ -321,10 +321,21 @@ export default {
 		      theProj.renaming = ''
 		    })
         
-        // Set the first project to be active.
+        // If we have a project on the list...
         if (this.projectSummaries.length > 0) {
-          this.openProject(this.projectSummaries[0].project.id)
-        }        
+          // If no ID is passed in, set the active project to the first one in 
+          // the list.
+          // TODO: We should write a function that extracts the last-created 
+          // project and then uses the UID for that as the thing to set.
+          if (setActiveID == null) {
+            this.openProject(this.projectSummaries[0].project.id)
+          }
+          
+          // Otherwise, set the active project to the one passed in.
+          else {
+            this.openProject(setActiveID)
+          }
+        }
       })
     },
 
@@ -335,7 +346,7 @@ export default {
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID, this.currentProject])
         .then(response => {
           // Update the framework summaries so the new framework shows up on the list.
-          this.updateProjectSummaries()
+          this.updateProjectSummaries(response.data.projectId)
 
           this.$notifications.notify({
             message: 'Demo project "'+which+'" loaded',
@@ -368,7 +379,10 @@ export default {
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries()
+        // Note: There's no easy way to get the new project UID to tell the 
+        // project update to choose the new project because the RPC cannot pass 
+        // it back.
+        this.updateProjectSummaries(null)
 
         this.$notifications.notify({
           message: 'New project "'+this.proj_name+'" created',
@@ -387,7 +401,7 @@ export default {
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries()
+        this.updateProjectSummaries(response.data.projectId)
       })
     },
 
@@ -496,7 +510,7 @@ export default {
       rpcservice.rpcCall('copy_project', [uid])
       .then(response => {
         // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries()
+        this.updateProjectSummaries(response.data.projectId)
       })
 
       this.$notifications.notify({
@@ -530,7 +544,7 @@ export default {
         rpcservice.rpcCall('update_project_from_summary', [newProjectSummary])
         .then(response => {
           // Update the project summaries so the rename shows up on the list.
-          this.updateProjectSummaries()
+          this.updateProjectSummaries(newProjectSummary.project.id)
 
 		      // Turn off the renaming mode.
 		      projectSummary.renaming = ''
@@ -540,7 +554,7 @@ export default {
 	    // This silly hack is done to make sure that the Vue component gets updated by this function call.
 	    // Something about resetting the project name informs the Vue component it needs to
 	    // update, whereas the renaming attribute fails to update it.
-	    // We should find a better way to do this.
+	    // TODO: We should find a better way to do this.
       let theName = projectSummary.project.name
       projectSummary.project.name = 'newname'
       projectSummary.project.name = theName
@@ -604,7 +618,7 @@ export default {
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
         .then(response => {
           // Update the project summaries so the copied program shows up on the list.
-          this.updateProjectSummaries()
+          this.updateProjectSummaries(uid)
         })
 
       this.$notifications.notify({
@@ -626,7 +640,7 @@ export default {
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
         .then(response => {
           // Update the project summaries so the copied program shows up on the list.
-          this.updateProjectSummaries()
+          this.updateProjectSummaries(uid)
         })
 
       this.$notifications.notify({
@@ -662,8 +676,18 @@ export default {
 	    if (selectProjectsUIDs.length > 0) {
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
-          // Update the project summaries so the deletions show up on the list.
-          this.updateProjectSummaries()
+          // Get the active project ID.
+          let activeProjectId = this.$store.state.activeProject.project.id
+          if (activeProjectId === undefined) {
+            activeProjectId = null
+          } 
+          
+          // Update the project summaries so the deletions show up on the list. 
+          // Make sure it tries to set the project that was active.
+          // TODO: This will cause problems until we add a check to 
+          // updateProjectSummaries() to make sure a project still exists with 
+          // that ID.
+          this.updateProjectSummaries(activeProjectId)
         })
 	    }
     },

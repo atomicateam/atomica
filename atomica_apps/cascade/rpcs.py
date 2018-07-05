@@ -12,6 +12,7 @@ import os
 from zipfile import ZipFile
 from flask_login import current_user
 from mpld3 import fig_to_dict as make_mpld3_graph_dict
+import uuid
 
 import sciris.corelib.fileio as fileio
 import sciris.weblib.user as user
@@ -432,7 +433,8 @@ def add_demo_framework(user_id, framework_name):
     except Exception:
         errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), framework_name)
         raise Exception(errormsg)
-    new_frame_name = get_unique_name(framework_name, other_names=None) # Get a unique name for the framework to be added.
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    new_frame_name = get_unique_name(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
     frame = au.demo(kind='framework', which=which)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
     print(">> add_demo_framework %s" % (frame.name))    
@@ -485,12 +487,15 @@ def update_framework_from_summary(framework_summary):
     Given the passed in framework summary, update the underlying framework 
     accordingly.
     """ 
-    
+
     # Load the framework corresponding with this summary.
     frame = load_framework(framework_summary['framework']['id'])
        
-    # Use the summary to set the actual framework.
-    frame.name = framework_summary['framework']['name']
+    # Use the summary to set the actual framework, checking to make sure that 
+    # the framework name is unique.
+    frame_uid = uuid.UUID(framework_summary['framework']['id']).hex
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
+    frame.name = get_unique_name(framework_summary['framework']['name'], other_names=other_names)
     
     # Set the modified time to now.
     frame.modified = sc.today()
@@ -514,7 +519,8 @@ def copy_framework(framework_id):
     
     # Just change the framework name, and we have the new version of the 
     # Framework object to be saved as a copy.
-    new_framework.name = get_unique_name(frame.name, other_names=None)
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    new_framework.name = get_unique_name(frame.name, other_names=other_names)
     
     # Set the user UID for the new frameworks record to be the current user.
     user_id = current_user.get_id() 
@@ -553,7 +559,8 @@ def create_framework_from_frw_file(frw_filename, user_id):
         return { 'frameworkId': 'BadFileFormatError' }
     
     # Reset the framework name to a new framework name that is unique.
-    frame.name = get_unique_name(frame.name, other_names=None)
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    frame.name = get_unique_name(frame.name, other_names=other_names)
     
     # Save the new framework in the DataStore.
     save_framework_as_new(frame, user_id)
@@ -835,9 +842,12 @@ def update_project_from_summary(project_summary):
     
     # Load the project corresponding with this summary.
     proj = load_project(project_summary['project']['id'])
-       
-    # Use the summary to set the actual project.
-    proj.name = project_summary['project']['name']
+    
+    # Use the summary to set the actual project, checking to make sure that 
+    # the project name is unique.
+    proj_uid = uuid.UUID(project_summary['project']['id']).hex
+    other_names = [prj['project']['name'] for prj in load_current_user_project_summaries2()['projects'] if (prj['project']['id'].hex != proj_uid)]
+    proj.name = get_unique_name(project_summary['project']['name'], other_names=other_names)
     
     # Set the modified time to now.
     proj.modified = sc.today()

@@ -54,10 +54,10 @@ Last update: 2018jun17
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/copenhagen-logo.png" height="60px"></div>
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/gatesfoundation-logo.png" height="60px"></div>
           </div>
-          <div class="divTableRow">
+<!--          <div class="divTableRow">
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/burnet-logo-transparent.png" height="60px"></div>
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/world-bank-logo.png" height="60px"></div>
-          </div>
+          </div> -->
 
         </div>
       </div>
