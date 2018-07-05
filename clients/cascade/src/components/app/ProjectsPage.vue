@@ -275,6 +275,7 @@ export default {
       // Load the project summaries of the current user.
       this.updateProjectSummaries(null)
       this.updateFrameworkSummaries()
+      this.$Progress.start()
     }
   },
 
