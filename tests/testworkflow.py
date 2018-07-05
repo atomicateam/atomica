@@ -19,19 +19,22 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-test = "sir"
-test = "tb"
+#test = "sir"
+#test = "tb"
+#test = "diabetes"
+test = "service"
 
 torun = [
 "makeframeworkfile",
 "makeframework",
 "saveframework",
 "loadframework",
-# "makedatabook",
-# "makeproject",
-# "loaddatabook",
-# "makeparset",
-# "runsim",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+'plotcascade',
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
 "runsim_programs",
@@ -39,7 +42,7 @@ torun = [
 # "export",
 # "listspecs",
 # "manualcalibrate",
-# "autocalibrate",
+ "autocalibrate",
 # "parameterscenario",
 # "saveproject",
 # "loadproject",
@@ -69,6 +72,8 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
+    elif test == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
+    elif test == "service": args = {"num_comps":7, "num_characs":4, "num_pars":10}
     au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
@@ -85,6 +90,10 @@ if "makedatabook" in torun:
     if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "service": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -92,63 +101,83 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.make_parset(name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2035, sim_dt=0.25)
-    P.run_sim(parset="default", result_name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        if test in ["tb"]:
+            P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+        else:
+            P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+        P.run_sim(parset="default", result_name="default")
+        
+        cascade = P.results[-1].get_cascade_vals(project=P)
+
+if 'plotcascade' in torun:
+    au.plot_cascade(project=P, year=2020)
+    
+    
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-
-    P = au.demo(which=test, do_plot=0)
-    filename = "temp/progbook_"+test+"_blank.xlsx"
-    if test == "sir":
-        P.make_progbook(filename, progs=5)
-    elif test == "tb":
-        P.make_progbook(filename, progs=31)
+    if test not in ['diabetes']:
+        P = au.demo(which=test, do_plot=0)
+        filename = "temp/progbook_"+test+"_blank.xlsx"
+        if test == "tb":
+            P.make_progbook(filename, progs=31)
+        else:
+            P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    if test=='tb':
-        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    if test in ['diabetes','service']:
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
         P = au.demo(which=test,do_plot=0)
-        filename = "databooks/programdata_"+test+".xlsx"
+        filename = "databooks/progbook_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
-        P.progsets[0].programs[0].get_spend(year=2015)
-        
-        # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
-        coverage = sc.odict([('Risk avoidance',     .99),
-                             ('Harm reduction 1',   .8),
-                             ('Harm reduction 2',   .9),
-                             ('Treatment 1',        .99),
-                             ('Treatment 2',        .8)])
-        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+        if test not in ["tb"]:      # TODO: Test TB progset after successful progset construction.
+            P.progsets[0].programs[0].get_spend(year=2015)
 
-        # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
-        print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
-        print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+            # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
+            coverage = sc.odict([('Risk avoidance',     .99),
+                                 ('Harm reduction 1',   .8),
+                                 ('Harm reduction 2',   .9),
+                                 ('Treatment 1',        .99),
+                                 ('Treatment 2',        .8)])
+            print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
-        # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
-        denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
-                             ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
-                             ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+            # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
+            print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
+            print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
 
-        print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
-        print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+            # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+            denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
+                                 ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
+                                 ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+
+            print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
+            print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
 
 
 if "runsim_programs" in torun:
-    if test=='tb':
-        raise NotImplemented
+    if test in ['tb','diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
     else:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
@@ -233,16 +262,17 @@ if "manualcalibrate" in torun:
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
-    if test == "sir":
-        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
-        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
-        # New name argument set to old name to do in-place calibration.
-        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
-    if test == "tb":
-        # Shortcut for calibration measurables.
-        adjustables = [("foi", "15-64", 0.0, 3.0)]
-        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+#    if test == "sir":
+#        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
+#        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+#        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
+#        # New name argument set to old name to do in-place calibration.
+#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+#    if test == "tb":
+#        # Shortcut for calibration measurables.
+#        adjustables = [("foi", "15-64", 0.0, 3.0)]
+#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+    P.calibrate(max_time=10)
     P.run_sim(parset="auto", result_name="auto")
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
@@ -279,6 +309,12 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+if "runsimprogs" in torun:
+    from atomica.core.programs import ProgramInstructions
+
+    # instructions = ProgramInstructions(progset=P.progsets["default"])
+    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

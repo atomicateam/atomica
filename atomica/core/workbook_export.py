@@ -1011,7 +1011,6 @@ class TitledRange(object):
 
         current_row = self.data_range.first_row
         num_levels = len(self.content.row_levels) if self.content.row_levels is not None else 1
-#        if self.sheet.name=='Program data':import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         # iterate over rows, incrementing current_row as we go
         for i, names_format in enumerate(zip(self.content.get_row_names(), self.content.get_row_formats())):
@@ -1099,7 +1098,6 @@ class AtomicaContent(object):
             return [[name, level] for name in self.row_names for level in self.row_levels]
 
     def get_row_formats(self):  # assume that the number of row_formats is same as the number of row_levels
-        if self.name=='Program data': import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         if not self.row_levels is not None:
             return [self.row_format for name in self.row_names]
         else:
@@ -1112,9 +1110,9 @@ class AtomicaContent(object):
 class ProgramSpreadsheet:
     def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None, verbose=0):
         self.sheet_names = sc.odict([
-            ('targeting', 'Populations & programs'),
-            ('costcovdata', 'Program data'),
-            ('covoutdata', 'Program effects'),
+            ('targeting',   'Populations & programs'),
+            ('costcovdata', 'Program spend data'),
+            ('covoutdata',  'Program effects'),
         ])
         self.name = name
         self.pops = pops
@@ -1151,9 +1149,13 @@ class ProgramSpreadsheet:
                 short = item['short']
                 target_pops = [''] + ['' for popname in self.pops]
                 target_comps = [''] + ['' for comp in self.comps]
-            coded_params.append([short, name] + target_pops + target_comps)
+            coded_params.append([short, name]+target_pops+target_comps)
 
-        column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
+        # Hard-coded writing of target descriptions in sheet.
+        self.current_sheet.write(0, 5, "Targeted to (populations)", self.formats.formats["center_bold"])
+        self.current_sheet.write(0, 6+len(self.pops), "Targeted to (compartments)", self.formats.formats["center_bold"])
+
+        column_names = ['Short name', 'Long name',''] + self.pops + [''] + self.comps
         content = AtomicaContent(name='Populations & programs',
                                  row_names=range(1, len(self.progs) + 1),
                                  column_names=column_names,
@@ -1197,7 +1199,6 @@ class ProgramSpreadsheet:
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
                                  'columns': self.ref_prog_range.param_refs()}
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
         content.assumption_properties = assumption_properties
         the_range = TitledRange(self.current_sheet, current_row, content)

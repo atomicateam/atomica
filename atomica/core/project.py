@@ -153,21 +153,23 @@ class Project(object):
         write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
                        instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True, overwrite=False):
         """ Load a data spreadsheet. """
+        if overwrite: data = ProjectData() # Allow overwrite
+        else:         data = self.data
         full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=self.data,
+        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=data,
                                  workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded
         self.modified = sc.today()
         
-        # Put the population keys somewhere easier to access- TEMP, TODO, fix
-        self.popkeys = []
-        self.popnames = []
+        # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
+        self.pop_names = []
+        self.pop_labels = []
         for k,v in self.data.specs['pop'].items():
-            self.popkeys.append(k)
-            self.popnames.append(v['label'])
+            self.pop_names.append(k)
+            self.pop_labels.append(v['label'])
 
         if metadata is not None and "data_start" in metadata:
             self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
@@ -206,7 +208,7 @@ class Project(object):
         # TODO: Think about whether the following makes sense.
         pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
 
-        make_progbook(full_path, pops=self.popkeys, comps=comps, progs=progs, pars=pars)
+        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars)
         
 
 
@@ -218,8 +220,8 @@ class Project(object):
         progdata = load_progbook(filename=full_path)
         
         # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.popnames):
-            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.popnames))
+        if set(progdata['pops']) != set(self.pop_labels):
+            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
             raise AtomicaException(errormsg)
         self.progdata = progdata
 
@@ -361,7 +363,7 @@ class Project(object):
 
         return result
 
-    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
         """
         Method to perform automatic calibration.
@@ -389,6 +391,7 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
+        if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
             adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()

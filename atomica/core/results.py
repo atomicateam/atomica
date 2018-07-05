@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import sciris.core as sc
 from .utils import NamedItem
+from .system import AtomicaException
 
 
 # import optima_tb.settings as project_settings
@@ -102,6 +103,41 @@ class Result(NamedItem):
             df.T.to_excel(filename + '.xlsx' if not filename.endswith('.xlsx') else filename)
 
         return df
+
+
+    def get_cascade_vals(self, project=None):
+        '''
+        Gets values for populating a cascade plot
+        See https://docs.google.com/presentation/d/1lEEyPFORH3UeFpmaxEAGTKyHAbJRnKTm5YIsfV1iJjc/edit?usp=sharing
+        Returns an odict with 4 keys:
+            vals: a flat odict where the keys are the (ordered) cascade stages and the values are the height of the bars by year
+            loss: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion lost by year
+            conv: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion converted by year
+            t: list of the years
+        '''
+        if project is None:
+            errormsg = 'You need to supply a project in order to plot the cascade.'
+            raise AtomicaException(errormsg)
+            
+        cascade = sc.odict()
+        cascade['vals'] = sc.odict()
+        cascade['loss'] = sc.odict()
+        cascade['conv'] = sc.odict()
+        F = project.framework
+        for sno,stage in enumerate(F.filter['stages']):
+            cascade['vals'][stage] = sc.odict()
+            cascade['conv'][stage] = sc.odict()
+            cascade['loss'][stage] = sc.odict()
+            for pno,pop in enumerate(project.pop_names):
+                cascade['vals'][stage][pop] = self.get_variable(pop,stage)[0].vals
+                cascade['t'] = self.get_variable(pop,stage)[0].t
+                if sno > 0:
+                    cascade['conv'][stage][pop] = (cascade['vals'][stage][pop], cascade['vals'][sno][pop]/cascade['vals'][sno-1][pop])
+                    cascade['loss'][stage][pop] = (cascade['vals'][sno-1][pop]-cascade['vals'][sno][pop], 1.-cascade['conv'][stage][pop][1])
+                
+        return cascade
+
+
 
 # """
 # Defines the classes for storing results.

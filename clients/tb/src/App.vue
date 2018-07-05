@@ -6,6 +6,7 @@ Last update: 2/2/18 (gchadder3)
 
 <template>
   <div :class="{'nav-open': $sidebar.showSidebar}">
+    <simplert></simplert>
     <router-view></router-view>
     <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
     <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">

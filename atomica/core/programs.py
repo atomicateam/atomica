@@ -64,8 +64,8 @@ class ProgramSet(NamedItem):
                 progdata = project.progdata
                 
         # Check if the populations match - if not, raise an error, if so, add the data
-        if project is not None and set(progdata['pops']) != set(project.popnames):
-            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(project.popnames))
+        if project is not None and set(progdata['pops']) != set(project.pop_labels):
+            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(project.pop_labels))
             raise AtomicaException(errormsg)
                 
         nprogs = len(progdata['progs']['short'])
@@ -91,7 +91,6 @@ class ProgramSet(NamedItem):
 
                 spend = progdata[pkey]['spend'][yrno]
                 base_spend = progdata[pkey]['basespend'][yrno]
-
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
                     self.programs[np].update(unit_cost=sanitize(unit_cost), year=year)

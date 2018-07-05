@@ -9,7 +9,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
-build/
 develop-eggs/
 dist/
 downloads/
@@ -102,3 +101,6 @@ ENV/
 .DS_Store
 *.iml
 *.xml
+
+# other stuff
+package-lock.json
