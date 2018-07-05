@@ -20,9 +20,9 @@ import sciris.core as sc
 # logger.setLevel('DEBUG')
 
 #test = "sir"
-#test = "tb"
+test = "tb"
 #test = "diabetes"
-test = "service"
+# test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -272,7 +272,7 @@ if "autocalibrate" in torun:
 #        # Shortcut for calibration measurables.
 #        adjustables = [("foi", "15-64", 0.0, 3.0)]
 #        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
-    P.calibrate(max_time=10)
+    P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
