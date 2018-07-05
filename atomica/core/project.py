@@ -153,10 +153,12 @@ class Project(object):
         write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
                        instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True, overwrite=False):
         """ Load a data spreadsheet. """
+        if overwrite: data = ProjectData() # Allow overwrite
+        else:         data = self.data
         full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=self.data,
+        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=data,
                                  workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded

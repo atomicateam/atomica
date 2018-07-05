@@ -819,7 +819,7 @@ def upload_databook(databook_filename, project_id):
     """
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_databook(databook_path=databook_filename) 
+    proj.load_databook(databook_path=databook_filename, overwrite=True) 
     proj.modified = sc.today()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
