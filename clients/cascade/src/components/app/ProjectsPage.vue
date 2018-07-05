@@ -275,7 +275,6 @@ export default {
       // Load the project summaries of the current user.
       this.updateProjectSummaries(null)
       this.updateFrameworkSummaries()
-      this.$Progress.start()
     }
   },
 
@@ -502,7 +501,26 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('openProject() called for ' + matchProject.project.name)
-
+          
+          
+      this.$Progress.start()  // normal speed ("0.2s") gets to 100% by about 8 sec.
+/*      this.$Progress.setTransition(
+        {
+          speed: '10s',
+          opacity: '0.6s',
+          termination: 300
+        }) */
+        
+      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
+//      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
+      .then(response => { 
+        this.$Progress.finish()         
+      })
+      .catch(error => {
+        this.$Progress.fail()
+      })
+      
+      
       // Set the active project to the matched project.
       this.$store.commit('newActiveProject', matchProject)
 
