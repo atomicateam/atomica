@@ -8,9 +8,9 @@
         -->
     <!-- -->
     <div class="sidebar-wrapper" id="style-3">
-      <div class="logo">
-        <a href="#" class="simple-text">
-            <img src="static/img/cascade-logo-white.png" width="160px" vertical-align="middle" alt>
+      <div class="logo" style="text-align:center">
+        <a href="http://cascade.tools">
+          <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
         </a>
       </div>
       <slot>
@@ -27,14 +27,10 @@
           </a>
         </router-link>
       </ul>
-      <moving-arrow :move-y="arrowMovePx">
-
-      </moving-arrow>
     </div>
   </div>
 </template>
 <script>
-  import MovingArrow from './MovingArrow.vue'
   export default {
     props: {
       type: {
@@ -65,9 +61,6 @@
         type: Array,
         default: () => []
       }
-    },
-    components: {
-      MovingArrow
     },
     computed: {
       sidebarClasses () {
@@ -124,6 +117,3 @@
   }
 
 </script>
-<style>
-
-</style>

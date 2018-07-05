@@ -7,13 +7,21 @@ Last update: 2018-05-29
 <template>
   <div class="SitePage">
 
-    <div>
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      <button class="btn" @click="clearGraphs()">Clear plots</button>
-    </div>
-    <br>
+    <div style="width:500px; float:left">
 
-    <div style="width:200px; float:left">
+      <div>
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
+        Select cascade year:
+        <select v-model="cascadeYear">
+          <option v-for='year in cascadeYears'>
+            {{ year }}
+          </option>
+        </select>
+
+      </div>
+
+      <br>
+
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
         <tr>
@@ -40,10 +48,10 @@ Last update: 2018-05-29
         <tbody>
         <tr v-for="par in sortedPars">
           <td>
-            {{par.parname}}
+            {{par.parlabel}}
           </td>
           <td>
-            {{par.popname}}
+            {{par.poplabel}}
           </td>
           <td>
             <input type="text"
@@ -54,7 +62,7 @@ Last update: 2018-05-29
         </tbody>
       </table>
     </div>
-    <div style="margin-left:350px">
+    <div style="margin-left:550px">
       <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
         <!--mpld3 content goes here-->
       </div>
@@ -81,6 +89,7 @@ Last update: 2018-05-29
         sortColumn: 'parname',
         sortReverse: false,
         parList: [],
+        cascadeYear: [],
       }
     },
 
@@ -93,12 +102,41 @@ Last update: 2018-05-29
         }
       },
 
+      active_sim_start() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_start
+        }
+      },
+
+      active_sim_end() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_end
+        }
+      },
+
       placeholders() {
         var indices = []
-        for (var i = 1; i <= 100; i++) {
+        for (var i = 0; i <= 100; i++) {
           indices.push(i);
         }
         return indices;
+      },
+
+      cascadeYears() {
+        console.log('cascadeYears called')
+        console.log(this.active_sim_start)
+        console.log(this.active_sim_end)
+        console.log('cascadeYears ok')
+        let years = []
+        for (let i = this.active_sim_start; i <= this.active_sim_end; i++) {
+          years.push(i);
+        }
+        console.log('Cascade years: '+years)
+        return years;
       },
 
       sortedPars() {
@@ -118,6 +156,7 @@ Last update: 2018-05-29
 
       else {
         this.viewTable();
+        this.cascadeYear = this.$store.state.activeProject.project.sim_end
       }
     },
 
@@ -174,13 +213,13 @@ Last update: 2018-05-29
         console.log('makeGraphs() called')
 
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.parList, this.cascadeYear])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 1; index <= n_plots; index++) {
+            for (var index = 0; index <= n_plots; index++) {
               console.log('Rendering plot ' + index)
               var divlabel = 'fig' + index
               var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
@@ -188,6 +227,7 @@ Last update: 2018-05-29
                 div.removeChild(div.firstChild);
               }
               try {
+                console.log(response.data.graphs[index]);
                 mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
               }
               catch (err) {
@@ -202,18 +242,18 @@ Last update: 2018-05-29
             // Set the server error.
             this.servererror = error.message
           }).then( response => {
-            this.$notifications.notify({
-              message: 'Graphs created',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+          this.$notifications.notify({
+            message: 'Graphs created',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
         })
       },
 
       clearGraphs() {
-        for (var index = 1; index <= 100; index++) {
+        for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
           var divlabel = 'fig' + index
           var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first

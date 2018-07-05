@@ -11,9 +11,13 @@ Last update: 2018jun17
         <img src="static/img/cascade-logo-black.png" width="250px">
       </div>
       <br/><br/>
-      <p>Cascade Analysis Tools is currently under development. Development is supported through a partnership
-        between the <a href="http://www.ku.dk">University of Copenhagen</a> and the <a href="http://www.burnet.edu.au">Burnet Institute</a>,
-        under the auspices of the <a href="http://www.gatesfoundation.org">Bill and Melinda Gates Foundation</a> and the <a href="http://www.worldbank.org">World Bank</a>.</p>
+      <p>
+        Cascade Analysis Tools is currently under development. Development is
+        supported through the
+        <a href="http://www.ku.dk">University of Copenhagen</a> under the
+        auspices of the
+        <a href="http://www.gatesfoundation.org">Bill and Melinda Gates Foundation</a>.
+      </p>
 
     <p>Technical information:</p>
 
@@ -50,10 +54,10 @@ Last update: 2018jun17
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/copenhagen-logo.png" height="60px"></div>
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/gatesfoundation-logo.png" height="60px"></div>
           </div>
-          <div class="divTableRow">
+<!--          <div class="divTableRow">
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/burnet-logo-transparent.png" height="60px"></div>
             <div class="divRowContent" style="text-align:center; padding-bottom:30px"><img src="static/img/world-bank-logo.png" height="60px"></div>
-          </div>
+          </div> -->
 
         </div>
       </div>
