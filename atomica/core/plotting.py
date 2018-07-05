@@ -930,9 +930,11 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 def plot_cascade(project=None, year=None, pop=None):
     print('Making cascade plot')
     import pylab as pl
+    from matplotlib.pyplot import rc 
+    rc('font', size=14)
     
-    figsize = (5,3)
-    axsize = [0.4,0.15,0.5,0.8]
+    figsize = (10,6)
+    axsize = [0.4,0.15,0.45,0.8]
     if year is None: year = 0
     POPULATION = 0
     RESULT = -1
@@ -946,28 +948,46 @@ def plot_cascade(project=None, year=None, pop=None):
     data['labels'] = []
     for key in data['keys']:
         data['labels'].append(project.framework.get_spec_value(key,'label'))
-    data['x'] = range(len(data['keys']))[::-1]
-    for datakey in ['vals','loss']:
-        data[datakey] = []
-        for i in range(len(data['t'])):
-            data[datakey].append([])
-            for key in data['keys']:
-                data[datakey][i].append(cascade['vals'][key][POPULATION][i])
+    data['x'] = np.arange(2*len(data['keys']),0,-2)
+    data['vals'] = []
+    for i in range(len(data['t'])):
+        data['vals'].append([])
+        for key in data['keys']:
+            data['vals'][i].append(cascade['vals'][key][POPULATION][i])
+    data['loss'] = []
+    data['lossfrac'] = []
+    for i in range(len(data['t'])):
+        data['loss'].append([])
+        data['lossfrac'].append([])
+        for key in data['keys']:
+            try:
+                data['loss'][i].append(cascade['loss'][key][POPULATION][0][i])
+                data['lossfrac'][i].append(cascade['loss'][key][POPULATION][1][i])
+            except:
+                pass
     
     print('Cascade plot data:')
     print(data)
 
     figs = []
-    
     fig = pl.figure(figsize=figsize)
     fig.add_axes(axsize)
-    pl.barh(data['x'], data['vals'][year])
+    pl.barh(data['x'], data['vals'][year], height=1)
     pl.gca().set_yticks(data['x'])
     pl.gca().set_yticklabels(data['labels'])
     pl.xlabel('Number of people')
     sc.boxoff()
     sc.SIticks(fig=fig, axis='x')
     pl.gca().spines['left'].set_visible(False)
+    
+    # Add labels
+    for x,xval in enumerate(data['x']):
+        thisval = data['vals'][year][x]
+        label = ' '+sc.sigfig(thisval, sigfigs=3, sep=True)
+        pl.text(thisval, xval, label, verticalalignment='center')
+    for x,xval in enumerate(data['x'][:-1]):
+        label = ' Loss: %s' % sc.sigfig(data['loss'][year][x], sigfigs=3, sep=True)
+        pl.text(0,xval-1,label, verticalalignment='center', color=(0.8,0.2,0.2))
     figs.append(fig)
     return figs
 
