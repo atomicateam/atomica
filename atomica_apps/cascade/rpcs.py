@@ -1046,3 +1046,20 @@ def run_default_scenario(project_id):
     print('Saving project...')
     save_project(proj)    
     return {'graphs':graphs}
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
+def export_results(project_id, resultset=-1):
+    """
+    Create a new framework.
+    """
+    print('Exporting results...')
+    proj = load_project(project_id, raise_exception=True)
+    result = proj.results[resultset]
+    
+    dirname = fileio.downloads_dir.dir_path 
+    file_name = '%s.xlsx' % result.name 
+    full_file_name = os.path.join(dirname, file_name)
+    result.export(full_file_name)
+    print(">> export_results %s" % (full_file_name))
+    return full_file_name # Return the filename

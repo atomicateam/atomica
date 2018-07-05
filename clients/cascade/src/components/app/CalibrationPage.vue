@@ -10,14 +10,16 @@ Last update: 2018-05-29
     <div style="width:500px; float:left">
 
       <div>
-        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
-        Select cascade year:
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; showing results for &nbsp;
+        <!--Select cascade year:-->
         <select v-model="cascadeYear">
           <option v-for='year in cascadeYears'>
             {{ year }}
           </option>
         </select> &nbsp; &nbsp; &nbsp;
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
+        <br><br>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button> &nbsp; &nbsp; &nbsp;
+        <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
       </div>
 
       <br>
@@ -313,7 +315,12 @@ Last update: 2018-05-29
             div.removeChild(div.firstChild);
           }
         }
-      }
+      },
+
+      exportResults(project_id) {
+        console.log('exportResults() called')
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+      },
     }
   }
 </script>
