@@ -197,7 +197,7 @@ Last update: 2018-07-04
         </div>
         <div style="text-align:justify">
           <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create project and download data entry spreadsheet
+            Create
           </button>
 
           <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
