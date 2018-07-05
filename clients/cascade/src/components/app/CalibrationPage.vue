@@ -8,18 +8,22 @@ Last update: 2018-05-29
   <div class="SitePage">
 
     <div class="calib-controls">
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
+      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+      <div class="control-group">
+        Select cascade year:
+        <select v-model="cascadeYear">
+          <option v-for='year in cascadeYears'>
+            {{ year }}
+          </option>
+        </select>
+      </div>
       <button class="btn" @click="toggleShowingParams()">
         <span v-if="areShowingParameters">Hide</span>
         <span v-else>Show</span>
         parameters
-      </button> &nbsp; &nbsp; &nbsp;
-      Select cascade year:
-      <select v-model="cascadeYear">
-        <option v-for='year in cascadeYears'>
-          {{ year }}
-        </option>
-      </select>
+      </button>
+      <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
+      <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
     </div>
 
     <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
@@ -260,6 +264,58 @@ Last update: 2018-05-29
         })
       },
 
+      autoCalibrate(project_id) {
+
+        this.$notifications.notify({
+          message: 'This is not yet implemented, please check back soon.',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        });
+
+//        console.log('autoCalibrate() called')
+//
+//        // Go to the server to get the results from the package set.
+//        rpcservice.rpcCall('automatic_calibration', [project_id, this.cascadeYear])
+//          .then(response => {
+//            this.serverresponse = response.data // Pull out the response data.
+//            var n_plots = response.data.graphs.length
+//            console.log('Rendering ' + n_plots + ' graphs')
+//
+//            for (var index = 0; index <= n_plots; index++) {
+//              console.log('Rendering plot ' + index)
+//              var divlabel = 'fig' + index
+//              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+//              while (div.firstChild) {
+//                div.removeChild(div.firstChild);
+//              }
+//              try {
+//                console.log(response.data.graphs[index]);
+//                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+//              }
+//              catch (err) {
+//                console.log('failled:' + err.message);
+//              }
+//            }
+//          })
+//          .catch(error => {
+//            // Pull out the error message.
+//            this.serverresponse = 'There was an error: ' + error.message
+//
+//            // Set the server error.
+//            this.servererror = error.message
+//          }).then( response => {
+//          this.$notifications.notify({
+//            message: 'Graphs created',
+//            icon: 'ti-check',
+//            type: 'success',
+//            verticalAlign: 'top',
+//            horizontalAlign: 'center',
+//          });
+//        })
+      },
+
       clearGraphs() {
         for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
@@ -269,7 +325,12 @@ Last update: 2018-05-29
             div.removeChild(div.firstChild);
           }
         }
-      }
+      },
+
+      exportResults(project_id) {
+        console.log('exportResults() called')
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+      },
     }
   }
 </script>
@@ -278,6 +339,12 @@ Last update: 2018-05-29
 <style scoped>
 .calib-controls {
   margin-bottom: 3rem;
+}
+.calib-controls .control-group {
+  display: inline-block;
+}
+.calib-controls button, .calib-controls .control-group {
+  margin-right: 1rem;
 }
 .calib-main {
   display: flex;

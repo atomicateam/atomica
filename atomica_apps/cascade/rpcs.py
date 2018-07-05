@@ -951,12 +951,13 @@ def get_y_factors(project_id, parsetname=-1):
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
             thispar = parset.get_par(parname)
-            for popname,y_factor in thispar.y_factor.items():
-                parlabel = proj.framework.get_spec_value(parname,'label')
-                poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
-                thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
-                y_factors.append(thisdict)
-                print(thisdict)
+            if proj.framework.get_spec_value(parname, "can_calibrate"):
+                for popname,y_factor in thispar.y_factor.items():
+                    parlabel = proj.framework.get_spec_value(parname,'label')
+                    poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
+                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
+                    y_factors.append(thisdict)
+                    print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
     return y_factors
 
@@ -973,6 +974,22 @@ def set_y_factors(project_id, y_factors, year=None, parsetname=-1):
             print('Modified: %s' % par)
     
     print('Rerunning model with updated y factors...')
+    proj.modified = sc.today()
+    print('Resultsets before run: %s' % len(proj.results))
+    proj.run_sim(parset=parsetname, store_results=True)
+    print('Resultsets after run: %s' % len(proj.results))
+    save_project(proj)    
+    output = do_get_plots(proj.uid, year=year)
+    return output
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def automatic_calibration(project_id, year=None, parsetname=-1):
+    
+    print('Running automatic calibration...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    print('Rerunning calibrated model...')
     proj.modified = sc.today()
     print('Resultsets before run: %s' % len(proj.results))
     proj.run_sim(parset=parsetname, store_results=True)
@@ -1029,3 +1046,20 @@ def run_default_scenario(project_id):
     print('Saving project...')
     save_project(proj)    
     return {'graphs':graphs}
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
+def export_results(project_id, resultset=-1):
+    """
+    Create a new framework.
+    """
+    print('Exporting results...')
+    proj = load_project(project_id, raise_exception=True)
+    result = proj.results[resultset]
+    
+    dirname = fileio.downloads_dir.dir_path 
+    file_name = '%s.xlsx' % result.name 
+    full_file_name = os.path.join(dirname, file_name)
+    result.export(full_file_name)
+    print(">> export_results %s" % (full_file_name))
+    return full_file_name # Return the filename

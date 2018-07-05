@@ -21,8 +21,8 @@ import sciris.core as sc
 
 #test = "sir"
 #test = "tb"
-test = "diabetes"
-#test = "service"
+#test = "diabetes"
+test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -42,7 +42,7 @@ torun = [
 # "export",
 # "listspecs",
 # "manualcalibrate",
-# "autocalibrate",
+ "autocalibrate",
 # "parameterscenario",
 # "saveproject",
 # "loadproject",
@@ -262,16 +262,17 @@ if "manualcalibrate" in torun:
     
 if "autocalibrate" in torun:
     # Manual fit was not good enough according to plots, so run autofit.
-    if test == "sir":
-        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
-        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
-        # New name argument set to old name to do in-place calibration.
-        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
-    if test == "tb":
-        # Shortcut for calibration measurables.
-        adjustables = [("foi", "15-64", 0.0, 3.0)]
-        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+#    if test == "sir":
+#        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
+#        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+#        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
+#        # New name argument set to old name to do in-place calibration.
+#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+#    if test == "tb":
+#        # Shortcut for calibration measurables.
+#        adjustables = [("foi", "15-64", 0.0, 3.0)]
+#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+    P.calibrate(max_time=10)
     P.run_sim(parset="auto", result_name="auto")
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
