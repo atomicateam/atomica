@@ -94,9 +94,15 @@ Last update: 2018-07-04
 			      </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
-              <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
-              <button class="btn" @click="renameProject(projectSummary)">Rename</button>
-              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)">Download</button>
+              <button class="btn" @click="copyProject(projectSummary.project.id)" title="Copy">
+                <i class="ti-files"></i>
+              </button>
+              <button class="btn" @click="renameProject(projectSummary)" title="Rename">
+                <i class="ti-pencil"></i>
+              </button>
+              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
             <td>{{ projectSummary.project.creationTime }}</td>
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
@@ -108,12 +114,20 @@ Last update: 2018-07-04
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
-              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)">Upload</button>
-              <button class="btn" @click="downloadDatabook(projectSummary.project.id)">Download</button>
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
+                <i class="ti-upload"></i>
+              </button>
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)">Upload</button>
-              <button class="btn" @click="downloadProgbook(projectSummary.project.id)">Download</button>
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
+                <i class="ti-upload"></i>
+              </button>
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
           </tr>
         </tbody>
