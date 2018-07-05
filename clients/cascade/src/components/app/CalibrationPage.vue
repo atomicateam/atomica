@@ -11,6 +11,11 @@ Last update: 2018-05-29
 
       <div>
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
+        <button class="btn" @click="areShowingParameters = !areShowingParameters">
+          <span v-if="areShowingParameters">Hide</span>
+          <span v-else>Show</span>
+          parameters
+        </button> &nbsp; &nbsp; &nbsp;
         Select cascade year:
         <select v-model="cascadeYear">
           <option v-for='year in cascadeYears'>
@@ -46,7 +51,7 @@ Last update: 2018-05-29
         </tr>
         </thead>
         <tbody>
-        <tr v-for="par in sortedPars">
+        <tr v-for="par in sortedPars" v-if="areShowingParameters">
           <td>
             {{par.parlabel}}
           </td>
@@ -90,6 +95,7 @@ Last update: 2018-05-29
         sortReverse: false,
         parList: [],
         cascadeYear: [],
+        areShowingParameters: true,
       }
     },
 
