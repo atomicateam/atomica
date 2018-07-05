@@ -10,6 +10,12 @@ Last update: 2018-05-29
     <div>
       <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
       <button class="btn" @click="clearGraphs()">Clear plots</button>
+      Select cascade year:
+      <select v-model="cascadeYear">
+        <option v-for='year in cascadeYears'>
+          {{ year }}
+        </option>
+      </select>
     </div>
     <br>
 
@@ -81,6 +87,7 @@ Last update: 2018-05-29
         sortColumn: 'parname',
         sortReverse: false,
         parList: [],
+        cascadeYear: [],
       }
     },
 
@@ -101,6 +108,16 @@ Last update: 2018-05-29
         return indices;
       },
 
+      cascadeYears() {
+        let years = []
+        let sim_start = this.$store.state.activeProject.project.sim_start
+        let sim_end   = this.$store.state.activeProject.project.sim_end
+        for (let i = sim_start; i <= sim_end; i++) {
+          years.push(i);
+        }
+        return years;
+      },
+
       sortedPars() {
 //        var sortedParList = this.applySorting(this.parList);
         var sortedParList = this.parList;
@@ -118,6 +135,7 @@ Last update: 2018-05-29
 
       else {
         this.viewTable();
+        this.cascadeYear = this.$store.state.activeProject.project.sim_end
       }
     },
 
