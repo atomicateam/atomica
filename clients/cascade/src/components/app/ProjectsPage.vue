@@ -197,7 +197,7 @@ Last update: 2018-07-04
         </div>
         <div style="text-align:justify">
           <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create project and download data entry spreadsheet
+            Create
           </button>
 
           <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
@@ -238,7 +238,7 @@ export default {
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
-      projectOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
+      projectOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
       currentProject: 'Service delivery'
     }
   },
@@ -460,7 +460,7 @@ export default {
         {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
-            return (proj1.project.name > proj2.project.name ? sortDir: -sortDir)
+            return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
           }
 /*          else if (this.sortColumn === 'country') {
             return proj1.country > proj2.country ? sortDir: -sortDir
