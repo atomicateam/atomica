@@ -11,7 +11,6 @@ Last update: 2018-05-29
 
       <div>
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
-        <button class="btn" @click="clearGraphs()">Clear plots</button> &nbsp; &nbsp; &nbsp;
         Select cascade year:
         <select v-model="cascadeYear">
           <option v-for='year in cascadeYears'>
