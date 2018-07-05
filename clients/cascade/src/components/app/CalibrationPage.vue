@@ -7,19 +7,6 @@ Last update: 2018-05-29
 <template>
   <div class="SitePage">
 
-    <div>
-      Select cascade year:
-      <select v-model="cascadeYear">
-        <option v-for='year in cascadeYears'>
-          {{ year }}
-        </option>
-      </select> &nbsp; &nbsp; &nbsp;
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      &nbsp; &nbsp; &nbsp;
-      <button class="btn" @click="clearGraphs()">Clear plots</button>
-    </div>
-    <br>
-
     <div style="width:500px; float:left">
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
@@ -61,7 +48,22 @@ Last update: 2018-05-29
         </tbody>
       </table>
     </div>
-    <div style="margin-left:350px">
+    <div style="margin-left:550px">
+
+      <div>
+        Select cascade year:
+        <select v-model="cascadeYear">
+          <option v-for='year in cascadeYears'>
+            {{ year }}
+          </option>
+        </select> &nbsp; &nbsp; &nbsp;
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+        &nbsp; &nbsp; &nbsp;
+        <button class="btn" @click="clearGraphs()">Clear plots</button>
+      </div>
+
+      <br>
+
       <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
         <!--mpld3 content goes here-->
       </div>

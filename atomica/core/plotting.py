@@ -933,7 +933,7 @@ def plot_cascade(project=None, year=None, pop=None):
     from matplotlib.pyplot import rc 
     rc('font', size=14)
     
-    figsize = (10,6)
+    figsize = (8,6)
     axsize = [0.4,0.15,0.45,0.8]
     POPULATION = 0
     RESULT = -1
