@@ -7,73 +7,70 @@ Last update: 2018-05-29
 <template>
   <div class="SitePage">
 
-    <div style="width:500px; float:left">
-
-      <div>
-        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
-        <button class="btn" @click="areShowingParameters = !areShowingParameters">
-          <span v-if="areShowingParameters">Hide</span>
-          <span v-else>Show</span>
-          parameters
-        </button> &nbsp; &nbsp; &nbsp;
-        Select cascade year:
-        <select v-model="cascadeYear">
-          <option v-for='year in cascadeYears'>
-            {{ year }}
-          </option>
-        </select>
-
-      </div>
-
-      <br>
-
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th @click="updateSorting('parameter')" class="sortable">
-            Parameter
-            <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('population')" class="sortable">
-            Population
-            <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('value')" class="sortable">
-            Value
-            <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="par in sortedPars" v-if="areShowingParameters">
-          <td>
-            {{par.parlabel}}
-          </td>
-          <td>
-            {{par.poplabel}}
-          </td>
-          <td>
-            <input type="text"
-                   class="txbox"
-                   v-model="par.value"/>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="margin-left:550px">
-      <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
-        <!--mpld3 content goes here-->
-      </div>
+    <div class="calib-controls">
+      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button> &nbsp; &nbsp; &nbsp;
+      <button class="btn" @click="toggleShowingParams()">
+        <span v-if="areShowingParameters">Hide</span>
+        <span v-else>Show</span>
+        parameters
+      </button> &nbsp; &nbsp; &nbsp;
+      Select cascade year:
+      <select v-model="cascadeYear">
+        <option v-for='year in cascadeYears'>
+          {{ year }}
+        </option>
+      </select>
     </div>
 
+    <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
+      <div class="calib-params" v-if="areShowingParameters">
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th @click="updateSorting('parameter')" class="sortable">
+              Parameter
+              <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+            <th @click="updateSorting('population')" class="sortable">
+              Population
+              <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+            <th @click="updateSorting('value')" class="sortable">
+              Value
+              <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="par in sortedPars">
+            <td>
+              {{par.parlabel}}
+            </td>
+            <td>
+              {{par.poplabel}}
+            </td>
+            <td>
+              <input type="text"
+                     class="txbox"
+                     v-model="par.value"/>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
 
+      <div class="calib-graph">
+        <div v-for="index in placeholders" :id="'fig'+index">
+          <!--mpld3 content goes here-->
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -215,6 +212,10 @@ Last update: 2018-05-29
 //        }
       },
 
+      toggleShowingParams() {
+        this.areShowingParameters = !this.areShowingParameters
+      },
+
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
 
@@ -235,6 +236,7 @@ Last update: 2018-05-29
               try {
                 console.log(response.data.graphs[index]);
                 mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+                this.haveDrawnGraphs = true
               }
               catch (err) {
                 console.log('failled:' + err.message);
@@ -273,5 +275,20 @@ Last update: 2018-05-29
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
+.calib-controls {
+  margin-bottom: 3rem;
+}
+.calib-main {
+  display: flex;
+}
+.calib-main--full {
+  display: block;
+}
+.calib-params {
+  flex: 1 0 40%;
+}
+.calib-graph {
+  flex: 1 0 60%;
+}
 </style>
