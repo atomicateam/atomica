@@ -415,9 +415,10 @@ class ProgramSet(NamedItem):
         for par_type in self.target_par_types:
             outcomes[par_type] = odict()
             max_vals[par_type] = odict()
-            
+
+            relevant_progs = self.progs_by_target_par(par_type)     # Called once for performance sake.
             # Loop over populations relevant for this parameter type
-            for popno, pop in enumerate(self.progs_by_target_par(par_type).keys()):
+            for popno, pop in enumerate(relevant_progs.keys()):
 
                 delta, thiscov = odict(), odict()
                 effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
@@ -425,7 +426,7 @@ class ProgramSet(NamedItem):
                 best_eff  = effects[best_prog]
                 
                 # Loop over the programs that target this parameter/population combo
-                for prog in self.progs_by_target_par(par_type)[pop]:
+                for prog in relevant_progs[pop]:
                     if not self.covout[(par_type,pop)].has_pars():
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
@@ -438,14 +439,14 @@ class ProgramSet(NamedItem):
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(par_type)[pop]], [par_type, pop], sum(thiscov[:])))
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
                         self.covout[(par_type,pop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
                 # NB, if there's only one program targeting this parameter, just do simple additive calc
-                if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(par_type)[pop])==1:
+                if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
-                    for prog in self.progs_by_target_par(par_type)[pop]:
+                    for prog in relevant_progs[pop]:
                         if not self.covout[(par_type,pop)].has_pars():
                             print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
                             outcomes[par_type][pop] = None
