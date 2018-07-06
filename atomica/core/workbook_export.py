@@ -620,11 +620,13 @@ def write_time_dependent_values_entry(worksheet, table, iteration, start_row, st
                     iterated_type = table.iterated_type
                     try:
                         rc = \
-                        temp_storage[item_type][term][(iterated_type, iterated_type)][(source_number, target_number)][
-                            "cell"]
+                            temp_storage[item_type][term][(iterated_type, iterated_type)][
+                                (source_number, target_number)][
+                                "cell"]
                         page_title = \
-                        temp_storage[item_type][term][(iterated_type, iterated_type)][(source_number, target_number)][
-                            "page_title"]
+                            temp_storage[item_type][term][(iterated_type, iterated_type)][
+                                (source_number, target_number)][
+                                "page_title"]
                         # If a value exists for this connection elsewhere, show row if value is a 'y' or number.
                         condition_string = ("OR('{0}'!{1}=\"{2}\","
                                             "ISNUMBER('{0}'!{1}))").format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
@@ -1062,11 +1064,11 @@ class TitledRange(object):
                     if not saveassumptiondata:
                         formats.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
                                                      row_format)
-            current_row+=1
-            if num_levels > 1 and ((i+1) % num_levels)==0: # shift between the blocks
-                current_row +=1
-        #done! return the new current_row plus spacing
-        return current_row + TitledRange.ROW_INTERVAL # for spacing
+            current_row += 1
+            if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
+                current_row += 1
+        # done! return the new current_row plus spacing
+        return current_row + TitledRange.ROW_INTERVAL  # for spacing
 
     def param_refs(self, column_number=0):
         return self.data_range.param_refs(self.sheet.get_name(), column_number)
@@ -1110,9 +1112,9 @@ class AtomicaContent(object):
 class ProgramSpreadsheet:
     def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None, verbose=0):
         self.sheet_names = sc.odict([
-            ('targeting',   'Populations & programs'),
+            ('targeting', 'Populations & programs'),
             ('costcovdata', 'Program spend data'),
-            ('covoutdata',  'Program effects'),
+            ('covoutdata', 'Program effects'),
         ])
         self.name = name
         self.pops = pops
@@ -1149,13 +1151,14 @@ class ProgramSpreadsheet:
                 short = item['short']
                 target_pops = [''] + ['' for popname in self.pops]
                 target_comps = [''] + ['' for comp in self.comps]
-            coded_params.append([short, name]+target_pops+target_comps)
+            coded_params.append([short, name] + target_pops + target_comps)
 
         # Hard-coded writing of target descriptions in sheet.
         self.current_sheet.write(0, 5, "Targeted to (populations)", self.formats.formats["center_bold"])
-        self.current_sheet.write(0, 6+len(self.pops), "Targeted to (compartments)", self.formats.formats["center_bold"])
+        self.current_sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)",
+                                 self.formats.formats["center_bold"])
 
-        column_names = ['Short name', 'Long name',''] + self.pops + [''] + self.comps
+        column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
         content = AtomicaContent(name='Populations & programs',
                                  row_names=range(1, len(self.progs) + 1),
                                  column_names=column_names,
@@ -1237,9 +1240,11 @@ class FrameworkFile:
         self.characs = characs
         self.interpops = interpops
         self.pars = pars
+
         self.book = None
         self.sheets = None
         self.formats = None
+
         self.current_sheet = None
         self.datapage_range = None
         # self.ref_pop_range = None
@@ -1378,17 +1383,25 @@ class FrameworkFile:
         self.book.close()
 
 
-def make_framework_file(filename, datapages, comps, characs, interpops, pars):
+def make_framework_file(filename, datapages, comps, characs, interpops, pars, framework=None):
     """ Generate the Atomica framework file. """
 
+    item_types = ["datapage", "comp", "charac", "interpop", "par"]
     item_type_inputs = [datapages, comps, characs, interpops, pars]
-    for j in range(len(item_type_inputs)):
+    for j in range(len(item_types)):
+        item_type = item_types[j]
         item_type_input = item_type_inputs[j]
-        if sc.isnumber(item_type_input):    # An integer argument is given; just create a list using empty entries.
+
+        items = []
+        item_specs = framework.specs[item_type]
+        if framework is not None:
+            items = [{"name": key,
+                      "label": item_specs[key]["label"]} for key in item_specs]
+
+        if sc.isnumber(item_type_input):  # If an integer argument is given, just create a list using empty entries.
             num_items = item_type_input
-            items = []
             for k in range(num_items):
-                items.append({"name": "sh_{0}".format(k+1), "label": "Custom Databook Sheet {0}".format(k+1)})
+                items.append({"name": "sh_{0}".format(k), "label": "Custom Databook Sheet {0}".format(k)})
             item_type_inputs[j] = items
 
     #         # Ensure years are integers
@@ -1400,3 +1413,8 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars):
     book.create(filename)
 
     return filename
+
+# from atomica.core.framework import ProjectFramework
+#
+# F = ProjectFramework(filepath="../../tests/frameworks/framework_tb.xlsx")
+# make_framework_file("blug.xlsx", datapages=3, comps=5, characs=7, interpops=9, pars=11, framework=None)
