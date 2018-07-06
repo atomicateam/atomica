@@ -36,6 +36,7 @@ class ProgramSet(NamedItem):
         self.default_imp_interaction = default_imp_interaction
         self.created = today()
         self.modified = today()
+        self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
         return None
 
     def __repr__(self):
@@ -184,6 +185,11 @@ class ProgramSet(NamedItem):
         set_target_pars(self)
         set_target_par_types(self)
         set_target_pops(self)
+
+        # Pre-build a dictionary of programs targeted by parameters.
+        self.relevant_progs = dict()
+        for par_type in self.target_par_types:
+            self.relevant_progs[par_type] = self.progs_by_target_par(par_type)
         return None
 
 
@@ -416,7 +422,7 @@ class ProgramSet(NamedItem):
             outcomes[par_type] = odict()
             max_vals[par_type] = odict()
 
-            relevant_progs = self.progs_by_target_par(par_type)     # Called once for performance sake.
+            relevant_progs = self.relevant_progs[par_type]
             # Loop over populations relevant for this parameter type
             for popno, pop in enumerate(relevant_progs.keys()):
 
