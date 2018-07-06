@@ -7,6 +7,8 @@ const NotificationStore = {
     this.state.splice(index, 1)
   },
   notify (notification) {
+    notification.timestamp = new Date()
+    notification.timestamp.setMilliseconds(notification.timestamp.getMilliseconds() + this.state.length)    
     this.state.push(notification)
   }
 }

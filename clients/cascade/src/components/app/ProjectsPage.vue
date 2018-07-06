@@ -532,6 +532,7 @@ export default {
         type: 'success',
         verticalAlign: 'top',
         horizontalAlign: 'center',
+        timeout: 1000
       });
     },
 
