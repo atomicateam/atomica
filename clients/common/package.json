@@ -1,8 +1,8 @@
 {
   "name": "atomica",
-  "version": "0.13.4",
+  "version": "0.13.6",
   "description": "Atomica",
-  "author": "University of Copenhagen <cascade.tools>",
+  "author": "University of Copenhagen <info@cascade.tools>",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
