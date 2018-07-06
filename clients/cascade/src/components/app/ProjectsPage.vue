@@ -502,8 +502,9 @@ export default {
 
       console.log('openProject() called for ' + matchProject.project.name)
           
-          
-      this.$Progress.start()  // normal speed ("0.2s") gets to 100% by about 8 sec.
+
+// Code for testing loading bar.          
+//      this.$Progress.start()  // normal speed ("0.2s") gets to 100% by about 8 sec.
 /*      this.$Progress.setTransition(
         {
           speed: '10s',
@@ -512,13 +513,13 @@ export default {
         }) */
         
 //      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
-      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
+/*      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
       .then(response => { 
         this.$Progress.finish()         
       })
       .catch(error => {
         this.$Progress.fail()
-      })
+      }) */
       
       
       // Set the active project to the matched project.
