@@ -446,7 +446,7 @@ class ProgramSet(NamedItem):
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(par_type)[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
                     for prog in self.progs_by_target_par(par_type)[pop]:
-                        if not self.covout[(par_type,pop)].haspars():
+                        if not self.covout[(par_type,pop)].has_pars():
                             print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
                             outcomes[par_type][pop] = None
                         else: 
