@@ -19,7 +19,7 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-test = "sir"
+#test = "sir"
 test = "tb"
 # test = "diabetes"
 # test = "service"
@@ -171,7 +171,7 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    if test in ['tb','diabetes','service']:
+    if test in ['diabetes','service']:
         print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
     else:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
