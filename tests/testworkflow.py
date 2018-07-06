@@ -171,9 +171,8 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    if test in ['diabetes','service']:
-        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
-    else:
+
+    if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
         instructions = au.ProgramInstructions() 
@@ -183,6 +182,16 @@ if "runsim_programs" in torun:
         d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
         au.plot_series(d, axis="results")
 
+    elif test == 'tb':
+        instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
+#        P.run_sim(parset="default", result_name="default-noprogs")
+        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+
+    elif test in ['diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
+
+    else:
+        print('\n\n\nUnknown test.')
 
 if "makeplots" in torun:
 
