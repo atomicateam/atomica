@@ -532,7 +532,9 @@ export default {
         type: 'success',
         verticalAlign: 'top',
         horizontalAlign: 'center',
-        timeout: 1000
+        timeout: 1000  // this works
+//        timeout: 2000  // this does not (this is the default timeout)
+//        timeout: 10000  // this does not        
       });
     },
 

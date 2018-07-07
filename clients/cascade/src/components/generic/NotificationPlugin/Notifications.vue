@@ -7,7 +7,7 @@ Last updated: 2018-03-26
 <template>
   <div class="notifications">
     <transition-group name="list">
-      <notification v-for="(notification,index) in notifications" :key="index" :message="notification.message" :icon="notification.icon" :type="notification.type" :vertical-align="notification.verticalAlign" :horizontal-align="notification.horizontalAlign" :timeout="notification.timeout" @on-close="removeNotification(index)">
+      <notification v-for="(notification,index) in notifications" :key="index" :message="notification.message" :icon="notification.icon" :type="notification.type" :vertical-align="notification.verticalAlign" :horizontal-align="notification.horizontalAlign" :timeout="notification.timeout" :timestamp="notification.timestamp" @on-close="removeNotification">
 
       </notification>
     </transition-group>
@@ -26,8 +26,9 @@ Last updated: 2018-03-26
       }
     },
     methods: {
-      removeNotification (index) {
-        this.$notifications.removeNotification(index)
+      removeNotification (timestamp) {
+        console.log('Pre-removing notification: ', timestamp)
+        this.$notifications.removeNotification(timestamp)
       }
     }
   }

@@ -78,7 +78,8 @@
     },
     methods: {
       close () {
-        this.$emit('on-close', this.timestamp)        
+        console.log('Trying to close: ', this.timestamp)
+        this.$emit('on-close', this.timestamp)         
       }
     },
     mounted () {
