@@ -22,6 +22,8 @@ import numpy as np
 
 test = "sir"
 # test = "tb"
+# test = "diabetes"
+# test = "service"
 
 torun = [
 "makeframeworkfile",
@@ -32,12 +34,12 @@ torun = [
 "makeproject",
 "loaddatabook",
 "makeparset",
-# "runsim",
-#"makeprogramspreadsheet",
+"runsim",
+"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 # "runsim_programs",
 "outcome_optimization",
-# "money_optimization",
+"money_optimization",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -72,6 +74,8 @@ tmpdir = "." + os.sep + "temp" + os.sep
 if "makeframeworkfile" in torun:
     if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
+    elif test == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
+    elif test == "service": args = {"num_comps":7, "num_characs":4, "num_pars":10}
     au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
         
 if "makeframework" in torun:
@@ -88,6 +92,10 @@ if "makedatabook" in torun:
     if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "service": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+                              "data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -95,61 +103,79 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    P.make_parset(name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        P.make_parset(name="default")
     
 if "runsim" in torun:
-    P.update_settings(sim_start=2000.0, sim_end=2035, sim_dt=0.25)
-    P.run_sim(parset="default", result_name="default")
+    if test in ['diabetes']:
+        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    else:
+        if test in ["tb"]:
+            P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+        else:
+            P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+        P.run_sim(parset="default", result_name="default")
+        
+        cascade = P.results[-1].get_cascade_vals(project=P)
+            
     
 if "makeprogramspreadsheet" in torun:
-    print('\n\n\Making programs spreadsheet ... ')
-
-    P = au.demo(which=test,do_plot=0)
-    filename = "temp/programspreadsheet.xlsx"
-    P.make_progbook(filename, progs=5)
+    print('\n\n\nMaking programs spreadsheet ... ')
+    if test not in ['diabetes']:
+        P = au.demo(which=test, do_plot=0)
+        filename = "temp/progbook_"+test+"_blank.xlsx"
+        if test == "tb":
+            P.make_progbook(filename, progs=31)
+        else:
+            P.make_progbook(filename, progs=5)
 
 if "loadprogramspreadsheet" in torun:
-    if test=='tb':
-        print('\n\n\nLoading program spreadsheet not yet implemented for TB.')
+    if test in ['diabetes','service']:
+        print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
         P = au.demo(which=test,do_plot=0)
-        filename = "databooks/programdata_"+test+".xlsx"
+        filename = "databooks/progbook_"+test+".xlsx"
         P.load_progbook(progbook_path=filename, make_default_progset=True)
-        P.progsets[0].programs[0].get_spend(year=2015)
-        
-        # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
-        coverage = sc.odict([('Risk avoidance',     .99),
-                             ('Harm reduction 1',   .8),
-                             ('Harm reduction 2',   .9),
-                             ('Treatment 1',        .99),
-                             ('Treatment 2',        .8)])
-        print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
+        if test not in ["tb"]:      # TODO: Test TB progset after successful progset construction.
+            P.progsets[0].programs[0].get_spend(year=2015)
 
-        # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
-        print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
-        print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+            # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
+            coverage = sc.odict([('Risk avoidance',     .99),
+                                 ('Harm reduction 1',   .8),
+                                 ('Harm reduction 2',   .9),
+                                 ('Treatment 1',        .99),
+                                 ('Treatment 2',        .8)])
+            print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
-        # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
-        denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
-                             ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
-                             ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
-                             ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+            # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
+            print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
+            print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
 
-        print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
-        print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+            # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+            denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
+                                 ('Harm reduction 1',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Harm reduction 2',   [2e4,2.1e4,2.2e4,2.3e4]),
+                                 ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
+                                 ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
+
+            print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
+            print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
 
 
 if "runsim_programs" in torun:
-    if test=='tb':
-        raise NotImplemented
-    else:
+
+    if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
         instructions = au.ProgramInstructions() 
@@ -159,6 +185,16 @@ if "runsim_programs" in torun:
         d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
         au.plot_series(d, axis="results")
 
+    elif test == 'tb':
+        instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
+#        P.run_sim(parset="default", result_name="default-noprogs")
+        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+
+    elif test in ['diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
+
+    else:
+        print('\n\n\nUnknown test.')
 
 if "makeplots" in torun:
 
@@ -349,7 +385,6 @@ if "money_optimization" in torun:
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     au.plot_series(d, axis="results")
-
 
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")

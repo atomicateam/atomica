@@ -526,7 +526,7 @@ def load_progbook(filename, verbose=2):
             thesedata = sheetdata.row_values(row, start_colx=2) 
         
             if row==1:
-                data['pops'] = thesedata[3:colindices[0]]
+                data['pops'] = thesedata[3:colindices[1]-2]
                 data['comps'] = thesedata[colindices[1]-1:]
             else:
                 if thesedata[0]:
@@ -565,7 +565,8 @@ def load_progbook(filename, verbose=2):
             thesedata = blank2newtype(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
             assumptiondata = sheetdata.cell_value(row, assumptioncol)
             if assumptiondata != '': # There's an assumption entered
-                thesedata = [assumptiondata] # Replace the (presumably blank) data if a non-blank assumption has been entered
+                # TODO: Check if it is valid to just treat an assumption as the first value of the data list.
+                thesedata[0] = assumptiondata
             if sheetdata.cell_value(row, 2) in namemap.keys(): # It's a regular variable without ranges
                 thisvar = namemap[sheetdata.cell_value(row, 2)]  # Get the name of the indicator
                 data[progname][thisvar] = thesedata # Store data

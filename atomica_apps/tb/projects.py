@@ -200,7 +200,6 @@ def init_projects(app):
     # Else (no match)...
     else:
         # Load the data path holding the Excel files.
-        #data_path = on.ONpath('data')
     
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Creating a new ProjectCollection.') 
