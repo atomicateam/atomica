@@ -401,8 +401,9 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 	model.process()
 
 	# Compute the objective function based on the model calculated values and return it
-	# obj_val = constraint_penalty + optimization.compute_objective(model)
-	obj_val = optimization.compute_objective(model)
+	# TODO - constraint_penalty is an interesting idea but need to make sure it doesn't dominate the actual objective
+	# Using it directly seems to prioritize meeting the constraint and with ASD's single-parameter stepping this prevents convergence
+	obj_val = 0.0*constraint_penalty + optimization.compute_objective(model)
 
 	return obj_val
 

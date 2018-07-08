@@ -36,8 +36,8 @@ torun = [
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 # "runsim_programs",
-# "outcome_optimization",
-"money_optimization",
+"outcome_optimization",
+# "money_optimization",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -298,7 +298,7 @@ if "outcome_optimization" in torun:
     adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
     adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
     measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
-    constraints = au.TotalSpendConstraint() # Cap total spending in 2020
+    constraints = au.TotalSpendConstraint() # Cap total spending in all years
     P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
