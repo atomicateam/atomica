@@ -36,8 +36,8 @@ torun = [
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
 # "runsim_programs",
-"outcome_optimization",
-# "money_optimization",
+# "outcome_optimization",
+"money_optimization",
 #"makeplots",
 #"export",
 #"listspecs",
@@ -305,7 +305,7 @@ if "outcome_optimization" in torun:
     optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
 
     for adjustable in adjustments:
-        print("%s - before=%.2f, after=%.2f" % (adjustable[0],unoptimized_result.model.program_instructions.alloc[adjustable[0]],optimized_result.model.program_instructions.alloc[adjustable[0]]))
+        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name],optimized_result.model.program_instructions.alloc[adjustable.name])) # TODO - add time to alloc
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     au.plot_series(d, axis="results")
@@ -327,16 +327,25 @@ if "money_optimization" in torun:
                      ('Treatment 2', 60.)])
 
     instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-    adjustments = [('Treatment 1','abs',0.0,100.0),('Treatment 2','abs',0.0,100.0)]
-    measurables = [('Treatment 1',1),('Treatment 2',1),('ch_all',lambda x: 10000*(x<728.01),None)] # Total number of people in all pops
-    constraints = {'total_spend':[0.0,np.inf]}
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables, year_eval=[2030], constraints = constraints) # Evaluate from 2020 to end of simulation
+
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.)) # We can adjust Treatment 1
+    adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.)) # We can adjust Treatment 2
+
+    measurables = []
+    measurables.append(au.AtLeastMeasurable('ch_all',2030,728.01)) # Need at least 728.01 people in 2030
+    measurables.append(au.MinimizeMeasurable('Treatment 1',2020)) # Minimize 2020 spending on Treatment 1
+    measurables.append(au.MinimizeMeasurable('Treatment 2',2020)) # Minimize 2020 spending on Treatment 2
+
+    constraints = None  # No extra constraints aside from individual bounds
+
+    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
     optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
 
     for adjustable in adjustments:
-        print("%s - before=%.2f, after=%.2f" % (adjustable[0],unoptimized_result.model.program_instructions.alloc[adjustable[0]],optimized_result.model.program_instructions.alloc[adjustable[0]]))
+        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name],optimized_result.model.program_instructions.alloc[adjustable.name])) # TODO - add time to alloc
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     au.plot_series(d, axis="results")

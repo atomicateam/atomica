@@ -44,8 +44,8 @@ class Adjustable(object):
 
 	def get_hard_bounds(self,x0=None):
 		# Return hard bounds based the limit type and specified bounds
-		self.lower_bound = self.lower_bound if self.lower_bound else -np.inf
-		self.upper_bound = self.upper_bound if self.upper_bound else np.inf
+		self.lower_bound = self.lower_bound if self.lower_bound is not None else -np.inf
+		self.upper_bound = self.upper_bound if self.upper_bound is not None else np.inf
 		xmin = self.lower_bound if self.limit_type == 'abs' else x0*self.lower_bound
 		xmax = self.upper_bound if self.limit_type == 'abs' else x0*self.upper_bound
 		return xmin, xmax
@@ -67,7 +67,7 @@ class Adjustment(object):
 class SpendingAdjustment(Adjustment):
 	# This adjustment class represents making a spending quantity adjustable. By default, the
 	# base class simply overwrites the spending value at a particular point in time
-	# Standard overwrite at a specific point in time
+	# A SpendingAdjustment has a separate Adjustable for each time reached (independently)
 	def __init__(self,prog_name,t,limit_type='abs',lower=0.0,upper=np.inf,initial=None):
 		Adjustment.__init__(self,name=prog_name)
 		self.prog_name = prog_name
@@ -82,7 +82,9 @@ class SpendingAdjustment(Adjustment):
 		# There is one Adjustable for each time point, so the adjustable_values
 		# are a list of this same length, one value for each time point
 		for i,t in enumerate(self.t):
-			instructions.alloc[self.prog_name][t] = adjustable_values[i]
+			# TODO - Make this overwrite time specific by adjusting the
+			# LHS to correctly index time
+			instructions.alloc[self.prog_name] = adjustable_values[i]
 
 	def get_initialization(self,progset,instructions):
 		initialization = []
@@ -91,7 +93,7 @@ class SpendingAdjustment(Adjustment):
 				initialization.append(adjustable.initial_value)
 			else:
 				alloc = progset.get_alloc(instructions,t)
-				initialization.append(alloc[self.prog_name]) # The Adjustable's name corresponds to the name of the program being overwritten.
+				initialization.append(alloc[self.prog_name][0]) # The Adjustable's name corresponds to the name of the program being overwritten.
 		return initialization
 
 class StartTimeAdjustment(Adjustment):
@@ -152,18 +154,17 @@ class Measurable(object):
 			t_filter = model.t==self.t # boolean vector for whether to use the time point or not
 		else:
 			t_filter = (model.t >= self.t[0]) & (model.t < self.t[1]) # Don't include upper bound, so [2018,2019] will include exactly one year
-		if self.measure_name in model.vars_by_pop:
+		if self.measurable_name in model.vars_by_pop: # If the measurable is a model output...
 			val = 0.0
-			for var in vars:
+			for var in model.vars_by_pop[self.measurable_name]:
 				if not self.pop_names or var.pop.name in self.pop_names:  # If we are using this pop in the objective
 					if isinstance(var, Link):
 						val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
 					else:
 						val += np.sum(var.vals[t_filter])
-		else:
-			# For now, only other possibility is that it's a spending amount
+		else: # For now, only other possibility is that it's a spending amount
 			alloc = model.progset.get_alloc(model.program_instructions,model.t)
-			val =  alloc[self.measure_name][t_filter]
+			val =  alloc[self.measurable_name][t_filter]
 		if self.fcn:
 			val = self.fcn(val)
 		val *= self.weight
@@ -185,9 +186,9 @@ class AtMostMeasurable(Measurable):
 	# below the threshold (and during ASD it will never be allowed to cross the threshold)
 	def __init__(self,measurable_name, t, threshold,pop_names=None):
 		Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
-		self.weight = np.inf
+		self.weight = 1.0
 		self.threshold = threshold
-		self.fcn = lambda x: (x>threshold)
+		self.fcn = lambda x: np.inf if x>threshold else 0.0
 
 class AtLeastMeasurable(Measurable):
 	# A Measurable that impose a penalty if the quantity is smaller than some threshold
@@ -195,9 +196,9 @@ class AtLeastMeasurable(Measurable):
 	# above the threshold (and during ASD it will never be allowed to cross the threshold)
 	def __init__(self,measurable_name, t, threshold,pop_names=None):
 		Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
-		self.weight = np.inf
+		self.weight = 1.0
 		self.threshold = threshold
-		self.fcn = lambda x: (x<threshold)
+		self.fcn = lambda x: np.inf if x<threshold else 0.0
 
 class Constraint(object):
 	# A Constraint represents a condition that must be satisfied by the Instructions
@@ -205,10 +206,10 @@ class Constraint(object):
 	# satisfy the constraint directly (rather than changing the value of the Adjustables)
 	# although this distinction really only matters in the context of parametric spending
 
-	def get_hard_constraint(optimization, instructions):
+	def get_hard_constraint(self,optimization, instructions):
 		return
 
-	def constrain_instructions(instructions,hard_constraints):
+	def constrain_instructions(self,instructions,hard_constraints):
 		# Constrains the instructions, returns a metric penalizing the constraint
 		# If there is no penalty associated with adjusting (perhaps if all of the Adjustments are
 		# parametric?) then this would be 0.0
@@ -237,7 +238,7 @@ class TotalSpendConstraint(Constraint):
 
 		hard_constraints = {}
 		hard_constraints['programs'] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
-		for adjustment in optimization:
+		for adjustment in optimization.adjustments:
 			if hasattr(adjustment, 'prog_name'):
 				for t in list(adjustment.t):
 					hard_constraints['programs'][t].add(adjustment.prog_name)
@@ -258,7 +259,7 @@ class TotalSpendConstraint(Constraint):
 			else:
 				total_spend = 0.0
 				for prog in progs:
-					total_spend += instructions.alloc[prog][t]
+					total_spend += instructions.alloc[prog] # TODO - index the time correctly here
 				hard_constraints['total_spend'][t] = total_spend
 
 		# Finally, for each adjustable, we need to store its upper and lower bounds
@@ -280,51 +281,55 @@ class TotalSpendConstraint(Constraint):
 			for adjustment in optimization.adjustments:
 				if hasattr(adjustment, 'prog_name') and adjustment.prog_name in progs and t in adjustment.t:
 					if isinstance(adjustment, SpendingAdjustment):
-						idx = np.where(adjustment.t == t)[0][0]
+						idx = np.where(adjustment.t == t)[0][0] # If it is a SpendingAdjustment then set bounds from the appropriate Adjustable
 						adjustable = adjustment.adjustables[idx]
-						hard_constraints['bounds'][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name][t])  # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
+						hard_constraints['bounds'][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name])  # TODO - Add time index to alloc # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
 					else:
-						hard_constraints['bounds'][t][adjustment.prog_name] = (0.0, np.inf)
+						hard_constraints['bounds'][t][adjustment.prog_name] = (0.0, np.inf) # If the Adjustment reaches spending but is not a SpendingAdjustment then do not constrain the alloc
 
 		return hard_constraints
 
-	def constrain_instructions(instructions, hard_constraints):
+	def constrain_instructions(self,instructions, hard_constraints):
 
 		penalty = 0.0
 
-		for t, total_spend in hard_constraints.total_spend.items():
+		for t, total_spend in hard_constraints['total_spend'].items():
 			x0 = sc.odict()  # Order matters here
 			bounds = []
 			progs = hard_constraints['programs'][t]  # Programs eligible for constraining at this time
 			LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend}]  # Constrain spend
 
 			for prog in progs:
-				x0[prog] = instructions.alloc[prog][t]
+				x0[prog] = instructions.alloc[prog] # TODO - Add time index to alloc
 				bounds.append(hard_constraints['bounds'][t][prog])
 
-			x0_array = np.array(list(x0.values()))
+			x0_array = np.array(x0.values()).ravel()
 			res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array) ** 2)), x0_array, bounds=bounds,constraints=LinearConstraint)
 			# TODO - If there's a failure to constrain, return np.inf here
 
 			# TODO - If the penalty below doesn't seem to work properly, just return 0.0 to disable
-			penalty += np.sqrt(np.sum((res['x'] - x0_array))) # Penalty is the distance between the unconstrained budget and the constrained budget
+			penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
+
 			for name, val in zip(x0.keys(), res['x']):
-				instructions.alloc[name][t] = val
+				instructions.alloc[name] = val # TODO - Add time index to alloc
 
 		return penalty
 
 class Optimization(NamedItem):
 	""" An object that defines an Optimization to perform """
 
-	def __init__(self,  name='default', adjustments=None, constraints = None, measurables = None,  maxtime = 10, maxiters=None):
+	def __init__(self,  name='default', adjustments=None, measurables = None, constraints = None,  maxtime = 10, maxiters=None):
 
 		NamedItem.__init__(self, name)
+
+		assert adjustments is not None
+		assert measurables is not None
 
 		self.maxiters = maxiters # Not snake_case to match ASD
 		self.maxtime = maxtime # Not snake_case to match ASD
 		self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
 		self.measurables = [measurables] if not isinstance(measurables,list) else measurables
-		self.constraints = [constraints] if not isinstance(constraints,list) else constraints
+		self.constraints = [constraints] if constraints and not isinstance(constraints,list) else constraints
 
 	def __repr__(self):
 		return sc.desc(self)
@@ -358,7 +363,10 @@ class Optimization(NamedItem):
 		# Return hard constraints based on the starting initialization
 		instructions = dcp(instructions)
 		self.update_instructions(x0,instructions)
-		return [x.get_hard_constraint(self,instructions) for x in self.constraints]
+		if not self.constraints:
+			return None
+		else:
+			return [x.get_hard_constraint(self,instructions) for x in self.constraints]
 
 	def constrain_instructions(self,instructions,hard_constraints):
 		constraint_penalty = 0.0
@@ -385,17 +393,18 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 	model = pickle.loads(pickled_model)
 
 	# Inject the ASD vector into the instructions
-	optimization.update_instructions(model.program_instructions, asd_values, hard_constraints)
+	optimization.update_instructions(asd_values,model.program_instructions)
 
 	# Constrain the alloc
 	constraint_penalty = optimization.constrain_instructions(model.program_instructions,hard_constraints)
-
 	# Use the updated instructions to run the model
 	model.process()
 
 	# Compute the objective function based on the model calculated values and return it
-	return constraint_penalty + optimization.compute_objective(model)
+	# obj_val = constraint_penalty + optimization.compute_objective(model)
+	obj_val = optimization.compute_objective(model)
 
+	return obj_val
 
 def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None,hard_constraints=None):
 	# The ASD initialization, xmin and xmax values can optionally be
@@ -429,7 +438,8 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
 	}
 
 	x_opt = asd(_asd_objective,x0,args,**optim_args)[0]
-	optimization.update_instructions(model.program_instructions,x_opt,hard_constraints)
+	optimization.update_instructions(x_opt,model.program_instructions)
+	optimization.constrain_instructions(model.program_instructions,hard_constraints)
 	return model.program_instructions # Return the modified instructions
 
 def parallel_optimize(project,optimization,parset,progset,program_instructions):
