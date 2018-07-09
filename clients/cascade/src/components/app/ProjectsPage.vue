@@ -561,8 +561,6 @@ export default {
         })       
       })
 
-//      this.$notifications.clear()  // use this, with commenting out stuff above to test clear() 
-
     },
 
     renameProject(projectSummary) {

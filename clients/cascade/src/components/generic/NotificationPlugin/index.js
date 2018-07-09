@@ -3,11 +3,8 @@ import Notifications from './Notifications.vue'
 const NotificationStore = {
   state: [], // here the notifications will be added
 
-/*  removeNotification (index) {
-    this.state.splice(index, 1)
-  }, */
   removeNotification(timestamp) {
-    console.log('Removing notification: ', timestamp)
+//    console.log('Removing notification: ', timestamp)
     const indexToDelete = this.state.findIndex(n => n.timestamp === timestamp)
     if (indexToDelete !== -1) {
       this.state.splice(indexToDelete, 1)
@@ -23,14 +20,14 @@ const NotificationStore = {
   },
   
   clear() {
-    console.log('Number notifications: ', this.state.length)
-//    this.removeNotification(this.state[0].timestamp)
+//    console.log('Removing all notifications: ', this.state.length)
+
     // This removes all of them in a way that the GUI keeps up.
     while (this.state.length > 0) {
       this.removeNotification(this.state[0].timestamp)
     }
 //    this.state = []  // This way destroys GUI state.
-  }  
+  }
 }
 
 var NotificationsPlugin = {

@@ -1,7 +1,7 @@
 <!--
 Definition of a Paper notification, used via this.$notifications.notify()
 
-Last updated: 2018-03-26
+Last updated: 2018-07-09
 -->
 
 <template>
@@ -34,8 +34,16 @@ Last updated: 2018-03-26
     },
     methods: {
       removeNotification (timestamp) {
-        console.log('Pre-removing notification: ', timestamp)
+//        console.log('Pre-removing notification: ', timestamp)
         this.$notifications.removeNotification(timestamp)
+        
+        // Hack to address "sticky" notifications: after a removal, clear all 
+        // notifications after 2 seconds.
+        setTimeout(this.clearAllNotifications, 2000)
+      },
+      
+      clearAllNotifications () {
+        this.$notifications.clear()
       }
     }
   }
