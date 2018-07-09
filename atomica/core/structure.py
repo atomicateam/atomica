@@ -5,7 +5,7 @@ from .version import version
 from bisect import bisect
 import sciris.core as sc
 import numpy as np
-
+import scipy.interpolate
 
 class SemanticUnknownException(AtomicaException):
     def __init__(self, term, attribute=None, **kwargs):
@@ -92,7 +92,7 @@ class TimeSeries(object):
         self.units = units
         self.assumption = None
 
-        for tx, vx in zip(t, vals):
+        for tx, vx in zip(sc.promotetoarray(t), sc.promotetoarray(vals)):
             self.insert(tx, vx)
 
     @property
@@ -142,9 +142,24 @@ class TimeSeries(object):
         else:
             raise AtomicaException('Item not found')
 
-            # Todo - unit conversion (should it return a new instance?)
-            # Todo - interpolation/expansion
+    def interpolate(self,t2):
+        # Output is guaranteed to be of type np.array
+        t2 = sc.promotetoarray(t2) # Deal with case where user prompts for single time point
+        t1,v1 = self.get_arrays()
 
+        # Remove NaNs
+        idx = ~np.isnan(t1) & ~np.isnan(v1)
+        t1 = t1[idx]
+        v1 = v1[idx]
+
+        # Interpolate
+        v2 = np.zeros(t2.shape)
+        f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
+        v2[(t2>=t1[0]) & (t2<=t1[-1])] = f(t2[(t2>=t1[0]) & (t2<=t1[-1])])
+        v2[t2<t1[0]] = v1[0]
+        v2[t2>t1[-1]] = v1[-1]
+
+        return v2
 
 class KeyData(object):
     """ 
