@@ -113,29 +113,62 @@ class StartTimeAdjustment(Adjustment):
 class ExponentialSpendingAdjustment(Adjustment):
 	# Example of a parametric time-varying budget where multiple parameters
 	# are mapped to spending via a function
-	#
-	# Time-varying spending using an exponential form
-	# The fact that this is a subclass of SpendingAdjustment means that
-	# the `prog_name` attribute is defined. For checking constraints, it's sufficient
-	# to check whether an adjustment is a SpendingAdjustment to decide whether
-	# a particular program is optimizable
-		def __init__(self,prog_name,t,t_0,t_end,p1,a1,a2):
-			Adjustment.__init__(self,name=prog_name)
-			self.prog_name = prog_name
-			self.t = t # Vector of time values instructions are updated at
-			self.t_0 = t_0# non-adjustable parameter
-			self.t_end = t_end # non_adjustable parameter
-			self.adjustables = [Adjustable('p1',initial=p1),Adjustable('a1',initial=a1),Adjustable('a2',initial=a2)] # Would need to specify initial values and limits for these parameters
 
-		# Note - we can use get_initialization from the base class because all of the Adjustables
-		# have explicit initial values. Note that it's essential to provide explicit initial values
-		# for any Adjustable that does not explicitly appear in the instructions. Although in theory,
-		# it would be possible to write a `get_initialization` function that fits the Adjustables
-		# to the initial spending...
+	def __init__(self,prog_name,t,t_0,t_end,p1,a1,a2):
+		Adjustment.__init__(self,name=prog_name)
+		self.prog_name = prog_name
+		self.t = t # Vector of time values instructions are updated at
+		self.t_0 = t_0 # non-adjustable parameter
+		self.t_end = t_end # non_adjustable parameter
+		self.adjustables = [Adjustable('p1',initial_value=p1),Adjustable('a1',initial_value=a1),Adjustable('a2',initial_value=a2)] # Would need to specify initial values and limits for these parameters
 
-		def update_instructions(self,adjustable_values,instructions):
-			# p1*exp(a1*(t-t_0))*exp(b1*(t-t_end))
-			instructions.alloc[self.prog_name][self.t] = adjustable_values[0]*np.exp(adjustable_values[1]*(self.t-self.t_0))*np.exp(adjustable_values[2]*(self.t-self.t_end))
+	# Note - we can use get_initialization from the base class because all of the Adjustables
+	# have explicit initial values. Note that it's essential to provide explicit initial values
+	# for any Adjustable that does not explicitly appear in the instructions. Although in theory,
+	# it would be possible to write a `get_initialization` function that fits the Adjustables
+	# to the initial spending...
+
+	def update_instructions(self,adjustable_values,instructions):
+		# p1*exp(a1*(t-t_0))*exp(b1*(t-t_end))
+		instructions.alloc[self.prog_name][self.t] = adjustable_values[0]*np.exp(adjustable_values[1]*(self.t-self.t_0))*np.exp(adjustable_values[2]*(self.t-self.t_end))
+
+class PairedLinearSpendingAdjustment(Adjustment):
+	# This example shows a parametric time-varying budget reaching more than one program.
+	# A single adjustable corresponding to the rate of change simultaneously acts on
+	# two programs in opposite directions
+
+	def __init__(self, prog_names, t):
+		Adjustment.__init__(self, name=None)
+		assert len(prog_names) == 2, 'PairedLinearSpendingAdjustment needs exactly two program names'
+		self.prog_names = prog_names
+		self.t = t  # [t_start,t_stop] for when to start/stop ramping
+		self.adjustables = [Adjustable('ramp',initial_value=0.0)]
+
+	def update_instructions(self, adjustable_values, instructions):
+
+		gradient = adjustable_values[0]
+		tspan = (self.t[1] - self.t[0])
+
+		if gradient < 0: # We are transferring money from program 2 to program 1
+			available = -instructions.alloc[self.prog_names[1]].get(self.t[0])
+			max_gradient = float(available) / tspan
+			if gradient < max_gradient:
+				gradient = max_gradient
+		else:
+			available = instructions.alloc[self.prog_names[0]].get(self.t[0])
+			max_gradient = float(available) / tspan
+			if gradient > max_gradient:
+				gradient = max_gradient
+
+		funding_change = gradient*tspan # Amount transferred from program 1 to program 2
+
+		# This does not change the amount of funds allocated in the initial year
+		for prog in self.prog_names:
+			instructions.alloc[prog].insert(self.t[0],instructions.alloc[prog].interpolate(self.t[0])[0])
+			instructions.alloc[prog].remove_between(self.t)
+
+		instructions.alloc[self.prog_names[0]].insert(self.t[1],instructions.alloc[self.prog_names[0]].get(self.t[0])-funding_change)
+		instructions.alloc[self.prog_names[1]].insert(self.t[1],instructions.alloc[self.prog_names[1]].get(self.t[0])+funding_change)
 
 
 class Measurable(object):
@@ -237,14 +270,17 @@ class TotalSpendConstraint(Constraint):
 		# hard_constraints['programs'][2020] = ['Program 1','Program 2']
 		# hard_constraints['programs'][2030] = ['Program 2','Program 3']
 		# By convention, an Adjustable affecting a program should store the program's name in the
-		# `prog_name` attribute
+		# `prog_name` attribute. If a program reaches multiple programs, then `prog_name` will be a list
 
 		hard_constraints = {}
 		hard_constraints['programs'] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
 		for adjustment in optimization.adjustments:
 			if hasattr(adjustment, 'prog_name'):
 				for t in list(adjustment.t):
-					hard_constraints['programs'][t].add(adjustment.prog_name)
+					if isinstance(adjustment.prog_name,list):
+						hard_constraints['programs'][t].update(adjustment.prog_name)
+					else:
+						hard_constraints['programs'][t].add(adjustment.prog_name)
 
 		# Now we have a set of times and programs for which we need to get total spend, and
 		# also which programs should be included in the total for that year
@@ -396,8 +432,6 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 
 	# Unpickle model
 	model = pickle.loads(pickled_model)
-
-	print(asd_values)
 
 	# Inject the ASD vector into the instructions
 	optimization.update_instructions(asd_values,model.program_instructions)

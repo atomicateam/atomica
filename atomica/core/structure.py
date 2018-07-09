@@ -142,6 +142,14 @@ class TimeSeries(object):
         else:
             raise AtomicaException('Item not found')
 
+    def remove_between(self, t_remove):
+        # t is a two element vector [min,max] such that
+        # times > min and < max are removed
+        # Note that the endpoints are not included!
+        for tval in sc.dcp(self.t):
+            if t_remove[0] < tval < t_remove[1]:
+                self.remove(tval)
+
     def interpolate(self,t2):
         # Output is guaranteed to be of type np.array
         t2 = sc.promotetoarray(t2) # Deal with case where user prompts for single time point

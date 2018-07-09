@@ -26,7 +26,8 @@ torun = [
 # "standard",
 # "delayed",
 # "gradual",
-'mixed',
+# 'mixed',
+'parametric_paired',
 # "money",
 ]
 
@@ -171,6 +172,35 @@ if 'mixed' in torun:
     plt.plot(t,optimized_spending['Treatment 2'],label='Optimized Treatment 2')
     plt.legend()
     plt.title('Multi-time optimization in 2023 and 2025 (constrained in 2023)')
+
+if 'parametric_paired' in torun:
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',50.),
+                     ('Treatment 2',1.)])
+
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.PairedLinearSpendingAdjustment(['Treatment 1','Treatment 2'],[2020,2025]))
+    measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
+    constraints = None # Total spending constraint is automatically satisfied by the paired parametric adjustment
+    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+
+    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
+    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+
+    t = optimized_result.model.t
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
+    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+
+    plt.figure()
+    plt.plot(t,unoptimized_spending['Treatment 1'],label='Unoptimized Treatment 1')
+    plt.plot(t,optimized_spending['Treatment 1'],label='Optimized Treatment 1')
+    plt.plot(t,unoptimized_spending['Treatment 2'],label='Unoptimized Treatment 2')
+    plt.plot(t,optimized_spending['Treatment 2'],label='Optimized Treatment 2')
+    plt.legend()
+    plt.title('Paired linear funding transfer from 2020-2025')
 
 ### MONEY MINIMIZATION
 # In this example, Treatment 2 is more effective than Treatment 1. If we spend
