@@ -15,7 +15,7 @@ const NotificationStore = {
     // Create a timestamp to serve as a unique ID for the notification.
     notification.timestamp = new Date()
     notification.timestamp.setMilliseconds(notification.timestamp.getMilliseconds() + this.state.length) 
-    console.log('Adding notification: ', notification.timestamp)    
+//    console.log('Adding notification: ', notification.timestamp)    
     this.state.push(notification)
   },
   
