@@ -82,9 +82,7 @@ class SpendingAdjustment(Adjustment):
 		# There is one Adjustable for each time point, so the adjustable_values
 		# are a list of this same length, one value for each time point
 		for i,t in enumerate(self.t):
-			# TODO - Make this overwrite time specific by adjusting the
-			# LHS to correctly index time
-			instructions.alloc[self.prog_name] = adjustable_values[i]
+			instructions.alloc[self.prog_name].insert(t,adjustable_values[i])
 
 	def get_initialization(self,progset,instructions):
 		initialization = []
@@ -164,7 +162,7 @@ class Measurable(object):
 						val += np.sum(var.vals[t_filter])
 		else: # For now, only other possibility is that it's a spending amount
 			alloc = model.progset.get_alloc(model.program_instructions,model.t)
-			val =  alloc[self.measurable_name][t_filter]
+			val =  np.sum(alloc[self.measurable_name][t_filter])
 		if self.fcn:
 			val = self.fcn(val)
 		val *= self.weight
@@ -220,12 +218,17 @@ class TotalSpendConstraint(Constraint):
 	# is optimizable. A program is considered optimizable if an Adjustment reaches that program
 	# at the specified time. Spending is constrained independently at all times when any program
 	# is adjustable.
+	#
+	# Important - this constraint only acts on program spending that is reached by an Adjustment.
 
-	def __init__(self, total_spend = None):
+	def __init__(self, total_spend = None, t = None):
 		# total_spend allows the total spending in a particular year to be explicitly specified
 		# rather than drawn from the initial allocation. This could be useful when using parametric
 		# programs.
+		# This constraint can be set to only apply in certain years.
+
 		self.total_spend = total_spend  # Optionally a number, or a list of tuples of time-spending pairs e.g. [(2018,10000),(2020,200000)]
+		self.t = sc.promotetoarray(t) if t is not None else ()
 
 	def get_hard_constraint(self,optimization, instructions):
 		# First, at each time point where a program overwrite exists, we need to store
@@ -259,7 +262,7 @@ class TotalSpendConstraint(Constraint):
 			else:
 				total_spend = 0.0
 				for prog in progs:
-					total_spend += instructions.alloc[prog] # TODO - index the time correctly here
+					total_spend += instructions.alloc[prog].get(t)
 				hard_constraints['total_spend'][t] = total_spend
 
 		# Finally, for each adjustable, we need to store its upper and lower bounds
@@ -283,7 +286,7 @@ class TotalSpendConstraint(Constraint):
 					if isinstance(adjustment, SpendingAdjustment):
 						idx = np.where(adjustment.t == t)[0][0] # If it is a SpendingAdjustment then set bounds from the appropriate Adjustable
 						adjustable = adjustment.adjustables[idx]
-						hard_constraints['bounds'][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name])  # TODO - Add time index to alloc # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
+						hard_constraints['bounds'][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name].get(t)) # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
 					else:
 						hard_constraints['bounds'][t][adjustment.prog_name] = (0.0, np.inf) # If the Adjustment reaches spending but is not a SpendingAdjustment then do not constrain the alloc
 
@@ -294,24 +297,26 @@ class TotalSpendConstraint(Constraint):
 		penalty = 0.0
 
 		for t, total_spend in hard_constraints['total_spend'].items():
+			if self.t and not t in self.t:
+				continue
+
 			x0 = sc.odict()  # Order matters here
 			bounds = []
 			progs = hard_constraints['programs'][t]  # Programs eligible for constraining at this time
 			LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend}]  # Constrain spend
 
 			for prog in progs:
-				x0[prog] = instructions.alloc[prog] # TODO - Add time index to alloc
+				x0[prog] = instructions.alloc[prog].get(t)
 				bounds.append(hard_constraints['bounds'][t][prog])
 
 			x0_array = np.array(x0.values()).ravel()
 			res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array) ** 2)), x0_array, bounds=bounds,constraints=LinearConstraint)
 			# TODO - If there's a failure to constrain, return np.inf here
 
-			# TODO - If the penalty below doesn't seem to work properly, just return 0.0 to disable
 			penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
 
 			for name, val in zip(x0.keys(), res['x']):
-				instructions.alloc[name] = val # TODO - Add time index to alloc
+				instructions.alloc[name].insert(t,val)
 
 		return penalty
 
@@ -391,6 +396,8 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 
 	# Unpickle model
 	model = pickle.loads(pickled_model)
+
+	print(asd_values)
 
 	# Inject the ASD vector into the instructions
 	optimization.update_instructions(asd_values,model.program_instructions)
