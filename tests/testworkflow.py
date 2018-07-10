@@ -87,12 +87,12 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
+    if test == "sir": args = {"num_pops":1, "num_transfers":1, "num_progs":3,
                               "data_start":2000, "data_end":2015, "data_dt":1.0}
-    elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
-    elif test == "diabetes": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+    elif test == "tb": args = {"num_pops":12, "num_transfers":3, "num_progs":31, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "num_progs":0,
                               "data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test == "service": args = {"num_pops":1, "num_trans":0, "num_progs":0,
+    elif test == "service": args = {"num_pops":1, "num_transfers":0, "num_progs":0,
                               "data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 

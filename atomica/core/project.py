@@ -135,7 +135,7 @@ class Project(object):
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=None, num_trans=None, num_interpop=None, num_progs=None,
+    def create_databook(self, databook_path=None, num_pops=None, num_transfers=None, num_interpops=None, num_progs=None,
                         data_start=None, data_end=None, data_dt=None):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
@@ -143,10 +143,10 @@ class Project(object):
         databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
         if num_pops is not None:
             databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set population amount.
-        if num_trans is not None:
-            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_trans)  # Set transfer amount.
-        if num_interpop is not None:
-            databook_instructions.update_number_of_items(DS.KEY_INTERACTION, num_interpop)  # Set interaction amount.
+        if num_transfers is not None:
+            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_transfers)  # Set transfer amount.
+        if num_interpops is not None:
+            databook_instructions.update_number_of_items(DS.KEY_INTERACTION, num_interpops)  # Set interaction amount.
         if num_progs is not None:
             databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set program amount.
         databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)

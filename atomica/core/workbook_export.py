@@ -1330,6 +1330,189 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
     return filename
 
 
+# %% Databook exports.
+
+class Databook(Workbook):
+    def __init__(self, name, pops, transfers, interpops, comps, characs, pars):
+        super(Databook, self).__init__(name=name)
+        self.name = name
+        self.sheet_names = sc.odict([
+            ("datapage", "Custom Databook Pages"),
+            ("comp", "Compartments"),
+            ("link", "Transitions"),
+            ("charac", "Characteristics"),
+            ("interpop", "Interactions"),
+            ("par", "Parameters")
+        ])
+        self.datapages = datapages
+        self.comps = comps
+        self.characs = characs
+        self.interpops = interpops
+        self.pars = pars
+
+    # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
+    def generate_datapage(self):
+        sheet_headers = sc.odict([
+            ("name", "Datasheet Code Name"),
+            ("label", "Datasheet Title")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.datapages)
+
+    def generate_comp(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("is_source", "Is Source"),
+            ("is_sink", "Is Sink"),
+            ("is_junction", "Is Junction"),
+            ("default_value", "Default Value"),
+            ("setup_weight", "Setup Weight"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order"),
+            ("cascade_stage", "Cascade Stage")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
+
+    def generate_link(self):
+        header_row = 0
+        header_col = 0
+        extra_width = 1  # Stretch autofit columns by this extra amount.
+        # Construct headers representing nodes.
+        node_pos = dict()
+        max_string_lengths = {0: 0}  # Track by column for autofitting purposes.
+        for node_id, node in enumerate(self.comps):
+            position = node_id + 1
+            node_pos[node["name"]] = position
+            self.current_sheet.write(header_row, position, node["name"], self.formats.formats["center_bold"])
+            self.current_sheet.write(position, header_col, node["name"], self.formats.formats["center_bold"])
+            # Track column width updates.
+            max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
+            max_string_lengths[position] = len(str(node["name"]))
+        # Associate existing links between nodes with spreadsheet cell coordinates.
+        coord_contents = dict()
+        for item in self.pars:
+            if "links" in item:
+                for link in item["links"]:
+                    if (node_pos[link[0]], node_pos[link[-1]]) not in coord_contents:
+                        coord_contents[(node_pos[link[0]], node_pos[link[-1]])] = []
+                    coord_contents[(node_pos[link[0]], node_pos[link[-1]])].append(item["name"])
+        # Delay writing cell contents until now, just in case multiple items share the same link.
+        for coord in coord_contents:
+            val = ", ".join(coord_contents[coord])
+            max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])  # Update string widths.
+            self.current_sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]),
+                                     self.formats.formats["center"])
+        # Approximate column autofit.
+        for col in max_string_lengths:
+            self.current_sheet.set_column(col, col, max_string_lengths[col] + extra_width)
+
+    def generate_charac(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("includes", "Components"),
+            ("denominator", "Denominator"),
+            ("default_value", "Default Value"),
+            ("setup_weight", "Setup Weight"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order"),
+            ("cascade_stage", "Cascade Stage")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.characs)
+
+    def generate_interpop(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("default_value", "Default Value")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.interpops)
+
+    def generate_par(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("format", "Format"),
+            ("default_value", "Default Value"),
+            ("min", "Minimum Value"),
+            ("max", "Maximum Value"),
+            ("func", "Function"),
+            ("is_impact", "Is Impact"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
+
+
+def make_framework_file(filename, datapages, comps, characs, interpops, pars, framework=None):
+    """ Generate the Atomica framework file as an Excel workbook. """
+
+    item_types = ["datapage", "comp", "charac", "interpop", "par"]
+    item_type_inputs = [datapages, comps, characs, interpops, pars]
+    # Iterate through item type to set up lists of items and their details stored elementwise in dicts.
+    # This will form the content of the Excel workbook.
+    for j in range(len(item_types)):
+        item_type = item_types[j]
+        item_type_input = item_type_inputs[j]
+
+        item_details = []
+        # If framework is passed in, each element of 'item_details' is just their dictionary of specifications.
+        # Item names must be inserted into each dict though, as they are originally treated as keys for the dict.
+        if framework is not None:
+            item_specs = copy(framework.specs[item_type])
+            # TODO: Shallow copy is safe for specs dictionaries that are not nested.
+            #       This may change, depending on population attribute/options and other potential future item types.
+            for item_key in item_specs:
+                item_specs[item_key].update({"name": item_key})
+                item_details.append(item_specs[item_key])
+
+        # If an integer argument is given, just create (or extend) a list using empty entries.
+        # TODO: Consider pulling item attributes out so that edits do not need to be applied here and for header dict.
+        if sc.isnumber(item_type_input):
+            num_items = item_type_input
+            # Keep if clause out of 'for' loops.
+            if item_type == "datapage":
+                for k in range(num_items):
+                    item_details.append({"name": "sh_{0}".format(k), "label": "Custom Databook Sheet {0}".format(k)})
+            elif item_type == "comp":
+                for k in range(num_items):
+                    item_details.append({"name": "comp_{0}".format(k), "label": "Compartment {0}".format(k),
+                                         "is_source": False, "is_sink": False, "is_junction": False,
+                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
+                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
+            elif item_type == "charac":
+                for k in range(num_items):
+                    # TODO: Maybe consider cross-referencing 'includes' to comps/characs to exemplify default.
+                    item_details.append({"name": "charac_{0}".format(k), "label": "Characteristic {0}".format(k),
+                                         "includes": list(), "denominator": None,
+                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
+                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
+            elif item_type == "interpop":
+                for k in range(num_items):
+                    item_details.append({"name": "interpop_{0}".format(k), "label": "Interaction {0}".format(k),
+                                         "default_value": 1})
+            elif item_type == "par":
+                for k in range(num_items):
+                    item_details.append({"name": "par_{0}".format(k), "label": "Parameter {0}".format(k),
+                                         "format": None, "default_value": None, "min": None, "max": None,
+                                         "can_calibrate": True, "datapage": None, "datapage_order": None})
+
+        # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
+        #       Alternatively, just disable the else case if manual spec construction is redundant.
+        else:
+            item_details.extend(item_type_input)
+        item_type_inputs[j] = item_details
+
+    # Construct the actual workbook from generated content.
+    book = FrameworkFile(filename, *item_type_inputs)
+    book.create(filename)
+
+    return filename
+
+
 # %% Program spreadsheet exports.
 
 class ProgramSpreadsheet(Workbook):

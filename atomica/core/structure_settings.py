@@ -236,7 +236,7 @@ class BaseStructuralSettings(object):
     KEY_TRANSITION = "link"
     KEY_PARAMETER = "par"
     KEY_POPULATION = "pop"
-    KEY_TRANSFER = "trans"
+    KEY_TRANSFER = "transfer"
     KEY_INTERACTION = "interpop"
     KEY_PROGRAM = "prog"
     KEY_DATAPAGE = "datapage"
