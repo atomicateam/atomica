@@ -24,12 +24,12 @@ test='sir'
 
 torun = [
 "standard",
-# "standard_mindeaths",
-# "delayed",
-# "gradual",
-# 'mixed',
-# 'parametric_paired',
-# "money",
+"standard_mindeaths",
+"delayed",
+"gradual",
+'mixed',
+'parametric_paired',
+"money",
 ]
 
 
