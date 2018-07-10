@@ -23,11 +23,12 @@ import matplotlib.pyplot as plt
 test='sir'
 
 torun = [
-# "standard",
+"standard",
+# "standard_mindeaths",
 # "delayed",
 # "gradual",
 # 'mixed',
-'parametric_paired',
+# 'parametric_paired',
 # "money",
 ]
 
@@ -63,6 +64,34 @@ if 'standard' in torun:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
+    au.plot_series(d, axis="results")
+
+### STANDARD OUTCOME OPTIMIZATION, MINIMIZE DEATHS
+# In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
+# mostly allocated to Treatment 1, and the result of optimization should be that the budget gets
+# reallocated to Treatment 2
+if 'standard_mindeaths' in torun:
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',50.),
+                     ('Treatment 2', 1.)])
+
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
+    measurables = au.MinimizeMeasurable(':dead',2030)
+    constraints = au.TotalSpendConstraint() # Cap total spending in all years
+    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+
+    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
+    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+
+    for adjustable in adjustments:
+        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
+
+    d = au.PlotData([unoptimized_result, optimized_result], outputs=[':dead'],project=P)
     au.plot_series(d, axis="results")
 
 ### DELAYED OUTCOME OPTIMIZATION
