@@ -1,17 +1,26 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 2/2/18 (gchadder3)
+Last update: 7/5/18 (gchadder3)
 -->
 
 <template>
   <div :class="{'nav-open': $sidebar.showSidebar}">
     <simplert></simplert>
     <router-view></router-view>
+    <vue-progress-bar></vue-progress-bar>
     <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
     <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">
       <ul class="nav navbar-nav">
         <!-- Below requires a userService -->
+        <li>
+          <a href="#" class="btn-rotate">
+            <i class="ti-ruler-pencil"></i>
+            <p>
+              Framework: <span>{{ activeFrameworkName }}</span>
+            </p>
+          </a>
+        </li>
         <li>
           <a href="#" class="btn-rotate">
             <i class="ti-view-grid"></i>
@@ -40,6 +49,19 @@ export default {
     // Health prior function
     currentUser: () => {
       return userService.currentUser()
+    },
+
+    activeFrameworkName() {
+      if (this.$store.state.activeProject.project === undefined) {
+        return 'none'
+      } else {
+        return this.$store.state.activeProject.project.name + "'s Framework"
+      }    
+/*      if (this.$store.state.activeFramework.framework === undefined) {
+        return 'none'
+      } else {
+        return this.$store.state.activeFramework.framework.name
+      } */
     },
 
     activeProjectName() {

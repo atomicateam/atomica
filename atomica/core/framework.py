@@ -244,14 +244,21 @@ class ProjectFramework(CoreProjectStructure):
 
         write_workbook(workbook_path=path, instructions=framework_instructions,
                        workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        return path
 
     def write_to_file(self, filename, data=None, instructions=None):
         """ Export a framework to file. """
         # TODO: modify write_workbook so it can write framework specs to an excel file???
         pass
 
-    def read_from_file(self, filepath=None):
+    def read_from_file(self, filepath=None, overwrite=False):
         """ Import a framework from file. """
+        if overwrite:
+            print('Overwriting...')
+            self.specs = sc.odict()
+            self.semantics = sc.odict()
+            self.filter = dict()
+            self.init_specs()
         read_workbook(workbook_path=filepath, framework=self,
                       workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
         self.workbook_load_date = sc.today()

@@ -3,7 +3,7 @@
 
 from setuptools import setup, find_packages
 
-with open("./atomica/version.py", "r") as f:
+with open("./atomica/core/version.py", "r") as f:
     version_file = {}
     exec(f.read(), version_file)
     version = version_file["version"]
@@ -22,7 +22,7 @@ CLASSIFIERS = [
 setup(
     name='atomica',
     version=version,
-    author='David J. Kedziora, Robyn M. Stuart',
+    author='David J. Kedziora, Robyn M. Stuart, Romesh Abeysuriya, Cliff C. Kerr',
     author_email='info@optimamodel.com',
     description='Software package for the optimization of complex Markov chain models',
     url='http://github.com/optimamodel/atomica',

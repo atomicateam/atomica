@@ -154,10 +154,12 @@ class Project(object):
         write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
                        instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True, overwrite=False):
         """ Load a data spreadsheet. """
+        if overwrite: data = ProjectData() # Allow overwrite
+        else:         data = self.data
         full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=self.data,
+        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=data,
                                  workbook_type=SS.STRUCTURE_KEY_DATA)
 
         self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded
@@ -367,7 +369,7 @@ class Project(object):
 
         return result
 
-    def calibrate(self, parset, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
         """
         Method to perform automatic calibration.
@@ -395,6 +397,7 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
+        if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
             adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()

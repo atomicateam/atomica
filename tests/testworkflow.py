@@ -20,9 +20,9 @@ import numpy as np
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-test = "sir"
-# test = "tb"
-# test = "diabetes"
+#test = "sir"
+test = "tb"
+#test = "diabetes"
 # test = "service"
 
 torun = [
@@ -35,19 +35,18 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
+'plotcascade',
 "makeprogramspreadsheet",
 "loadprogramspreadsheet",
-# "runsim_programs",
-"outcome_optimization",
-"money_optimization",
-#"makeplots",
-#"export",
-#"listspecs",
-#"manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-#"saveproject",
-#"loadproject",
+"runsim_programs",
+# "makeplots",
+# "export",
+# "listspecs",
+# "manualcalibrate",
+ "autocalibrate",
+# "parameterscenario",
+# "saveproject",
+# "loadproject",
 ]
 
 # Define plotting variables in case plots are generated
@@ -126,7 +125,11 @@ if "runsim" in torun:
         P.run_sim(parset="default", result_name="default")
         
         cascade = P.results[-1].get_cascade_vals(project=P)
-            
+
+if 'plotcascade' in torun:
+    au.plot_cascade(project=P, year=2020)
+    
+    
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
@@ -268,17 +271,17 @@ if "manualcalibrate" in torun:
     au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
-    # Manual fit was not good enough according to plots, so run autofit.
-    if test == "sir":
-        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
-        adjustments = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
-        # New name argument set to old name to do in-place calibration.
-        P.calibrate(parset="default", new_name="auto", adjustments=adjustments, measurables=measurables, max_time=30)
-    if test == "tb":
-        # Shortcut for calibration measurables.
-        adjustments = [("foi", "15-64", 0.0, 3.0)]
-        P.calibrate(parset="default", new_name="auto", adjustments=adjustments, measurables=["ac_inf"], max_time=30)
+#    if test == "sir":
+#        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
+#        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+#        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
+#        # New name argument set to old name to do in-place calibration.
+#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+#    if test == "tb":
+#        # Shortcut for calibration measurables.
+#        adjustables = [("foi", "15-64", 0.0, 3.0)]
+#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+    P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
@@ -316,76 +319,12 @@ if "parameterscenario" in torun:
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
 
-if "outcome_optimization" in torun:
-    # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
-    # mostly allocated to Treatment 1, and the result of optimization should be that the budget gets
-    # reallocated to Treatment 2
-    if test=='tb':
-        raise NotImplemented
+if "runsimprogs" in torun:
+    from atomica.core.programs import ProgramInstructions
 
-    alloc = sc.odict([('Risk avoidance',0.),
-                     ('Harm reduction 1',0.),
-                     ('Harm reduction 2',0.),
-                     ('Treatment 1',50.),
-                     ('Treatment 2', 1.)])
-
-    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-    adjustments = []
-    adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
-    adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
-    measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
-    constraints = au.TotalSpendConstraint() # Cap total spending in all years
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
-
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
-
-    for adjustable in adjustments:
-        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name],optimized_result.model.program_instructions.alloc[adjustable.name])) # TODO - add time to alloc
-
-    d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
-    au.plot_series(d, axis="results")
-
-if "money_optimization" in torun:
-    # In this example, Treatment 2 is more effective than Treatment 1. If we spend
-    # $50 on Treatment 2, then there are 728.01 people alive in 2030. Since Treatment 2 is more
-    # effective, the cheapest way to achieve at least 728.01 people alive in 2030 is to
-    # spend only ~$50 on Treatment 2. So to do this optimization, we start by spending $100 on both
-    # Treatment 1 and Treatment 2 and demonstrate that money optimization where we minimize total
-    # spend subject to the constraint of the total people alive being at least 728.01
-    if test=='tb':
-        raise NotImplemented
-
-    alloc = sc.odict([('Risk avoidance',0.),
-                     ('Harm reduction 1',0.),
-                     ('Harm reduction 2',0.),
-                     ('Treatment 1',50.),
-                     ('Treatment 2', 60.)])
-
-    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-
-    adjustments = []
-    adjustments.append(au.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.)) # We can adjust Treatment 1
-    adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.)) # We can adjust Treatment 2
-
-    measurables = []
-    measurables.append(au.AtLeastMeasurable('ch_all',2030,728.01)) # Need at least 728.01 people in 2030
-    measurables.append(au.MinimizeMeasurable('Treatment 1',2020)) # Minimize 2020 spending on Treatment 1
-    measurables.append(au.MinimizeMeasurable('Treatment 2',2020)) # Minimize 2020 spending on Treatment 2
-
-    constraints = None  # No extra constraints aside from individual bounds
-
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
-
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
-
-    for adjustable in adjustments:
-        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name],optimized_result.model.program_instructions.alloc[adjustable.name])) # TODO - add time to alloc
-
-    d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
-    au.plot_series(d, axis="results")
-
+    # instructions = ProgramInstructions(progset=P.progsets["default"])
+    P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
+    
 if "saveproject" in torun:
     P.save(tmpdir+test+".prj")
 

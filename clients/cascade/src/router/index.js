@@ -11,8 +11,9 @@ import DashboardLayout from '@/components/app/DashboardLayout.vue'
 import NotFound from '@/components/generic/NotFoundPage.vue'
 import FrameworksPage from '@/components/app/FrameworksPage'
 import ProjectsPage from '@/components/app/ProjectsPage'
-import BaselinePage from '@/components/app/BaselinePage'
-import AnalysisPage from '@/components/app/AnalysisPage'
+import CalibrationPage from '@/components/app/CalibrationPage'
+import ScenariosPage from '@/components/app/ScenariosPage'
+import OptimizationsPage from '@/components/app/OptimizationsPage'
 import LoginPage from '@/components/app/LoginPage'
 import MainAdminPage from '@/components/app/MainAdminPage'
 import RegisterPage from '@/components/app/RegisterPage'
@@ -40,7 +41,7 @@ export default new Router({
     {
       path: '/',
       component: DashboardLayout,
-      redirect: '/projects',
+      redirect: '/frameworks',
       children: [
         {
           path: 'frameworks',
@@ -53,14 +54,19 @@ export default new Router({
           component: ProjectsPage
         },
         {
-          path: 'baseline',
+          path: 'calibration',
           name: 'Baseline',
-          component: BaselinePage
+          component: CalibrationPage
         },
         {
-          path: 'analysis',
-          name: 'Analysis',
-          component: AnalysisPage
+          path: 'scenarios',
+          name: 'Create scenarios',
+          component: ScenariosPage
+        },
+        {
+          path: 'optimizations',
+          name: 'Create optimizations',
+          component: OptimizationsPage
         },
         {
           path: 'mainadmin',

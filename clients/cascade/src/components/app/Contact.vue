@@ -6,7 +6,7 @@ Last update: 2018-03-25
 
 <template>
   <div class="SitePage">
-  	<p>You can reach us at <a href="mailto:info@optimamodel.com">info@optimamodel.com</a>.</p>
+  	<p>You can reach us at <a href="mailto:info@cascade.tools">info@cascade.tools</a>.</p>
   </div>
 </template>
 

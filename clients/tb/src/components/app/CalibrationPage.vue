@@ -210,8 +210,6 @@ Last update: 2018-05-29
               horizontalAlign: 'center',
             });
         })
-
-
       },
 
       clearGraphs() {

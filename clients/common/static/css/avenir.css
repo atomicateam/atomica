@@ -1,0 +1,6 @@
+@font-face {
+  font-family: 'Avenir';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Avenir'), local('Avenir-Medium'), url(../fonts/Avenir-Medium.ttf) format('truetype');
+}
