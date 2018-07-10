@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-05-29
+Last update: 2018-07-05
 -->
 
 <template>
@@ -223,9 +223,15 @@ Last update: 2018-05-29
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
 
+        // Start the loading bar.
+        this.$Progress.start()
+        
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('set_y_factors', [project_id, this.parList, this.cascadeYear])
           .then(response => {
+            // Finish the loading bar.
+            this.$Progress.finish()
+            
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
@@ -248,6 +254,9 @@ Last update: 2018-05-29
             }
           })
           .catch(error => {
+            // Fail the loading bar.
+            this.$Progress.fail()
+            
             // Pull out the error message.
             this.serverresponse = 'There was an error: ' + error.message
 

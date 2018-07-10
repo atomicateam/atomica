@@ -13,6 +13,7 @@ from zipfile import ZipFile
 from flask_login import current_user
 from mpld3 import fig_to_dict as make_mpld3_graph_dict
 import uuid
+import time
 
 import sciris.corelib.fileio as fileio
 import sciris.weblib.user as user
@@ -1063,3 +1064,16 @@ def export_results(project_id, resultset=-1):
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
+
+##################################################################################
+#%% Miscellaneous RPCs
+##################################################################################
+
+@register_RPC(validation_type='nonanonymous user')    
+def simulate_slow_rpc(sleep_secs, succeed=True):
+    time.sleep(sleep_secs)
+    
+    if succeed:
+        return 'success'
+    else:
+        return {'error': 'failure'}

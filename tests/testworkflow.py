@@ -19,7 +19,7 @@ import sciris.core as sc
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 
-#test = "sir"
+# test = "sir"
 test = "tb"
 #test = "diabetes"
 # test = "service"
@@ -274,6 +274,10 @@ if "autocalibrate" in torun:
 #        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
+    if test == "sir":
+        outputs = ["ch_prev"]
+    if test == "tb":
+        outputs = ["ac_inf"]
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
     

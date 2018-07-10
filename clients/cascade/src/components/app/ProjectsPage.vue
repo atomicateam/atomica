@@ -501,7 +501,28 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('openProject() called for ' + matchProject.project.name)
+          
 
+// Code for testing loading bar.  
+/*      this.$Progress.start()      // with this (default) setting, the bar takes about 7 sec. to fully progress        
+//      this.$Progress.start(9700)  // with this setting, about 75% of the bar is progressed in 5 min.
+      this.$Progress.setTransition(
+        {
+          speed: '0.2s',
+          opacity: '0.6s',
+          termination: 1000  // milliseconds that bar stays around after finish or fail
+        })
+        
+//      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
+      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
+      .then(response => { 
+        this.$Progress.finish()         
+      })
+      .catch(error => {
+        this.$Progress.fail()
+      }) */
+      
+      
       // Set the active project to the matched project.
       this.$store.commit('newActiveProject', matchProject)
 
