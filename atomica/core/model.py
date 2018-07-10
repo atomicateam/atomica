@@ -99,6 +99,16 @@ class Compartment(Variable):
         self.outlinks = [objs[x] for x in self.outlinks]
         self.inlinks = [objs[x] for x in self.inlinks]
 
+    @property
+    def outflow(self):
+        # Return the outflow at each timestep - for a junction, this is equal to the number
+        # of people that were in the junction
+        x = np.zeros(self.t.shape)
+        if self.outlinks:
+            for link in self.outlinks:
+                x += link.vals
+        return x
+
     def expected_duration(self, ti=None):
         # Returns the expected number of years that an individual is expected to remain
         # in this compartment for, if the outgoing flow rates are maintained
