@@ -815,40 +815,6 @@ def write_workbook(workbook_path, framework=None, data=None, instructions=None, 
 # %% COMPLETELY INDEPENDENT CODE TO MAKE A SPREADSHEET FOR PROGRAMS.
 # TODO: reconcile these!!!
 
-
-def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=None, verbose=2):
-    """ Generate the Atomica programs spreadsheet """
-
-    # An integer argument is given: just create a pops dict using empty entries
-    if sc.isnumber(pops):
-        npops = pops
-        pops = []  # Create real pops list
-        for p in range(npops):
-            pops.append('Pop %i' % (p + 1))
-
-    if sc.isnumber(comps):
-        ncomps = comps
-        comps = []  # Create real compartments list
-        for p in range(ncomps):
-            pops.append('Comp %i' % (p + 1))
-
-    if sc.isnumber(progs):
-        nprogs = progs
-        progs = []  # Create real pops list
-        for p in range(nprogs):
-            progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
-
-            # Ensure years are integers
-    if datastart is None: datastart = 2015.  # TEMP
-    if dataend is None:   dataend = 2018.  # TEMP
-    datastart, dataend = int(datastart), int(dataend)
-
-    book = ProgramSpreadsheet(filename, pops, comps, progs, pars, datastart, dataend)
-    book.create(filename)
-
-    return filename
-
-
 class AtomicaFormats:
     """ the formats used in the spreadsheet """
     darkgray = '#413839'
@@ -1112,25 +1078,277 @@ class AtomicaContent(object):
                 return [self.row_format for name in self.row_names for level in self.row_levels]
 
 
-class ProgramSpreadsheet:
-    def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None, verbose=0):
+# %% Base class for framework file, databook and progbook.
+
+class Workbook(object):
+    def __init__(self, name):
+        self.name = name
+        self.descriptor = "blank workbook"
+        self.sheet_names = sc.odict()
+
+        self.book = None
+        self.sheets = None
+        self.formats = None
+        self.current_sheet = None
+
+    def create(self, path):
+        logger.info("Creating '{0}' '{1}'".format(self.descriptor, path))
+        self.book = xw.Workbook(path)
+        self.formats = AtomicaFormats(self.book)
+        self.sheets = {}
+        for name in self.sheet_names:
+            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
+            self.current_sheet = self.sheets[name]
+            getattr(self, "generate_{0}".format(name))()  # This calls the corresponding page generating function.
+        self.book.close()
+
+
+# %% Framework file exports.
+
+def make_table_detail_columns(file_object, headers, content):
+    """
+    Construct a table for the current sheet of 'file_object' that allows items and their attributes to be detailed.
+    Consider each column to bey keyed with an attribute key.
+    Arg 'file_object' must be an instance of FrameworkFile with...
+        - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
+        - 'formats' attribute referencing an AtomicaFormats instance.
+    Arg 'headers' must be an odict mapping attribute keys with header strings.
+    Arg 'content' must be a list of dicts, each mapping the same attribute keys with values per exported item.
+    """
+    sheet = file_object.current_sheet
+    formats = file_object.formats.formats
+    extra_width = 1  # Stretch autofit columns by this extra amount.
+    for attribute_id, attribute in enumerate(headers):
+        header_row = 0
+        # Note char length of headers for autofit purposes.
+        max_string_length = len(str(headers[attribute]))
+        # Write headers.
+        col = attribute_id
+        sheet.write(header_row, col, headers[attribute], formats["center_bold"])
+        for item_id, item in enumerate(content):
+            # If item details are not specified for a column attribute, move to next item.
+            if attribute not in item:
+                continue
+            else:
+                val = item[attribute]
+            # Convert unusual content types to strings.
+            if isinstance(val, list):
+                val = ", ".join(val)
+            elif val is True:
+                val = "y"
+            elif val is False:
+                val = "n"
+            # Update maximum char length of column if necessary.
+            max_string_length = max(len(str(val)), max_string_length)
+            # Write content.
+            row = item_id + 1
+            sheet.write(row, col, val, formats["center"])
+        # Approximate column autofit.
+        sheet.set_column(col, col, max_string_length + extra_width)
+
+
+class FrameworkFile(Workbook):
+    def __init__(self, name, datapages, comps, characs, interpops, pars):
+        super(FrameworkFile, self).__init__(name=name)
+        self.name = name
         self.sheet_names = sc.odict([
-            ('targeting', 'Populations & programs'),
-            ('costcovdata', 'Program spend data'),
+            ("datapage", "Custom Databook Pages"),
+            ("comp", "Compartments"),
+            ("link", "Transitions"),
+            ("charac", "Characteristics"),
+            ("interpop", "Interactions"),
+            ("par", "Parameters")
+        ])
+        self.datapages = datapages
+        self.comps = comps
+        self.characs = characs
+        self.interpops = interpops
+        self.pars = pars
+
+        self.book = None
+        self.sheets = None
+        self.formats = None
+        self.current_sheet = None
+
+    # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
+    def generate_datapage(self):
+        sheet_headers = sc.odict([
+            ("name", "Datasheet Code Name"),
+            ("label", "Datasheet Title")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.datapages)
+
+    def generate_comp(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("is_source", "Is Source"),
+            ("is_sink", "Is Sink"),
+            ("is_junction", "Is Junction"),
+            ("default_value", "Default Value"),
+            ("setup_weight", "Setup Weight"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order"),
+            ("cascade_stage", "Cascade Stage")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
+
+    def generate_link(self):
+        header_row = 0
+        header_col = 0
+        extra_width = 1  # Stretch autofit columns by this extra amount.
+        # Construct headers representing nodes.
+        node_pos = dict()
+        max_string_lengths = {0: 0}  # Track by column for autofitting purposes.
+        for node_id, node in enumerate(self.comps):
+            position = node_id + 1
+            node_pos[node["name"]] = position
+            self.current_sheet.write(header_row, position, node["name"], self.formats.formats["center_bold"])
+            self.current_sheet.write(position, header_col, node["name"], self.formats.formats["center_bold"])
+            # Track column width updates.
+            max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
+            max_string_lengths[position] = len(str(node["name"]))
+        # Associate existing links between nodes with spreadsheet cell coordinates.
+        coord_contents = dict()
+        for item in self.pars:
+            if "links" in item:
+                for link in item["links"]:
+                    if (node_pos[link[0]], node_pos[link[-1]]) not in coord_contents:
+                        coord_contents[(node_pos[link[0]], node_pos[link[-1]])] = []
+                    coord_contents[(node_pos[link[0]], node_pos[link[-1]])].append(item["name"])
+        # Delay writing cell contents until now, just in case multiple items share the same link.
+        for coord in coord_contents:
+            val = ", ".join(coord_contents[coord])
+            max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])  # Update string widths.
+            self.current_sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]),
+                                     self.formats.formats["center"])
+        # Approximate column autofit.
+        for col in max_string_lengths:
+            self.current_sheet.set_column(col, col, max_string_lengths[col] + extra_width)
+
+    def generate_charac(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("includes", "Components"),
+            ("denominator", "Denominator"),
+            ("default_value", "Default Value"),
+            ("setup_weight", "Setup Weight"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order"),
+            ("cascade_stage", "Cascade Stage")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.characs)
+
+    def generate_interpop(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("default_value", "Default Value")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.interpops)
+
+    def generate_par(self):
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("format", "Format"),
+            ("default_value", "Default Value"),
+            ("min", "Minimum Value"),
+            ("max", "Maximum Value"),
+            ("func", "Function"),
+            ("is_impact", "Is Impact"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
+
+
+def make_framework_file(filename, datapages, comps, characs, interpops, pars, framework=None):
+    """ Generate the Atomica framework file as an Excel workbook. """
+
+    item_types = ["datapage", "comp", "charac", "interpop", "par"]
+    item_type_inputs = [datapages, comps, characs, interpops, pars]
+    # Iterate through item type to set up lists of items and their details stored elementwise in dicts.
+    # This will form the content of the Excel workbook.
+    for j in range(len(item_types)):
+        item_type = item_types[j]
+        item_type_input = item_type_inputs[j]
+
+        item_details = []
+        # If framework is passed in, each element of 'item_details' is just their dictionary of specifications.
+        # Item names must be inserted into each dict though, as they are originally treated as keys for the dict.
+        if framework is not None:
+            item_specs = copy(framework.specs[item_type])
+            # TODO: Shallow copy is safe for specs dictionaries that are not nested.
+            #       This may change, depending on population attribute/options and other potential future item types.
+            for item_key in item_specs:
+                item_specs[item_key].update({"name": item_key})
+                item_details.append(item_specs[item_key])
+
+        # If an integer argument is given, just create (or extend) a list using empty entries.
+        # TODO: Consider pulling item attributes out so that edits do not need to be applied here and for header dict.
+        if sc.isnumber(item_type_input):
+            num_items = item_type_input
+            # Keep if clause out of 'for' loops.
+            if item_type == "datapage":
+                for k in range(num_items):
+                    item_details.append({"name": "sh_{0}".format(k), "label": "Custom Databook Sheet {0}".format(k)})
+            elif item_type == "comp":
+                for k in range(num_items):
+                    item_details.append({"name": "comp_{0}".format(k), "label": "Compartment {0}".format(k),
+                                         "is_source": False, "is_sink": False, "is_junction": False,
+                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
+                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
+            elif item_type == "charac":
+                for k in range(num_items):
+                    # TODO: Maybe consider cross-referencing 'includes' to comps/characs to exemplify default.
+                    item_details.append({"name": "charac_{0}".format(k), "label": "Characteristic {0}".format(k),
+                                         "includes": list(), "denominator": None,
+                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
+                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
+            elif item_type == "interpop":
+                for k in range(num_items):
+                    item_details.append({"name": "interpop_{0}".format(k), "label": "Interaction {0}".format(k),
+                                         "default_value": 1})
+            elif item_type == "par":
+                for k in range(num_items):
+                    item_details.append({"name": "par_{0}".format(k), "label": "Parameter {0}".format(k),
+                                         "format": None, "default_value": None, "min": None, "max": None,
+                                         "can_calibrate": True, "datapage": None, "datapage_order": None})
+
+        # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
+        #       Alternatively, just disable the else case if manual spec construction is redundant.
+        else:
+            item_details.extend(item_type_input)
+        item_type_inputs[j] = item_details
+
+    # Construct the actual workbook from generated content.
+    book = FrameworkFile(filename, *item_type_inputs)
+    book.create(filename)
+
+    return filename
+
+
+# %% Program spreadsheet exports.
+
+class ProgramSpreadsheet(Workbook):
+    def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None):
+        super(ProgramSpreadsheet, self).__init__(name=name)
+        self.descriptor = "progbook"
+        self.sheet_names = sc.odict([
             ('covoutdata', 'Program effects'),
         ])
-        self.name = name
+
         self.pops = pops
         self.comps = comps
         self.progs = progs
         self.pars = pars
         self.data_start = data_start
         self.data_end = data_end
-        self.verbose = verbose
-        self.book = None
-        self.sheets = None
-        self.formats = None
-        self.current_sheet = None
         self.prog_range = None
         self.ref_pop_range = None
         self.years_range = range(int(self.data_start), int(self.data_end + 1))
@@ -1210,265 +1428,41 @@ class ProgramSpreadsheet:
         the_range = TitledRange(self.current_sheet, current_row, content)
         current_row = the_range.emit(self.formats, rc_title_align='left')
 
-    def create(self, path):
-        if self.verbose >= 1:
-            print("""Creating program spreadsheet %s with parameters:
-            npops = %s, nprogs = %s, data_start = %s, data_end = %s""" % \
-                  (path, self.npops, self.nprogs, self.data_start, self.data_end))
-        self.book = xw.Workbook(path)
-        self.formats = AtomicaFormats(self.book)
-        self.sheets = {}
-        for name in self.sheet_names:
-            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
-            self.current_sheet = self.sheets[name]
-            getattr(self, "generate_%s" % name)()  # this calls the corresponding generate function
-        self.book.close()
 
+def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=None, verbose=2):
+    """ Generate the Atomica programs spreadsheet """
 
-# %% Try something different for framework file and databook.
+    # An integer argument is given: just create a pops dict using empty entries
+    if sc.isnumber(pops):
+        npops = pops
+        pops = []  # Create real pops list
+        for p in range(npops):
+            pops.append('Pop %i' % (p + 1))
 
-def make_table_detail_columns(file_object, headers, content):
-    """
-    Construct a table for the current sheet of 'file_object' that allows items and their attributes to be detailed.
-    Consider each column to bey keyed with an attribute key.
-    Arg 'file_object' must be an instance of FrameworkFile with...
-        - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
-        - 'formats' attribute referencing an AtomicaFormats instance.
-    Arg 'headers' must be an odict mapping attribute keys with header strings.
-    Arg 'content' must be a list of dicts, each mapping the same attribute keys with values per exported item.
-    """
-    sheet = file_object.current_sheet
-    formats = file_object.formats.formats
-    extra_width = 1     # Stretch autofit columns by this extra amount.
-    for attribute_id, attribute in enumerate(headers):
-        header_row = 0
-        # Note char length of headers for autofit purposes.
-        max_string_length = len(str(headers[attribute]))
-        # Write headers.
-        col = attribute_id
-        sheet.write(header_row, col, headers[attribute], formats["center_bold"])
-        for item_id, item in enumerate(content):
-            # If item details are not specified for a column attribute, move to next item.
-            if attribute not in item:
-                continue
-            else:
-                val = item[attribute]
-            # Convert unusual content types to strings.
-            if isinstance(val, list):
-                val = ", ".join(val)
-            elif val is True:
-                val = "y"
-            elif val is False:
-                val = "n"
-            # Update maximum char length of column if necessary.
-            max_string_length = max(len(str(val)), max_string_length)
-            # Write content.
-            row = item_id + 1
-            sheet.write(row, col, val, formats["center"])
-        # Approximate column autofit.
-        sheet.set_column(col, col, max_string_length + extra_width)
+    if sc.isnumber(comps):
+        ncomps = comps
+        comps = []  # Create real compartments list
+        for p in range(ncomps):
+            pops.append('Comp %i' % (p + 1))
 
+    if sc.isnumber(progs):
+        nprogs = progs
+        progs = []  # Create real pops list
+        for p in range(nprogs):
+            progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
 
-# TODO: Consider polymorphism.
-class FrameworkFile:
-    def __init__(self, name, datapages, comps, characs, interpops, pars):
-        self.sheet_names = sc.odict([
-            ("datapage", "Custom Databook Pages"),
-            ("comp", "Compartments"),
-            ("link", "Transitions"),
-            ("charac", "Characteristics"),
-            ("interpop", "Interactions"),
-            ("par", "Parameters")
-        ])
-        self.name = name
-        self.datapages = datapages
-        self.comps = comps
-        self.characs = characs
-        self.interpops = interpops
-        self.pars = pars
+            # Ensure years are integers
+    if datastart is None: datastart = 2015.  # TEMP
+    if dataend is None:   dataend = 2018.  # TEMP
+    datastart, dataend = int(datastart), int(dataend)
 
-        self.book = None
-        self.sheets = None
-        self.formats = None
-
-        self.current_sheet = None
-        self.datapage_range = None
-
-    # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
-    def generate_datapage(self):
-        sheet_headers = sc.odict([
-            ("name", "Datasheet Code Name"),
-            ("label", "Datasheet Title")
-        ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.datapages)
-
-    def generate_comp(self):
-        sheet_headers = sc.odict([
-            ("name", "Code Name"),
-            ("label", "Display Name"),
-            ("is_source", "Is Source"),
-            ("is_sink", "Is Sink"),
-            ("is_junction", "Is Junction"),
-            ("default_value", "Default Value"),
-            ("setup_weight", "Setup Weight"),
-            ("can_calibrate", "Can Calibrate"),
-            ("datapage", "Databook Page"),
-            ("datapage_order", "Databook Order"),
-            ("cascade_stage", "Cascade Stage")
-        ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
-
-    def generate_link(self):
-        header_row = 0
-        header_col = 0
-        extra_width = 1  # Stretch autofit columns by this extra amount.
-        # Construct headers representing nodes.
-        node_pos = dict()
-        max_string_lengths = {0: 0}     # Track by column for autofitting purposes.
-        for node_id, node in enumerate(self.comps):
-            position = node_id + 1
-            node_pos[node["name"]] = position
-            self.current_sheet.write(header_row, position, node["name"], self.formats.formats["center_bold"])
-            self.current_sheet.write(position, header_col, node["name"], self.formats.formats["center_bold"])
-            # Track column width updates.
-            max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
-            max_string_lengths[position] = len(str(node["name"]))
-        # Associate existing links between nodes with spreadsheet cell coordinates.
-        coord_contents = dict()
-        for item in self.pars:
-            if "links" in item:
-                for link in item["links"]:
-                    if (node_pos[link[0]], node_pos[link[-1]]) not in coord_contents:
-                        coord_contents[(node_pos[link[0]], node_pos[link[-1]])] = []
-                    coord_contents[(node_pos[link[0]], node_pos[link[-1]])].append(item["name"])
-        # Delay writing cell contents until now, just in case multiple items share the same link.
-        for coord in coord_contents:
-            val = ", ".join(coord_contents[coord])
-            max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])   # Update string widths.
-            self.current_sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]),
-                                     self.formats.formats["center"])
-        # Approximate column autofit.
-        for col in max_string_lengths:
-            self.current_sheet.set_column(col, col, max_string_lengths[col] + extra_width)
-
-    def generate_charac(self):
-        sheet_headers = sc.odict([
-            ("name", "Code Name"),
-            ("label", "Display Name"),
-            ("includes", "Components"),
-            ("denominator", "Denominator"),
-            ("default_value", "Default Value"),
-            ("setup_weight", "Setup Weight"),
-            ("can_calibrate", "Can Calibrate"),
-            ("datapage", "Databook Page"),
-            ("datapage_order", "Databook Order"),
-            ("cascade_stage", "Cascade Stage")
-        ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.characs)
-
-    def generate_interpop(self):
-        sheet_headers = sc.odict([
-            ("name", "Code Name"),
-            ("label", "Display Name"),
-            ("default_value", "Default Value")
-        ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.interpops)
-
-    def generate_par(self):
-        sheet_headers = sc.odict([
-            ("name", "Code Name"),
-            ("label", "Display Name"),
-            ("format", "Format"),
-            ("default_value", "Default Value"),
-            ("min", "Minimum Value"),
-            ("max", "Maximum Value"),
-            ("func", "Function"),
-            ("is_impact", "Is Impact"),
-            ("can_calibrate", "Can Calibrate"),
-            ("datapage", "Databook Page"),
-            ("datapage_order", "Databook Order")
-        ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
-
-    def create(self, path):
-        logger.info("Creating framework file '{0}'".format(path))  # with parameters:")
-        # npops = %s, nprogs = %s, data_start = %s, data_end = %s""" % \
-        #       (path, self.npops, self.nprogs, self.data_start, self.data_end))
-        self.book = xw.Workbook(path)
-        self.formats = AtomicaFormats(self.book)
-        self.sheets = {}
-        for name in self.sheet_names:
-            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
-            self.current_sheet = self.sheets[name]
-            getattr(self, "generate_{0}".format(name))()  # this calls the corresponding generate function
-        self.book.close()
-
-
-def make_framework_file(filename, datapages, comps, characs, interpops, pars, framework=None):
-    """ Generate the Atomica framework file as an Excel workbook. """
-
-    item_types = ["datapage", "comp", "charac", "interpop", "par"]
-    item_type_inputs = [datapages, comps, characs, interpops, pars]
-    # Iterate through item type to set up lists of items and their details stored elementwise in dicts.
-    # This will form the content of the Excel workbook.
-    for j in range(len(item_types)):
-        item_type = item_types[j]
-        item_type_input = item_type_inputs[j]
-
-        item_details = []
-        # If framework is passed in, each element of 'item_details' is just their dictionary of specifications.
-        # Item names must be inserted into each dict though, as they are originally treated as keys for the dict.
-        if framework is not None:
-            item_specs = copy(framework.specs[item_type])
-            # TODO: Shallow copy is safe for specs dictionaries that are not nested.
-            #       This may change, depending on population attribute/options and other potential future item types.
-            for item_key in item_specs:
-                item_specs[item_key].update({"name": item_key})
-                item_details.append(item_specs[item_key])
-
-        # If an integer argument is given, just create (or extend) a list using empty entries.
-        # TODO: Consider pulling item attributes out so that edits do not need to be applied here and for header dict.
-        if sc.isnumber(item_type_input):
-            num_items = item_type_input
-            # Keep if clause out of 'for' loops.
-            if item_type == "datapage":
-                for k in range(num_items):
-                    item_details.append({"name": "sh_{0}".format(k), "label": "Custom Databook Sheet {0}".format(k)})
-            elif item_type == "comp":
-                for k in range(num_items):
-                    item_details.append({"name": "comp_{0}".format(k), "label": "Compartment {0}".format(k),
-                                         "is_source": False, "is_sink": False, "is_junction": False,
-                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
-                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
-            elif item_type == "charac":
-                for k in range(num_items):
-                    # TODO: Maybe consider cross-referencing 'includes' to comps/characs to exemplify default.
-                    item_details.append({"name": "charac_{0}".format(k), "label": "Characteristic {0}".format(k),
-                                         "includes": list(), "denominator": None,
-                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
-                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
-            elif item_type == "interpop":
-                for k in range(num_items):
-                    item_details.append({"name": "interpop_{0}".format(k), "label": "Interaction {0}".format(k),
-                                         "default_value": 1})
-            elif item_type == "par":
-                for k in range(num_items):
-                    item_details.append({"name": "par_{0}".format(k), "label": "Parameter {0}".format(k),
-                                         "format": None, "default_value": None, "min": None, "max": None,
-                                         "can_calibrate": True, "datapage": None, "datapage_order": None})
-
-        # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
-        #       Alternatively, just disable the else case if manual spec construction is redundant.
-        else:
-            item_details.extend(item_type_input)
-        item_type_inputs[j] = item_details
-
-    # Construct the actual workbook from generated content.
-    book = FrameworkFile(filename, *item_type_inputs)
+    book = ProgramSpreadsheet(filename, pops, comps, progs, pars, datastart, dataend)
     book.create(filename)
 
     return filename
 
+
+# %% Tests
 
 from atomica.core.framework import ProjectFramework
 from atomica.core.workbook_export import make_framework_file
