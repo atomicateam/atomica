@@ -426,11 +426,13 @@ class Project(object):
         scenario = scenario if isinstance(scenario,Scenario) else self.scens[scenario]
         scenario_parset = scenario.get_parset(parset, self.settings)
         scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
-        return self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
+
+        result = self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
                             store_results=store_results, result_type="scenario", result_name=result_name)
 
-    #    def optimize(self):
-    #        '''Run an optimization'''
+        scenario.result_uid = result.uid
+        return result
+
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
