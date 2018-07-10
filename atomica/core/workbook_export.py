@@ -16,6 +16,7 @@ import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import numpy as np
 from copy import copy
+import collections
 
 
 class KeyUniquenessException(AtomicaException):
@@ -1246,12 +1247,24 @@ def make_table_detail_columns(file_object, headers, content):
         col = attribute_id
         sheet.write(row, col, headers[attribute], formats["center_bold"])
         for item_id, item in enumerate(content):
+            # If item details are not specified for a column attribute, move to next item.
+            if attribute not in item:
+                continue
+            else:
+                val = item[attribute]
+            # Convert unusual content types to strings.
+            if isinstance(val, list):
+                val = ", ".join(val)
+            elif val is True:
+                val = "y"
+            elif val is False:
+                val = "n"
             # Update maximum char length of column if necessary.
-            if len(str(item[attribute])) > max_string_length:
-                max_string_length = len(str(item[attribute]))
+            if len(str(val)) > max_string_length:
+                max_string_length = len(str(val))
             # Write content.
             row = item_id + 1
-            sheet.write(row, col, item[attribute], formats["center"])
+            sheet.write(row, col, val, formats["center"])
         # Approximate column autofit.
         sheet.set_column(col, col, max_string_length)
 
@@ -1296,6 +1309,7 @@ class FrameworkFile:
             ("is_source", "Is Source"),
             ("is_sink", "Is Sink"),
             ("is_junction", "Is Junction"),
+            ("default_value", "Default Value"),
             ("setup_weight", "Setup Weight"),
             ("can_calibrate", "Can Calibrate"),
             ("datapage", "Databook Page"),
@@ -1308,80 +1322,43 @@ class FrameworkFile:
         pass
 
     def generate_charac(self):
-        pass
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("includes", "Components"),
+            ("denominator", "Denominator"),
+            ("default_value", "Default Value"),
+            ("setup_weight", "Setup Weight"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order"),
+            ("cascade_stage", "Cascade Stage")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.characs)
 
     def generate_interpop(self):
-        pass
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("default_value", "Default Value")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.interpops)
 
     def generate_par(self):
-        pass
-
-    # def generate_targeting(self):
-    #     self.current_sheet.set_column(2, 2, 15)
-    #     self.current_sheet.set_column(3, 3, 40)
-    #     self.current_sheet.set_column(6, 6, 12)
-    #     self.current_sheet.set_column(7, 7, 16)
-    #     self.current_sheet.set_column(8, 8, 16)
-    #     self.current_sheet.set_column(9, 9, 12)
-    #     current_row = 0
-    #
-    #     coded_params = []
-    #     for item in self.progs:
-    #         if type(item) is dict:
-    #             name = item['name']
-    #             short = item['short']
-    #             target_pops = [''] + ['' for popname in self.pops]
-    #             target_comps = [''] + ['' for comp in self.comps]
-    #         coded_params.append([short, name] + target_pops + target_comps)
-    #
-    #     column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
-    #     content = AtomicaContent(name='Populations & programs',
-    #                              row_names=range(1, len(self.progs) + 1),
-    #                              column_names=column_names,
-    #                              data=coded_params,
-    #                              assumption=False)
-    #     self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
-    #     current_row = self.prog_range.emit(self.formats, rc_title_align='left')
-    #     self.ref_prog_range = self.prog_range
-    #
-    # def generate_costcovdata(self):
-    #     current_row = 0
-    #     self.current_sheet.set_column('C:C', 20)
-    #     row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
-    #                   'Unit cost: high']
-    #     content = AtomicaContent(name='Cost & coverage',
-    #                              row_names=self.ref_prog_range.param_refs(),
-    #                              column_names=range(int(self.data_start), int(self.data_end + 1)))
-    #     content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
-    #                            AtomicaFormats.GENERAL]
-    #     content.row_format = AtomicaFormats.GENERAL
-    #     content.assumption = True
-    #     content.row_levels = row_levels
-    #     the_range = TitledRange(self.current_sheet, current_row, content)
-    #     current_row = the_range.emit(self.formats)
-    #
-    # def generate_covoutdata(self):
-    #     current_row = 0
-    #     self.current_sheet.set_column(1, 1, 10)
-    #     self.current_sheet.set_column(2, 2, 12)
-    #     self.current_sheet.set_column(3, 3, 12)
-    #     self.current_sheet.set_column(4, 4, 12)
-    #     self.current_sheet.set_column(5, 5, 2)
-    #     row_levels = []
-    #     for p in self.pops:
-    #         row_levels.extend([p + ': best', p + ': low', p + ': high'])
-    #     content = AtomicaContent(row_names=self.pars,
-    #                              column_names=['Value with no interventions', 'Best attainable value'])
-    #     content.row_format = AtomicaFormats.GENERAL
-    #     content.row_levels = row_levels
-    #
-    #     assumption_properties = {'title': 'Value for a person covered by this program alone:',
-    #                              'connector': '',
-    #                              'columns': [p['short'] for p in self.progs]}
-    #
-    #     content.assumption_properties = assumption_properties
-    #     the_range = TitledRange(self.current_sheet, current_row, content)
-    #     current_row = the_range.emit(self.formats, rc_title_align='left')
+        sheet_headers = sc.odict([
+            ("name", "Code Name"),
+            ("label", "Display Name"),
+            ("format", "Format"),
+            ("default_value", "Default Value"),
+            ("min", "Minimum Value"),
+            ("max", "Maximum Value"),
+            ("func", "Function"),
+            ("is_impact", "Is Impact"),
+            ("can_calibrate", "Can Calibrate"),
+            ("datapage", "Databook Page"),
+            ("datapage_order", "Databook Order")
+        ])
+        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
 
     def create(self, path):
         logger.info("Creating framework file '{0}'".format(path))  # with parameters:")
@@ -1420,18 +1397,36 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
                 item_details.append(item_specs[item_key])
 
         # If an integer argument is given, just create (or extend) a list using empty entries.
+        # TODO: Consider pulling item attributes out so that edits do not need to be applied here and for header dict.
         if sc.isnumber(item_type_input):
             num_items = item_type_input
-            # Keep if clause out of for loops.
+            # Keep if clause out of 'for' loops.
             if item_type == "datapage":
                 for k in range(num_items):
                     item_details.append({"name": "sh_{0}".format(k), "label": "Custom Databook Sheet {0}".format(k)})
             elif item_type == "comp":
                 for k in range(num_items):
                     item_details.append({"name": "comp_{0}".format(k), "label": "Compartment {0}".format(k),
-                                         "is_source": "n", "is_sink": "n", "is_junction": "n",
-                                         "setup_weight": 1, "can_calibrate": "y",
-                                         "datapage": "", "datapage_order": "", "cascade_stage": ""})
+                                         "is_source": False, "is_sink": False, "is_junction": False,
+                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
+                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
+            elif item_type == "charac":
+                for k in range(num_items):
+                    # TODO: Maybe consider cross-referencing 'includes' to comps/characs to exemplify default.
+                    item_details.append({"name": "charac_{0}".format(k), "label": "Characteristic {0}".format(k),
+                                         "includes": list(), "denominator": None,
+                                         "default_value": None, "setup_weight": 1, "can_calibrate": True,
+                                         "datapage": None, "datapage_order": None, "cascade_stage": None})
+            elif item_type == "interpop":
+                for k in range(num_items):
+                    item_details.append({"name": "interpop_{0}".format(k), "label": "Interaction {0}".format(k),
+                                         "default_value": 1})
+            elif item_type == "par":
+                for k in range(num_items):
+                    item_details.append({"name": "par_{0}".format(k), "label": "Parameter {0}".format(k),
+                                         "format": None, "default_value": None, "min": None, "max": None,
+                                         "can_calibrate": True, "datapage": None, "datapage_order": None})
+
         # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
         #       Alternatively, just disable the else case if manual spec construction is redundant.
         else:
