@@ -1340,6 +1340,8 @@ class ProgramSpreadsheet(Workbook):
         super(ProgramSpreadsheet, self).__init__(name=name)
         self.descriptor = "progbook"
         self.sheet_names = sc.odict([
+            ('targeting', 'Populations & programs'),
+            ('costcovdata', 'Program spend data'),
             ('covoutdata', 'Program effects'),
         ])
 
