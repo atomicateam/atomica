@@ -1239,13 +1239,14 @@ def make_table_detail_columns(file_object, headers, content):
     """
     sheet = file_object.current_sheet
     formats = file_object.formats.formats
+    extra_width = 1     # Stretch autofit columns by this extra amount.
     for attribute_id, attribute in enumerate(headers):
-        row = 0
+        header_row = 0
         # Note char length of headers for autofit purposes.
         max_string_length = len(str(headers[attribute]))
         # Write headers.
         col = attribute_id
-        sheet.write(row, col, headers[attribute], formats["center_bold"])
+        sheet.write(header_row, col, headers[attribute], formats["center_bold"])
         for item_id, item in enumerate(content):
             # If item details are not specified for a column attribute, move to next item.
             if attribute not in item:
@@ -1260,13 +1261,12 @@ def make_table_detail_columns(file_object, headers, content):
             elif val is False:
                 val = "n"
             # Update maximum char length of column if necessary.
-            if len(str(val)) > max_string_length:
-                max_string_length = len(str(val))
+            max_string_length = max(len(str(val)), max_string_length)
             # Write content.
             row = item_id + 1
             sheet.write(row, col, val, formats["center"])
         # Approximate column autofit.
-        sheet.set_column(col, col, max_string_length)
+        sheet.set_column(col, col, max_string_length + extra_width)
 
 
 # TODO: Consider polymorphism.
@@ -1319,7 +1319,37 @@ class FrameworkFile:
         make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
 
     def generate_link(self):
-        pass
+        header_row = 0
+        header_col = 0
+        extra_width = 1  # Stretch autofit columns by this extra amount.
+        # Construct headers representing nodes.
+        node_pos = dict()
+        max_string_lengths = {0: 0}     # Track by column for autofitting purposes.
+        for node_id, node in enumerate(self.comps):
+            position = node_id + 1
+            node_pos[node["name"]] = position
+            self.current_sheet.write(header_row, position, node["name"], self.formats.formats["center_bold"])
+            self.current_sheet.write(position, header_col, node["name"], self.formats.formats["center_bold"])
+            # Track column width updates.
+            max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
+            max_string_lengths[position] = len(str(node["name"]))
+        # Associate existing links between nodes with spreadsheet cell coordinates.
+        coord_contents = dict()
+        for item in self.pars:
+            if "links" in item:
+                for link in item["links"]:
+                    if (node_pos[link[0]], node_pos[link[-1]]) not in coord_contents:
+                        coord_contents[(node_pos[link[0]], node_pos[link[-1]])] = []
+                    coord_contents[(node_pos[link[0]], node_pos[link[-1]])].append(item["name"])
+        # Delay writing cell contents until now, just in case multiple items share the same link.
+        for coord in coord_contents:
+            val = ", ".join(coord_contents[coord])
+            max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])   # Update string widths.
+            self.current_sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]),
+                                     self.formats.formats["center"])
+        # Approximate column autofit.
+        for col in max_string_lengths:
+            self.current_sheet.set_column(col, col, max_string_lengths[col] + extra_width)
 
     def generate_charac(self):
         sheet_headers = sc.odict([
@@ -1439,8 +1469,9 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 
     return filename
 
+
 from atomica.core.framework import ProjectFramework
 from atomica.core.workbook_export import make_framework_file
 
-F = ProjectFramework(filepath="frameworks/framework_tb.xlsx")
+F = ProjectFramework(filepath="frameworks/framework_sir.xlsx")
 make_framework_file("blug.xlsx", datapages=3, comps=5, characs=7, interpops=9, pars=11, framework=F)
