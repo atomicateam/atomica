@@ -1103,13 +1103,13 @@ class Workbook(object):
         self.book.close()
 
 
-# %% Framework file exports.
+# %% Functions shared between workbook objects.
 
 def make_table_detail_columns(file_object, headers, content):
     """
     Construct a table for the current sheet of 'file_object' that allows items and their attributes to be detailed.
-    Consider each column to bey keyed with an attribute key.
-    Arg 'file_object' must be an instance of FrameworkFile with...
+    Consider each column to bey keyed with a so-called attribute key.
+    Arg 'file_object' must be an instance of a Workbook with...
         - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
         - 'formats' attribute referencing an AtomicaFormats instance.
     Arg 'headers' must be an odict mapping attribute keys with header strings.
@@ -1147,6 +1147,8 @@ def make_table_detail_columns(file_object, headers, content):
         sheet.set_column(col, col, max_string_length + extra_width)
 
 
+# %% Framework file exports.
+
 class FrameworkFile(Workbook):
     def __init__(self, name, datapages, comps, characs, interpops, pars):
         super(FrameworkFile, self).__init__(name=name)
@@ -1164,11 +1166,6 @@ class FrameworkFile(Workbook):
         self.characs = characs
         self.interpops = interpops
         self.pars = pars
-
-        self.book = None
-        self.sheets = None
-        self.formats = None
-        self.current_sheet = None
 
     # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
     def generate_datapage(self):
@@ -1349,6 +1346,7 @@ class ProgramSpreadsheet(Workbook):
         self.comps = comps
         self.progs = progs
         self.pars = pars
+
         self.data_start = data_start
         self.data_end = data_end
         self.prog_range = None
@@ -1469,5 +1467,5 @@ def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=No
 from atomica.core.framework import ProjectFramework
 from atomica.core.workbook_export import make_framework_file
 
-F = ProjectFramework(filepath="frameworks/framework_sir.xlsx")
+F = ProjectFramework(filepath="frameworks/framework_tb.xlsx")
 make_framework_file("blug.xlsx", datapages=3, comps=5, characs=7, interpops=9, pars=11, framework=F)
