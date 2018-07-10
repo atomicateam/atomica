@@ -185,17 +185,21 @@ class Measurable(object):
 			t_filter = model.t==self.t # boolean vector for whether to use the time point or not
 		else:
 			t_filter = (model.t >= self.t[0]) & (model.t < self.t[1]) # Don't include upper bound, so [2018,2019] will include exactly one year
-		if self.measurable_name in model.vars_by_pop: # If the measurable is a model output...
-			val = 0.0
-			for var in model.vars_by_pop[self.measurable_name]:
-				if not self.pop_names or var.pop.name in self.pop_names:  # If we are using this pop in the objective
-					if isinstance(var, Link):
-						val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
-					else:
-						val += np.sum(var.vals[t_filter])
-		else: # For now, only other possibility is that it's a spending amount
+
+		if self.measurable_name in model.progset.programs:
 			alloc = model.progset.get_alloc(model.program_instructions,model.t)
 			val =  np.sum(alloc[self.measurable_name][t_filter])
+		else: # If the measurable is a model output...
+			val = 0.0
+			for pop in model.pops:
+				if not self.pop_names or pop in self.pop_names:
+					vars = pop.get_variable(self.measurable_name)
+					for var in vars:
+						if isinstance(var, Link):
+							val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
+						else:
+							val += np.sum(var.vals[t_filter])
+
 		if self.fcn:
 			val = self.fcn(val)
 		val *= self.weight
