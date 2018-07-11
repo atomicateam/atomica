@@ -851,14 +851,25 @@ class Model(object):
                 self.vars_by_pop[var.name].append(var)
 
     def __getstate__(self):
+        # The combination of
         self.unlink()
-        d = pickle.dumps(self.__dict__, protocol=-1)  # Pickling to string results in a copy
+        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
         self.relink()  # Relink, otherwise the original object gets unlinked
         return d
 
     def __setstate__(self, d):
-        self.__dict__ = pickle.loads(d)
+        self.__dict__ = d
         self.relink()
+
+    def __deepcopy__(self,memodict={}):
+        # Using dcp(self.__dict__) is faster than pickle getstate/setstate
+        # when this is called via copy.deepcopy()
+        self.unlink()
+        d = dcp(self.__dict__)
+        self.relink()
+        new = Model.__new__(Model)
+        new.__dict__.update(d)
+        return new
 
     def get_pop(self, pop_name):
         """ Allow model populations to be retrieved by name rather than index. """
