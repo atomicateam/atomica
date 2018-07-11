@@ -122,7 +122,7 @@ def load_project(project_id, raise_exception=True):
             return None
         
     # Return the found project.
-    proj = project_record.retrieve_proj()
+    proj = project_record.proj
 
     print 'Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000)
 
