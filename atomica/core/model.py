@@ -7,10 +7,7 @@ from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
 import sciris.core as sc
-
-import pickle
 import numpy as np
-from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
 
 # TODO: Consider renaming and decide what to do with project settings as an object.
@@ -780,7 +777,7 @@ class Model(object):
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
-        self.progset = dcp(progset)
+        self.progset = sc.dcp(progset)
         self.program_instructions = instructions # program instructions
         self.program_cache_comps = None # Dict with {prog_name:[comps reached]}
         self.program_cache_pars = None # Dict with program_pars_reached[par_name][pop]=par to overwrite parameter values
@@ -865,7 +862,7 @@ class Model(object):
         # Using dcp(self.__dict__) is faster than pickle getstate/setstate
         # when this is called via copy.deepcopy()
         self.unlink()
-        d = dcp(self.__dict__)
+        d = sc.dcp(self.__dict__)
         self.relink()
         new = Model.__new__(Model)
         new.__dict__.update(d)
