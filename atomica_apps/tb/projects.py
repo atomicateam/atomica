@@ -23,6 +23,12 @@ proj_collection = None
 #
 # Classes
 #
+from six import PY2 as _PY2
+
+if _PY2:
+    import cPickle as pickle  # For Python 3 compatibility
+else:
+    import pickle
 
 class ProjectSO(sw.ScirisObject):
     """
@@ -58,27 +64,36 @@ class ProjectSO(sw.ScirisObject):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:       
-            # Set superclass parameters.
-            super(ProjectSO, self).__init__(proj.uid)
-                                   
-            # Set the project to the Optima Project that is passed in.
-            self.proj = proj
-            
-            # Set the owner (User) UID.
-            self.owner_uid = valid_uuid
-        
+        assert valid_uuid # If the UUID is invalid, throw an error
+
+        # Set superclass parameters.
+        super(ProjectSO, self).__init__(proj.uid)
+
+        self.name =  proj.name
+        self.owner_uid = valid_uuid  # Set the owner (User) UID.
+        self.creationTime =  proj.created
+        self.updatedTime =  proj.modified
+
+        # Set the project to the Optima Project that is passed in.
+        self.proj_pickle = pickle.dumps(proj)
+
+    def retrieve_proj(self):
+        # Unpickle and return the stored object
+        return pickle.loads(self.proj_pickle)
+
     def load_from_copy(self, other_object):
         if type(other_object) == type(self):
             # Do the superclass copying.
             super(ProjectSO, self).load_from_copy(other_object)
             
             # Copy the Project object itself.
-            self.proj = sc.dcp(other_object.proj)
-            
-            # Copy the owner UID.
+            self.name = other_object.name
             self.owner_uid = other_object.owner_uid
-                
+            self.creationTime = other_object.created
+            self.updatedTime = other_object.modified
+            self.proj_pickle = other_object.proj_pickle # pickle is a string so doesn't need to be dcp'd
+            
+
     def show(self):
         # Show superclass attributes.
         super(ProjectSO, self).show()  
@@ -86,18 +101,18 @@ class ProjectSO(sw.ScirisObject):
         # Show the Optima defined display text for the project.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
-        print 'Project Name: %s' % self.proj.name
-        print 'Creation Time: %s' % self.proj.created
-        print 'Update Time: %s' % self.proj.modified
+        print 'Project Name: %s' % self.name
+        print 'Creation Time: %s' % self.creationTime
+        print 'Update Time: %s' % self.updatedTime
             
     def get_user_front_end_repr(self):
         obj_info = {
             'project': {
                 'id': self.uid,
-                'name': self.proj.name,
+                'name': self.name,
                 'userId': self.owner_uid,
-                'creationTime': self.proj.created,
-                'updatedTime': self.proj.modified     
+                'creationTime': self.creationTime,
+                'updatedTime': self.updatedTime
             }
         }
         return obj_info
@@ -105,16 +120,16 @@ class ProjectSO(sw.ScirisObject):
     def save_as_file(self, load_dir):
         # Create a filename containing the project name followed by a .prj 
         # suffix.
-        file_name = '%s.prj' % self.proj.name
+        file_name = '%s.prj' % self.name
         
         # Generate the full file name with path.
         full_file_name = '%s%s%s' % (load_dir, os.sep, file_name)   
      
         # Write the object to a Gzip string pickle file.
-        ds.object_to_gzip_string_pickle_file(full_file_name, self.proj)
+        ds.object_to_gzip_string_pickle_file(full_file_name, self.retrieve_proj())
         
         # Return the filename (not the full one).
-        return self.proj.name + ".prj"
+        return self.name + ".prj"
     
         
 class ProjectCollection(sw.ScirisCollection):
