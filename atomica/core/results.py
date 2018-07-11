@@ -4,6 +4,12 @@ import sciris.core as sc
 from .utils import NamedItem
 from .system import AtomicaException
 
+from six import PY2 as _PY2
+
+if _PY2:
+    import cPickle as pickle  # For Python 3 compatibility
+else:
+    import pickle
 
 # import optima_tb.settings as project_settings
 
@@ -72,6 +78,12 @@ class Result(NamedItem):
     def get_variable(self, pops, name):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
+
+    def pickle(self):
+        self.model.unlink()
+        d = pickle.dumps(self, -1)
+        self.model.relink()
+        return d
 
     def export(self, filename=None, ):
         """Convert output to a single DataFrame and optionally write it to a file"""

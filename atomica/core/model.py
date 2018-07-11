@@ -850,14 +850,15 @@ class Model(object):
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self.vars_by_pop[var.name].append(var)
 
-    def __getstate__(self):
-        # The combination of
+    def pickle(self):
+        # Model objects must be pickled using this method, not via direct pickling
         self.unlink()
-        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
+        d = pickle(self,-1)
         self.relink()  # Relink, otherwise the original object gets unlinked
         return d
 
     def __setstate__(self, d):
+        # Unpickling will automatically relink
         self.__dict__ = d
         self.relink()
 
