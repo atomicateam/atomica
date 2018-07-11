@@ -1107,7 +1107,7 @@ class Workbook(object):
 
 def make_table_detail_columns(file_object, headers, content):
     """
-    Construct a table for the current sheet of 'file_object' that allows items and their attributes to be detailed.
+    Construct table for current sheet of 'file_object' that allows items and their attributes to be detailed.
     Consider each column to bey keyed with a so-called attribute key.
     Arg 'file_object' must be an instance of a Workbook with...
         - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
@@ -1117,13 +1117,14 @@ def make_table_detail_columns(file_object, headers, content):
     """
     sheet = file_object.current_sheet
     formats = file_object.formats.formats
-    extra_width = 1  # Stretch autofit columns by this extra amount.
+    max_string_lengths = dict()  # Store maximum string length per column in case other tables need it for autofit.
+    extra_width = 1  # Stretch autofitted columns by this extra amount.
     for attribute_id, attribute in enumerate(headers):
         header_row = 0
-        # Note char length of headers for autofit purposes.
-        max_string_length = len(str(headers[attribute]))
-        # Write headers.
         col = attribute_id
+        # Note char length of headers for autofit purposes.
+        max_string_lengths[col] = len(str(headers[attribute]))
+        # Write headers.
         sheet.write(header_row, col, headers[attribute], formats["center_bold"])
         for item_id, item in enumerate(content):
             # If item details are not specified for a column attribute, move to next item.
@@ -1139,12 +1140,79 @@ def make_table_detail_columns(file_object, headers, content):
             elif val is False:
                 val = "n"
             # Update maximum char length of column if necessary.
-            max_string_length = max(len(str(val)), max_string_length)
+            max_string_lengths[col] = max(len(str(val)), max_string_lengths[col])
             # Write content.
             row = item_id + 1
             sheet.write(row, col, val, formats["center"])
         # Approximate column autofit.
-        sheet.set_column(col, col, max_string_length + extra_width)
+        sheet.set_column(col, col, max_string_lengths[col] + extra_width)
+
+    # Return next row for subsequent tables, as well a dictionary of maximum string lengths by column.
+    next_row = len(content) + 2
+    return next_row, max_string_lengths
+
+
+def make_table_connections(file_object, node_items, link_items=None, start_row=0, min_widths=None):
+    """
+    Construct table for current sheet of 'file_object' that allows 'link' items to be marked as 'node' item connections.
+    This table is a type of connection matrix, representing directional links from row header to column header.
+    Arg 'file_object' must be an instance of a Workbook with...
+        - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
+        - 'formats' attribute referencing an AtomicaFormats instance.
+    Arg 'node_items' must be a list of dicts, each dict noting details of a node item (although only name is important).
+    Arg 'link_items' can be a list of dicts with each detailing an item representing a connection between nodes.
+    A useful link item dict must have a 'links' attribute with a list of tuples denoting where those connections exist.
+    E.g. {"name":"par_1", "links":[("comp_1","comp_2"),("comp_3","comp_1)], "foo":"bar", ...}
+        =>
+        Table will contain "par_1" written in two cells marking "comp_1"->"comp_2" and "comp_3"->"comp_1".
+    If multiple item names are printed to a cell, they will be comma separated.
+    Arg 'min_widths' is an optional dictionary mapping column numbers to minimum widths for 'autofit' to apply.
+    """
+    sheet = file_object.current_sheet
+    formats = file_object.formats.formats
+    header_row = start_row
+    header_col = 0
+    extra_width = 1  # Stretch autofit columns by this extra amount.
+
+    # Track string lengths per column for autofitting purposes.
+    max_string_lengths = {0: 0}
+    if min_widths is not None:
+        max_string_lengths.update(min_widths)
+
+    # Construct headers representing nodes.
+    node_pos = dict()  # Associate nodes with a tuple of row and column that they appear on.
+    for node_id, node in enumerate(node_items):
+        node_row = node_id + 1 + header_row
+        node_col = node_id + 1
+        node_pos[node["name"]] = (node_row, node_col)  # This row/col tuple is important when writing link names.
+        sheet.write(header_row, node_col, node["name"], formats["center_bold"])
+        sheet.write(node_row, header_col, node["name"], formats["center_bold"])
+        # Track column width updates.
+        max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
+        if node_col not in max_string_lengths:
+            max_string_lengths[node_col] = 0
+        max_string_lengths[node_col] = max(len(str(node["name"])), max_string_lengths[node_col])
+    # Associate existing links between nodes with spreadsheet cell coordinates.
+    coord_contents = dict()
+    if link_items is not None:
+        for item in link_items:
+            if "links" in item:
+                for link in item["links"]:
+                    if (node_pos[link[0]][0], node_pos[link[-1]][-1]) not in coord_contents:
+                        coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])] = []
+                    coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])].append(item["name"])
+    # Delay writing cell contents until now, just in case multiple items share the same link.
+    for coord in coord_contents:
+        val = ", ".join(coord_contents[coord])
+        max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])  # Update string widths.
+        sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]), formats["center"])
+    # Approximate column autofit.
+    for col in max_string_lengths:
+        sheet.set_column(col, col, max_string_lengths[col] + extra_width)
+
+    # Return next row for subsequent tables, as well a dictionary of maximum string lengths by column.
+    next_row = header_row + len(node_items) + 2
+    return next_row, max_string_lengths
 
 
 # %% Framework file exports.
@@ -1192,37 +1260,7 @@ class FrameworkFile(Workbook):
         make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
 
     def generate_link(self):
-        header_row = 0
-        header_col = 0
-        extra_width = 1  # Stretch autofit columns by this extra amount.
-        # Construct headers representing nodes.
-        node_pos = dict()
-        max_string_lengths = {0: 0}  # Track by column for autofitting purposes.
-        for node_id, node in enumerate(self.comps):
-            position = node_id + 1
-            node_pos[node["name"]] = position
-            self.current_sheet.write(header_row, position, node["name"], self.formats.formats["center_bold"])
-            self.current_sheet.write(position, header_col, node["name"], self.formats.formats["center_bold"])
-            # Track column width updates.
-            max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
-            max_string_lengths[position] = len(str(node["name"]))
-        # Associate existing links between nodes with spreadsheet cell coordinates.
-        coord_contents = dict()
-        for item in self.pars:
-            if "links" in item:
-                for link in item["links"]:
-                    if (node_pos[link[0]], node_pos[link[-1]]) not in coord_contents:
-                        coord_contents[(node_pos[link[0]], node_pos[link[-1]])] = []
-                    coord_contents[(node_pos[link[0]], node_pos[link[-1]])].append(item["name"])
-        # Delay writing cell contents until now, just in case multiple items share the same link.
-        for coord in coord_contents:
-            val = ", ".join(coord_contents[coord])
-            max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])  # Update string widths.
-            self.current_sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]),
-                                     self.formats.formats["center"])
-        # Approximate column autofit.
-        for col in max_string_lengths:
-            self.current_sheet.set_column(col, col, max_string_lengths[col] + extra_width)
+        make_table_connections(file_object=self, node_items=self.comps, link_items=self.pars)
 
     def generate_charac(self):
         sheet_headers = sc.odict([
@@ -1362,7 +1400,11 @@ class Databook(Workbook):
             ("name", "Abbreviation"),
             ("label", "Full Name")
         ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.transfers)
+        next_row, min_widths = make_table_detail_columns(file_object=self, headers=sheet_headers,
+                                                         content=self.transfers)
+        for transfer in self.transfers:
+            next_row, min_widths = make_table_connections(file_object=self, node_items=self.pops,
+                                                          start_row=next_row, min_widths=min_widths)
 
     def generate_transferdata(self):
         pass
