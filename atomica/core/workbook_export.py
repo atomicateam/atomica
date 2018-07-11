@@ -1152,17 +1152,31 @@ def make_table_detail_columns(file_object, headers, content):
     return next_row, max_string_lengths
 
 
-def make_table_connections(file_object, node_items, link_items=None, start_row=0, min_widths=None):
+def make_table_connections(file_object, node_items, link_items=None, link_attribute="links",
+                           start_row=0, min_widths=None, namer=True):
     """
-    Construct table for current sheet of 'file_object' that allows 'link' items to be marked as 'node' item connections.
+    Construct table for current sheet of 'file_object' that allows 'link' items to be represented as connections.
     This table is a type of connection matrix, representing directional links from row header to column header.
+    There are two wrapper functions that this one caters for: a 'namer' and a 'marker'.
+    Arg 'namer' is a boolean that determines which process is followed, associated with True and False, respectively.
+    In namer mode...
+        - many link items can be fit into the same table.
+        - a string in any cell denotes that a link item with that string as name represents that connection.
+        - the design is for items that are generally associated with few connections, if not one alone.
+    In marker mode...
+        - only one link item can be catered by the table; its name appears in the corner cell.
+        - a 'y' or number in any cell confirms the existence of a connection, while 'n' or a blank cell denies it.
+        - the design is for items that can be associated with numerous connections.
     Arg 'file_object' must be an instance of a Workbook with...
         - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
         - 'formats' attribute referencing an AtomicaFormats instance.
     Arg 'node_items' must be a list of dicts, each dict noting details of a node item (although only name is important).
     Arg 'link_items' can be a list of dicts with each detailing an item representing a connection between nodes.
-    A useful link item dict must have a 'links' attribute with a list of tuples denoting where those connections exist.
+    A useful link item dict must store a list of tuples denoting where those connections exist.
+    Arg 'link_attribute' must be a string that represents under which attribute that connection info exists.
     E.g. {"name":"par_1", "links":[("comp_1","comp_2"),("comp_3","comp_1)], "foo":"bar", ...}
+        AND
+        link_attribute="links"
         =>
         Table will contain "par_1" written in two cells marking "comp_1"->"comp_2" and "comp_3"->"comp_1".
     If multiple item names are printed to a cell, they will be comma separated.
@@ -1195,9 +1209,19 @@ def make_table_connections(file_object, node_items, link_items=None, start_row=0
     # Associate existing links between nodes with spreadsheet cell coordinates.
     coord_contents = dict()
     if link_items is not None:
+        # Title the connection matrix if in 'marker' mode (i.e. marking connections for one link item).
+        if not namer:
+            if len(link_items) > 1:
+                raise AtomicaException("Connection matrix construction can only deal with one 'link item' "
+                                       "in 'marker' mode.")
+            else:
+                sheet.write(header_row, header_col, link_items[0]["label"], formats["center"])
+                max_string_lengths[0] = max(len(str(link_items[0]["label"])), max_string_lengths[0])
+        # Note any connections that exist in link item details and convert those node-named tuples to Excel coordinates.
+        # TODO: Continue here for the y/n.
         for item in link_items:
-            if "links" in item:
-                for link in item["links"]:
+            if link_attribute in item:
+                for link in item[link_attribute]:
                     if (node_pos[link[0]][0], node_pos[link[-1]][-1]) not in coord_contents:
                         coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])] = []
                     coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])].append(item["name"])
@@ -1213,6 +1237,23 @@ def make_table_connections(file_object, node_items, link_items=None, start_row=0
     # Return next row for subsequent tables, as well a dictionary of maximum string lengths by column.
     next_row = header_row + len(node_items) + 2
     return next_row, max_string_lengths
+
+def make_table_connection_namer(file_object, node_items, link_items=None, link_attribute="links",
+                                start_row=0, min_widths=None):
+    return make_table_connections(file_object=file_object, node_items=node_items, link_items=link_items,
+                                  link_attribute=link_attribute, start_row=start_row, min_widths=min_widths,
+                                  namer=True)
+
+def make_table_connection_marker(file_object, node_items, link_item=None, link_attribute="links",
+                                 start_row=0, min_widths=None):
+    if link_item is not None:
+        link_items = [link_item]
+    else:
+        link_items = None
+    return make_table_connections(file_object=file_object, node_items=node_items, link_items=link_items,
+                                  link_attribute=link_attribute, start_row=start_row, min_widths=min_widths,
+                                  namer=False)
+
 
 
 # %% Framework file exports.
@@ -1260,7 +1301,7 @@ class FrameworkFile(Workbook):
         make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
 
     def generate_link(self):
-        make_table_connections(file_object=self, node_items=self.comps, link_items=self.pars)
+        make_table_connection_namer(file_object=self, node_items=self.comps, link_items=self.pars)
 
     def generate_charac(self):
         sheet_headers = sc.odict([
@@ -1403,8 +1444,9 @@ class Databook(Workbook):
         next_row, min_widths = make_table_detail_columns(file_object=self, headers=sheet_headers,
                                                          content=self.transfers)
         for transfer in self.transfers:
-            next_row, min_widths = make_table_connections(file_object=self, node_items=self.pops,
-                                                          start_row=next_row, min_widths=min_widths)
+            next_row, min_widths = make_table_connection_marker(file_object=self, node_items=self.pops,
+                                                                link_item=transfer, start_row=next_row,
+                                                                min_widths=min_widths)
 
     def generate_transferdata(self):
         pass
