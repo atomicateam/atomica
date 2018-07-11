@@ -233,8 +233,8 @@ def init_projects(app):
     if proj_collection_uid is not None:
         if app.config['LOGGING_MODE'] == 'FULL':
             print '>> Loading ProjectCollection from the DataStore.'
-        proj_collection.load_from_data_store() 
-    
+        proj_collection.load_from_data_store()
+
     # Else (no match)...
     else:
         # Load the data path holding the Excel files.
