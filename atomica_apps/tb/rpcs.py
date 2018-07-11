@@ -368,7 +368,11 @@ def download_project(project_id):
     
     # Load the project with the matching UID.
     proj = load_project(project_id, raise_exception=True)
-    
+
+    # Replace all of the result placeholders with actual results
+    for k,result_placeholder in proj.results.items():
+        proj.results[k] = result_placeholder.get()
+
     # Use the downloads directory to put the file in.
     dirname = fileio.downloads_dir.dir_path
         
