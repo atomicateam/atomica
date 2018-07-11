@@ -61,7 +61,8 @@ class ProjectSO(sw.ScirisObject):
         # If we have a valid UUID...
         if valid_uuid is not None:       
             # Set superclass parameters.
-            super(ProjectSO, self).__init__(proj.uid)
+            super(ProjectSO, self).__init__(proj.uid, type_prefix='prj', 
+                 file_suffix='.prj', instance_label=proj.name)
                                    
             # Set the project to the Project that is passed in.
             self.proj = proj
