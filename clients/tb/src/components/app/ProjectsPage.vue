@@ -243,10 +243,18 @@ export default {
 
     addDemoProject() {
       console.log('addDemoProject() called')
+      
+      // Start the loading bar.
+      this.$Progress.start()
 
       // Have the server create a new project.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
         .then(response => {
+          console.log('Are we running or fucking what??')
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+            
           // Update the project summaries so the new project shows up on the list.
           this.updateProjectSummaries()
 
