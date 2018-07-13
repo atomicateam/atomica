@@ -1100,7 +1100,12 @@ class Workbook(object):
             self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
             self.current_sheet = self.sheets[name]
             getattr(self, "generate_{0}".format(name))()  # This calls the corresponding page generating function.
+        self.construct_other_pages()    # This calls an overloadable method for nonstandard page generation.
         self.book.close()
+
+    def construct_other_pages(self):
+        """ Method that is only typically overloaded by Databook, due to its UI-driven page organisation. """
+        pass
 
 
 # %% Functions shared between workbook objects.
@@ -1423,7 +1428,7 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 # %% Databook exports.
 
 class Databook(Workbook):
-    def __init__(self, name, pops, transfers, interpops, comps, characs, pars):
+    def __init__(self, name, pops, transfers, interpops, comps, characs, pars, data_start=None, data_end=None):
         super(Databook, self).__init__(name=name)
         self.descriptor = "databook"
         self.sheet_names = sc.odict([
@@ -1438,6 +1443,10 @@ class Databook(Workbook):
         self.comps = comps
         self.characs = characs
         self.pars = pars
+
+        self.data_start = data_start if data_start is not None else 2000.0
+        self.data_end = data_end if data_end is not None else 2018.0
+        self.data_range = range(int(self.data_start), int(self.data_end + 1))
 
     # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
     def generate_pop(self):
@@ -1460,7 +1469,9 @@ class Databook(Workbook):
                                                                 start_row=next_row, min_widths=min_widths)
 
     def generate_transferdata(self):
-        pass
+        for transfer in self.transfers:
+            # TODO: Construct transfer data-entry block.
+            pass
 
     def generate_interpop(self):
         next_row = 0
@@ -1470,81 +1481,38 @@ class Databook(Workbook):
                                                                 link_item=interpop, link_attribute="poplinks",
                                                                 allow_self_connections=True,
                                                                 start_row=next_row, min_widths=min_widths)
+        for interpop in self.interpops:
+            # TODO: Construct interaction data-entry block.
+            pass
 
-    # def generate_link(self):
-    #     header_row = 0
-    #     header_col = 0
-    #     extra_width = 1  # Stretch autofit columns by this extra amount.
-    #     # Construct headers representing nodes.
-    #     node_pos = dict()
-    #     max_string_lengths = {0: 0}  # Track by column for autofitting purposes.
-    #     for node_id, node in enumerate(self.comps):
-    #         position = node_id + 1
-    #         node_pos[node["name"]] = position
-    #         self.current_sheet.write(header_row, position, node["name"], self.formats.formats["center_bold"])
-    #         self.current_sheet.write(position, header_col, node["name"], self.formats.formats["center_bold"])
-    #         # Track column width updates.
-    #         max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
-    #         max_string_lengths[position] = len(str(node["name"]))
-    #     # Associate existing links between nodes with spreadsheet cell coordinates.
-    #     coord_contents = dict()
-    #     for item in self.pars:
-    #         if "links" in item:
-    #             for link in item["links"]:
-    #                 if (node_pos[link[0]], node_pos[link[-1]]) not in coord_contents:
-    #                     coord_contents[(node_pos[link[0]], node_pos[link[-1]])] = []
-    #                 coord_contents[(node_pos[link[0]], node_pos[link[-1]])].append(item["name"])
-    #     # Delay writing cell contents until now, just in case multiple items share the same link.
-    #     for coord in coord_contents:
-    #         val = ", ".join(coord_contents[coord])
-    #         max_string_lengths[coord[-1]] = max(len(str(val)), max_string_lengths[coord[-1]])  # Update string widths.
-    #         self.current_sheet.write(coord[0], coord[-1], ", ".join(coord_contents[coord]),
-    #                                  self.formats.formats["center"])
-    #     # Approximate column autofit.
-    #     for col in max_string_lengths:
-    #         self.current_sheet.set_column(col, col, max_string_lengths[col] + extra_width)
-    #
-    # def generate_charac(self):
-    #     sheet_headers = sc.odict([
-    #         ("name", "Code Name"),
-    #         ("label", "Display Name"),
-    #         ("includes", "Components"),
-    #         ("denominator", "Denominator"),
-    #         ("default_value", "Default Value"),
-    #         ("setup_weight", "Setup Weight"),
-    #         ("can_calibrate", "Can Calibrate"),
-    #         ("datapage", "Databook Page"),
-    #         ("datapage_order", "Databook Order"),
-    #         ("cascade_stage", "Cascade Stage")
-    #     ])
-    #     make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.characs)
-    #
-    # def generate_interpop(self):
-    #     sheet_headers = sc.odict([
-    #         ("name", "Code Name"),
-    #         ("label", "Display Name"),
-    #         ("default_value", "Default Value")
-    #     ])
-    #     make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.interpops)
-    #
-    # def generate_par(self):
-    #     sheet_headers = sc.odict([
-    #         ("name", "Code Name"),
-    #         ("label", "Display Name"),
-    #         ("format", "Format"),
-    #         ("default_value", "Default Value"),
-    #         ("min", "Minimum Value"),
-    #         ("max", "Maximum Value"),
-    #         ("func", "Function"),
-    #         ("is_impact", "Is Impact"),
-    #         ("can_calibrate", "Can Calibrate"),
-    #         ("datapage", "Databook Page"),
-    #         ("datapage_order", "Databook Order")
-    #     ])
-    #     make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
+    def construct_other_pages(self):
+        """ Overloaded method that allows for UI-driven page organisation. """
+        custom_page_items = sc.odict()
+        extra_page_items = sc.odict([("State Variables", list()), ("Parameters", list())])
+        # TODO: Compress duplicated if clause.
+        for item in self.comps + self.characs:
+            if "datapage" in item and item["datapage"] is not None:
+                if item["datapage"] not in custom_page_items:
+                    custom_page_items[item["datapage"]] = list()
+                custom_page_items[item["datapage"]].append(item)
+            else:
+                extra_page_items["State Variables"].append(item)
+        for item in self.pars:
+            if "datapage" in item and item["datapage"] is not None:
+                if item["datapage"] not in custom_page_items:
+                    custom_page_items[item["datapage"]] = list()
+                custom_page_items[item["datapage"]].append(item)
+            else:
+                extra_page_items["Parameters"].append(item)
+        for extra_page in extra_page_items:
+            if len(extra_page_items[extra_page]) > 0:
+                custom_page_items[extra_page] = extra_page_items[extra_page]
+        for custom_page in custom_page_items:
+            self.sheets[custom_page] = self.book.add_worksheet(custom_page)
+            self.current_sheet = self.sheets[custom_page]
 
 
-def make_databook(filename, pops, transfers, framework, data=None):
+def make_databook(filename, pops, transfers, framework, data_start=None, data_end=None, data=None):
     """ Generate the Atomica databook as an Excel workbook. """
 
     item_types = ["pop", "transfer", "interpop", "comp", "charac", "par"]
@@ -1591,9 +1559,12 @@ def make_databook(filename, pops, transfers, framework, data=None):
                     item_spec = framework.specs[item_type][item_key]
                     # TODO: Initialize the structure of data here.
                     item_details.append({"name": item_key, "label": item_spec["label"], "data": None})
-                    # Do not forget population links for interactions.
+                    # Do not forget initialising self-interacting population links for interactions.
                     if item_type == "interpop":
-                        item_details[-1]["poplinks"] = list()
+                        item_details[-1]["poplinks"] = [(pop["name"], pop["name"]) for pop in item_type_inputs[0]]
+                    # TODO: Work out why the following is not working!
+                    if "datapage" in item_spec:
+                        item_details[-1]["datapage"] = item_spec["datapage"]
 
         # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
         #       Alternatively, just disable the else case if manual spec construction is redundant.
@@ -1625,11 +1596,11 @@ class ProgramSpreadsheet(Workbook):
         self.progs = progs
         self.pars = pars
 
-        self.data_start = data_start
-        self.data_end = data_end
+        self.data_start = data_start if data_start is not None else 2015.0
+        self.data_end = data_end if data_end is not None else 2018.0
         self.prog_range = None
         self.ref_pop_range = None
-        self.years_range = range(int(self.data_start), int(self.data_end + 1))
+        self.data_range = range(int(self.data_start), int(self.data_end + 1))
 
         self.npops = len(pops)
         self.nprogs = len(progs)
@@ -1707,7 +1678,7 @@ class ProgramSpreadsheet(Workbook):
         current_row = the_range.emit(self.formats, rc_title_align='left')
 
 
-def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=None, verbose=2):
+def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None):
     """ Generate the Atomica programs spreadsheet """
 
     # An integer argument is given: just create a pops dict using empty entries
@@ -1729,12 +1700,7 @@ def make_progbook(filename, pops, comps, progs, pars, datastart=None, dataend=No
         for p in range(nprogs):
             progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
 
-            # Ensure years are integers
-    if datastart is None: datastart = 2015.  # TEMP
-    if dataend is None:   dataend = 2018.  # TEMP
-    datastart, dataend = int(datastart), int(dataend)
-
-    book = ProgramSpreadsheet(filename, pops, comps, progs, pars, datastart, dataend)
+    book = ProgramSpreadsheet(filename, pops, comps, progs, pars, data_start, data_end)
     book.create(filename)
 
     return filename
