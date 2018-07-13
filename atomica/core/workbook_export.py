@@ -1153,7 +1153,7 @@ def make_table_detail_columns(file_object, headers, content):
 
 
 def make_table_connections(file_object, node_items, link_items=None, link_attribute="links",
-                           start_row=0, min_widths=None, namer=True):
+                           start_row=0, min_widths=None, namer=True, allow_self_connections=False):
     """
     Construct table for current sheet of 'file_object' that allows 'link' items to be represented as connections.
     This table is a type of connection matrix, representing directional links from row header to column header.
@@ -1181,6 +1181,7 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
         Table will contain "par_1" written in two cells marking "comp_1"->"comp_2" and "comp_3"->"comp_1".
     If multiple item names are printed to a cell, they will be comma separated.
     Arg 'min_widths' is an optional dictionary mapping column numbers to minimum widths for 'autofit' to apply.
+    Arg 'allow_self_connections' restricts the matrix diagonal in 'marker' mode if False and allows data entry if True.
     """
     sheet = file_object.current_sheet
     formats = file_object.formats.formats
@@ -1201,6 +1202,9 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
         node_pos[node["name"]] = (node_row, node_col)  # This row/col tuple is important when writing link names.
         sheet.write(header_row, node_col, node["name"], formats["center_bold"])
         sheet.write(node_row, header_col, node["name"], formats["center_bold"])
+        if not namer and not allow_self_connections:
+            sheet.write(node_row, node_col, "N.A.", formats["center"])
+            sheet.data_validation(xlrc(node_row, node_col), {"validate": "list", "source": ["N.A."]})
         # Track column width updates.
         max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
         if node_col not in max_string_lengths:
@@ -1218,13 +1222,17 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
                 sheet.write(header_row, header_col, link_items[0]["label"], formats["center"])
                 max_string_lengths[0] = max(len(str(link_items[0]["label"])), max_string_lengths[0])
         # Note any connections that exist in link item details and convert those node-named tuples to Excel coordinates.
-        # TODO: Continue here for the y/n.
-        for item in link_items:
+        for item in link_items:     # Note that this is a list of one when called appropriately via 'marker' wrapper.
+            # Depending on mode, either the name of the connecting item or a 'y' representing True will be printed.
+            if namer:
+                val = item["name"]
+            else:
+                val = "y"
             if link_attribute in item:
                 for link in item[link_attribute]:
                     if (node_pos[link[0]][0], node_pos[link[-1]][-1]) not in coord_contents:
                         coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])] = []
-                    coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])].append(item["name"])
+                    coord_contents[(node_pos[link[0]][0], node_pos[link[-1]][-1])].append(val)
     # Delay writing cell contents until now, just in case multiple items share the same link.
     for coord in coord_contents:
         val = ", ".join(coord_contents[coord])
@@ -1238,22 +1246,25 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
     next_row = header_row + len(node_items) + 2
     return next_row, max_string_lengths
 
+
 def make_table_connection_namer(file_object, node_items, link_items=None, link_attribute="links",
                                 start_row=0, min_widths=None):
+    """ Wrapper for 'namer' mode connection matrices. See above. """
     return make_table_connections(file_object=file_object, node_items=node_items, link_items=link_items,
                                   link_attribute=link_attribute, start_row=start_row, min_widths=min_widths,
                                   namer=True)
 
+
 def make_table_connection_marker(file_object, node_items, link_item=None, link_attribute="links",
-                                 start_row=0, min_widths=None):
+                                 start_row=0, min_widths=None, allow_self_connections=False):
+    """ Wrapper for 'marker' mode connection matrices. See above. """
     if link_item is not None:
         link_items = [link_item]
     else:
         link_items = None
     return make_table_connections(file_object=file_object, node_items=node_items, link_items=link_items,
                                   link_attribute=link_attribute, start_row=start_row, min_widths=min_widths,
-                                  namer=False)
-
+                                  namer=False, allow_self_connections=allow_self_connections)
 
 
 # %% Framework file exports.
@@ -1445,14 +1456,20 @@ class Databook(Workbook):
                                                          content=self.transfers)
         for transfer in self.transfers:
             next_row, min_widths = make_table_connection_marker(file_object=self, node_items=self.pops,
-                                                                link_item=transfer, start_row=next_row,
-                                                                min_widths=min_widths)
+                                                                link_item=transfer, link_attribute="poplinks",
+                                                                start_row=next_row, min_widths=min_widths)
 
     def generate_transferdata(self):
         pass
 
     def generate_interpop(self):
-        pass
+        next_row = 0
+        min_widths = None
+        for interpop in self.interpops:
+            next_row, min_widths = make_table_connection_marker(file_object=self, node_items=self.pops,
+                                                                link_item=interpop, link_attribute="poplinks",
+                                                                allow_self_connections=True,
+                                                                start_row=next_row, min_widths=min_widths)
 
     # def generate_link(self):
     #     header_row = 0
@@ -1527,10 +1544,15 @@ class Databook(Workbook):
     #     make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
 
 
-def make_databook(filename, pops, transfers, interpops, comps, characs, pars, framework=None, data=None):
+def make_databook(filename, pops, transfers, framework, data=None):
     """ Generate the Atomica databook as an Excel workbook. """
 
     item_types = ["pop", "transfer", "interpop", "comp", "charac", "par"]
+    # Users cannot modify number of framework-defined items, but defaults should be constructed in the absence of data.
+    interpops = None
+    comps = None
+    characs = None
+    pars = None
     item_type_inputs = [pops, transfers, interpops, comps, characs, pars]
     # Iterate through item type to set up lists of items and their details stored elementwise in dicts.
     # This will form the content of the Excel workbook.
@@ -1560,29 +1582,18 @@ def make_databook(filename, pops, transfers, interpops, comps, characs, pars, fr
                     item_details.append({"name": "pop_{0}".format(k), "label": "Population {0}".format(k)})
             elif item_type == "transfer":
                 for k in range(num_items):
-                    item_details.append({"name": "trans_{0}".format(k), "label": "Transfer {0}".format(k)})
-            # elif item_type == "comp":
-            #     for k in range(num_items):
-            #         item_details.append({"name": "comp_{0}".format(k), "label": "Compartment {0}".format(k),
-            #                              "is_source": False, "is_sink": False, "is_junction": False,
-            #                              "default_value": None, "setup_weight": 1, "can_calibrate": True,
-            #                              "datapage": None, "datapage_order": None, "cascade_stage": None})
-            # elif item_type == "charac":
-            #     for k in range(num_items):
-            #         # TODO: Maybe consider cross-referencing 'includes' to comps/characs to exemplify default.
-            #         item_details.append({"name": "charac_{0}".format(k), "label": "Characteristic {0}".format(k),
-            #                              "includes": list(), "denominator": None,
-            #                              "default_value": None, "setup_weight": 1, "can_calibrate": True,
-            #                              "datapage": None, "datapage_order": None, "cascade_stage": None})
-            # elif item_type == "interpop":
-            #     for k in range(num_items):
-            #         item_details.append({"name": "interpop_{0}".format(k), "label": "Interaction {0}".format(k),
-            #                              "default_value": 1})
-            # elif item_type == "par":
-            #     for k in range(num_items):
-            #         item_details.append({"name": "par_{0}".format(k), "label": "Parameter {0}".format(k),
-            #                              "format": None, "default_value": None, "min": None, "max": None,
-            #                              "can_calibrate": True, "datapage": None, "datapage_order": None})
+                    item_details.append({"name": "trans_{0}".format(k), "label": "Transfer {0}".format(k),
+                                         "poplinks": list()})
+        elif item_type_input is None:
+            # If details for the following item types were not pulled from data, construct defaults from framework.
+            if item_type in ["interpop", "comp", "charac", "par"] and data is None:
+                for item_key in framework.specs[item_type]:
+                    item_spec = framework.specs[item_type][item_key]
+                    # TODO: Initialize the structure of data here.
+                    item_details.append({"name": item_key, "label": item_spec["label"], "data": None})
+                    # Do not forget population links for interactions.
+                    if item_type == "interpop":
+                        item_details[-1]["poplinks"] = list()
 
         # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
         #       Alternatively, just disable the else case if manual spec construction is redundant.
@@ -1739,4 +1750,4 @@ F = ProjectFramework(filepath="frameworks/framework_tb.xlsx")
 make_framework_file("f_blug.xlsx", datapages=3, comps=5, characs=7, interpops=9, pars=11, framework=F)
 P = Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path="databooks/databook_tb.xlsx", make_default_parset=False, do_run=False)
-make_databook("d_blug.xlsx", pops=2, transfers=4, interpops=6, comps=8, characs=10, pars=12, data=P.data)
+make_databook("d_blug.xlsx", pops=2, transfers=4, framework=P.framework, data=P.data)
