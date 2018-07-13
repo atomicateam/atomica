@@ -6,7 +6,6 @@ Version: 2018mar26
 import sciris.core as sc
 from .system import AtomicaException, NotAllowedError
 from .utils import NamedItem
-from .asd import asd
 from copy import deepcopy as dcp
 import numpy as np
 from .model import Model, Link
@@ -483,7 +482,7 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
 		'xmax': xmax,
 	}
 
-	x_opt = asd(_asd_objective,x0,args,**optim_args)[0]
+	x_opt = sc.asd(_asd_objective,x0,args,**optim_args)[0]
 	optimization.update_instructions(x_opt,model.program_instructions)
 	optimization.constrain_instructions(model.program_instructions,hard_constraints)
 	return model.program_instructions # Return the modified instructions
