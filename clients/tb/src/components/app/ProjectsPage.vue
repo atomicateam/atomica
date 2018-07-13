@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-05-29
+Last update: 2018-07-13
 -->
 
 <template>
@@ -329,13 +329,14 @@ export default {
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-      
-      // Start the loading bar.
-      this.$Progress.start()
-      
+     
       // Have the server upload the project.
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {})
       .then(response => {
+        // Start the loading bar.  (This is here because we don't want the 
+        // progress bar running when the user is picking a file to upload.)
+        this.$Progress.start()
+      
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries()
         
@@ -451,7 +452,8 @@ export default {
 
       // Set the active project to the matched project.
       this.$store.commit('newActiveProject', matchProject)
-
+      
+      // Success popup.
       this.$notifications.notify({
         message: 'Project "'+matchProject.project.name+'" loaded',
         icon: 'ti-check',
@@ -466,21 +468,41 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('copyProject() called for ' + matchProject.project.name)
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
 	    // Have the server copy the project, giving it a new name.
       rpcservice.rpcCall('copy_project', [uid])
       .then(response => {
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries()
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
+        
+        // Success popup.
+        this.$notifications.notify({
+          message: 'Project "'+matchProject.project.name+'" copied',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })        
       })
-
-      this.$notifications.notify({
-        message: 'Project "'+matchProject.project.name+'" copied',
-        icon: 'ti-check',
-        type: 'success',
-        verticalAlign: 'top',
-        horizontalAlign: 'center',
-      });
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not copy project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
     },
 
     renameProject(projectSummary) {
@@ -499,6 +521,9 @@ export default {
 
         // Rename the project name in the client list from what's in the textbox.
         newProjectSummary.project.name = projectSummary.renaming
+        
+        // Start the loading bar.
+        this.$Progress.start()
 
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
@@ -509,7 +534,23 @@ export default {
 
 		      // Turn off the renaming mode.
 		      projectSummary.renaming = ''
+          
+          // Finish the loading bar.
+          this.$Progress.finish()          
         })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not rename project',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })      
       }
 
 	    // This silly hack is done to make sure that the Vue component gets updated by this function call.
@@ -526,9 +567,29 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('downloadProjectFile() called for ' + matchProject.project.name)
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+        
 	    // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
+      .then(response => {
+        // Finish the loading bar.
+        this.$Progress.finish()          
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not download project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })       
     },
 
     uploadDatabook(uid) {
@@ -539,18 +600,38 @@ export default {
 
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
-        .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateProjectSummaries()
-        })
-
-      this.$notifications.notify({
-        message: 'Data uploaded to project "'+matchProject.project.name+'"',
-        icon: 'ti-check',
-        type: 'success',
-        verticalAlign: 'top',
-        horizontalAlign: 'center',
-      });
+      .then(response => {
+        // Start the loading bar.
+        this.$Progress.start()
+        
+        // Update the project summaries so the copied program shows up on the list.
+        this.updateProjectSummaries()
+        
+        // Finish the loading bar.
+        this.$Progress.finish() 
+          
+        // Success popup.
+        this.$notifications.notify({
+          message: 'Data uploaded to project "'+matchProject.project.name+'"',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })     
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not upload data',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })     
     },
 
   // Confirmation alert
@@ -572,14 +653,33 @@ export default {
         theProj.selected).map(theProj => theProj.project.id)
 
       console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+        
       // Have the server delete the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
           // Update the project summaries so the deletions show up on the list.
           this.updateProjectSummaries()
+          
+          // Finish the loading bar.
+          this.$Progress.finish()           
         })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not delete project/s',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })            
 	    }
     },
 
@@ -589,10 +689,31 @@ export default {
         theProj.selected).map(theProj => theProj.project.id)
 
       console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
-
+          
       // Have the server download the selected projects.
-	    if (selectProjectsUIDs.length > 0)
+	    if (selectProjectsUIDs.length > 0) {
+        // Start the loading bar.
+        this.$Progress.start()        
+        
         rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectProjectsUIDs])
+        .then(response => {
+          // Finish the loading bar.
+          this.$Progress.finish()          
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not download project/s',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })       
+      }
     }
   }
 }
