@@ -249,23 +249,35 @@ export default {
 
       // Have the server create a new project.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
-        .then(response => {
-          console.log('Are we running or fucking what??')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-            
-          // Update the project summaries so the new project shows up on the list.
-          this.updateProjectSummaries()
+      .then(response => {
+        // Update the project summaries so the new project shows up on the list.
+        this.updateProjectSummaries()
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
 
-          this.$notifications.notify({
-            message: 'Demo project added',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          });
+        // Success popup.
+        this.$notifications.notify({
+          message: 'Demo project added',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
         })
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not add project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
     },
 
     createNewProjectModal() {
@@ -278,32 +290,80 @@ export default {
     createNewProject() {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
       // Have the server create a new project.
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries()
-
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
+        
+        // Success popup.
         this.$notifications.notify({
           message: 'New project "'+this.proj_name+'" created',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        });
+        })
       })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not add new project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })      
     },
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
       // Have the server upload the project.
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {})
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries()
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
+        
+        // Success popup.
+        this.$notifications.notify({
+          message: 'New project uploaded',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })       
       })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not upload project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })            
     },
 
     projectIsActive(uid) {
