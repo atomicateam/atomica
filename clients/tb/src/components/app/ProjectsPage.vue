@@ -601,7 +601,8 @@ export default {
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
       .then(response => {
-        // Start the loading bar.
+        // Start the loading bar.  (This is here because we don't want the 
+        // progress bar running when the user is picking a file to upload.)        
         this.$Progress.start()
         
         // Update the project summaries so the copied program shows up on the list.
@@ -654,11 +655,11 @@ export default {
 
       console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
       
-      // Start the loading bar.
-      this.$Progress.start()
-        
       // Have the server delete the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
+        // Start the loading bar.
+        this.$Progress.start()
+      
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
           // Update the project summaries so the deletions show up on the list.
