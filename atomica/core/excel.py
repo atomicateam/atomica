@@ -10,6 +10,148 @@ from .system import logger, log_usage, accepts, returns, AtomicaException
 import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import xlrd
+from sciris.weblib.scirisobjects import ScirisObject
+import sciris.core as sc
+import io
+import openpyxl
+from copy import copy # shallow copy
+
+class ScirisSpreadsheet(ScirisObject):
+    ''' A class for reading and writing spreadsheet data in binary format, so a project contains the spreadsheet loaded '''
+    # self.data corresponds to the binary data of the Excel file. For IO, can construct a binary file in memory with io.BytesIO
+    # and then read/write from it using openpyxl. Final step is to assign the data associated with it to the Spreadsheet
+    def __init__(self, filename=None):
+        super(ScirisSpreadsheet, self).__init__() # No need for a name, just want to get an UID so as to be storable in database
+
+        self.data = None
+        self.filename = None
+        if filename is not None:
+            self.load(filename)
+        return None
+
+    def __repr__(self):
+        output = sc.desc(self)
+        return output
+
+    def load(self, filename=None):
+        if filename is not None:
+            filepath = sc.makefilepath(filename=filename)
+            self.filename = filepath
+            with open(filepath, mode='rb') as f:
+                self.data = f.read()
+        else:
+            print('No filename specified; aborting.')
+        return None
+
+    def save(self, filename=None):
+        if filename is None:
+            if self.filename is not None: filename = self.filename
+        if filename is not None:
+            filepath = sc.makefilepath(filename=filename)
+            with open(filepath, mode='wb') as f:
+                f.write(self.data)
+            print('Spreadsheet saved to %s.' % filepath)
+        return filepath
+
+    def get_workbook(self):
+        # Return an openpyxl Workbook object from this ScirisSpreadsheet's data
+        f = io.BytesIO(self.data)
+        return openpyxl.load_workbook(f,data_only=True) # Load in read-write mode so that we can correctly dump the file
+
+    def set_workbook(self,workbook):
+        # Set this ScirisSpreadsheet's data given an openpyxl Workbook object
+        f = io.BytesIO()
+        wb.save(f)
+        f.flush()
+        f.seek(0)
+        self.data = f.read()
+
+    def transfer_extras(self,extras_source):
+        # Format this ScirisSpreadsheet based on the extra meta-content in extras_source
+        #
+        # In reality, a new spreadsheet is created with values from this ScirisSpreadsheet
+        # and cell-wise formatting from the extras_source ScirisSpreadsheet. If a cell exists in
+        # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
+        # the extras_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
+        # the extras_source and not in the current workbook, it will be added
+        assert isinstance(extras_source,ScirisSpreadsheet)
+
+        final_workbook = openpyxl.Workbook(write_only=False)
+
+        new_workbook = self.get_workbook() # This is the value source workbook
+        old_workbook = extras_source.get_workbook() # A openpyxl workbook for the old content
+
+        if not (set(new_workbook.sheetnames).difference(set(old_workbook.sheetnames))): # If every new sheet also appears in the old sheets, then use the old sheet order
+            final_sheets = old_workbook.sheetnames
+        else:
+            # We need to merge the lists somehow. For now, just stick all the extra sheets at the end
+            final_sheets = new_workbook.sheetnames + [x for x in old_workbook.sheetnames if x not in new_workbook.sheetnames]
+
+        # final_sheets now contains the order of the sheets in the final workbook
+        for sheet in final_sheets:
+
+            if sheet in old_workbook.sheetnames and sheet in new_workbook.sheetnames:
+                # Do the content transfer
+                old_rows = list(old_workbook[sheet].rows)
+                new_rows = list(new_workbook[sheet].rows)
+
+                s = final_workbook.create_sheet(sheet)
+                for i in range(0,min(len(old_rows),len(new_rows))):
+                    # First we will copy all of the new cells in, including their formatting
+                    new_row = new_rows[i]
+                    old_row = old_rows[i]
+                    final_row = []
+
+                    # First, make all the new cells
+                    for cell in new_rows[i]:
+                        final_row.append(openpyxl.worksheet.write_only.WriteOnlyCell(s, value=cell.value))
+
+                    # Then, copy over the formats from any cells that match
+                    for j in range(0,min(len(new_row),len(old_row))):
+                        copy_formats(old_row[j],final_row[j])
+
+                    s.append(final_row)
+
+                if len(new_rows) > len(old_rows):
+                    for i in range(len(old_rows),len(new_rows)):
+                        final_row = []
+                        for cell in new_rows[i]:
+                            final_row.append(copy_formats(cell,openpyxl.worksheet.write_only.WriteOnlyCell(s, value=cell.value)))
+                        s.append(final_row)
+
+            elif sheet in old_workbook.sheetnames:
+                # Add old workbook sheet to final
+                copy_worksheet(sheet,old_workbook,final_workbook)
+            else:
+                # Add new workbook sheet to final
+                copy_worksheet(sheet,new_workbook,final_workbook)
+
+        f = io.BytesIO()
+        final_workbook.save(f)
+        f.flush()
+        f.seek(0)
+        self.data = f.read()
+
+def copy_formats(cell,new_cell):
+    if cell.has_style:
+        new_cell.font = copy(cell.font)
+        new_cell.border = copy(cell.border)
+        new_cell.fill = copy(cell.fill)
+        new_cell.number_format = copy(cell.number_format)
+        new_cell.protection = copy(cell.protection)
+        new_cell.alignment = copy(cell.alignment)
+        new_cell.comment = cell.comment
+    return new_cell
+
+def copy_worksheet(sheet_name,old_workbook,new_workbook):
+    s = new_workbook.create_sheet(sheet_name)
+    for row in old_workbook[sheet_name].rows:
+        new_row = []
+        for cell in row:
+            new_cell = openpyxl.worksheet.write_only.WriteOnlyCell(s, value=cell.value)
+            copy_formats(cell,new_cell)
+            new_row.append(new_cell)
+        s.append(new_row)
 
 
 class ExcelSettings(object):
