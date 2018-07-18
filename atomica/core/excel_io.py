@@ -4,12 +4,12 @@ import numpy as np
 import xlrd
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-
-import atomica.ui as au
+from .system import AtomicaException
 import openpyxl
 
+# This file reads and writes Tables from a spreadsheet.
 
-class AtomicaWorkbook():
+class AtomicaWorkbook(object):
     # This is the intermediate representation of a workbook
 
     def __init__(self,fname=None):
@@ -39,10 +39,10 @@ class AtomicaWorkbook():
                         break
                 else:
                     if table_rows:
-                        tables.append(Table(table_rows))
+                        tables.append(Table.from_rows(table_rows))
                         table_rows = []
             if table_rows: # Flush the final row
-                tables.append(Table(table_rows))
+                tables.append(Table.from_rows(table_rows))
 
             self.sheets[ws.title] = tables
 
@@ -60,27 +60,30 @@ class AtomicaWorkbook():
 
         return
 
-class Table():
+class Table(object):
     # A Table is the fundamental parsing unit - it is a rectangular set of cells together with (optional) formatting and comments
     # Some particular Tables could have programatically dependent contents e.g. TDVE tables have logic for gating the assumption value
     # But the base table is just raw IO
 
-    def __init__(self,rows):
-        # The first row defines headings
-        for i in range(len(rows[0]),0,-1):
-            if rows[0][i-1].value:
-                extent = i
-                break
-        else:
-            raise au.AtomicaException('Heading row was empty')
-
+    def __init__(self):
         # By convention, the first row of content are the headings for this table
         # Could extend the members to include other features e.g. bold cells
         self.content = [] # A nested list for the rectangular Table object
         self.comments = []
         self.fill = []
 
-        self.fill_objects = {}
+    # Use the static method below to instantiate a Table when parsing an Excel file
+    @staticmethod
+    def from_rows(rows):
+        # The first row defines headings
+        self = Table()
+
+        for i in range(len(rows[0]),0,-1):
+            if rows[0][i-1].value:
+                extent = i
+                break
+        else:
+            raise AtomicaException('Heading row was empty')
 
         for row in rows:
             row_content = []
@@ -89,6 +92,14 @@ class Table():
 
             for i in range(0,extent):
                 cell = row[i]
+
+                # If we are being constructed using an array of values rather than an array of Cells
+                if not isinstance(cell,openpyxl.cell.cell.Cell):
+                    row_content.append(cell)
+                    row_comments.append(None)
+                    row_fill.append(None)
+                    continue
+
                 row_content.append(cell.value)
 
                 if cell.comment:
@@ -104,6 +115,8 @@ class Table():
             self.content.append(row_content)
             self.comments.append(row_comments)
             self.fill.append(row_fill)
+
+        return self
 
     def write(self,ws):
         # Append this table to the given worksheet
@@ -128,6 +141,10 @@ class Table():
             first_row = False
             ws.append(row)
         ws.append([None]*len(self.content[0]))
+
+
+
+
 
 if __name__ == '__main__':
     b = AtomicaWorkbook('E:\\projects\\atomica\\atomica\\tests\\databooks\\databook_tb.xlsx')
