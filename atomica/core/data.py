@@ -18,6 +18,10 @@ class ProjectData(CoreProjectStructure):
 
         self.workbook = None # This will be an AtomicaWorkbook, which is a collection of Tables sorted into sheets
 
+    @property
+    def pops(self):
+        return self.specs['pop']
+
     def complete_specs(self, framework, **kwargs):
         """
         A method for completing specifications that is called at the end of a file import.

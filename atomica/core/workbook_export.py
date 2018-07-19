@@ -1085,7 +1085,6 @@ class AtomicaContent(object):
 class Workbook(object):
     def __init__(self, name):
         self.name = name
-        self.descriptor = "blank workbook"
         self.sheet_names = sc.odict()
 
         self.book = None
@@ -1097,7 +1096,6 @@ class Workbook(object):
         # Return a ScirisSpreadsheet with the contents of this Workbook
         f = io.BytesIO() # Write to this binary stream in memory
 
-        logger.info("Creating '{0}'".format(self.descriptor))
         self.book = xw.Workbook(f)
         self.formats = standard_formats(self.book)
         self.sheets = {}
@@ -1220,17 +1218,17 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
     for node_id, node in enumerate(node_items):
         node_row = node_id + 1 + header_row
         node_col = node_id + 1
-        node_pos[node["name"]] = (node_row, node_col)  # This row/col tuple is important when writing link names.
-        sheet.write(header_row, node_col, node["name"], formats["center_bold"])
-        sheet.write(node_row, header_col, node["name"], formats["center_bold"])
+        node_pos[node] = (node_row, node_col)  # This row/col tuple is important when writing link names.
+        sheet.write(header_row, node_col, node, formats["center_bold"])
+        sheet.write(node_row, header_col, node, formats["center_bold"])
         if not namer and not allow_self_connections:
             sheet.write(node_row, node_col, "N.A.", formats["center"])
             sheet.data_validation(xlrc(node_row, node_col), {"validate": "list", "source": ["N.A."]})
         # Track column width updates.
-        max_string_lengths[0] = max(len(str(node["name"])), max_string_lengths[0])
+        max_string_lengths[0] = max(len(str(node)), max_string_lengths[0])
         if node_col not in max_string_lengths:
             max_string_lengths[node_col] = 0
-        max_string_lengths[node_col] = max(len(str(node["name"])), max_string_lengths[node_col])
+        max_string_lengths[node_col] = max(len(str(node)), max_string_lengths[node_col])
     # Associate existing links between nodes with spreadsheet cell coordinates.
     coord_contents = dict()
     if link_items is not None:
@@ -1240,8 +1238,8 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
                 raise AtomicaException("Connection matrix construction can only deal with one 'link item' "
                                        "in 'marker' mode.")
             else:
-                sheet.write(header_row, header_col, link_items[0]["label"], formats["center"])
-                max_string_lengths[0] = max(len(str(link_items[0]["label"])), max_string_lengths[0])
+                sheet.write(header_row, header_col, link_items[0], formats["center"])
+                max_string_lengths[0] = max(len(str(link_items[0])), max_string_lengths[0])
         # Note any connections that exist in link item details and convert those node-named tuples to Excel coordinates.
         for item in link_items:     # Note that this is a list of one when called appropriately via 'marker' wrapper.
             # Depending on mode, either the name of the connecting item or a 'y' representing True will be printed.
@@ -1293,7 +1291,6 @@ def make_table_connection_marker(file_object, node_items, link_item=None, link_a
 class FrameworkFile(Workbook):
     def __init__(self, name, datapages, comps, characs, interpops, pars):
         super(FrameworkFile, self).__init__(name=name)
-        self.descriptor = "framework file"
         self.sheet_names = sc.odict([
             ("datapage", "Custom Databook Pages"),
             ("comp", "Compartments"),
@@ -1447,23 +1444,61 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
 # data values
 class Databook(Workbook):
-    def __init__(self, name, pops, transfers, interpops, comps, characs, pars, tvec):
-        super(Databook, self).__init__(name=name)
-        self.descriptor = "databook"
+    def __init__(self, framework, data, tvec):
+        # TODO - tvec should be stored in data when read in
+        super(Databook, self).__init__(name='')
         self.sheet_names = sc.odict([
             ("pop", "Population Definitions"),
             ("transfer", "Transfer Definitions"),
             ("transferdata", "Transfer Details"),
             ("interpop", "Population Interactions")
         ])
-        self.pops = pops
-        self.transfers = transfers
-        self.interpops = interpops
-        self.comps = comps
-        self.characs = characs
-        self.pars = pars
+        self.pops = data.specs['pop']
+        self.transfers = data.specs['transfer']
+        self.interpops = data.specs['interpop']
+
         self.tvec = tvec # This is the data tvec - the values that appear in the headings for time dependent values
         self.references = dict() # This dict stores cell references for strings that get reused. For instance, the pop "'"Adults" may contain the reference "'Population Definitions'!A2" so all other references to "Adults" can derive from that cell
+
+        # Now, we want to store all of the comps, chars, and pars as TimeDependentValueEntry tables with appropriate unit constraints
+        # and separated by the databook sheets rather than by type
+        self.tdve_pages = sc.odict()
+
+        for page_key,page in framework.specs['datapage'].items():
+            if page_key in ['pop','transfer','transferdata','interpop']:
+                continue # These fixed pages do not contain TDVE data
+
+            page_content = [] # Accumulate a list of all of the tables to write on this page
+            for table in page['tables']: # NB. page['tables'] should be in the databook order set when the Framework was read in
+
+                item_type = table.template_item_type # This is whether the table is for a compartment, characteristic, or parameter
+                item_specs = framework.specs[item_type][table.template_item_key] # These are the framework specs associated with the item e.g. label, charac includes, datapage
+
+                # State variables are in number amounts unless normalized.
+                if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
+                    if "denominator" in item_specs and item_specs["denominator"] is not None:
+                        allowed_units = [FS.QUANTITY_TYPE_FRACTION.title()]
+                    else:
+                        allowed_units = [FS.QUANTITY_TYPE_NUMBER.title()]
+
+                # Modeller's choice for parameters
+                elif item_type in [FS.KEY_PARAMETER] and "format" in item_specs and item_specs["format"] is not None:
+                    allowed_units = [item_specs["format"].title()]
+                else:
+                    # User choice if a transfer or a transition parameter.
+                    if item_type in [FS.KEY_TRANSFER] or (FS.KEY_TRANSITIONS in item_specs and len(item_specs[FS.KEY_TRANSITIONS]) > 0):
+                        allowed_units = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
+                    # If not a transition, the format of this parameter is meaningless.
+                    else:
+                        allowed_units = [SS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
+
+                # These are the TimeSeries in data associated with the table we are adding from the Framework
+                data_ts = data.specs[table.template_item_type][table.template_item_key]['data'].data
+                page_content.append(TimeDependentValuesEntry(name=item_specs['label'], tvec=self.tvec, ts=data_ts, allowed_units=allowed_units))
+
+            self.tdve_pages[page['label']] = page_content  # A list of all of the TDVE tables on this page
+
+
 
     # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
     def generate_pop(self):
@@ -1473,12 +1508,11 @@ class Databook(Workbook):
         sheet.write(current_row, 0, 'Abbreviation', self.formats["center_bold"])
         sheet.write(current_row, 1, 'Full Name', self.formats["center_bold"])
 
-        for pop in self.pops:
+        for name,content in self.pops.items():
             current_row += 1
-            sheet.write(current_row, 0, pop['name'])
-            sheet.write(current_row, 1, pop['label'])
-            self.references[pop['name']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True))
-
+            sheet.write(current_row, 0, name)
+            sheet.write(current_row, 1, content['label'])
+            self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True))
 
     def generate_transfer(self):
         sheet_headers = sc.odict([
@@ -1510,40 +1544,68 @@ class Databook(Workbook):
             pass
 
     def construct_other_pages(self):
-        """ Overloaded method that allows for UI-driven page organisation. """
-        custom_page_items = sc.odict()
-        extra_page_items = sc.odict([("State Variables", list()), ("Parameters", list())])
-        # TODO: Compress duplicated if clause.
-        for item in self.comps + self.characs:
-            content = TimeDependentValuesEntry(name=item['label'], tvec=self.tvec, ts=item['data'].data, allowed_units=[FS.QUANTITY_TYPE_NUMBER])
-            if "datapage" in item and item["datapage"] is not None:
-                if item["datapage"] not in custom_page_items:
-                    custom_page_items[item["datapage"]] = list()
-                custom_page_items[item["datapage"]].append(content)
-            else:
-                extra_page_items["State Variables"].append(content)
-        for item in self.pars:
-            # Todo - junction parameters are the only ones that should have 'Proportion' units
-            # TODO - Basically the allowed types need to be calculated from the Framework or else otherwise stored somehow
-            content = TimeDependentValuesEntry(name=item['label'], tvec=self.tvec, ts=item['data'].data, allowed_units=[None,FS.QUANTITY_TYPE_PROBABILITY,FS.QUANTITY_TYPE_DURATION,FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_FRACTION,FS.QUANTITY_TYPE_PROPORTION])
-            if "datapage" in item and item["datapage"] is not None:
-                if item["datapage"] not in custom_page_items:
-                    custom_page_items[item["datapage"]] = list()
-                custom_page_items[item["datapage"]].append(content)
-            else:
-                extra_page_items["Parameters"].append(content)
-        for extra_page in extra_page_items:
-            if len(extra_page_items[extra_page]) > 0:
-                custom_page_items[extra_page] = extra_page_items[extra_page]
-        for custom_page,items in custom_page_items.items():
-            self.sheets[custom_page] = self.book.add_worksheet(custom_page)
-            self.current_sheet = self.sheets[custom_page]
+        for sheet_name,tables in self.tdve_pages.items():
+            self.sheets[sheet_name] = self.book.add_worksheet(sheet_name)
+            self.current_sheet = self.sheets[sheet_name]
             current_row = 0
-            for table in items:
+            for table in tables:
                 current_row = table.write(self.current_sheet,current_row,self.formats,self.references)
 
+    @staticmethod
+    def from_data(framework,data):
+        # Write a databook given a Framework instance and a ProjectData instance
+        # The ProjectData should have been created using the same Framework because things like
+        # which parameters are present need to match up
+        item_types = ["pop", "transfer", "interpop", "comp", "charac", "par"]
+
+        framework.specs['datapage']["sh_notified"]["tables"]
+        for j in range(len(item_types)):
+            item_type = item_types[j]
+            item_type_input = item_type_inputs[j]
+
+            item_details = []
+            # If data is passed in, each element of 'item_details' is just their dictionary of specifications.
+            # Item names must be inserted into each dict though, as they are originally treated as keys for the dict.
+            if data is not None:
+                item_specs = copy(data.specs[item_type])
+                # TODO: Verify if shallow copy is safe with TimeSeries objects.
+                #       Potential future item types may require this shallow copy to become deep.
+                for item_key in item_specs:
+                    item_specs[item_key].update({"name": item_key})
+                    item_details.append(item_specs[item_key])
+
+            elif item_type_input is None:
+                # If details for the following item types were not pulled from data, construct defaults from framework.
+                if item_type in ["interpop", "comp", "charac", "par"] and data is None:
+                    for item_key in framework.specs[item_type]:
+                        item_spec = framework.specs[item_type][item_key]
+                        # TODO: Initialize the structure of data here.
+                        item_details.append({"name": item_key, "label": item_spec["label"], "data": None})
+                        # Do not forget initialising self-interacting population links for interactions.
+                        if item_type == "interpop":
+                            item_details[-1]["poplinks"] = [(pop["name"], pop["name"]) for pop in item_type_inputs[0]]
+                        # TODO: Work out why the following is not working!
+                        if "datapage" in item_spec:
+                            item_details[-1]["datapage"] = item_spec["datapage"]
+
+            # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
+            #       Alternatively, just disable the else case if manual spec construction is redundant.
+            else:
+                item_details.extend(item_type_input)
+            item_type_inputs[j] = item_details
+
+        item_type_inputs.append(np.arange(data_start, data_end + data_dt, data_dt))
+
+        # Construct the actual workbook from generated content.
+        return Databook(filename, *item_type_inputs)
 
 
+    @staticmethod
+    def new(self,framework,pops,transfers,data_start,data_end,data_dt):
+        # Make a brand new empty databook
+        # Actually this will probably be replaced by a function that makes a new empty Data
+        # that can then be written to the databook
+        return
 
 def make_databook(filename, pops, transfers, framework, data_start, data_end, data_dt, data=None):
     """ Generate the Atomica databook as an Excel workbook. """
@@ -1555,6 +1617,7 @@ def make_databook(filename, pops, transfers, framework, data_start, data_end, da
     characs = None
     pars = None
     item_type_inputs = [pops, transfers, interpops, comps, characs, pars]
+
     # Iterate through item type to set up lists of items and their details stored elementwise in dicts.
     # This will form the content of the Excel workbook.
     # TODO: See if the redundancy in this code with make_framework_file() and possibly progbook should be encapsulated.
@@ -1607,11 +1670,11 @@ def make_databook(filename, pops, transfers, framework, data_start, data_end, da
 
     item_type_inputs.append(np.arange(data_start, data_end + data_dt, data_dt))
 
-    # Construct the actual workbook from generated content.
-    book = Databook(filename, *item_type_inputs)
-    spreadsheet = book.create()
-    spreadsheet.save(filename)
-    return filename
+    # # Construct the actual workbook from generated content.
+    # book = Databook.from(filename, *item_type_inputs)
+    # spreadsheet = book.create()
+    # spreadsheet.save(filename)
+    # return filename
 
 
 # %% Program spreadsheet exports.
@@ -1619,7 +1682,6 @@ def make_databook(filename, pops, transfers, framework, data_start, data_end, da
 class ProgramSpreadsheet(Workbook):
     def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None):
         super(ProgramSpreadsheet, self).__init__(name=name)
-        self.descriptor = "progbook"
         self.sheet_names = sc.odict([
             ('targeting', 'Populations & programs'),
             ('costcovdata', 'Program spend data'),

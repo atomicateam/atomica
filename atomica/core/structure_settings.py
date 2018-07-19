@@ -108,7 +108,6 @@ class TimeDependentValuesEntry(TableTemplate):
     # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
     #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
     #
-    # Thus,
 
     def __init__(self, name=None, tvec=None, ts = None, allowed_units = None, self_connections=True, template_item_type=None,iterated_type=None,iterate_over_links=None,value_attribute=None):
         # ts - An odict where the key is a population name and the value is a TimeSeries
@@ -127,12 +126,12 @@ class TimeDependentValuesEntry(TableTemplate):
         self.ts = ts
         self.allowed_units = allowed_units
 
-        # Todo - get rid of these once reading is updated
-        self.template_item_type = template_item_type
-        self.iterated_type = iterated_type
+        # Todo - get rid of these once reading is updated?
+        self.template_item_type = template_item_type # This is whether the table is for a compartment, characteristic, or parameter
+        self.iterated_type = iterated_type # Most TDVE tables contain multiple TimeSeries, this states what they are e.g. 'pop'
         self.iterate_over_links = iterate_over_links
-        self.value_attribute = value_attribute
-        self.self_connections = self_connections
+        self.value_attribute = value_attribute # This says something like 'data'
+        self.self_connections = self_connections # This is probably only relevant for link tables
 
     def read(self,worksheet, start_row):
         # TODO - Complete this implementation
@@ -276,7 +275,6 @@ class TimeDependentValuesEntry(TableTemplate):
             # TODO - change ts.format to ts.units??
             worksheet.write(current_row,1,pop_ts.format)
             if self.allowed_units: # Add validation if a list of options is specified
-                assert pop_ts.format in self.allowed_units # The units should already be valid
                 worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
 
             # Write the assumption
