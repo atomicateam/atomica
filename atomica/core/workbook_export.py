@@ -1463,14 +1463,22 @@ class Databook(Workbook):
         self.characs = characs
         self.pars = pars
         self.tvec = tvec # This is the data tvec - the values that appear in the headings for time dependent values
+        self.references = dict() # This dict stores cell references for strings that get reused. For instance, the pop "'"Adults" may contain the reference "'Population Definitions'!A2" so all other references to "Adults" can derive from that cell
 
     # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
     def generate_pop(self):
-        sheet_headers = sc.odict([
-            ("name", "Abbreviation"),
-            ("label", "Full Name")
-        ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pops, formats=self.formats)
+
+        sheet = self.current_sheet
+        current_row = 0
+        sheet.write(current_row, 0, 'Abbreviation', self.formats["center_bold"])
+        sheet.write(current_row, 1, 'Full Name', self.formats["center_bold"])
+
+        for pop in self.pops:
+            current_row += 1
+            sheet.write(current_row, 0, pop['name'])
+            sheet.write(current_row, 1, pop['label'])
+            self.references[pop['name']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True))
+
 
     def generate_transfer(self):
         sheet_headers = sc.odict([
@@ -1532,7 +1540,7 @@ class Databook(Workbook):
             self.current_sheet = self.sheets[custom_page]
             current_row = 0
             for table in items:
-                current_row = table.write(self.current_sheet,current_row,self.formats)
+                current_row = table.write(self.current_sheet,current_row,self.formats,self.references)
 
 
 
