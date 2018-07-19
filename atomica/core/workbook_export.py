@@ -1498,8 +1498,6 @@ class Databook(Workbook):
 
             self.tdve_pages[page['label']] = page_content  # A list of all of the TDVE tables on this page
 
-
-
     # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
     def generate_pop(self):
 
@@ -1512,7 +1510,8 @@ class Databook(Workbook):
             current_row += 1
             sheet.write(current_row, 0, name)
             sheet.write(current_row, 1, content['label'])
-            self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True))
+            self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
+            self.references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
 
     def generate_transfer(self):
         sheet_headers = sc.odict([
@@ -1550,132 +1549,6 @@ class Databook(Workbook):
             current_row = 0
             for table in tables:
                 current_row = table.write(self.current_sheet,current_row,self.formats,self.references)
-
-    @staticmethod
-    def from_data(framework,data):
-        # Write a databook given a Framework instance and a ProjectData instance
-        # The ProjectData should have been created using the same Framework because things like
-        # which parameters are present need to match up
-        item_types = ["pop", "transfer", "interpop", "comp", "charac", "par"]
-
-        framework.specs['datapage']["sh_notified"]["tables"]
-        for j in range(len(item_types)):
-            item_type = item_types[j]
-            item_type_input = item_type_inputs[j]
-
-            item_details = []
-            # If data is passed in, each element of 'item_details' is just their dictionary of specifications.
-            # Item names must be inserted into each dict though, as they are originally treated as keys for the dict.
-            if data is not None:
-                item_specs = copy(data.specs[item_type])
-                # TODO: Verify if shallow copy is safe with TimeSeries objects.
-                #       Potential future item types may require this shallow copy to become deep.
-                for item_key in item_specs:
-                    item_specs[item_key].update({"name": item_key})
-                    item_details.append(item_specs[item_key])
-
-            elif item_type_input is None:
-                # If details for the following item types were not pulled from data, construct defaults from framework.
-                if item_type in ["interpop", "comp", "charac", "par"] and data is None:
-                    for item_key in framework.specs[item_type]:
-                        item_spec = framework.specs[item_type][item_key]
-                        # TODO: Initialize the structure of data here.
-                        item_details.append({"name": item_key, "label": item_spec["label"], "data": None})
-                        # Do not forget initialising self-interacting population links for interactions.
-                        if item_type == "interpop":
-                            item_details[-1]["poplinks"] = [(pop["name"], pop["name"]) for pop in item_type_inputs[0]]
-                        # TODO: Work out why the following is not working!
-                        if "datapage" in item_spec:
-                            item_details[-1]["datapage"] = item_spec["datapage"]
-
-            # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
-            #       Alternatively, just disable the else case if manual spec construction is redundant.
-            else:
-                item_details.extend(item_type_input)
-            item_type_inputs[j] = item_details
-
-        item_type_inputs.append(np.arange(data_start, data_end + data_dt, data_dt))
-
-        # Construct the actual workbook from generated content.
-        return Databook(filename, *item_type_inputs)
-
-
-    @staticmethod
-    def new(self,framework,pops,transfers,data_start,data_end,data_dt):
-        # Make a brand new empty databook
-        # Actually this will probably be replaced by a function that makes a new empty Data
-        # that can then be written to the databook
-        return
-
-def make_databook(filename, pops, transfers, framework, data_start, data_end, data_dt, data=None):
-    """ Generate the Atomica databook as an Excel workbook. """
-
-    item_types = ["pop", "transfer", "interpop", "comp", "charac", "par"]
-    # Users cannot modify number of framework-defined items, but defaults should be constructed in the absence of data.
-    interpops = None
-    comps = None
-    characs = None
-    pars = None
-    item_type_inputs = [pops, transfers, interpops, comps, characs, pars]
-
-    # Iterate through item type to set up lists of items and their details stored elementwise in dicts.
-    # This will form the content of the Excel workbook.
-    # TODO: See if the redundancy in this code with make_framework_file() and possibly progbook should be encapsulated.
-    for j in range(len(item_types)):
-        item_type = item_types[j]
-        item_type_input = item_type_inputs[j]
-
-        item_details = []
-        # If data is passed in, each element of 'item_details' is just their dictionary of specifications.
-        # Item names must be inserted into each dict though, as they are originally treated as keys for the dict.
-        if data is not None:
-            item_specs = copy(data.specs[item_type])
-            # TODO: Verify if shallow copy is safe with TimeSeries objects.
-            #       Potential future item types may require this shallow copy to become deep.
-            for item_key in item_specs:
-                item_specs[item_key].update({"name": item_key})
-                item_details.append(item_specs[item_key])
-
-        # If an integer argument is given, just create (or extend) a list using empty entries.
-        # TODO: Consider hard-coding item attributes somewhere common where this code and header-names can access them.
-        if sc.isnumber(item_type_input):
-            num_items = item_type_input
-            # Keep if clause out of 'for' loops.
-            if item_type == "pop":
-                for k in range(num_items):
-                    item_details.append({"name": "pop_{0}".format(k), "label": "Population {0}".format(k)})
-            elif item_type == "transfer":
-                for k in range(num_items):
-                    item_details.append({"name": "trans_{0}".format(k), "label": "Transfer {0}".format(k),
-                                         "poplinks": list()})
-        elif item_type_input is None:
-            # If details for the following item types were not pulled from data, construct defaults from framework.
-            if item_type in ["interpop", "comp", "charac", "par"] and data is None:
-                for item_key in framework.specs[item_type]:
-                    item_spec = framework.specs[item_type][item_key]
-                    # TODO: Initialize the structure of data here.
-                    item_details.append({"name": item_key, "label": item_spec["label"], "data": None})
-                    # Do not forget initialising self-interacting population links for interactions.
-                    if item_type == "interpop":
-                        item_details[-1]["poplinks"] = [(pop["name"], pop["name"]) for pop in item_type_inputs[0]]
-                    # TODO: Work out why the following is not working!
-                    if "datapage" in item_spec:
-                        item_details[-1]["datapage"] = item_spec["datapage"]
-
-        # TODO: Ensure that non-integer function inputs are of the right type when using them as item details.
-        #       Alternatively, just disable the else case if manual spec construction is redundant.
-        else:
-            item_details.extend(item_type_input)
-        item_type_inputs[j] = item_details
-
-    item_type_inputs.append(np.arange(data_start, data_end + data_dt, data_dt))
-
-    # # Construct the actual workbook from generated content.
-    # book = Databook.from(filename, *item_type_inputs)
-    # spreadsheet = book.create()
-    # spreadsheet.save(filename)
-    # return filename
-
 
 # %% Program spreadsheet exports.
 
