@@ -398,7 +398,6 @@ def read_reference_worksheet(workbook):
     return metadata
 
 
-@accepts(str)
 def read_workbook(workbook_path, framework=None, data=None, workbook_type=None):
     page_keys = get_workbook_page_keys(framework=framework, workbook_type=workbook_type)
     page_specs = get_workbook_page_specs(framework=framework, workbook_type=workbook_type)
@@ -543,20 +542,20 @@ def load_progbook(filename, verbose=2):
                     data[progname]['basespend'] = []
                     data[progname]['capacity'] = []
                     data[progname]['unitcost'] = sc.odict()
-    
+
     ## Calculate columns for which data are entered, and store the year ranges
     sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
     lastdatacol, data['years'] = getyears(sheetdata)
     assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
-    
+
     namemap = {'Total spend': 'spend',
                'Base spend':'basespend',
                'Unit cost':'unitcost',
-               'Capacity constraints': 'capacity'} 
+               'Capacity constraints': 'capacity'}
 
     validunitcosts = sc.odict()
-    
-    for row in range(sheetdata.nrows): 
+
+    for row in range(sheetdata.nrows):
         sheetname = sheetdata.cell_value(row,0) # Sheet name
         progname = sheetdata.cell_value(row, 1) # Get the name of the program
 

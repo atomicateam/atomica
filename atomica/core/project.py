@@ -42,7 +42,7 @@ from .utils import NDict
 #from .results import Result
 import sciris.core as sc
 import numpy as np
-
+from .excel import ScirisSpreadsheet
 
 
 class ProjectSettings(object):
@@ -101,8 +101,9 @@ class Project(object):
         self.gitinfo = sc.gitinfo(__file__)
         self.created = sc.today()
         self.modified = sc.today()
-        self.databookloaddate = 'Databook never loaded'
-        self.programdatabookloaddate = 'Programs databook never loaded'
+
+        self.databook = None
+        self.progbook = None
         self.settings = ProjectSettings() # Global settings
 
         # Load spreadsheet, if available
@@ -158,10 +159,10 @@ class Project(object):
         if overwrite: data = ProjectData() # Allow overwrite
         else:         data = self.data
         full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+        self.databook = ScirisSpreadsheet(full_path)
         metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=data,
                                  workbook_type=SS.STRUCTURE_KEY_DATA)
 
-        self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded
         self.modified = sc.today()
         
         # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
@@ -225,7 +226,6 @@ class Project(object):
             raise AtomicaException(errormsg)
         self.progdata = progdata
 
-        self.programdatabookloaddate = sc.today() # Update date when spreadsheet was last loaded
         self.modified = sc.today()
 
         if make_default_progset: self.make_progset(name="default")

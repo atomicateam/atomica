@@ -88,7 +88,7 @@ class TimeSeries(object):
 
         self.t = []
         self.vals = []
-        self.format = format
+        self.format = format # TODO - what's the difference between format and units?!
         self.units = units
         self.assumption = None
 
@@ -158,7 +158,7 @@ class KeyData(object):
     """
 
     def __init__(self, keys=None, default_format=None):
-        self.data = {}
+        self.data = sc.odict() # Preserve the order of the keys
         self.default_format = default_format
         if keys is not None:
             [self.add_key(x) for x in keys]

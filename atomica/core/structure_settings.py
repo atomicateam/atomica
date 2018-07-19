@@ -30,7 +30,8 @@ import sciris.core as sc
 from .excel import ExcelSettings
 from .parser_config import load_config_file, get_config_value, configparser
 from .system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
-
+from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+import numpy as np
 
 class KeyUniquenessException(AtomicaException):
     def __init__(self, key, object_type, **kwargs):
@@ -77,6 +78,19 @@ class TableTemplate(TableType):
         self.template_item_type = template_item_type
         self.template_item_key = template_item_key
 
+class Table():
+    def __init__(self):
+        pass
+
+    def read(self,worksheet,start_row):
+        # Reads contents from the start row, column 1, to the next blank row
+        # And then attempts to parse
+        return None
+
+    def write(self,worksheet,start_row):
+        # Writes the contents of this table to the specified worksheet at the given start row
+        # Returns the next row for writing
+        return start_row
 
 class TimeDependentValuesEntry(TableTemplate):
     """
@@ -86,13 +100,198 @@ class TimeDependentValuesEntry(TableTemplate):
     Self connections are not included by default, but can be turned on by an optional argument.
     """
 
-    def __init__(self, iterated_type, value_attribute, iterate_over_links=False, self_connections=False, **kwargs):
-        super(TimeDependentValuesEntry, self).__init__(**kwargs)
+    # A TDVE table is used for representing Characteristics and Parameters that appear in the Parset, a quantity
+    # that has one sparse time array for each population. A TDVE table contains
+    # - An ordered list of TimeSeries objects
+    # - A name for the quantity (as this is what gets printed and read, it's usually a full name rather than a code name)
+    # - Optionally a list of allowed units - All TimeSeries objects must have units contained in this list
+    # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
+    #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
+    #
+    # Thus,
+
+    def __init__(self, name=None, tvec=None, ts = None, allowed_units = None, self_connections=True, template_item_type=None,iterated_type=None,iterate_over_links=None,value_attribute=None):
+        # ts - An odict where the key is a population name and the value is a TimeSeries
+        # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
+        # tvec - The time values that will be written in the headings
+        # allowed_units - Possible values for the unit selection dropdown
+
+        super(TimeDependentValuesEntry, self).__init__(template_item_type=template_item_type)
+
+        if ts is None:
+            ts = sc.odict()
+
+        # TODO - name and tvec should be compulsory positional arguments, they can be none to support legacy code for the moment
+        self.name = name
+        self.tvec = tvec
+        self.ts = ts
+        self.allowed_units = allowed_units
+
+        # Todo - get rid of these once reading is updated
+        self.template_item_type = template_item_type
         self.iterated_type = iterated_type
         self.iterate_over_links = iterate_over_links
-        self.self_connections = self_connections
         self.value_attribute = value_attribute
+        self.self_connections = self_connections
 
+    def read(self,worksheet, start_row):
+        # TODO - Complete this implementation
+        item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
+        structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
+
+        item_type = table.template_item_type
+        item_key = table.template_item_key
+        value_attribute = table.value_attribute
+
+        row, id_col = start_row, 0
+        block_col = 1   # Column increment at which data entry block begins.
+        if table.iterate_over_links:
+            block_col = 3
+
+        keep_scanning = True
+        header_row = None
+        term = None         # The header for this entire table.
+        data_key = None     # The key with which to store data provided within a row of this table.
+        while keep_scanning and row < worksheet.nrows:
+            label = str(worksheet.cell_value(row, id_col))
+            if not label == "":
+                # The first label encounter is of the item that heads this table.
+                # Verify it matches the item name associated with the table, provided no deferred instantiation took place.
+                if header_row is None:
+                    if item_key is not None and not label == item_specs[item_type][item_key]["label"]:
+                        raise AtomicaException(
+                            "A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
+                            "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name,
+                                                                                                        item_key, label))
+                    else:
+                        term = label
+                        # Do a quick scan of all row headers to determine keys for a TimeSeries object.
+                        quick_scan = True
+                        quick_row = row + 1
+                        keys = []
+                        while quick_scan and quick_row < worksheet.nrows:
+                            quick_label = str(worksheet.cell_value(quick_row, id_col))
+                            if quick_label == "":
+                                quick_scan = False
+                            elif quick_label == SS.DEFAULT_SYMBOL_IGNORE:
+                                pass
+                            else:
+                                # If table iterates over tupled items rather that just items, the tupled name pair is key.
+                                if table.iterate_over_links:
+                                    keys.append((structure.get_spec_name(quick_label),
+                                                 structure.get_spec_name(str(worksheet.cell_value(quick_row, id_col + 2)))))
+                                else:
+                                    keys.append(structure.get_spec_name(quick_label))
+                            quick_row += 1
+                        # Check if the item already exists in parsed structure, which it must if instantiation is deferred.
+                        # If not, the item key is the name and the header is the label; construct an item.
+                        if item_key is not None:
+                            try:
+                                structure.get_spec(term=item_key)
+                            except SemanticUnknownException:
+                                structure.create_item(item_name=item_key, item_type=item_type)
+                                structure.set_spec_value(term=item_key, attribute="label", value=label)
+                        time_series = KeyData(keys=keys)
+                        structure.set_spec_value(term=term, attribute=value_attribute, value=time_series)
+                    header_row = row
+                # All other label encounters are of an iterated type.
+                else:
+                    if label == SS.DEFAULT_SYMBOL_IGNORE:
+                        row += 1
+                        continue
+                    # Time series keys for standard items are their names.
+                    data_key = structure.get_spec_name(label)
+                    # Keys for time series that involve links between items are tuple-pairs of their names.
+                    if table.iterate_over_links:
+                        data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))
+                    col = id_col + block_col
+                    while col < worksheet.ncols:
+                        val = str(worksheet.cell_value(row, col))
+                        if val not in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
+                            header = str(worksheet.cell_value(header_row, col))
+                            if header == ES.QUANTITY_TYPE_HEADER:
+                                structure.get_spec(term=term)[value_attribute].set_format(
+                                    key=data_key, value_format=val.lower())
+                                col += 1
+                                continue
+                            try:
+                                val = float(val)
+                            except ValueError:
+                                raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' "
+                                                       "of sheet '{2}'.".format(val, xlrc(row, col), worksheet.name))
+                            if header == ES.ASSUMPTION_HEADER:
+                                structure.get_spec(term=term)[value_attribute].set_value(
+                                    key=data_key, value=val)
+                            else:
+                                try:
+                                    time = float(header)
+                                except ValueError:
+                                    raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell "
+                                                           "'{1}' of sheet '{2}'.".format(header, xlrc(header_row, col),
+                                                                                          worksheet.name))
+                                structure.get_spec(term=term)[value_attribute].set_value(
+                                    key=data_key, value=val, t=time)
+                        col += 1
+
+            else:
+                if header_row is not None:
+                    keep_scanning = False
+            row += 1
+        next_row = row
+        return next_row
+
+
+    def write(self,worksheet,start_row,formats,references=None):
+        # references is a dict where the key is a string value and the content is a cell
+        # Any populations that appear in this dict will have their value replaced by a reference
+        # formats should be the dict returned by `excel.standard_formats` when it was called to add
+        # formatting to the Workbook containing the worksheet passed in here.
+
+        if not references:
+            references = dict()
+
+        current_row = start_row
+
+        # First, assemble and write the headings
+        headings = []
+        headings.append(self.name)
+        headings.append('Quantity Type')
+        headings.append('Constant')
+        headings.append('')
+        headings += [str(x) for x in self.tvec]
+        for i,entry in enumerate(headings):
+            worksheet.write(current_row, i, entry, formats['center_bold'])
+
+        # Now, write the TimeSeries objects
+        for pop_name, pop_ts in self.ts.items():
+            current_row += 1
+
+            # Write the name
+            if pop_name in references:
+                worksheet.write(current_row, 0, references[pop_name], formats['center_bold'])
+            else:
+                worksheet.write(current_row, 0, pop_name, formats['center_bold'])
+
+            # Write the units
+            # TODO - change ts.format to ts.units??
+            worksheet.write(current_row,1,pop_ts.format)
+            if self.allowed_units: # Add validation if a list of options is specified
+                assert pop_ts.format in self.allowed_units # The units should already be valid
+                worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
+
+            # Write the assumption
+            worksheet.write(current_row,2,pop_ts.assumption)
+
+            # Write the separator between the assumptions and the time values
+            worksheet.write(current_row,3,'OR')
+
+            # Write the time values
+            offset = 4 # The time values start in this column (zero based index)
+            for t,v in zip(pop_ts.t,pop_ts.vals):
+                idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec
+                worksheet.write(current_row, offset+idx, v)
+
+        return current_row+2 # Add two so there is a blank line after this table
 
 class ConnectionMatrix(TableTemplate):
     """

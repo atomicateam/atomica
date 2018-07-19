@@ -16,6 +16,56 @@ import io
 import openpyxl
 from copy import copy # shallow copy
 
+def standard_formats(workbook):
+    # Add standard formatting to a workbook and return the set of format objects
+    # for use when writing within the workbook
+
+    """ the formats used in the spreadsheet """
+    darkgray = '#413839'
+    originalblue = '#18C1FF'
+    optionalorange = '#FFA500'
+    BG_COLOR = originalblue
+    OPT_COLOR = optionalorange
+    BORDER_COLOR = 'white'
+
+    PERCENTAGE = 'percentage'
+    RATE = 'rate'
+    DECIMAL = 'decimal'
+    SCIENTIFIC = 'scientific'
+    NUMBER = 'number'
+    GENERAL = 'general'
+    OPTIONAL = 'optional'
+
+    formats = {}
+    # locked formats
+    formats['bold'] = workbook.add_format({'bold': 1})
+    formats['center'] = workbook.add_format({'align': 'center'})
+    formats['center_bold'] = workbook.add_format({'bold': 1, 'align': 'center'})
+    formats['rc_title'] = {}
+    formats['rc_title']['right'] = {}
+    formats['rc_title']['right']['T'] = workbook.add_format({'bold': 1, 'align': 'right', 'text_wrap': True})
+    formats['rc_title']['right']['F'] = workbook.add_format({'bold': 1, 'align': 'right', 'text_wrap': False})
+    formats['rc_title']['left'] = {}
+    formats['rc_title']['left']['T'] = workbook.add_format({'bold': 1, 'align': 'left', 'text_wrap': True})
+    formats['rc_title']['left']['F'] = workbook.add_format({'bold': 1, 'align': 'left', 'text_wrap': False})
+    # unlocked formats
+    formats['unlocked'] = workbook.add_format({'locked': 0, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['percentage'] = workbook.add_format({'locked': 0, 'num_format': 0x09, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['rate'] = workbook.add_format({'locked': 0, 'num_format': 0x09, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['decimal'] = workbook.add_format({'locked': 0, 'num_format': 0x0a, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['scientific'] = workbook.add_format({'locked': 0, 'num_format': 0x0b, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['number'] = workbook.add_format({'locked': 0, 'num_format': 0x04, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['general'] = workbook.add_format({'locked': 0, 'num_format': 0x00, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['optional'] = workbook.add_format({'locked': 0, 'num_format': 0x00, 'bg_color': OPT_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['info_header'] = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'color': '#D5AA1D', 'fg_color': '#0E0655', 'font_size': 20})
+    formats['grey'] = workbook.add_format({'fg_color': '#EEEEEE', 'text_wrap': True})
+    formats['orange'] = workbook.add_format({'fg_color': '#FFC65E', 'text_wrap': True})
+    formats['info_url'] = workbook.add_format({'fg_color': '#EEEEEE', 'text_wrap': True, 'color': 'blue', 'align': 'center'})
+    formats['grey_bold'] = workbook.add_format({'fg_color': '#EEEEEE', 'bold': True})
+    formats['merge_format'] = workbook.add_format({'bold': 1, 'align': 'center', 'text_wrap': True})
+
+    return formats
+
 class ScirisSpreadsheet(ScirisObject):
     ''' A class for reading and writing spreadsheet data in binary format, so a project contains the spreadsheet loaded '''
     # self.data corresponds to the binary data of the Excel file. For IO, can construct a binary file in memory with io.BytesIO
@@ -25,6 +75,8 @@ class ScirisSpreadsheet(ScirisObject):
 
         self.data = None
         self.filename = None
+        self.load_date = None
+
         if filename is not None:
             self.load(filename)
         return None
@@ -37,6 +89,7 @@ class ScirisSpreadsheet(ScirisObject):
         if filename is not None:
             filepath = sc.makefilepath(filename=filename)
             self.filename = filepath
+            self.load_date = sc.today()
             with open(filepath, mode='rb') as f:
                 self.data = f.read()
         else:
@@ -53,6 +106,10 @@ class ScirisSpreadsheet(ScirisObject):
             print('Spreadsheet saved to %s.' % filepath)
         return filepath
 
+    def get_file(self):
+        # Return a file-like object with the contents of the file
+        return io.BytesIO(self.data)
+
     def get_workbook(self):
         # Return an openpyxl Workbook object from this ScirisSpreadsheet's data
         f = io.BytesIO(self.data)
@@ -65,6 +122,7 @@ class ScirisSpreadsheet(ScirisObject):
         f.flush()
         f.seek(0)
         self.data = f.read()
+        self.load_date = sc.today()
 
     def transfer_extras(self,extras_source):
         # Format this ScirisSpreadsheet based on the extra meta-content in extras_source
