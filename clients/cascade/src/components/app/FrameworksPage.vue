@@ -408,7 +408,7 @@ Last update: 2018-07-04
               return proj1.framework.creationTime > proj2.framework.creationTime ? sortDir: -sortDir
             }
             else if (this.sortColumn === 'updatedTime') {
-              return proj1.framework.updateTime > proj2.framework.updateTime ? sortDir: -sortDir
+              return proj1.framework.updatedTime > proj2.framework.updatedTime ? sortDir: -sortDir
             }
           }
         )
