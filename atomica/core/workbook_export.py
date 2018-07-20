@@ -6,7 +6,7 @@ from .excel import ExcelSettings as ES
 from .system import logger, AtomicaException, accepts, display_name
 from .excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
 from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
-    IDType, IDRefType, SwitchType, QuantityFormatType, TimeDependentConnections
+    IDType, IDRefType, SwitchType, QuantityFormatType, TimeDependentConnections, write_matrix
 from .workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
     get_workbook_item_type_specs, get_workbook_item_specs
 from .structure import get_quantity_type_list
@@ -1217,6 +1217,7 @@ def make_table_connections(sheet, node_items, link_items=None, link_attribute="l
     # Construct headers representing nodes.
     node_pos = dict()  # Associate nodes with a tuple of row and column that they appear on.
     for node_id, node in enumerate(node_items):
+        node = node['label']
         node_row = node_id + 1 + header_row
         node_col = node_id + 1
         node_pos[node] = (node_row, node_col)  # This row/col tuple is important when writing link names.
@@ -1291,30 +1292,34 @@ def make_table_connection_marker(sheet, node_items, link_item=None, link_attribu
 
 class FrameworkFile(Workbook):
     def __init__(self, name, datapages, comps, characs, interpops, pars):
-        super(FrameworkFile, self).__init__(name=name)
-        self.sheet_names = sc.odict([
-            ("datapage", "Custom Databook Pages"),
-            ("comp", "Compartments"),
-            ("link", "Transitions"),
-            ("charac", "Characteristics"),
-            ("interpop", "Interactions"),
-            ("par", "Parameters")
-        ])
+        super(FrameworkFile, self).__init__(name='')
         self.datapages = datapages
         self.comps = comps
         self.characs = characs
         self.interpops = interpops
         self.pars = pars
+        self.references = {}
 
-    # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
-    def generate_datapage(self):
+    def write_pages(self):
+        self.write_datapage()
+        self.write_comp()
+        self.write_link()
+        self.write_charac()
+        self.write_interpop()
+        self.write_par()
+
+    def write_datapage(self):
+        sheet = self.book.add_worksheet("Custom Databook Pages")
+
         sheet_headers = sc.odict([
             ("name", "Datasheet Code Name"),
             ("label", "Datasheet Title")
         ])
-        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.datapages)
+        make_table_detail_columns(sheet=sheet, headers=sheet_headers, content=self.datapages,formats=self.formats)
 
-    def generate_comp(self):
+    def write_comp(self):
+        sheet = self.book.add_worksheet("Compartments")
+
         sheet_headers = sc.odict([
             ("name", "Code Name"),
             ("label", "Display Name"),
@@ -1328,12 +1333,26 @@ class FrameworkFile(Workbook):
             ("datapage_order", "Databook Order"),
             ("cascade_stage", "Cascade Stage")
         ])
-        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.comps)
+        make_table_detail_columns(sheet=sheet, headers=sheet_headers, content=self.comps,formats=self.formats)
 
-    def generate_link(self):
-        make_table_connection_namer(sheet=self.current_sheet, node_items=self.comps, link_items=self.pars)
+        for i,comp in enumerate(self.comps):
+            self.references[comp['name']] = "='%s'!%s" % (sheet.name,xlrc(i+1,0,True,True))
 
-    def generate_charac(self):
+    def write_link(self):
+        sheet = self.book.add_worksheet("Transitions")
+
+        nodes = [x['name'] for x in self.comps]
+        entries = {}
+        for par in self.pars:
+            if 'links' in par:
+                for link in par['links']:
+                    entries[link] = par['name']
+
+        write_matrix(sheet, 0, nodes, entries, self.formats, references=self.references)
+
+    def write_charac(self):
+        sheet = self.book.add_worksheet("Characteristics")
+
         sheet_headers = sc.odict([
             ("name", "Code Name"),
             ("label", "Display Name"),
@@ -1346,17 +1365,21 @@ class FrameworkFile(Workbook):
             ("datapage_order", "Databook Order"),
             ("cascade_stage", "Cascade Stage")
         ])
-        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.characs)
+        make_table_detail_columns(sheet=sheet, headers=sheet_headers, content=self.characs,formats=self.formats)
 
-    def generate_interpop(self):
+    def write_interpop(self):
+        sheet = self.book.add_worksheet("Interactions")
+
         sheet_headers = sc.odict([
             ("name", "Code Name"),
             ("label", "Display Name"),
             ("default_value", "Default Value")
         ])
-        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.interpops)
+        make_table_detail_columns(sheet=sheet, headers=sheet_headers, content=self.interpops,formats=self.formats)
 
-    def generate_par(self):
+    def write_par(self):
+        sheet = self.book.add_worksheet("Parameters")
+
         sheet_headers = sc.odict([
             ("name", "Code Name"),
             ("label", "Display Name"),
@@ -1370,7 +1393,7 @@ class FrameworkFile(Workbook):
             ("datapage", "Databook Page"),
             ("datapage_order", "Databook Order")
         ])
-        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.pars)
+        make_table_detail_columns(sheet=sheet, headers=sheet_headers, content=self.pars,formats=self.formats)
 
 
 def make_framework_file(filename, datapages, comps, characs, interpops, pars, framework=None):
@@ -1434,7 +1457,8 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 
     # Construct the actual workbook from generated content.
     book = FrameworkFile(filename, *item_type_inputs)
-    book.create(filename)
+    ss = book.create()  # This is a ScirisSpreadsheet that can be stored in the FE database
+    ss.save(filename)
 
     return filename
 

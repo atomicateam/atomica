@@ -221,7 +221,7 @@ class TimeDependentConnections(Table):
         return current_row
 
 
-def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=True):
+def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False):
     # - odes is a list of strings used to label the rows and columns
     # - entries is a dict where where key is a tuple specifying (from,to) = (row,col) and
     # the value is the string to write to the matrix.
@@ -231,6 +231,9 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
     #
     # table_references is a dict that contains a mapping between the tuple (to,from) and a cell. This can be
     # subsequently used to programatically block out time-dependent rows
+    #
+    # In theory this could be rolled into TimeDependentConnections but that will cause problems if we later decide that the interaction
+    # matrix should contain actual values.
 
     if not references:
         references = {x:x for x in nodes} # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
@@ -245,9 +248,9 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
     # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
     # after writing content, so have to do the writing in a single pass over the entire matrix
     if boolean_choice:
-        content = np.full((len(nodes),len(nodes)),'N') # This will also coerce the value to string in preparation for writing
+        content = np.full((len(nodes),len(nodes)),'N',dtype=object) # This will also coerce the value to string in preparation for writing
     else:
-        content = np.full((len(nodes),len(nodes)),'') # This will also coerce the value to string in preparation for writing
+        content = np.full((len(nodes),len(nodes)),'',dtype=object) # This will also coerce the value to string in preparation for writing
 
     for interaction, value in entries.items():
         from_node,to_node = interaction
