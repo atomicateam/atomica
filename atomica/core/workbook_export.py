@@ -1520,7 +1520,7 @@ class Databook(Workbook):
         sheet = self.book.add_worksheet("Transfers")
         next_row = 0
         for code_name,content in self.transfers.items():
-            table = TimeDependentConnections(code_name, content['label'], self.tvec, self.pops, content['data'], enable_diagonal=False) # NB. Transfers must not allow diagonal entries
+            table = TimeDependentConnections(code_name, content['label'], self.tvec, self.pops, content['data'], type='transfer') # NB. Transfers must not allow diagonal entries
             next_row = table.write(sheet,next_row,self.formats,self.references)
 
 
