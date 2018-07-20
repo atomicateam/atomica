@@ -6,7 +6,7 @@ from .excel import ExcelSettings as ES
 from .system import logger, AtomicaException, accepts, display_name
 from .excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
 from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
-    IDType, IDRefType, SwitchType, QuantityFormatType
+    IDType, IDRefType, SwitchType, QuantityFormatType, TimeDependentConnections
 from .workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
     get_workbook_item_type_specs, get_workbook_item_specs
 from .structure import get_quantity_type_list
@@ -1098,12 +1098,7 @@ class Workbook(object):
 
         self.book = xw.Workbook(f)
         self.formats = standard_formats(self.book)
-        self.sheets = {}
-        for name in self.sheet_names:
-            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
-            self.current_sheet = self.sheets[name]
-            getattr(self, "generate_{0}".format(name))()  # This calls the corresponding page generating function.
-        self.construct_other_pages()    # This calls an overloadable method for nonstandard page generation.
+        self.write_pages()    # This calls an overloadable method for nonstandard page generation.
         self.book.close()
 
         # Extract the binary content of the file
@@ -1120,23 +1115,30 @@ class Workbook(object):
         spreadsheet.data = d
         return spreadsheet
 
+    def write_pages(self):
+        # By default, call `self.generate_<sheetname>` for every sheet in self.sheets
+        # However, overloading this function enables writing arbitrary sheets. This is important because the `generate...`
+        # function does not create the sheet and some functions, like writing multiple transfer tables or user-controlled
+        # TDVE pages, might create multiple sheets
+        self.sheets = {}
+        for name in self.sheet_names:
+            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
+            self.current_sheet = self.sheets[name]
+            getattr(self, "generate_{0}".format(name))()  # This calls the corresponding page generating function.
+
     def construct_other_pages(self):
         """ Method that is only typically overloaded by Databook, due to its UI-driven page organisation. """
         pass
 
 # %% Functions shared between workbook objects.
 
-def make_table_detail_columns(file_object, headers, content,formats=None):
+def make_table_detail_columns(sheet, headers, content,formats=None):
     """
     Construct table for current sheet of 'file_object' that allows items and their attributes to be detailed.
     Consider each column to bey keyed with a so-called attribute key.
-    Arg 'file_object' must be an instance of a Workbook with...
-        - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
-        - 'formats' attribute referencing an AtomicaFormats instance.
     Arg 'headers' must be an odict mapping attribute keys with header strings.
     Arg 'content' must be a list of dicts, each mapping the same attribute keys with values per exported item.
     """
-    sheet = file_object.current_sheet
     max_string_lengths = dict()  # Store maximum string length per column in case other tables need it for autofit.
     extra_width = 1  # Stretch autofitted columns by this extra amount.
     for attribute_id, attribute in enumerate(headers):
@@ -1172,7 +1174,7 @@ def make_table_detail_columns(file_object, headers, content,formats=None):
     return next_row, max_string_lengths
 
 
-def make_table_connections(file_object, node_items, link_items=None, link_attribute="links",
+def make_table_connections(sheet, node_items, link_items=None, link_attribute="links",
                            start_row=0, min_widths=None, namer=True, allow_self_connections=False,formats=None):
     """
     Construct table for current sheet of 'file_object' that allows 'link' items to be represented as connections.
@@ -1190,7 +1192,7 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
     Arg 'file_object' must be an instance of a Workbook with...
         - 'current_sheet' attribute referencing an Excel spreadsheet to construct the table within.
         - 'formats' attribute referencing an AtomicaFormats instance.
-    Arg 'node_items' must be a list of dicts, each dict noting details of a node item (although only name is important).
+    Arg 'node_items' must be a list of dicts, each dict noting details of a node item (although only name is important). # TODO - This is probably now just a list of strings?
     Arg 'link_items' can be a list of dicts with each detailing an item representing a connection between nodes.
     A useful link item dict must store a list of tuples denoting where those connections exist.
     Arg 'link_attribute' must be a string that represents under which attribute that connection info exists.
@@ -1203,7 +1205,6 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
     Arg 'min_widths' is an optional dictionary mapping column numbers to minimum widths for 'autofit' to apply.
     Arg 'allow_self_connections' restricts the matrix diagonal in 'marker' mode if False and allows data entry if True.
     """
-    sheet = file_object.current_sheet
     header_row = start_row
     header_col = 0
     extra_width = 1  # Stretch autofit columns by this extra amount.
@@ -1266,22 +1267,22 @@ def make_table_connections(file_object, node_items, link_items=None, link_attrib
     return next_row, max_string_lengths
 
 
-def make_table_connection_namer(file_object, node_items, link_items=None, link_attribute="links",
+def make_table_connection_namer(sheet, node_items, link_items=None, link_attribute="links",
                                 start_row=0, min_widths=None,formats=None):
     """ Wrapper for 'namer' mode connection matrices. See above. """
-    return make_table_connections(file_object=file_object, node_items=node_items, link_items=link_items,
+    return make_table_connections(sheet=sheet, node_items=node_items, link_items=link_items,
                                   link_attribute=link_attribute, start_row=start_row, min_widths=min_widths,
                                   namer=True,formats=formats)
 
 
-def make_table_connection_marker(file_object, node_items, link_item=None, link_attribute="links",
+def make_table_connection_marker(sheet, node_items, link_item=None, link_attribute="links",
                                  start_row=0, min_widths=None, allow_self_connections=False,formats=None):
     """ Wrapper for 'marker' mode connection matrices. See above. """
     if link_item is not None:
         link_items = [link_item]
     else:
         link_items = None
-    return make_table_connections(file_object=file_object, node_items=node_items, link_items=link_items,
+    return make_table_connections(sheet=sheet, node_items=node_items, link_items=link_items,
                                   link_attribute=link_attribute, start_row=start_row, min_widths=min_widths,
                                   namer=False, allow_self_connections=allow_self_connections,formats=formats)
 
@@ -1311,7 +1312,7 @@ class FrameworkFile(Workbook):
             ("name", "Datasheet Code Name"),
             ("label", "Datasheet Title")
         ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.datapages)
+        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.datapages)
 
     def generate_comp(self):
         sheet_headers = sc.odict([
@@ -1327,10 +1328,10 @@ class FrameworkFile(Workbook):
             ("datapage_order", "Databook Order"),
             ("cascade_stage", "Cascade Stage")
         ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.comps)
+        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.comps)
 
     def generate_link(self):
-        make_table_connection_namer(file_object=self, node_items=self.comps, link_items=self.pars)
+        make_table_connection_namer(sheet=self.current_sheet, node_items=self.comps, link_items=self.pars)
 
     def generate_charac(self):
         sheet_headers = sc.odict([
@@ -1345,7 +1346,7 @@ class FrameworkFile(Workbook):
             ("datapage_order", "Databook Order"),
             ("cascade_stage", "Cascade Stage")
         ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.characs)
+        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.characs)
 
     def generate_interpop(self):
         sheet_headers = sc.odict([
@@ -1353,7 +1354,7 @@ class FrameworkFile(Workbook):
             ("label", "Display Name"),
             ("default_value", "Default Value")
         ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.interpops)
+        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.interpops)
 
     def generate_par(self):
         sheet_headers = sc.odict([
@@ -1369,7 +1370,7 @@ class FrameworkFile(Workbook):
             ("datapage", "Databook Page"),
             ("datapage_order", "Databook Order")
         ])
-        make_table_detail_columns(file_object=self, headers=sheet_headers, content=self.pars)
+        make_table_detail_columns(sheet=self.current_sheet, headers=sheet_headers, content=self.pars)
 
 
 def make_framework_file(filename, datapages, comps, characs, interpops, pars, framework=None):
@@ -1447,13 +1448,8 @@ class Databook(Workbook):
     def __init__(self, framework, data, tvec):
         # TODO - tvec should be stored in data when read in
         super(Databook, self).__init__(name='')
-        self.sheet_names = sc.odict([
-            ("pop", "Population Definitions"),
-            ("transfer", "Transfer Definitions"),
-            ("transferdata", "Transfer Details"),
-            ("interpop", "Population Interactions")
-        ])
-        self.pops = data.specs['pop']
+
+        self.pops = data.specs['pop'] # Currently an odict mapping code_name:full_name (AKA name:label)
         self.transfers = data.specs['transfer']
         self.interpops = data.specs['interpop']
 
@@ -1464,8 +1460,8 @@ class Databook(Workbook):
         # and separated by the databook sheets rather than by type
         self.tdve_pages = sc.odict()
 
-        for page_key,page in framework.specs['datapage'].items():
-            if page_key in ['pop','transfer','transferdata','interpop']:
+        for page_key,page in framework.specs['datapage'].items(): # Extract page information from the Framework
+            if page_key in ['pop','transfer','transferdata','interpop']: # If the Framework's page key is in here, then skip it - we've already read this info from the data
                 continue # These fixed pages do not contain TDVE data
 
             page_content = [] # Accumulate a list of all of the tables to write on this page
@@ -1498,10 +1494,16 @@ class Databook(Workbook):
 
             self.tdve_pages[page['label']] = page_content  # A list of all of the TDVE tables on this page
 
-    # TODO: If datapage construction is to be hardcoded, modify framework datapage content and fix.
-    def generate_pop(self):
+    def write_pages(self):
+        self.write_pops()
+        self.write_transfers()
+        self.write_interpops()
+        self.write_tdve()
 
-        sheet = self.current_sheet
+    def write_pops(self):
+        # Writes the 'Population Definitions' sheet
+        sheet = self.book.add_worksheet("Population Definitions")
+
         current_row = 0
         sheet.write(current_row, 0, 'Abbreviation', self.formats["center_bold"])
         sheet.write(current_row, 1, 'Full Name', self.formats["center_bold"])
@@ -1513,28 +1515,25 @@ class Databook(Workbook):
             self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
             self.references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
 
-    def generate_transfer(self):
-        sheet_headers = sc.odict([
-            ("name", "Abbreviation"),
-            ("label", "Full Name")
-        ])
-        next_row, min_widths = make_table_detail_columns(file_object=self, headers=sheet_headers,
-                                                         content=self.transfers, formats=self.formats)
-        for transfer in self.transfers:
-            next_row, min_widths = make_table_connection_marker(file_object=self, node_items=self.pops,
-                                                                link_item=transfer, link_attribute="poplinks",
-                                                                start_row=next_row, min_widths=min_widths, formats=self.formats)
+    def write_transfers(self):
+        # Writes a sheet for every transfer
+        sheet = self.book.add_worksheet("Transfers")
+        next_row = 0
+        for code_name,content in self.transfers.items():
+            table = TimeDependentConnections(code_name, content['label'], self.tvec, self.pops, content['data'], enable_diagonal=False) # NB. Transfers must not allow diagonal entries
+            next_row = table.write(sheet,next_row,self.formats,self.references)
 
-    def generate_transferdata(self):
-        for transfer in self.transfers:
-            # TODO: Construct transfer data-entry block.
-            pass
 
-    def generate_interpop(self):
+    def write_interpops(self):
+        # Writes a sheet for every
+        return
+
+        sheet = self.book.add_worksheet("Population Interactions")
+
         next_row = 0
         min_widths = None
         for interpop in self.interpops:
-            next_row, min_widths = make_table_connection_marker(file_object=self, node_items=self.pops,
+            next_row, min_widths = make_table_connection_marker(sheet=self.current_sheet, node_items=self.pops,
                                                                 link_item=interpop, link_attribute="poplinks",
                                                                 allow_self_connections=True,
                                                                 start_row=next_row, min_widths=min_widths, formats=self.formats)
@@ -1542,13 +1541,12 @@ class Databook(Workbook):
             # TODO: Construct interaction data-entry block.
             pass
 
-    def construct_other_pages(self):
+    def write_tdve(self):
         for sheet_name,tables in self.tdve_pages.items():
-            self.sheets[sheet_name] = self.book.add_worksheet(sheet_name)
-            self.current_sheet = self.sheets[sheet_name]
+            sheet = self.book.add_worksheet(sheet_name)
             current_row = 0
             for table in tables:
-                current_row = table.write(self.current_sheet,current_row,self.formats,self.references)
+                current_row = table.write(sheet,current_row,self.formats,self.references)
 
 # %% Program spreadsheet exports.
 

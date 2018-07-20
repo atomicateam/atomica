@@ -31,6 +31,8 @@ from .excel import ExcelSettings
 from .parser_config import load_config_file, get_config_value, configparser
 from .system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+from xlsxwriter.utility import xl_cell_to_rowcol
+
 import numpy as np
 
 class KeyUniquenessException(AtomicaException):
@@ -87,10 +89,117 @@ class Table():
         # And then attempts to parse
         return None
 
-    def write(self,worksheet,start_row):
+    def write(self,worksheet,start_row,formats,references=None):
         # Writes the contents of this table to the specified worksheet at the given start row
         # Returns the next row for writing
         return start_row
+
+
+class TimeDependentConnections(Table):
+    # A TimeDependentConnection structure is suitable when there are time dependent interactions between two quantities
+    # This class is used for transfers and interactions
+    # The content that it writes consists of
+    # - A connection matrix table that has Y/N selection of which interactions are present between two things
+    # - A set of pairwise connections specifying to, from, units, assumption, and time
+    # Interactions can have a diagonal, whereas transfers cannot (e.g. a population can infect itself but cannot transfer to itself)
+
+    def __init__(self, code_name, full_name, tvec, pops, ts, enable_diagonal):
+        # INPUTS
+        # - code_name -
+        # - full_name - the name of this quantity e.g. 'Aging'
+        # - tvec - time values for the time-dependent rows
+        # - nodes - strings to use as the rows and columns - these are typically lists of population code names
+        # - ts - all of the non-empty TimeSeries objects used. An interaction can only be Y/N for clarity, if it is Y then
+        #   a row is displayed for the TimeSeries. Actually, the Y/N can be decided in the first instance based on the provided TimeSeries i.e.
+        #   if a TimeSeries is provided for an interaction, then the interaction must have been marked with Y
+        self.code_name = code_name
+        self.full_name = full_name
+        self.tvec = tvec
+        self.pops = pops
+        self.ts = ts
+        self.enable_diagonal = enable_diagonal
+
+    def write(self,worksheet,start_row,formats,references=None):
+        # nb. self.ts is currently KeyData so retrieving the dict requires using the '.data' attribute
+        if not references:
+            references = {}
+
+        # First, write the titles
+        current_row = start_row
+        worksheet.write(current_row, 0, 'Abbreviation', formats["center_bold"])
+        worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
+        current_row += 1
+        worksheet.write(current_row, 0, self.code_name)
+        worksheet.write(current_row, 1, self.full_name)
+        references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
+        references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
+
+        current_row += 1
+        # Note - table_references are local to this TimeDependentConnections instance
+        # For example, there could be two transfers, and each of them could potentially transfer between 0-4 and 5-14
+        # so the worksheet might contain two references from 0-4 to 5-14 but they would be for different transfers and thus
+        # the time-dependent rows would depend on different boolean table cells
+        current_row,table_references = write_matrix(worksheet,current_row,self.pops.keys(),self.ts.data,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True)
+
+        # TODO - Write the time-dependent rows here now
+
+        return current_row
+
+
+def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=True):
+    # - odes is a list of strings used to label the rows and columns
+    # - entries is a dict where where key is a tuple specifying (from,to) = (row,col) and
+    # the value is the string to write to the matrix.
+    # - If 'enable_diagonal' is False, then the diagonal will be forced to be 'N.A.'. If an entry
+    #   is specified for an entry on the diagonal and enable_diagonal=False, an error will be thrown
+    # - boolean_choice is like namer/marker mode. If True, entries can only be Y/N based on the truthiness of the value in the entries dict
+    #
+    # table_references is a dict that contains a mapping between the tuple (to,from) and a cell. This can be
+    # subsequently used to programatically block out time-dependent rows
+
+    if not references:
+        references = {x:x for x in nodes} # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
+
+    table_references = {}
+
+    # Write the headers
+    for i,node in enumerate(nodes):
+        worksheet.write(start_row+i+1, 0  , references[node], formats['center_bold'])
+        worksheet.write(start_row  , i+1, references[node], formats['center_bold'])
+
+    # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
+    # after writing content, so have to do the writing in a single pass over the entire matrix
+    if boolean_choice:
+        content = np.full((len(nodes),len(nodes)),'N') # This will also coerce the value to string in preparation for writing
+    else:
+        content = np.full((len(nodes),len(nodes)),'') # This will also coerce the value to string in preparation for writing
+
+    for interaction, value in entries.items():
+        from_node,to_node = interaction
+        if not enable_diagonal and from_node == to_node:
+            raise AtomicaException('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms') # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
+        from_idx = nodes.index(from_node)
+        to_idx = nodes.index(to_node)
+        if boolean_choice:
+            value = 'Y' if value else 'N'
+        content[from_idx,to_idx] = value
+
+    # Write the content
+    for from_idx in range(0,len(nodes)):
+        for to_idx in range(0,len(nodes)):
+            row = start_row+1+from_idx
+            col = to_idx+1
+            if not enable_diagonal and to_idx == from_idx: # Disable the diagonal if that's what's desired
+                worksheet.write(row,col, "N.A.", formats["center"])
+                worksheet.data_validation(xlrc(row,col), {"validate": "list", "source": ["N.A."]})
+            else:
+                worksheet.write(row,col, content[from_idx,to_idx], formats["center_unlocked"])
+                if boolean_choice:
+                    worksheet.data_validation(xlrc(row,col), {"validate": "list", "source": ["Y","N"]})
+            table_references[(nodes[to_idx],nodes[from_idx])] = xlrc(row,col,True,True) # Store reference to this interaction
+
+    next_row = start_row + 1 + len(nodes) + 2
+    return next_row,table_references
 
 class TimeDependentValuesEntry(TableTemplate):
     """
@@ -107,7 +216,6 @@ class TimeDependentValuesEntry(TableTemplate):
     # - Optionally a list of allowed units - All TimeSeries objects must have units contained in this list
     # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
     #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
-    #
 
     def __init__(self, name=None, tvec=None, ts = None, allowed_units = None, self_connections=True, template_item_type=None,iterated_type=None,iterate_over_links=None,value_attribute=None):
         # ts - An odict where the key is a population name and the value is a TimeSeries
@@ -239,7 +347,6 @@ class TimeDependentValuesEntry(TableTemplate):
         next_row = row
         return next_row
 
-
     def write(self,worksheet,start_row,formats,references=None):
         # references is a dict where the key is a string value and the content is a cell
         # Any populations that appear in this dict will have their value replaced by a reference
@@ -278,16 +385,24 @@ class TimeDependentValuesEntry(TableTemplate):
                 worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
 
             # Write the assumption
-            worksheet.write(current_row,2,pop_ts.assumption)
+            worksheet.write(current_row,2,pop_ts.assumption, formats['unlocked'])
 
             # Write the separator between the assumptions and the time values
             worksheet.write(current_row,3,'OR')
 
             # Write the time values
             offset = 4 # The time values start in this column (zero based index)
+            content = np.full(self.tvec.shape,None)
+
             for t,v in zip(pop_ts.t,pop_ts.vals):
                 idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec
-                worksheet.write(current_row, offset+idx, v)
+                content[idx] = v
+
+            for idx,v in enumerate(content):
+                if v is None:
+                    worksheet.write_blank(current_row, offset+idx, v, formats['unlocked'])
+                else:
+                    worksheet.write(current_row, offset+idx, v, formats['unlocked'])
 
         return current_row+2 # Add two so there is a blank line after this table
 
