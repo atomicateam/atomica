@@ -565,15 +565,22 @@ Last update: 2018-07-19
 
       // Confirmation alert
       deleteModal() {
-        // Alert object data
-        var obj = {
-          message: 'Are you sure you want to delete the selected frameworks?',
-          useConfirmBtn: true,
-          customConfirmBtnClass: 'btn __red',
-          customCloseBtnClass: 'btn',
-          onConfirm: this.deleteSelectedFrameworks
+        // Pull out the names of the frameworks that are selected.
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
+          theFrame.selected).map(theFrame => theFrame.framework.id)
+          
+        // Only if something is selected...
+        if (selectFrameworksUIDs.length > 0) {
+          // Alert object data
+          var obj = {
+            message: 'Are you sure you want to delete the selected frameworks?',
+            useConfirmBtn: true,
+            customConfirmBtnClass: 'btn __red',
+            customCloseBtnClass: 'btn',
+            onConfirm: this.deleteSelectedFrameworks
+          }
+          this.$Simplert.open(obj)
         }
-        this.$Simplert.open(obj)
       },
 
       deleteSelectedFrameworks() {

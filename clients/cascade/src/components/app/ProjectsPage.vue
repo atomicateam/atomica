@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-19
+Last update: 2018-07-20
 -->
 
 <template>
@@ -724,15 +724,22 @@ export default {
 
   // Confirmation alert
     deleteModal() {
-      // Alert object data
-      var obj = {
-            message: 'Are you sure you want to delete the selected projects?',
-            useConfirmBtn: true,
-            customConfirmBtnClass: 'btn __red',
-            customCloseBtnClass: 'btn',
-            onConfirm: this.deleteSelectedProjects
-          }
-      this.$Simplert.open(obj)
+      // Pull out the names of the projects that are selected.
+      let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
+        theProj.selected).map(theProj => theProj.project.id)
+        
+      // Only if something is selected...
+      if (selectProjectsUIDs.length > 0) {    
+        // Alert object data
+        var obj = {
+              message: 'Are you sure you want to delete the selected projects?',
+              useConfirmBtn: true,
+              customConfirmBtnClass: 'btn __red',
+              customCloseBtnClass: 'btn',
+              onConfirm: this.deleteSelectedProjects
+            }
+        this.$Simplert.open(obj)
+      }
     },
 
     deleteSelectedProjects() {
