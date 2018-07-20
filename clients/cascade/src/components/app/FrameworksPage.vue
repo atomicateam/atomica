@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-04
+Last update: 2018-07-19
 -->
 
 <template>
@@ -96,8 +96,8 @@ Last update: 2018-07-04
             <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
             <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
           </td>
-          <td>{{ frameworkSummary.framework.creationTime }}</td>
-          <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime:
+          <td>{{ frameworkSummary.framework.creationTime.toUTCString() }}</td>
+          <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
           <td>
             <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)">Upload</button>
@@ -250,32 +250,39 @@ Last update: 2018-07-04
 
         // Get the current user's framework summaries from the server.
         rpcservice.rpcCall('load_current_user_framework_summaries')
-          .then(response => {
-            // Set the frameworks to what we received.
-            this.frameworkSummaries = response.data.frameworks
+        .then(response => {
+          // Set the frameworks to what we received.
+          this.frameworkSummaries = response.data.frameworks
 
-            // Set select flags for false initially.
-            this.frameworkSummaries.forEach(theFrame => {
-              theFrame.selected = false
-              theFrame.renaming = ''
-            })
+          // Preprocess all frameworks.
+          this.frameworkSummaries.forEach(theFrame => {
+            // Set to not selected.
+            theFrame.selected = false
             
-            // If we have a framework on the list...
-/*            if (this.frameworkSummaries.length > 0) {
-              // If no ID is passed in, set the active framework to the first one in 
-              // the list.
-              // TODO: We should write a function that extracts the last-created 
-              // framework and then uses the UID for that as the thing to set.
-              if (setActiveID == null) {
-                this.openFramework(this.frameworkSummaries[0].framework.id)
-              }
+            // Set to not being renamed.
+            theFrame.renaming = ''
+            
+            // Extract actual Date objects from the strings.
+            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
+            theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
+          }) 
           
-              // Otherwise, set the active framework to the one passed in.
-              else {
-                this.openFramework(setActiveID)
-              }
-            } */        
-          })
+          // If we have a framework on the list...
+/*          if (this.frameworkSummaries.length > 0) {
+            // If no ID is passed in, set the active framework to the first one in 
+            // the list.
+            // TODO: We should write a function that extracts the last-created 
+            // framework and then uses the UID for that as the thing to set.
+            if (setActiveID == null) {
+              this.openFramework(this.frameworkSummaries[0].framework.id)
+            }
+          
+            // Otherwise, set the active framework to the one passed in.
+            else {
+              this.openFramework(setActiveID)
+            }
+          } */        
+        })
       },
 
       addDemoFramework() {
@@ -395,20 +402,20 @@ Last update: 2018-07-04
       },
 
       applySorting(frameworks) {
-        return frameworks.sort((proj1, proj2) =>
+        return frameworks.sort((frw1, frw2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
             if (this.sortColumn === 'name') {
-              return (proj1.framework.name > proj2.framework.name ? sortDir: -sortDir)
+              return (frw1.framework.name > frw2.framework.name ? sortDir: -sortDir)
             }
             /*          else if (this.sortColumn === 'country') {
-             return proj1.country > proj2.country ? sortDir: -sortDir
+             return frw1.country > frw2.country ? sortDir: -sortDir
              } */
             else if (this.sortColumn === 'creationTime') {
-              return proj1.framework.creationTime > proj2.framework.creationTime ? sortDir: -sortDir
+              return frw1.framework.creationTime > frw2.framework.creationTime ? sortDir: -sortDir
             }
             else if (this.sortColumn === 'updatedTime') {
-              return proj1.framework.updatedTime > proj2.framework.updatedTime ? sortDir: -sortDir
+              return frw1.framework.updatedTime > frw2.framework.updatedTime ? sortDir: -sortDir
             }
           }
         )
