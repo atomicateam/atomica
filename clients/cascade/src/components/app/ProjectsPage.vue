@@ -505,7 +505,7 @@ export default {
     },
 
     applySorting(projects) {
-      return projects.sort((proj1, proj2) =>
+      return projects.slice(0).sort((proj1, proj2) =>
         {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {

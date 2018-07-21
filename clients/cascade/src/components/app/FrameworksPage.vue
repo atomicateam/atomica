@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-19
+Last update: 2018-07-20
 -->
 
 <template>
@@ -402,7 +402,7 @@ Last update: 2018-07-19
       },
 
       applySorting(frameworks) {
-        return frameworks.sort((frw1, frw2) =>
+        return frameworks.slice(0).sort((frw1, frw2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
             if (this.sortColumn === 'name') {

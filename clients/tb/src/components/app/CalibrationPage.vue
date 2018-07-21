@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-19
+Last update: 2018-07-20
 -->
 
 <template>
@@ -112,9 +112,9 @@ Last update: 2018-07-19
       },
 
       sortedPars() {
-//        var sortedParList = this.applySorting(this.parList);
-        var sortedParList = this.parList;
-        console.log(sortedParList);
+        var sortedParList = this.applySorting(this.parList);
+/*        var sortedParList = this.parList;
+        console.log(sortedParList); */
         return sortedParList;
       },
 
@@ -155,12 +155,12 @@ Last update: 2018-07-19
       },
 
       applySorting(pars) {
-        return pars.sort((par1, par2) =>
-          {
+        return pars.slice(0).sort((par1, par2) =>
+          {         
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parname') { return par1[0] > par2[0] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'popname') { return par1[1] > par2[1] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1[2] > par2[2] ? sortDir: -sortDir}
+            if      (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}            
           }
         )
       },
