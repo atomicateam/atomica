@@ -333,7 +333,7 @@ def load_zip_of_prj_files(project_ids):
     
     # Make the zip file name and the full server file path version of the same..
     zip_fname = '%s.zip' % str(sc.uuid())
-    server_zip_fname = os.path.join(dirname, zip_fname)
+    server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
     
     # Create the zip file, putting all of the .prj files in a projects 
     # directory.
