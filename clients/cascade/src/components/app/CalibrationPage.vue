@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-05
+Last update: 2018-07-22
 -->
 
 <template>
@@ -74,8 +74,11 @@ Last update: 2018-07-05
           <!--mpld3 content goes here-->
         </div>
       </div>
+      
     </div>
-
+    
+<!--    <clip-loader></clip-loader> -->
+      
   </div>
 </template>
 
@@ -85,10 +88,17 @@ Last update: 2018-07-05
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
   import router from '@/router'
-  import Vue from 'vue';
-
+  import Vue from 'vue'
+//  import PulseLoader from 'vue-spinner/src/PulseLoader.vue'
+  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  
   export default {
     name: 'CalibrationPage',
+    
+    components: {
+      ClipLoader
+    },
+    
     data() {
       return {
         serverresponse: 'no response',
