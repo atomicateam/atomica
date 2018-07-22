@@ -19,7 +19,8 @@ from copy import copy
 from .excel import ScirisSpreadsheet, standard_formats
 import collections
 import io
-
+import xlrd
+import openpyxl
 
 class KeyUniquenessException(AtomicaException):
     def __init__(self, key, dict_type, **kwargs):
@@ -394,287 +395,6 @@ def write_detail_columns(worksheet, table, start_row, start_col, framework=None,
     next_row, next_col = row, col
     return next_row, next_col
 
-
-def write_connection_matrix(worksheet, table, iteration, start_row, start_col,
-                            framework=None, data=None, instructions=None,
-                            workbook_type=None, formats=None, temp_storage=None):
-    item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
-    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
-    instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
-                                                       workbook_type=workbook_type)
-
-    if temp_storage is None:
-        temp_storage = sc.odict()
-    if formats is None:
-        raise AtomicaException("Excel formats have not been passed to workbook table construction.")
-
-    # Set up validation messages outside of loop.
-    validation_title = "Enter '{0}', a number or '{1}'.".format(SS.DEFAULT_SYMBOL_YES, SS.DEFAULT_SYMBOL_NO)
-    validation_error = ("Neither '{0}', '{1}' or a number was "
-                        "entered.").format(SS.DEFAULT_SYMBOL_YES, SS.DEFAULT_SYMBOL_NO)
-
-    source_item_type = table.source_item_type
-    target_item_type = table.target_item_type
-    # Set up identifier for the item that this connection matrix is constructed for.
-    # If the table is not a template, this term will remain none.
-    term = None
-
-    row, col = start_row, start_col
-    # TODO: Handle the case where construction is based on framework/data contents rather than instructions.
-    if use_instructions:
-        source_amount = instructions.num_items[source_item_type]
-        target_amount = instructions.num_items[target_item_type]
-        # In the template case, create 'corner' headers to identify table.
-        # TODO: In the non-template case, maybe implement 'corner' headers.
-        if table.template_item_type is not None:
-            # If instantiated for an item, use that label as the header.
-            if table.template_item_key is not None:
-                try:
-                    term = item_specs[table.template_item_type][table.template_item_key]["label"]
-                except KeyError:
-                    raise AtomicaException("No instantiation of item type '{0}' exists with the key of "
-                                           "'{1}'.".format(table.template_item_type, table.template_item_key))
-                worksheet.write(start_row, start_col, term, formats[ES.FORMAT_KEY_CENTER_BOLD])
-            # If the instantiation was deferred to this workbook, create content according to iteration number.
-            else:
-                # Grab the content that is created; the 'backup' content is better as it is a value without equations.
-                _, term = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col,
-                                                        attribute="label", item_type=table.template_item_type,
-                                                        item_type_specs=item_type_specs, item_number=iteration,
-                                                        formats=formats, format_key=ES.FORMAT_KEY_CENTER_BOLD,
-                                                        temp_storage=temp_storage)
-        target_col = start_col + 1
-        for item_number in range(target_amount):
-            _, target_key = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=target_col,
-                                                          attribute="name", item_type=target_item_type,
-                                                          item_type_specs=item_type_specs, item_number=item_number,
-                                                          formats=formats, format_key=ES.FORMAT_KEY_CENTER_BOLD,
-                                                          temp_storage=temp_storage)
-            target_col += 1
-        source_row = start_row + 1
-        for item_number in range(source_amount):
-            _, source_key = create_attribute_cell_content(worksheet=worksheet, row=source_row, col=start_col,
-                                                          attribute="name", item_type=source_item_type,
-                                                          item_type_specs=item_type_specs, item_number=item_number,
-                                                          formats=formats, format_key=ES.FORMAT_KEY_CENTER_BOLD,
-                                                          temp_storage=temp_storage)
-            # Template connection matrices do not mark connections with an item name and leave the rest blank.
-            # Because the matrix is defined for one item, the name of which relates to the header in the corner...
-            # The existence of a connection is typically marked by a 'y' with any other value marking an absence.
-            if table.template_item_type is not None:
-                for other_number in range(target_amount):
-                    rc = xlrc(source_row, start_col + other_number + 1)
-                    # Handle self-connections.
-                    if item_number == other_number and source_item_type == target_item_type \
-                            and not table.self_connections:
-                        worksheet.write(rc, SS.DEFAULT_SYMBOL_INAPPLICABLE, formats[ES.FORMAT_KEY_CENTER])
-                        worksheet.data_validation(rc, {"validate": "list",
-                                                       "source": [SS.DEFAULT_SYMBOL_INAPPLICABLE]})
-                    else:
-                        # Whether connections are marked to exist likely affect whether they appear in other tables.
-                        # Store information for referencing elsewhere; this is used for items like transfers.
-                        item_type = table.template_item_type
-                        source_type = table.source_item_type
-                        target_type = table.target_item_type
-                        if item_type not in temp_storage:
-                            temp_storage[item_type] = dict()
-                        if term not in temp_storage[item_type]:
-                            temp_storage[item_type][term] = dict()
-                        if (source_type, target_type) not in temp_storage[item_type][term]:
-                            temp_storage[item_type][term][(source_type, target_type)] = dict()
-                        if (item_number, other_number) not in temp_storage[item_type][term][(source_type, target_type)]:
-                            temp_storage[item_type][term][(source_type, target_type)][
-                                (item_number, other_number)] = dict()
-                        temp_storage[item_type][term][(source_type, target_type)][(item_number, other_number)][
-                            "cell"] = rc
-                        temp_storage[item_type][term][(source_type, target_type)][(item_number, other_number)][
-                            "page_title"] = worksheet.name
-
-                        # Actually fill the cell in with a 'yes or no' choice, but allow for numeric values.
-                        if item_number == other_number and source_item_type == target_item_type \
-                                and table.self_connections:
-                            worksheet.write(rc, SS.DEFAULT_SYMBOL_YES, formats[ES.FORMAT_KEY_CENTER])
-                        else:
-                            worksheet.write(rc, SS.DEFAULT_SYMBOL_NO, formats[ES.FORMAT_KEY_CENTER])
-                        condition = "=OR(ISNUMBER({0}),{0}={1},{0}={2})".format(rc, "\"" + SS.DEFAULT_SYMBOL_YES + "\"",
-                                                                                "\"" + SS.DEFAULT_SYMBOL_NO + "\"")
-                        worksheet.data_validation(rc, {"validate": "custom",
-                                                       "value": condition,
-                                                       "show_input": True,
-                                                       "ignore_blank": True,
-                                                       "input_title": validation_title,
-                                                       "error_message": validation_error})
-            source_row += 1
-        row = source_row + 1  # Extra row to space out following tables.
-        start_row = row  # Update start row down the page for iterated tables.
-
-    next_row, next_col = row, col
-    return next_row, next_col
-
-
-def write_time_dependent_values_entry(worksheet, timeseries, iteration, start_row, start_col,
-                                      framework=None, data=None, instructions=None, workbook_type=None,
-                                      formats=None, format_variables=None, temp_storage=None):
-    item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
-    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
-    instructions, use_instructions = make_instructions(framework=framework, data=data, instructions=instructions,
-                                                       workbook_type=workbook_type)
-    if temp_storage is None:
-        temp_storage = sc.odict()
-
-    item_type = table.template_item_type
-    item_key = table.template_item_key
-    iterated_type = table.iterated_type
-
-    if formats is None:
-        raise AtomicaException("Excel formats have not been passed to workbook table construction.")
-    if format_variables is None:
-        format_variables = create_default_format_variables()
-    orig_format_variables = sc.dcp(format_variables)
-    format_variables = sc.dcp(orig_format_variables)
-
-    row, col = start_row, start_col
-    block_col = 1  # Column increment at which data entry block begins.
-    # Set up identifier for the item that this TDVE table is constructed for.
-    term = None
-
-    # Set up a header for the table relating to the object for which the databook is requesting values.
-    attribute = "label"
-    attribute_spec = item_type_specs[item_type]["attributes"][attribute]
-    for format_variable_key in format_variables:
-        if format_variable_key in attribute_spec:
-            format_variables[format_variable_key] = attribute_spec[format_variable_key]
-    # If instantiated for an item, use that label as the header.
-    if item_key is not None:
-        try:
-            term = item_specs[item_type][item_key]["label"]
-        except KeyError:
-            raise AtomicaException("No instantiation of item type '{0}' exists with the key of "
-                                   "'{1}'.".format(item_type, item_key))
-        worksheet.write(start_row, start_col, term, formats[ES.FORMAT_KEY_CENTER_BOLD])
-    # If the instantiation was deferred to this workbook, create content according to iteration number.
-    else:
-        _, term = create_attribute_cell_content(worksheet=worksheet, row=start_row, col=start_col, attribute="label",
-                                                item_type=item_type, item_type_specs=item_type_specs,
-                                                item_number=iteration, formats=formats,
-                                                format_key=ES.FORMAT_KEY_CENTER_BOLD, temp_storage=temp_storage)
-    if "comment" in attribute_spec:
-        header_comment = attribute_spec["comment"]
-        worksheet.write_comment(row, col, header_comment,
-                                {"x_scale": format_variables[ES.KEY_COMMENT_XSCALE],
-                                 "y_scale": format_variables[ES.KEY_COMMENT_YSCALE]})
-    worksheet.set_column(col, col, format_variables[ES.KEY_COLUMN_WIDTH])
-
-    # Prepare the standard value entry block, extracting the number of items from instructions.
-    # TODO: Adjust this for when writing existing values to workbook.
-    num_items = 0
-    if use_instructions:
-        num_items = instructions.num_items[iterated_type]
-    # If the table actually iterates over connections between items rather than items themselves...
-    # Push the data entry block back and make space for more 'item to item' headers, self-connections excluded.
-    if table.iterate_over_links:
-        block_col = 3
-        if table.self_connections:
-            num_items = num_items ** 2
-        else:
-            num_items = num_items * (num_items - 1)
-    default_values = [0.0] * num_items
-    # Decide what quantity types, a.k.a. value formats, are allowed for the item.
-    if item_type in [FS.KEY_COMPARTMENT,
-                     FS.KEY_CHARACTERISTIC]:  # State variables are in number amounts unless normalized.
-        if "denominator" in item_specs[item_type][item_key] and \
-                item_specs[item_type][item_key]["denominator"] is not None:
-            quantity_types = [FS.QUANTITY_TYPE_FRACTION.title()]
-        else:
-            quantity_types = [FS.QUANTITY_TYPE_NUMBER.title()]
-    # Modeller's choice for parameters.
-    elif item_type in [FS.KEY_PARAMETER] and \
-            "format" in item_specs[item_type][item_key] and not item_specs[item_type][item_key]["format"] is None:
-        quantity_types = [item_specs[item_type][item_key]["format"].title()]
-        # Make sure proportions do not default to a value of zero.
-        if item_specs[item_type][item_key]["format"] == FS.QUANTITY_TYPE_PROPORTION:
-            default_values = [1.0] * num_items
-    else:
-        # User choice if a transfer or a transition parameter.
-        if item_type in [FS.KEY_TRANSFER] or (FS.KEY_TRANSITIONS in item_specs[item_type][item_key] and
-                                              len(item_specs[item_type][item_key][FS.KEY_TRANSITIONS]) > 0):
-            quantity_types = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
-        # If not a transition, the format of this parameter is meaningless.
-        else:
-            quantity_types = [SS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
-    if item_key is not None and "default_value" in item_specs[item_type][item_key] and \
-            item_specs[item_type][item_key]["default_value"] is not None:
-        default_values = [item_specs[item_type][item_key]["default_value"]] * num_items
-    # TODO: Make sure this is robust when writing from framework/data rather than instructions.
-    time_vector = instructions.tvec
-
-    # Fill in the appropriate 'keys' for the table.
-    row += 1
-    condition_list = None
-    if use_instructions:
-        # Construct row headers for tuples of iterated item type, if appropriate.
-        if table.iterate_over_links:
-            condition_list = []
-            item_number = 0
-            for source_number in range(instructions.num_items[iterated_type]):
-                for target_number in range(instructions.num_items[iterated_type]):
-                    if not table.self_connections and source_number == target_number:
-                        continue
-                    item_type = table.template_item_type
-                    iterated_type = table.iterated_type
-                    try:
-                        rc = \
-                            temp_storage[item_type][term][(iterated_type, iterated_type)][
-                                (source_number, target_number)][
-                                "cell"]
-                        page_title = \
-                            temp_storage[item_type][term][(iterated_type, iterated_type)][
-                                (source_number, target_number)][
-                                "page_title"]
-                        # If a value exists for this connection elsewhere, show row if value is a 'y' or number.
-                        condition_string = ("OR('{0}'!{1}=\"{2}\","
-                                            "ISNUMBER('{0}'!{1}))").format(page_title, rc, SS.DEFAULT_SYMBOL_YES)
-                        # If a value exists for this connection elsewhere, let default value be that value if numeric.
-                        default_values[item_number] = ("IF(ISNUMBER('{0}'!{1}),'{0}'!{1},"
-                                                       "{2})").format(page_title, rc, default_values[item_number])
-                    except KeyError:
-                        condition_string = "TRUE"  # Always show the row if a condition cannot be generated.
-                    condition_list.append(condition_string)
-                    create_attribute_cell_content(worksheet=worksheet, row=row, col=col, attribute="label",
-                                                  item_type=iterated_type, item_type_specs=item_type_specs,
-                                                  alt_content="\"" + SS.DEFAULT_SYMBOL_IGNORE + "\"",
-                                                  alt_condition="NOT(" + condition_string + ")",
-                                                  item_number=source_number, formats=formats, temp_storage=temp_storage)
-                    rc_check = xlrc(row, col + 2)
-                    worksheet.write(row, col + 1, "=IF({0}=\"{1}\",\"{2}\",\"{3}\")".format(rc_check, str(), str(),
-                                                                                            SS.DEFAULT_SYMBOL_TO),
-                                    formats[ES.FORMAT_KEY_CENTER_BOLD], "")
-                    create_attribute_cell_content(worksheet=worksheet, row=row, col=col + 2, attribute="label",
-                                                  item_type=iterated_type, item_type_specs=item_type_specs,
-                                                  alt_content="\"\"", alt_condition="NOT(" + condition_string + ")",
-                                                  item_number=target_number, formats=formats, temp_storage=temp_storage)
-                    item_number += 1
-                    row += 1
-        # Construct row headers for iterated item type.
-        else:
-            for item_number in range(instructions.num_items[iterated_type]):
-                create_attribute_cell_content(worksheet=worksheet, row=row, col=col,
-                                              attribute="label", item_type=iterated_type,
-                                              item_type_specs=item_type_specs,
-                                              item_number=item_number, formats=formats, temp_storage=temp_storage)
-                row += 1
-
-        # Create the actual value entry block.
-        create_value_entry_block(excel_page=worksheet, start_row=start_row, start_col=start_col + block_col,
-                                 num_items=num_items, time_vector=time_vector,
-                                 default_values=default_values, condition_list=condition_list, formats=formats,
-                                 quantity_types=quantity_types)
-    row += 1  # Extra row to space out following tables.
-
-    next_row, next_col = row, col
-    return next_row, next_col
-
-
 def write_table(worksheet, table, start_row, start_col, framework=None, data=None, instructions=None,
                 workbook_type=None, formats=None, format_variables=None, temp_storage=None):
     # Check workbook type.
@@ -704,19 +424,11 @@ def write_table(worksheet, table, start_row, start_col, framework=None, data=Non
                 iteration_amount = instructions.num_items[table.template_item_type]
         if isinstance(table, ConnectionMatrix):
             for iteration in range(iteration_amount):
-                row, col = write_connection_matrix(worksheet=worksheet, table=table, iteration=iteration,
-                                                   start_row=row, start_col=col,
-                                                   framework=framework, data=data, instructions=instructions,
-                                                   workbook_type=workbook_type, formats=formats,
-                                                   temp_storage=temp_storage)
+                raise Exception('Matrix printing should go via write_matrix()')
+
         if isinstance(table, TimeDependentValuesEntry):
             for iteration in range(iteration_amount):
-                row, col = write_time_dependent_values_entry(worksheet=worksheet, table=table, iteration=iteration,
-                                                             start_row=row, start_col=col,
-                                                             framework=framework, data=data, instructions=instructions,
-                                                             workbook_type=workbook_type,
-                                                             formats=formats, format_variables=format_variables,
-                                                             temp_storage=temp_storage)
+                raise Exception('TDVE printing should go via TimeDependentValuesEntry object')
 
     next_row, next_col = row, col
     return next_row, next_col
@@ -1358,16 +1070,26 @@ class Databook(Workbook):
         # TODO - tvec should be stored in data when read in
         super(Databook, self).__init__(name='')
 
-        self.pops = data.specs['pop'] # Currently an odict mapping code_name:full_name (AKA name:label)
-        self.transfers = data.specs['transfer']
-        self.interpops = data.specs['interpop']
+        self.pops = data.specs['pop'] # Currently an odict mapping code_name:{'label':full_name} (AKA name:label)
+        pop_names = self.pops.keys()
+
+        self.transfers = []
+        for code_name, content in data.specs['transfer'].items():
+            tdc = TimeDependentConnections(code_name, content['label'], self.tvec, pop_names, content['data'].data, type='transfer')  # NB. Transfers must not allow diagonal entries
+            self.transfers.append(tdc)
+
+        self.interpops = []
+        for code_name, content in data.specs['interpop'].items():
+            tdc = TimeDependentConnections(code_name, content['label'], self.tvec, pop_names, content['data'].data, type='interaction')  # NB. Transfers must not allow diagonal entries
+            self.interpops.append(tdc)
 
         self.tvec = tvec # This is the data tvec - the values that appear in the headings for time dependent values
         self.references = dict() # This dict stores cell references for strings that get reused. For instance, the pop "'"Adults" may contain the reference "'Population Definitions'!A2" so all other references to "Adults" can derive from that cell
 
         # Now, we want to store all of the comps, chars, and pars as TimeDependentValueEntry tables with appropriate unit constraints
         # and separated by the databook sheets rather than by type
-        self.tdve_pages = sc.odict()
+        self.tdve = {} # List of all TDVE quantities - key is code name, tdve.name is full name because that's what gets written to the sheet
+        self.tdve_pages = sc.odict # Dict where key is worksheet name and value is an ordered list of tdve code names appearing on that page
 
         for page_key,page in framework.specs['datapage'].items(): # Extract page information from the Framework
             if page_key in ['pop','transfer','transferdata','interpop']: # If the Framework's page key is in here, then skip it - we've already read this info from the data
@@ -1404,10 +1126,20 @@ class Databook(Workbook):
             self.tdve_pages[page['label']] = page_content  # A list of all of the TDVE tables on this page
 
     def write_pages(self):
+        self.references = {} # Reset the references dict
         self.write_pops()
         self.write_transfers()
         self.write_interpops()
         self.write_tdve()
+
+    def read_pops(self,sheet):
+        # TODO - can modify read_pops() and write_pops() if there are more population attributes
+        tables = read_tables(sheet)
+        assert len(tables) == 1, 'Population Definitions page should only contain one table'
+
+        self.pops = sc.odict()
+        for row in tables[0][1:]:
+            self.pops[row[0].value] = {'label':row[1].value}
 
     def write_pops(self):
         # Writes the 'Population Definitions' sheet
@@ -1424,38 +1156,120 @@ class Databook(Workbook):
             self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
             self.references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
 
+    def read_transfers(self,sheet):
+        tables = read_tables(sheet)
+        assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
+        self.transfers = []
+        for i in range(0,len(tables),3):
+            self.transfers.append(TimeDependentConnections.from_tables(tables[i:i+3],'transfer'))
+        return
+
     def write_transfers(self):
         # Writes a sheet for every transfer
         sheet = self.book.add_worksheet("Transfers")
         next_row = 0
-        for code_name,content in self.transfers.items():
-            table = TimeDependentConnections(code_name, content['label'], self.tvec, self.pops, content['data'], type='transfer') # NB. Transfers must not allow diagonal entries
-            next_row = table.write(sheet,next_row,self.formats,self.references)
+        for transfer in self.transfers:
+            next_row = transfer.write(sheet,next_row,self.formats,self.references)
 
+    def read_interpops(self,sheet):
+        tables = read_tables(sheet)
+        assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
+        self.interpops = []
+        for i in range(0,len(tables),3):
+            self.interpops.append(TimeDependentConnections.from_tables(tables[i:i+3],'interaction'))
+        return
 
     def write_interpops(self):
         # Writes a sheet for every
-        return
-
-        sheet = self.book.add_worksheet("Population Interactions")
-
+        sheet = self.book.add_worksheet("Interactions")
         next_row = 0
-        min_widths = None
         for interpop in self.interpops:
-            next_row, min_widths = make_table_connection_marker(sheet=self.current_sheet, node_items=self.pops,
-                                                                link_item=interpop, link_attribute="poplinks",
-                                                                allow_self_connections=True,
-                                                                start_row=next_row, min_widths=min_widths, formats=self.formats)
-        for interpop in self.interpops:
-            # TODO: Construct interaction data-entry block.
-            pass
+            next_row = interpop.write(sheet,next_row,self.formats,self.references)
 
     def write_tdve(self):
-        for sheet_name,tables in self.tdve_pages.items():
+        # Writes several sheets, one for each custom page specified in the Framework
+        for sheet_name,code_names in self.tdve_pages.items():
             sheet = self.book.add_worksheet(sheet_name)
             current_row = 0
-            for table in tables:
-                current_row = table.write(sheet,current_row,self.formats,self.references)
+            for code_name in code_names:
+                current_row = self.tdve[code_name].write(sheet,current_row,self.formats,self.references)
+
+    @staticmethod
+    def load(spreadsheet,framework):
+        # The framework is needed because ProjectData
+        # Instantiate a new Databook given a spreadsheet
+
+        # Basically the strategy is going to be
+        # 1. Read in all of the stuff - pops, transfers, interpops can be directly added to Data
+        # 2. Read in all the other TDVE content, and then store it in the data specs according to the variable type defined in the Framework
+        # e.g. the fact that 'Alive' is a Characteristic is stored in the Framework and Data but not in the Databook. So for example, we read in
+        # a TDVE table called 'Alive', but it needs to be stored in data.specs['charac']['ch_alive'] and the 'charac' and 'ch_alive' are only available in the Framework
+        #
+        # spreadsheet - A ScirisSpreadsheet object
+        # framework - A ProjectFramework object
+        #
+        # This static method will return a new Databook instance given the provided databook Excel file and Framework
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
+
+        # TODO - For now, use __new__ because the Databook constructor takes in P.Data
+        # Revisit planned workflow afterwards
+        db = Databook.__new__(Databook) # Make a brand new empty Databook instance
+        db.references = {}
+        db.tdve = {}
+        db.tdve_pages = sc.odict()
+
+        for sheet in workbook.worksheets:
+            if sheet.title == 'Population Definitions':
+                db.read_pops(sheet)
+            elif sheet.title == 'Transfers':
+                db.read_transfers(sheet)
+            elif sheet.title == 'Interactions':
+                db.read_interpops(sheet)
+            else:
+                db.tdve_pages[sheet.title] = []
+                for table in read_tables(sheet):
+                    tdve = TimeDependentValuesEntry.from_rows(table)
+
+                    # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
+                    code_name = framework.get_spec_name(tdve.name)
+                    tdve.allowed_units = framework.get_allowed_units(code_name)
+
+                    db.tdve[code_name] = tdve
+                    # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
+                    db.tdve_pages[sheet.title].append(code_name)
+
+        return db
+
+def read_tables(worksheet):
+    # This function takes in a openpyxl worksheet, and returns tables
+    # A table consists of a block of rows with any #ignore rows skipped
+    # This function will start at the top of the worksheet, read rows into a buffer
+    # until it gets to the first entirely empty row
+    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
+    # This function continues until it has exhausted all of the rows in the sheet
+
+    buffer = []
+    tables = []
+    for row in worksheet.rows:
+
+        # Skip any rows starting with '#ignore'
+        if row[0].value and row[0].value.startswith('#ignore'):
+            continue  # Move on to the next row if row skipping is marked True
+
+        # Find out whether we need to add the row to the buffer
+        for cell in row:
+            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
+                buffer.append(row)
+                break
+        else: # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
+            tables.append(buffer)
+            buffer = []
+
+    # After the last row, if the buffer has some un-flushed contents, then yield it
+    if buffer:
+        tables.append(buffer)
+
+    return tables
 
 # %% Program spreadsheet exports.
 

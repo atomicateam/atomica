@@ -81,6 +81,7 @@ class TableTemplate(TableType):
         self.template_item_key = template_item_key
 
 class Table():
+    # TODO - Maybe delete this if it's not doing anything useful
     def __init__(self):
         pass
 
@@ -116,10 +117,11 @@ class TimeDependentConnections(Table):
         # diagonal entries and only has N.A. formats
         self.code_name = code_name
         self.full_name = full_name
-        self.tvec = tvec
-        self.pops = pops
-        self.ts = ts
         self.type = type
+        self.pops = pops
+        self.tvec = tvec
+        self.ts = ts
+
         if self.type == 'transfer':
             self.enable_diagonal = False
             self.allowed_units = [FrameworkSettings.QUANTITY_TYPE_NUMBER.title(), FrameworkSettings.QUANTITY_TYPE_PROBABILITY.title()]
@@ -129,12 +131,46 @@ class TimeDependentConnections(Table):
         else:
             raise AtomicaException('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
+    @staticmethod
+    def from_tables(tables,interaction_type):
+        # interaction_type is 'transfer' or 'interaction'
+        from .structure import TimeSeries # Import here to avoid circular reference
+
+        # Read the names
+        code_name = tables[0][1][0].value
+        full_name = tables[0][1][1].value
+        interaction_type = interaction_type
+
+        # Read the pops
+        pops = [x.value for x in tables[1][0] if x.value]
+        # TODO - At the moment, the Y/N content of the table depends on what timeseries is provided
+        # Therefore, we only need to read in the TimeSeries to tell whether or not a connection exists
+        # The convention is that the connection will be read if the TO and FROM pop match something in the pop list
+        tvec = np.array([x.value for x in tables[2][0][6:]],dtype=float) # The 6 matches the offset in write() below
+        ts_entries = {}
+        for row in tables[2][1:]:
+            if row[0].value in pops and row[2].value in pops:
+                vals = [x.value for x in row]
+                from_pop = vals[0]
+                to_pop = vals[2]
+                units = vals[3]
+                assumption = vals[4] # This is the assumption cell
+                assert vals[5] == 'OR' # Double check we are reading a time-dependent row with the expected shape
+                ts = TimeSeries(format=units,units=units)
+                if assumption:
+                    ts.insert(None, float(assumption))
+                for t, v in zip(tvec, vals[6:]):
+                    if v is not None:
+                        ts.insert(t, v)
+                ts_entries[(from_pop,to_pop)] = ts
+
+        return TimeDependentConnections(code_name, full_name, tvec, pops, ts_entries, interaction_type)
+
     def write(self,worksheet,start_row,formats,references=None):
         # nb. self.ts is currently KeyData so retrieving the dict requires using the '.data' attribute
 
-        nodes = self.pops.keys()
         if not references:
-            references = {x:x for x in nodes} # Default null mapping for populations
+            references = {x:x for x in self.pops} # Default null mapping for populations
 
         ### First, write the titles
         current_row = start_row
@@ -153,7 +189,7 @@ class TimeDependentConnections(Table):
         # For example, there could be two transfers, and each of them could potentially transfer between 0-4 and 5-14
         # so the worksheet might contain two references from 0-4 to 5-14 but they would be for different transfers and thus
         # the time-dependent rows would depend on different boolean table cells
-        current_row,table_references = write_matrix(worksheet,current_row,nodes,self.ts.data,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True)
+        current_row,table_references = write_matrix(worksheet,current_row,self.pops,self.ts,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True)
 
         ### Finally, write the time dependent part
         headings = []
@@ -175,21 +211,21 @@ class TimeDependentConnections(Table):
             else:
                 return('=IF(%s="Y","%s","...")' % (gating_cell,content))
 
-        for from_idx in range(0,len(nodes)):
-            for to_idx in range(0, len(nodes)):
+        for from_idx in range(0,len(self.pops)):
+            for to_idx in range(0, len(self.pops)):
                 current_row += 1
-                from_pop = nodes[from_idx]
-                to_pop = nodes[to_idx]
+                from_pop = self.pops[from_idx]
+                to_pop = self.pops[to_idx]
                 entry_tuple = (from_pop,to_pop)
                 entry_cell = table_references[entry_tuple]
-                if entry_tuple in self.ts.data:
-                    ts = self.ts.data[entry_tuple]
+                if entry_tuple in self.ts:
+                    ts = self.ts[entry_tuple]
                 else:
                     ts = None
 
-                worksheet.write(current_row, 0, gate_content(references[from_pop],entry_cell), formats['center_bold'])
-                worksheet.write(current_row, 1, gate_content('--->',entry_cell), formats['center_bold'])
-                worksheet.write(current_row, 2, gate_content(references[to_pop],entry_cell), formats['center_bold'])
+                worksheet.write_formula(current_row, 0, gate_content(references[from_pop],entry_cell), formats['center_bold'],value=from_pop)
+                worksheet.write_formula(current_row, 1, gate_content('--->',entry_cell), formats['center_bold'],value='--->')
+                worksheet.write_formula(current_row, 2, gate_content(references[to_pop],entry_cell), formats['center_bold'],value=to_pop)
 
                 if ts:
                     worksheet.write(current_row, 3, ts.format)
@@ -222,18 +258,21 @@ class TimeDependentConnections(Table):
 
 
 def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False):
-    # - odes is a list of strings used to label the rows and columns
+    # This function writes a matrix
+    # It gets used for
+    # - Transfer matrix
+    # - Interactions matrix
+    # - Framework transition/link matrix
+    #
+    # - nodes is a list of strings used to label the rows and columns
     # - entries is a dict where where key is a tuple specifying (from,to) = (row,col) and
-    # the value is the string to write to the matrix.
+    # the value is the string to write to the matrix
     # - If 'enable_diagonal' is False, then the diagonal will be forced to be 'N.A.'. If an entry
     #   is specified for an entry on the diagonal and enable_diagonal=False, an error will be thrown
     # - boolean_choice is like namer/marker mode. If True, entries can only be Y/N based on the truthiness of the value in the entries dict
     #
     # table_references is a dict that contains a mapping between the tuple (to,from) and a cell. This can be
     # subsequently used to programatically block out time-dependent rows
-    #
-    # In theory this could be rolled into TimeDependentConnections but that will cause problems if we later decide that the interaction
-    # matrix should contain actual values.
 
     if not references:
         references = {x:x for x in nodes} # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
@@ -242,8 +281,8 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
 
     # Write the headers
     for i,node in enumerate(nodes):
-        worksheet.write(start_row+i+1, 0  , references[node], formats['center_bold'])
-        worksheet.write(start_row  , i+1, references[node], formats['center_bold'])
+        worksheet.write_formula(start_row+i+1, 0  , references[node], formats['center_bold'],value=node)
+        worksheet.write_formula(start_row  , i+1, references[node], formats['center_bold'],value=node)
 
     # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
     # after writing content, so have to do the writing in a single pass over the entire matrix
@@ -319,111 +358,38 @@ class TimeDependentValuesEntry(TableTemplate):
         self.value_attribute = value_attribute # This says something like 'data'
         self.self_connections = self_connections # This is probably only relevant for link tables
 
-    def read(self,worksheet, start_row):
-        # TODO - Complete this implementation
-        item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
-        structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
+    @staticmethod
+    def from_rows(rows):
+        # Given a set of openpyxl rows, instantiate a TimeDependentValuesEntry object
+        # That is, the parent object e.g. Databook() is responsible for finding where the TDVE table is,
+        # and reading all of the rows associated with it (skipping #ignored rows) and then passing those rows,
+        # unparsed, to this function
+        from .structure import TimeSeries # Import here to avoid circular reference
 
-        item_type = table.template_item_type
-        item_key = table.template_item_key
-        value_attribute = table.value_attribute
+        # First, read the headings
+        vals = [x.value for x in rows[0]]
+        name = vals[0]
+        tvec = np.array(vals[4:],dtype=float)
+        ts_entries = sc.odict()
 
-        row, id_col = start_row, 0
-        block_col = 1   # Column increment at which data entry block begins.
-        if table.iterate_over_links:
-            block_col = 3
+        # For each TimeSeries that we will instantiate
+        for row in rows[1:]:
+            vals = [x.value for x in row]
+            series_name = vals[0]
+            format = vals[1]
+            units = vals[1]
+            assumption = vals[2]
+            assert vals[3] == 'OR' # Check row is as expected
+            data = vals[4:]
+            ts = TimeSeries(format=format,units=units)
+            if assumption is not None:
+                ts.insert(None,float(assumption))
+            for t,v in zip(tvec,data):
+                if v is not None:
+                    ts.insert(t,v)
+            ts_entries[series_name] = ts
 
-        keep_scanning = True
-        header_row = None
-        term = None         # The header for this entire table.
-        data_key = None     # The key with which to store data provided within a row of this table.
-        while keep_scanning and row < worksheet.nrows:
-            label = str(worksheet.cell_value(row, id_col))
-            if not label == "":
-                # The first label encounter is of the item that heads this table.
-                # Verify it matches the item name associated with the table, provided no deferred instantiation took place.
-                if header_row is None:
-                    if item_key is not None and not label == item_specs[item_type][item_key]["label"]:
-                        raise AtomicaException(
-                            "A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
-                            "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name,
-                                                                                                        item_key, label))
-                    else:
-                        term = label
-                        # Do a quick scan of all row headers to determine keys for a TimeSeries object.
-                        quick_scan = True
-                        quick_row = row + 1
-                        keys = []
-                        while quick_scan and quick_row < worksheet.nrows:
-                            quick_label = str(worksheet.cell_value(quick_row, id_col))
-                            if quick_label == "":
-                                quick_scan = False
-                            elif quick_label == SS.DEFAULT_SYMBOL_IGNORE:
-                                pass
-                            else:
-                                # If table iterates over tupled items rather that just items, the tupled name pair is key.
-                                if table.iterate_over_links:
-                                    keys.append((structure.get_spec_name(quick_label),
-                                                 structure.get_spec_name(str(worksheet.cell_value(quick_row, id_col + 2)))))
-                                else:
-                                    keys.append(structure.get_spec_name(quick_label))
-                            quick_row += 1
-                        # Check if the item already exists in parsed structure, which it must if instantiation is deferred.
-                        # If not, the item key is the name and the header is the label; construct an item.
-                        if item_key is not None:
-                            try:
-                                structure.get_spec(term=item_key)
-                            except SemanticUnknownException:
-                                structure.create_item(item_name=item_key, item_type=item_type)
-                                structure.set_spec_value(term=item_key, attribute="label", value=label)
-                        time_series = KeyData(keys=keys)
-                        structure.set_spec_value(term=term, attribute=value_attribute, value=time_series)
-                    header_row = row
-                # All other label encounters are of an iterated type.
-                else:
-                    if label == SS.DEFAULT_SYMBOL_IGNORE:
-                        row += 1
-                        continue
-                    # Time series keys for standard items are their names.
-                    data_key = structure.get_spec_name(label)
-                    # Keys for time series that involve links between items are tuple-pairs of their names.
-                    if table.iterate_over_links:
-                        data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))
-                    col = id_col + block_col
-                    while col < worksheet.ncols:
-                        val = str(worksheet.cell_value(row, col))
-                        if val not in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
-                            header = str(worksheet.cell_value(header_row, col))
-                            if header == ES.QUANTITY_TYPE_HEADER:
-                                structure.get_spec(term=term)[value_attribute].set_format(
-                                    key=data_key, value_format=val.lower())
-                                col += 1
-                                continue
-                            try:
-                                val = float(val)
-                            except ValueError:
-                                raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' "
-                                                       "of sheet '{2}'.".format(val, xlrc(row, col), worksheet.name))
-                            if header == ES.ASSUMPTION_HEADER:
-                                structure.get_spec(term=term)[value_attribute].set_value(
-                                    key=data_key, value=val)
-                            else:
-                                try:
-                                    time = float(header)
-                                except ValueError:
-                                    raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell "
-                                                           "'{1}' of sheet '{2}'.".format(header, xlrc(header_row, col),
-                                                                                          worksheet.name))
-                                structure.get_spec(term=term)[value_attribute].set_value(
-                                    key=data_key, value=val, t=time)
-                        col += 1
-
-            else:
-                if header_row is not None:
-                    keep_scanning = False
-            row += 1
-        next_row = row
-        return next_row
+        return TimeDependentValuesEntry(name,tvec,ts_entries)
 
     def write(self,worksheet,start_row,formats,references=None):
         # references is a dict where the key is a string value and the content is a cell
@@ -452,9 +418,9 @@ class TimeDependentValuesEntry(TableTemplate):
 
             # Write the name
             if pop_name in references:
-                worksheet.write(current_row, 0, references[pop_name], formats['center_bold'])
+                worksheet.write_formula(current_row, 0, references[pop_name], formats['center_bold'],value=pop_name)
             else:
-                worksheet.write(current_row, 0, pop_name, formats['center_bold'])
+                worksheet.write_string(current_row, 0, pop_name, formats['center_bold'])
 
             # Write the units
             # TODO - change ts.format to ts.units??

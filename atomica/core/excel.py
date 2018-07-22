@@ -71,12 +71,12 @@ class ScirisSpreadsheet(ScirisObject):
     ''' A class for reading and writing spreadsheet data in binary format, so a project contains the spreadsheet loaded '''
     # self.data corresponds to the binary data of the Excel file. For IO, can construct a binary file in memory with io.BytesIO
     # and then read/write from it using openpyxl. Final step is to assign the data associated with it to the Spreadsheet
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, data=None):
         super(ScirisSpreadsheet, self).__init__() # No need for a name, just want to get an UID so as to be storable in database
 
-        self.data = None
+        self.data = data
         self.filename = None
-        self.load_date = None
+        self.load_date = sc.today()
 
         if filename is not None:
             self.load(filename)
@@ -87,6 +87,8 @@ class ScirisSpreadsheet(ScirisObject):
         return output
 
     def load(self, filename=None):
+        # This function reads a binary ile on disk and stores the content in self.data
+        # It also records where the file was loaded from and the date
         if filename is not None:
             filepath = sc.makefilepath(filename=filename)
             self.filename = filepath
@@ -98,6 +100,7 @@ class ScirisSpreadsheet(ScirisObject):
         return None
 
     def save(self, filename=None):
+        # This function writes the contents of self.data to a given path on disk
         if filename is None:
             if self.filename is not None: filename = self.filename
         if filename is not None:
@@ -109,11 +112,14 @@ class ScirisSpreadsheet(ScirisObject):
 
     def get_file(self):
         # Return a file-like object with the contents of the file
+        # This can then be used to open the workbook from memory without writing anything to disk
+        # - book = openpyxl.load_workbook(self.get_file())
+        # - book = xlrd.open_workbook(file_contents=self.get_file().read())
         return io.BytesIO(self.data)
 
     def get_workbook(self):
         # Return an openpyxl Workbook object from this ScirisSpreadsheet's data
-        f = io.BytesIO(self.data)
+        f = self.get_file()
         return openpyxl.load_workbook(f,data_only=True) # Load in read-write mode so that we can correctly dump the file
 
     def set_workbook(self,workbook):
@@ -137,8 +143,8 @@ class ScirisSpreadsheet(ScirisObject):
 
         final_workbook = openpyxl.Workbook(write_only=False)
 
-        new_workbook = self.get_workbook() # This is the value source workbook
-        old_workbook = extras_source.get_workbook() # A openpyxl workbook for the old content
+        new_workbook = openpyxl.load_workbook(self.get_file(),data_only=True) # This is the value source workbook
+        old_workbook = openpyxl.load_workbook(extras_source.get_file(),data_only=True) # A openpyxl workbook for the old content
 
         if not (set(new_workbook.sheetnames).difference(set(old_workbook.sheetnames))): # If every new sheet also appears in the old sheets, then use the old sheet order
             final_sheets = old_workbook.sheetnames
