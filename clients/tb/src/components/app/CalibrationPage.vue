@@ -1,66 +1,76 @@
 <!--
 Define health packages
 
-Last update: 2018-05-29
+Last update: 2018-07-21
 -->
 
 <template>
   <div class="SitePage">
-
-    <div>
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      <button class="btn" @click="clearGraphs()">Clear plots</button>
-    </div>
-    <br>
-
-    <div style="width:200px; float:left">
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th @click="updateSorting('parameter')" class="sortable">
-            Parameter
-            <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('population')" class="sortable">
-            Population
-            <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('value')" class="sortable">
-            Value
-            <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="par in sortedPars">
-          <td>
-            {{par.parname}}
-          </td>
-          <td>
-            {{par.popname}}
-          </td>
-          <td>
-            <input type="text"
-                   class="txbox"
-                   v-model="par.value"/>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="margin-left:350px">
-      <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
-        <!--mpld3 content goes here-->
+  
+    <div v-if="activeProjectID ==''">
+      <div style="font-style:italic">
+        <p>No project is loaded.</p>
       </div>
     </div>
 
+    <div v-else>
+    
+      <div>
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+        <button class="btn" @click="clearGraphs()">Clear plots</button>
+      </div>
+    
+      <br>
 
+      <div style="width:200px; float:left">
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th @click="updateSorting('parameter')" class="sortable">
+              Parameter
+              <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+            <th @click="updateSorting('population')" class="sortable">
+              Population
+              <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+            <th @click="updateSorting('value')" class="sortable">
+              Value
+              <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="par in sortedPars">
+            <td>
+              {{par.parname}}
+            </td>
+            <td>
+              {{par.popname}}
+            </td>
+            <td>
+              <input type="text"
+                     class="txbox"
+                     v-model="par.value"/>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="margin-left:350px">
+        <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
+          <!--mpld3 content goes here-->
+        </div>
+      </div>
+
+    </div>
 
   </div>
 </template>
@@ -102,9 +112,9 @@ Last update: 2018-05-29
       },
 
       sortedPars() {
-//        var sortedParList = this.applySorting(this.parList);
-        var sortedParList = this.parList;
-        console.log(sortedParList);
+        var sortedParList = this.applySorting(this.parList);
+/*        var sortedParList = this.parList;
+        console.log(sortedParList); */
         return sortedParList;
       },
 
@@ -145,12 +155,12 @@ Last update: 2018-05-29
       },
 
       applySorting(pars) {
-        return pars.sort((par1, par2) =>
-          {
+        return pars.slice(0).sort((par1, par2) =>
+          {         
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parname') { return par1[0] > par2[0] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'popname') { return par1[1] > par2[1] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1[2] > par2[2] ? sortDir: -sortDir}
+            if      (this.sortColumn === 'parameter') { return par1.parname > par2.parname ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.popname > par2.popname ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}            
           }
         )
       },
