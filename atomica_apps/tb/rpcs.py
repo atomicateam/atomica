@@ -501,7 +501,7 @@ def create_project_from_prj_file(prj_filename, user_id):
     try:
         proj = fileio.gzip_string_pickle_file_to_object(prj_filename)
     except Exception:
-        return { 'projectId': 'BadFileFormatError' }
+        return { 'error': 'BadFileFormatError' }
     
     # Reset the project name to a new project name that is unique.
     proj.name = get_unique_name(proj.name, other_names=None)

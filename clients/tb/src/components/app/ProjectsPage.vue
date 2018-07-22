@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-20
+Last update: 2018-07-21
 -->
 
 <template>
@@ -339,6 +339,15 @@ export default {
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
       })
+      .catch(error => {
+        this.$notifications.notify({
+          message: 'Could not upload file',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center'
+        })        
+      })       
     },
 
     projectIsActive(uid) {

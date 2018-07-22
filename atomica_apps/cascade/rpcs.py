@@ -562,7 +562,7 @@ def create_framework_from_frw_file(frw_filename, user_id):
         frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
     except Exception as E:
         print('ERROR, load failed: %s' % repr(E))
-        return { 'frameworkId': 'BadFileFormatError' }
+        return { 'error': 'BadFileFormatError' }
     
     # Reset the framework name to a new framework name that is unique.
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
@@ -910,7 +910,7 @@ def create_project_from_prj_file(prj_filename, user_id):
     try:
         proj = fileio.gzip_string_pickle_file_to_object(prj_filename)
     except Exception:
-        return { 'projectId': 'BadFileFormatError' }
+        return { 'error': 'BadFileFormatError' }
     
     # Reset the project name to a new project name that is unique.
     proj.name = get_unique_name(proj.name, other_names=None)

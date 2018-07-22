@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-20
+Last update: 2018-07-21
 -->
 
 <template>
@@ -345,10 +345,19 @@ Last update: 2018-07-20
 
         // Have the server upload the framework.
         rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.frw')
-          .then(response => {
-            // Update the framework summaries so the new framework shows up on the list.
-            this.updateFrameworkSummaries(response.data.frameworkId)
-          })
+        .then(response => {
+          // Update the framework summaries so the new framework shows up on the list.
+          this.updateFrameworkSummaries(response.data.frameworkId)
+        })
+        .catch(error => {
+          this.$notifications.notify({
+            message: 'Could not upload file',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center'
+          })        
+        })
       },
 
       frameworkIsActive(uid) {
