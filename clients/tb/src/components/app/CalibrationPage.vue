@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-20
+Last update: 2018-07-21
 -->
 
 <template>
@@ -158,8 +158,8 @@ Last update: 2018-07-20
         return pars.slice(0).sort((par1, par2) =>
           {         
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
+            if      (this.sortColumn === 'parameter') { return par1.parname > par2.parname ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.popname > par2.popname ? sortDir: -sortDir}
             else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}            
           }
         )
