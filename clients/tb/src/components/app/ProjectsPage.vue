@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-13
+Last update: 2018-07-23
 -->
 
 <template>
@@ -93,8 +93,8 @@ Last update: 2018-07-13
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
             </td>
 <!--            <td>{{ projectSummary.country }}</td> -->
-            <td>{{ projectSummary.project.creationTime }}</td>
-            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
+            <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
+            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
             <td style="white-space: nowrap">
               <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
@@ -196,6 +196,8 @@ export default {
   },
 
   created() {
+    let projectId = null
+    
     // If we have no user logged in, automatically redirect to the login page.
     if (this.$store.state.currentUser.displayname == undefined) {
       router.push('/login')
@@ -203,8 +205,13 @@ export default {
 
     // Otherwise...
     else {
+      // Get the active project ID if there is an active project.
+      if (this.$store.state.activeProject.project != undefined) {
+        projectId = this.$store.state.activeProject.project.id
+      }
+      
       // Load the project summaries of the current user.
-      this.updateProjectSummaries()
+      this.updateProjectSummaries(projectId)
     }
   },
 
@@ -224,21 +231,67 @@ export default {
       }
     },
 
-    updateProjectSummaries() {
+    updateProjectSummaries(setActiveID) {
       console.log('updateProjectSummaries() called')
 
       // Get the current user's project summaries from the server.
       rpcservice.rpcCall('load_current_user_project_summaries')
       .then(response => {
+        let lastCreationTime = null
+        let lastCreatedID = null
+        
         // Set the projects to what we received.
         this.projectSummaries = response.data.projects
-
-        // Set select flags for false initially.
+        
+        // Initialize the last creation time stuff if we have a non-empty list.
+        if (this.projectSummaries.length > 0) {
+          lastCreationTime = new Date(this.projectSummaries[0].project.creationTime)
+          lastCreatedID = this.projectSummaries[0].project.id
+        }
+        
+        // Preprocess all projects.
         this.projectSummaries.forEach(theProj => {
-		      theProj.selected = false
-		      theProj.renaming = ''
-		    })
+          // Set to not selected.
+          theProj.selected = false
+            
+          // Set to not being renamed.
+          theProj.renaming = ''
+            
+          // Extract actual Date objects from the strings.
+          theProj.project.creationTime = new Date(theProj.project.creationTime)
+          theProj.project.updatedTime = new Date(theProj.project.updatedTime)
+          
+          // Update the last creation time and ID if what se see is later.
+          if (theProj.project.creationTime >= lastCreationTime) {
+            lastCreationTime = theProj.project.creationTime
+            lastCreatedID = theProj.project.id
+          }           
+        })
+
+        // If we have a project on the list...
+        if (this.projectSummaries.length > 0) {
+          // If no ID is passed in, set the active project to the last-created 
+          // project.
+          if (setActiveID == null) {
+            this.openProject(lastCreatedID)            
+          }
+          
+          // Otherwise, set the active project to the one passed in.
+          else {
+            this.openProject(setActiveID)
+          }
+        }        
       })
+      .catch(error => {
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not load projects',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })     
     },
 
     addDemoProject() {
@@ -251,7 +304,7 @@ export default {
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries()
+        this.updateProjectSummaries(response.data.projectId)
         
         // Finish the loading bar.
         this.$Progress.finish()
@@ -298,7 +351,10 @@ export default {
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
       .then(response => {
         // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries()
+        // Note: There's no easy way to get the new project UID to tell the 
+        // project update to choose the new project because the RPC cannot pass 
+        // it back.
+        this.updateProjectSummaries(null)        
         
         // Finish the loading bar.
         this.$Progress.finish()
@@ -338,7 +394,7 @@ export default {
         this.$Progress.start()
       
         // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries()
+        this.updateProjectSummaries(response.data.projectId)
         
         // Finish the loading bar.
         this.$Progress.finish()
@@ -358,13 +414,13 @@ export default {
         
         // Failure popup.
         this.$notifications.notify({
-          message: 'Could not upload project',
+          message: 'Could not upload file',
           icon: 'ti-face-sad',
           type: 'warning',
           verticalAlign: 'top',
           horizontalAlign: 'center',
         })      
-      })            
+      })
     },
 
     projectIsActive(uid) {
@@ -418,7 +474,7 @@ export default {
     },
 
     applySorting(projects) {
-      return projects.sort((proj1, proj2) =>
+      return projects.slice(0).sort((proj1, proj2) =>
         {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
@@ -431,7 +487,7 @@ export default {
             return proj1.project.creationTime > proj2.project.creationTime ? sortDir: -sortDir
           }
           else if (this.sortColumn === 'updatedTime') {
-            return proj1.project.updateTime > proj2.project.updateTime ? sortDir: -sortDir
+            return proj1.project.updatedTime > proj2.project.updatedTime ? sortDir: -sortDir
           }
         }
       )
@@ -476,7 +532,7 @@ export default {
       rpcservice.rpcCall('copy_project', [uid])
       .then(response => {
         // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries()
+        this.updateProjectSummaries(response.data.projectId)
         
         // Finish the loading bar.
         this.$Progress.finish()
@@ -501,7 +557,7 @@ export default {
           type: 'warning',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })      
+        })
       })
     },
 
@@ -530,7 +586,7 @@ export default {
         rpcservice.rpcCall('update_project_from_summary', [newProjectSummary])
         .then(response => {
           // Update the project summaries so the rename shows up on the list.
-          this.updateProjectSummaries()
+          this.updateProjectSummaries(newProjectSummary.project.id)
 
 		      // Turn off the renaming mode.
 		      projectSummary.renaming = ''
@@ -637,15 +693,22 @@ export default {
 
   // Confirmation alert
     deleteModal() {
-      // Alert object data
-      var obj = {
-            message: 'Are you sure you want to delete the selected projects?',
-            useConfirmBtn: true,
-            customConfirmBtnClass: 'btn __red',
-            customCloseBtnClass: 'btn',
-            onConfirm: this.deleteSelectedProjects
-          }
-      this.$Simplert.open(obj)
+      // Pull out the names of the projects that are selected.
+      let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
+        theProj.selected).map(theProj => theProj.project.id)
+        
+      // Only if something is selected...
+      if (selectProjectsUIDs.length > 0) {         
+        // Alert object data
+        var obj = {
+              message: 'Are you sure you want to delete the selected projects?',
+              useConfirmBtn: true,
+              customConfirmBtnClass: 'btn __red',
+              customCloseBtnClass: 'btn',
+              onConfirm: this.deleteSelectedProjects
+            }
+        this.$Simplert.open(obj)
+      }
     },
 
     deleteSelectedProjects() {
@@ -662,11 +725,27 @@ export default {
       
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
-          // Update the project summaries so the deletions show up on the list.
-          this.updateProjectSummaries()
+          // Get the active project ID.
+          let activeProjectId = this.$store.state.activeProject.project.id
+          if (activeProjectId === undefined) {
+            activeProjectId = null
+          } 
           
+          // If the active project ID is one of the ones deleted...
+          if (selectProjectsUIDs.find(theId => theId === activeProjectId)) {
+            // Set the active project to an empty project.
+            this.$store.commit('newActiveProject', {})   
+
+            // Null out the project.
+            activeProjectId = null            
+          }
+          
+          // Update the project summaries so the deletions show up on the list. 
+          // Make sure it tries to set the project that was active (if any).
+          this.updateProjectSummaries(activeProjectId)  
+
           // Finish the loading bar.
-          this.$Progress.finish()           
+          this.$Progress.finish()
         })
         .catch(error => {
           // Fail the loading bar.

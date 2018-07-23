@@ -409,7 +409,7 @@ def load_zip_of_prj_files(project_ids):
     
     # Make the zip file name and the full server file path version of the same..
     zip_fname = '%s.zip' % str(sc.uuid())
-    server_zip_fname = os.path.join(dirname, zip_fname)
+    server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
     
     # Create the zip file, putting all of the .prj files in a projects 
     # directory.
@@ -580,7 +580,7 @@ def create_project_from_prj_file(prj_filename, user_id):
     try:
         proj = fileio.gzip_string_pickle_file_to_object(prj_filename)
     except Exception:
-        return { 'projectId': 'BadFileFormatError' }
+        return { 'error': 'BadFileFormatError' }
     
     # Reset the project name to a new project name that is unique.
     proj.name = get_unique_name(proj.name, other_names=None)

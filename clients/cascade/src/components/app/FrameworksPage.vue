@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-13
+Last update: 2018-07-23
 -->
 
 <template>
@@ -96,8 +96,8 @@ Last update: 2018-07-13
             <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
             <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
           </td>
-          <td>{{ frameworkSummary.framework.creationTime }}</td>
-          <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime:
+          <td>{{ frameworkSummary.framework.creationTime.toUTCString() }}</td>
+          <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
           <td>
             <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)">Upload</button>
@@ -254,12 +254,19 @@ Last update: 2018-07-13
           // Set the frameworks to what we received.
           this.frameworkSummaries = response.data.frameworks
 
-          // Set select flags for false initially.
+          // Preprocess all frameworks.
           this.frameworkSummaries.forEach(theFrame => {
+            // Set to not selected.
             theFrame.selected = false
+            
+            // Set to not being renamed.
             theFrame.renaming = ''
-          })
-        
+            
+            // Extract actual Date objects from the strings.
+            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
+            theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
+          }) 
+          
           // If we have a framework on the list...
 /*          if (this.frameworkSummaries.length > 0) {
             // If no ID is passed in, set the active framework to the first one in 
@@ -285,7 +292,7 @@ Last update: 2018-07-13
             verticalAlign: 'top',
             horizontalAlign: 'center',
           })      
-        })      
+        })
       },
 
       addDemoFramework() {
@@ -415,7 +422,7 @@ Last update: 2018-07-13
         
           // Failure popup.
           this.$notifications.notify({
-            message: 'Could not upload framework',
+            message: 'Could not upload file',
             icon: 'ti-face-sad',
             type: 'warning',
             verticalAlign: 'top',
@@ -475,20 +482,20 @@ Last update: 2018-07-13
       },
 
       applySorting(frameworks) {
-        return frameworks.sort((proj1, proj2) =>
+        return frameworks.slice(0).sort((frw1, frw2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
             if (this.sortColumn === 'name') {
-              return (proj1.framework.name > proj2.framework.name ? sortDir: -sortDir)
+              return (frw1.framework.name > frw2.framework.name ? sortDir: -sortDir)
             }
             /*          else if (this.sortColumn === 'country') {
-             return proj1.country > proj2.country ? sortDir: -sortDir
+             return frw1.country > frw2.country ? sortDir: -sortDir
              } */
             else if (this.sortColumn === 'creationTime') {
-              return proj1.framework.creationTime > proj2.framework.creationTime ? sortDir: -sortDir
+              return frw1.framework.creationTime > frw2.framework.creationTime ? sortDir: -sortDir
             }
             else if (this.sortColumn === 'updatedTime') {
-              return proj1.framework.updateTime > proj2.framework.updateTime ? sortDir: -sortDir
+              return frw1.framework.updatedTime > frw2.framework.updatedTime ? sortDir: -sortDir
             }
           }
         )
@@ -718,15 +725,22 @@ Last update: 2018-07-13
 
       // Confirmation alert
       deleteModal() {
-        // Alert object data
-        var obj = {
-          message: 'Are you sure you want to delete the selected frameworks?',
-          useConfirmBtn: true,
-          customConfirmBtnClass: 'btn __red',
-          customCloseBtnClass: 'btn',
-          onConfirm: this.deleteSelectedFrameworks
+        // Pull out the names of the frameworks that are selected.
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
+          theFrame.selected).map(theFrame => theFrame.framework.id)
+          
+        // Only if something is selected...
+        if (selectFrameworksUIDs.length > 0) {
+          // Alert object data
+          var obj = {
+            message: 'Are you sure you want to delete the selected frameworks?',
+            useConfirmBtn: true,
+            customConfirmBtnClass: 'btn __red',
+            customCloseBtnClass: 'btn',
+            onConfirm: this.deleteSelectedFrameworks
+          }
+          this.$Simplert.open(obj)
         }
-        this.$Simplert.open(obj)
       },
 
       deleteSelectedFrameworks() {
