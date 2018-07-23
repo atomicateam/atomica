@@ -532,7 +532,11 @@ export default {
         type: 'success',
         verticalAlign: 'top',
         horizontalAlign: 'center',
+//        timeout: 1000  // this works
+        timeout: 2000  // this does not (this is the default timeout)
+//        timeout: 10000  // this does not        
       });
+           
     },
 
     copyProject(uid) {
@@ -546,15 +550,17 @@ export default {
       .then(response => {
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
+        
+        // Pop up a success notification.
+        this.$notifications.notify({
+          message: 'Project "'+matchProject.project.name+'" copied',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })       
       })
 
-      this.$notifications.notify({
-        message: 'Project "'+matchProject.project.name+'" copied',
-        icon: 'ti-check',
-        type: 'success',
-        verticalAlign: 'top',
-        horizontalAlign: 'center',
-      });
     },
 
     renameProject(projectSummary) {

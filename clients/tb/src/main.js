@@ -25,7 +25,7 @@ import 'es6-promise/auto'
 // plugin setup
 Vue.use(GlobalComponents);
 Vue.use(GlobalDirectives);
-Vue.use(Notifications); // WARNING, not used?
+Vue.use(Notifications);
 Vue.use(SideBar);
 Vue.use(Simplert);
 Vue.use(VModal);

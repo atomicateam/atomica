@@ -44,7 +44,11 @@
       timeout: {
         type: Number,
         default: 2000
-      }
+      },
+      timestamp: {
+        type: Date,
+        default: () => new Date()
+      },      
     },
     data () {
       return {}
@@ -74,7 +78,8 @@
     },
     methods: {
       close () {
-        this.$emit('on-close')
+//        console.log('Trying to close: ', this.timestamp)
+        this.$parent.$emit('on-close', this.timestamp)  
       }
     },
     mounted () {
