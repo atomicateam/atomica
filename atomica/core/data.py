@@ -33,6 +33,11 @@ class ProjectData(object):
         self.tdve = {}
         self.tdve_pages = sc.odict()
 
+        # Internal storage used with methods while writing
+        self._formats = None
+        self._book = None
+        self._references = None
+
     @property
     def tvec(self):
         tdve_keys = list(self.tdve.keys())
@@ -129,6 +134,9 @@ class ProjectData(object):
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
         self = ProjectData()
 
+        if isinstance(spreadsheet,str):
+            spreadsheet = ScirisSpreadsheet(spreadsheet)
+
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
 
         for sheet in workbook.worksheets:
@@ -177,24 +185,35 @@ class ProjectData(object):
         f = io.BytesIO()
 
         # Open a workbook
-        self.book = xw.Workbook(f)
-        self.formats = standard_formats(self.book)
+        self._book = xw.Workbook(f)
+        self._formats = standard_formats(self._book)
+        self._references = {} # Reset the references dict
 
         # Write the contents
-        self.references = {} # Reset the references dict
         self._write_pops()
         self._write_transfers()
         self._write_interpops()
         self._write_tdve()
 
         # Close the workbook
-        self.book.close()
+        self._book.close()
 
         # Dump the file content into a ScirisSpreadsheet
         spreadsheet = ScirisSpreadsheet(f)
 
+        # Clear everything
+        f.close()
+        self._book = None
+        self._formats = None
+        self._references = None
+
         # Return the spreadsheet
         return spreadsheet
+
+    def save(self,fname):
+        # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
+        ss = self.to_spreadsheet()
+        ss.save(fname)
 
     def add_pop(self,code_name,full_name):
         # Add a population with the given name and label (full name)
@@ -254,18 +273,18 @@ class ProjectData(object):
 
     def _write_pops(self):
         # Writes the 'Population Definitions' sheet
-        sheet = self.book.add_worksheet("Population Definitions")
+        sheet = self._book.add_worksheet("Population Definitions")
 
         current_row = 0
-        sheet.write(current_row, 0, 'Abbreviation', self.formats["center_bold"])
-        sheet.write(current_row, 1, 'Full Name', self.formats["center_bold"])
+        sheet.write(current_row, 0, 'Abbreviation', self._formats["center_bold"])
+        sheet.write(current_row, 1, 'Full Name', self._formats["center_bold"])
 
         for name,content in self.pops.items():
             current_row += 1
             sheet.write(current_row, 0, name)
             sheet.write(current_row, 1, content['label'])
-            self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
-            self.references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
+            self._references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
+            self._references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
 
     def _read_transfers(self,sheet):
         tables = read_tables(sheet)
@@ -277,10 +296,10 @@ class ProjectData(object):
 
     def _write_transfers(self):
         # Writes a sheet for every transfer
-        sheet = self.book.add_worksheet("Transfers")
+        sheet = self._book.add_worksheet("Transfers")
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet,next_row,self.formats,self.references)
+            next_row = transfer.write(sheet,next_row,self._formats,self._references)
 
     def _read_interpops(self,sheet):
         tables = read_tables(sheet)
@@ -292,18 +311,18 @@ class ProjectData(object):
 
     def _write_interpops(self):
         # Writes a sheet for every
-        sheet = self.book.add_worksheet("Interactions")
+        sheet = self._book.add_worksheet("Interactions")
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet,next_row,self.formats,self.references)
+            next_row = interpop.write(sheet,next_row,self._formats,self._references)
 
     def _write_tdve(self):
         # Writes several sheets, one for each custom page specified in the Framework
         for sheet_name,code_names in self.tdve_pages.items():
-            sheet = self.book.add_worksheet(sheet_name)
+            sheet = self._book.add_worksheet(sheet_name)
             current_row = 0
             for code_name in code_names:
-                current_row = self.tdve[code_name].write(sheet,current_row,self.formats,self.references)
+                current_row = self.tdve[code_name].write(sheet,current_row,self._formats,self._references)
 
 
 
