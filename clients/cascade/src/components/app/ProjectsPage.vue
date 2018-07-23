@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-04
+Last update: 2018-07-13
 -->
 
 <template>
@@ -299,25 +299,24 @@ export default {
 
       // Get the current user's framework summaries from the server.
       rpcservice.rpcCall('load_current_user_framework_summaries')
-        .then(response => {
-          // Set the frameworks to what we received.
-          this.frameworkSummaries = response.data.frameworks
-          if (this.frameworkSummaries.length) {
-            console.log('Framework summaries found')
-            console.log(this.frameworkSummaries)
-            this.currentFramework = this.frameworkSummaries[0].framework.name
-            console.log('Current framework: '+this.currentFramework)
-          } else {
-            console.log('No framework summaries found')
-          }
+      .then(response => {
+        // Set the frameworks to what we received.
+        this.frameworkSummaries = response.data.frameworks
+        if (this.frameworkSummaries.length) {
+          console.log('Framework summaries found')
+          console.log(this.frameworkSummaries)
+          this.currentFramework = this.frameworkSummaries[0].framework.name
+          console.log('Current framework: '+this.currentFramework)
+        } else {
+          console.log('No framework summaries found')
+        }
 
-
-          // Set select flags for false initially.
-          this.frameworkSummaries.forEach(theFrame => {
-            theFrame.selected = false
-            theFrame.renaming = ''
-          })
+        // Set select flags for false initially.
+        this.frameworkSummaries.forEach(theFrame => {
+          theFrame.selected = false
+          theFrame.renaming = ''
         })
+      })
     },
 
     updateProjectSummaries(setActiveID) {
@@ -356,20 +355,41 @@ export default {
     addDemoProject() {
       console.log('addDemoProject() called')
       this.$modal.hide('demo-project')
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
       // Have the server create a new framework.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID, this.currentProject])
-        .then(response => {
-          // Update the framework summaries so the new framework shows up on the list.
-          this.updateProjectSummaries(response.data.projectId)
+      .then(response => {
+        // Update the framework summaries so the new framework shows up on the list.
+        this.updateProjectSummaries(response.data.projectId)
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
 
-          this.$notifications.notify({
-            message: 'Demo project "'+which+'" loaded',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          });
+        // Success popup.
+        this.$notifications.notify({
+          message: 'Demo project loaded',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
         })
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not add project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })    
     },
 
     addDemoProjectModal() {
@@ -388,7 +408,10 @@ export default {
     createNewProject() {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
       // Have the server create a new project.
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
       .then(response => {
@@ -397,15 +420,32 @@ export default {
         // project update to choose the new project because the RPC cannot pass 
         // it back.
         this.updateProjectSummaries(null)
-
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
+        
+        // Success popup.
         this.$notifications.notify({
           message: 'New project "'+this.proj_name+'" created',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        });
+        })
       })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not add new project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })  
     },
 
     uploadProjectFromFile() {
@@ -414,8 +454,37 @@ export default {
       // Have the server upload the project.
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
       .then(response => {
+        // Start the loading bar.  (This is here because we don't want the 
+        // progress bar running when the user is picking a file to upload.)
+        this.$Progress.start()        
+        
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
+        
+        // Finish the loading bar.
+        this.$Progress.finish()
+        
+        // Success popup.
+        this.$notifications.notify({
+          message: 'New project uploaded',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })               
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not upload project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
       })
     },
 
@@ -525,18 +594,15 @@ export default {
       
       // Set the active project to the matched project.
       this.$store.commit('newActiveProject', matchProject)
-
+      
+      // Success popup.
       this.$notifications.notify({
         message: 'Project "'+matchProject.project.name+'" loaded',
         icon: 'ti-check',
         type: 'success',
         verticalAlign: 'top',
         horizontalAlign: 'center',
-//        timeout: 1000  // this works
-        timeout: 2000  // this does not (this is the default timeout)
-//        timeout: 10000  // this does not        
       });
-           
     },
 
     copyProject(uid) {
@@ -544,23 +610,41 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('copyProject() called for ' + matchProject.project.name)
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
 	    // Have the server copy the project, giving it a new name.
       rpcservice.rpcCall('copy_project', [uid])
       .then(response => {
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
-        // Pop up a success notification.
+        // Finish the loading bar.
+        this.$Progress.finish()
+        
+        // Success popup.        
         this.$notifications.notify({
           message: 'Project "'+matchProject.project.name+'" copied',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })       
+        })        
       })
-
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not copy project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
     },
 
     renameProject(projectSummary) {
@@ -579,17 +663,36 @@ export default {
 
         // Rename the project name in the client list from what's in the textbox.
         newProjectSummary.project.name = projectSummary.renaming
-
+        
+        // Start the loading bar.
+        this.$Progress.start()
+        
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
         rpcservice.rpcCall('update_project_from_summary', [newProjectSummary])
-        .then(response => {
+        .then(response => {          
           // Update the project summaries so the rename shows up on the list.
           this.updateProjectSummaries(newProjectSummary.project.id)
 
 		      // Turn off the renaming mode.
 		      projectSummary.renaming = ''
+          
+          // Finish the loading bar.
+          this.$Progress.finish()           
         })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not rename project',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })    
       }
 
 	    // This silly hack is done to make sure that the Vue component gets updated by this function call.
@@ -606,9 +709,29 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('downloadProjectFile() called for ' + matchProject.project.name)
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
 	    // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
+      .then(response => {
+        // Finish the loading bar.
+        this.$Progress.finish()          
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not download project',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
     },
 
     downloadDatabook(uid) {
@@ -634,9 +757,29 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('downloadProgbook() called for ' + matchProject.project.name)
-
+      
+      // Start the loading bar.
+      this.$Progress.start()
+      
       // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_progbook', [uid])
+      .then(response => {
+        // Finish the loading bar.
+        this.$Progress.finish()          
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not download progbook',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })      
     },
 
     downloadDefaults(uid) {
@@ -657,18 +800,39 @@ export default {
 
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
-        .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateProjectSummaries(uid)
+      .then(response => {
+        // Start the loading bar.  (This is here because we don't want the 
+        // progress bar running when the user is picking a file to upload.)        
+        this.$Progress.start()
+        
+        // Update the project summaries so the copied program shows up on the list.
+        this.updateProjectSummaries(uid)
+        
+        // Finish the loading bar.
+        this.$Progress.finish() 
+          
+        // Success popup.        
+        this.$notifications.notify({
+          message: 'Data uploaded to project "'+matchProject.project.name+'"',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
         })
-
-      this.$notifications.notify({
-        message: 'Data uploaded to project "'+matchProject.project.name+'"',
-        icon: 'ti-check',
-        type: 'success',
-        verticalAlign: 'top',
-        horizontalAlign: 'center',
-      });
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not upload databook',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
     },
 
     uploadProgbook(uid) {
@@ -679,18 +843,39 @@ export default {
 
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
-        .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateProjectSummaries(uid)
-        })
-
-      this.$notifications.notify({
-        message: 'Programs uploaded to project "'+matchProject.project.name+'"',
-        icon: 'ti-check',
-        type: 'success',
-        verticalAlign: 'top',
-        horizontalAlign: 'center',
-      });
+      .then(response => {
+        // Start the loading bar.  (This is here because we don't want the 
+        // progress bar running when the user is picking a file to upload.)        
+        this.$Progress.start()
+          
+        // Update the project summaries so the copied program shows up on the list.
+        this.updateProjectSummaries(uid)
+        
+        // Finish the loading bar.
+        this.$Progress.finish() 
+          
+        // Success popup.        
+        this.$notifications.notify({
+          message: 'Programs uploaded to project "'+matchProject.project.name+'"',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })        
+      })
+      .catch(error => {
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not upload progbook',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
     },
 
   // Confirmation alert
@@ -715,6 +900,9 @@ export default {
 
       // Have the server delete the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
+        // Start the loading bar.
+        this.$Progress.start()        
+        
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
           // Get the active project ID.
@@ -729,7 +917,23 @@ export default {
           // updateProjectSummaries() to make sure a project still exists with 
           // that ID.
           this.updateProjectSummaries(activeProjectId)
+          
+          // Finish the loading bar.
+          this.$Progress.finish()            
         })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not delete project/s',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        }) 
 	    }
     },
 
@@ -741,8 +945,29 @@ export default {
       console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
 
       // Have the server download the selected projects.
-	    if (selectProjectsUIDs.length > 0)
+	    if (selectProjectsUIDs.length > 0) {
+        // Start the loading bar.
+        this.$Progress.start() 
+        
         rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectProjectsUIDs])
+        .then(response => {
+          // Finish the loading bar.
+          this.$Progress.finish()          
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not download project/s',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })        
+      }
     }
   }
 }
