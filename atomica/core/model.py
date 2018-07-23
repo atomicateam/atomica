@@ -768,7 +768,7 @@ class Model(object):
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
-        self.program_instructions = dcp(instructions) # program instructions
+        self.program_instructions = sc.dcp(instructions) # program instructions
         self.program_cache = None
 
         self.t = None

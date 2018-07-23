@@ -1,7 +1,4 @@
-from copy import deepcopy as dcp
-
 import numpy as np
-
 import sciris.core as sc
 from .interpolation import interpolate_func
 from .structure import SemanticUnknownException

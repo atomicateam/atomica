@@ -3,8 +3,8 @@ Define classes and functions for handling scenarios
 Version: 2018mar26
 """
 
-from copy import deepcopy as dcp
 import numpy as np
+import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 
@@ -68,7 +68,7 @@ class ParameterScenario(Scenario):
         # Note - the parset will be overwritten between the first and last year specified in scvalues
         # on a per-parameter+pop basis. Within the scenario, only the data points in scvalues will be used
 
-        new_parset = dcp(parset)
+        new_parset = sc.dcp(parset)
 
         for par_label in self.scenario_values.keys():
             par = new_parset.get_par(par_label)  # This is the parameter we are updating
