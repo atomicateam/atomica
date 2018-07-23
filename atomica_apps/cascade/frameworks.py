@@ -61,7 +61,8 @@ class FrameworkSO(sw.ScirisObject):
         # If we have a valid UUID...
         if valid_uuid is not None:       
             # Set superclass parameters.
-            super(FrameworkSO, self).__init__(frame.uid)
+            super(FrameworkSO, self).__init__(frame.uid, type_prefix='framework', 
+                 file_suffix='.frw', instance_label=frame.name)
                                    
             # Set the framework to the Framework that is passed in.
             self.frame = frame
@@ -140,7 +141,7 @@ class FrameworkCollection(sw.ScirisCollection):
         instance_label='Frameworks Collection'):
         # Set superclass parameters.
         super(FrameworkCollection, self).__init__(uid, type_prefix, file_suffix, 
-             instance_label)
+             instance_label, objs_within_coll=False)
             
     def get_user_front_end_repr(self, owner_uid):
         # Make sure the argument is a valid UUID, converting a hex text to a
@@ -148,13 +149,24 @@ class FrameworkCollection(sw.ScirisCollection):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:               
-            # Get dictionaries for each Framework in the dictionary.
-            frameworks_info = [self.obj_dict[key].get_user_front_end_repr() \
-                for key in self.obj_dict \
-                if self.obj_dict[key].owner_uid == valid_uuid]
-            return frameworks_info
-        
+        if valid_uuid is not None:    
+            # If we are storing things inside the obj_dict...
+            if self.objs_within_coll: 
+                # Get dictionaries for each Framework in the dictionary.
+                frameworks_info = [self.obj_dict[key].get_user_front_end_repr() \
+                    for key in self.obj_dict \
+                    if self.obj_dict[key].owner_uid == valid_uuid]
+                return frameworks_info
+            
+            # Otherwise, we are using the UUID set.
+            else:
+                frameworks_info = []
+                for uid in self.ds_uuid_set:
+                    obj = ds.data_store.retrieve(uid)
+                    if obj.owner_uid == valid_uuid:
+                        frameworks_info.append(obj.get_user_front_end_repr())
+                return frameworks_info
+            
         # Otherwise, return an empty list.
         else:
             return []
@@ -166,12 +178,23 @@ class FrameworkCollection(sw.ScirisCollection):
         
         # If we have a valid UUID...
         if valid_uuid is not None:    
-            # Get FrameworkSO entries for each Framework in the dictionary.
-            framework_entries = [self.obj_dict[key] \
-                for key in self.obj_dict \
-                if self.obj_dict[key].owner_uid == valid_uuid]
-            return framework_entries
-        
+            # If we are storing things inside the obj_dict...
+            if self.objs_within_coll:             
+                # Get FrameworkSO entries for each Framework in the dictionary.
+                framework_entries = [self.obj_dict[key] \
+                    for key in self.obj_dict \
+                    if self.obj_dict[key].owner_uid == valid_uuid]
+                return framework_entries
+            
+            # Otherwise, we are using the UUID set.
+            else:
+                framework_entries = []
+                for uid in self.ds_uuid_set:
+                    obj = ds.data_store.retrieve(uid)
+                    if obj.owner_uid == valid_uuid:
+                        framework_entries.append(obj)
+                return framework_entries
+            
         # Otherwise, return an empty list.
         else:
             return []
