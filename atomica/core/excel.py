@@ -16,6 +16,8 @@ import io
 import openpyxl
 from copy import copy # shallow copy
 import time
+from openpyxl.comments import Comment
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -142,76 +144,43 @@ class ScirisSpreadsheet(ScirisObject):
         self.data = f.read()
         self.load_date = sc.today()
 
-    def transfer_extras(self,extras_source):
-        # Format this ScirisSpreadsheet based on the extra meta-content in extras_source
+    def transfer_comments(self,comment_source):
+        # Format this ScirisSpreadsheet based on the extra meta-content in comment_source
         #
         # In reality, a new spreadsheet is created with values from this ScirisSpreadsheet
-        # and cell-wise formatting from the extras_source ScirisSpreadsheet. If a cell exists in
+        # and cell-wise formatting from the comment_source ScirisSpreadsheet. If a cell exists in
         # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
-        # the extras_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
-        # the extras_source and not in the current workbook, it will be added
+        # the comment_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
+        # the comment_source and not in the current workbook, it will be added
 
-        logger.info('Starting format transfer - this can take a long time')
-        tic = time.time()
+        assert isinstance(comment_source,ScirisSpreadsheet)
 
-        assert isinstance(extras_source,ScirisSpreadsheet)
+        this_workbook = openpyxl.load_workbook(self.get_file(),data_only=False) # This is the value source workbook
+        old_workbook = openpyxl.load_workbook(comment_source.get_file(),data_only=False) # A openpyxl workbook for the old content
 
-        final_workbook = openpyxl.Workbook(write_only=False)
+        for sheet in this_workbook.worksheets:
 
-        new_workbook = openpyxl.load_workbook(self.get_file(),data_only=True) # This is the value source workbook
-        old_workbook = openpyxl.load_workbook(extras_source.get_file(),data_only=True) # A openpyxl workbook for the old content
+            # If this sheet isn't in the old workbook, do nothing
+            if sheet.title not in old_workbook.sheetnames:
+                continue
 
-        if not (set(new_workbook.sheetnames).difference(set(old_workbook.sheetnames))): # If every new sheet also appears in the old sheets, then use the old sheet order
-            final_sheets = old_workbook.sheetnames
-        else:
-            # We need to merge the lists somehow. For now, just stick all the extra sheets at the end
-            final_sheets = new_workbook.sheetnames + [x for x in old_workbook.sheetnames if x not in new_workbook.sheetnames]
+            # Transfer comments
+            for row in old_workbook[sheet.title].rows:
+                for cell in row:
+                    if cell.comment:
+                        sheet[cell.coordinate].comment = Comment(cell.comment.text, '')
 
-        # final_sheets now contains the order of the sheets in the final workbook
-        for sheet in final_sheets:
-
-            if sheet in old_workbook.sheetnames and sheet in new_workbook.sheetnames:
-                # Do the content transfer
-                old_rows = list(old_workbook[sheet].rows)
-                new_rows = list(new_workbook[sheet].rows)
-
-                s = final_workbook.create_sheet(sheet)
-                for i in range(0,min(len(old_rows),len(new_rows))):
-                    # First we will copy all of the new cells in, including their formatting
-                    new_row = new_rows[i]
-                    old_row = old_rows[i]
-                    final_row = []
-
-                    # First, make all the new cells
-                    for cell in new_rows[i]:
-                        final_row.append(openpyxl.worksheet.write_only.WriteOnlyCell(s, value=cell.value))
-
-                    # Then, copy over the formats from any cells that match
-                    for j in range(0,min(len(new_row),len(old_row))):
-                        copy_formats(old_row[j],final_row[j])
-
-                    s.append(final_row)
-
-                if len(new_rows) > len(old_rows):
-                    for i in range(len(old_rows),len(new_rows)):
-                        final_row = []
-                        for cell in new_rows[i]:
-                            final_row.append(copy_formats(cell,openpyxl.worksheet.write_only.WriteOnlyCell(s, value=cell.value)))
-                        s.append(final_row)
-
-            elif sheet in old_workbook.sheetnames:
-                # Add old workbook sheet to final
-                copy_worksheet(sheet,old_workbook,final_workbook)
-            else:
-                # Add new workbook sheet to final
-                copy_worksheet(sheet,new_workbook,final_workbook)
+        # Commands below can copy extra sheets - but workflow probably clearer if we don't do this
+        # In any case, formulas from the original worksheets would have been wiped out anyway
+        #
+        # for sheet_name in [x for x in old_workbook.sheetnames if x not in this_workbook.sheetnames]:
+        #     copy_worksheet(sheet_name, old_workbook, this_workbook)
 
         f = io.BytesIO()
-        final_workbook.save(f)
+        this_workbook.save(f)
         f.flush()
         f.seek(0)
         self.data = f.read()
-        logger.info('Format transfer complete - took %.2fs' % (time.time()-tic))
 
 def copy_formats(cell,new_cell):
     if cell.has_style:

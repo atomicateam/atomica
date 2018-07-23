@@ -91,7 +91,7 @@ class ProjectData(object):
 
             # TODO: Work out how to get rid of these pages properly
             # Also, work out how the 'Parameters' and 'State Variables' tabs work
-            if page_name in ['Population Definitions','Transfer Definitions','Transfer Details','Population Interactions','Program Definitions']:
+            if page_name in ['pop','transfer','transferdata','interpop']:
                 continue
 
             if page_name in pages:
@@ -132,6 +132,9 @@ class ProjectData(object):
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
 
         for sheet in workbook.worksheets:
+            if sheet.title.startswith('#ignore'):
+                continue
+
             if sheet.title == 'Population Definitions':
                 self._read_pops(sheet)
             elif sheet.title == 'Transfers':
