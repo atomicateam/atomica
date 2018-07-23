@@ -1,5 +1,5 @@
 import atomica.ui as au
-from atomica.core.excel import ScirisSpreadsheet
+from atomica.core.excel import ScirisSpreadsheet, transfer_comments
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData
 import sciris.core as sc
@@ -11,10 +11,10 @@ data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
 data.save('./temp/d_blug.xlsx')
 
 # Copy comments, using lower-level ScirisSpreadsheet (for in-memory file operations)
-original_databook = ScirisSpreadsheet("./databooks/databook_tb.xlsx")
-ss = data.to_spreadsheet() # data.to_spreadsheet()
-ss.transfer_comments(original_databook)
-ss.save('./temp/d_blug_formatted.xlsx')
+original_workbook = ScirisSpreadsheet("./databooks/databook_tb.xlsx")
+new_workbook = data.to_spreadsheet() # data.to_spreadsheet()
+transfer_comments(new_workbook,original_workbook)
+new_workbook.save('./temp/d_blug_formatted.xlsx')
 
 # Run the copied databook
 P = Project(name="test", framework=F, do_run=False)
@@ -49,3 +49,8 @@ d2.save('./temp/d_blug_newpop.xlsx') # This is a ScirisSpreadsheet that can be s
 data = ProjectData.new(F,np.arange(2000,2017),pops=2,transfers=4)
 data.save('./temp/d_blug_blank.xlsx') # This is a ScirisSpreadsheet that can be stored in the FE database
 
+# Modify incomplete databook
+d2 = ProjectData.from_spreadsheet('./temp/d_blug_blank.xlsx',F)
+d2.add_pop('asdf','The ASDF pop')
+d2.add_interaction('d_ctc','New interpop')
+d2.save('./temp/d_blug_blank_modified.xlsx') # This is a ScirisSpreadsheet that can be stored in the FE database

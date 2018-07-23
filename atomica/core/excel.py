@@ -73,114 +73,121 @@ def standard_formats(workbook):
     return formats
 
 class ScirisSpreadsheet(ScirisObject):
-    ''' A class for reading and writing spreadsheet data in binary format, so a project contains the spreadsheet loaded '''
-    # self.data corresponds to the binary data of the Excel file. If passed in a BytesIO object e.g. after writing to the bytestream,
-    # the entire contents of the stream will be stored as the data. For IO, can construct a binary file in memory with io.BytesIO
-    # and then read/write from it using openpyxl. Final step is to assign the data associated with it to the Spreadsheet
-    def __init__(self, source):
+    ''' A class for reading and writing data in binary format, so a project contains the spreadsheet loaded '''
+    # This object provides an interface for storing the contents of files (particularly spreadsheets) as ScirisObjects that can be
+    # stored in the FE database. Basic usage is as follows:
+    #
+    # ss = ScirisSpreadsheet('input.xlsx') # Load a file into this object
+    # ss.add_to_datastore() # Can use database methods inherited from ScirisObject
+    # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
+    # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
+    # book.create_sheet(...)
+    # book.save(f) # The workbook can be saved back to this stream
+    # ss.insert(f) # We can update the contents of the ScirisSpreadsheet with the newly written workbook
+    # ss.add_to_datastore() # Presumably would want to store the changes in the database too
+    # ss.save('output.xlsx') # Can also write the contents back to disk
+    #
+    # As shown above, no disk IO needs to happen to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
+
+    def __init__(self, source=None):
         # source is a specification of where to get the data from
-        # It can be
+        # It can be anything supported by ScirisSpreadsheet.insert() which are
         # - A filename, which will get loaded
         # - A io.BytesIO which will get dumped into this instance
 
         super(ScirisSpreadsheet, self).__init__() # No need for a name, just want to get an UID so as to be storable in database
 
         self.filename = None
-        self.load_date = sc.today()
-
-        if isinstance(source,io.BytesIO):
-            source.flush()
-            source.seek(0)
-            self.data = source.read()
-        else:
-            self.load(source)
+        if source is not None:
+            self.insert(source)
 
     def __repr__(self):
         output = sc.desc(self)
         return output
 
-    def load(self, filename=None):
+    def insert(self, source):
+        # This function sets the `data` attribute given a file-like data source
+        #
+        # INPUTS:
+        # - source : This contains the contents of the file. It can be
+        #   - A string, which is interpreted as a filename
+        #   - A file-like object like a BytesIO, the entire contents of which will be read
+        #
         # This function reads a binary ile on disk and stores the content in self.data
         # It also records where the file was loaded from and the date
-        if filename is not None:
-            filepath = sc.makefilepath(filename=filename)
+        if isinstance(source,io.BytesIO):
+            source.flush()
+            source.seek(0)
+            self.data = source.read()
+        else:
+            filepath = sc.makefilepath(filename=source)
             self.filename = filepath
             self.load_date = sc.today()
             with open(filepath, mode='rb') as f:
                 self.data = f.read()
-        else:
-            print('No filename specified; aborting.')
-        return None
+
+        self.load_date = sc.today()
 
     def save(self, filename=None):
-        # This function writes the contents of self.data to a given path on disk
+        # This function writes the contents of self.data to a file on disk
         if filename is None:
-            if self.filename is not None: filename = self.filename
-        if filename is not None:
-            filepath = sc.makefilepath(filename=filename)
-            with open(filepath, mode='wb') as f:
-                f.write(self.data)
-            print('Spreadsheet saved to %s.' % filepath)
+            if self.filename is not None:
+                filename = self.filename
+            else:
+                raise Exception('Cannot determine filename')
+
+        filepath = sc.makefilepath(filename=filename)
+        with open(filepath, mode='wb') as f:
+            f.write(self.data)
+        print('Spreadsheet saved to %s.' % filepath)
+
         return filepath
 
     def get_file(self):
         # Return a file-like object with the contents of the file
-        # This can then be used to open the workbook from memory without writing anything to disk
+        # This can then be used to open the workbook from memory without writing anything to disk e.g.
         # - book = openpyxl.load_workbook(self.get_file())
         # - book = xlrd.open_workbook(file_contents=self.get_file().read())
         return io.BytesIO(self.data)
 
-    def get_workbook(self):
-        # Return an openpyxl Workbook object from this ScirisSpreadsheet's data
-        f = self.get_file()
-        return openpyxl.load_workbook(f,data_only=True) # Load in read-write mode so that we can correctly dump the file
 
-    def set_workbook(self,workbook):
-        # Set this ScirisSpreadsheet's data given an openpyxl Workbook object
-        f = io.BytesIO()
-        wb.save(f)
-        f.flush()
-        f.seek(0)
-        self.data = f.read()
-        self.load_date = sc.today()
+def transfer_comments(target,comment_source):
+    # Format this ScirisSpreadsheet based on the extra meta-content in comment_source
+    #
+    # In reality, a new spreadsheet is created with values from this ScirisSpreadsheet
+    # and cell-wise formatting from the comment_source ScirisSpreadsheet. If a cell exists in
+    # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
+    # the comment_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
+    # the comment_source and not in the current workbook, it will be added
 
-    def transfer_comments(self,comment_source):
-        # Format this ScirisSpreadsheet based on the extra meta-content in comment_source
-        #
-        # In reality, a new spreadsheet is created with values from this ScirisSpreadsheet
-        # and cell-wise formatting from the comment_source ScirisSpreadsheet. If a cell exists in
-        # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
-        # the comment_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
-        # the comment_source and not in the current workbook, it will be added
+    assert isinstance(comment_source,ScirisSpreadsheet)
 
-        assert isinstance(comment_source,ScirisSpreadsheet)
+    this_workbook = openpyxl.load_workbook(target.get_file(),data_only=False) # This is the value source workbook
+    old_workbook = openpyxl.load_workbook(comment_source.get_file(),data_only=False) # A openpyxl workbook for the old content
 
-        this_workbook = openpyxl.load_workbook(self.get_file(),data_only=False) # This is the value source workbook
-        old_workbook = openpyxl.load_workbook(comment_source.get_file(),data_only=False) # A openpyxl workbook for the old content
+    for sheet in this_workbook.worksheets:
 
-        for sheet in this_workbook.worksheets:
+        # If this sheet isn't in the old workbook, do nothing
+        if sheet.title not in old_workbook.sheetnames:
+            continue
 
-            # If this sheet isn't in the old workbook, do nothing
-            if sheet.title not in old_workbook.sheetnames:
-                continue
+        # Transfer comments
+        for row in old_workbook[sheet.title].rows:
+            for cell in row:
+                if cell.comment:
+                    sheet[cell.coordinate].comment = Comment(cell.comment.text, '')
 
-            # Transfer comments
-            for row in old_workbook[sheet.title].rows:
-                for cell in row:
-                    if cell.comment:
-                        sheet[cell.coordinate].comment = Comment(cell.comment.text, '')
+    # Commands below can copy extra sheets - but workflow probably clearer if we don't do this
+    # In any case, formulas from the original worksheets would have been wiped out anyway
+    #
+    # for sheet_name in [x for x in old_workbook.sheetnames if x not in this_workbook.sheetnames]:
+    #     copy_worksheet(sheet_name, old_workbook, this_workbook)
 
-        # Commands below can copy extra sheets - but workflow probably clearer if we don't do this
-        # In any case, formulas from the original worksheets would have been wiped out anyway
-        #
-        # for sheet_name in [x for x in old_workbook.sheetnames if x not in this_workbook.sheetnames]:
-        #     copy_worksheet(sheet_name, old_workbook, this_workbook)
-
-        f = io.BytesIO()
-        this_workbook.save(f)
-        f.flush()
-        f.seek(0)
-        self.data = f.read()
+    f = io.BytesIO()
+    this_workbook.save(f)
+    f.flush()
+    f.seek(0)
+    target.data = f.read()
 
 def copy_formats(cell,new_cell):
     if cell.has_style:
