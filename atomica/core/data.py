@@ -71,7 +71,7 @@ class ProjectData(object):
         else:
             new_interactions = interactions
 
-        # Make all of the empty TDVE objects - need to store them by page
+        # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
 
         pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)}
@@ -88,6 +88,12 @@ class ProjectData(object):
 
         # Now convert pages to full names and sort them into the correct order
         for page_name,spec in framework.specs['datapage'].items():
+
+            # TODO: Work out how to get rid of these pages properly
+            # Also, work out how the 'Parameters' and 'State Variables' tabs work
+            if page_name in ['Population Definitions','Transfer Definitions','Transfer Details','Population Interactions','Program Definitions']:
+                continue
+
             if page_name in pages:
                 pages[page_name].sort(key=lambda x: x[1])
                 data.tdve_pages[spec['label']] = [x[0] for x in pages[page_name]]

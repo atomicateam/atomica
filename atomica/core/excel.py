@@ -5,7 +5,7 @@ Contains functionality specific to Excel input and output.
 """
 
 from .system import SystemSettings as SS
-from .system import logger, log_usage, accepts, returns, AtomicaException
+from .system import log_usage, accepts, returns, AtomicaException
 
 import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
@@ -15,6 +15,9 @@ import sciris.core as sc
 import io
 import openpyxl
 from copy import copy # shallow copy
+import time
+import logging
+logger = logging.getLogger(__name__)
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -147,6 +150,10 @@ class ScirisSpreadsheet(ScirisObject):
         # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
         # the extras_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
         # the extras_source and not in the current workbook, it will be added
+
+        logger.info('Starting format transfer - this can take a long time')
+        tic = time.time()
+
         assert isinstance(extras_source,ScirisSpreadsheet)
 
         final_workbook = openpyxl.Workbook(write_only=False)
@@ -204,6 +211,7 @@ class ScirisSpreadsheet(ScirisObject):
         f.flush()
         f.seek(0)
         self.data = f.read()
+        logger.info('Format transfer complete - took %.2fs' % (time.time()-tic))
 
 def copy_formats(cell,new_cell):
     if cell.has_style:
