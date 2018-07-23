@@ -21,7 +21,30 @@ from .structure_settings import DataSettings as DS
 # data values
 class ProjectData(object):
 
-    def __init__(self,spreadsheet,framework):
+    def __init__(self):
+        # This is just an overview of the structure of ProjectData
+        # There are two pathways to a ProjectData
+        # - Could load an existing one, with ProjectData.from_spreadsheet()
+        # - Could make a new one, with ProjectData.new()
+        self.pops = None
+        self.transfers = None
+        self.interpops = None
+        self.tdve = {}
+        self.tdve_pages = sc.odict()
+
+    @property
+    def tvec(self):
+        tdve_keys = list(self.tdve.keys())
+        return self.tdve[tdve_keys[0]].tvec.copy()
+
+    @tvec.setter
+    def tvec(self, tvec):
+        # Set tvec in all TDVE/TDC tables contained in the ProjectData
+        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
+            td_table.tvec = tvec
+
+    @staticmethod
+    def from_spreadsheet(spreadsheet,framework):
         # The framework is needed because ProjectData
         # Instantiate a new Databook given a spreadsheet
 
@@ -35,13 +58,9 @@ class ProjectData(object):
         # framework - A ProjectFramework object
         #
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
+        self = ProjectData()
 
-        # TODO - For now, use __new__ because the Databook constructor takes in P.Data
-        # Revisit planned workflow afterwards
-        self.references = {}
-        self.tdve = {}
-        self.tdve_pages = sc.odict()
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
 
         for sheet in workbook.worksheets:
             if sheet.title == 'Population Definitions':
@@ -67,11 +86,10 @@ class ProjectData(object):
 
         # Now do some validation
         #
-        # Check that all of the TDVE tables have the same time values and then set the data's tvec
-        tdve_keys = list(self.tdve.keys())
-        self.tvec = self.tdve[tdve_keys[0]].tvec
-        for tdve in self.tdve.values():
-            assert np.all(tdve.tvec == self.tvec)
+        # Check that all of the TDVE/TDC tables have the same time values
+        tvec = self.tvec
+        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
+            assert np.all(td_table.tvec == tvec)
 
         # Make sure that all of the quantities the Framework says we should read in have been read in
         for item_type in [DS.KEY_PARAMETER,DS.KEY_COMPARTMENT,DS.KEY_CHARACTERISTIC]:
@@ -80,6 +98,7 @@ class ProjectData(object):
                     if item_name not in self.tdve:
                         raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['label'],item_name))
 
+        return self
 
     def read_pops(self,sheet):
         # TODO - can modify read_pops() and write_pops() if there are more population attributes
@@ -168,12 +187,18 @@ class ProjectData(object):
         return spreadsheet
 
     @staticmethod
-    def new(framework,n_pops,n_transfers,n_interactions):
+    def new(framework,pops,transfers,interactions):
         # Make a brand new databook
+        # pops - Can be a number, or an odict with names and labels
+        # transfers - Can be a number, or an odict with names and labels
+        # interactions - Can be a number, or an odict with names and labels
+
         return
 
     def add_pop(self,pop_name,pop_label):
         # Add a population with the given name and label (full name)
+        assert pop_name not in self.pops, 'Population with name "%s" already exists' % (pop_name)
+
         self.pops[pop_name] = {'label':pop_label}
         for interaction in self.transfers+self.interpops:
             interaction.pops.append(pop_name)
@@ -195,3 +220,27 @@ class ProjectData(object):
             for k in list(tdve.ts.keys()):
                 if k == pop_name:
                     del tdve.ts[k]
+
+    def add_transfer(self,code_name,full_name):
+        for transfer in self.transfers:
+            assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
+        self.transfers.append(TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='transfer', ts=None))
+
+    def remove_transfer(self,code_name):
+        names = [x.code_name for x in self.transfers]
+        idx = names.index(code_name)
+        del self.transfers[idx]
+
+    # NB. Differences in the model will only happen if the model knows what to do with the new interaction
+    def add_interaction(self,code_name,full_name):
+        for interaction in self.interpops:
+            assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)
+        self.interpops.append(TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='interaction', ts=None))
+
+    def remove_interaction(self,code_name):
+        names = [x.code_name for x in self.interpops]
+        idx = names.index(code_name)
+        del self.interpops[idx]
+
+
+

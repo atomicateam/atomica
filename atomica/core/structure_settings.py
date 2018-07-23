@@ -104,12 +104,12 @@ class TimeDependentConnections(Table):
     # - A set of pairwise connections specifying to, from, units, assumption, and time
     # Interactions can have a diagonal, whereas transfers cannot (e.g. a population can infect itself but cannot transfer to itself)
 
-    def __init__(self, code_name, full_name, tvec, pops, ts, type):
+    def __init__(self, code_name, full_name, tvec, pops, type, ts=None):
         # INPUTS
         # - code_name -
         # - full_name - the name of this quantity e.g. 'Aging'
         # - tvec - time values for the time-dependent rows
-        # - nodes - strings to use as the rows and columns - these are typically lists of population code names
+        # - pops - list of strings to use as the rows and columns - these are typically lists of population code names
         # - ts - all of the non-empty TimeSeries objects used. An interaction can only be Y/N for clarity, if it is Y then
         #   a row is displayed for the TimeSeries. Actually, the Y/N can be decided in the first instance based on the provided TimeSeries i.e.
         #   if a TimeSeries is provided for an interaction, then the interaction must have been marked with Y
@@ -120,7 +120,7 @@ class TimeDependentConnections(Table):
         self.type = type
         self.pops = pops
         self.tvec = tvec
-        self.ts = ts
+        self.ts = ts if ts is not None else dict()
 
         if self.type == 'transfer':
             self.enable_diagonal = False
@@ -169,7 +169,7 @@ class TimeDependentConnections(Table):
                         ts.insert(t, v)
                 ts_entries[(from_pop,to_pop)] = ts
 
-        return TimeDependentConnections(code_name, full_name, tvec, pops, ts_entries, interaction_type)
+        return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 
     def write(self,worksheet,start_row,formats,references=None):
 

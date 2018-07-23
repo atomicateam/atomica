@@ -165,7 +165,7 @@ class Project(object):
         else:
             databook_spreadsheet = databook_path
 
-        self.data = ProjectData(databook_spreadsheet,self.framework)
+        self.data = ProjectData.from_spreadsheet(databook_spreadsheet,self.framework)
         self.modified = sc.today()
         
         # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
