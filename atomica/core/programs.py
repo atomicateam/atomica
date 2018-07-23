@@ -6,19 +6,32 @@ set of programs, respectively.
 Version: 2018mar23
 """
 
-from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype
+from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
 import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
+from .structure import TimeSeries
 
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
-        self.alloc = alloc
         self.start_year = start_year if start_year else 2018.
         self.stop_year = stop_year if stop_year else inf
+
+        # Alloc should be a dict keyed by program name
+        # The entries can either be a scalar number, assumed to be spending in the start year, or
+        # a TimeSeries object. The alloc is converted to TimeSeries if provided as a scalar
+        assert alloc is None or isinstance(alloc,dict), 'Allocation must be a dict keyed by program name, or None'
+        self.alloc = dict()
+        if alloc:
+            for prog_name,spending in alloc.items():
+                if isinstance(spending,TimeSeries):
+                    self.alloc[prog_name] = dcp(spending)
+                else:
+                    # Assume it is just a single number
+                    self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -36,6 +49,7 @@ class ProgramSet(NamedItem):
         self.default_imp_interaction = default_imp_interaction
         self.created = today()
         self.modified = today()
+        self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
         return None
 
     def __repr__(self):
@@ -136,20 +150,21 @@ class ProgramSet(NamedItem):
         # the value is an array of spending values the same size as t
         
         # Validate inputs
-        if tvec is None: tvec = 2018. # TEMPORARY
+        if tvec is None:
+            tvec = instructions.start_year
         tvec = sc.promotetoarray(tvec)
+
         if instructions is None: # If no instructions provided, just return the default budget
             return self.get_budgets(year=tvec)
-        
         else:
             if instructions.alloc is None:
                 return self.get_budgets(year=tvec)
-                
             else: 
                 alloc = sc.odict()
                 for prog in self.programs.values():
                     if prog.short in instructions.alloc:
-                        alloc[prog.short] = ones(tvec.shape)*instructions.alloc[prog.short]
+                        # TODO - instructions.alloc[prog.short] needs to be able to support time-varying inputs
+                        alloc[prog.short] = instructions.alloc[prog.short].interpolate(tvec)
                     else:
                         alloc[prog.short] = prog.get_spend(tvec)
                 return alloc
@@ -184,6 +199,11 @@ class ProgramSet(NamedItem):
         set_target_pars(self)
         set_target_par_types(self)
         set_target_pops(self)
+
+        # Pre-build a dictionary of programs targeted by parameters.
+        self.relevant_progs = dict()
+        for par_type in self.target_par_types:
+            self.relevant_progs[par_type] = self.progs_by_target_par(par_type)
         return None
 
 
@@ -415,9 +435,10 @@ class ProgramSet(NamedItem):
         for par_type in self.target_par_types:
             outcomes[par_type] = odict()
             max_vals[par_type] = odict()
-            
+
+            relevant_progs = self.relevant_progs[par_type]
             # Loop over populations relevant for this parameter type
-            for popno, pop in enumerate(self.progs_by_target_par(par_type).keys()):
+            for popno, pop in enumerate(relevant_progs.keys()):
 
                 delta, thiscov = odict(), odict()
                 effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
@@ -425,7 +446,7 @@ class ProgramSet(NamedItem):
                 best_eff  = effects[best_prog]
                 
                 # Loop over the programs that target this parameter/population combo
-                for prog in self.progs_by_target_par(par_type)[pop]:
+                for prog in relevant_progs[pop]:
                     if not self.covout[(par_type,pop)].has_pars():
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
@@ -438,15 +459,15 @@ class ProgramSet(NamedItem):
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in self.progs_by_target_par(par_type)[pop]], [par_type, pop], sum(thiscov[:])))
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
                         self.covout[(par_type,pop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
                 # NB, if there's only one program targeting this parameter, just do simple additive calc
-                if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(self.progs_by_target_par(par_type)[pop])==1:
+                if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
-                    for prog in self.progs_by_target_par(par_type)[pop]:
-                        if not self.covout[(par_type,pop)].haspars():
+                    for prog in relevant_progs[pop]:
+                        if not self.covout[(par_type,pop)].has_pars():
                             print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
                             outcomes[par_type][pop] = None
                         else: 
