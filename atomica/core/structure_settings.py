@@ -247,7 +247,7 @@ class TimeDependentConnections(Table):
                 # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
                 # whether it was originally Y or N
                 if values_written[entry_cell] != SS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    worksheet.write_url(entry_cell, '#%s!%s' % (worksheet.name, xlrc(current_row, 2)),cell_format=formats['center_unlocked'],string=values_written[entry_cell])
+                    worksheet.write_url(entry_cell, 'internal:%s!%s' % (worksheet.name, xlrc(current_row, 2)),cell_format=formats['center_unlocked'],string=values_written[entry_cell])
 
                 offset = 6  # The time values start in this column (zero based index)
                 content = np.full(self.tvec.shape, None)
