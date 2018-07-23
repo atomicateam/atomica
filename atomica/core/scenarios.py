@@ -11,6 +11,7 @@ from .utils import NamedItem
 class Scenario(NamedItem):
     def __init__(self, name):
         NamedItem.__init__(self,name)
+        self.result_uid = None # If the scenario is run via Project.run_scenario, this will be the UID of the most recent result generated using this Scenario
 
     def get_parset(self, parset, settings):
         return parset

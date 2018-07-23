@@ -7,10 +7,7 @@ from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
 import sciris.core as sc
-
-import pickle
 import numpy as np
-from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
 
 model_settings = dict()
@@ -770,7 +767,7 @@ class Model(object):
         self.par_list = list(framework.specs[FS.KEY_PARAMETER].keys()) # This is a list of all parameters to iterate over when updating
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
-        self.progset = dcp(progset)
+        self.progset = sc.dcp(progset)
         self.program_instructions = dcp(instructions) # program instructions
         self.program_cache = None
 
@@ -848,14 +845,25 @@ class Model(object):
         self.vars_by_pop = dict(self.vars_by_pop) # Stop new entries from appearing in here by accident
 
     def __getstate__(self):
+        # The combination of
         self.unlink()
-        d = pickle.dumps(self.__dict__, protocol=-1)  # Pickling to string results in a copy
+        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
         self.relink()  # Relink, otherwise the original object gets unlinked
         return d
 
     def __setstate__(self, d):
-        self.__dict__ = pickle.loads(d)
+        self.__dict__ = d
         self.relink()
+
+    def __deepcopy__(self,memodict={}):
+        # Using dcp(self.__dict__) is faster than pickle getstate/setstate
+        # when this is called via copy.deepcopy()
+        self.unlink()
+        d = sc.dcp(self.__dict__)
+        self.relink()
+        new = Model.__new__(Model)
+        new.__dict__.update(d)
+        return new
 
     def get_pop(self, pop_name):
         """ Allow model populations to be retrieved by name rather than index. """
