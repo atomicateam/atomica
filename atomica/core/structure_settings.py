@@ -193,7 +193,7 @@ class TimeDependentConnections(Table):
         # For example, there could be two transfers, and each of them could potentially transfer between 0-4 and 5-14
         # so the worksheet might contain two references from 0-4 to 5-14 but they would be for different transfers and thus
         # the time-dependent rows would depend on different boolean table cells
-        current_row,table_references = write_matrix(worksheet,current_row,self.pops,self.ts,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True)
+        current_row,table_references,values_written = write_matrix(worksheet,current_row,self.pops,self.ts,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True)
 
         ### Finally, write the time dependent part
         headings = []
@@ -244,6 +244,11 @@ class TimeDependentConnections(Table):
                     worksheet.write_blank(current_row, 4, '', formats['unlocked'])
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='...')
 
+                # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
+                # whether it was originally Y or N
+                if values_written[entry_cell] != SS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    worksheet.write_url(entry_cell, '#%s!%s' % (worksheet.name, xlrc(current_row, 2)),cell_format=formats['center_unlocked'],string=values_written[entry_cell])
+
                 offset = 6  # The time values start in this column (zero based index)
                 content = np.full(self.tvec.shape, None)
 
@@ -284,6 +289,7 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
         references = {x:x for x in nodes} # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
 
     table_references = {}
+    values_written = {}
 
     # Write the headers
     for i,node in enumerate(nodes):
@@ -313,16 +319,19 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
             row = start_row+1+from_idx
             col = to_idx+1
             if not enable_diagonal and to_idx == from_idx: # Disable the diagonal if that's what's desired
-                worksheet.write(row,col, "N.A.", formats["center"])
+                val = SS.DEFAULT_SYMBOL_INAPPLICABLE
+                worksheet.write(row,col,val, formats["center"])
                 worksheet.data_validation(xlrc(row,col), {"validate": "list", "source": ["N.A."]})
             else:
+                val = content[from_idx,to_idx]
                 worksheet.write(row,col, content[from_idx,to_idx], formats["center_unlocked"])
                 if boolean_choice:
                     worksheet.data_validation(xlrc(row,col), {"validate": "list", "source": ["Y","N"]})
             table_references[(nodes[from_idx],nodes[to_idx])] = xlrc(row,col,True,True) # Store reference to this interaction
-
+            values_written[table_references[(nodes[from_idx],nodes[to_idx])]] = val
     next_row = start_row + 1 + len(nodes) + 1
-    return next_row,table_references
+
+    return next_row,table_references,values_written
 
 class TimeDependentValuesEntry(TableTemplate):
     """
