@@ -9,7 +9,7 @@ from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, 
     IDType, IDRefType, SwitchType, QuantityFormatType, TimeDependentConnections, write_matrix
 from .workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
     get_workbook_item_type_specs, get_workbook_item_specs
-from .structure import get_quantity_type_list
+from .structure import get_quantity_type_list, TimeSeries
 
 import sciris.core as sc
 import xlsxwriter as xw
@@ -813,19 +813,8 @@ class Workbook(object):
         self.write_pages()    # This calls an overloadable method for nonstandard page generation.
         self.book.close()
 
-        # Extract the binary content of the file
-        # Note that this has been written using xlsxwriter rather than openpyxl and hence
-        # we need to do a binary dump of the file here rather than just passing an openpyxl Workbook
-        # to ScirisSpreadsheet.set_workbook()
-        f.flush()
-        f.seek(0)
-        d = f.read()
-        f.close()
-
         # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = ScirisSpreadsheet()
-        spreadsheet.data = d
-        return spreadsheet
+        return ScirisSpreadsheet(f)
 
     def write_pages(self):
         # By default, call `self.generate_<sheetname>` for every sheet in self.sheets
@@ -1062,214 +1051,7 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 
 # %% Databook exports.
 
-# Data maps to a databook
-# On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
-# data values
-class Databook(Workbook):
-    def __init__(self, framework, data, tvec):
-        # TODO - tvec should be stored in data when read in
-        super(Databook, self).__init__(name='')
 
-        self.pops = data.specs['pop'] # Currently an odict mapping code_name:{'label':full_name} (AKA name:label)
-        pop_names = self.pops.keys()
-
-        self.transfers = []
-        for code_name, content in data.specs['transfer'].items():
-            tdc = TimeDependentConnections(code_name, content['label'], self.tvec, pop_names, content['data'].data, type='transfer')  # NB. Transfers must not allow diagonal entries
-            self.transfers.append(tdc)
-
-        self.interpops = []
-        for code_name, content in data.specs['interpop'].items():
-            tdc = TimeDependentConnections(code_name, content['label'], self.tvec, pop_names, content['data'].data, type='interaction')  # NB. Transfers must not allow diagonal entries
-            self.interpops.append(tdc)
-
-        self.tvec = tvec # This is the data tvec - the values that appear in the headings for time dependent values
-        self.references = dict() # This dict stores cell references for strings that get reused. For instance, the pop "'"Adults" may contain the reference "'Population Definitions'!A2" so all other references to "Adults" can derive from that cell
-
-        # Now, we want to store all of the comps, chars, and pars as TimeDependentValueEntry tables with appropriate unit constraints
-        # and separated by the databook sheets rather than by type
-        self.tdve = {} # List of all TDVE quantities - key is code name, tdve.name is full name because that's what gets written to the sheet
-        self.tdve_pages = sc.odict # Dict where key is worksheet name and value is an ordered list of tdve code names appearing on that page
-
-        for page_key,page in framework.specs['datapage'].items(): # Extract page information from the Framework
-            if page_key in ['pop','transfer','transferdata','interpop']: # If the Framework's page key is in here, then skip it - we've already read this info from the data
-                continue # These fixed pages do not contain TDVE data
-
-            page_content = [] # Accumulate a list of all of the tables to write on this page
-            for table in page['tables']: # NB. page['tables'] should be in the databook order set when the Framework was read in
-
-                item_type = table.template_item_type # This is whether the table is for a compartment, characteristic, or parameter
-                item_specs = framework.specs[item_type][table.template_item_key] # These are the framework specs associated with the item e.g. label, charac includes, datapage
-
-                # State variables are in number amounts unless normalized.
-                if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
-                    if "denominator" in item_specs and item_specs["denominator"] is not None:
-                        allowed_units = [FS.QUANTITY_TYPE_FRACTION.title()]
-                    else:
-                        allowed_units = [FS.QUANTITY_TYPE_NUMBER.title()]
-
-                # Modeller's choice for parameters
-                elif item_type in [FS.KEY_PARAMETER] and "format" in item_specs and item_specs["format"] is not None:
-                    allowed_units = [item_specs["format"].title()]
-                else:
-                    # User choice if a transfer or a transition parameter.
-                    if item_type in [FS.KEY_TRANSFER] or (FS.KEY_TRANSITIONS in item_specs and len(item_specs[FS.KEY_TRANSITIONS]) > 0):
-                        allowed_units = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
-                    # If not a transition, the format of this parameter is meaningless.
-                    else:
-                        allowed_units = [SS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
-
-                # These are the TimeSeries in data associated with the table we are adding from the Framework
-                data_ts = data.specs[table.template_item_type][table.template_item_key]['data'].data
-                page_content.append(TimeDependentValuesEntry(name=item_specs['label'], tvec=self.tvec, ts=data_ts, allowed_units=allowed_units))
-
-            self.tdve_pages[page['label']] = page_content  # A list of all of the TDVE tables on this page
-
-    def write_pages(self):
-        self.references = {} # Reset the references dict
-        self.write_pops()
-        self.write_transfers()
-        self.write_interpops()
-        self.write_tdve()
-
-    def read_pops(self,sheet):
-        # TODO - can modify read_pops() and write_pops() if there are more population attributes
-        tables = read_tables(sheet)
-        assert len(tables) == 1, 'Population Definitions page should only contain one table'
-
-        self.pops = sc.odict()
-        for row in tables[0][1:]:
-            self.pops[row[0].value] = {'label':row[1].value}
-
-    def write_pops(self):
-        # Writes the 'Population Definitions' sheet
-        sheet = self.book.add_worksheet("Population Definitions")
-
-        current_row = 0
-        sheet.write(current_row, 0, 'Abbreviation', self.formats["center_bold"])
-        sheet.write(current_row, 1, 'Full Name', self.formats["center_bold"])
-
-        for name,content in self.pops.items():
-            current_row += 1
-            sheet.write(current_row, 0, name)
-            sheet.write(current_row, 1, content['label'])
-            self.references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
-            self.references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
-
-    def read_transfers(self,sheet):
-        tables = read_tables(sheet)
-        assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
-        self.transfers = []
-        for i in range(0,len(tables),3):
-            self.transfers.append(TimeDependentConnections.from_tables(tables[i:i+3],'transfer'))
-        return
-
-    def write_transfers(self):
-        # Writes a sheet for every transfer
-        sheet = self.book.add_worksheet("Transfers")
-        next_row = 0
-        for transfer in self.transfers:
-            next_row = transfer.write(sheet,next_row,self.formats,self.references)
-
-    def read_interpops(self,sheet):
-        tables = read_tables(sheet)
-        assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
-        self.interpops = []
-        for i in range(0,len(tables),3):
-            self.interpops.append(TimeDependentConnections.from_tables(tables[i:i+3],'interaction'))
-        return
-
-    def write_interpops(self):
-        # Writes a sheet for every
-        sheet = self.book.add_worksheet("Interactions")
-        next_row = 0
-        for interpop in self.interpops:
-            next_row = interpop.write(sheet,next_row,self.formats,self.references)
-
-    def write_tdve(self):
-        # Writes several sheets, one for each custom page specified in the Framework
-        for sheet_name,code_names in self.tdve_pages.items():
-            sheet = self.book.add_worksheet(sheet_name)
-            current_row = 0
-            for code_name in code_names:
-                current_row = self.tdve[code_name].write(sheet,current_row,self.formats,self.references)
-
-    @staticmethod
-    def load(spreadsheet,framework):
-        # The framework is needed because ProjectData
-        # Instantiate a new Databook given a spreadsheet
-
-        # Basically the strategy is going to be
-        # 1. Read in all of the stuff - pops, transfers, interpops can be directly added to Data
-        # 2. Read in all the other TDVE content, and then store it in the data specs according to the variable type defined in the Framework
-        # e.g. the fact that 'Alive' is a Characteristic is stored in the Framework and Data but not in the Databook. So for example, we read in
-        # a TDVE table called 'Alive', but it needs to be stored in data.specs['charac']['ch_alive'] and the 'charac' and 'ch_alive' are only available in the Framework
-        #
-        # spreadsheet - A ScirisSpreadsheet object
-        # framework - A ProjectFramework object
-        #
-        # This static method will return a new Databook instance given the provided databook Excel file and Framework
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
-
-        # TODO - For now, use __new__ because the Databook constructor takes in P.Data
-        # Revisit planned workflow afterwards
-        db = Databook.__new__(Databook) # Make a brand new empty Databook instance
-        db.references = {}
-        db.tdve = {}
-        db.tdve_pages = sc.odict()
-
-        for sheet in workbook.worksheets:
-            if sheet.title == 'Population Definitions':
-                db.read_pops(sheet)
-            elif sheet.title == 'Transfers':
-                db.read_transfers(sheet)
-            elif sheet.title == 'Interactions':
-                db.read_interpops(sheet)
-            else:
-                db.tdve_pages[sheet.title] = []
-                for table in read_tables(sheet):
-                    tdve = TimeDependentValuesEntry.from_rows(table)
-
-                    # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
-                    code_name = framework.get_spec_name(tdve.name)
-                    tdve.allowed_units = framework.get_allowed_units(code_name)
-
-                    db.tdve[code_name] = tdve
-                    # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
-                    db.tdve_pages[sheet.title].append(code_name)
-
-        return db
-
-def read_tables(worksheet):
-    # This function takes in a openpyxl worksheet, and returns tables
-    # A table consists of a block of rows with any #ignore rows skipped
-    # This function will start at the top of the worksheet, read rows into a buffer
-    # until it gets to the first entirely empty row
-    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
-    # This function continues until it has exhausted all of the rows in the sheet
-
-    buffer = []
-    tables = []
-    for row in worksheet.rows:
-
-        # Skip any rows starting with '#ignore'
-        if row[0].value and row[0].value.startswith('#ignore'):
-            continue  # Move on to the next row if row skipping is marked True
-
-        # Find out whether we need to add the row to the buffer
-        for cell in row:
-            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
-                buffer.append(row)
-                break
-        else: # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
-            tables.append(buffer)
-            buffer = []
-
-    # After the last row, if the buffer has some un-flushed contents, then yield it
-    if buffer:
-        tables.append(buffer)
-
-    return tables
 
 # %% Program spreadsheet exports.
 
@@ -1295,6 +1077,18 @@ class ProgramSpreadsheet(Workbook):
 
         self.npops = len(pops)
         self.nprogs = len(progs)
+
+    def to_spreadsheet(self):
+        # Return a ScirisSpreadsheet with the contents of this Workbook
+        f = io.BytesIO() # Write to this binary stream in memory
+
+        self.book = xw.Workbook(f)
+        self.formats = AtomicaFormats(self.book)
+        self.write_pages()    # This calls an overloadable method for nonstandard page generation.
+        self.book.close()
+
+        # Dump the file content into a ScirisSpreadsheet
+        return ScirisSpreadsheet(f)
 
     def generate_targeting(self):
         self.current_sheet.set_column(2, 2, 15)
@@ -1392,8 +1186,8 @@ def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=
             progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
 
     book = ProgramSpreadsheet(filename, pops, comps, progs, pars, data_start, data_end)
-    book.create(filename)
-
+    ss = book.to_spreadsheet()
+    ss.save(filename)
     return filename
 
 

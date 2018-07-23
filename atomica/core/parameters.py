@@ -180,68 +180,64 @@ class ParameterSet(NamedItem):
         raise AtomicaException("Name '{0}' cannot be found in parameter set '{1}' as either a cascade parameter, "
                                "compartment or characteristic.".format(name, self.name))
 
-    def make_pars(self, data):
-        self.pop_names = data.specs[DS.KEY_POPULATION].keys()
-        self.pop_labels = [data.get_spec(pop_name)["label"] for pop_name in self.pop_names]
+    def make_pars(self, framework, data):
+        self.pop_names = data.pops.keys()
+        self.pop_labels = [pop["label"] for pop in data.pops.values()]
 
         # Cascade parameter and characteristic extraction.
-        for j in range(3):
-            item_type = [DS.KEY_PARAMETER, DS.KEY_COMPARTMENT, DS.KEY_CHARACTERISTIC][j]
-            item_group = ["cascade", "comps", "characs"][j]
-            for k, name in enumerate(data.specs[item_type]):
-                self.par_ids[item_group][name] = k
-                self.pars[item_group].append(Parameter(name=name))
-                popdata = data.get_spec_value(name, DS.TERM_DATA)
-                for pop_id in popdata.keys():
-                    tvec, yvec = popdata.get_arrays(pop_id)
-                    self.pars[item_group][-1].t[pop_id] = tvec
-                    self.pars[item_group][-1].y[pop_id] = yvec
-                    self.pars[item_group][-1].y_format[pop_id] = popdata.get_format(pop_id)
-                    self.pars[item_group][-1].y_factor[pop_id] = 1.0
+        group_remapping = {DS.KEY_PARAMETER:'cascade',DS.KEY_COMPARTMENT:'comps',DS.KEY_CHARACTERISTIC:'characs'}
+        for name,tdve in data.tdve.items():
+            item_type = framework.get_spec_type(name)
+            item_group = group_remapping[item_type]
+
+            self.par_ids[item_group][name] = len(self.pars[item_group])
+            self.pars[item_group].append(Parameter(name=name))
+
+            for pop_name,ts in tdve.ts.items():
+                tvec, yvec = ts.get_arrays()
+                self.pars[item_group][-1].t[pop_name] = tvec
+                self.pars[item_group][-1].y[pop_name] = yvec
+                self.pars[item_group][-1].y_format[pop_name] = ts.format
+                self.pars[item_group][-1].y_factor[pop_name] = 1.0
+
+        # We have just created Parameter objects for every parameter in the databook
+        # However, we also need Parameter objects for dependent parameters not in the databook
+        # This allows them to be used in transitions and also for the user to set y-factors for them
+        for name,spec in framework.specs[DS.KEY_PARAMETER].items():
+            if name not in self.par_ids['cascade']:
+                self.par_ids['cascade'][name] = len(self.pars['cascade'])
+                self.pars['cascade'].append(Parameter(name=name))
+
+                for pop_name in self.pop_names:
+                    self.pars['cascade'][-1].t[pop_name] = None
+                    self.pars['cascade'][-1].y[pop_name] = None
+                    self.pars['cascade'][-1].y_format[pop_name] = spec['format']
+                    self.pars['cascade'][-1].y_factor[pop_name] = 1.0
 
         # Transfer and interaction extraction.
-        for j in range(2):
-            item_type = [DS.KEY_TRANSFER, DS.KEY_INTERACTION][j]
-            item_storage = [self.transfers, self.interactions][j]
-            for name in data.specs[item_type]:
-                if name not in item_storage:
-                    item_storage[name] = sc.odict()
-                # TODO: Consider whether pop-links really need to be stored from connection matrix.
-                #       Maybe pulling data from the TDVE tables is enough, iterating directly through those keys.
-                #       This alternative works if connection matrix elements only control TDVE visibility/defaults.
-                for pop_link in data.specs[item_type][name][DS.KEY_POPULATION_LINKS]:
-                    source_pop = pop_link[0]
-                    target_pop = pop_link[1]
-                    if pop_link[0] not in item_storage[name]:
-                        item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop)
-                    item_data = data.get_spec_value(name, DS.TERM_DATA)
-                    tvec, yvec = item_data.get_arrays(pop_link)
-                    item_storage[name][source_pop].t[target_pop] = tvec
-                    item_storage[name][source_pop].y[target_pop] = yvec
-                    item_storage[name][source_pop].y_format[target_pop] = item_data.get_format(pop_link)
-                    item_storage[name][source_pop].y_factor[target_pop] = 1.0
+        for tdc in data.transfers + data.interpops:
+            if tdc.type == 'transfer':
+                item_storage = self.transfers
+            elif tdc.type == 'interaction':
+                item_storage = self.interactions
+            else:
+                raise AtomicaException('Unknown time-dependent connection type')
 
-# TODO: Clean this batch of comments once autocalibration tags are conclusively handled.
-# self.pars["cascade"][-1].y_format[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_format"]
-#                if data[DS.KEY_PARAMETER][name][pop_id]["y_factor"] == DO_NOT_SCALE:
-#                    self.pars["cascade"][-1].y_factor[pop_id] = DEFAULT_YFACTOR
-#                    self.pars["cascade"][-1].autocalibrate[pop_id] = False
-#                else:
-#                    self.pars["cascade"][-1].y_factor[pop_id] = data[DS.KEY_PARAMETER][name][pop_id]["y_factor"]
-#                    self.pars["cascade"][-1].autocalibrate[pop_id] = True
+            name = tdc.code_name # The name of this interaction e.g. 'age'
+            if name not in item_storage:
+                item_storage[name] = sc.odict()
 
-#        # Characteristic parameters (e.g. popsize/prevalence).
-#        # Despite being mostly data to calibrate against, is still stored in full so as to interpolate initial value.
-#        for l, name in enumerate(data.specs[DS.KEY_CHARACTERISTIC]):
-#            self.par_ids["characs"][name] = l
-#            self.pars["characs"].append(Parameter(name = name))
-#            for pop_id in data.get_spec_value(name, DS.TERM_DATA):
-#                self.pars["characs"][l].t[pop_id] = data.get_spec_value(name, DS.TERM_DATA)[pop_id]["t"]
-#                self.pars["characs"][l].y[pop_id] = data.get_spec_value(name, DS.TERM_DATA)[pop_id]["y"]
-#                self.pars["characs"][l].y_format[pop_id] = data.get_spec(name)[DS.TERM_VALUE][pop_id]["y_format"]
-#                if data[DS.KEY_CHARACTERISTIC][name][pop_id]["y_factor"] == DO_NOT_SCALE:
-#                    self.pars["characs"][-1].y_factor[pop_id] = DEFAULT_YFACTOR
-#                    self.pars["characs"][-1].autocalibrate[pop_id] = False
-#                else:
-#                    self.pars["characs"][-1].y_factor[pop_id] = data[DS.KEY_CHARACTERISTIC][name][pop_id]["y_factor"]
-#                    self.pars["characs"][-1].autocalibrate[pop_id] = True
+            for pop_link,ts in tdc.ts.items():
+                source_pop = pop_link[0]
+                target_pop = pop_link[1]
+                if pop_link[0] not in item_storage[name]:
+                    item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop)
+                tvec, yvec = ts.get_arrays()
+                item_storage[name][source_pop].t[target_pop] = tvec
+                item_storage[name][source_pop].y[target_pop] = yvec
+                item_storage[name][source_pop].y_format[target_pop] = ts.format
+                item_storage[name][source_pop].y_factor[target_pop] = 1.0
+
+        return
+
+

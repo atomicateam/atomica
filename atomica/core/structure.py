@@ -146,52 +146,6 @@ class TimeSeries(object):
             # Todo - interpolation/expansion
 
 
-class KeyData(object):
-    """ 
-    A custom object for storing values associated with time points. 
-    The values for each timepoint are listed in order as the 'keys' that represent the series.
-    For example:
-        self.keys = ["a","b","c"]
-        self.values = {2010.0:[1,1001,-15],
-                       2020.0:[2,2001,-50]}
-    Note: The values structure contains special lists for assumptions and formats.
-    """
-
-    def __init__(self, keys=None, default_format=None):
-        self.data = sc.odict() # Preserve the order of the keys
-        self.default_format = default_format
-        if keys is not None:
-            [self.add_key(x) for x in keys]
-
-    def __getitem__(self, key):
-        return self.data[key]
-
-    def keys(self):
-        return self.data.keys()
-
-    def add_key(self, key, format=None):
-        format = format if format is not None else self.default_format
-        self.data[key] = TimeSeries(format=format)
-
-    def get_value(self, key, t=None):
-        return self.data[key].get(t)
-
-    def set_value(self, key, value, t=None):
-        self.data[key].insert(t, value)
-
-    def get_arrays(self, key):
-        return self.data[key].get_arrays()
-
-    def get_format(self, key):
-        return self.data[key].format
-
-    def set_format(self, key, value_format):
-        self.data[key].format = value_format
-
-    def __repr__(self, **kwargs):
-        return "Keydata: " + str(self.keys())
-
-
 @apply_to_all_methods(log_usage)
 class CoreProjectStructure(object):
     """ Base object that contains details for instantiated items of types defined in relevant settings classes. """

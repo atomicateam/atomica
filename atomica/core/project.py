@@ -86,7 +86,7 @@ class Project(object):
         self.name = name
         # self.filename = None # Never saved to file
         self.framework = framework if framework else ProjectFramework()
-        self.data = ProjectData()  # TEMPORARY
+        self.data = None
 
         # Define the structure sets
         self.parsets  = NDict()
@@ -154,26 +154,28 @@ class Project(object):
         write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
                        instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True, overwrite=False):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """
-        if overwrite: data = ProjectData() # Allow overwrite
-        else:         data = self.data
-        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        self.databook = ScirisSpreadsheet(full_path)
-        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=data,
-                                 workbook_type=SS.STRUCTURE_KEY_DATA)
+        # databook_path can be a string, which will load a file from disk, or a ScirisSpreadsheet
+        # so the RPC can have a spreadsheet and pass it to this function directly
+        # In that case, the RPC will probably add the uploaded file to the database/project and pass the
+        # resulting spreadsheet to the Project
+        if isinstance(databook_path,str):
+            databook_spreadsheet = ScirisSpreadsheet(databook_path)
+        else:
+            databook_spreadsheet = databook_path
 
+        self.data = ProjectData(databook_spreadsheet,self.framework)
         self.modified = sc.today()
         
         # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
         self.pop_names = []
         self.pop_labels = []
-        for k,v in self.data.specs['pop'].items():
+        for k,v in self.data.pops.items():
             self.pop_names.append(k)
             self.pop_labels.append(v['label'])
 
-        if metadata is not None and "data_start" in metadata:
-            self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
+        self.settings.update_time_vector(start=self.data.tvec[0])  # Align sim start year with data start year.
 
         if make_default_parset:
             self.make_parset(name="default")
@@ -186,9 +188,8 @@ class Project(object):
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
         self.parsets.append(ParameterSet(name))
-        self.parsets[name].make_pars(self.data)
+        self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
-
 
     def make_progbook(self, progbook_path=None, progs=None):
         ''' Make a programs databook'''

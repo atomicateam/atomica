@@ -637,6 +637,7 @@ class Population(object):
             par = Parameter(pop=self, name=name)
             self.pars.append(par)
             if "links" in spec:
+                par.units = spec["format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
                 for pair in spec["links"]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])

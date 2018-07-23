@@ -131,6 +131,9 @@ class TimeDependentConnections(Table):
         else:
             raise AtomicaException('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
+    def __repr__(self):
+        return '<TDC %s "%s">' % (self.type.title(),self.code_name)
+
     @staticmethod
     def from_tables(tables,interaction_type):
         # interaction_type is 'transfer' or 'interaction'
@@ -142,14 +145,16 @@ class TimeDependentConnections(Table):
         interaction_type = interaction_type
 
         # Read the pops
-        pops = [x.value for x in tables[1][0] if x.value]
+        pops = [x.value for x in tables[1][0][1:] if x.value]
         # TODO - At the moment, the Y/N content of the table depends on what timeseries is provided
         # Therefore, we only need to read in the TimeSeries to tell whether or not a connection exists
         # The convention is that the connection will be read if the TO and FROM pop match something in the pop list
         tvec = np.array([x.value for x in tables[2][0][6:]],dtype=float) # The 6 matches the offset in write() below
         ts_entries = {}
         for row in tables[2][1:]:
-            if row[0].value in pops and row[2].value in pops:
+            if row[0].value != '...':
+                assert row[0].value in pops, 'Population "%s" not found - should be contained in %s' % (row[0].value, pops)
+                assert row[2].value in pops, 'Population "%s" not found - should be contained in %s' % (row[2].value, pops)
                 vals = [x.value for x in row]
                 from_pop = vals[0]
                 to_pop = vals[2]
@@ -167,7 +172,6 @@ class TimeDependentConnections(Table):
         return TimeDependentConnections(code_name, full_name, tvec, pops, ts_entries, interaction_type)
 
     def write(self,worksheet,start_row,formats,references=None):
-        # nb. self.ts is currently KeyData so retrieving the dict requires using the '.data' attribute
 
         if not references:
             references = {x:x for x in self.pops} # Default null mapping for populations
@@ -223,20 +227,22 @@ class TimeDependentConnections(Table):
                 else:
                     ts = None
 
-                worksheet.write_formula(current_row, 0, gate_content(references[from_pop],entry_cell), formats['center_bold'],value=from_pop)
-                worksheet.write_formula(current_row, 1, gate_content('--->',entry_cell), formats['center_bold'],value='--->')
-                worksheet.write_formula(current_row, 2, gate_content(references[to_pop],entry_cell), formats['center_bold'],value=to_pop)
-
                 if ts:
+                    worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value=from_pop)
+                    worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center_bold'], value='--->')
+                    worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     worksheet.write(current_row, 3, ts.format)
                     worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
                     worksheet.write(current_row, 4, ts.assumption, formats['unlocked'])
+                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='OR')
                 else:
+                    worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
+                    worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center_bold'], value='...')
+                    worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_blank(current_row, 3, '')
                     worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
                     worksheet.write_blank(current_row, 4, '', formats['unlocked'])
-
-                worksheet.write(current_row, 5, gate_content('OR',entry_cell), formats['center_bold'])
+                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='...')
 
                 offset = 6  # The time values start in this column (zero based index)
                 content = np.full(self.tvec.shape, None)
@@ -376,13 +382,13 @@ class TimeDependentValuesEntry(TableTemplate):
         for row in rows[1:]:
             vals = [x.value for x in row]
             series_name = vals[0]
-            format = vals[1]
-            units = vals[1]
+            format = vals[1].lower() if vals[1] else None
+            units = vals[1].lower() if vals[1] else None
             assumption = vals[2]
             assert vals[3] == 'OR' # Check row is as expected
             data = vals[4:]
             ts = TimeSeries(format=format,units=units)
-            if assumption is not None:
+            if assumption is not None and assumption != SS.DEFAULT_SYMBOL_INAPPLICABLE.title():
                 ts.insert(None,float(assumption))
             for t,v in zip(tvec,data):
                 if v is not None:
@@ -408,11 +414,11 @@ class TimeDependentValuesEntry(TableTemplate):
         headings.append('Quantity Type')
         headings.append('Constant')
         headings.append('')
-        headings += [str(x) for x in self.tvec]
+        headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats['center_bold'])
 
-        # Now, write the TimeSeries objects
+        # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
         for pop_name, pop_ts in self.ts.items():
             current_row += 1
 
@@ -424,7 +430,7 @@ class TimeDependentValuesEntry(TableTemplate):
 
             # Write the units
             # TODO - change ts.format to ts.units??
-            worksheet.write(current_row,1,pop_ts.format)
+            worksheet.write(current_row,1,pop_ts.format.title() if pop_ts.format else None)
             if self.allowed_units: # Add validation if a list of options is specified
                 worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
 

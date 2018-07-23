@@ -69,18 +69,26 @@ def standard_formats(workbook):
 
 class ScirisSpreadsheet(ScirisObject):
     ''' A class for reading and writing spreadsheet data in binary format, so a project contains the spreadsheet loaded '''
-    # self.data corresponds to the binary data of the Excel file. For IO, can construct a binary file in memory with io.BytesIO
+    # self.data corresponds to the binary data of the Excel file. If passed in a BytesIO object e.g. after writing to the bytestream,
+    # the entire contents of the stream will be stored as the data. For IO, can construct a binary file in memory with io.BytesIO
     # and then read/write from it using openpyxl. Final step is to assign the data associated with it to the Spreadsheet
-    def __init__(self, filename=None, data=None):
+    def __init__(self, source):
+        # source is a specification of where to get the data from
+        # It can be
+        # - A filename, which will get loaded
+        # - A io.BytesIO which will get dumped into this instance
+
         super(ScirisSpreadsheet, self).__init__() # No need for a name, just want to get an UID so as to be storable in database
 
-        self.data = data
         self.filename = None
         self.load_date = sc.today()
 
-        if filename is not None:
-            self.load(filename)
-        return None
+        if isinstance(source,io.BytesIO):
+            source.flush()
+            source.seek(0)
+            self.data = source.read()
+        else:
+            self.load(source)
 
     def __repr__(self):
         output = sc.desc(self)
@@ -218,6 +226,37 @@ def copy_worksheet(sheet_name,old_workbook,new_workbook):
             new_row.append(new_cell)
         s.append(new_row)
 
+def read_tables(worksheet):
+    # This function takes in a openpyxl worksheet, and returns tables
+    # A table consists of a block of rows with any #ignore rows skipped
+    # This function will start at the top of the worksheet, read rows into a buffer
+    # until it gets to the first entirely empty row
+    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
+    # This function continues until it has exhausted all of the rows in the sheet
+
+    buffer = []
+    tables = []
+    for row in worksheet.rows:
+
+        # Skip any rows starting with '#ignore'
+        if row[0].value and row[0].value.startswith('#ignore'):
+            continue  # Move on to the next row if row skipping is marked True
+
+        # Find out whether we need to add the row to the buffer
+        for cell in row:
+            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
+                buffer.append(row)
+                break
+        else: # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
+            if buffer:
+                tables.append(buffer) # Only append the buffer if it is not empty
+            buffer = []
+
+    # After the last row, if the buffer has some un-flushed contents, then yield it
+    if buffer:
+        tables.append(buffer)
+
+    return tables
 
 class ExcelSettings(object):
     """ Stores settings relevant to Excel file input and output. """
