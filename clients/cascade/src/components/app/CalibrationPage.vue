@@ -77,8 +77,11 @@ Last update: 2018-07-22
       
     </div>
     
-<!--    <clip-loader></clip-loader> -->
-      
+    <modal name="popup-spinner" 
+           height="auto">
+      <clip-loader :color="spinnerColor"></clip-loader>
+    </modal>   
+    
   </div>
 </template>
 
@@ -107,6 +110,7 @@ Last update: 2018-07-22
         parList: [],
         cascadeYear: [],
         areShowingParameters: true,
+        spinnerColor: '#0000ff'
       }
     },
 
@@ -232,6 +236,8 @@ Last update: 2018-07-22
 
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
+        
+        this.$modal.show('popup-spinner')
 
         // Start the loading bar.
         this.$Progress.start()
@@ -239,6 +245,8 @@ Last update: 2018-07-22
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('set_y_factors', [project_id, this.parList, this.cascadeYear])
           .then(response => {
+            this.$modal.hide('popup-spinner')
+          
             // Finish the loading bar.
             this.$Progress.finish()
             
@@ -264,6 +272,8 @@ Last update: 2018-07-22
             }
           })
           .catch(error => {
+            this.$modal.hide('popup-spinner')
+          
             // Fail the loading bar.
             this.$Progress.fail()
             
