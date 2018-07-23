@@ -52,7 +52,7 @@ class ProgramSet(NamedItem):
     def make(self, progdata=None, project=None):
         '''Make a program set from a program data object.'''
 
-        pop_short_name = project.data.get_spec_name
+        pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
         comp_short_name = project.framework.get_spec_name
 
         # Sort out inputs
@@ -77,7 +77,7 @@ class ProgramSet(NamedItem):
             capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
-                        target_pops =[pop_short_name(val) for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
+                        target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
                         capacity=capcacity,
                         )
@@ -108,7 +108,7 @@ class ProgramSet(NamedItem):
         for par,pardata in progdata['pars'].iteritems():
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
-                pop = pop_short_name(pop)
+                pop = pop_short_name[pop]
                 prog_effects[par][pop] = odict()
                 for pno in range(len(prognames)):
                     vals = []
@@ -256,7 +256,7 @@ class ProgramSet(NamedItem):
         for par,pardata in covouts.iteritems():
             if par in prog_effects.keys():
                 for pop,popdata in covouts[par].iteritems():
-                    pop = pop_short_name(pop)
+                    pop = pop_short_name[pop]
                     if pop in prog_effects[par].keys():
                         # Sanitize inputs
                         npi_val = sanitize(popdata['npi_val'])

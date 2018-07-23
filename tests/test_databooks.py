@@ -46,6 +46,6 @@ d2.add_pop('asdf','The ASDF pop')
 d2.save('./temp/d_blug_newpop.xlsx') # This is a ScirisSpreadsheet that can be stored in the FE database
 
 # Make a brand new databook
-data = ProjectData.new(F,np.arange(2000,2017),pops=2,transfers=4,interactions=2)
+data = ProjectData.new(F,np.arange(2000,2017),pops=2,transfers=4)
 data.save('./temp/d_blug_blank.xlsx') # This is a ScirisSpreadsheet that can be stored in the FE database
 

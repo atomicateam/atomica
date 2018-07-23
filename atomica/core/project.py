@@ -136,23 +136,12 @@ class Project(object):
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=None, num_transfers=None, num_interpops=None, num_progs=None,
-                        data_start=None, data_end=None, data_dt=None):
+    def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, num_interpops=0,data_start=2000.0, data_end=2020.0, data_dt=1.0):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
-        databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
-        if num_pops is not None:
-            databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set population amount.
-        if num_transfers is not None:
-            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_transfers)  # Set transfer amount.
-        if num_interpops is not None:
-            databook_instructions.update_number_of_items(DS.KEY_INTERACTION, num_interpops)  # Set interaction amount.
-        if num_progs is not None:
-            databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set program amount.
-        databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)
-        write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
-                       instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+        data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
+        data.save(databook_path)
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """ Load a data spreadsheet. """

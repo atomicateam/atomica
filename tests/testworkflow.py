@@ -29,18 +29,18 @@ torun = [
 "makeframework",
 "saveframework",
 "loadframework",
-# "makedatabook",
+"makedatabook",
 "makeproject",
 "loaddatabook",
 "makeparset",
 "runsim",
-# 'plotcascade',
+'plotcascade',
 "makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-# "runsim_programs",
-# "makeplots",
-# "export",
-# "listspecs",
+"loadprogramspreadsheet",
+"runsim_programs",
+"makeplots",
+"export",
+"listspecs",
 # "manualcalibrate",
 #  "autocalibrate",
 # "parameterscenario",
@@ -87,13 +87,10 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": args = {"num_pops":1, "num_transfers":1, "num_progs":3,
-                              "data_start":2000, "data_end":2015, "data_dt":1.0}
-    elif test == "tb": args = {"num_pops":12, "num_transfers":3, "num_progs":31, "data_end":2018}
-    elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "num_progs":0,
-                              "data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test == "service": args = {"num_pops":1, "num_transfers":0, "num_progs":0,
-                              "data_start":2014, "data_end":2017, "data_dt":1.0}
+    if test == "sir": args = {"num_pops":1, "num_transfers":1,"data_start":2000, "data_end":2015, "data_dt":1.0}
+    elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -193,36 +190,36 @@ if "makeplots" in torun:
 
     # Low level debug plots.
     for var in test_vars:
-        P.results["default"].get_variable(test_pop,var)[0].plot()
+        P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = au.PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
+    d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
     au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         au.plot_bars(d, outer="results", stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
         au.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
 
-        d = au.PlotData(P.results["default"], pops='0-4')
+        d = au.PlotData(P.results["parset_default"], pops='0-4')
         au.plot_series(d, plot_type='stacked')
 
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
 
     # Plot aggregate flows
-    d = au.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
     au.plot_series(d, axis="pops")
 
 

@@ -50,11 +50,12 @@ class ProjectData(object):
             td_table.tvec = tvec
 
     @staticmethod
-    def new(framework,tvec,pops,transfers,interactions):
+    def new(framework,tvec,pops,transfers):
         # Make a brand new databook
         # pops - Can be a number, or an odict with names and labels
         # transfers - Can be a number, or an odict with names and labels
         # interactions - Can be a number, or an odict with names and labels
+
         if not isinstance(pops,dict):
             new_pops = sc.odict()
             for i in range(0,pops):
@@ -62,19 +63,15 @@ class ProjectData(object):
         else:
             new_pops = pops
 
+        if not new_pops:
+            raise AtomicaException('A new databook must have at least 1 population')
+
         if not isinstance(transfers,dict):
             new_transfers = sc.odict()
             for i in range(0,transfers):
                 new_transfers['transfer_%d' % (i)] = 'Transfer %d' % (i)
         else:
             new_transfers = transfers
-
-        if not isinstance(interactions, dict):
-            new_interactions = sc.odict()
-            for i in range(0, interactions):
-                new_interactions['interaction_%d' % (i)] = 'Interaction %d' % (i)
-        else:
-            new_interactions = interactions
 
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
@@ -112,9 +109,14 @@ class ProjectData(object):
         for code_name,full_name in new_transfers.items():
             data.add_transfer(code_name,full_name)
 
-        for code_name, full_name in new_interactions.items():
-            data.add_interaction(code_name, full_name)
-
+        for name,spec in framework.specs['interpop'].items():
+            interpop = data.add_interaction(name, spec['label'])
+            if 'default_value' in spec and spec['default_value']:
+                for from_pop in interpop.pops:
+                    for to_pop in interpop.pops:
+                        ts = TimeSeries(format=interpop.allowed_units[0],units=interpop.allowed_units[0])
+                        ts.insert(None,spec['default_value'])
+                        interpop.ts[(from_pop,to_pop)] = ts
         return data
 
     @staticmethod
@@ -255,7 +257,9 @@ class ProjectData(object):
     def add_interaction(self,code_name,full_name):
         for interaction in self.interpops:
             assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)
-        self.interpops.append(TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='interaction', ts=None))
+        interpop = TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='interaction', ts=None)
+        self.interpops.append(interpop)
+        return interpop
 
     def remove_interaction(self,code_name):
         names = [x.code_name for x in self.interpops]
