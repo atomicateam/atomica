@@ -15,7 +15,6 @@ logger = logging.getLogger()
 import os
 import atomica.ui as au
 import sciris.core as sc
-import numpy as np
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
