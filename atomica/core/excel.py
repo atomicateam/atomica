@@ -201,7 +201,7 @@ def read_tables(worksheet):
     for row in worksheet.rows:
 
         # Skip any rows starting with '#ignore'
-        if row[0].value and isinstance(row[0].value,str) and row[0].value.startswith('#ignore'):
+        if row[0].value and row[0].value.startswith('#ignore'):
             continue  # Move on to the next row if row skipping is marked True
 
         # Find out whether we need to add the row to the buffer
