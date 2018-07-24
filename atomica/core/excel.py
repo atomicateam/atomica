@@ -96,6 +96,9 @@ class AtomicaSpreadsheet(object):
         # - A io.BytesIO which will get dumped into this instance
 
         self.filename = None
+        self.data = None
+        self.load_date = None
+
         if source is not None:
             self.insert(source)
 
@@ -175,38 +178,11 @@ def transfer_comments(target,comment_source):
                 if cell.comment:
                     sheet[cell.coordinate].comment = Comment(cell.comment.text, '')
 
-    # Commands below can copy extra sheets - but workflow probably clearer if we don't do this
-    # In any case, formulas from the original worksheets would have been wiped out anyway
-    #
-    # for sheet_name in [x for x in old_workbook.sheetnames if x not in this_workbook.sheetnames]:
-    #     copy_worksheet(sheet_name, old_workbook, this_workbook)
-
     f = io.BytesIO()
     this_workbook.save(f)
     f.flush()
     f.seek(0)
     target.data = f.read()
-
-def copy_formats(cell,new_cell):
-    if cell.has_style:
-        new_cell.font = copy(cell.font)
-        new_cell.border = copy(cell.border)
-        new_cell.fill = copy(cell.fill)
-        new_cell.number_format = copy(cell.number_format)
-        new_cell.protection = copy(cell.protection)
-        new_cell.alignment = copy(cell.alignment)
-        new_cell.comment = cell.comment
-    return new_cell
-
-def copy_worksheet(sheet_name,old_workbook,new_workbook):
-    s = new_workbook.create_sheet(sheet_name)
-    for row in old_workbook[sheet_name].rows:
-        new_row = []
-        for cell in row:
-            new_cell = openpyxl.worksheet.write_only.WriteOnlyCell(s, value=cell.value)
-            copy_formats(cell,new_cell)
-            new_row.append(new_cell)
-        s.append(new_row)
 
 def read_tables(worksheet):
     # This function takes in a openpyxl worksheet, and returns tables

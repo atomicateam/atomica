@@ -33,7 +33,7 @@ from .model import run_model
 from .parameters import ParameterSet
 from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario
-from .structure_settings import FrameworkSettings as FS, DataSettings as DS
+from .structure_settings import FrameworkSettings as FS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from .workbook_export import write_workbook, make_instructions, make_progbook
 from .workbook_import import read_workbook, load_progbook
@@ -102,8 +102,8 @@ class Project(object):
         self.created = sc.today()
         self.modified = sc.today()
 
-        self.databook = None
-        self.progbook = None
+        self.databook = None # This will contain an AtomicaSpreadsheet when the user loads one
+        self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings() # Global settings
 
         # Load spreadsheet, if available
@@ -133,6 +133,20 @@ class Project(object):
         output += '============================================================\n'
         return output
 
+    @property
+    def pop_names(self):
+        if self.data is None:
+            raise AtomicaException('Data with population definitions has not yet been loaded')
+        else:
+            return list(self.data.pops.keys())
+
+    @property
+    def pop_labels(self):
+        if self.data is None:
+            raise AtomicaException('Data with population definitions has not yet been loaded')
+        else:
+            return list([x['label'] for x in self.data.pops.values()])
+
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
@@ -144,27 +158,27 @@ class Project(object):
         data.save(databook_path)
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
-        """ Load a data spreadsheet. """
-        # databook_path can be a string, which will load a file from disk, or a ScirisSpreadsheet
-        # so the RPC can have a spreadsheet and pass it to this function directly
-        # In that case, the RPC will probably add the uploaded file to the database/project and pass the
-        # resulting spreadsheet to the Project
+        """
+        Load a data spreadsheet.
+
+        INPUTS:
+        - databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
+                         containing the contents of a databook
+        - make_default_parset: If True, a Parset called "default" will be immediately created from the
+                               newly-added data
+        - do_run: If True, a simulation will be run using the new parset
+        """
         if isinstance(databook_path,str):
-            databook_spreadsheet = AtomicaSpreadsheet(databook_path)
+            full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+            databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             databook_spreadsheet = databook_path
 
         self.data = ProjectData.from_spreadsheet(databook_spreadsheet,self.framework)
+        self.data.validate(self.framework) # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
+        self.databook = sc.dcp(databook_spreadsheet) # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
         self.modified = sc.today()
-        
-        # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
-        self.pop_names = []
-        self.pop_labels = []
-        for k,v in self.data.pops.items():
-            self.pop_names.append(k)
-            self.pop_labels.append(v['label'])
-
-        self.settings.update_time_vector(start=self.data.tvec[0])  # Align sim start year with data start year.
+        self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
         if make_default_parset:
             self.make_parset(name="default")
@@ -207,9 +221,15 @@ class Project(object):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
-        progdata = load_progbook(filename=full_path)
-        
+        if isinstance(progbook_path,str):
+            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
+            progbook_spreadsheet = AtomicaSpreadsheet(full_path)
+        else:
+            progbook_spreadsheet = progbook_path
+
+        progdata = load_progbook(progbook_spreadsheet)
+        self.progbook = sc.dcp(progbook_spreadsheet)
+
         # Check if the populations match - if not, raise an error, if so, add the data
         if set(progdata['pops']) != set(self.pop_labels):
             errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))

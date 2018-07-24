@@ -24,7 +24,7 @@ au.plot_series(d, plot_type="stacked") # This should look like the usual Optima-
 
 # Change the time axis
 d2 = sc.dcp(data)
-d2.tvec = np.arange(2000,2017,0.5)
+d2.change_tvec(np.arange(2000,2017,0.5))
 d2.save('./temp/d_blug_halfyear.xlsx') # This is a ScirisSpreadsheet that can be stored in the FE database
 
 # Run the half-year databook

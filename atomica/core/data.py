@@ -30,6 +30,7 @@ class ProjectData(object):
         self.pops = sc.odict() # This is an odict mapping code_name:{'label':full_name}
         self.transfers = list()
         self.interpops = list()
+        self.tvec = None # This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
         self.tdve = {}
         self.tdve_pages = sc.odict()
 
@@ -39,13 +40,30 @@ class ProjectData(object):
         self._references = None
 
     @property
-    def tvec(self):
-        tdve_keys = list(self.tdve.keys())
-        return self.tdve[tdve_keys[0]].tvec.copy()
+    def start_year(self):
+        # The ProjectData start year is defined as the earliest time point in
+        # any of the TDVE/TDC tables. This should be used when changing the simulation
+        # start year
+        start_year = np.inf
+        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
+            start_year = min(start_year,np.amin(td_table.tvec))
+        return start_year
 
-    @tvec.setter
-    def tvec(self, tvec):
+    @property
+    def end_year(self):
+        # The ProjectData start year is defined as the earliest time point in
+        # any of the TDVE/TDC tables. This should be used when changing the simulation
+        # start year
+        end_year = -np.inf
+        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
+            end_year = max(end_year,np.amax(td_table.tvec))
+        return end_year
+
+    def change_tvec(self, tvec):
         # Set tvec in all TDVE/TDC tables contained in the ProjectData
+        # - Setting `ProjectData.tvec = <>` will only affect tables created afterwards
+        # - Calling `ProjectData.change_tvec()` will modify all existing tables
+        self.tvec = tvec.copy()
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
             td_table.tvec = tvec
 
@@ -75,6 +93,7 @@ class ProjectData(object):
 
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
+        data.tvec = tvec
 
         pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)}
         item_types = [DS.KEY_PARAMETER,DS.KEY_CHARACTERISTIC,DS.KEY_COMPARTMENT]
@@ -166,21 +185,49 @@ class ProjectData(object):
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
 
-        # Now do some validation
-        #
-        # Check that all of the TDVE/TDC tables have the same time values
-        tvec = self.tvec
-        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            assert np.all(td_table.tvec == tvec)
+        # Set the ProjectData's tvec based on the first TDVE table
+        # 99.9% of the time, all of the tables will have the same values and so this is generally safe
+        # The only time unexpected behaviour might occur is if the first TDVE table has exotic data points
+        # and the user loads the databook, then adds a new transfer/interpop, the new table will have those same
+        # modified data points. But what does the user expect, if the databook has mixed times
+        self.tvec = self.tdve[self.tdve_pages[0][0]].tvec
 
-        # Make sure that all of the quantities the Framework says we should read in have been read in
+        return self
+
+    def validate(self,framework):
+        # Check if the contents of the ProjectData can be used to run simulations
+        #
+        # A databook can be 'valid' in two senses
+        #
+        # - The Excel file adheres to the correct syntax and it can be parsed into a ProjectData object
+        # - The resulting ProjectData object contains sufficient information to run a simulation
+        #
+        # Sometimes it is desirable for ProjectData to be valid in one sense rather than the other. For example,
+        # in order to run a simulation, the ProjectData needs to contain at least one value for every TDVE table.
+        # However, the TDVE table does _not_ need to contain values if all we want to do is add another key pop
+        # Thus, the first stage of validation is the ProjectData constructor - if that runs, then users can
+        # access methods like 'add_pop','remove_transfer' etc.
+        #
+        # However, to actually run a simulation, the _contents_ of the databook need to satisfy various conditions
+        # These tests are implemented here. The typical workflow would be that ProjectData.validate() should be used
+        # if a simulation is going to be run. In the first instance, this can be done in `Project.load_databook` but
+        # the FE might want to perform this check at a different point if the databook manipulation methods e.g.
+        # `add_pop` are going to be exposed in the interface
+        #
+        # This function throws an informative error if there are any problems identified or otherwise returns True
+        #
+        # Make sure that all of the quantities the Framework says we should read in have been read in, and that
+        # those quantities all have some data values associated with them
         for item_type in [DS.KEY_PARAMETER,DS.KEY_COMPARTMENT,DS.KEY_CHARACTERISTIC]:
             for item_name,spec in framework.specs[item_type].items():
                 if spec['datapage_order'] != -1:
                     if item_name not in self.tdve:
                         raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['label'],item_name))
+                    else:
+                        for name,ts in self.tdve[item_name].ts.items():
+                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[item_name].name, name)
 
-        return self
+        return True
 
     def to_spreadsheet(self):
         # Initialize the bytestream

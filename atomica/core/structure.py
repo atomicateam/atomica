@@ -98,6 +98,11 @@ class TimeSeries(object):
     @property
     def has_data(self):
         # Returns true if any time-specific data has been entered (not just an assumption)
+        return self.assumption is not None or self.has_time_data
+
+    @property
+    def has_time_data(self):
+        # Returns true if any time-specific data has been entered (not just an assumption)
         return len(self.t) > 0
 
     def insert(self, t, v):

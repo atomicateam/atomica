@@ -400,10 +400,11 @@ class TimeDependentValuesEntry(TableTemplate):
             if assumption is not None and assumption != SS.DEFAULT_SYMBOL_INAPPLICABLE.title():
                 ts.insert(None,float(assumption))
             for t,v in zip(tvec,data):
-                if v is not None:
+                if np.isfinite(t) and v is not None: # Ignore any times that are NaN
                     ts.insert(t,v)
             ts_entries[series_name] = ts
 
+        tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
         return TimeDependentValuesEntry(name,tvec,ts_entries)
 
     def write(self,worksheet,start_row,formats,references=None):

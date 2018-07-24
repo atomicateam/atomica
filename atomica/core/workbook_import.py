@@ -385,19 +385,19 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
     return result
 
 
-def load_progbook(filename, verbose=2):
+def load_progbook(spreadsheet):
     '''
     Loads programs book (i.e. reads its contents into the data).
+
+    INPUTS
+    - spreadsheet: An AtomicaSpreadsheet instance
     '''
     ## Basic setup
     data = sc.odict() # Create structure for holding data
 
     ## Read in databook 
-    try: workbook = xlrd.open_workbook(filename) # Open workbook
-    except: 
-        errormsg = 'Failed to load program spreadsheet: file "%s" not found or other problem' % filename
-        raise AtomicaException(errormsg)
-    
+    workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
+
     ## Load program spend information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
     data['progs'] = sc.odict()
