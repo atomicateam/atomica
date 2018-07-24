@@ -36,17 +36,17 @@ torun = [
 "makeparset",
 "runsim",
 'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
+#"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
 # "runsim_programs",
 # "makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
- "autocalibrate",
+# "autocalibrate",
 # "parameterscenario",
-"saveproject",
-"loadproject",
+#"saveproject",
+#"loadproject",
 ]
 
 # Define plotting variables in case plots are generated
