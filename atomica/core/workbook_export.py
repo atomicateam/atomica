@@ -16,7 +16,7 @@ import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import numpy as np
 from copy import copy
-from .excel import ScirisSpreadsheet, standard_formats
+from .excel import AtomicaSpreadsheet, standard_formats
 import collections
 import io
 import xlrd
@@ -805,7 +805,7 @@ class Workbook(object):
         self.current_sheet = None
 
     def create(self):
-        # Return a ScirisSpreadsheet with the contents of this Workbook
+        # Return a AtomicaSpreadsheet with the contents of this Workbook
         f = io.BytesIO() # Write to this binary stream in memory
 
         self.book = xw.Workbook(f)
@@ -813,8 +813,8 @@ class Workbook(object):
         self.write_pages()    # This calls an overloadable method for nonstandard page generation.
         self.book.close()
 
-        # Dump the file content into a ScirisSpreadsheet
-        return ScirisSpreadsheet(f)
+        # Dump the file content into a AtomicaSpreadsheet
+        return AtomicaSpreadsheet(f)
 
     def write_pages(self):
         # By default, call `self.generate_<sheetname>` for every sheet in self.sheets
@@ -1043,7 +1043,7 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 
     # Construct the actual workbook from generated content.
     book = FrameworkFile(filename, *item_type_inputs)
-    ss = book.create()  # This is a ScirisSpreadsheet that can be stored in the FE database
+    ss = book.create()  # This is a AtomicaSpreadsheet that can be stored in the FE database
     ss.save(filename)
 
     return filename
@@ -1079,7 +1079,7 @@ class ProgramSpreadsheet(Workbook):
         self.nprogs = len(progs)
 
     def to_spreadsheet(self):
-        # Return a ScirisSpreadsheet with the contents of this Workbook
+        # Return a AtomicaSpreadsheet with the contents of this Workbook
         f = io.BytesIO() # Write to this binary stream in memory
 
         self.book = xw.Workbook(f)
@@ -1087,8 +1087,8 @@ class ProgramSpreadsheet(Workbook):
         self.write_pages()    # This calls an overloadable method for nonstandard page generation.
         self.book.close()
 
-        # Dump the file content into a ScirisSpreadsheet
-        return ScirisSpreadsheet(f)
+        # Dump the file content into a AtomicaSpreadsheet
+        return AtomicaSpreadsheet(f)
 
     def generate_targeting(self):
         self.current_sheet.set_column(2, 2, 15)

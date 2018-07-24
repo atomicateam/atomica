@@ -9,7 +9,7 @@ from .structure import TimeSeries
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import standard_formats, ScirisSpreadsheet, read_tables
+from .excel import standard_formats, AtomicaSpreadsheet, read_tables
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -137,7 +137,7 @@ class ProjectData(object):
         self = ProjectData()
 
         if isinstance(spreadsheet,str):
-            spreadsheet = ScirisSpreadsheet(spreadsheet)
+            spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
 
@@ -201,7 +201,7 @@ class ProjectData(object):
         self._book.close()
 
         # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = ScirisSpreadsheet(f)
+        spreadsheet = AtomicaSpreadsheet(f)
 
         # Clear everything
         f.close()
@@ -220,6 +220,9 @@ class ProjectData(object):
     def add_pop(self,code_name,full_name):
         # Add a population with the given name and label (full name)
         assert code_name not in self.pops, 'Population with name "%s" already exists' % (code_name)
+
+        if code_name.strip().lower() == 'all':
+            raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')
 
         self.pops[code_name] = {'label':full_name}
         for interaction in self.transfers+self.interpops:
@@ -273,7 +276,9 @@ class ProjectData(object):
 
         self.pops = sc.odict()
         for row in tables[0][1:]:
-            self.pops[row[0].value] = {'label':row[1].value}
+            if row[0].value.strip().lower() == 'all':
+                raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')
+            self.pops[row[0].value.strip()] = {'label':row[1].value.strip()}
 
     def _write_pops(self):
         # Writes the 'Population Definitions' sheet

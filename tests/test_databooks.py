@@ -1,5 +1,5 @@
 import atomica.ui as au
-from atomica.core.excel import ScirisSpreadsheet, transfer_comments
+from atomica.core.excel import AtomicaSpreadsheet, transfer_comments
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData
 import sciris.core as sc
@@ -11,7 +11,7 @@ data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
 data.save('./temp/d_blug.xlsx')
 
 # Copy comments, using lower-level ScirisSpreadsheet (for in-memory file operations)
-original_workbook = ScirisSpreadsheet("./databooks/databook_tb.xlsx")
+original_workbook = AtomicaSpreadsheet("./databooks/databook_tb.xlsx")
 new_workbook = data.to_spreadsheet() # data.to_spreadsheet()
 transfer_comments(new_workbook,original_workbook)
 new_workbook.save('./temp/d_blug_formatted.xlsx')

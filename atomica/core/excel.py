@@ -72,18 +72,18 @@ def standard_formats(workbook):
 
     return formats
 
-class ScirisSpreadsheet(ScirisObject):
+class AtomicaSpreadsheet(object):
     ''' A class for reading and writing data in binary format, so a project contains the spreadsheet loaded '''
-    # This object provides an interface for storing the contents of files (particularly spreadsheets) as ScirisObjects that can be
-    # stored in the FE database. Basic usage is as follows:
+    # This object provides an interface for managing the contents of files (particularly spreadsheets) as Python objects
+    # that can be stored in the FE database. Basic usage is as follows:
     #
-    # ss = ScirisSpreadsheet('input.xlsx') # Load a file into this object
+    # ss = AtomicaSpreadsheet('input.xlsx') # Load a file into this object
     # ss.add_to_datastore() # Can use database methods inherited from ScirisObject
     # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
     # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
     # book.create_sheet(...)
     # book.save(f) # The workbook can be saved back to this stream
-    # ss.insert(f) # We can update the contents of the ScirisSpreadsheet with the newly written workbook
+    # ss.insert(f) # We can update the contents of the AtomicaSpreadsheet with the newly written workbook
     # ss.add_to_datastore() # Presumably would want to store the changes in the database too
     # ss.save('output.xlsx') # Can also write the contents back to disk
     #
@@ -91,11 +91,9 @@ class ScirisSpreadsheet(ScirisObject):
 
     def __init__(self, source=None):
         # source is a specification of where to get the data from
-        # It can be anything supported by ScirisSpreadsheet.insert() which are
+        # It can be anything supported by AtomicaSpreadsheet.insert() which are
         # - A filename, which will get loaded
         # - A io.BytesIO which will get dumped into this instance
-
-        super(ScirisSpreadsheet, self).__init__() # No need for a name, just want to get an UID so as to be storable in database
 
         self.filename = None
         if source is not None:
@@ -152,15 +150,15 @@ class ScirisSpreadsheet(ScirisObject):
 
 
 def transfer_comments(target,comment_source):
-    # Format this ScirisSpreadsheet based on the extra meta-content in comment_source
+    # Format this AtomicaSpreadsheet based on the extra meta-content in comment_source
     #
-    # In reality, a new spreadsheet is created with values from this ScirisSpreadsheet
-    # and cell-wise formatting from the comment_source ScirisSpreadsheet. If a cell exists in
+    # In reality, a new spreadsheet is created with values from this AtomicaSpreadsheet
+    # and cell-wise formatting from the comment_source AtomicaSpreadsheet. If a cell exists in
     # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
     # the comment_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
     # the comment_source and not in the current workbook, it will be added
 
-    assert isinstance(comment_source,ScirisSpreadsheet)
+    assert isinstance(comment_source, AtomicaSpreadsheet)
 
     this_workbook = openpyxl.load_workbook(target.get_file(),data_only=False) # This is the value source workbook
     old_workbook = openpyxl.load_workbook(comment_source.get_file(),data_only=False) # A openpyxl workbook for the old content

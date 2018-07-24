@@ -42,7 +42,7 @@ from .utils import NDict
 #from .results import Result
 import sciris.core as sc
 import numpy as np
-from .excel import ScirisSpreadsheet
+from .excel import AtomicaSpreadsheet
 
 
 class ProjectSettings(object):
@@ -150,7 +150,7 @@ class Project(object):
         # In that case, the RPC will probably add the uploaded file to the database/project and pass the
         # resulting spreadsheet to the Project
         if isinstance(databook_path,str):
-            databook_spreadsheet = ScirisSpreadsheet(databook_path)
+            databook_spreadsheet = AtomicaSpreadsheet(databook_path)
         else:
             databook_spreadsheet = databook_path
 
