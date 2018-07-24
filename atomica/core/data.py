@@ -258,7 +258,8 @@ class ProjectData(object):
                     else:
                         for name,ts in self.tdve[item_name].ts.items():
                             assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[item_name].name, name)
-
+                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[item_name].name, name)
+                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[item_name].name, name)
         return True
 
     def to_spreadsheet(self):
