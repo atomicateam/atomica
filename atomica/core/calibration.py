@@ -1,8 +1,5 @@
-from copy import deepcopy as dcp
-
 import numpy as np
-
-from .asd import asd
+import sciris.core as sc
 from .interpolation import interpolate_func
 from .structure import SemanticUnknownException
 
@@ -191,7 +188,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     if max_time is not None:
         optim_args['maxtime'] = max_time
 
-    x1, _, _ = asd(calculate_objective, x0, args, **optim_args)
+    x1, _, _ = sc.asd(calculate_objective, x0, args, **optim_args)
 
     update_parset(args['parset'], x1, pars_to_adjust)
 

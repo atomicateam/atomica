@@ -1,13 +1,14 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 2/2/18 (gchadder3)
+Last update: 7/12/18 (gchadder3)
 -->
 
 <template>
   <div :class="{'nav-open': $sidebar.showSidebar}">
     <simplert></simplert>
     <router-view></router-view>
+    <vue-progress-bar></vue-progress-bar>    
     <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
     <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">
       <ul class="nav navbar-nav">

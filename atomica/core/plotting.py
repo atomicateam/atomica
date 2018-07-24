@@ -4,7 +4,6 @@ import itertools
 import os
 import textwrap
 from collections import defaultdict
-from copy import deepcopy as dcp
 
 import matplotlib.cm as cmx
 import matplotlib.colors as matplotlib_colors
@@ -546,7 +545,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
 
     assert outer in ['times', 'results'], 'Supported outer groups are "times" or "results"'
 
-    plotdata = dcp(plotdata)
+    plotdata = sc.dcp(plotdata)
 
     # Note - all of the tvecs must be the same
     tvals, t_labels = plotdata.tvals()  # We have to iterate over these, with offsets, if there is more than one
@@ -817,7 +816,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
     figs = []
     ax = None
 
-    plotdata = dcp(plotdata)
+    plotdata = sc.dcp(plotdata)
 
     if axis == 'results':
         plotdata.set_colors(results=plotdata.results)
