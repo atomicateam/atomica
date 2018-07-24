@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-04
+Last update: 2018-07-13
 -->
 
 <template>
@@ -247,54 +247,85 @@ Last update: 2018-07-04
 
       updateFrameworkSummaries(setActiveID) {
         console.log('updateFrameworkSummaries() called')
-
+      
         // Get the current user's framework summaries from the server.
         rpcservice.rpcCall('load_current_user_framework_summaries')
-          .then(response => {
-            // Set the frameworks to what we received.
-            this.frameworkSummaries = response.data.frameworks
+        .then(response => {
+          // Set the frameworks to what we received.
+          this.frameworkSummaries = response.data.frameworks
 
-            // Set select flags for false initially.
-            this.frameworkSummaries.forEach(theFrame => {
-              theFrame.selected = false
-              theFrame.renaming = ''
-            })
-            
-            // If we have a framework on the list...
-/*            if (this.frameworkSummaries.length > 0) {
-              // If no ID is passed in, set the active framework to the first one in 
-              // the list.
-              // TODO: We should write a function that extracts the last-created 
-              // framework and then uses the UID for that as the thing to set.
-              if (setActiveID == null) {
-                this.openFramework(this.frameworkSummaries[0].framework.id)
-              }
-          
-              // Otherwise, set the active framework to the one passed in.
-              else {
-                this.openFramework(setActiveID)
-              }
-            } */        
+          // Set select flags for false initially.
+          this.frameworkSummaries.forEach(theFrame => {
+            theFrame.selected = false
+            theFrame.renaming = ''
           })
+        
+          // If we have a framework on the list...
+/*          if (this.frameworkSummaries.length > 0) {
+            // If no ID is passed in, set the active framework to the first one in 
+            // the list.
+            // TODO: We should write a function that extracts the last-created 
+            // framework and then uses the UID for that as the thing to set.
+            if (setActiveID == null) {
+              this.openFramework(this.frameworkSummaries[0].framework.id)
+            }
+          
+            // Otherwise, set the active framework to the one passed in.
+            else {
+              this.openFramework(setActiveID)
+            }
+          } */        
+        })
+        .catch(error => {
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not load frameworks',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })      
       },
 
       addDemoFramework() {
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
+        
+        // Start the loading bar.
+        this.$Progress.start()
+        
         // Have the server create a new framework.
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
-          .then(response => {
-            // Update the framework summaries so the new framework shows up on the list.
-            this.updateFrameworkSummaries(response.data.frameworkId)
+        .then(response => {         
+          // Update the framework summaries so the new framework shows up on the list.
+          this.updateFrameworkSummaries(response.data.frameworkId)
+          
+          // Finish the loading bar.
+          this.$Progress.finish()  
 
-            this.$notifications.notify({
-              message: 'Library framework "'+which+'" loaded',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+          // Success popup.
+          this.$notifications.notify({
+            message: 'Library framework loaded',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
           })
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not load framework',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })            
       },
 
       addDemoFrameworkModal() {
@@ -313,24 +344,44 @@ Last update: 2018-07-04
       createNewFramework() {
         console.log('createNewFramework() called')
         this.$modal.hide('create-framework')
-
+        
+        // Start the loading bar.
+        this.$Progress.start()
+        
         // Have the server create a new framework.
         rpcservice.rpcDownloadCall('create_new_framework', [this.$store.state.currentUser.UID, this.frame_name, this.num_comps])
-          .then(response => {
-            // Update the framework summaries so the new framework shows up on the list.
-            // Note: There's no easy way to get the new framework UID to tell the 
-            // framework update to choose the new framework because the RPC cannot pass 
-            // it back.            
-            this.updateFrameworkSummaries(null)
-
-            this.$notifications.notify({
-              message: 'New framework "'+this.frame_name+'" created',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+        .then(response => {
+          // Update the framework summaries so the new framework shows up on the list.
+          // Note: There's no easy way to get the new framework UID to tell the 
+          // framework update to choose the new framework because the RPC cannot pass 
+          // it back.            
+          this.updateFrameworkSummaries(null)
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+          
+          // Success popup.
+          this.$notifications.notify({
+            message: 'New framework "'+this.frame_name+'" created',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
           })
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not create new framework',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })        
       },
 
       uploadFrameworkFromFile() {
@@ -338,10 +389,39 @@ Last update: 2018-07-04
 
         // Have the server upload the framework.
         rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.frw')
-          .then(response => {
-            // Update the framework summaries so the new framework shows up on the list.
-            this.updateFrameworkSummaries(response.data.frameworkId)
-          })
+        .then(response => {
+           // Start the loading bar.  (This is here because we don't want the 
+          // progress bar running when the user is picking a file to upload.)
+          this.$Progress.start()
+        
+          // Update the framework summaries so the new framework shows up on the list.
+          this.updateFrameworkSummaries(response.data.frameworkId)
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+        
+          // Success popup.
+          this.$notifications.notify({
+            message: 'Framework uploaded',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })          
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not upload framework',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })        
       },
 
       frameworkIsActive(uid) {
@@ -444,21 +524,41 @@ Last update: 2018-07-04
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('copyFramework() called for ' + matchFramework.framework.name)
-
+        
+        // Start the loading bar.
+        this.$Progress.start()
+        
         // Have the server copy the framework, giving it a new name.
         rpcservice.rpcCall('copy_framework', [uid])
-          .then(response => {
-            // Update the framework summaries so the copied program shows up on the list.
-            this.updateFrameworkSummaries(response.data.frameworkId)
-          })
-
-        this.$notifications.notify({
-          message: 'Framework "'+matchFramework.framework.name+'" copied',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        .then(response => {
+          // Update the framework summaries so the copied program shows up on the list.
+          this.updateFrameworkSummaries(response.data.frameworkId)
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+          
+          // Success popup.
+          this.$notifications.notify({
+            message: 'Framework "'+matchFramework.framework.name+'" copied',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })         
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not copy framework',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })       
       },
 
       renameFramework(frameworkSummary) {
@@ -477,17 +577,36 @@ Last update: 2018-07-04
 
           // Rename the framework name in the client list from what's in the textbox.
           newFrameworkSummary.framework.name = frameworkSummary.renaming
-
+          
+          // Start the loading bar.
+          this.$Progress.start()
+        
           // Have the server change the name of the framework by passing in the new copy of the
           // summary.
           rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary])
-            .then(response => {
-              // Update the framework summaries so the rename shows up on the list.
-              this.updateFrameworkSummaries(newFrameworkSummary.framework.id)
+          .then(response => {
+            // Update the framework summaries so the rename shows up on the list.
+            this.updateFrameworkSummaries(newFrameworkSummary.framework.id)
 
-              // Turn off the renaming mode.
-              frameworkSummary.renaming = ''
-            })
+            // Turn off the renaming mode.
+            frameworkSummary.renaming = ''
+            
+            // Finish the loading bar.
+            this.$Progress.finish()              
+          })
+          .catch(error => {
+            // Fail the loading bar.
+            this.$Progress.fail()
+        
+            // Failure popup.
+            this.$notifications.notify({
+              message: 'Could not rename framework',
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })      
+          })            
         }
 
         // This silly hack is done to make sure that the Vue component gets updated by this function call.
@@ -504,9 +623,29 @@ Last update: 2018-07-04
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('downloadFrameworkFile() called for ' + matchFramework.framework.name)
-
+        
+        // Start the loading bar.
+        this.$Progress.start()
+      
         // Make the server call to download the framework to a .prj file.
         rpcservice.rpcDownloadCall('download_framework', [uid])
+        .then(response => {
+          // Finish the loading bar.
+          this.$Progress.finish()          
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not download framework',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })             
       },
 
       downloadFrameworkbook(uid) {
@@ -542,18 +681,39 @@ Last update: 2018-07-04
 
         // Have the server copy the framework, giving it a new name.
         rpcservice.rpcUploadCall('upload_frameworkbook', [uid], {})
-          .then(response => {
-            // Update the framework summaries so the copied program shows up on the list.
-            this.updateFrameworkSummaries(uid)
-          })
-
-        this.$notifications.notify({
-          message: 'Data uploaded to framework "'+matchFramework.framework.name+'"',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        .then(response => {
+          // Start the loading bar.  (This is here because we don't want the 
+          // progress bar running when the user is picking a file to upload.)
+          this.$Progress.start()          
+          
+          // Update the framework summaries so the copied program shows up on the list.
+          this.updateFrameworkSummaries(uid)
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+          
+          // Success popup.
+          this.$notifications.notify({
+            message: 'Data uploaded to framework "'+matchFramework.framework.name+'"',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })          
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not upload framework data',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })
       },
 
       // Confirmation alert
@@ -575,26 +735,45 @@ Last update: 2018-07-04
           theFrame.selected).map(theFrame => theFrame.framework.id)
 
         console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
-
+              
         // Have the server delete the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
-          rpcservice.rpcCall('delete_frameworks', [selectFrameworksUIDs])
-            .then(response => {
-              // Get the active framework ID.
-/*              let activeFrameworkId = this.$store.state.activeFramework.framework.id
-              if (activeFrameworkId === undefined) {
-                activeFrameworkId = null
-              } 
+          // Start the loading bar.
+          this.$Progress.start()          
           
-              // Update the framework summaries so the deletions show up on the list. 
-              // Make sure it tries to set the framework that was active.
-              // TODO: This will cause problems until we add a check to 
-              // updateFrameworkSummaries() to make sure a framework still exists with 
-              // that ID.
-              this.updateFrameworkSummaries(activeFrameworkId) */
+          rpcservice.rpcCall('delete_frameworks', [selectFrameworksUIDs])
+          .then(response => {
+            // Get the active framework ID.
+/*            let activeFrameworkId = this.$store.state.activeFramework.framework.id
+            if (activeFrameworkId === undefined) {
+              activeFrameworkId = null
+            } 
+          
+            // Update the framework summaries so the deletions show up on the list. 
+            // Make sure it tries to set the framework that was active.
+            // TODO: This will cause problems until we add a check to 
+            // updateFrameworkSummaries() to make sure a framework still exists with 
+            // that ID.
+            this.updateFrameworkSummaries(activeFrameworkId) */
               
-              this.updateFrameworkSummaries(null)
-            })
+            this.updateFrameworkSummaries(null)
+            
+            // Finish the loading bar.
+            this.$Progress.finish()              
+          })
+          .catch(error => {
+            // Fail the loading bar.
+            this.$Progress.fail()
+        
+            // Failure popup.
+            this.$notifications.notify({
+              message: 'Could not delete framework/s',
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })      
+          })                    
         }
       },
 
@@ -604,10 +783,31 @@ Last update: 2018-07-04
           theFrame.selected).map(theFrame => theFrame.framework.id)
 
         console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
-
+                 
         // Have the server download the selected frameworks.
-        if (selectFrameworksUIDs.length > 0)
+        if (selectFrameworksUIDs.length > 0) {
+          // Start the loading bar.
+          this.$Progress.start()   
+          
           rpcservice.rpcDownloadCall('load_zip_of_frw_files', [selectFrameworksUIDs])
+          .then(response => {
+            // Finish the loading bar.
+            this.$Progress.finish()          
+          })
+          .catch(error => {
+            // Fail the loading bar.
+            this.$Progress.fail()
+        
+            // Failure popup.
+            this.$notifications.notify({
+              message: 'Could not download framework/s',
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })  
+          })        
+        }           
       }
     }
   }

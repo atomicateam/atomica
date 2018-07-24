@@ -5,7 +5,7 @@ from .version import version
 from bisect import bisect
 import sciris.core as sc
 import numpy as np
-
+import scipy.interpolate
 
 class SemanticUnknownException(AtomicaException):
     def __init__(self, term, attribute=None, **kwargs):
@@ -81,8 +81,8 @@ def get_quantity_type_list(include_absolute=False, include_relative=False, inclu
 class TimeSeries(object):
     def __init__(self, t=None, vals=None, format=None, units=None):
 
-        t = t if t is not None else list()
-        vals = vals if vals is not None else list()
+        t = sc.promotetoarray(t) if t is not None else list()
+        vals = sc.promotetoarray(vals) if vals is not None else list()
 
         assert len(t) == len(vals)
 
@@ -92,7 +92,7 @@ class TimeSeries(object):
         self.units = units
         self.assumption = None
 
-        for tx, vx in zip(t, vals):
+        for tx, vx in zip(t,vals):
             self.insert(tx, vx)
 
     @property
@@ -142,9 +142,35 @@ class TimeSeries(object):
         else:
             raise AtomicaException('Item not found')
 
-            # Todo - unit conversion (should it return a new instance?)
-            # Todo - interpolation/expansion
+    def remove_between(self, t_remove):
+        # t is a two element vector [min,max] such that
+        # times > min and < max are removed
+        # Note that the endpoints are not included!
+        for tval in sc.dcp(self.t):
+            if t_remove[0] < tval < t_remove[1]:
+                self.remove(tval)
 
+    def interpolate(self,t2):
+        # Output is guaranteed to be of type np.array
+        t2 = sc.promotetoarray(t2) # Deal with case where user prompts for single time point
+        t1,v1 = self.get_arrays()
+
+        # Remove NaNs
+        idx = ~np.isnan(t1) & ~np.isnan(v1)
+        t1 = t1[idx]
+        v1 = v1[idx]
+
+        if t1.size == 0:
+            raise AtomicaException('No time points remained after removing NaNs from the TimeSeries')
+        elif t1.size == 1:
+            return np.full(t2.shape,v1[0])
+        else:
+            v2 = np.zeros(t2.shape)
+            f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
+            v2[(t2>=t1[0]) & (t2<=t1[-1])] = f(t2[(t2>=t1[0]) & (t2<=t1[-1])])
+            v2[t2<t1[0]] = v1[0]
+            v2[t2>t1[-1]] = v1[-1]
+            return v2
 
 class KeyData(object):
     """ 

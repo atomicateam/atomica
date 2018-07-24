@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-05
+Last update: 2018-07-13
 -->
 
 <template>
@@ -203,17 +203,36 @@ Last update: 2018-07-05
 
       viewTable() {
         console.log('viewTable() called')
+        
+        // Start the loading bar.
+        this.$Progress.start()
 
         // Go to the server to get the diseases from the burden set.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id])
-          .then(response => {
-            this.parList = response.data // Set the disease list.
-          })
-
-//        // Set the active values from the loaded in data.
-//        for (let ind=0; ind < this.parList.length; ind++) {
-//          this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
-//        }
+        .then(response => {
+          this.parList = response.data // Set the disease list.
+          
+          // Finish the loading bar.
+          this.$Progress.finish()            
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not load diseases',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })
+        
+//      // Set the active values from the loaded in data.
+//      for (let ind=0; ind < this.parList.length; ind++) {
+//        this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
+//      }
       },
 
       toggleShowingParams() {
@@ -228,49 +247,62 @@ Last update: 2018-07-05
         
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('set_y_factors', [project_id, this.parList, this.cascadeYear])
-          .then(response => {
-            // Finish the loading bar.
-            this.$Progress.finish()
-            
-            this.serverresponse = response.data // Pull out the response data.
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
+        .then(response => {
+          this.serverresponse = response.data // Pull out the response data.
+          var n_plots = response.data.graphs.length
+          console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
+          for (var index = 0; index <= n_plots; index++) {
+            console.log('Rendering plot ' + index)
+            var divlabel = 'fig' + index
+            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            while (div.firstChild) {
+              div.removeChild(div.firstChild);
             }
-          })
-          .catch(error => {
-            // Fail the loading bar.
-            this.$Progress.fail()
-            
-            // Pull out the error message.
-            this.serverresponse = 'There was an error: ' + error.message
-
-            // Set the server error.
-            this.servererror = error.message
-          }).then( response => {
+            try {
+              console.log(response.data.graphs[index]);
+              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              this.haveDrawnGraphs = true
+            }
+            catch (err) {
+              console.log('failled:' + err.message);
+            }
+          }
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+        
+          // Success popup.
           this.$notifications.notify({
             message: 'Graphs created',
             icon: 'ti-check',
             type: 'success',
             verticalAlign: 'top',
             horizontalAlign: 'center',
-          });
+          })           
         })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+            
+          // Pull out the error message.
+          this.serverresponse = 'There was an error: ' + error.message
+
+          // Set the server error.
+          this.servererror = error.message
+          
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not make graphs',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })          
+        }) 
       },
 
       autoCalibrate(project_id) {
