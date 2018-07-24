@@ -132,6 +132,15 @@ if 'plotcascade' in torun:
     au.plot_cascade(project=P, year=2020)
     if forceshow: pl.show()
     
+    # Browser test
+    as_mpld3 = True
+    if as_mpld3:
+        import sciris.weblib.quickserver as sqs
+        fig = pl.gcf()
+        sqs.browser(fig)
+        
+    
+    
     
     
 if "makeprogramspreadsheet" in torun:
