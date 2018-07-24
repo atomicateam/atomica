@@ -257,6 +257,7 @@ class ProjectData(object):
                         raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['label'],item_name))
                     else:
                         for name,ts in self.tdve[item_name].ts.items():
+                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[item_name].name,self.pops.keys())
                             assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[item_name].name, name)
                             assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[item_name].name, name)
                             assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[item_name].name, name)
@@ -355,6 +356,9 @@ class ProjectData(object):
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
+        assert tables[0][0][0].value.strip() == 'Abbreviation'
+        assert tables[0][0][1].value.strip() == 'Full Name'
+
         for row in tables[0][1:]:
             if row[0].value.strip().lower() == 'all':
                 raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')

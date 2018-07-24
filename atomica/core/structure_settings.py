@@ -158,7 +158,7 @@ class TimeDependentConnections(Table):
                 vals = [x.value for x in row]
                 from_pop = vals[0]
                 to_pop = vals[2]
-                units = vals[3]
+                units = vals[3].lower().strip()
                 assumption = vals[4] # This is the assumption cell
                 assert vals[5] == 'OR' # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(format=units,units=units)
@@ -231,7 +231,7 @@ class TimeDependentConnections(Table):
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value=from_pop)
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center_bold'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
-                    worksheet.write(current_row, 3, ts.format)
+                    worksheet.write(current_row, 3, ts.format.title())
                     worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
                     worksheet.write(current_row, 4, ts.assumption, formats['unlocked'])
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='OR')
@@ -327,10 +327,12 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
                 worksheet.write(row,col, content[from_idx,to_idx], formats["center_unlocked"])
                 if boolean_choice:
                     worksheet.data_validation(xlrc(row,col), {"validate": "list", "source": ["Y","N"]})
+                    worksheet.conditional_format(xlrc(row,col), {'type': 'cell','criteria':'equal to','value':'"Y"','format':formats['unlocked_boolean_true']})
+                    worksheet.conditional_format(xlrc(row,col), {'type': 'cell','criteria':'equal to','value':'"N"','format':formats['unlocked_boolean_false']})
             table_references[(nodes[from_idx],nodes[to_idx])] = xlrc(row,col,True,True) # Store reference to this interaction
             values_written[table_references[(nodes[from_idx],nodes[to_idx])]] = val
-    next_row = start_row + 1 + len(nodes) + 1
 
+    next_row = start_row + 1 + len(nodes) + 1
     return next_row,table_references,values_written
 
 class TimeDependentValuesEntry(TableTemplate):
@@ -383,7 +385,7 @@ class TimeDependentValuesEntry(TableTemplate):
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
-        name = vals[0]
+        name = vals[0].strip()
         tvec = np.array(vals[4:],dtype=float)
         ts_entries = sc.odict()
 
@@ -391,8 +393,8 @@ class TimeDependentValuesEntry(TableTemplate):
         for row in rows[1:]:
             vals = [x.value for x in row]
             series_name = vals[0]
-            format = vals[1].lower() if vals[1] else None
-            units = vals[1].lower() if vals[1] else None
+            format = vals[1].lower().strip() if vals[1] else None
+            units = vals[1].lower().strip() if vals[1] else None
             assumption = vals[2]
             assert vals[3] == 'OR' # Check row is as expected
             data = vals[4:]
