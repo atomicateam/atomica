@@ -15,6 +15,7 @@ logger = logging.getLogger()
 import os
 import atomica.ui as au
 import sciris.core as sc
+import pylab as pl
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
@@ -47,6 +48,8 @@ torun = [
 #"saveproject",
 #"loadproject",
 ]
+
+forceshow = True # Whether or not to force plots to show (warning, only partly implemented)
 
 # Define plotting variables in case plots are generated
 if test == "sir":
@@ -127,6 +130,7 @@ if "runsim" in torun:
 
 if 'plotcascade' in torun:
     au.plot_cascade(project=P, year=2020)
+    if forceshow: pl.show()
     
     
     
