@@ -70,6 +70,10 @@ def standard_formats(workbook):
     formats['grey_bold'] = workbook.add_format({'fg_color': '#EEEEEE', 'bold': True})
     formats['merge_format'] = workbook.add_format({'bold': 1, 'align': 'center', 'text_wrap': True})
 
+    # Conditional formats used for Y/N boolean matrix
+    formats['unlocked_boolean_true'] = workbook.add_format({'bg_color': OPT_COLOR})
+    formats['unlocked_boolean_false'] = workbook.add_format({'bg_color': BG_COLOR})
+
     return formats
 
 class AtomicaSpreadsheet(object):
