@@ -67,6 +67,38 @@ class ProjectData(object):
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
             td_table.tvec = tvec
 
+    def get_ts(self,name,key=None):
+        # This extracts a TimeSeries from a TDVE table or TDC table
+        #
+        # INPUTS
+        # - name: - The code name of a transfer, interaction, or compartment/characteristic/parameter
+        #         - The name of a transfer parameter instantiated in model.build e.g. 'age_0-4_to_5-14'.
+        #           this is mainly useful when retrieving data for plotting, where variables are organized according
+        #           to names like 'age_0-4_to_5-14'
+        # - key: - If `name` is a comp/charac/par, then key should be a pop name
+        #        - If `name` is a transfer or interaction, then key should be a tuple (from_pop,to_pop)
+        #        - If `name` is the name of a model transfer parameter, then `key` should be left as `None`
+        #
+        # If the key was not found, return None
+
+        # First, check if it's the name of a TDVE
+        if name in self.tdve:
+            return self.tdve[name].ts[key]
+
+        # Then, if the key is None, we are working on a transfer parameter. So reconstruct the key
+        if key is None:
+            x = name.split('_to_')
+            code_name,from_pop = x[0].split('_',1)
+            to_pop = x[1]
+            name = code_name
+            key = (from_pop,to_pop)
+
+        for tdc in self.transfers + self.interpops:
+            if name == tdc.code_name:
+                return tdc.ts[key]
+
+        return None
+
     @staticmethod
     def new(framework,tvec,pops,transfers):
         # Make a brand new databook

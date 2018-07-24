@@ -120,7 +120,7 @@ class TimeDependentConnections(Table):
         self.type = type
         self.pops = pops
         self.tvec = tvec
-        self.ts = ts if ts is not None else dict()
+        self.ts = ts if ts is not None else sc.odict()
 
         if self.type == 'transfer':
             self.enable_diagonal = False
@@ -150,7 +150,7 @@ class TimeDependentConnections(Table):
         # Therefore, we only need to read in the TimeSeries to tell whether or not a connection exists
         # The convention is that the connection will be read if the TO and FROM pop match something in the pop list
         tvec = np.array([x.value for x in tables[2][0][6:]],dtype=float) # The 6 matches the offset in write() below
-        ts_entries = {}
+        ts_entries = sc.odict()
         for row in tables[2][1:]:
             if row[0].value != '...':
                 assert row[0].value in pops, 'Population "%s" not found - should be contained in %s' % (row[0].value, pops)

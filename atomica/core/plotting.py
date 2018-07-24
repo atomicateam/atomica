@@ -1017,17 +1017,14 @@ def render_data(ax, data, series,baseline=None,filled=False):
     # name - The name-formatting function to retrieve full names (currently unused)
     # color - The color of the data points to use
 
-    if series.data_label in data.filter['datapar']:
-        d = data.get_spec(series.data_label)
-    else:
+    ts = data.get_ts(series.data_label,series.pop)
+    if ts is None:
         return
 
-    if series.pop in d['data'].keys():
-        t, y = d['data'].get_arrays(series.pop)
-        if len(t) == 0:
-            return
-    else:
+    if not ts.has_time_data:
         return
+
+    t, y = ts.get_arrays()
 
     if baseline is not None:
         y_data = interpolate_func(series.tvec, baseline, t, method='pchip', extrapolate_nan=False)
@@ -1037,7 +1034,6 @@ def render_data(ax, data, series,baseline=None,filled=False):
         ax.scatter(t,y,marker='o', s=40, linewidths=1, facecolors=series.color,color='k')#label='Data %s %s' % (name(pop,proj),name(output,proj)))
     else:
         ax.scatter(t,y,marker='o', s=40, linewidths=3, facecolors='none',color=series.color)#label='Data %s %s' % (name(pop,proj),name(output,proj)))
-
 
 
 def set_ytick_format(ax, formatter):
