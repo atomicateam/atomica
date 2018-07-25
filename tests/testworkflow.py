@@ -15,6 +15,7 @@ logger = logging.getLogger()
 import os
 import atomica.ui as au
 import sciris.core as sc
+import numpy as np
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
@@ -176,9 +177,8 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    if test in ['tb','diabetes','service']:
-        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
-    else:
+
+    if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
         instructions = au.ProgramInstructions() 
@@ -188,6 +188,16 @@ if "runsim_programs" in torun:
         d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
         au.plot_series(d, axis="results")
 
+    elif test == 'tb':
+        instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
+#        P.run_sim(parset="default", result_name="default-noprogs")
+        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+
+    elif test in ['diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
+
+    else:
+        print('\n\n\nUnknown test.')
 
 if "makeplots" in torun:
 
@@ -261,7 +271,6 @@ if "manualcalibrate" in torun:
     au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
-    # Manual fit was not good enough according to plots, so run autofit.
 #    if test == "sir":
 #        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
 #        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.

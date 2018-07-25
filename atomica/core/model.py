@@ -7,18 +7,12 @@ from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
 import sciris.core as sc
-
-import pickle
 import numpy as np
-from copy import deepcopy as dcp
 import matplotlib.pyplot as plt
 
-# TODO: Consider renaming and decide what to do with project settings as an object.
-#       Maybe have Project methods for changing sim time ranges act on these model settings.
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
-
 
 class Variable(object):
     """
@@ -73,7 +67,6 @@ class Variable(object):
 
     def __repr__(self):
         return '%s "%s" %s' % (self.__class__.__name__, self.name, self.id)
-
 
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
@@ -157,7 +150,6 @@ class Compartment(Variable):
         outflow[self.name] = popsize - sum([y for _, y in outflow.items()])
 
         return outflow
-
 
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
@@ -251,7 +243,6 @@ class Characteristic(Variable):
                 self.internal_vals[ti] = 0  # Given a zero/zero case, make the answer zero.
             else:
                 self.internal_vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
-
 
 class Parameter(Variable):
     # A parameter is a Variable that can have a value computed via an fcn_str and a list of
@@ -402,7 +393,6 @@ class Parameter(Variable):
             self.source_popsize_cache_val = n
             return n
 
-
 class Link(Variable):
     """
     A Link is a Variable that maps to a transition between compartments. As
@@ -452,8 +442,6 @@ class Link(Variable):
         Variable.plot(self)
         plt.title('Link %s to %s' % (self.source.name, self.dest.name))
 
-
-# Cascade compartment and population classes
 class Population(object):
     """
     A class to wrap up data for one population within model.
@@ -767,8 +755,6 @@ class Population(object):
             if c.tag_birth or c.tag_dead:
                 c.vals[0] = 0
 
-# Model class
-
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
@@ -778,13 +764,12 @@ class Model(object):
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self.interactions = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
+        self.par_list = list(framework.specs[FS.KEY_PARAMETER].keys()) # This is a list of all parameters to iterate over when updating
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
-        self.progset = dcp(progset)
-        self.program_instructions = instructions # program instructions
-        self.program_cache_comps = None # Dict with {prog_name:[comps reached]}
-        self.program_cache_pars = None # Dict with program_pars_reached[par_name][pop]=par to overwrite parameter values
-        self.program_cache_coverage = None # Cache coverage numerator
+        self.progset = sc.dcp(progset)
+        self.program_instructions = sc.dcp(instructions) # program instructions
+        self.program_cache = None
 
         self.t = None
         self.dt = None
@@ -804,8 +789,7 @@ class Model(object):
             pop.unlink()
 
         self.vars_by_pop = None
-        self.program_cache_comps = None
-        self.program_cache_pars = None
+        self.program_cache = None # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
 
     def relink(self):
         # Need to enumerate objects at Model level because transitions link across pops
@@ -824,41 +808,62 @@ class Model(object):
         if self.vars_by_pop is None:
             self.set_vars_by_pop()
 
+    def update_program_cache(self):
+
+        # Finally, prepare programs
         if self.progset and self.program_instructions:
-            self.set_program_cache()
+            self.programs_active = True
+            self.program_cache = dict()
 
-    def set_program_cache(self):
-        self.program_cache_comps = {}
-        self.program_cache_pars = {}
+            self.program_cache['comps'] = {}
+            self.program_cache['pars'] = {}
+            for prog in self.progset.programs.values():
+                self.program_cache['comps'][prog.short] = []
 
-        for prog in self.progset.programs.values():
-            self.program_cache_comps[prog.short] = []
+                for pop_name in prog.target_pops:
+                    for comp_name in prog.target_comps:
+                        self.program_cache['comps'][prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
 
-            for pop_name in prog.target_pops:
-                for comp_name in prog.target_comps:
-                    self.program_cache_comps[prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
+            for target_par in prog.target_pars:
+                if target_par['param'] not in self.program_cache['pars']:
+                    self.program_cache['pars'][target_par['param']] = {}
 
-        for target_par in prog.target_pars:
-            if target_par['param'] not in self.program_cache_pars:
-                self.program_cache_pars[target_par['param']] = {}
+                self.program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
 
-            self.program_cache_pars[target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
+            self.program_cache['alloc'] = self.progset.get_alloc(self.program_instructions,self.t)
+            self.program_cache['coverage'] = self.progset.get_num_covered(year=self.t,alloc=self.program_cache['alloc'])
+        else:
+            self.programs_active = False
+
+
 
     def set_vars_by_pop(self):
         self.vars_by_pop = defaultdict(list)
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self.vars_by_pop[var.name].append(var)
+        self.vars_by_pop = dict(self.vars_by_pop) # Stop new entries from appearing in here by accident
 
     def __getstate__(self):
+        # The combination of
         self.unlink()
-        d = pickle.dumps(self.__dict__, protocol=-1)  # Pickling to string results in a copy
+        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
         self.relink()  # Relink, otherwise the original object gets unlinked
         return d
 
     def __setstate__(self, d):
-        self.__dict__ = pickle.loads(d)
+        self.__dict__ = d
         self.relink()
+
+    def __deepcopy__(self,memodict={}):
+        # Using dcp(self.__dict__) is faster than pickle getstate/setstate
+        # when this is called via copy.deepcopy()
+        self.unlink()
+        d = sc.dcp(self.__dict__)
+        self.relink()
+        new = Model.__new__(Model)
+        new.__dict__.update(d)
+        return new
 
     def get_pop(self, pop_name):
         """ Allow model populations to be retrieved by name rather than index. """
@@ -947,39 +952,28 @@ class Model(object):
         # Now that all object have been created, update vars_by_pop() accordingly
         self.set_vars_by_pop()
 
-        # Finally, prepare programs
-        if self.progset and self.program_instructions:
-            self.programs_active = True
-
-            self.set_program_cache() # Cache the parameters and characteristics used for overwriting
-
-            # TODO: Any extra processing of the alloc
-            alloc = self.progset.get_alloc(self.program_instructions,self.t)
-
-            # TODO: Any overwrites needed in progset.progs depending on progset_instructions
-
-            self.program_cache_coverage = self.progset.get_num_covered(year=self.t,alloc=alloc)
-
-        else:
-            self.programs_active = False
-
-    def process(self, framework):
+    def process(self):
         """ Run the full model. """
 
         assert self.t_index == 0  # Only makes sense to process a simulation once, starting at ti=0
 
-        # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
-        # initial flow rates
-        self.update_pars(framework=framework)
-        self.update_junctions()
-        self.update_pars(framework=framework)
-        self.update_links()
+        self.update_program_cache()
 
-        for t in self.t[1:]:
-            self.update_comps()
+        # Initial flush of people in junctions
+        if self.t_index == 0:
+            # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
+            # initial flow rates
+            self.update_pars()
+            self.update_junctions()
+            self.update_pars()
+            self.update_links()
+
+        # Main integration loop
+        while self.t_index < (self.t.size-1):
+            self.update_comps() # This writes values to comp.vals[ti+1] so this will be out of bounds if self.t_index == self.t.size-1
             self.t_index += 1  # Step the simulation forward
             self.update_junctions()
-            self.update_pars(framework=framework)
+            self.update_pars()
             self.update_links()
 
         for pop in self.pops:
@@ -996,6 +990,8 @@ class Model(object):
                 #             par.vals = None
                 #             for link in par.links:
                 #                 link.vals = None
+
+        self.program_cache = None # Drop the program cache afterwards to save space
 
     def update_links(self):
         """
@@ -1135,7 +1131,7 @@ class Model(object):
                             if link.dest.is_junction:
                                 review_required = True  # Need to review if a junction received an inflow at this step
 
-    def update_pars(self, framework):
+    def update_pars(self):
         """
         Run through all parameters and characteristics flagged as dependencies for custom-function parameters.
         Evaluate them for the current timestep.
@@ -1168,18 +1164,17 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            prop_covered = dict.fromkeys(self.program_cache_comps, 0.0)
-            for k,comp_list in self.program_cache_comps.items():
+            prop_covered = dict.fromkeys(self.program_cache['comps'], 0.0)
+            for k,comp_list in self.program_cache['comps'].items():
                 n = 0.0
                 for comp in comp_list:
                     n += comp.vals[ti]
-                prop_covered[k] = np.minimum(self.program_cache_coverage[k][ti]/n,1.)
+                prop_covered[k] = np.minimum(self.program_cache['coverage'][k][ti]/n,1.)
 
             # Compute the updated program values
             prog_vals = self.progset.get_outcomes(prop_covered)
 
-        # TODO: Remember to involve program impact parameters that are not already marked as functions here.
-        for par_name in framework.specs[FS.KEY_PARAMETER].keys(): # FS.PARAMETER
+        for par_name in self.par_list:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self.vars_by_pop[par_name]
@@ -1229,7 +1224,6 @@ class Model(object):
             for par in pars:
                 par.constrain(ti)
 
-
 def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
     """
     Processes the TB epidemiological model.
@@ -1239,6 +1233,6 @@ def run_model(settings, framework, parset, progset=None, progset_instructions=No
     """
 
     m = Model(settings, framework, parset, progset, progset_instructions)
-    m.process(framework)
+    m.process()
     # TODO: Pass progset and instructions into results just like parset.
     return Result(model=m, parset=parset, name=name)

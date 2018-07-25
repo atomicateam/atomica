@@ -1,17 +1,17 @@
 <!--
 Definition of a Paper notification, used via this.$notifications.notify()
 
-Last updated: 2018-03-26
+Last updated: 2018-07-09
 -->
 
 <template>
   <div class="notifications">
-    <transition-group name="list">
-      <notification v-for="(notification,index) in notifications" :key="index" :message="notification.message" :icon="notification.icon" :type="notification.type" :vertical-align="notification.verticalAlign" :horizontal-align="notification.horizontalAlign" @on-close="removeNotification(index)">
+    <transition-group name="list" @on-close="removeNotification">
+      <notification v-for="(notification,index) in notifications" :key="index" :message="notification.message" :icon="notification.icon" :type="notification.type" :vertical-align="notification.verticalAlign" :horizontal-align="notification.horizontalAlign" :timeout="notification.timeout" :timestamp="notification.timestamp">
 
       </notification>
-    </transition-group>
-
+    </transition-group> 
+    
   </div>
 </template>
 <script>
@@ -26,8 +26,17 @@ Last updated: 2018-03-26
       }
     },
     methods: {
-      removeNotification (index) {
-        this.$notifications.removeNotification(index)
+      removeNotification (timestamp) {
+//        console.log('Pre-removing notification: ', timestamp)
+        this.$notifications.removeNotification(timestamp)
+        
+        // Hack to address "sticky" notifications: after a removal, clear all 
+        // notifications after 2 seconds.
+        setTimeout(this.clearAllNotifications, 2000)
+      },
+      
+      clearAllNotifications () {
+        this.$notifications.clear()
       }
     }
   }

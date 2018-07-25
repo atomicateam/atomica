@@ -10,6 +10,7 @@ import sciris.core as sc
 import sciris.web as sw
 import sciris.weblib.user as user
 import sciris.weblib.datastore as ds
+import sciris.corelib.fileio as fileio
 
 #
 # Globals
@@ -60,7 +61,8 @@ class ProjectSO(sw.ScirisObject):
         # If we have a valid UUID...
         if valid_uuid is not None:       
             # Set superclass parameters.
-            super(ProjectSO, self).__init__(proj.uid)
+            super(ProjectSO, self).__init__(proj.uid, type_prefix='project', 
+                 file_suffix='.prj', instance_label=proj.name)
                                    
             # Set the project to the Optima Project that is passed in.
             self.proj = proj
@@ -111,7 +113,7 @@ class ProjectSO(sw.ScirisObject):
         full_file_name = '%s%s%s' % (load_dir, os.sep, file_name)   
      
         # Write the object to a Gzip string pickle file.
-        ds.object_to_gzip_string_pickle_file(full_file_name, self.proj)
+        fileio.object_to_gzip_string_pickle_file(full_file_name, self.proj)
         
         # Return the filename (not the full one).
         return self.proj.name + ".prj"
@@ -139,7 +141,7 @@ class ProjectCollection(sw.ScirisCollection):
         instance_label='Projects Collection'):
         # Set superclass parameters.
         super(ProjectCollection, self).__init__(uid, type_prefix, file_suffix, 
-             instance_label)
+             instance_label, objs_within_coll=False)
             
     def get_user_front_end_repr(self, owner_uid):
         # Make sure the argument is a valid UUID, converting a hex text to a
@@ -147,12 +149,23 @@ class ProjectCollection(sw.ScirisCollection):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:               
-            # Get dictionaries for each Project in the dictionary.
-            projects_info = [self.obj_dict[key].get_user_front_end_repr() \
-                for key in self.obj_dict \
-                if self.obj_dict[key].owner_uid == valid_uuid]
-            return projects_info
+        if valid_uuid is not None:  
+            # If we are storing things inside the obj_dict...
+            if self.objs_within_coll:              
+                # Get dictionaries for each Project in the dictionary.
+                projects_info = [self.obj_dict[key].get_user_front_end_repr() \
+                    for key in self.obj_dict \
+                    if self.obj_dict[key].owner_uid == valid_uuid]
+                return projects_info
+            
+            # Otherwise, we are using the UUID set.
+            else:
+                projects_info = []
+                for uid in self.ds_uuid_set:
+                    obj = ds.data_store.retrieve(uid)
+                    if obj.owner_uid == valid_uuid:
+                        projects_info.append(obj.get_user_front_end_repr())
+                return projects_info
         
         # Otherwise, return an empty list.
         else:
@@ -164,13 +177,24 @@ class ProjectCollection(sw.ScirisCollection):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:    
-            # Get ProjectSO entries for each Project in the dictionary.
-            project_entries = [self.obj_dict[key] \
-                for key in self.obj_dict \
-                if self.obj_dict[key].owner_uid == valid_uuid]
-            return project_entries
-        
+        if valid_uuid is not None:
+            # If we are storing things inside the obj_dict...
+            if self.objs_within_coll:             
+                # Get ProjectSO entries for each Project in the dictionary.
+                project_entries = [self.obj_dict[key] \
+                    for key in self.obj_dict \
+                    if self.obj_dict[key].owner_uid == valid_uuid]
+                return project_entries
+            
+            # Otherwise, we are using the UUID set.
+            else:
+                project_entries = []
+                for uid in self.ds_uuid_set:
+                    obj = ds.data_store.retrieve(uid)
+                    if obj.owner_uid == valid_uuid:
+                        project_entries.append(obj)
+                return project_entries
+            
         # Otherwise, return an empty list.
         else:
             return []

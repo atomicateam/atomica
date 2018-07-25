@@ -3,14 +3,15 @@ Define classes and functions for handling scenarios
 Version: 2018mar26
 """
 
-from copy import deepcopy as dcp
 import numpy as np
+import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 
 class Scenario(NamedItem):
     def __init__(self, name):
         NamedItem.__init__(self,name)
+        self.result_uid = None # If the scenario is run via Project.run_scenario, this will be the UID of the most recent result generated using this Scenario
 
     def get_parset(self, parset, settings):
         return parset
@@ -67,7 +68,7 @@ class ParameterScenario(Scenario):
         # Note - the parset will be overwritten between the first and last year specified in scvalues
         # on a per-parameter+pop basis. Within the scenario, only the data points in scvalues will be used
 
-        new_parset = dcp(parset)
+        new_parset = sc.dcp(parset)
 
         for par_label in self.scenario_values.keys():
             par = new_parset.get_par(par_label)  # This is the parameter we are updating
