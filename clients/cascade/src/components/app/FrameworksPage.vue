@@ -218,7 +218,7 @@ Last update: 2018-07-25
         sortColumn: 'name',  // Column of table used for sorting the frameworks: name, country, creationTime, updatedTime, dataUploadTime
         sortReverse: false, // Sort in reverse order?
         frameworkSummaries: [], // List of summary objects for frameworks the user has
-        frame_name: 'Default', // For creating a new framework: number of populations
+        frame_name: 'New framework', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
         frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
         currentFramework: 'Service delivery'

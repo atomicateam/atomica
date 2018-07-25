@@ -198,7 +198,7 @@ export default {
       sortColumn: 'name',  // Column of table used for sorting the projects: name, country, creationTime, updatedTime, dataUploadTime
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
-      proj_name: '', // For creating a new project: number of populations
+      proj_name: 'New project', // For creating a new project: number of populations
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations

@@ -265,7 +265,7 @@ export default {
       projectSummaries: [], // List of summary objects for projects the user has
       frameworkSummaries: [],
       currentFramework: '',
-      proj_name: '', // For creating a new project: number of populations
+      proj_name: 'New project', // For creating a new project: number of populations
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
