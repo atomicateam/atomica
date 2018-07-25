@@ -200,7 +200,7 @@ class TimeDependentConnections(Table):
         headings.append('') # From
         headings.append('') # --->
         headings.append('') # To
-        headings.append('Quantity Type')
+        headings.append('Units')
         headings.append('Constant')
         headings.append('') # OR
         headings += [str(x) for x in self.tvec] # Times
@@ -222,10 +222,13 @@ class TimeDependentConnections(Table):
                 to_pop = self.pops[to_idx]
                 entry_tuple = (from_pop,to_pop)
                 entry_cell = table_references[entry_tuple]
+
                 if entry_tuple in self.ts:
                     ts = self.ts[entry_tuple]
+                    format = formats['not_required']
                 else:
                     ts = None
+                    format = formats['unlocked']
 
                 if ts:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value=from_pop)
@@ -233,7 +236,7 @@ class TimeDependentConnections(Table):
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     worksheet.write(current_row, 3, ts.format.title())
                     worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
-                    worksheet.write(current_row, 4, ts.assumption, formats['unlocked'])
+                    worksheet.write(current_row, 4, ts.assumption, format)
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='OR')
                 else:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
@@ -241,7 +244,7 @@ class TimeDependentConnections(Table):
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_blank(current_row, 3, '')
                     worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
-                    worksheet.write_blank(current_row, 4, '', formats['unlocked'])
+                    worksheet.write_blank(current_row, 4, '', format)
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='...')
 
                 # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
@@ -259,9 +262,18 @@ class TimeDependentConnections(Table):
 
                 for idx, v in enumerate(content):
                     if v is None:
-                        worksheet.write_blank(current_row, offset + idx, v, formats['unlocked'])
+                        worksheet.write_blank(current_row, offset + idx, v, format)
                     else:
-                        worksheet.write(current_row, offset + idx, v, formats['unlocked'])
+                        worksheet.write(current_row, offset + idx, v, format)
+
+                # Conditional formatting for the assumption, depending on whether time-values were entered
+                fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
+                worksheet.conditional_format(xlrc(current_row, 4), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
+                worksheet.conditional_format(xlrc(current_row, 4), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, 4)), 'format': formats['ignored_warning']})
+
+                # Conditional formatting for the row - it has a white background if the gating cell is 'N'
+                worksheet.conditional_format('%s' % (xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
+                worksheet.conditional_format('%s:%s' % (xlrc(current_row, offset), xlrc(current_row, offset + idx)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
 
         current_row += 2
 
@@ -423,7 +435,7 @@ class TimeDependentValuesEntry(TableTemplate):
         # First, assemble and write the headings
         headings = []
         headings.append(self.name)
-        headings.append('Quantity Type')
+        headings.append('Units')
         headings.append('Constant')
         headings.append('')
         headings += [float(x) for x in self.tvec]
@@ -446,14 +458,19 @@ class TimeDependentValuesEntry(TableTemplate):
             if self.allowed_units: # Add validation if a list of options is specified
                 worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
 
+            if pop_ts.has_data:
+                format = formats['not_required']
+            else:
+                format = formats['unlocked']
+
             # Write the assumption
-            worksheet.write(current_row,2,pop_ts.assumption, formats['unlocked'])
+            worksheet.write(current_row,2,pop_ts.assumption, format)
 
             # Write the separator between the assumptions and the time values
             worksheet.write(current_row,3,'OR')
 
             # Write the time values
-            offset = 4 # The time values start in this column (zero based index)
+            offset = 4 # This is the column where the time values begin
             content = np.full(self.tvec.shape,None)
 
             for t,v in zip(pop_ts.t,pop_ts.vals):
@@ -462,9 +479,16 @@ class TimeDependentValuesEntry(TableTemplate):
 
             for idx,v in enumerate(content):
                 if v is None:
-                    worksheet.write_blank(current_row, offset+idx, v, formats['unlocked'])
+                    worksheet.write_blank(current_row, offset+idx, v, format)
                 else:
-                    worksheet.write(current_row, offset+idx, v, formats['unlocked'])
+                    worksheet.write(current_row, offset+idx, v, format)
+
+            # Conditional formatting for the assumption
+            fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row,offset),xlrc(current_row,offset+idx))
+            # Hatched out if the cell will be ignored
+            worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'='+fcn_empty_times,'format':formats['ignored']})
+            worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times,xlrc(current_row,2)),'format':formats['ignored_warning']})
+
 
         return current_row+2 # Add two so there is a blank line after this table
 

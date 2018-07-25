@@ -73,6 +73,11 @@ def standard_formats(workbook):
     # Conditional formats used for Y/N boolean matrix
     formats['unlocked_boolean_true'] = workbook.add_format({'bg_color': OPT_COLOR})
     formats['unlocked_boolean_false'] = workbook.add_format({'bg_color': BG_COLOR})
+    formats['not_required'] = workbook.add_format({'bg_color': '#EEEEEE'})
+    formats['white_bg'] = workbook.add_format({'bg_color': '#FFFFFF'})
+    formats['ignored'] = workbook.add_format({'pattern': 14}) # Hatched with diagonal lines - this represents a cell whose value will not be used in the model run (e.g., an assumption that also has time-specific points)
+    formats['warning'] = workbook.add_format({'bg_color': '#FF0000'})
+    formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'})
 
     return formats
 
