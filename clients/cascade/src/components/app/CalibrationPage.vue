@@ -88,11 +88,12 @@ Last update: 2018-07-23
     </div>
     
     <modal name="popup-spinner" 
-           height="50px" 
-           width="55px" 
-           style="opacity:0.5">
+           height="80px" 
+           width="85px" 
+           style="opacity: 0.6">
       <clip-loader color="#0000ff" 
-                   size="50px">
+                   size="50px" 
+                   style="padding: 15px">
       </clip-loader>
     </modal>
     
@@ -106,7 +107,6 @@ Last update: 2018-07-23
   import rpcservice from '@/services/rpc-service'
   import router from '@/router'
   import Vue from 'vue'
-//  import PulseLoader from 'vue-spinner/src/PulseLoader.vue'
   import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
   
   export default {
@@ -269,6 +269,7 @@ Last update: 2018-07-23
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         
+        // Bring up a spinner.
         this.$modal.show('popup-spinner')
 
         // Start the loading bar.
@@ -298,6 +299,7 @@ Last update: 2018-07-23
             }
           }
           
+          // Dispel the spinner.
           this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
@@ -313,6 +315,9 @@ Last update: 2018-07-23
           })           
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
             
