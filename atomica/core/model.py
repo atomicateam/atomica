@@ -681,12 +681,12 @@ class Population(object):
         for i, c in enumerate(characs):
             # Look up the characteristic value
             par = parset.get_par(c.name)
-            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]
+            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]
             # Run exception clauses for compartment logic.
             try:
                 if c.denominator is not None:
                     denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
-                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]
+                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]
             except Exception:
                 pass
             try:
@@ -892,7 +892,7 @@ class Model(object):
             self.interactions[name] = np.zeros((len(self.pops), len(self.pops), len(self.t)))
             for from_pop, par in weights.items():
                 for to_pop in par.pops:
-                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)
+                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]
 
         # Insert values from parset into model objects
         for cascade_par in parset.pars['cascade']:
@@ -928,8 +928,8 @@ class Model(object):
                         par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
                         val = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)
-                        par.vals = val
                         par.scale_factor = transfer_parameter.y_factor[pop_target]
+                        par.vals = val*par.scale_factor
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
                         # TODO: Reconsider manual lookup hack if Transfers are implemented differently.
