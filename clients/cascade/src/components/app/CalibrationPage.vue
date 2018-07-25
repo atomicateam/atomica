@@ -189,7 +189,7 @@ Last update: 2018-07-25
         router.push('/login')
       }
 
-      else {
+      else if (this.$store.state.activeProject.project != undefined) {
         this.viewTable();
         this.cascadeYear = this.$store.state.activeProject.project.sim_end
       }
