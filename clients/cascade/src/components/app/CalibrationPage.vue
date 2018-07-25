@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-23
+Last update: 2018-07-25
 -->
 
 <template>
@@ -87,6 +87,7 @@ Last update: 2018-07-23
       
     </div>
     
+    <!-- Popup spinner -->
     <modal name="popup-spinner" 
            height="80px" 
            width="85px" 
@@ -231,6 +232,8 @@ Last update: 2018-07-23
       viewTable() {
         console.log('viewTable() called')
         
+        // Note: For some reason, the popup spinner doesn't work from inside created().
+        
         // Start the loading bar.
         this.$Progress.start()
 
@@ -242,7 +245,7 @@ Last update: 2018-07-23
           // Finish the loading bar.
           this.$Progress.finish()            
         })
-        .catch(error => {
+        .catch(error => {    
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -315,17 +318,14 @@ Last update: 2018-07-23
           })           
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-            
           // Pull out the error message.
           this.serverresponse = 'There was an error: ' + error.message
 
           // Set the server error.
           this.servererror = error.message
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Fail the loading bar.
           this.$Progress.fail()

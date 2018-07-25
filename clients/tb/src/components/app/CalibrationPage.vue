@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-23
+Last update: 2018-07-25
 -->
 
 <template>
@@ -71,7 +71,18 @@ Last update: 2018-07-23
       </div>
 
     </div>
-
+    
+    <!-- Popup spinner -->
+    <modal name="popup-spinner" 
+           height="80px" 
+           width="85px" 
+           style="opacity: 0.6">
+      <clip-loader color="#0000ff" 
+                   size="50px" 
+                   style="padding: 15px">
+      </clip-loader>
+    </modal>
+    
   </div>
 </template>
 
@@ -82,9 +93,15 @@ Last update: 2018-07-23
   import rpcservice from '@/services/rpc-service'
   import router from '@/router'
   import Vue from 'vue';
-
+  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  
   export default {
     name: 'CalibrationPage',
+    
+    components: {
+      ClipLoader
+    },
+    
     data() {
       return {
         serverresponse: 'no response',
@@ -168,6 +185,8 @@ Last update: 2018-07-23
       viewTable() {
         console.log('viewTable() called')
         
+        // Note: For some reason, the popup spinner doesn't work from inside created().
+        
         // Start the loading bar.
         this.$Progress.start()
       
@@ -201,6 +220,9 @@ Last update: 2018-07-23
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start()
         
@@ -226,6 +248,9 @@ Last update: 2018-07-23
             }
           }
           
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Finish the loading bar.
           this.$Progress.finish()
         
@@ -245,6 +270,9 @@ Last update: 2018-07-23
 
           // Set the server error.
           this.servererror = error.message
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Fail the loading bar.
           this.$Progress.fail()
