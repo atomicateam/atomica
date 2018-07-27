@@ -12,6 +12,7 @@ from .model import Model, Link
 import pickle
 import scipy.optimize
 from collections import defaultdict
+from .structure import TimeSeries
 import logging
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,10 @@ class SpendingAdjustment(Adjustment):
         # There is one Adjustable for each time point, so the adjustable_values
         # are a list of this same length, one value for each time point
         for i,t in enumerate(self.t):
-            instructions.alloc[self.prog_name].insert(t,adjustable_values[i])
+            if self.prog_name not in instructions.alloc:
+                instructions.alloc[self.prog_name] = TimeSeries(t=t, vals=adjustable_values[i])
+            else:
+                instructions.alloc[self.prog_name].insert(t,adjustable_values[i])
 
     def get_initialization(self,progset,instructions):
         initialization = []
@@ -240,14 +244,17 @@ class TotalSpendConstraint(Constraint):
     #
     # Important - this constraint only acts on program spending that is reached by an Adjustment.
 
-    def __init__(self, total_spend = None, t = None):
+    def __init__(self, total_spend = None, t = None, budget_factor = 1.0):
         # total_spend allows the total spending in a particular year to be explicitly specified
         # rather than drawn from the initial allocation. This could be useful when using parametric
         # programs.
         # This constraint can be set to only apply in certain years.
-
+        # The budget_factor multiplies the total spend at the time the hard_constraint is assigned
+        # Typically this is to scale up the available spending when that spending is being drawn from
+        # the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
         self.total_spend = total_spend  # Optionally a number, or a list of tuples of time-spending pairs e.g. [(2018,10000),(2020,200000)]
         self.t = sc.promotetoarray(t) if t is not None else ()
+        self.budget_factor = budget_factor
 
     def get_hard_constraint(self,optimization, instructions):
         # First, at each time point where a program overwrite exists, we need to store
@@ -278,14 +285,14 @@ class TotalSpendConstraint(Constraint):
             if isinstance(self.total_spend, list):
                 for spend in self.total_spend:
                     if t == spend[0]:
-                        hard_constraints['total_spend'][t] = spend[1]
+                        hard_constraints['total_spend'][t] = spend[1]*self.budget_factor
             elif self.total_spend:
-                hard_constraints['total_spend'][t] = self.total_spend
+                hard_constraints['total_spend'][t] = self.total_spend*self.budget_factor
             else:
                 total_spend = 0.0
                 for prog in progs:
                     total_spend += instructions.alloc[prog].get(t)
-                hard_constraints['total_spend'][t] = total_spend
+                hard_constraints['total_spend'][t] = total_spend*self.budget_factor
 
         # Finally, for each adjustable, we need to store its upper and lower bounds
         # _in the year that the adjustment is being made_
