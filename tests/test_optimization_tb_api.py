@@ -64,7 +64,7 @@ optimization_name = 'example'
 start_year = 2018
 end_year = 2025
 budget_factor = 1.0
-objective_weights = {'alive':-1,'ddis':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
+objective_weights = {'alive':-1,'ddis':1,':acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
 prog_spending = sc.odict()
 for prog_name in proj.progsets[0].programs.keys():
     prog_spending[prog_name] = (1,np.inf)
