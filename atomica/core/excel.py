@@ -5,12 +5,220 @@ Contains functionality specific to Excel input and output.
 """
 
 from .system import SystemSettings as SS
-from .system import logger, log_usage, accepts, returns, AtomicaException
+from .system import log_usage, accepts, returns, AtomicaException
 
 import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import xlrd
+from sciris.weblib.scirisobjects import ScirisObject
+import sciris.core as sc
+import io
+import openpyxl
+from copy import copy # shallow copy
+import time
+from openpyxl.comments import Comment
 
+import logging
+logger = logging.getLogger(__name__)
+
+def standard_formats(workbook):
+    # Add standard formatting to a workbook and return the set of format objects
+    # for use when writing within the workbook
+
+    """ the formats used in the spreadsheet """
+    darkgray = '#413839'
+    originalblue = '#18C1FF'
+    optionalorange = '#FFA500'
+    BG_COLOR = originalblue
+    OPT_COLOR = optionalorange
+    BORDER_COLOR = 'white'
+
+    PERCENTAGE = 'percentage'
+    RATE = 'rate'
+    DECIMAL = 'decimal'
+    SCIENTIFIC = 'scientific'
+    NUMBER = 'number'
+    GENERAL = 'general'
+    OPTIONAL = 'optional'
+
+    formats = {}
+    # locked formats
+    formats['bold'] = workbook.add_format({'bold': 1})
+    formats['center'] = workbook.add_format({'align': 'center'})
+    formats['center_bold'] = workbook.add_format({'bold': 1, 'align': 'center'})
+    formats['rc_title'] = {}
+    formats['rc_title']['right'] = {}
+    formats['rc_title']['right']['T'] = workbook.add_format({'bold': 1, 'align': 'right', 'text_wrap': True})
+    formats['rc_title']['right']['F'] = workbook.add_format({'bold': 1, 'align': 'right', 'text_wrap': False})
+    formats['rc_title']['left'] = {}
+    formats['rc_title']['left']['T'] = workbook.add_format({'bold': 1, 'align': 'left', 'text_wrap': True})
+    formats['rc_title']['left']['F'] = workbook.add_format({'bold': 1, 'align': 'left', 'text_wrap': False})
+    # unlocked formats
+    formats['unlocked'] = workbook.add_format({'locked': 0, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['center_unlocked'] = workbook.add_format({'align': 'center','locked': 0, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['percentage'] = workbook.add_format({'locked': 0, 'num_format': 0x09, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['rate'] = workbook.add_format({'locked': 0, 'num_format': 0x09, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['decimal'] = workbook.add_format({'locked': 0, 'num_format': 0x0a, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['scientific'] = workbook.add_format({'locked': 0, 'num_format': 0x0b, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['number'] = workbook.add_format({'locked': 0, 'num_format': 0x04, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['general'] = workbook.add_format({'locked': 0, 'num_format': 0x00, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['optional'] = workbook.add_format({'locked': 0, 'num_format': 0x00, 'bg_color': OPT_COLOR, 'border': 1,'border_color': BORDER_COLOR})
+    formats['info_header'] = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'color': '#D5AA1D', 'fg_color': '#0E0655', 'font_size': 20})
+    formats['grey'] = workbook.add_format({'fg_color': '#EEEEEE', 'text_wrap': True})
+    formats['orange'] = workbook.add_format({'fg_color': '#FFC65E', 'text_wrap': True})
+    formats['info_url'] = workbook.add_format({'fg_color': '#EEEEEE', 'text_wrap': True, 'color': 'blue', 'align': 'center'})
+    formats['grey_bold'] = workbook.add_format({'fg_color': '#EEEEEE', 'bold': True})
+    formats['merge_format'] = workbook.add_format({'bold': 1, 'align': 'center', 'text_wrap': True})
+
+    # Conditional formats used for Y/N boolean matrix
+    formats['unlocked_boolean_true'] = workbook.add_format({'bg_color': OPT_COLOR})
+    formats['unlocked_boolean_false'] = workbook.add_format({'bg_color': BG_COLOR})
+
+    return formats
+
+class AtomicaSpreadsheet(object):
+    ''' A class for reading and writing data in binary format, so a project contains the spreadsheet loaded '''
+    # This object provides an interface for managing the contents of files (particularly spreadsheets) as Python objects
+    # that can be stored in the FE database. Basic usage is as follows:
+    #
+    # ss = AtomicaSpreadsheet('input.xlsx') # Load a file into this object
+    # ss.add_to_datastore() # Can use database methods inherited from ScirisObject
+    # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
+    # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
+    # book.create_sheet(...)
+    # book.save(f) # The workbook can be saved back to this stream
+    # ss.insert(f) # We can update the contents of the AtomicaSpreadsheet with the newly written workbook
+    # ss.add_to_datastore() # Presumably would want to store the changes in the database too
+    # ss.save('output.xlsx') # Can also write the contents back to disk
+    #
+    # As shown above, no disk IO needs to happen to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
+
+    def __init__(self, source=None):
+        # source is a specification of where to get the data from
+        # It can be anything supported by AtomicaSpreadsheet.insert() which are
+        # - A filename, which will get loaded
+        # - A io.BytesIO which will get dumped into this instance
+
+        self.filename = None
+        self.data = None
+        self.load_date = None
+
+        if source is not None:
+            self.insert(source)
+
+    def __repr__(self):
+        output = sc.desc(self)
+        return output
+
+    def insert(self, source):
+        # This function sets the `data` attribute given a file-like data source
+        #
+        # INPUTS:
+        # - source : This contains the contents of the file. It can be
+        #   - A string, which is interpreted as a filename
+        #   - A file-like object like a BytesIO, the entire contents of which will be read
+        #
+        # This function reads a binary ile on disk and stores the content in self.data
+        # It also records where the file was loaded from and the date
+        if isinstance(source,io.BytesIO):
+            source.flush()
+            source.seek(0)
+            self.data = source.read()
+        else:
+            filepath = sc.makefilepath(filename=source)
+            self.filename = filepath
+            self.load_date = sc.today()
+            with open(filepath, mode='rb') as f:
+                self.data = f.read()
+
+        self.load_date = sc.today()
+
+    def save(self, filename=None):
+        # This function writes the contents of self.data to a file on disk
+        if filename is None:
+            if self.filename is not None:
+                filename = self.filename
+            else:
+                raise Exception('Cannot determine filename')
+
+        filepath = sc.makefilepath(filename=filename)
+        with open(filepath, mode='wb') as f:
+            f.write(self.data)
+        print('Spreadsheet saved to %s.' % filepath)
+
+        return filepath
+
+    def get_file(self):
+        # Return a file-like object with the contents of the file
+        # This can then be used to open the workbook from memory without writing anything to disk e.g.
+        # - book = openpyxl.load_workbook(self.get_file())
+        # - book = xlrd.open_workbook(file_contents=self.get_file().read())
+        return io.BytesIO(self.data)
+
+
+def transfer_comments(target,comment_source):
+    # Format this AtomicaSpreadsheet based on the extra meta-content in comment_source
+    #
+    # In reality, a new spreadsheet is created with values from this AtomicaSpreadsheet
+    # and cell-wise formatting from the comment_source AtomicaSpreadsheet. If a cell exists in
+    # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
+    # the comment_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
+    # the comment_source and not in the current workbook, it will be added
+
+    assert isinstance(comment_source, AtomicaSpreadsheet)
+
+    this_workbook = openpyxl.load_workbook(target.get_file(),data_only=False) # This is the value source workbook
+    old_workbook = openpyxl.load_workbook(comment_source.get_file(),data_only=False) # A openpyxl workbook for the old content
+
+    for sheet in this_workbook.worksheets:
+
+        # If this sheet isn't in the old workbook, do nothing
+        if sheet.title not in old_workbook.sheetnames:
+            continue
+
+        # Transfer comments
+        for row in old_workbook[sheet.title].rows:
+            for cell in row:
+                if cell.comment:
+                    sheet[cell.coordinate].comment = Comment(cell.comment.text, '')
+
+    f = io.BytesIO()
+    this_workbook.save(f)
+    f.flush()
+    f.seek(0)
+    target.data = f.read()
+
+def read_tables(worksheet):
+    # This function takes in a openpyxl worksheet, and returns tables
+    # A table consists of a block of rows with any #ignore rows skipped
+    # This function will start at the top of the worksheet, read rows into a buffer
+    # until it gets to the first entirely empty row
+    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
+    # This function continues until it has exhausted all of the rows in the sheet
+
+    buffer = []
+    tables = []
+    for row in worksheet.rows:
+
+        # Skip any rows starting with '#ignore'
+        if row[0].value and row[0].value.startswith('#ignore'):
+            continue  # Move on to the next row if row skipping is marked True
+
+        # Find out whether we need to add the row to the buffer
+        for cell in row:
+            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
+                buffer.append(row)
+                break
+        else: # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
+            if buffer:
+                tables.append(buffer) # Only append the buffer if it is not empty
+            buffer = []
+
+    # After the last row, if the buffer has some un-flushed contents, then yield it
+    if buffer:
+        tables.append(buffer)
+
+    return tables
 
 class ExcelSettings(object):
     """ Stores settings relevant to Excel file input and output. """

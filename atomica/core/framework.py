@@ -8,7 +8,7 @@ import sciris.core as sc
 from .structure import CoreProjectStructure, get_quantity_type_list
 from .structure_settings import FrameworkSettings as FS, DataSettings as DS, TableTemplate
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, logger, AtomicaException
-from .workbook_export import make_instructions, write_workbook
+from .workbook_export import make_instructions, write_workbook, make_framework_file
 from .workbook_import import read_workbook
 from .parser_function import parse_function
 
@@ -229,21 +229,35 @@ class ProjectFramework(CoreProjectStructure):
                                                "'proportion' format which can only describe transitions from "
                                                "junctions.".format(item_key, link[0], link[-1]))
 
-    @classmethod
-    def create_template(cls, path, num_comps=None, num_characs=None, num_pars=None, num_datapages=None):
-        """ Convenience class method for template creation in the absence of an instance. """
-        framework_instructions, _ = make_instructions(workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
-        if num_comps is not None:  # Set the number of compartments.
-            framework_instructions.update_number_of_items(FS.KEY_COMPARTMENT, num_comps)
-        if num_characs is not None:  # Set the number of characteristics.
-            framework_instructions.update_number_of_items(FS.KEY_CHARACTERISTIC, num_characs)
-        if num_pars is not None:  # Set the number of parameters.
-            framework_instructions.update_number_of_items(FS.KEY_PARAMETER, num_pars)
-        if num_datapages is not None:  # Set the number of custom databook pages.
-            framework_instructions.update_number_of_items(FS.KEY_DATAPAGE, num_datapages)
+    def get_allowed_units(self,code_name):
+        # Given the name of a variable that matches either the full name or the code name of a Compartment, Characteristic, or Parameter
+        # Return a list of allowed units
+        item_type = self.get_spec_type(code_name)  # 'charac','par' etc.
+        item_specs = self.get_spec(code_name)
 
-        write_workbook(workbook_path=path, instructions=framework_instructions,
-                       workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+        # State variables are in number amounts unless normalized.
+        if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
+            if "denominator" in item_specs and item_specs["denominator"] is not None:
+                allowed_units = [FS.QUANTITY_TYPE_FRACTION.title()]
+            else:
+                allowed_units = [FS.QUANTITY_TYPE_NUMBER.title()]
+
+        # Modeller's choice for parameters
+        elif item_type in [FS.KEY_PARAMETER] and "format" in item_specs and item_specs["format"] is not None:
+            allowed_units = [item_specs["format"].title()]
+        else:
+            # User choice if a transfer or a transition parameter.
+            if item_type in [FS.KEY_TRANSFER] or (FS.KEY_TRANSITIONS in item_specs and len(item_specs[FS.KEY_TRANSITIONS]) > 0):
+                allowed_units = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
+            # If not a transition, the format of this parameter is meaningless.
+            else:
+                allowed_units = [SS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
+
+        return allowed_units
+
+    @staticmethod
+    def create_template(path, num_comps=0, num_characs=0, num_pars=0, num_datapages=0, num_interpops=0):
+        make_framework_file(path, datapages=num_datapages, comps=num_comps, characs=num_characs, interpops=num_interpops, pars=num_pars)
         return path
 
     def write_to_file(self, filename, data=None, instructions=None):

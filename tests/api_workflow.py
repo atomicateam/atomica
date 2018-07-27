@@ -17,7 +17,7 @@ if ipython is not None:
 # Setup
 plot_initial = True
 
-test = "tb"
+test = "sir" # This test workflow only works with the SIR model
 tmpdir = "." + os.sep + "temp" + os.sep
 
 F = au.ProjectFramework.load(tmpdir+test+".frw")
@@ -34,7 +34,7 @@ P = au.Project.load(tmpdir+test+".prj")
 if plot_initial:
 
     for var in ["sus", "inf", "rec", "dead", "ch_all", "foi"]:
-        P.results[0].get_variable("15-64", var)[0].plot()
+        P.results[0].get_variable("adults", var)[0].plot()
 
     # Plot decomposition of population
     d = au.PlotData(P.results[0],outputs=['sus','inf','rec','dead'],project=P)
@@ -92,7 +92,7 @@ au.plot_series(d, axis='results')
 d = au.PlotData(P.results, outputs=['dead'])
 au.plot_series(d, axis='results')
 
-plt.show()
+# plt.show()
 
 # Synthesize the calibration target
 # P.parsets['calibration_target'] = dcp(P.parsets[0])
