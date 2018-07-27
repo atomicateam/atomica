@@ -4,12 +4,11 @@ Atomica data file.
 Sets out a structure to store context-specific databook-imported values relating to a model.
 """
 
-from .structure_settings import TimeDependentValuesEntry, TimeDependentConnections
 from .structure import TimeSeries
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import standard_formats, AtomicaSpreadsheet, read_tables
+from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -190,7 +189,7 @@ class ProjectData(object):
         if isinstance(spreadsheet,str):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
 
         for sheet in workbook.worksheets:
             if sheet.title.startswith('#ignore'):

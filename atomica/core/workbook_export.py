@@ -4,9 +4,9 @@ from .structure_settings import DataSettings as DS
 from .excel import ExcelSettings as ES
 
 from .system import logger, AtomicaException, accepts, display_name
-from .excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block
+from .excel import create_standard_excel_formats, create_default_format_variables, create_value_entry_block, write_matrix
 from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
-    IDType, IDRefType, SwitchType, QuantityFormatType, TimeDependentConnections, write_matrix
+    IDType, IDRefType, SwitchType, QuantityFormatType
 from .workbook_utils import WorkbookTypeException, get_workbook_page_keys, get_workbook_page_spec, \
     get_workbook_item_type_specs, get_workbook_item_specs
 from .structure import get_quantity_type_list, TimeSeries
