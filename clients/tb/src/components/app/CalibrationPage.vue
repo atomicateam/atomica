@@ -1,67 +1,88 @@
 <!--
 Define health packages
 
-Last update: 2018-07-13
+Last update: 2018-07-25
 -->
 
 <template>
   <div class="SitePage">
-
-    <div>
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      <button class="btn" @click="clearGraphs()">Clear plots</button>
-    </div>
-    <br>
-
-    <div style="width:200px; float:left">
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th @click="updateSorting('parameter')" class="sortable">
-            Parameter
-            <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('population')" class="sortable">
-            Population
-            <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('value')" class="sortable">
-            Value
-            <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="par in sortedPars">
-          <td>
-            {{par.parname}}
-          </td>
-          <td>
-            {{par.popname}}
-          </td>
-          <td>
-            <input type="text"
-                   class="txbox"
-                   v-model="par.value"/>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="margin-left:350px">
-      <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
-        <!--mpld3 content goes here-->
+  
+    <div v-if="activeProjectID ==''">
+      <div style="font-style:italic">
+        <p>No project is loaded.</p>
       </div>
     </div>
 
+    <div v-else>
+    
+      <div>
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+        <button class="btn" @click="clearGraphs()">Clear plots</button>
+      </div>
+    
+      <br>
 
+      <div style="width:200px; float:left">
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th @click="updateSorting('parameter')" class="sortable">
+              Parameter
+              <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+            <th @click="updateSorting('population')" class="sortable">
+              Population
+              <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+            <th @click="updateSorting('value')" class="sortable">
+              Value
+              <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+              <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+              <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+            </th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="par in sortedPars">
+            <td>
+              {{par.parname}}
+            </td>
+            <td>
+              {{par.popname}}
+            </td>
+            <td>
+              <input type="text"
+                     class="txbox"
+                     v-model="par.value"/>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="margin-left:350px">
+        <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
+          <!--mpld3 content goes here-->
+        </div>
+      </div>
 
+    </div>
+    
+    <!-- Popup spinner -->
+    <modal name="popup-spinner" 
+           height="80px" 
+           width="85px" 
+           style="opacity: 0.6">
+      <clip-loader color="#0000ff" 
+                   size="50px" 
+                   style="padding: 15px">
+      </clip-loader>
+    </modal>
+    
   </div>
 </template>
 
@@ -72,9 +93,15 @@ Last update: 2018-07-13
   import rpcservice from '@/services/rpc-service'
   import router from '@/router'
   import Vue from 'vue';
-
+  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  
   export default {
     name: 'CalibrationPage',
+    
+    components: {
+      ClipLoader
+    },
+    
     data() {
       return {
         serverresponse: 'no response',
@@ -102,9 +129,9 @@ Last update: 2018-07-13
       },
 
       sortedPars() {
-//        var sortedParList = this.applySorting(this.parList);
-        var sortedParList = this.parList;
-        console.log(sortedParList);
+        var sortedParList = this.applySorting(this.parList);
+/*        var sortedParList = this.parList;
+        console.log(sortedParList); */
         return sortedParList;
       },
 
@@ -116,7 +143,7 @@ Last update: 2018-07-13
         router.push('/login')
       }
 
-      else {
+      else if (this.$store.state.activeProject.project != undefined) {
         this.viewTable();
       }
     },
@@ -145,18 +172,20 @@ Last update: 2018-07-13
       },
 
       applySorting(pars) {
-        return pars.sort((par1, par2) =>
-          {
+        return pars.slice(0).sort((par1, par2) =>
+          {         
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parname') { return par1[0] > par2[0] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'popname') { return par1[1] > par2[1] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1[2] > par2[2] ? sortDir: -sortDir}
+            if      (this.sortColumn === 'parameter') { return par1.parname > par2.parname ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.popname > par2.popname ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}            
           }
         )
       },
 
       viewTable() {
         console.log('viewTable() called')
+        
+        // Note: For some reason, the popup spinner doesn't work from inside created().
         
         // Start the loading bar.
         this.$Progress.start()
@@ -191,6 +220,9 @@ Last update: 2018-07-13
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start()
         
@@ -216,6 +248,9 @@ Last update: 2018-07-13
             }
           }
           
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Finish the loading bar.
           this.$Progress.finish()
         
@@ -235,6 +270,9 @@ Last update: 2018-07-13
 
           // Set the server error.
           this.servererror = error.message
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Fail the loading bar.
           this.$Progress.fail()
