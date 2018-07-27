@@ -7,7 +7,7 @@ from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
 from .excel import ExcelSettings as ES
 from .excel import extract_header_columns_mapping, extract_excel_sheet_value
-from .structure import KeyData, SemanticUnknownException
+from .structure import SemanticUnknownException
 from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
     SwitchType, QuantityFormatType
 from .system import SystemSettings as SS
@@ -202,114 +202,6 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
     next_row = row
     return next_row
 
-
-def read_time_dependent_values_entry(worksheet, table, start_row,
-                                     framework=None, data=None, workbook_type=None):
-    item_specs = get_workbook_item_specs(framework=framework, workbook_type=workbook_type)
-    structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
-
-    item_type = table.template_item_type
-    item_key = table.template_item_key
-    value_attribute = table.value_attribute
-
-    row, id_col = start_row, 0
-    block_col = 1   # Column increment at which data entry block begins.
-    if table.iterate_over_links:
-        block_col = 3
-
-    keep_scanning = True
-    header_row = None
-    term = None         # The header for this entire table.
-    data_key = None     # The key with which to store data provided within a row of this table.
-    while keep_scanning and row < worksheet.nrows:
-        label = str(worksheet.cell_value(row, id_col))
-        if not label == "":
-            # The first label encounter is of the item that heads this table.
-            # Verify it matches the item name associated with the table, provided no deferred instantiation took place.
-            if header_row is None:
-                if item_key is not None and not label == item_specs[item_type][item_key]["label"]:
-                    raise AtomicaException(
-                        "A time-dependent value entry table was expected in sheet '{0}' for item code-named '{1}'. "
-                        "Workbook parser encountered a table headed by label '{2}' instead.".format(worksheet.name,
-                                                                                                    item_key, label))
-                else:
-                    term = label
-                    # Do a quick scan of all row headers to determine keys for a TimeSeries object.
-                    quick_scan = True
-                    quick_row = row + 1
-                    keys = []
-                    while quick_scan and quick_row < worksheet.nrows:
-                        quick_label = str(worksheet.cell_value(quick_row, id_col))
-                        if quick_label == "":
-                            quick_scan = False
-                        elif quick_label == SS.DEFAULT_SYMBOL_IGNORE:
-                            pass
-                        else:
-                            # If table iterates over tupled items rather that just items, the tupled name pair is key.
-                            if table.iterate_over_links:
-                                keys.append((structure.get_spec_name(quick_label),
-                                             structure.get_spec_name(str(worksheet.cell_value(quick_row, id_col + 2)))))
-                            else:
-                                keys.append(structure.get_spec_name(quick_label))
-                        quick_row += 1
-                    # Check if the item already exists in parsed structure, which it must if instantiation is deferred.
-                    # If not, the item key is the name and the header is the label; construct an item.
-                    if item_key is not None:
-                        try:
-                            structure.get_spec(term=item_key)
-                        except SemanticUnknownException:
-                            structure.create_item(item_name=item_key, item_type=item_type)
-                            structure.set_spec_value(term=item_key, attribute="label", value=label)
-                    time_series = KeyData(keys=keys)
-                    structure.set_spec_value(term=term, attribute=value_attribute, value=time_series)
-                header_row = row
-            # All other label encounters are of an iterated type.
-            else:
-                if label == SS.DEFAULT_SYMBOL_IGNORE:
-                    row += 1
-                    continue
-                # Time series keys for standard items are their names.
-                data_key = structure.get_spec_name(label)
-                # Keys for time series that involve links between items are tuple-pairs of their names.
-                if table.iterate_over_links:
-                    data_key =(data_key, structure.get_spec_name(str(worksheet.cell_value(row, id_col+2))))
-                col = id_col + block_col
-                while col < worksheet.ncols:
-                    val = str(worksheet.cell_value(row, col))
-                    if val not in [SS.DEFAULT_SYMBOL_INAPPLICABLE, SS.DEFAULT_SYMBOL_OR, ""]:
-                        header = str(worksheet.cell_value(header_row, col))
-                        if header == ES.QUANTITY_TYPE_HEADER:
-                            structure.get_spec(term=term)[value_attribute].set_format(
-                                key=data_key, value_format=val.lower())
-                            col += 1
-                            continue
-                        try:
-                            val = float(val)
-                        except ValueError:
-                            raise AtomicaException("Workbook parser encountered invalid value '{0}' in cell '{1}' "
-                                                   "of sheet '{2}'.".format(val, xlrc(row, col), worksheet.name))
-                        if header == ES.ASSUMPTION_HEADER:
-                            structure.get_spec(term=term)[value_attribute].set_value(
-                                key=data_key, value=val)
-                        else:
-                            try:
-                                time = float(header)
-                            except ValueError:
-                                raise AtomicaException("Workbook parser encountered invalid time header '{0}' in cell "
-                                                       "'{1}' of sheet '{2}'.".format(header, xlrc(header_row, col),
-                                                                                      worksheet.name))
-                            structure.get_spec(term=term)[value_attribute].set_value(
-                                key=data_key, value=val, t=time)
-                    col += 1
-
-        else:
-            if header_row is not None:
-                keep_scanning = False
-        row += 1
-    next_row = row
-    return next_row
-
-
 def read_table(worksheet, table, start_row, start_col, framework=None, data=None, workbook_type=None):
     # Check workbook type.
     if workbook_type not in [SS.STRUCTURE_KEY_FRAMEWORK, SS.STRUCTURE_KEY_DATA]:
@@ -336,8 +228,8 @@ def read_table(worksheet, table, start_row, start_col, framework=None, data=None
                                              framework=framework, data=data, workbook_type=workbook_type)
         if isinstance(table, TimeDependentValuesEntry):
             for iteration in range(iteration_amount):
-                row = read_time_dependent_values_entry(worksheet=worksheet, table=table, start_row=row,
-                                                       framework=framework, data=data, workbook_type=workbook_type)
+                raise Exception('TDVE reading should go via TimeDependentValuesEntry object')
+
 
     next_row, next_col = row, col
     return next_row, next_col
@@ -398,7 +290,6 @@ def read_reference_worksheet(workbook):
     return metadata
 
 
-@accepts(str)
 def read_workbook(workbook_path, framework=None, data=None, workbook_type=None):
     page_keys = get_workbook_page_keys(framework=framework, workbook_type=workbook_type)
     page_specs = get_workbook_page_specs(framework=framework, workbook_type=workbook_type)
@@ -494,19 +385,19 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
     return result
 
 
-def load_progbook(filename, verbose=2):
+def load_progbook(spreadsheet):
     '''
     Loads programs book (i.e. reads its contents into the data).
+
+    INPUTS
+    - spreadsheet: An AtomicaSpreadsheet instance
     '''
     ## Basic setup
     data = sc.odict() # Create structure for holding data
 
     ## Read in databook 
-    try: workbook = xlrd.open_workbook(filename) # Open workbook
-    except: 
-        errormsg = 'Failed to load program spreadsheet: file "%s" not found or other problem' % filename
-        raise AtomicaException(errormsg)
-    
+    workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
+
     ## Load program spend information
     sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
     data['progs'] = sc.odict()
@@ -543,20 +434,20 @@ def load_progbook(filename, verbose=2):
                     data[progname]['basespend'] = []
                     data[progname]['capacity'] = []
                     data[progname]['unitcost'] = sc.odict()
-    
+
     ## Calculate columns for which data are entered, and store the year ranges
     sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
     lastdatacol, data['years'] = getyears(sheetdata)
     assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
-    
+
     namemap = {'Total spend': 'spend',
                'Base spend':'basespend',
                'Unit cost':'unitcost',
-               'Capacity constraints': 'capacity'} 
+               'Capacity constraints': 'capacity'}
 
     validunitcosts = sc.odict()
-    
-    for row in range(sheetdata.nrows): 
+
+    for row in range(sheetdata.nrows):
         sheetname = sheetdata.cell_value(row,0) # Sheet name
         progname = sheetdata.cell_value(row, 1) # Get the name of the program
 

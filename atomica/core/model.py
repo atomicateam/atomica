@@ -625,6 +625,7 @@ class Population(object):
             par = Parameter(pop=self, name=name)
             self.pars.append(par)
             if "links" in spec:
+                par.units = spec["format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
                 for pair in spec["links"]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
@@ -1039,8 +1040,7 @@ class Model(object):
                         else:
                             par.links[0].vals[ti] = converted_amt
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
-                        raise AtomicaException("Encountered unknown quantity type '{0}' during model "
-                                               "run.".format(quantity_type))
+                        raise AtomicaException("Encountered unknown quantity type %s for Parameter %s (%s)" % (quantity_type,par.name,pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:

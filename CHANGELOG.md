@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 The format adheres to Semantic Versioning.
 
+## 0.7.1 (2018-06-28): Refactor Workbooks
+
+Features
+- Instructions to generate workbooks are extracted from `structure_settings.py` and hard-coded.
+
 ## 0.7.0 (2018-06-13): Interactions
 
 Features
