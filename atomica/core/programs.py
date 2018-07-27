@@ -148,7 +148,12 @@ class ProgramSet(NamedItem):
         #
         # Returns a dict where the key is the program short name and
         # the value is an array of spending values the same size as t
-        
+        # Spending will be drawn from the instructions if it exists. The `instructions.alloc`
+        # can either be:
+        # - None
+        # - A dict in which a program may or may not appear
+        # - A dict in which a program appears and has a TimeSeries of spending but has no associated data
+        #
         # Validate inputs
         if tvec is None:
             tvec = instructions.start_year
@@ -163,7 +168,6 @@ class ProgramSet(NamedItem):
                 alloc = sc.odict()
                 for prog in self.programs.values():
                     if prog.short in instructions.alloc:
-                        # TODO - instructions.alloc[prog.short] needs to be able to support time-varying inputs
                         alloc[prog.short] = instructions.alloc[prog.short].interpolate(tvec)
                     else:
                         alloc[prog.short] = prog.get_spend(tvec)
