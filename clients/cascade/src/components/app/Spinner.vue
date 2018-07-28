@@ -5,8 +5,8 @@
   <modal name="popup-spinner"
          height="80px"
          width="85px"
-         style="opacity: 0.6">
-    <div class="v-spinner" v-show="loading" style="padding: 15px">
+         style="opacity: 0.8">
+    <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
       <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
         <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
         </div><div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
@@ -96,7 +96,7 @@
     animation: v-moonStretchDelay 0.6s 0s infinite linear;
     -webkit-animation-fill-mode: forwards;
     animation-fill-mode: forwards;
-    opacity: 0.8;
+    opacity: 0.9;
     position: absolute;
   }
 
