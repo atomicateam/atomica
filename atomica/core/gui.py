@@ -271,8 +271,7 @@ class GUIFrameworkFileCreation(qtw.QWidget):
                     ES.FILE_EXTENSION))
             return
         try:
-            write_workbook(workbook_path=framework_path, instructions=self.framework_instructions,
-                           workbook_type=SS.STRUCTURE_KEY_FRAMEWORK)
+            raise Exception('Framework creation not implemented yet')
         except Exception:
             logger.exception("Framework template construction has failed.")
             raise
@@ -408,8 +407,7 @@ class GUIDatabookCreation(qtw.QWidget):
                 ES.FILE_EXTENSION))
             return
         try:
-            write_workbook(workbook_path=databook_path, framework=self.framework,
-                           instructions=self.databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+            raise Exception('Databook creation not yet implemented')
         except Exception:
             logger.exception("Databook construction has failed.")
             raise

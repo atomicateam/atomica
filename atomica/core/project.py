@@ -33,8 +33,9 @@ from .model import run_model
 from .parameters import ParameterSet
 from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario
+
 from .optimization import Optimization, optimize
-from .structure_settings import FrameworkSettings as FS, DataSettings as DS
+from .structure_settings import FrameworkSettings as FS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from .workbook_export import write_workbook, make_instructions, make_progbook
 from .workbook_import import read_workbook, load_progbook
@@ -43,7 +44,7 @@ from .utils import NDict
 #from .results import Result
 import sciris.core as sc
 import numpy as np
-
+from .excel import AtomicaSpreadsheet
 
 
 class ProjectSettings(object):
@@ -87,7 +88,7 @@ class Project(object):
         self.name = name
         # self.filename = None # Never saved to file
         self.framework = framework if framework else ProjectFramework()
-        self.data = ProjectData()  # TEMPORARY
+        self.data = None
 
         # Define the structure sets
         self.parsets  = NDict()
@@ -102,8 +103,9 @@ class Project(object):
         self.gitinfo = sc.gitinfo(__file__)
         self.created = sc.today()
         self.modified = sc.today()
-        self.databookloaddate = 'Databook never loaded'
-        self.programdatabookloaddate = 'Programs databook never loaded'
+
+        self.databook = None # This will contain an AtomicaSpreadsheet when the user loads one
+        self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings() # Global settings
 
         # Load spreadsheet, if available
@@ -133,47 +135,52 @@ class Project(object):
         output += '============================================================\n'
         return output
 
+    @property
+    def pop_names(self):
+        if self.data is None:
+            raise AtomicaException('Data with population definitions has not yet been loaded')
+        else:
+            return list(self.data.pops.keys())
+
+    @property
+    def pop_labels(self):
+        if self.data is None:
+            raise AtomicaException('Data with population definitions has not yet been loaded')
+        else:
+            return list([x['label'] for x in self.data.pops.values()])
+
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=None, num_trans=None, num_interpop=None, num_progs=None,
-                        data_start=None, data_end=None, data_dt=None):
+    def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, num_interpops=0,data_start=2000.0, data_end=2020.0, data_dt=1.0):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
-        databook_instructions, _ = make_instructions(framework=self.framework, workbook_type=SS.STRUCTURE_KEY_DATA)
-        if num_pops is not None:
-            databook_instructions.update_number_of_items(DS.KEY_POPULATION, num_pops)  # Set population amount.
-        if num_trans is not None:
-            databook_instructions.update_number_of_items(DS.KEY_TRANSFER, num_trans)  # Set transfer amount.
-        if num_interpop is not None:
-            databook_instructions.update_number_of_items(DS.KEY_INTERACTION, num_interpop)  # Set interaction amount.
-        if num_progs is not None:
-            databook_instructions.update_number_of_items(DS.KEY_PROGRAM, num_progs)  # Set program amount.
-        databook_instructions.update_time_vector(data_start=data_start, data_end=data_end, data_dt=data_dt)
-        write_workbook(workbook_path=databook_path, framework=self.framework, data=self.data,
-                       instructions=databook_instructions, workbook_type=SS.STRUCTURE_KEY_DATA)
+        data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
+        data.save(databook_path)
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True, overwrite=False):
-        """ Load a data spreadsheet. """
-        if overwrite: data = ProjectData() # Allow overwrite
-        else:         data = self.data
-        full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
-        metadata = read_workbook(workbook_path=full_path, framework=self.framework, data=data,
-                                 workbook_type=SS.STRUCTURE_KEY_DATA)
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+        """
+        Load a data spreadsheet.
 
-        self.databookloaddate = sc.today()  # Update date when spreadsheet was last loaded
+        INPUTS:
+        - databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
+                         containing the contents of a databook
+        - make_default_parset: If True, a Parset called "default" will be immediately created from the
+                               newly-added data
+        - do_run: If True, a simulation will be run using the new parset
+        """
+        if isinstance(databook_path,str):
+            full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+            databook_spreadsheet = AtomicaSpreadsheet(full_path)
+        else:
+            databook_spreadsheet = databook_path
+
+        self.data = ProjectData.from_spreadsheet(databook_spreadsheet,self.framework)
+        self.data.validate(self.framework) # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
+        self.databook = sc.dcp(databook_spreadsheet) # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
         self.modified = sc.today()
-        
-        # TODO: Decide what to do with these convenience lists for pop (code) names and (plot) labels.
-        self.pop_names = []
-        self.pop_labels = []
-        for k,v in self.data.specs['pop'].items():
-            self.pop_names.append(k)
-            self.pop_labels.append(v['label'])
-
-        if metadata is not None and "data_start" in metadata:
-            self.settings.update_time_vector(start=metadata["data_start"])  # Align sim start year with data start year.
+        self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
         if make_default_parset:
             self.make_parset(name="default")
@@ -186,9 +193,8 @@ class Project(object):
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
         self.parsets.append(ParameterSet(name))
-        self.parsets[name].make_pars(self.data)
+        self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
-
 
     def make_progbook(self, progbook_path=None, progs=None):
         ''' Make a programs databook'''
@@ -217,16 +223,21 @@ class Project(object):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
-        progdata = load_progbook(filename=full_path)
-        
+        if isinstance(progbook_path,str):
+            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
+            progbook_spreadsheet = AtomicaSpreadsheet(full_path)
+        else:
+            progbook_spreadsheet = progbook_path
+
+        progdata = load_progbook(progbook_spreadsheet)
+        self.progbook = sc.dcp(progbook_spreadsheet)
+
         # Check if the populations match - if not, raise an error, if so, add the data
         if set(progdata['pops']) != set(self.pop_labels):
             errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
             raise AtomicaException(errormsg)
         self.progdata = progdata
 
-        self.programdatabookloaddate = sc.today() # Update date when spreadsheet was last loaded
         self.modified = sc.today()
 
         if make_default_progset: self.make_progset(name="default")
