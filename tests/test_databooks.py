@@ -4,18 +4,18 @@ import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData
 import sciris.core as sc
 
-F = ProjectFramework.from_spreadsheet("./frameworks/framework_tb.xlsx")
-
-
-# Copy a databook by loading and saving it
-data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
-data.save('./temp/d_blug.xlsx')
-
-# Copy comments, using lower-level ScirisSpreadsheet (for in-memory file operations)
-original_workbook = AtomicaSpreadsheet("./databooks/databook_tb.xlsx")
-new_workbook = data.to_spreadsheet() # data.to_spreadsheet()
-transfer_comments(new_workbook,original_workbook)
-new_workbook.save('./temp/d_blug_formatted.xlsx')
+F = ProjectFramework("./frameworks/framework_tb.xlsx")
+F.get_allowed_units('alive')
+#
+# # Copy a databook by loading and saving it
+# data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
+# data.save('./temp/d_blug.xlsx')
+#
+# # Copy comments, using lower-level ScirisSpreadsheet (for in-memory file operations)
+# original_workbook = AtomicaSpreadsheet("./databooks/databook_tb.xlsx")
+# new_workbook = data.to_spreadsheet() # data.to_spreadsheet()
+# transfer_comments(new_workbook,original_workbook)
+# new_workbook.save('./temp/d_blug_formatted.xlsx')
 
 # Run the copied databook
 P = Project(name="test", framework=F, do_run=False)

@@ -1,7 +1,7 @@
 # Imports
 
 from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
-from .structure_settings import FrameworkSettings as FS
+from .structure import FrameworkSettings as FS
 from .excel import ExcelSettings as ES
 from .results import Result
 from .parser_function import parse_function
@@ -277,17 +277,17 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
-        fcn_input = spec[FS.TERM_FUNCTION]
-        dep_list = spec['dependencies']
-
+        fcn_input = spec['Function']
         assert isinstance(fcn_input,str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_input
-        self._fcn = parse_function(self.fcn_str)[0]
+        self._fcn, dep_list = parse_function(self.fcn_str)
         if fcn_input.startswith("SRC_POP_AVG") or fcn_input.startswith("TGT_POP_AVG"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
             special_function, temp_list = self.fcn_str.split("(")
-            function_args = temp_list.rstrip(")").split(ES.LIST_SEPARATOR)
+            function_args = temp_list.rstrip(")").split(',')
+            function_args = [x.strip() for x in function_args]
+
             if len(function_args) == 2: # If weighting variable not provided
                 function_args.append(None)
 
@@ -307,8 +307,9 @@ class Parameter(Variable):
             self.pop_aggregation = [special_function] + function_args
 
         deps = {}
+        interactions = set(framework.interactions.index)
         for dep_name in dep_list:
-            if not (self.pop_aggregation and dep_name in framework.specs[FS.KEY_INTERACTION]):
+            if not dep_name in interactions: # There are no integration variables associated with the interactions, as they are treated as a special matrix
                 deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
@@ -593,40 +594,37 @@ class Population(object):
         """
 
         # Instantiate Compartments
-        for name in framework.specs[FS.KEY_COMPARTMENT]:
-            spec = framework.get_spec(name)
-            self.comps.append(Compartment(pop=self, name=name))
-            if spec["is_source"]:
+        for _,spec in framework.comps.iterrows():
+            self.comps.append(Compartment(pop=self, name=spec.name))
+            if spec["Is Source"] == 'y':
                 self.comps[-1].tag_birth = True
-            if spec["is_sink"]:
+            if spec["Is Sink"] == 'y':
                 self.comps[-1].tag_dead = True
-            if spec["is_junction"]:
+            if spec["Is Junction"] == 'y':
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
         # Characteristics first pass, instantiate objects
-        for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            self.characs.append(Characteristic(pop=self, name=name))
+        for _,spec in framework.characs.iterrows():
+            self.characs.append(Characteristic(pop=self, name=spec.name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
-        for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            spec = framework.get_spec(name)
-            charac = self.get_charac(name)
-            for inc_name in spec["includes"]:
-                charac.add_include(
-                    self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            if "denominator" in spec and not spec["denominator"] is None:
-                charac.add_denom(self.get_variable(spec["denominator"])[0])
+        for _,spec in framework.characs.iterrows():
+            charac = self.get_charac(spec.name)
+            includes = [x.strip() for x in spec['Components'].split(',')]
+            for inc_name in includes:
+                charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
+            if spec['Denominator'] is not None:
+                charac.add_denom(self.get_variable(spec["Denominator"])[0]) # nb. framework import strips whitespace from the overall field
 
         # Parameters first pass, create parameter objects and links
-        for name in framework.specs[FS.KEY_PARAMETER]:
-            spec = framework.get_spec(name)
-            par = Parameter(pop=self, name=name)
+        for _,spec in framework.pars.iterrows():
+            par = Parameter(pop=self, name=spec.name)
             self.pars.append(par)
-            if "links" in spec:
-                par.units = spec["format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
-                for pair in spec["links"]:
+            if framework.transitions[spec.name]: # If there are any links associated with this parameter
+                par.units = spec["Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+                for pair in framework.transitions[spec.name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
                     tag = par.name + ':flow'  # Temporary tag solution.
@@ -639,18 +637,17 @@ class Population(object):
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Parameters second pass, process f_stacks, deps, and limits
-        for name in framework.specs[FS.KEY_PARAMETER]:
-            spec = framework.get_spec(name)
-            par = self.get_par(name)
+        for _,spec in framework.pars.iterrows():
+            par = self.get_par(spec.name)
 
-            if ("min" in spec and spec["min"] is not None) or ("max" in spec and spec["max"] is not None):
+            if ("Minimum Value" in spec and spec["Minimum Value"] is not None) or ("Maximum Value" in spec and spec["Maximum Value"] is not None):
                 par.limits = [-np.inf, np.inf]
-                if "min" in spec and spec["min"] is not None:
-                    par.limits[0] = spec["min"]
-                if "max" in spec and spec["max"] is not None:
-                    par.limits[1] = spec["max"]
+                if "Minimum Value" in spec and spec["Minimum Value"] is not None:
+                    par.limits[0] = spec["Minimum Value"]
+                if "Maximum Value" in spec and spec["Maximum Value"] is not None:
+                    par.limits[1] = spec["Maximum Value"]
 
-            if not spec[FS.TERM_FUNCTION] is None:
+            if spec['Function'] is not None:
                 par.set_fcn(framework, spec)
 
     def preallocate(self, tvec, dt):
@@ -666,9 +663,9 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c in self.characs if framework.get_spec_value(c.name, "datapage_order") != -1]
-        characs += [c for c in self.comps if framework.get_spec_value(c.name, "datapage_order") != -1]
-        #        print(characs)
+        characs = [c for c in self.characs if framework.get_charac(c.name)['Databook Page'] is not None]
+        characs += [c for c in self.comps if framework.get_comp(c.name)['Databook Page'] is not None]
+
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name: i for i, c in enumerate(characs)}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
@@ -676,7 +673,6 @@ class Population(object):
         b = np.zeros((len(characs), 1))
         A = np.zeros((len(characs), len(comps)))
 
-        #        print([(c,framework.get_spec_value(c.name,"datapage_order")) for c in self.characs])
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i, c in enumerate(characs):
             # Look up the characteristic value
@@ -765,7 +761,7 @@ class Model(object):
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self.interactions = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
-        self.par_list = list(framework.specs[FS.KEY_PARAMETER].keys()) # This is a list of all parameters to iterate over when updating
+        self.par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)

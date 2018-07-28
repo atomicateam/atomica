@@ -18,10 +18,13 @@ from matplotlib.ticker import FuncFormatter
 import sciris.core as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, logger
+from .system import AtomicaException, NotFoundError
 from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
+
+import logging
+logger = logging.getLogger(__name__)
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -1236,32 +1239,37 @@ def get_full_name(output_id, proj):
     For a given output_id, returns the user-friendly version of the name. 
     """
 
+    # Note that an output_id could be a Compartment, Characteristic, Parameter, Population, or Link Expression
     if proj is None:
         return output_id
 
-    labels = {y['name']: x for x, y in proj.framework.semantics.items() if y['attribute'] == 'label'}
+    if output_id in proj.data.pops:
+        return proj.data.pops[output_id]['label'] # Convert population
 
-    # Handle Links specified with colon syntax
-    if ':' in output_id:
+    full_name = lambda x: proj.framework.get_variable(x)[0]['Display Name']
+
+    if ':' in output_id: # We are parsing a link
+        # Handle Links specified with colon syntax
         output_tokens = output_id.split(':')
         if len(output_tokens) == 2:
             output_tokens.append('')
         src, dest, par = output_tokens
 
+        # If 'par_name:flow' syntax was used
         if dest == 'flow':
-            if src in labels:
-                return "{0} (flow)".format(labels[src])
+            if src in proj.framework:
+                return "{0} (flow)".format(full_name(src))
             else:
                 return "{0} (flow)".format(src)
 
-        if src and src in labels:
-            src = labels[src]
+        if src and src in proj.framework:
+            src = full_name(src)
 
-        if dest and dest in labels:
-            dest = labels[dest]
+        if dest and dest in proj.framework:
+            dest = full_name(dest)
 
-        if par and par in labels:
-            par = labels[par]
+        if par and par in proj.framework:
+            par = full_name(par)
 
         full = 'Flow'
         if src:
@@ -1272,8 +1280,8 @@ def get_full_name(output_id, proj):
             full += ' ({})'.format(par)
         return full
     else:
-        if output_id in labels:
-            return labels[output_id]
+        if output_id in proj.framework:
+            return full_name(output_id)
         else:
             return output_id
 

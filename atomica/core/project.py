@@ -35,13 +35,11 @@ from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario
 
 from .optimization import Optimization, optimize
-from .structure_settings import FrameworkSettings as FS
+from .structure import FrameworkSettings as FS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from .workbook_export import write_workbook, make_instructions, make_progbook
-from .workbook_import import read_workbook, load_progbook
+from .workbook_export import make_progbook
+from .workbook_import import load_progbook
 from .utils import NDict
-#from .optimization import Optim
-#from .results import Result
 import sciris.core as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet

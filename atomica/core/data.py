@@ -13,7 +13,7 @@ import xlsxwriter as xw
 import io
 import numpy as np
 from .system import AtomicaException
-from .structure_settings import DataSettings as DS
+from .structure import FrameworkSettings as FS
 from collections import defaultdict
 
 # Data maps to a databook
@@ -126,8 +126,9 @@ class ProjectData(object):
         data = ProjectData()
         data.tvec = tvec
 
+        raise('Working on this next')
         pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)}
-        item_types = [DS.KEY_PARAMETER,DS.KEY_CHARACTERISTIC,DS.KEY_COMPARTMENT]
+        item_types = [FS.KEY_PARAMETER,FS.KEY_CHARACTERISTIC,FS.KEY_COMPARTMENT]
         for item_type in item_types:
             for code_name,spec in framework.specs[item_type].items():
                 if 'datapage' in spec and 'datapage_order' in spec and spec['datapage_order'] != -1:
@@ -209,8 +210,8 @@ class ProjectData(object):
                     tdve = TimeDependentValuesEntry.from_rows(table)
 
                     # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
-                    code_name = framework.get_spec_name(tdve.name)
-                    tdve.allowed_units = framework.get_allowed_units(code_name)
+                    code_name = framework.get_variable(tdve.name)[0].name
+                    tdve.allowed_units = [x.title() for x in framework.get_allowed_units(code_name)]
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
@@ -249,17 +250,20 @@ class ProjectData(object):
         #
         # Make sure that all of the quantities the Framework says we should read in have been read in, and that
         # those quantities all have some data values associated with them
-        for item_type in [DS.KEY_PARAMETER,DS.KEY_COMPARTMENT,DS.KEY_CHARACTERISTIC]:
-            for item_name,spec in framework.specs[item_type].items():
-                if spec['datapage_order'] != -1:
-                    if item_name not in self.tdve:
-                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['label'],item_name))
+        for df in [framework.comps, framework.characs, framework.pars]:
+            for _, spec in df.iterrows():
+                if spec['Databook Page'] is not None:
+                    if spec.name not in self.tdve:
+                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['Display Name'],spec.name))
                     else:
-                        for name,ts in self.tdve[item_name].ts.items():
-                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[item_name].name,self.pops.keys())
-                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[item_name].name, name)
-                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[item_name].name, name)
-                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[item_name].name, name)
+                        allowed_units = framework.get_allowed_units(spec.name)
+                        for name,ts in self.tdve[spec.name].ts.items():
+                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[spec.name].name,self.pops.keys())
+                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            if allowed_units:
+                                assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
         return True
 
     def to_spreadsheet(self):

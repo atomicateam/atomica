@@ -299,7 +299,6 @@ class GUIDatabookCreation(qtw.QWidget):
     def reset_attributes(self):
         """ Resets all attributes related to this GUI; must be called once at initialization. """
         # This widget is attached to an instructions object that the user can modify prior to producing a databook.
-        self.databook_instructions = WorkbookInstructions(workbook_type=SS.STRUCTURE_KEY_DATA)
         self.framework = ProjectFramework()
 
     @log_usage

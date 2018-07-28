@@ -38,17 +38,17 @@ class SystemSettings(object):
     QUANTITY_TYPE_ABSOLUTE = "absolute"
     QUANTITY_TYPE_RELATIVE = "relative"
 
-    DEFAULT_SPACE_LABEL = " "
-    DEFAULT_SPACE_NAME = "_"
-    DEFAULT_SEPARATOR_LABEL = " - "
-    DEFAULT_SEPARATOR_NAME = "_"
-    DEFAULT_SYMBOL_YES = "y"
-    DEFAULT_SYMBOL_NO = "n"
-    DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
-    DEFAULT_SYMBOL_OR = "OR"
-    DEFAULT_SYMBOL_TO = "--->"
-    DEFAULT_SYMBOL_IGNORE = "..."
-    DEFAULT_SUFFIX_PLURAL = "s"
+    # DEFAULT_SPACE_LABEL = " "
+    # DEFAULT_SPACE_NAME = "_"
+    # DEFAULT_SEPARATOR_LABEL = " - "
+    # DEFAULT_SEPARATOR_NAME = "_"
+    # DEFAULT_SYMBOL_YES = "y"
+    # DEFAULT_SYMBOL_NO = "n"
+    # DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
+    # DEFAULT_SYMBOL_OR = "OR"
+    # DEFAULT_SYMBOL_TO = "--->"
+    # DEFAULT_SYMBOL_IGNORE = "..."
+    # DEFAULT_SUFFIX_PLURAL = "s"
 
 
 # Code for determining module installation directory.

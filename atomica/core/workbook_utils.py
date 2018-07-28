@@ -1,5 +1,4 @@
 from .system import AtomicaException, display_name, SystemSettings as SS
-from .structure_settings import FrameworkSettings as FS, DataSettings as DS
 
 
 class WorkbookTypeException(AtomicaException):

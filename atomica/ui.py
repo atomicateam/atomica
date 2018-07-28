@@ -6,11 +6,6 @@ if _debug: print('Importing version...')
 from .core.version import * # No dependencies
 if _debug: print('Importing system...')
 from .core.system import *  # No dependencies
-if _debug: print('Importing Excel...')
-from .core.excel import *  # Depends on system
-if _debug: print('Importing structure settings...')
-from .core.structure_settings import *  # Depends on Excel
-from .core.structure_settings import FrameworkSettings as FS
 if _debug: print('Importing structure...')
 from .core.structure import *  # Depends on structure_settings
 if _debug: print('Importing workbook utils...')

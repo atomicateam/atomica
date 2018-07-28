@@ -3,7 +3,7 @@
 import numpy as np
 import sciris.core as sc
 from .interpolation import interpolate_func
-from .structure_settings import DataSettings as DS
+from .structure import FrameworkSettings as FS
 from .system import AtomicaException, logger
 from .utils import NamedItem
 
@@ -185,9 +185,9 @@ class ParameterSet(NamedItem):
         self.pop_labels = [pop["label"] for pop in data.pops.values()]
 
         # Cascade parameter and characteristic extraction.
-        group_remapping = {DS.KEY_PARAMETER:'cascade',DS.KEY_COMPARTMENT:'comps',DS.KEY_CHARACTERISTIC:'characs'}
+        group_remapping = {FS.KEY_PARAMETER:'cascade',FS.KEY_COMPARTMENT:'comps',FS.KEY_CHARACTERISTIC:'characs'}
         for name,tdve in data.tdve.items():
-            item_type = framework.get_spec_type(name)
+            _,item_type = framework.get_variable(name)
             item_group = group_remapping[item_type]
 
             self.par_ids[item_group][name] = len(self.pars[item_group])
@@ -203,15 +203,15 @@ class ParameterSet(NamedItem):
         # We have just created Parameter objects for every parameter in the databook
         # However, we also need Parameter objects for dependent parameters not in the databook
         # This allows them to be used in transitions and also for the user to set y-factors for them
-        for name,spec in framework.specs[DS.KEY_PARAMETER].items():
-            if name not in self.par_ids['cascade']:
-                self.par_ids['cascade'][name] = len(self.pars['cascade'])
-                self.pars['cascade'].append(Parameter(name=name))
+        for _,spec in framework.pars.iterrows():
+            if spec.name not in self.par_ids['cascade']:
+                self.par_ids['cascade'][spec.name] = len(self.pars['cascade'])
+                self.pars['cascade'].append(Parameter(name=spec.name))
 
                 for pop_name in self.pop_names:
                     self.pars['cascade'][-1].t[pop_name] = None
                     self.pars['cascade'][-1].y[pop_name] = None
-                    self.pars['cascade'][-1].y_format[pop_name] = spec['format']
+                    self.pars['cascade'][-1].y_format[pop_name] = spec['Format']
                     self.pars['cascade'][-1].y_factor[pop_name] = 1.0
 
         # Transfer and interaction extraction.
