@@ -268,7 +268,7 @@ class Parameter(Variable):
         self.deps = None # Dict of dependencies containing lists of integration objects
         self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
 
-    def set_fcn(self, framework, spec):
+    def set_fcn(self, framework, fcn_str):
         # fcn_input could be
         # - string, which gets converted to a functor via parse_function()
         # - functor, which gets stored in self._fcn directly
@@ -277,11 +277,10 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
-        fcn_input = spec['Function']
-        assert isinstance(fcn_input,str), "Parameter function must be supplied as a string"
-        self.fcn_str = fcn_input
+        assert isinstance(fcn_str,str), "Parameter function must be supplied as a string"
+        self.fcn_str = fcn_str
         self._fcn, dep_list = parse_function(self.fcn_str)
-        if fcn_input.startswith("SRC_POP_AVG") or fcn_input.startswith("TGT_POP_AVG"):
+        if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
             special_function, temp_list = self.fcn_str.split("(")
@@ -593,38 +592,42 @@ class Population(object):
         Maintaining order as defined in a cascade workbook is crucial due to cross-referencing.
         """
 
-        # Instantiate Compartments
-        for _,spec in framework.comps.iterrows():
-            self.comps.append(Compartment(pop=self, name=spec.name))
-            if spec["Is Source"] == 'y':
+        comps = framework.comps
+        characs = framework.characs
+        pars = framework.pars
+
+        # Instantiate compartments
+        for comp_name in list(comps.index):
+            self.comps.append(Compartment(pop=self, name=comp_name))
+            if comps.loc[comp_name,"Is Source"] == 'y':
                 self.comps[-1].tag_birth = True
-            if spec["Is Sink"] == 'y':
+            if comps.loc[comp_name,"Is Sink"] == 'y':
                 self.comps[-1].tag_dead = True
-            if spec["Is Junction"] == 'y':
+            if comps.loc[comp_name,"Is Junction"] == 'y':
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
         # Characteristics first pass, instantiate objects
-        for _,spec in framework.characs.iterrows():
-            self.characs.append(Characteristic(pop=self, name=spec.name))
+        for charac_name in list(characs.index):
+            self.characs.append(Characteristic(pop=self, name=charac_name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
-        for _,spec in framework.characs.iterrows():
-            charac = self.get_charac(spec.name)
-            includes = [x.strip() for x in spec['Components'].split(',')]
+        for charac_name,charac in zip(list(framework.characs.index),self.characs):
+            includes = [x.strip() for x in characs.loc[charac_name,'Components'].split(',')]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            if spec['Denominator'] is not None:
-                charac.add_denom(self.get_variable(spec["Denominator"])[0]) # nb. framework import strips whitespace from the overall field
+            denominator = characs.loc[charac_name,"Denominator"]
+            if denominator is not None:
+                charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
 
         # Parameters first pass, create parameter objects and links
-        for _,spec in framework.pars.iterrows():
-            par = Parameter(pop=self, name=spec.name)
+        for par_name in list(pars.index):
+            par = Parameter(pop=self, name=par_name)
             self.pars.append(par)
-            if framework.transitions[spec.name]: # If there are any links associated with this parameter
-                par.units = spec["Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
-                for pair in framework.transitions[spec.name]:
+            if framework.transitions[par_name]: # If there are any links associated with this parameter
+                par.units = pars.loc[par_name,"Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+                for pair in framework.transitions[par_name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
                     tag = par.name + ':flow'  # Temporary tag solution.
@@ -637,18 +640,20 @@ class Population(object):
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Parameters second pass, process f_stacks, deps, and limits
-        for _,spec in framework.pars.iterrows():
-            par = self.get_par(spec.name)
+        for par_name,par in zip(list(framework.pars.index),self.pars):
+            min_value = pars.loc[par_name,'Minimum Value']
+            max_value = pars.loc[par_name,'Maximum Value']
 
-            if ("Minimum Value" in spec and spec["Minimum Value"] is not None) or ("Maximum Value" in spec and spec["Maximum Value"] is not None):
+            if (min_value is not None) and (max_value is not None):
                 par.limits = [-np.inf, np.inf]
-                if "Minimum Value" in spec and spec["Minimum Value"] is not None:
-                    par.limits[0] = spec["Minimum Value"]
-                if "Maximum Value" in spec and spec["Maximum Value"] is not None:
-                    par.limits[1] = spec["Maximum Value"]
+                if min_value is not None:
+                    par.limits[0] = min_value
+                if max_value is not None:
+                    par.limits[1] = max_value
 
-            if spec['Function'] is not None:
-                par.set_fcn(framework, spec)
+            fcn_str = pars.loc[par_name,'Function']
+            if fcn_str is not None:
+                par.set_fcn(framework,fcn_str)
 
     def preallocate(self, tvec, dt):
         """
