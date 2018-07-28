@@ -460,3 +460,20 @@ class Project(object):
     def load(cls, filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
         return sc.loadobj(filepath)
+
+    def demo_optimization(self, dorun=False):
+        json = sc.odict()
+        json['name']              = 'Demo optimization'
+        json['parset_name']       = -1
+        json['progset_name']      = -1
+        json['start_year']        = 2018
+        json['end_year']          = 2025
+        json['budget_factor']     = 1.0
+        json['objective_weights'] = {'alive':-1,'ddis':1,':acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
+        json['prog_spending']     = sc.odict()
+        for prog_name in self.progset().programs.keys():
+            json['prog_spending'][prog_name] = (1,None)
+        self.make_optimization(json=json)
+        if dorun:
+            self.run_optimization(optimization=json['name'])
+        return

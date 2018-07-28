@@ -457,9 +457,6 @@ class Optimization(NamedItem):
         return objective
 
 
-class OptimLite(NamedItem):
-    ''' A light-weight version of an optimization '''
-
 def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
     # Compute the objective in ASD
 
@@ -517,18 +514,20 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
     optimization.constrain_instructions(model.program_instructions,hard_constraints)
     return model.program_instructions # Return the modified instructions
 
-def parallel_optimize(project,optimization,parset,progset,program_instructions):
+#def parallel_optimize(project,optimization,parset,progset,program_instructions):
+#
+#    raise NotImplementedError
+#
+#    initialization = optimization.get_initialization(progset, program_instructions)
+#    xmin = initialization[1]
+#    xmax = initialization[2]
+#
+#    initial_instructions = program_instructions
+#    for i in range(0,n_rounds):
+#        for i in range(0,n_threads):
+#            optimized_instructions[i] = optimize(optimization, parset, progset, initial_instructions, x0=None, xmin=xmin, xmax=xmax)
+#        initial_instructions = pick_best(optimized_instructions)
+#    return initial_instructions # Best one from the last round
 
-    raise NotImplementedError
 
-    initialization = optimization.get_initialization(progset, program_instructions)
-    xmin = initialization[1]
-    xmax = initialization[2]
-
-    initial_instructions = program_instructions
-    for i in range(0,n_rounds):
-        for i in range(0,n_threads):
-            optimized_instructions[i] = optimize(optimization, parset, progset, initial_instructions, x0=None, xmin=xmin, xmax=xmax)
-        initial_instructions = pick_best(optimized_instructions)
-    return initial_instructions # Best one from the last round
 

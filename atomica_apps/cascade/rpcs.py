@@ -1073,59 +1073,8 @@ def export_results(project_id, resultset=-1):
 ##################################################################################
 
 def rpc_optimize(proj=None, json=None):
-    # RPC call for TB optimization
-    # INPUTS
-    # - parset_name : A string with the name of the parset to use. This parset should already exist in the project
-    # - progset_name : A string with the name of the progset to use. This progset should already exist in the project
-    # - optimization_name : A string that will name this optimization
-    # - start_year : The year of program onset and when spending will be applied
-    # - end_year : The end year for the simulation. Programs run up to this year, and the objective will be evaluated from start_year to end_year
-    # - budget_factor : This will rescale total spending
-    # - objective_weights : This is a dict/odict mapping {variable_name:weight}. Available variables are determined by the FE
-    # - prog_spending : This is a dict/odict mapping {program_name:(minspend,maxspend)}. It is assumed that the FE will provide absolute values for
-    #                   both quantities for every program (these could default to minspend=0 and maxspend=np.inf but those defaults should be assigned
-    #                   before this function is called
-    # - maxtime : Set ASD's maxtime, this might default to np.inf for the actual FE but useful to make it shorter when testing
-    #
-    # OUTPUTS
-    # - Optimized Result, for addition to the database and project by the FE code
-    #   The optimized program instructions are available in `Result.model.program_instructions`. Note that the Project will also have a new
-    #   Optimization object, so the Project will probably need to be saved after calling this function too
-
-    optimization_name = json['optimization_name']
-    parset_name       = json['parset_name']
-    progset_name      = json['progset_name']
-    start_year        = json['start_year']
-    end_year          = json['end_year']
-    budget_factor     = json['budget_factor']
-    objective_weights = json['objective_weights']
-    prog_spending     = json['prog_spending']
-    maxtime           = json['maxtime']
-    
-    instructions = au.ProgramInstructions(alloc=None,start_year=start_year) # Set up default ProgramInstructions with no alloc because we are using the values from the progbook
-    progset = proj.progsets[progset_name] # Retrieve the progset
-
-    # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
-    # passed in as arguments to this function
-    adjustments = []
-    for prog_name in progset.programs:
-        limits = prog_spending[prog_name]
-        adjustments.append(au.SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
-
-    # Add a total spending constraint with the given budget scale up
-    constraints = au.TotalSpendConstraint(budget_factor=budget_factor)
-
-    # Add all of the terms in the objective
-    measurables = []
-    for name,weight in objective_weights.items():
-        measurables.append(au.Measurable(name,t=[start_year,end_year],weight=weight))
-
-    # Create the Optimization object
-    proj.make_optimization(name=optimization_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=json) # Evaluate from 2020 to end of simulation
-
-    # Run the optimization
-    optimized_result = proj.run_optimization(optimization=optimization_name,parset='default',progset='default',progset_instructions=instructions)
-
+    proj.make_optimization(json=json) # Make optimization
+    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
     return optimized_result
 
 def py_to_js_optim(py_optim, prog_names):
