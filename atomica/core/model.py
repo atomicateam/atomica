@@ -463,8 +463,7 @@ class Population(object):
         self.par_lookup = dict()
         self.link_lookup = dict()  # Map name of Link to a list of Links with that name
 
-        self.gen_cascade(
-            framework=framework)  # Convert compartmental cascade into lists of compartment and link objects.
+        self.gen_cascade(framework=framework)  # Convert compartmental cascade into lists of compartment and link objects.
 
         self.popsize_cache_time = None
         self.popsize_cache_val = None
@@ -599,11 +598,11 @@ class Population(object):
         # Instantiate compartments
         for comp_name in list(comps.index):
             self.comps.append(Compartment(pop=self, name=comp_name))
-            if comps.loc[comp_name,"Is Source"] == 'y':
+            if comps.at[comp_name,"Is Source"] == 'y':
                 self.comps[-1].tag_birth = True
-            if comps.loc[comp_name,"Is Sink"] == 'y':
+            if comps.at[comp_name,"Is Sink"] == 'y':
                 self.comps[-1].tag_dead = True
-            if comps.loc[comp_name,"Is Junction"] == 'y':
+            if comps.at[comp_name,"Is Junction"] == 'y':
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -614,10 +613,10 @@ class Population(object):
 
         # Characteristics second pass, add includes and denominator
         for charac_name,charac in zip(list(framework.characs.index),self.characs):
-            includes = [x.strip() for x in characs.loc[charac_name,'Components'].split(',')]
+            includes = [x.strip() for x in characs.at[charac_name,'Components'].split(',')]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            denominator = characs.loc[charac_name,"Denominator"]
+            denominator = characs.at[charac_name,"Denominator"]
             if denominator is not None:
                 charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
 
@@ -626,7 +625,7 @@ class Population(object):
             par = Parameter(pop=self, name=par_name)
             self.pars.append(par)
             if framework.transitions[par_name]: # If there are any links associated with this parameter
-                par.units = pars.loc[par_name,"Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+                par.units = pars.at[par_name,"Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
                 for pair in framework.transitions[par_name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
@@ -641,8 +640,8 @@ class Population(object):
 
         # Parameters second pass, process f_stacks, deps, and limits
         for par_name,par in zip(list(framework.pars.index),self.pars):
-            min_value = pars.loc[par_name,'Minimum Value']
-            max_value = pars.loc[par_name,'Maximum Value']
+            min_value = pars.at[par_name,'Minimum Value']
+            max_value = pars.at[par_name,'Maximum Value']
 
             if (min_value is not None) and (max_value is not None):
                 par.limits = [-np.inf, np.inf]
@@ -651,7 +650,7 @@ class Population(object):
                 if max_value is not None:
                     par.limits[1] = max_value
 
-            fcn_str = pars.loc[par_name,'Function']
+            fcn_str = pars.at[par_name,'Function']
             if fcn_str is not None:
                 par.set_fcn(framework,fcn_str)
 
