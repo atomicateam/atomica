@@ -462,6 +462,7 @@ class Project(object):
         return sc.loadobj(filepath)
 
     def demo_optimization(self, dorun=False):
+        ''' WARNING, only works for TB '''
         json = sc.odict()
         json['name']              = 'Demo optimization'
         json['parset_name']       = -1
