@@ -643,7 +643,7 @@ class Population(object):
             min_value = pars.at[par_name,'Minimum Value']
             max_value = pars.at[par_name,'Maximum Value']
 
-            if (min_value is not None) and (max_value is not None):
+            if (min_value is not None) or (max_value is not None):
                 par.limits = [-np.inf, np.inf]
                 if min_value is not None:
                     par.limits[0] = min_value
