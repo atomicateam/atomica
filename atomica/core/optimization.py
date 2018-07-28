@@ -351,26 +351,32 @@ class TotalSpendConstraint(Constraint):
 class Optimization(NamedItem):
     """ An object that defines an Optimization to perform """
 
-    def __init__(self,  name='default', adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None, json=None):
+    def __init__(self,  name='default', parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None, json=None):
 
         NamedItem.__init__(self, name)
 
-        assert adjustments is not None
-        assert measurables is not None
-
+        self.parsetname = parsetname
+        self.progsetname = progsetname
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
         self.adjustments = sc.promotetolist(adjustments, keepnone=True)
         self.measurables = sc.promotetolist(measurables, keepnone=True)
         self.constraints = sc.promotetolist(constraints, keepnone=True)
         self.json = json
+        
+        if adjustments is None or measurables is None:
+            if json is not None:
+                self.from_json()
+            else:
+                raise AtomicaException('Must supply either a json or an adjustments+measurables')
+        return
     
     def __repr__(self):
         return sc.desc(self)
     
     def from_json(self, project=None):
         proj = project
-        optimization_name = self.json['optimization_name']
+        name              = self.json['name']
         parset_name       = self.json['parset_name'] # WARNING, shouldn't be unused
         progset_name      = self.json['progset_name']
         start_year        = self.json['start_year']
@@ -398,7 +404,7 @@ class Optimization(NamedItem):
             measurables.append(Measurable(name,t=[start_year,end_year],weight=weight))
     
         # Create the Optimization object
-        proj.make_optimization(name=optimization_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=self.json)
+        proj.make_optimization(name=name, parset_name=parset_name, progset_name=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=self.json)
 
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable

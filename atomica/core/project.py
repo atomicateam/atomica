@@ -31,7 +31,7 @@ from .excel import ExcelSettings as ES
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
-from .programs import ProgramSet
+from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
 from .optimization import Optimization, optimize
 from .structure_settings import FrameworkSettings as FS
@@ -291,41 +291,37 @@ class Project(object):
 #                item.projectref = Link(self)
 #        return None
 #
-#
-#    def pars(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active set of parameters, i.e. self.parsets[-1].pars '''
-#        try:    return self.parsets[key].pars
-#        except: return printv('Warning, parameters dictionary not found!', 1, verbose) # Returns None
-#    
-#    def parset(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active parameters set, i.e. self.parsets[-1] '''
-#        try:    return self.parsets[key]
-#        except: return printv('Warning, parameter set not found!', 1, verbose) # Returns None
-#    
-#    def programs(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active set of programs '''
-#        try:    return self.progsets[key].programs
-#        except: return printv('Warning, programs not found!', 1, verbose) # Returns None
-#
-#    def progset(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active program set, i.e. self.progsets[-1]'''
-#        try:    return self.progsets[key]
-#        except: return printv('Warning, program set not found!', 1, verbose) # Returns None
-#    
-#    def scen(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest scenario, i.e. self.scens[-1]'''
-#        try:    return self.scens[key]
-#        except: return printv('Warning, scenario not found!', 1, verbose) # Returns None
-#
-#    def optim(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest optimization, i.e. self.optims[-1]'''
-#        try:    return self.optims[key]
-#        except: return printv('Warning, optimization not found!', 1, verbose) # Returns None
-#
-#    def result(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active results, i.e. self.results[-1]'''
-#        try:    return self.results[key]
-#        except: return printv('Warning, results set not found!', 1, verbose) # Returns None
+
+    def parset(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest parset '''
+        if key is None: key = -1
+        try:    return self.parsets[key]
+        except: return sc.printv('Warning, parset "%s" not found!' %key, 1, verbose) # Returns None
+
+    def progset(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest progset '''
+        if key is None: key = -1
+        try:    return self.progsets[key]
+        except: return sc.printv('Warning, progset "%s" not found!' %key, 1, verbose) # Returns None
+
+    def scen(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest scenario '''
+        if key is None: key = -1
+        try:    return self.scens[key]
+        except: return sc.printv('Warning, scenario "%s" not found!' %key, 1, verbose) # Returns None
+
+    def optim(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest optim '''
+        if key is None: key = -1
+        try:    return self.optims[key]
+        except: return sc.printv('Warning, optim "%s" not found!' %key, 1, verbose) # Returns None
+
+    def result(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest result '''
+        if key is None: key = -1
+        try:    return self.results[key]
+        except: return sc.printv('Warning, results "%s" not found!' %key, 1, verbose) # Returns None
+
 
 
     #######################################################################################################
@@ -426,10 +422,6 @@ class Project(object):
 
         return new_parset
 
-    #    def outcome(self):
-    #        ''' Function to get the outcome for a particular sim and objective'''
-    #        pass
-
     def run_scenario(self, scenario, parset, progset=None, progset_instructions=None,
                      store_results=True, result_name=None):
         """ Run a scenario. """
@@ -447,13 +439,15 @@ class Project(object):
         scenario.result_uid = result.uid
         return result
 
-    def run_optimization(self,optimization,parset,progset,progset_instructions):
+    def run_optimization(self, optimization=None):
         '''Run an optimization'''
-        parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
-        progset = progset if isinstance(progset,ProgramSet) else self.progsets[progset]
-        optimization = optimization if isinstance(optimization,ProgramSet) else self.optims[optimization]
+        optimization = self.optim(optimization)
+        parset = self.parset(optimization.parset_name)
+        progset = self.progset(optimization.progset_name)
+        progset_instructions = ProgramInstructions(alloc=None, start_year=optimization.start_year)
         optimized_instructions = optimize(self,optimization,parset,progset,progset_instructions)
-        return self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        results = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        return results
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
