@@ -6,7 +6,6 @@ Version: 2018mar26
 import sciris.core as sc
 from .system import AtomicaException, NotAllowedError
 from .utils import NamedItem
-from copy import deepcopy as dcp
 import numpy as np
 from .model import Model, Link
 import pickle
@@ -352,7 +351,7 @@ class TotalSpendConstraint(Constraint):
 class Optimization(NamedItem):
     """ An object that defines an Optimization to perform """
 
-    def __init__(self,  name='default', adjustments=None, measurables = None, constraints = None,  maxtime = 10, maxiters=None):
+    def __init__(self,  name='default', adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None, json=None):
 
         NamedItem.__init__(self, name)
 
@@ -361,12 +360,45 @@ class Optimization(NamedItem):
 
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
-        self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
-        self.measurables = [measurables] if not isinstance(measurables,list) else measurables
-        self.constraints = [constraints] if constraints and not isinstance(constraints,list) else constraints
-
+        self.adjustments = sc.promotetolist(adjustments, keepnone=True)
+        self.measurables = sc.promotetolist(measurables, keepnone=True)
+        self.constraints = sc.promotetolist(constraints, keepnone=True)
+        self.json = json
+    
     def __repr__(self):
         return sc.desc(self)
+    
+    def from_json(self, project=None):
+        proj = project
+        optimization_name = self.json['optimization_name']
+        parset_name       = self.json['parset_name'] # WARNING, shouldn't be unused
+        progset_name      = self.json['progset_name']
+        start_year        = self.json['start_year']
+        end_year          = self.json['end_year']
+        budget_factor     = self.json['budget_factor']
+        objective_weights = self.json['objective_weights']
+        prog_spending     = self.json['prog_spending']
+        maxtime           = self.json['maxtime']
+    
+        progset = proj.progsets[progset_name] # Retrieve the progset
+    
+        # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
+        # passed in as arguments to this function
+        adjustments = []
+        for prog_name in progset.programs:
+            limits = prog_spending[prog_name]
+            adjustments.append(SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
+    
+        # Add a total spending constraint with the given budget scale up
+        constraints = TotalSpendConstraint(budget_factor=budget_factor)
+    
+        # Add all of the terms in the objective
+        measurables = []
+        for name,weight in objective_weights.items():
+            measurables.append(Measurable(name,t=[start_year,end_year],weight=weight))
+    
+        # Create the Optimization object
+        proj.make_optimization(name=optimization_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=self.json)
 
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable
@@ -395,7 +427,7 @@ class Optimization(NamedItem):
 
     def get_hard_constraints(self,x0,instructions):
         # Return hard constraints based on the starting initialization
-        instructions = dcp(instructions)
+        instructions = sc.dcp(instructions)
         self.update_instructions(x0,instructions)
         if not self.constraints:
             return None
@@ -419,6 +451,8 @@ class Optimization(NamedItem):
         return objective
 
 
+class OptimLite(NamedItem):
+    ''' A light-weight version of an optimization '''
 
 def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
     # Compute the objective in ASD

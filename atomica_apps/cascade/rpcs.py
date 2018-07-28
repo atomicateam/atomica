@@ -11,7 +11,7 @@ Last update: 2018jun04 by cliffk
 import os
 from zipfile import ZipFile
 from flask_login import current_user
-from mpld3 import fig_to_dict as make_mpld3_graph_dict
+import mpld3
 import uuid
 import time
 
@@ -930,7 +930,7 @@ def do_get_plots(project_id, year=None, pop=None):
     figs = au.plot_cascade(proj, year=year, pop=pop)
     print('Number of figures: %s' % len(figs))
     for f,fig in enumerate(figs):
-        graph_dict = make_mpld3_graph_dict(fig)
+        graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
         print(graph_dict)
@@ -1040,7 +1040,7 @@ def run_default_scenario(project_id):
     pl.gca().set_facecolor('none')
     
     for f,fig in enumerate(figs):
-        graph_dict = make_mpld3_graph_dict(fig)
+        graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
     
@@ -1065,6 +1065,181 @@ def export_results(project_id, resultset=-1):
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
 
+
+
+
+##################################################################################
+#%% Optimization functions and RPCs
+##################################################################################
+
+def rpc_optimize(proj=None, json=None):
+    # RPC call for TB optimization
+    # INPUTS
+    # - parset_name : A string with the name of the parset to use. This parset should already exist in the project
+    # - progset_name : A string with the name of the progset to use. This progset should already exist in the project
+    # - optimization_name : A string that will name this optimization
+    # - start_year : The year of program onset and when spending will be applied
+    # - end_year : The end year for the simulation. Programs run up to this year, and the objective will be evaluated from start_year to end_year
+    # - budget_factor : This will rescale total spending
+    # - objective_weights : This is a dict/odict mapping {variable_name:weight}. Available variables are determined by the FE
+    # - prog_spending : This is a dict/odict mapping {program_name:(minspend,maxspend)}. It is assumed that the FE will provide absolute values for
+    #                   both quantities for every program (these could default to minspend=0 and maxspend=np.inf but those defaults should be assigned
+    #                   before this function is called
+    # - maxtime : Set ASD's maxtime, this might default to np.inf for the actual FE but useful to make it shorter when testing
+    #
+    # OUTPUTS
+    # - Optimized Result, for addition to the database and project by the FE code
+    #   The optimized program instructions are available in `Result.model.program_instructions`. Note that the Project will also have a new
+    #   Optimization object, so the Project will probably need to be saved after calling this function too
+
+    optimization_name = json['optimization_name']
+    parset_name       = json['parset_name']
+    progset_name      = json['progset_name']
+    start_year        = json['start_year']
+    end_year          = json['end_year']
+    budget_factor     = json['budget_factor']
+    objective_weights = json['objective_weights']
+    prog_spending     = json['prog_spending']
+    maxtime           = json['maxtime']
+    
+    instructions = au.ProgramInstructions(alloc=None,start_year=start_year) # Set up default ProgramInstructions with no alloc because we are using the values from the progbook
+    progset = proj.progsets[progset_name] # Retrieve the progset
+
+    # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
+    # passed in as arguments to this function
+    adjustments = []
+    for prog_name in progset.programs:
+        limits = prog_spending[prog_name]
+        adjustments.append(au.SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
+
+    # Add a total spending constraint with the given budget scale up
+    constraints = au.TotalSpendConstraint(budget_factor=budget_factor)
+
+    # Add all of the terms in the objective
+    measurables = []
+    for name,weight in objective_weights.items():
+        measurables.append(au.Measurable(name,t=[start_year,end_year],weight=weight))
+
+    # Create the Optimization object
+    proj.make_optimization(name=optimization_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=json) # Evaluate from 2020 to end of simulation
+
+    # Run the optimization
+    optimized_result = proj.run_optimization(optimization=optimization_name,parset='default',progset='default',progset_instructions=instructions)
+
+    return optimized_result
+
+def py_to_js_optim(py_optim, prog_names):
+    ''' Convert a Python to JSON representation of an optimization '''
+    attrs = ['name', 'mults', 'add_funds']
+    js_optim = {}
+    for attr in attrs:
+        js_optim[attr] = getattr(py_optim, attr) # Copy the attributes into a dictionary
+    js_optim['obj'] = py_optim.obj[0]
+    js_optim['spec'] = []
+    for prog_name in prog_names:
+        this_spec = {}
+        this_spec['name'] = prog_name
+        this_spec['included'] = True if prog_name in py_optim.prog_set else False
+        this_spec['vals'] = []
+        js_optim['spec'].append(this_spec)
+    return js_optim
+    
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_optim_info(project_id):
+
+    print('Getting optimization info...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    optim_summaries = []
+    for py_optim in proj.optims.values():
+        js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
+        optim_summaries.append(js_optim)
+    
+    print('JavaScript optimization info:')
+    print(optim_summaries)
+
+    return optim_summaries
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_default_optim(project_id):
+
+    print('Getting default optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    py_optim = proj.demo_optims(doadd=False)[0]
+    js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
+    js_optim['objective_options'] = ['thrive', 'child_deaths', 'stunting_prev', 'wasting_prev', 'anaemia_prev'] # WARNING, stick allowable optimization options here
+    
+    print('Created default JavaScript optimization:')
+    print(js_optim)
+    return js_optim
+
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def set_optim_info(project_id, optim_summaries):
+
+    print('Setting optimization info...')
+    proj = load_project(project_id, raise_exception=True)
+    proj.optims.clear()
+    
+    for j,js_optim in enumerate(optim_summaries):
+        print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
+        json = sc.odict()
+        json['name'] = js_optim['name']
+        json['obj'] = js_optim['obj']
+        jsm = js_optim['mults']
+        if isinstance(jsm, list):
+            vals = jsm
+        elif sc.isstring(jsm):
+            try:
+                vals = [float(jsm)]
+            except Exception as E:
+                print('Cannot figure out what to do with multipliers "%s"' % jsm)
+                raise E
+        else:
+            raise Exception('Cannot figure out multipliers type "%s" for "%s"' % (type(jsm), jsm))
+        json['mults'] = vals
+        json['add_funds'] = sc.sanitize(js_optim['add_funds'], forcefloat=True)
+        json['prog_set'] = [] # These require more TLC
+        for js_spec in js_optim['spec']:
+            if js_spec['included']:
+                json['prog_set'].append(js_spec['name'])
+        
+        print('Python optimization info for optimization %s:' % (j+1))
+        print(json)
+        
+        proj.add_optim(json=json)
+    
+    print('Saving project...')
+    save_project(proj)   
+    
+    return None
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def run_optim(project_id, optim_name):
+    
+    print('Running optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    proj.run_optims(keys=[optim_name], parallel=False)
+    figs = proj.plot(toplot=['alloc']) # Only plot allocation
+    graphs = []
+    for f,fig in enumerate(figs.values()):
+        for ax in fig.get_axes():
+            ax.set_facecolor('none')
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+    
+    print('Saving project...')
+    save_project(proj)    
+    return {'graphs':graphs}
+
+
 ##################################################################################
 #%% Miscellaneous RPCs
 ##################################################################################
@@ -1077,3 +1252,4 @@ def simulate_slow_rpc(sleep_secs, succeed=True):
         return 'success'
     else:
         return {'error': 'failure'}
+
