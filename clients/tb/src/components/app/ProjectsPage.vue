@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-25
+Last update: 2018-07-27
 -->
 
 <template>
@@ -422,7 +422,7 @@ export default {
       console.log('uploadProjectFromFile() called')
      
       // Have the server upload the project.
-      rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {})
+      rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
       .then(response => {
         // Bring up a spinner.
         this.$modal.show('popup-spinner')
@@ -771,7 +771,7 @@ export default {
       })     
     },
 
-  // Confirmation alert
+    // Confirmation alert
     deleteModal() {
       // Pull out the names of the projects that are selected.
       let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
@@ -857,7 +857,7 @@ export default {
       let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
         theProj.selected).map(theProj => theProj.project.id)
 
-      console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
+      console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
           
       // Have the server download the selected projects.
 	    if (selectProjectsUIDs.length > 0) {

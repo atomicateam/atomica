@@ -1,7 +1,7 @@
 <!--
 Definition of top navigation bar
 
-Last update: 2018-03-25
+Last update: 2018-07-27
 -->
 
 <template>
@@ -20,13 +20,13 @@ Last update: 2018-03-25
         <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
         <ul class="nav navbar-nav navbar-right">
           <li>
-            <a href="#" class="btn-rotate">
+            <router-link to="/projects">
               <i class="ti-view-grid"></i>
               <p>
                 Project: <span>{{ activeProjectName }}</span>
               </p>
-            </a>
-          </li>
+            </router-link>
+          </li>          
           <drop-down v-bind:title="activeUserName" icon="ti-user">
             <li><a href="#/changeinfo"><i class="ti-pencil"></i>&nbsp;&nbsp;Edit account</a></li>
             <li><a href="#/changepassword"><i class="ti-key"></i>&nbsp;&nbsp;Change password</a></li>
