@@ -37,7 +37,7 @@ Last update: 2018-07-26
       </table>
 
       <div>
-        <button class="btn __blue" @click="addScenModal()">Add scenario</button>
+        <button class="btn __blue" @click="addBudgetScenModal()">Add budget scenario</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
 
@@ -47,7 +47,7 @@ Last update: 2018-07-26
         </div>
       </div>
 
-      <modal name="add-scen"
+      <modal name="add-budget-scen"
              height="auto"
              :scrollable="true"
              :width="900"
@@ -317,7 +317,7 @@ Last update: 2018-07-26
           })
       },
 
-      addScenModal() {
+      addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addScenModal() called');
         rpcservice.rpcCall('get_default_scen', [this.projectID()])
@@ -328,10 +328,10 @@ Last update: 2018-07-26
           });
       },
 
-      addScen() {
-        console.log('addScen() called')
-        this.$modal.hide('add-scen')
-        let newScen = this.dcp(this.defaultScen); // You've got to be kidding me, buster
+      addBudgetScen() {
+        console.log('addBudgetScen() called')
+        this.$modal.hide('add-budget-scen')
+        let newScen = this.dcp(this.defaultBudgetScen); // You've got to be kidding me, buster
         let otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
@@ -426,7 +426,7 @@ Last update: 2018-07-26
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcservice.rpcCall('run_scenario',
+            rpcservice.rpcCall('run_scenarios',
 //            taskservice.getTaskResultPolling('run_scenario', 90, 3, 'run_scenario',
               [this.projectID(), scenSummary.name])
               .then(response => {

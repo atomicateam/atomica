@@ -466,6 +466,16 @@ class Project(object):
         """ Convenience class method for loading a project in the absence of an instance. """
         return sc.loadobj(filepath)
 
+
+    def demo_scenario(self, dorun=False):
+        if dorun:
+            results = self.run_scenarios()
+            return results
+        else:
+            return scen
+    
+    
+    
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''
         json = sc.odict()
@@ -482,5 +492,7 @@ class Project(object):
             json['prog_spending'][prog_name] = (1,None)
         self.make_optimization(json=json)
         if dorun:
-            self.run_optimization(optimization=json['name'])
-        return json
+            results = self.run_optimization(optimization=json['name'])
+            return results
+        else:
+            return json

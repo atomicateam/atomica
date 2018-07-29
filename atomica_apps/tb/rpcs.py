@@ -22,6 +22,9 @@ import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
 
+from matplotlib.pyplot import rc 
+rc('font', size=14)
+
 
 def timeit(method):
     def timed(*args, **kw):

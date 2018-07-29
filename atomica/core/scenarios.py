@@ -7,6 +7,7 @@ import numpy as np
 import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
+from .programs import ProgramInstructions
 
 class Scenario(NamedItem):
     def __init__(self, name):
@@ -122,39 +123,22 @@ class ParameterScenario(Scenario):
             new_parset.name = self.name + '_' + parset.name
             return new_parset
 
-# class BudgetScenario(Scenario):
-#
-#     def __init__(self, name, scenario_values=None, **kwargs):
-#         super(BudgetScenario, self).__init__(name)
-#         self.makeScenarioProgset(budget_allocation=scenario_values)
-#         self.budget_allocation = budget_allocation
-#
-#     def get_progset(self, progset, settings, budget_options):
-#         """
-#         Get the updated program set and budget allocation for this scenario.
-#         This combines the values in the budget allocation with the values for the scenario.
-#
-#         Note that this assumes that all other budget allocations that are NOT
-#         specified in budget_options are left as they are.
-#
-#         Params:
-#             progset            program set object
-#             budget_options     budget_options dictionary
-#         """
-#         new_budget_options = dcp(budget_options)
-#         if self.overwrite:
-#             for prog in self.budget_allocation.keys():
-#                 new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
-#
-#         else:  # we add the amount as additional funding
-#             for prog in self.budget_allocation.keys():
-#
-#                 if new_budget_options['init_alloc'].has_key(prog):
-#                     new_budget_options['init_alloc'][prog] += self.budget_allocation[prog]
-#                 else:
-#                     new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
-#
-#         return progset, new_budget_options
+class BudgetScenario(Scenario):
+
+    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None):
+        self.name = name
+        self.parsetname = parsetname
+        self.progsetname = progsetname
+        self.alloc = alloc
+        self.start_year = start_year
+        return None
+    
+    def run(self, project=None):
+        instructions = ProgramInstructions(alloc=self.alloc, self.start_year=2020) # Instructions for default spending
+        result = project.run_sim(parset=self.parsetname, progset=self.progsetname, progset_instructions=instructions, result_name=self.name)
+        return result
+
+
 #
 #
 # class CoverageScenario(BudgetScenario):
