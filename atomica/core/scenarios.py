@@ -134,7 +134,7 @@ class BudgetScenario(Scenario):
         return None
     
     def run(self, project=None):
-        instructions = ProgramInstructions(alloc=self.alloc, self.start_year=2020) # Instructions for default spending
+        instructions = ProgramInstructions(alloc=self.alloc, start_year=self.start_year) # Instructions for default spending
         result = project.run_sim(parset=self.parsetname, progset=self.progsetname, progset_instructions=instructions, result_name=self.name)
         return result
 
