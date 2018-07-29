@@ -703,7 +703,8 @@ def get_y_factors(project_id, parsetname=-1):
             if proj.framework.get_spec_value(parname, "can_calibrate"):
                 for popname,y_factor in thispar.y_factor.items():
                     parlabel = proj.framework.get_spec_value(parname,'label')
-                    poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
+                    popindex = parset.pop_names.index(popname)
+                    poplabel = parset.pop_labels[popindex]
                     thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)

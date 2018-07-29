@@ -125,7 +125,7 @@ class Project(object):
         output += '   Atomica version: %s\n' % self.version
         output += '      Date created: %s\n' % sc.getdate(self.created)
         output += '     Date modified: %s\n' % sc.getdate(self.modified)
-        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
+#        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
         output += '        Git branch: %s\n' % self.gitinfo['branch']
         output += '          Git hash: %s\n' % self.gitinfo['hash']
         output += '               UID: %s\n' % self.uid
