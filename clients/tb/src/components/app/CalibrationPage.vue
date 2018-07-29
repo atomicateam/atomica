@@ -34,7 +34,7 @@ Last update: 2018-07-25
             </option>
           </select>
           &nbsp;
-          <button class="btn small-button" @click="renameParset()" title="Rename">
+          <button class="btn small-button" @click="renameParsetModal()" title="Rename">
             <i class="ti-pencil"></i>
           </button>
           <button class="btn small-button" @click="copyParset()" title="Copy">
@@ -100,6 +100,42 @@ Last update: 2018-07-25
       </div>
       
     </div>
+
+    <modal name="rename-parset"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Rename parameter set
+        </div>
+        <div class="dialog-c-text">
+          New name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="newParsetName"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="renameParset()" class='btn __green' style="display:inline-block">
+            Rename
+          </button>
+
+          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+
+      <div>
+
+      </div>
+    </modal>
     
     <!-- Popup spinner -->
     <popup-spinner></popup-spinner>
@@ -132,6 +168,7 @@ Last update: 2018-07-25
         areShowingParameters: true,
         activeParset: -1,
         parsetOptions: [],
+        newParsetName: [],
       }
     },
 
@@ -207,6 +244,7 @@ Last update: 2018-07-25
         return id
       },
 
+      // TO_PORT
       updateParset() {
         console.log('updateParset() called')
         // Get the current user's parsets from the server.
@@ -219,6 +257,7 @@ Last update: 2018-07-25
             } else {
               console.log('Parameter set ' + this.activeParset + ' still found')
             }
+            this.newParsetName = this.activeParset // WARNING, KLUDGY
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
           })
@@ -417,6 +456,46 @@ Last update: 2018-07-25
         rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
       },
 
+      // TO_PORT
+      renameParsetModal() {
+        // Open a model dialog for creating a new project
+        console.log('renameParsetModal() called');
+        this.$modal.show('rename-parset');
+      },
+
+      // TO_PORT
+      renameParset() {
+        // Find the project that matches the UID passed in.
+        let uid = this.$store.state.activeProject.project.id
+        console.log('renameParset() called for ' + this.activeParset)
+        this.$modal.hide('rename-parset');
+        this.$modal.show('popup-spinner') // Bring up a spinner.
+        rpcservice.rpcCall('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
+          .then(response => {
+            // Update the project summaries so the copied program shows up on the list.
+            this.updateParset()
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$notifications.notify({ // Success popup.
+              message: 'Parameter set "'+this.activeParset+'" renamed',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
+          .catch(error => {
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$notifications.notify({ // Failure popup.
+              message: 'Could not rename parameter set',
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
+      },
+
+      // TO_PORT
       copyParset() {
         // Find the project that matches the UID passed in.
         let uid = this.$store.state.activeProject.project.id
@@ -439,6 +518,37 @@ Last update: 2018-07-25
             this.$modal.hide('popup-spinner') // Dispel the spinner.
             this.$notifications.notify({ // Failure popup.
               message: 'Could not copy parameter set',
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
+      },
+
+      // TO_PORT
+      deleteParset() {
+        // Find the project that matches the UID passed in.
+        let uid = this.$store.state.activeProject.project.id
+        console.log('deleteParset() called for ' + this.activeParset)
+        this.$modal.show('popup-spinner') // Bring up a spinner.
+        rpcservice.rpcCall('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => {
+            // Update the project summaries so the copied program shows up on the list.
+            this.updateParset()
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$notifications.notify({ // Success popup.
+              message: 'Parameter set "'+this.activeParset+'" deleted',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
+          .catch(error => {
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$notifications.notify({ // Failure popup.
+              message: 'Could not delete parameter set',
               icon: 'ti-face-sad',
               type: 'warning',
               verticalAlign: 'top',

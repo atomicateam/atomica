@@ -830,6 +830,16 @@ def get_parset_info(project_id):
 
 #TO_PORT
 @register_RPC(validation_type='nonanonymous user') 
+def rename_parset(project_id, parsetname=None, new_name=None):
+    print('Renaming parset from %s to %s...' % (parsetname, new_name))
+    proj = load_project(project_id, raise_exception=True)
+    proj.parsets.rename(parsetname, new_name)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
 def copy_parset(project_id, parsetname=None):
     print('Copying parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -842,6 +852,17 @@ def copy_parset(project_id, parsetname=None):
     save_project(proj)
     return None
 
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def delete_parset(project_id, parsetname=None):
+    print('Deleting parset %s...' % parsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of parsets before delete: %s' % len(proj.parsets))
+    proj.parsets.pop(parsetname)
+    print('Number of parsets after delete: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
 
 
 ##################################################################################
