@@ -457,7 +457,7 @@ def add_demo_project(user_id):
     """
     Add a demo Optima TB project
     """
-    # Get a unique name for the project to be added.
+    # Get a unique name for the project to be added
     new_proj_name = get_unique_name('Demo project', other_names=None)
     
     # Create the project, loading in the desired spreadsheets.
@@ -815,6 +815,32 @@ def export_results(project_id, resultset=-1):
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
 
+
+##################################################################################
+#%% Scenario functions and RPCs
+##################################################################################
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def get_parset_info(project_id):
+    print('Returning parset info...')
+    proj = load_project(project_id, raise_exception=True)
+    parset_names = proj.parsets.keys()
+    return parset_names
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def copy_parset(project_id, parsetname=None):
+    print('Copying parset %s...' % parsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of parsets before copy: %s' % len(proj.parsets))
+    new_name = get_unique_name(parsetname, other_names=proj.parsets.keys())
+    print('Old name: %s; new name: %s' % (parsetname, new_name))
+    proj.parsets[new_name] = sc.dcp(proj.parsets[parsetname])
+    print('Number of parsets after copy: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
 
 
 

@@ -202,11 +202,26 @@ Last update: 2018-07-25
         });
       },
 
+      projectID() {
+        var id = this.$store.state.activeProject.project.id // Shorten this
+        return id
+      },
+
       updateParset() {
-        this.parsetOptions = this.$store.state.activeProject.project.parset_names
-        this.activeParset = this.$store.state.activeProject.project.parset_names[0]
-        console.log('Parset options: ' + this.parsetOptions)
-        console.log('Active parset: ' + this.activeParset)
+        console.log('updateParset() called')
+        // Get the current user's parsets from the server.
+        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+          .then(response => {
+            this.parsetOptions = response.data // Set the scenarios to what we received.
+            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+              console.log('Parameter set ' + this.activeParset + ' no longer found')
+              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Parameter set ' + this.activeParset + ' still found')
+            }
+            console.log('Parset options: ' + this.parsetOptions)
+            console.log('Active parset: ' + this.activeParset)
+          })
       },
 
       updateSorting(sortColumn) {
@@ -400,6 +415,36 @@ Last update: 2018-07-25
       exportResults(project_id) {
         console.log('exportResults() called')
         rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
+      },
+
+      copyParset() {
+        // Find the project that matches the UID passed in.
+        let uid = this.$store.state.activeProject.project.id
+        console.log('copyParset() called for ' + this.activeParset)
+        this.$modal.show('popup-spinner') // Bring up a spinner.
+        rpcservice.rpcCall('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => {
+            // Update the project summaries so the copied program shows up on the list.
+            this.updateParset()
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$notifications.notify({ // Success popup.
+              message: 'Parameter set "'+this.activeParset+'" copied',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
+          .catch(error => {
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$notifications.notify({ // Failure popup.
+              message: 'Could not copy parameter set',
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
       },
     }
   }

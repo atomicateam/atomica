@@ -100,8 +100,6 @@ class ProjectSO(sw.ScirisObject):
                 'userId':        self.owner_uid,
                 'creationTime':  self.proj.created,
                 'updatedTime':   self.proj.modified,
-                'parset_names':  self.proj.parsets.keys(),
-                'progset_names': self.proj.progsets.keys()
             }
         }
         return obj_info
