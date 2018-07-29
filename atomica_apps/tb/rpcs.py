@@ -675,8 +675,9 @@ def get_plots(proj, results=None, plot_names=None, pops='all'):
         try:
             plotdata = au.PlotData(results, outputs=supported_plots[plot_name], project=proj, pops=pops)
             figs = au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
-            pl.gca().set_facecolor('none')
             for fig in figs:
+                pl.figure(fig.number)
+                pl.gca().set_facecolor('none')
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -1062,10 +1063,10 @@ def run_optimization(project_id, optim_name):
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name)
-    graphs = get_plots(proj, results) # outputs=['alive','ddis']
+    output = get_plots(proj, results) # outputs=['alive','ddis']
     print('Saving project...')
     save_project(proj)    
-    return {'graphs':graphs}
+    return output
 
 
 ##################################################################################

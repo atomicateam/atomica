@@ -333,7 +333,6 @@ Last update: 2018-07-25
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
           console.log('Rendering ' + n_plots + ' graphs')
-
           for (var index = 0; index <= n_plots; index++) {
             console.log('Rendering plot ' + index)
             var divlabel = 'fig' + index
@@ -361,20 +360,11 @@ Last update: 2018-07-25
           })           
         })
         .catch(error => {
-          // Pull out the error message.
-          this.serverresponse = 'There was an error: ' + error.message
-
-          // Set the server error.
-          this.servererror = error.message
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          this.$modal.hide('popup-spinner') // Dispel the spinner.
+          this.$Progress.fail() // Fail the loading bar.
+          this.$notifications.notify({ // Failure popup.
             message: 'Could not make graphs',
             icon: 'ti-face-sad',
             type: 'warning',
