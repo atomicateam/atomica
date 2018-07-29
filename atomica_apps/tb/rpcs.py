@@ -741,7 +741,7 @@ def automatic_calibration(project_id, year=None, parsetname=-1):
     proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
-    output = do_get_plots(proj.uid, year=year)
+    output = get_plots(proj.uid, year=year)
     return output
 
 
