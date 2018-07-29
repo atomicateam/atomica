@@ -816,6 +816,144 @@ def export_results(project_id, resultset=-1):
 
 
 ##################################################################################
+#%% Scenario functions and RPCs
+##################################################################################
+
+def py_to_js_scen(py_scen, prog_names):
+    ''' Convert a Python to JSON representation of a scenario '''
+    settings = nu.Settings()
+    attrs = ['name', 'active', 'scen_type']
+    js_scen = {}
+    for attr in attrs:
+        js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
+    js_scen['spec'] = []
+    for prog_name in prog_names:
+        this_spec = {}
+        this_spec['name'] = prog_name
+        this_spec['included'] = True if prog_name in py_scen.prog_set else False
+        this_spec['vals'] = []
+        if prog_name in py_scen.covs:
+            this_spec['vals'] = py_scen.covs[prog_name]
+        else:
+            this_spec['vals'] = [None]*settings.n_years # WARNING, kludgy way to extract the number of years
+        js_scen['spec'].append(this_spec)
+        js_scen['t'] = settings.t
+    return js_scen
+    
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_scenario_info(project_id):
+
+    print('Getting scenario info...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    scenario_summaries = []
+    for py_scen in proj.scens.values():
+        js_scen = py_to_js_scen(py_scen, proj.dataset().prog_names())
+        scenario_summaries.append(js_scen)
+    
+    print('JavaScript scenario info:')
+    print(scenario_summaries)
+
+    return scenario_summaries
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_default_scenario(project_id):
+
+    print('Creating default scenario...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    py_scen = proj.demo_scens(doadd=False)[0]
+    js_scen = py_to_js_scen(py_scen, proj.dataset().prog_names())
+    
+    print('Created default JavaScript scenario:')
+    print(js_scen)
+    return js_scen
+
+
+def sanitize(vals, skip=False, forcefloat=False):
+    ''' Make sure values are numeric, and either return nans or skip vals that aren't '''
+    if sc.isiterable(vals):
+        as_array = False if forcefloat else True
+    else:
+        vals = [vals]
+        as_array = False
+    output = []
+    for val in vals:
+        if val=='':
+            sanival = np.nan
+        elif val==None:
+            sanival = np.nan
+        else:
+            try:
+                sanival = float(val)
+            except Exception as E:
+                print('Could not sanitize value "%s": %s; returning nan' % (val, repr(E)))
+                sanival = np.nan
+        if skip and not np.isnan(sanival):
+            output.append(sanival)
+        else:
+            output.append(sanival)
+    if as_array:
+        return output
+    else:
+        return output[0]
+    
+    
+@register_RPC(validation_type='nonanonymous user')    
+def set_scenario_info(project_id, scenario_summaries):
+
+    print('Setting scenario info...')
+    proj = load_project(project_id, raise_exception=True)
+    proj.scens.clear()
+    
+    for j,js_scen in enumerate(scenario_summaries):
+        print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
+        json = sc.odict()
+        for attr in ['name', 'scen_type', 'active']: # Copy these directly
+            json[attr] = js_scen[attr]
+        json['prog_set'] = [] # These require more TLC
+        json['covs'] = sc.odict()
+        for js_spec in js_scen['spec']:
+            if js_spec['included']:
+                json['prog_set'].append(js_spec['name'])
+                json['covs'][js_spec['name']] = sanitize(js_spec['vals'])
+        
+        print('Python scenario info for scenario %s:' % (j+1))
+        print(json)
+        
+        proj.add_scen(json=json)
+    
+    print('Saving project...')
+    save_project(proj)
+    
+    return None
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def run_scenarios(project_id):
+    
+    print('Running scenarios...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    proj.run_scens()
+    figs = proj.plot(toplot=['prevs', 'outputs']) # Do not plot allocation
+    graphs = []
+    for f,fig in enumerate(figs.values()):
+        for ax in fig.get_axes():
+            ax.set_facecolor('none')
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+    
+    print('Saving project...')
+    save_project(proj)    
+    return {'graphs':graphs}
+    
+
+
+##################################################################################
 #%% Optimization functions and RPCs
 ##################################################################################
 
