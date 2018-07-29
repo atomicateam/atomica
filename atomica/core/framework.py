@@ -166,6 +166,7 @@ class ProjectFramework(object):
             'Is Junction':'n',
             'Can Calibrate':'n',
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
+            'Export': 'n',
         }
         valid_content = {
             'Display Name':None,
@@ -212,6 +213,7 @@ class ProjectFramework(object):
             'Databook Order':None,
             'Is Impact':'n',
             'Can Calibrate':'n',
+            'Export':'n',
         }
         valid_content = {
             'Display Name': None,
@@ -271,6 +273,7 @@ class ProjectFramework(object):
             'Function':None,
             'Databook Order':None,
             'Can Calibrate':'n',
+            'Export': 'n',
         }
         valid_content = {
             'Display Name': None,
