@@ -612,7 +612,7 @@ class Population(object):
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
-        for charac_name,charac in zip(list(framework.characs.index),self.characs):
+        for charac_name,charac in zip(list(characs.index),self.characs):
             includes = [x.strip() for x in characs.at[charac_name,'Components'].split(',')]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
@@ -639,7 +639,7 @@ class Population(object):
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Parameters second pass, process f_stacks, deps, and limits
-        for par_name,par in zip(list(framework.pars.index),self.pars):
+        for par_name,par in zip(list(pars.index),self.pars):
             min_value = pars.at[par_name,'Minimum Value']
             max_value = pars.at[par_name,'Maximum Value']
 

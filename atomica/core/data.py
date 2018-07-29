@@ -125,43 +125,39 @@ class ProjectData(object):
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
         data.tvec = tvec
+        pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
 
-        raise('Working on this next')
-        pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)}
-        item_types = [FS.KEY_PARAMETER,FS.KEY_CHARACTERISTIC,FS.KEY_COMPARTMENT]
-        for item_type in item_types:
-            for code_name,spec in framework.specs[item_type].items():
-                if 'datapage' in spec and 'datapage_order' in spec and spec['datapage_order'] != -1:
-                    if spec['datapage_order'] is None:
+        for df in [framework.comps, framework.characs, framework.pars]:
+            for _,spec in df.iterrows():
+                databook_page = spec['Databook Page']
+                databook_order = spec['Databook Order']
+                full_name = spec['Display Name']
+                if databook_page is not None:
+                    if databook_order is None:
                         order = np.inf
                     else:
-                        order = spec['datapage_order']
-                    pages[spec['datapage']].append((code_name,order))
-                    data.tdve[code_name] = TimeDependentValuesEntry(name=spec['label'],tvec=tvec,allowed_units=framework.get_allowed_units(code_name))
+                        order = databook_order
+                    pages[databook_page].append((full_name,order))
+                    data.tdve[full_name] = TimeDependentValuesEntry(name=full_name,tvec=tvec,allowed_units=framework.get_allowed_units(full_name))
 
         # Now convert pages to full names and sort them into the correct order
-        for page_name,spec in framework.specs['datapage'].items():
+        for _,spec in framework.sheets['Databook Pages'].iterrows():
 
-            # TODO: Work out how to get rid of these pages properly
-            # Also, work out how the 'Parameters' and 'State Variables' tabs work
-            if page_name in ['pop','transfer','transferdata','interpop']:
-                continue
-
-            if page_name in pages:
-                pages[page_name].sort(key=lambda x: x[1])
-                data.tdve_pages[spec['label']] = [x[0] for x in pages[page_name]]
+            if spec['Datasheet Code Name'] in pages:
+                pages[spec['Datasheet Code Name']].sort(key=lambda x: x[1])
+                data.tdve_pages[spec['Datasheet Title']] = [x[0] for x in pages[spec['Datasheet Code Name']]]
             else:
-                data.tdve_pages[spec['label']] = list()
+                data.tdve_pages[spec['Datasheet Title']] = list()
 
-        # Now, proceed to add the pops, transfers, and interactions
+        # Now, proceed to add pops, transfers, and interactions
         for code_name,full_name in new_pops.items():
             data.add_pop(code_name,full_name)
 
         for code_name,full_name in new_transfers.items():
             data.add_transfer(code_name,full_name)
 
-        for name,spec in framework.specs['interpop'].items():
-            interpop = data.add_interaction(name, spec['label'])
+        for _,spec in framework.interactions.iterrows():
+            interpop = data.add_interaction(spec.name, spec['Display Name'])
             if 'default_value' in spec and spec['default_value']:
                 for from_pop in interpop.pops:
                     for to_pop in interpop.pops:

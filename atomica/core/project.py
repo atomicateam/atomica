@@ -36,7 +36,7 @@ from .scenarios import Scenario, ParameterScenario
 
 from .optimization import Optimization, optimize
 from .structure import FrameworkSettings as FS
-from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
+from .system import SystemSettings as SS, AtomicaException, logger
 from .workbook_export import make_progbook
 from .workbook_import import load_progbook
 from .utils import NDict
@@ -77,8 +77,6 @@ class ProjectSettings(object):
             self.sim_dt = dt
 
 
-
-@apply_to_all_methods(log_usage)
 class Project(object):
     def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
         """ Initialize the project. """

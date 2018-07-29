@@ -38,6 +38,7 @@ class SystemSettings(object):
     QUANTITY_TYPE_ABSOLUTE = "absolute"
     QUANTITY_TYPE_RELATIVE = "relative"
 
+
     # DEFAULT_SPACE_LABEL = " "
     # DEFAULT_SPACE_NAME = "_"
     # DEFAULT_SEPARATOR_LABEL = " - "
@@ -240,11 +241,4 @@ def apply_to_all_methods(func):
     return class_decorator
 
 
-# String utility functions.
 
-def display_name(name, as_title=False):
-    """ Minor function to convert name into text display format. """
-    text = name
-    if as_title:
-        text = text.title()
-    return text.replace(SystemSettings.DEFAULT_SPACE_NAME, SystemSettings.DEFAULT_SPACE_LABEL)

@@ -21,6 +21,8 @@ class FrameworkSettings(object):
     QUANTITY_TYPE_PROPORTION = "proportion"
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
 
+    RESERVED_KEYWORDS = ['flow','all'] # A code_name in the framework cannot be equal to one of these values
+
 # def convert_quantity(value, initial_type, final_type, set_size=None, dt=1.0):
 #     """
 #     Converts a quantity from one type to another and applies a time conversion if requested.
