@@ -139,7 +139,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     for output_tuple in output_quantities:
         if output_tuple[1] is None:  # If the pop name is None
             try:
-                pops = project.data.get_spec(output_tuple[0])['data'].keys()
+                pops = project.data.pops.keys()
             except SemanticUnknownException:
                 continue
             for pop_name in pops:
