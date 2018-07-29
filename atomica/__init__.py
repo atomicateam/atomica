@@ -62,3 +62,7 @@ except Exception as E:
 
 # Finally, set default output level to INFO
 logger.setLevel('INFO')
+
+# Increase Framework performance by not calling garbage collection all the time
+import pandas as pd
+pd.set_option('mode.chained_assignment', None)
