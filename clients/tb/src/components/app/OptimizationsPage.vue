@@ -89,7 +89,8 @@ Last update: 2018-07-26
             <input type="text"
                    class="txbox"
                    v-model="defaultOptim.budget_factor"/><br>
-            <b>Objective weights</b><br>
+            <br>
+            <b>Relative objective weights</b><br>
             People alive:
             <input type="text"
                    class="txbox"
@@ -123,7 +124,6 @@ Last update: 2018-07-26
                          v-model="defaultOptim.prog_spending[key][0]"/>
                 </td>
                 <td>
-                  <!--{{ val[1] }}-->
                   <input type="text"
                          class="txbox"
                          v-model="defaultOptim.prog_spending[key][1]"/>
