@@ -439,11 +439,11 @@ class Project(object):
         scenario.result_uid = result.uid
         return result
 
-    def run_optimization(self, optimization=None):
+    def run_optimization(self, optimname=None):
         '''Run an optimization'''
-        optimization = self.optim(optimization)
-        parset = self.parset(optimization.parset_name)
-        progset = self.progset(optimization.progset_name)
+        optimization = self.optim(optimname)
+        parset = self.parset(optimization.parsetname)
+        progset = self.progset(optimization.progsetname)
         progset_instructions = ProgramInstructions(alloc=None, start_year=optimization.start_year)
         optimized_instructions = optimize(self,optimization,parset,progset,progset_instructions)
         results = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)

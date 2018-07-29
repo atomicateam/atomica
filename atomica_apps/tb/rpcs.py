@@ -664,20 +664,16 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, result, plot_names=None, pops='all'):
-    
+def get_plots(proj, results=None, plot_names=None, pops='all'):
     import pylab as pl
-    
+    results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
-    
     if plot_names is None: plot_names = supported_plots.keys()
-
     plot_names = sc.promotetolist(plot_names)
-
     graphs = []
     for plot_name in plot_names:
         try:
-            plotdata = au.PlotData([result], outputs=supported_plots[plot_name], project=proj, pops=pops)
+            plotdata = au.PlotData(results, outputs=supported_plots[plot_name], project=proj, pops=pops)
             figs = au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
             pl.gca().set_facecolor('none')
             for fig in figs:
@@ -1047,39 +1043,14 @@ def get_default_optim(project_id):
 
 @register_RPC(validation_type='nonanonymous user')    
 def set_optim_info(project_id, optim_summaries):
-
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-#    proj.optims.clear()
-    
     for j,js_optim in enumerate(optim_summaries):
         print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
-        json = sc.odict()
-        json['name'] = js_optim['name']
-        json['obj'] = js_optim['obj']
-        jsm = js_optim['mults']
-        if isinstance(jsm, list):
-            vals = jsm
-        elif sc.isstring(jsm):
-            try:
-                vals = [float(jsm)]
-            except Exception as E:
-                print('Cannot figure out what to do with multipliers "%s"' % jsm)
-                raise E
-        else:
-            raise Exception('Cannot figure out multipliers type "%s" for "%s"' % (type(jsm), jsm))
-        json['mults'] = vals
-        json['add_funds'] = sc.sanitize(js_optim['add_funds'], forcefloat=True)
-        json['prog_set'] = [] # These require more TLC
-        for js_spec in js_optim['spec']:
-            if js_spec['included']:
-                json['prog_set'].append(js_spec['name'])
-        
+        json = js_optim
         print('Python optimization info for optimization %s:' % (j+1))
         print(json)
-        
-        proj.add_optim(json=json)
-    
+        proj.make_optimization(json=json)
     print('Saving project...')
     save_project(proj)   
     
@@ -1087,21 +1058,14 @@ def set_optim_info(project_id, optim_summaries):
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_optim(project_id, optim_name):
-    
+def run_optimization(project_id, optim_name):
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
-    
-    proj.run_optims(keys=[optim_name], parallel=False)
-    figs = proj.plot(toplot=['alloc']) # Only plot allocation
-    graphs = []
-    for f,fig in enumerate(figs.values()):
-        for ax in fig.get_axes():
-            ax.set_facecolor('none')
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-    
+    json = proj.optim(optim_name).json
+    optimized_result = proj.run_optimization(optim_name)
+    unoptimized_result = proj.run_sim(parset=json['parset_name'], progset=json['parset_name'], progset_instructions=au.ProgramInstructions(start_year=json['start_year']), result_name="Baseline")
+    results = [unoptimized_result, optimized_result]
+    graphs = get_plots(proj, results) # outputs=['alive','ddis']
     print('Saving project...')
     save_project(proj)    
     return {'graphs':graphs}
