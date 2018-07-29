@@ -1,7 +1,6 @@
 <!--Based on MoonLoader.vue -->
 
 <template>
-
   <modal name="popup-spinner"
          height="85px"
          width="80px"
@@ -9,15 +8,16 @@
     <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
       <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
         <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
-        </div><div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
-      </div></div>
+        </div>
+        <div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
+        </div>
+      </div>
     </div>
   </modal>
 </template>
 
 <script>
   export default {
-
     name: 'PopupSpinner',
 
     props: {
@@ -42,7 +42,8 @@
         default: '100%'
       }
     },
-    data () {
+    
+    data() {
       return {
         spinnerStyle: {
           height: this.size,
@@ -51,10 +52,12 @@
         }
       }
     },
+    
     computed: {
       moonSize() {
         return parseFloat(this.size)/7
       },
+      
       spinnerMoonStyle () {
         return {
           height: this.moonSize  + 'px',
@@ -62,12 +65,14 @@
           borderRadius: this.radius
         }
       },
+      
       animationStyle2 () {
         return {
           top: parseFloat(this.size)/2 - this.moonSize/2 + 'px',
           backgroundColor: this.color
         }
       },
+      
       animationStyle3 () {
         return {
           border: this.moonSize + 'px solid ' + this.color
