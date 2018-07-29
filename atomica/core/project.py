@@ -21,7 +21,7 @@ Methods for structure lists:
     3. copy -- copy a structure in the odict
     4. rename -- rename a structure in the odict
 
-Version: 2018jun04
+Version: 2018jul29
 """
 
 from .version import version
@@ -33,7 +33,7 @@ from .model import run_model
 from .parameters import ParameterSet
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
-from .optimization import Optimization, optimize
+from .optimization import OptimInstructions, optimize
 from .structure_settings import FrameworkSettings as FS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
 from .workbook_export import make_progbook # write_workbook, make_instructions, 
@@ -274,10 +274,10 @@ class Project(object):
         self.scens.append(scenario)
         return scenario
 
-    def make_optimization(self, **kwargs):
-        optimization = Optimization(project=self, **kwargs)
-        self.optims[optimization.name] = optimization
-        return optimization
+    def make_optimization(self, json=None):
+        optim_ins = OptimInstructions(json=json)
+        self.optims[optim_ins.json['name']] = optim_ins
+        return optim_ins
 
 
 #    #######################################################################################################
@@ -441,15 +441,14 @@ class Project(object):
 
     def run_optimization(self, optimname=None):
         '''Run an optimization'''
-        optim = self.optim(optimname)
-        optim.from_json(project=self) # LOL
-        json = optim.json
-        parset = self.parset(json['parset_name'])
-        progset = self.progset(json['progset_name'])
-        progset_instructions = ProgramInstructions(alloc=None, start_year=json['start_year'])
+        optim_ins = self.optim(optimname)
+        optim = optim_ins.make(project=self)
+        parset = self.parset(optim.parsetname)
+        progset = self.progset(optim.progsetname)
+        progset_instructions = ProgramInstructions(alloc=None, start_year=optim_ins.json['start_year'])
         optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
         optimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
-        unoptimized_result = self.run_sim(parset=json['parset_name'], progset=json['parset_name'], progset_instructions=ProgramInstructions(start_year=json['start_year']), result_name="Baseline")
+        unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline")
         results = [unoptimized_result, optimized_result]
         return results
 

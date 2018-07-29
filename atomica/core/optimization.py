@@ -347,40 +347,14 @@ class TotalSpendConstraint(Constraint):
                 instructions.alloc[name].insert(t,val)
 
         return penalty
+    
 
-class Optimization(NamedItem):
-    """ An object that defines an Optimization to perform """
-
-    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None, json=None, project=None, made_from_json=False):
-
-        # Get the name
-        if name is None:
-            if json is not None:
-                name = json['name']
-            else:
-                name = 'default'
-        NamedItem.__init__(self, name)
-
-        self.parsetname = parsetname
-        self.progsetname = progsetname
-        self.maxiters = maxiters # Not snake_case to match ASD
-        self.maxtime = maxtime # Not snake_case to match ASD
-        self.adjustments = sc.promotetolist(adjustments, keepnone=True)
-        self.measurables = sc.promotetolist(measurables, keepnone=True)
-        self.constraints = sc.promotetolist(constraints, keepnone=True)
+class OptimInstructions(NamedItem):
+    def __init__(self, json=None):
+        self.name = json['name']
         self.json = json
-        
-        if adjustments is None or measurables is None:
-            if json is not None and not made_from_json:
-                self.from_json(project=project)
-            else:
-                raise AtomicaException('Must supply either a json or an adjustments+measurables')
-        return
     
-    def __repr__(self):
-        return sc.desc(self)
-    
-    def from_json(self, project=None):
+    def make(self, project=None):
         proj = project
         name              = self.json['name']
         parset_name       = self.json['parset_name'] # WARNING, shouldn't be unused
@@ -402,7 +376,7 @@ class Optimization(NamedItem):
             adjustments.append(SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
     
         # Add a total spending constraint with the given budget scale up
-        constraints = TotalSpendConstraint(budget_factor=budget_factor)
+        constraints = [TotalSpendConstraint(budget_factor=budget_factor)]
     
         # Add all of the terms in the objective
         measurables = []
@@ -410,8 +384,38 @@ class Optimization(NamedItem):
             measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
     
         # Create the Optimization object
-        proj.make_optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=self.json, made_from_json=True)
+        optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
+        
+        return optim
+    
+    
 
+class Optimization(NamedItem):
+    """ An object that defines an Optimization to perform """
+
+    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None):
+
+        # Get the name
+        if name is None:
+            name = 'default'
+        NamedItem.__init__(self, name)
+
+        self.parsetname = parsetname
+        self.progsetname = progsetname
+        self.maxiters = maxiters # Not snake_case to match ASD
+        self.maxtime = maxtime # Not snake_case to match ASD
+        self.adjustments = adjustments
+        self.measurables = measurables
+        self.constraints = constraints
+        
+        if adjustments is None or measurables is None:
+            raise AtomicaException('Must supply either a json or an adjustments+measurables')
+        return
+    
+    
+    def __repr__(self):
+        return sc.desc(self)
+    
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable
         x0 = []
