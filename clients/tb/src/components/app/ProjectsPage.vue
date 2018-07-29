@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-27
+Last update: 2018-07-29
 -->
 
 <template>
@@ -9,11 +9,11 @@ Last update: 2018-07-27
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn" @click="addDemoProject">Add demo project</button>
+        <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
         &nbsp; &nbsp;
-        <button class="btn" @click="createNewProjectModal">Create blank project</button>
+        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
-        <button class="btn" @click="uploadProjectFromFile">Upload project from file</button>
+        <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
         &nbsp; &nbsp;
       </div>
     </div>
@@ -46,7 +46,7 @@ Last update: 2018-07-27
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Select</th>
+            <th>Project actions</th>
             <th @click="updateSorting('creationTime')" class="sortable">
               Created on
               <span v-show="sortColumn == 'creationTime' && !sortReverse">
@@ -71,7 +71,9 @@ Last update: 2018-07-27
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Actions</th>
+            <th>Populations</th>
+            <th>Databook</th>
+            <th>Program book</th>
           </tr>
         </thead>
         <tbody>
@@ -91,16 +93,37 @@ Last update: 2018-07-27
 			      </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
+              <button class="btn" @click="copyProject(projectSummary.project.id)" title="Copy">
+                <i class="ti-files"></i>
+              </button>
+              <button class="btn" @click="renameProject(projectSummary)" title="Rename">
+                <i class="ti-pencil"></i>
+              </button>
+              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
-<!--            <td>{{ projectSummary.country }}</td> -->
             <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
+            <td>
+              {{ projectSummary.project.n_pops }}
+            </td>
+            <td>
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
+                <i class="ti-upload"></i>
+              </button>
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
+            </td>
             <td style="white-space: nowrap">
-              <button class="btn" @click="copyProject(projectSummary.project.id)">Copy</button>
-              <button class="btn" @click="renameProject(projectSummary)">Rename</button>
-              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)">Download</button>
-              <button class="btn" @click="uploadDatabook(projectSummary.project.id)">Upload databook</button>
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
+                <i class="ti-upload"></i>
+              </button>
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" title="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
           </tr>
         </tbody>
@@ -146,7 +169,7 @@ Last update: 2018-07-27
         </div>
         <div style="text-align:justify">
           <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create project and download data entry spreadsheet
+            Create
           </button>
 
           <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
@@ -162,15 +185,8 @@ Last update: 2018-07-27
     </modal>
     
     <!-- Popup spinner -->
-    <modal name="popup-spinner" 
-           height="80px" 
-           width="85px" 
-           style="opacity: 0.6">
-      <clip-loader color="#0000ff" 
-                   size="50px" 
-                   style="padding: 15px">
-      </clip-loader>
-    </modal>
+    <popup-spinner></popup-spinner>
+
     
   </div>
 
@@ -181,13 +197,13 @@ import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
 import router from '@/router'
-import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
-
+import PopupSpinner from './Spinner.vue'
+  
 export default {
   name: 'ProjectsPage',
   
   components: {
-    ClipLoader
+    PopupSpinner
   },
     
   data() {
@@ -282,9 +298,9 @@ export default {
           if (theProj.project.creationTime >= lastCreationTime) {
             lastCreationTime = theProj.project.creationTime
             lastCreatedID = theProj.project.id
-          }           
-        })
-
+          } 
+        }) 
+          
         // If we have a project on the list...
         if (this.projectSummaries.length > 0) {
           // If no ID is passed in, set the active project to the last-created 
@@ -297,7 +313,7 @@ export default {
           else {
             this.openProject(setActiveID)
           }
-        }        
+        }
       })
       .catch(error => {
         // Failure popup.
@@ -319,7 +335,7 @@ export default {
         
       // Start the loading bar.
       this.$Progress.start()
-
+      
       // Have the server create a new project.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
       .then(response => {
@@ -334,7 +350,7 @@ export default {
 
         // Success popup.
         this.$notifications.notify({
-          message: 'Demo project added',
+          message: 'Demo project loaded',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
@@ -383,7 +399,7 @@ export default {
         // Note: There's no easy way to get the new project UID to tell the 
         // project update to choose the new project because the RPC cannot pass 
         // it back.
-        this.updateProjectSummaries(null) 
+        this.updateProjectSummaries(null)
         
         // Dispel the spinner.
         this.$modal.hide('popup-spinner')
@@ -415,7 +431,7 @@ export default {
           verticalAlign: 'top',
           horizontalAlign: 'center',
         })      
-      })      
+      })  
     },
 
     uploadProjectFromFile() {
@@ -458,13 +474,22 @@ export default {
         
         // Failure popup.
         this.$notifications.notify({
-          message: 'Could not upload file',
+          message: 'Could not upload project',
           icon: 'ti-face-sad',
           type: 'warning',
           verticalAlign: 'top',
           horizontalAlign: 'center',
         })      
       })
+      .catch(error => {
+        this.$notifications.notify({
+          message: 'Could not upload file',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center'
+        })        
+      })      
     },
 
     projectIsActive(uid) {
@@ -522,7 +547,7 @@ export default {
         {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
-            return (proj1.project.name > proj2.project.name ? sortDir: -sortDir)
+            return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
           }
 /*          else if (this.sortColumn === 'country') {
             return proj1.country > proj2.country ? sortDir: -sortDir
@@ -549,7 +574,28 @@ export default {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
 
       console.log('openProject() called for ' + matchProject.project.name)
+          
 
+// Code for testing loading bar.  
+/*      this.$Progress.start()      // with this (default) setting, the bar takes about 7 sec. to fully progress        
+//      this.$Progress.start(9700)  // with this setting, about 75% of the bar is progressed in 5 min.
+      this.$Progress.setTransition(
+        {
+          speed: '0.2s',
+          opacity: '0.6s',
+          termination: 1000  // milliseconds that bar stays around after finish or fail
+        })
+        
+//      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
+      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
+      .then(response => { 
+        this.$Progress.finish()         
+      })
+      .catch(error => {
+        this.$Progress.fail()
+      }) */
+      
+      
       // Set the active project to the matched project.
       this.$store.commit('newActiveProject', matchProject)
       
@@ -636,7 +682,7 @@ export default {
         
         // Start the loading bar.
         this.$Progress.start()
-
+        
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
         rpcservice.rpcCall('update_project_from_summary', [newProjectSummary])
@@ -716,7 +762,74 @@ export default {
           verticalAlign: 'top',
           horizontalAlign: 'center',
         })      
-      })       
+      })
+    },
+
+    downloadDatabook(uid) {
+      // Find the project that matches the UID passed in.
+//      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+//
+//      console.log('downloadDatabook() called for ' + matchProject.project.name)
+//
+//      // Make the server call to download the project to a .prj file.
+//      rpcservice.rpcDownloadCall('download_databook', [uid])
+        this.$notifications.notify({
+          message: 'This is not yet implemented, please check back soon.',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        });
+
+      },
+
+    downloadProgbook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('downloadProgbook() called for ' + matchProject.project.name)
+      
+      // Bring up a spinner.
+      this.$modal.show('popup-spinner')
+        
+      // Start the loading bar.
+      this.$Progress.start()
+      
+      // Make the server call to download the project to a .prj file.
+      rpcservice.rpcDownloadCall('download_progbook', [uid])
+      .then(response => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
+        // Finish the loading bar.
+        this.$Progress.finish()          
+      })
+      .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not download progbook',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })      
+    },
+
+    downloadDefaults(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('downloadDefaults() called for ' + matchProject.project.name)
+
+      // Make the server call to download the project to a .prj file.
+      rpcservice.rpcDownloadCall('download_defaults', [uid])
     },
 
     uploadDatabook(uid) {
@@ -762,16 +875,68 @@ export default {
         
         // Failure popup.
         this.$notifications.notify({
-          message: 'Could not upload data',
+          message: 'Could not upload databook',
           icon: 'ti-face-sad',
           type: 'warning',
           verticalAlign: 'top',
           horizontalAlign: 'center',
         })      
-      })     
+      })
     },
 
-    // Confirmation alert
+    uploadProgbook(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+
+      console.log('uploadProgbook() called for ' + matchProject.project.name)
+
+      // Have the server copy the project, giving it a new name.
+      rpcservice.rpcUploadCall('upload_progbook', [uid], {})
+      .then(response => {
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
+        // Start the loading bar.  (This is here because we don't want the 
+        // progress bar running when the user is picking a file to upload.)        
+        this.$Progress.start()
+          
+        // Update the project summaries so the copied program shows up on the list.
+        this.updateProjectSummaries(uid)
+        
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
+        // Finish the loading bar.
+        this.$Progress.finish() 
+          
+        // Success popup.        
+        this.$notifications.notify({
+          message: 'Programs uploaded to project "'+matchProject.project.name+'"',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })        
+      })
+      .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
+        // Fail the loading bar.
+        this.$Progress.fail()
+        
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not upload progbook',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })
+    },
+
+  // Confirmation alert
     deleteModal() {
       // Pull out the names of the projects that are selected.
       let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
@@ -797,7 +962,7 @@ export default {
         theProj.selected).map(theProj => theProj.project.id)
 
       console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
-      
+
       // Have the server delete the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
         // Bring up a spinner.
@@ -825,7 +990,7 @@ export default {
           
           // Update the project summaries so the deletions show up on the list. 
           // Make sure it tries to set the project that was active (if any).
-          this.updateProjectSummaries(activeProjectId) 
+          this.updateProjectSummaries(activeProjectId)
           
           // Dispel the spinner.
           this.$modal.hide('popup-spinner')
@@ -848,7 +1013,7 @@ export default {
             verticalAlign: 'top',
             horizontalAlign: 'center',
           })      
-        })            
+        }) 
 	    }
     },
 
@@ -865,7 +1030,7 @@ export default {
         this.$modal.show('popup-spinner')
         
         // Start the loading bar.
-        this.$Progress.start()        
+        this.$Progress.start() 
         
         rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectProjectsUIDs])
         .then(response => {
