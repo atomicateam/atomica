@@ -7,12 +7,7 @@ import sciris.core as sc
 F = ProjectFramework("./frameworks/framework_tb.xlsx")
 F.get_allowed_units('alive')
 
-ProjectFramework.new(num_comps=5, num_characs=5, num_pars=5, num_datapages=5, num_interpops=5)
 
-
-
-
-#
 # # Copy a databook by loading and saving it
 data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
 data.save('./temp/d_blug.xlsx')
