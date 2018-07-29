@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-25
+Last update: 2018-07-29
 -->
 
 <template>
@@ -148,6 +148,7 @@ Last update: 2018-07-25
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
+  import progressIndicator from '@/services/progress-indicator-service'
   import router from '@/router'
   import Vue from 'vue'
   import PopupSpinner from './Spinner.vue'

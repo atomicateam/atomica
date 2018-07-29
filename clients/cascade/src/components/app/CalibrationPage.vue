@@ -1,7 +1,7 @@
 <!--
-Define health packages
+Calibrations Page
 
-Last update: 2018-07-25
+Last update: 2018-07-29
 -->
 
 <template>
@@ -88,15 +88,7 @@ Last update: 2018-07-25
     </div>
     
     <!-- Popup spinner -->
-    <modal name="popup-spinner" 
-           height="80px" 
-           width="85px" 
-           style="opacity: 0.6">
-      <clip-loader color="#0000ff" 
-                   size="50px" 
-                   style="padding: 15px">
-      </clip-loader>
-    </modal>
+    <popup-spinner></popup-spinner>
     
   </div>
 </template>
@@ -106,15 +98,16 @@ Last update: 2018-07-25
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
+  import progressIndicator from '@/services/progress-indicator-service'
   import router from '@/router'
   import Vue from 'vue'
-  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'CalibrationPage',
     
     components: {
-      ClipLoader
+      PopupSpinner
     },
     
     data() {

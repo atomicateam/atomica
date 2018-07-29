@@ -186,7 +186,6 @@ Last update: 2018-07-29
     
     <!-- Popup spinner -->
     <popup-spinner></popup-spinner>
-
     
   </div>
 
@@ -196,6 +195,7 @@ Last update: 2018-07-29
 import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
+import progressIndicator from '@/services/progress-indicator-service'
 import router from '@/router'
 import PopupSpinner from './Spinner.vue'
   
@@ -317,24 +317,15 @@ export default {
       })
       .catch(error => {
         // Failure popup.
-        this.$notifications.notify({
-          message: 'Could not load projects',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        })      
+        progressIndicator.failurePopup(this, 'Could not load projects')    
       })     
     },
 
     addDemoProject() {
       console.log('addDemoProject() called')
       
-      // Bring up a spinner.
-      this.$modal.show('popup-spinner')
-        
-      // Start the loading bar.
-      this.$Progress.start()
+      // Start indicating progress.
+      progressIndicator.start(this)
       
       // Have the server create a new project.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
@@ -342,36 +333,12 @@ export default {
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
-        // Dispel the spinner.
-        this.$modal.hide('popup-spinner')
-          
-        // Finish the loading bar.
-        this.$Progress.finish()
-
-        // Success popup.
-        this.$notifications.notify({
-          message: 'Demo project loaded',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        })
+        // Indicate success.
+        progressIndicator.succeed(this, 'Demo project added')
       })
       .catch(error => {
-        // Dispel the spinner.
-        this.$modal.hide('popup-spinner')
-          
-        // Fail the loading bar.
-        this.$Progress.fail()
-        
-        // Failure popup.
-        this.$notifications.notify({
-          message: 'Could not add project',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        })      
+        // Indicate failure.
+        progressIndicator.fail(this, 'Could not add project') 
       })
     },
 
@@ -386,11 +353,8 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       
-      // Bring up a spinner.
-      this.$modal.show('popup-spinner')
-        
-      // Start the loading bar.
-      this.$Progress.start()
+      // Start indicating progress.
+      progressIndicator.start(this)
       
       // Have the server create a new project.
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
@@ -401,36 +365,12 @@ export default {
         // it back.
         this.updateProjectSummaries(null)
         
-        // Dispel the spinner.
-        this.$modal.hide('popup-spinner')
-          
-        // Finish the loading bar.
-        this.$Progress.finish()
-        
-        // Success popup.
-        this.$notifications.notify({
-          message: 'New project "'+this.proj_name+'" created',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        })
+        // Indicate success.
+        progressIndicator.succeed(this, 'New project "' + this.proj_name + '" created')
       })
       .catch(error => {
-        // Dispel the spinner.
-        this.$modal.hide('popup-spinner')
-          
-        // Fail the loading bar.
-        this.$Progress.fail()
-        
-        // Failure popup.
-        this.$notifications.notify({
-          message: 'Could not add new project',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        })      
+        // Indicate failure.
+        progressIndicator.fail(this, 'Could not add new project')   
       })  
     },
 

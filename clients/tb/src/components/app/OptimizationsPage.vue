@@ -1,7 +1,7 @@
 <!--
 Define equity
 
-Last update: 2018-07-26
+Last update: 2018-07-29
 -->
 
 <template>
@@ -149,8 +149,6 @@ Last update: 2018-07-26
         </div>
       </modal>
 
-
-
       <!-- Popup spinner -->
       <popup-spinner></popup-spinner>
 
@@ -164,6 +162,7 @@ Last update: 2018-07-26
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
+  import progressIndicator from '@/services/progress-indicator-service'
   import router from '@/router'
   import Vue from 'vue';
   import PopupSpinner from './Spinner.vue'
