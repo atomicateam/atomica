@@ -48,7 +48,7 @@ class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
         self.sim_start = sim_start if sim_start is not None else 2000.0
-        self.sim_end = sim_end if sim_end is not None else 2030.0
+        self.sim_end = sim_end if sim_end is not None else 2035.0
         self.sim_dt = sim_dt if sim_dt is not None else 1.0 / 4
 
         # Other
