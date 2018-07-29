@@ -14,6 +14,11 @@ Last update: 2018-07-25
     </div>
 
     <div v-else>
+
+      <div>
+        Parameter set:
+
+      </div>
     
       <div class="calib-controls">
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
@@ -109,7 +114,8 @@ Last update: 2018-07-25
         sortColumn: 'parname',
         sortReverse: false,
         parList: [],
-        areShowingParameters: true
+        areShowingParameters: true,
+        activeParset: -1,
       }
     },
 
@@ -118,7 +124,11 @@ Last update: 2018-07-25
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-          return this.$store.state.activeProject.project.id
+          let projectID = this.$store.state.activeProject.project.id
+          this.activeParset = this.$store.state.activeProject.project.parset_names[0]
+          console.log('Active project ID: ' + projectID)
+          console.log('Active parset: ' + this.activeParset)
+          return projectID
         }
       },
 
@@ -209,7 +219,7 @@ Last update: 2018-07-25
         this.$Progress.start()
 
         // Go to the server to get the diseases from the burden set.
-        rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id])
+        rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
           this.parList = response.data // Set the disease list.
           
@@ -222,7 +232,7 @@ Last update: 2018-07-25
         
           // Failure popup.
           this.$notifications.notify({
-            message: 'Could not load diseases',
+            message: 'Could not load parameters',
             icon: 'ti-face-sad',
             type: 'warning',
             verticalAlign: 'top',
@@ -243,7 +253,7 @@ Last update: 2018-07-25
         this.$Progress.start()
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -306,7 +316,7 @@ Last update: 2018-07-25
         this.$modal.show('popup-spinner') // Bring up a spinner.
 
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('automatic_calibration', [project_id])
+        rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
@@ -368,7 +378,7 @@ Last update: 2018-07-25
 
       exportResults(project_id) {
         console.log('exportResults() called')
-        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
       },
     }
   }

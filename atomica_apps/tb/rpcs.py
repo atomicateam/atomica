@@ -693,7 +693,7 @@ def get_plots(proj, result, plot_names=None, pops='all'):
 
 @register_RPC(validation_type='nonanonymous user')
 def get_y_factors(project_id, parsetname=-1):
-    print('Getting y factors...')
+    print('Getting y factors for parset %s...' % parsetname)
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
@@ -715,7 +715,7 @@ def get_y_factors(project_id, parsetname=-1):
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
 def set_y_factors(project_id, y_factors, parsetname=-1):
-    print('Setting y factors...')
+    print('Setting y factors for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
     for par in y_factors:
@@ -732,9 +732,9 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
 
 #TO_PORT
 @register_RPC(validation_type='nonanonymous user')    
-def automatic_calibration(project_id, year=None, parsetname=-1, max_time=10):
+def automatic_calibration(project_id, parsetname=-1, max_time=10):
     
-    print('Running automatic calibration...')
+    print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     proj.calibrate(max_time=max_time) # WARNING, add kwargs!
     
@@ -748,55 +748,55 @@ def automatic_calibration(project_id, year=None, parsetname=-1, max_time=10):
     return output
 
 
-@register_RPC(validation_type='nonanonymous user')    
-def run_default_scenario(project_id):
-    
-    import pylab as pl
-    
-    print('Running default scenario...')
-    proj = load_project(project_id, raise_exception=True)
-    
-    scvalues = dict()
-
-    scen_par = "spd_infxness"
-    scen_pop = "15-64"
-    scen_outputs = ["lt_inf", "ac_inf"]
-
-    scvalues[scen_par] = dict()
-    scvalues[scen_par][scen_pop] = dict()
-
-    # Insert (or possibly overwrite) one value.
-    scvalues[scen_par][scen_pop]["y"] = [0.125]
-    scvalues[scen_par][scen_pop]["t"] = [2015.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
-
-    proj.make_scenario(name="varying_infections", instructions=scvalues)
-    result1 = proj.run_scenario(scenario="varying_infections", parset="default", store_results = False, result_name="scen1")
-    store_result_separately(proj, result1)
-
-    # Insert two values and eliminate everything between them.
-    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-
-    proj.make_scenario(name="varying_infections2", instructions=scvalues)
-    result2 = proj.run_scenario(scenario="varying_infections2", parset="default", store_results = False, result_name="scen2")
-    store_result_separately(proj, result2)
-
-    figs = []
-    graphs = []
-    d = au.PlotData([result1,result2], outputs=scen_outputs, pops=[scen_pop])
-    figs += au.plot_series(d, axis="results")
-    pl.gca().set_facecolor('none')
-    
-    for f,fig in enumerate(figs):
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-    
-    print('Saving project...')
-    save_project(proj)    
-    return {'graphs':graphs}
+#@register_RPC(validation_type='nonanonymous user')    
+#def run_default_scenario(project_id):
+#    
+#    import pylab as pl
+#    
+#    print('Running default scenario...')
+#    proj = load_project(project_id, raise_exception=True)
+#    
+#    scvalues = dict()
+#
+#    scen_par = "spd_infxness"
+#    scen_pop = "15-64"
+#    scen_outputs = ["lt_inf", "ac_inf"]
+#
+#    scvalues[scen_par] = dict()
+#    scvalues[scen_par][scen_pop] = dict()
+#
+#    # Insert (or possibly overwrite) one value.
+#    scvalues[scen_par][scen_pop]["y"] = [0.125]
+#    scvalues[scen_par][scen_pop]["t"] = [2015.]
+#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
+#
+#    proj.make_scenario(name="varying_infections", instructions=scvalues)
+#    result1 = proj.run_scenario(scenario="varying_infections", parset="default", store_results = False, result_name="scen1")
+#    store_result_separately(proj, result1)
+#
+#    # Insert two values and eliminate everything between them.
+#    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+#    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+#
+#    proj.make_scenario(name="varying_infections2", instructions=scvalues)
+#    result2 = proj.run_scenario(scenario="varying_infections2", parset="default", store_results = False, result_name="scen2")
+#    store_result_separately(proj, result2)
+#
+#    figs = []
+#    graphs = []
+#    d = au.PlotData([result1,result2], outputs=scen_outputs, pops=[scen_pop])
+#    figs += au.plot_series(d, axis="results")
+#    pl.gca().set_facecolor('none')
+#    
+#    for f,fig in enumerate(figs):
+#        graph_dict = mpld3.fig_to_dict(fig)
+#        graphs.append(graph_dict)
+#        print('Converted figure %s of %s' % (f+1, len(figs)))
+#    
+#    print('Saving project...')
+#    save_project(proj)    
+#    return {'graphs':graphs}
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
