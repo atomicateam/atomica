@@ -710,7 +710,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, y_factors, parsetname=-1):
+def set_y_factors(project_id, parsetname=-1, y_factors=None):
     print('Setting y factors for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
