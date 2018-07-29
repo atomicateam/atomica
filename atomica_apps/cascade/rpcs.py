@@ -632,7 +632,7 @@ def load_current_user_project_summaries():
     return load_current_user_project_summaries2()
 
 
-@register_RPC(validation_type='nonanonymous user')                
+@register_RPC(validation_type='nonanonymous user')
 def load_all_project_summaries():
     """
     Return project summaries for all projects to the client.
