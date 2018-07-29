@@ -48,6 +48,8 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
     for var_label, pop_name, weight, metric in output_quantities:
         target = project.data.get_ts(var_label,pop_name) # This is the TimeSeries with the data for the requested quantity
+        if target is None:
+            continue
         if not target.has_time_data:     # Only use this output quantity if the user entered time-specific data
             continue
         var = result.model.get_pop(pop_name).get_variable(var_label)
