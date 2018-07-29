@@ -2,7 +2,6 @@
 
 from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
 from .structure import FrameworkSettings as FS
-from .excel import ExcelSettings as ES
 from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict

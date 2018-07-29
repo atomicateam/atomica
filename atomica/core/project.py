@@ -27,7 +27,6 @@ Version: 2018jun04
 from .version import version
 from .calibration import perform_autofit
 from .data import ProjectData
-from .excel import ExcelSettings as ES
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
@@ -151,7 +150,7 @@ class Project(object):
     def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, num_interpops=0,data_start=2000.0, data_end=2020.0, data_dt=1.0):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
-            databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
+            databook_path = "./databook_" + self.name + ".xlsx"
         data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
 

@@ -8,7 +8,6 @@ Note: Callback functions cannot be easily decorated, so logging is applied per m
 from .system import SystemSettings as SS
 from .structure_settings import FrameworkSettings as FS
 from .structure_settings import DataSettings as DS
-from .excel import ExcelSettings as ES
 
 from .system import log_usage, accepts, returns, logger
 from .framework import ProjectFramework
@@ -264,11 +263,11 @@ class GUIFrameworkFileCreation(qtw.QWidget):
 
     def slot_create_framework_template(self):
         """ Creates a template framework file at the location specified by the user. """
-        framework_path = get_save_path_from_user(file_filter="*" + ES.FILE_EXTENSION)
-        if not framework_path.endswith(ES.FILE_EXTENSION):
+        framework_path = get_save_path_from_user(file_filter="*" + ".xlsx")
+        if not framework_path.endswith(".xlsx"):
             logger.warning(
                 "Abandoning framework template construction due to provided framework path not ending in '{0}'.".format(
-                    ES.FILE_EXTENSION))
+                    ".xlsx"))
             return
         try:
             raise Exception('Framework creation not implemented yet')
@@ -381,11 +380,11 @@ class GUIDatabookCreation(qtw.QWidget):
 
     def slot_import_framework(self):
         """ Imports a framework file from the location specified by the user. """
-        framework_path = get_load_path_from_user(file_filter="*" + ES.FILE_EXTENSION)
-        if not framework_path.endswith(ES.FILE_EXTENSION):
+        framework_path = get_load_path_from_user(file_filter="*" + ".xlsx")
+        if not framework_path.endswith(".xlsx"):
             logger.warning(
                 "Abandoning framework file import due to provided framework path not ending in '{0}'.".format(
-                    ES.FILE_EXTENSION))
+                    ".xlsx"))
             return
         try:
             read_workbook(workbook_path=framework_path, framework=self.framework,
@@ -400,10 +399,10 @@ class GUIDatabookCreation(qtw.QWidget):
 
     def slot_create_databook(self):
         """ Creates a databook at the location specified by the user. """
-        databook_path = get_save_path_from_user(file_filter="*" + ES.FILE_EXTENSION)
-        if not databook_path.endswith(ES.FILE_EXTENSION):
+        databook_path = get_save_path_from_user(file_filter="*" + ".xlsx")
+        if not databook_path.endswith(".xlsx"):
             logger.warning("Abandoning databook construction due to provided databook path not ending in '{0}'.".format(
-                ES.FILE_EXTENSION))
+                ".xlsx"))
             return
         try:
             raise Exception('Databook creation not yet implemented')
