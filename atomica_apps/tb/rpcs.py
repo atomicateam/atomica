@@ -1017,51 +1017,29 @@ def rpc_optimize(proj=None, json=None):
     optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
     return optimized_result
 
-def py_to_js_optim(py_optim, prog_names):
-    ''' Convert a Python to JSON representation of an optimization '''
-    attrs = ['name', 'mults', 'add_funds']
-    js_optim = {}
-    for attr in attrs:
-        js_optim[attr] = getattr(py_optim, attr) # Copy the attributes into a dictionary
-    js_optim['obj'] = py_optim.obj[0]
-    js_optim['spec'] = []
-    for prog_name in prog_names:
-        this_spec = {}
-        this_spec['name'] = prog_name
-        this_spec['included'] = True if prog_name in py_optim.prog_set else False
-        this_spec['vals'] = []
-        js_optim['spec'].append(this_spec)
-    return js_optim
-    
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_optim_info(project_id):
-
     print('Getting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-    
+    print(proj)
     optim_summaries = []
+    print(proj.optims.keys())
     for py_optim in proj.optims.values():
-        js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
+        js_optim = sw.json_sanitize_result(py_optim.json)
         optim_summaries.append(js_optim)
-    
     print('JavaScript optimization info:')
     print(optim_summaries)
-
     return optim_summaries
 
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_default_optim(project_id):
-
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
-    
-    py_optim = proj.demo_optims(doadd=False)[0]
-    js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
-    js_optim['objective_options'] = ['thrive', 'child_deaths', 'stunting_prev', 'wasting_prev', 'anaemia_prev'] # WARNING, stick allowable optimization options here
-    
-    print('Created default JavaScript optimization:')
+    py_optim = proj.demo_optimization()
+    js_optim = sw.json_sanitize_result(py_optim)
+    print('Created default optimization:')
     print(js_optim)
     return js_optim
 
@@ -1072,7 +1050,7 @@ def set_optim_info(project_id, optim_summaries):
 
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-    proj.optims.clear()
+#    proj.optims.clear()
     
     for j,js_optim in enumerate(optim_summaries):
         print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))

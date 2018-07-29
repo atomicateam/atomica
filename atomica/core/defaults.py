@@ -20,7 +20,9 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     pass
 
 
-def default_framework(which='sir', **kwargs):
+def default_framework(which=None, **kwargs):
+    
+    if which is None: which = 'tb'
 
     if   which == "sir":      args = {"num_comps":4, "num_characs":8, "num_pars":6}
     elif which == "tb":       args = {"num_comps":40, "num_characs":70, "num_pars":140}
@@ -31,12 +33,14 @@ def default_framework(which='sir', **kwargs):
     return F
 
 
-def default_project(which='sir', do_run=True, **kwargs):
+def default_project(which=None, do_run=True, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
     Version: 2018mar27
     """
+    
+    if which is None: which = 'tb'
 
     #######################################################################################################
     # Simple
@@ -49,11 +53,12 @@ def default_project(which='sir', do_run=True, **kwargs):
         P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
 
     elif which=='tb':
-        logger.info("Creating a TB epidemic project...")
-        
+        logger.info("Creating a TB epidemic project with programs...")
         F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
-
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True)
+        P.demo_optimization() # Add optimization example
+    
     elif which=='service':
         logger.info("Creating a disease-agnostic 5-stage service delivery cascade project...")
         

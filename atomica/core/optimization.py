@@ -351,8 +351,14 @@ class TotalSpendConstraint(Constraint):
 class Optimization(NamedItem):
     """ An object that defines an Optimization to perform """
 
-    def __init__(self,  name='default', parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None, json=None):
+    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None, json=None, project=None):
 
+        # Get the name
+        if name is None:
+            if json is not None:
+                name = json['name']
+            else:
+                name = 'default'
         NamedItem.__init__(self, name)
 
         self.parsetname = parsetname
@@ -366,7 +372,7 @@ class Optimization(NamedItem):
         
         if adjustments is None or measurables is None:
             if json is not None:
-                self.from_json()
+                self.from_json(project=project)
             else:
                 raise AtomicaException('Must supply either a json or an adjustments+measurables')
         return
@@ -400,11 +406,11 @@ class Optimization(NamedItem):
     
         # Add all of the terms in the objective
         measurables = []
-        for name,weight in objective_weights.items():
-            measurables.append(Measurable(name,t=[start_year,end_year],weight=weight))
+        for mname,mweight in objective_weights.items():
+            measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
     
         # Create the Optimization object
-        proj.make_optimization(name=name, parset_name=parset_name, progset_name=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=self.json)
+        proj.make_optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints,maxtime=maxtime, json=self.json)
 
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable

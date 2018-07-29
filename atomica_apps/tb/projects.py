@@ -93,6 +93,11 @@ class ProjectSO(sw.ScirisObject):
         print 'Update Time: %s' % self.proj.modified
             
     def get_user_front_end_repr(self):
+        try:    
+            n_pops = len(self.proj.parsets[0].pop_names)
+        except: 
+            print('Could not load populations for project')
+            n_pops = 'N/A'
         obj_info = {
             'project': {
                 'id':            self.uid,
@@ -100,6 +105,9 @@ class ProjectSO(sw.ScirisObject):
                 'userId':        self.owner_uid,
                 'creationTime':  self.proj.created,
                 'updatedTime':   self.proj.modified,
+                'n_pops':        n_pops,
+                'sim_start':     self.proj.settings.sim_start,
+                'sim_end':       self.proj.settings.sim_end
             }
         }
         return obj_info
