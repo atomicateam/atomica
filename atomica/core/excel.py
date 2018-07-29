@@ -4,12 +4,9 @@ Atomica Excel utilities file.
 Contains functionality specific to Excel input and output.
 """
 
-from .system import SystemSettings as SS
-from .system import log_usage, accepts, returns, AtomicaException
+from .system import AtomicaException
 
-import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-import xlrd
 import sciris.core as sc
 import io
 import openpyxl
