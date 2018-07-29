@@ -1,22 +1,8 @@
-<template>
-  <div class="SitePage">
-    <div style="font-style:italic">
-      <p>This module is currently under development.</p>
-    </div>
-  </div>
-</template>
-
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-</style>
-
 <!--
-&lt;!&ndash;
 Define health packages
 
 Last update: 2018-07-26
-&ndash;&gt;
+-->
 
 <template>
   <div class="SitePage">
@@ -69,7 +55,7 @@ Last update: 2018-07-26
       </div>
       <div>
         <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          &lt;!&ndash;mpld3 content goes here&ndash;&gt;
+          <!--mpld3 content goes here-->
         </div>
       </div>
 
@@ -78,7 +64,7 @@ Last update: 2018-07-26
              height="auto"
              :scrollable="true"
              :width="900"
-             :classes="['v&#45;&#45;modal', 'vue-dialog']"
+             :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
              :clickToClose="clickToClose"
@@ -410,4 +396,3 @@ Last update: 2018-07-26
     }
   }
 </script>
--->

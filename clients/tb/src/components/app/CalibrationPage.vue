@@ -1,22 +1,8 @@
-<template>
-  <div class="SitePage">
-    <div style="font-style:italic">
-      <p>This module is currently under development.</p>
-    </div>
-  </div>
-</template>
-
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-</style>
-
 <!--
-&lt;!&ndash;
 Define health packages
 
 Last update: 2018-07-25
-&ndash;&gt;
+-->
 
 <template>
   <div class="SitePage">
@@ -42,7 +28,7 @@ Last update: 2018-07-25
     
       <br>
 
-      <div class="calib-main" :class="{'calib-main&#45;&#45;full': !areShowingParameters}">
+      <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
@@ -87,7 +73,7 @@ Last update: 2018-07-25
 
         <div class="calib-graph">
           <div v-for="index in placeholders" :id="'fig'+index">
-            &lt;!&ndash;mpld3 content goes here&ndash;&gt;
+            <!--mpld3 content goes here-->
           </div>
         </div>
         
@@ -95,7 +81,7 @@ Last update: 2018-07-25
       
     </div>
     
-    &lt;!&ndash; Popup spinner &ndash;&gt;
+    <!-- Popup spinner -->
     <modal name="popup-spinner" 
            height="80px" 
            width="85px" 
@@ -405,7 +391,7 @@ Last update: 2018-07-25
   }
 </script>
 
-&lt;!&ndash; Add "scoped" attribute to limit CSS to this component only &ndash;&gt;
+<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 .calib-controls {
   margin-bottom: 3rem;
@@ -419,7 +405,7 @@ Last update: 2018-07-25
 .calib-main {
   display: flex;
 }
-.calib-main&#45;&#45;full {
+.calib-main--full {
   display: block;
 }
 .calib-params {
@@ -429,4 +415,3 @@ Last update: 2018-07-25
   flex: 1 0 60%;
 }
 </style>
--->
