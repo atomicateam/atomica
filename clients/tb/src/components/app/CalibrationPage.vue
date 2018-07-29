@@ -15,11 +15,6 @@ Last update: 2018-07-25
 
     <div v-else>
 
-      <div>
-        Parameter set:
-
-      </div>
-    
       <div class="calib-controls">
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
         <button class="btn" @click="toggleShowingParams()">
@@ -29,6 +24,26 @@ Last update: 2018-07-25
         </button>
         <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
         <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
+
+        <div class="parset-controls">
+        <!--<div style="display: inline-block; padding-left: 100px">-->
+          <b>Parameter set: &nbsp;</b>
+          <select v-model="activeParset">
+            <option v-for='parset in parsetOptions'>
+              {{ parset }}
+            </option>
+          </select>
+          &nbsp;
+          <button class="btn small-button" @click="renameParset()" title="Rename">
+            <i class="ti-pencil"></i>
+          </button>
+          <button class="btn small-button" @click="copyParset()" title="Copy">
+            <i class="ti-files"></i>
+          </button>
+          <button class="btn small-button" @click="deleteParset()" title="Delete">
+            <i class="ti-trash"></i>
+          </button>
+        </div>
       </div>
     
       <br>
@@ -116,6 +131,7 @@ Last update: 2018-07-25
         parList: [],
         areShowingParameters: true,
         activeParset: -1,
+        parsetOptions: [],
       }
     },
 
@@ -125,9 +141,7 @@ Last update: 2018-07-25
           return ''
         } else {
           let projectID = this.$store.state.activeProject.project.id
-          this.activeParset = this.$store.state.activeProject.project.parset_names[0]
-          console.log('Active project ID: ' + projectID)
-          console.log('Active parset: ' + this.activeParset)
+          this.updateParset()
           return projectID
         }
       },
@@ -186,6 +200,13 @@ Last update: 2018-07-25
           verticalAlign: 'top',
           horizontalAlign: 'center',
         });
+      },
+
+      updateParset() {
+        this.parsetOptions = this.$store.state.activeProject.project.parset_names
+        this.activeParset = this.$store.state.activeProject.project.parset_names[0]
+        console.log('Parset options: ' + this.parsetOptions)
+        console.log('Active parset: ' + this.activeParset)
       },
 
       updateSorting(sortColumn) {
@@ -385,26 +406,35 @@ Last update: 2018-07-25
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-.calib-controls {
-  margin-bottom: 3rem;
-}
-.calib-controls .control-group {
-  display: inline-block;
-}
-.calib-controls button, .calib-controls .control-group {
-  margin-right: 1rem;
-}
-.calib-main {
-  display: flex;
-}
-.calib-main--full {
-  display: block;
-}
-.calib-params {
-  flex: 1 0 40%;
-}
-.calib-graph {
-  flex: 1 0 60%;
-}
+<style>
+  .calib-controls {
+    margin-bottom: 3rem;
+  }
+  .calib-controls .control-group {
+    display: inline-block;
+  }
+  .calib-controls button, .calib-controls .control-group {
+    margin-right: 1rem;
+  }
+  .calib-main {
+    display: flex;
+  }
+  .calib-main--full {
+    display: block;
+  }
+  .calib-params {
+    flex: 1 0 40%;
+  }
+  .calib-graph {
+    flex: 1 0 60%;
+  }
+  .parset-controls {
+    border: 2px solid #ddd;
+    padding: 7px;
+    display: inline-block;
+  }
+  .small-button {
+    background: inherit;
+    padding: 0 0 0 0;
+  }
 </style>
