@@ -5,20 +5,11 @@ Version:
 import logging
 logger = logging.getLogger()
 
-## Write the log to a file
-# h = logging.FileHandler('testworkflow.log',mode='w')
-# logger.addHandler(h)
-
-## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
-# logger.setLevel('DEBUG')
-
 import os
 import atomica.ui as au
 import sciris.core as sc
-import numpy as np
+import pylab as pl
 
-# Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
-# logger.setLevel('DEBUG')
 
 # test = "sir"
 test = "tb"
@@ -26,28 +17,32 @@ test = "tb"
 # test = "service"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
-"makeplots",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#'plotcascade',
+#"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
+#"makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
-#  "autocalibrate",
+#"autocalibrate",
 # "parameterscenario",
+#'budgetscenario',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
+
+forceshow = True # Whether or not to force plots to show (warning, only partly implemented)
 
 # Define plotting variables in case plots are generated
 if test == "sir":
@@ -125,6 +120,16 @@ if "runsim" in torun:
 
 if 'plotcascade' in torun:
     au.plot_cascade(project=P, year=2020)
+    if forceshow: pl.show()
+    
+    # Browser test
+    as_mpld3 = True
+    if as_mpld3:
+        import sciris.weblib.quickserver as sqs
+        fig = pl.gcf()
+        sqs.browser(fig)
+        
+    
     
     
     
@@ -319,6 +324,11 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+
+if "optimization" in torun:
+    P = au.demo(which='tb')
+    P.run_optimization()
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions

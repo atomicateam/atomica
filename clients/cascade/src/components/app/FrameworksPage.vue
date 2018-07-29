@@ -92,16 +92,26 @@ Last update: 2018-07-25
           </td>
           <td>
 <!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
-            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)">Copy</button>
-            <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
-            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
+            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" title="Copy">
+              <i class="ti-files"></i>
+            </button>
+            <button class="btn" @click="renameFramework(frameworkSummary)" title="Rename">
+              <i class="ti-pencil"></i>
+            </button>
+            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)" title="Download">
+              <i class="ti-download"></i>
+            </button>
           </td>
           <td>{{ frameworkSummary.framework.creationTime.toUTCString() }}</td>
           <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
           <td>
-            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)">Upload</button>
-            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)">Download</button>
+            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)" title="Upload">
+              <i class="ti-upload"></i>
+            </button>
+            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)" title="Download">
+              <i class="ti-download"></i>
+            </button>
           </td>
         </tr>
         </tbody>

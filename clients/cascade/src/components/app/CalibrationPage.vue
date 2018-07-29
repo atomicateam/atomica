@@ -243,9 +243,9 @@ Last update: 2018-07-25
           this.parList = response.data // Set the disease list.
           
           // Finish the loading bar.
-          this.$Progress.finish()            
+          this.$Progress.finish()          
         })
-        .catch(error => {    
+        .catch(error => {
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -274,7 +274,7 @@ Last update: 2018-07-25
         
         // Bring up a spinner.
         this.$modal.show('popup-spinner')
-
+        
         // Start the loading bar.
         this.$Progress.start()
         
