@@ -17,27 +17,27 @@ test = "tb"
 # test = "service"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
 #'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+#"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
 #"makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
-"autocalibrate",
+#"autocalibrate",
 # "parameterscenario",
 #'budgetscenario',
-#'optimization',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -324,6 +324,11 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+
+if "optimization" in torun:
+    P = au.demo(which='tb')
+    P.run_optimization()
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions

@@ -1061,10 +1061,7 @@ def set_optim_info(project_id, optim_summaries):
 def run_optimization(project_id, optim_name):
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
-    json = proj.optim(optim_name).json
-    optimized_result = proj.run_optimization(optim_name)
-    unoptimized_result = proj.run_sim(parset=json['parset_name'], progset=json['parset_name'], progset_instructions=au.ProgramInstructions(start_year=json['start_year']), result_name="Baseline")
-    results = [unoptimized_result, optimized_result]
+    results = proj.run_optimization(optim_name)
     graphs = get_plots(proj, results) # outputs=['alive','ddis']
     print('Saving project...')
     save_project(proj)    

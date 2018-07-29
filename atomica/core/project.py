@@ -441,12 +441,16 @@ class Project(object):
 
     def run_optimization(self, optimname=None):
         '''Run an optimization'''
-        optimization = self.optim(optimname)
-        parset = self.parset(optimization.parsetname)
-        progset = self.progset(optimization.progsetname)
-        progset_instructions = ProgramInstructions(alloc=None, start_year=optimization.start_year)
-        optimized_instructions = optimize(self,optimization,parset,progset,progset_instructions)
-        results = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        optim = self.optim(optimname)
+        optim.from_json(project=self) # LOL
+        json = optim.json
+        parset = self.parset(json['parset_name'])
+        progset = self.progset(json['progset_name'])
+        progset_instructions = ProgramInstructions(alloc=None, start_year=json['start_year'])
+        optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+        optimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        unoptimized_result = self.run_sim(parset=json['parset_name'], progset=json['parset_name'], progset_instructions=ProgramInstructions(start_year=json['start_year']), result_name="Baseline")
+        results = [unoptimized_result, optimized_result]
         return results
 
     def save(self, filepath):
