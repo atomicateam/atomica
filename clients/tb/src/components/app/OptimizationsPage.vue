@@ -41,6 +41,12 @@ Last update: 2018-07-26
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
 
+      <div>
+        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
+          <!--mpld3 content goes here-->
+        </div>
+      </div>
+
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
@@ -62,13 +68,13 @@ Last update: 2018-07-26
                    class="txbox"
                    v-model="defaultOptim.name"/><br>
             Parameter set:<br>
-            <select v-model="defaultOptim.parset_name">
+            <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
                 {{ parset }}
               </option>
             </select><br><br>
             Program set:<br>
-            <select v-model="defaultOptim.progset_name">
+            <select v-model="progsetOptions[0]">
               <option v-for='progset in progsetOptions'>
                 {{ progset }}
               </option>
@@ -143,11 +149,10 @@ Last update: 2018-07-26
         </div>
       </modal>
 
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
-        </div>
-      </div>
+
+
+      <!-- Popup spinner -->
+      <popup-spinner></popup-spinner>
 
     </div>
   </div>
@@ -161,9 +166,15 @@ Last update: 2018-07-26
   import taskservice from '@/services/task-service'
   import router from '@/router'
   import Vue from 'vue';
+  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'OptimizationPage',
+
+    components: {
+      PopupSpinner
+    },
+
     data() {
       return {
         serverresponse: 'no response',
@@ -415,6 +426,7 @@ Last update: 2018-07-26
       runOptim(optimSummary) {
         console.log('runOptim() called for '+this.currentOptim)
         // Make sure they're saved first
+        this.$modal.show('popup-spinner') // Dispel the spinner.
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.

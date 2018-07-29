@@ -1093,6 +1093,17 @@ def get_default_optim(project_id):
     return js_optim
 
 
+def to_number(raw):
+    ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
+    try:
+        output = float(raw)
+    except Exception as E:
+        if raw is None:
+            output = None
+        else:
+            raise E
+    return output
+
 
 @register_RPC(validation_type='nonanonymous user')    
 def set_optim_info(project_id, optim_summaries):
@@ -1101,6 +1112,13 @@ def set_optim_info(project_id, optim_summaries):
     for j,js_optim in enumerate(optim_summaries):
         print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
         json = js_optim
+        for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
+            json[key] = to_number(json[key]) # Convert to a number
+        for subkey in json['objective_weights'].keys():
+            json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+        for subkey in json['prog_spending'].keys():
+            this = json['prog_spending'][subkey]
+            json['prog_spending'][subkey] = (to_number(this[0]), to_number(this[1]))
         print('Python optimization info for optimization %s:' % (j+1))
         print(json)
         proj.make_optimization(json=json)

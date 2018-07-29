@@ -3,7 +3,7 @@
 <template>
 
   <modal name="popup-spinner"
-         height="85px"
+         height="80px"
          width="80px"
          style="opacity: 1.0">
     <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here. More tests: ; border-radius:20px; background:#f00-->
