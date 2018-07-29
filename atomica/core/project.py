@@ -439,10 +439,12 @@ class Project(object):
         scenario.result_uid = result.uid
         return result
 
-    def run_optimization(self, optimname=None):
+    def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
         '''Run an optimization'''
         optim_ins = self.optim(optimname)
         optim = optim_ins.make(project=self)
+        if maxtime is not None: optim.maxtime = maxtime
+        if maxiters is not None: optim.maxiters = maxiters
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         progset_instructions = ProgramInstructions(alloc=None, start_year=optim_ins.json['start_year'])

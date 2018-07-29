@@ -35,9 +35,9 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
- "parameterscenario",
+# "parameterscenario",
 #'budgetscenario',
-#'optimization',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -331,7 +331,7 @@ if "parameterscenario" in torun:
 
 if "optimization" in torun:
     P = au.demo(which='tb')
-    P.run_optimization()
+    P.run_optimization(maxtime=180)
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions
