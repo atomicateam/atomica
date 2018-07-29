@@ -9,6 +9,19 @@ Last update: 2018jun04 by cliffk
 #
 
 import time
+import os
+import numpy as np
+from zipfile import ZipFile
+from flask_login import current_user
+import mpld3
+import sciris.corelib.fileio as fileio
+import sciris.weblib.user as user
+import sciris.core as sc
+import sciris.web as sw
+import sciris.weblib.datastore as ds
+import atomica.ui as au
+from . import projects as prj
+
 
 def timeit(method):
     def timed(*args, **kw):
@@ -27,19 +40,7 @@ def timeit(method):
     return timed
 
 
-import os
-from zipfile import ZipFile
-from flask_login import current_user
-import mpld3
 
-import sciris.corelib.fileio as fileio
-import sciris.weblib.user as user
-import sciris.core as sc
-import sciris.web as sw
-import sciris.weblib.datastore as ds
-
-import atomica.ui as au
-from . import projects as prj
 
 # Make a Result storable by Sciris
 class ResultSO(sw.ScirisObject):
@@ -63,7 +64,6 @@ class ResultPlaceholder(au.NamedItem):
 def store_result_separately(proj,result):
     # Given a result, add a ResultPlaceholder to the project
     # Save both the updated project and the result to the datastore
-    ts = time.time()
     result_so = ResultSO(result)
     result_so.add_to_data_store()
     proj.results.append(ResultPlaceholder(result))
@@ -681,7 +681,7 @@ def get_plots(proj, result, plot_names=None, pops='all'):
             figs = au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
             pl.gca().set_facecolor('none')
             for fig in figs:
-                graph_dict = make_mpld3_graph_dict(fig)
+                graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
             print('Plot %s succeeded' % (plot_name))
@@ -821,24 +821,26 @@ def export_results(project_id, resultset=-1):
 
 def py_to_js_scen(py_scen, prog_names):
     ''' Convert a Python to JSON representation of a scenario '''
-    settings = nu.Settings()
-    attrs = ['name', 'active', 'scen_type']
-    js_scen = {}
-    for attr in attrs:
-        js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
-    js_scen['spec'] = []
-    for prog_name in prog_names:
-        this_spec = {}
-        this_spec['name'] = prog_name
-        this_spec['included'] = True if prog_name in py_scen.prog_set else False
-        this_spec['vals'] = []
-        if prog_name in py_scen.covs:
-            this_spec['vals'] = py_scen.covs[prog_name]
-        else:
-            this_spec['vals'] = [None]*settings.n_years # WARNING, kludgy way to extract the number of years
-        js_scen['spec'].append(this_spec)
-        js_scen['t'] = settings.t
-    return js_scen
+    print('NOT IMPLEMENTED')
+    return None
+#    settings = nu.Settings()
+#    attrs = ['name', 'active', 'scen_type']
+#    js_scen = {}
+#    for attr in attrs:
+#        js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
+#    js_scen['spec'] = []
+#    for prog_name in prog_names:
+#        this_spec = {}
+#        this_spec['name'] = prog_name
+#        this_spec['included'] = True if prog_name in py_scen.prog_set else False
+#        this_spec['vals'] = []
+#        if prog_name in py_scen.covs:
+#            this_spec['vals'] = py_scen.covs[prog_name]
+#        else:
+#            this_spec['vals'] = [None]*settings.n_years # WARNING, kludgy way to extract the number of years
+#        js_scen['spec'].append(this_spec)
+#        js_scen['t'] = settings.t
+#    return js_scen
     
 
 @register_RPC(validation_type='nonanonymous user')    
