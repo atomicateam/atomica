@@ -41,16 +41,17 @@ Last update: 2018-07-26
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
 
-
       <modal name="add-optim"
              height="auto"
+             :scrollable="true"
+             :width="900"
              :classes="['v--modal', 'vue-dialog']"
-             :width="width"
              :pivot-y="0.3"
              :adaptive="true"
              :clickToClose="clickToClose"
              :transition="transition">
 
+        <!--TO_PORT-->
         <div class="dialog-content">
           <div class="dialog-c-title">
             Add/edit optimization
@@ -60,26 +61,81 @@ Last update: 2018-07-26
             <input type="text"
                    class="txbox"
                    v-model="defaultOptim.name"/><br>
-            Optimization objectives:<br>
-            <select v-model="defaultOptim.obj">
-              <option v-for='obj in objectiveOptions'>
-                {{ obj }}
+            Parameter set:<br>
+            <select v-model="defaultOptim.parset_name">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
               </option>
             </select><br><br>
-            Multipliers:<br>
+            Program set:<br>
+            <select v-model="defaultOptim.progset_name">
+              <option v-for='progset in progsetOptions'>
+                {{ progset }}
+              </option>
+            </select><br><br>
+            Maximum time to run optimization (s):<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.mults"/><br>
-            Additional funds:<br>
+                   v-model="defaultOptim.maxtime"/><br>
+            Start year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.add_funds"/><br>
+                   v-model="defaultOptim.start_year"/><br>
+            End year:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.end_year"/><br>
+            Budget factor:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.budget_factor"/><br>
+            <b>Objective weights</b><br>
+            People alive:
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.objective_weights.alive"/><br>
+            TB-related deaths:
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.objective_weights.ddis"/><br>
+            New TB infections:
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.objective_weights.acj"/><br>
+            <br>
+            <b>Relative spending constraints</b><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Minimum</th>
+                <th>Maximum</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(val,key) in defaultOptim.prog_spending">
+                <td>
+                  {{ key }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="defaultOptim.prog_spending[key][0]"/>
+                </td>
+                <td>
+                  <!--{{ val[1] }}-->
+                  <input type="text"
+                         class="txbox"
+                         v-model="defaultOptim.prog_spending[key][1]"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
           </div>
           <div style="text-align:justify">
             <button @click="addOptim()" class='btn __green' style="display:inline-block">
               Save optimization
             </button>
-
             <button @click="$modal.hide('add-optim')" class='btn __red' style="display:inline-block">
               Cancel
             </button>
@@ -114,6 +170,12 @@ Last update: 2018-07-26
         optimSummaries: [],
         defaultOptim: [],
         objectiveOptions: [],
+        activeParset:  -1,
+        activeProgset: -1,
+        parsetOptions:  [],
+        progsetOptions: [],
+        newParsetName:  [],
+        newProgsetName: [],
       }
     },
 
@@ -122,6 +184,10 @@ Last update: 2018-07-26
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
+//          WARNING, these shouldn't be duplicated!
+          this.getOptimSummaries()
+          this.getDefaultOptim()
+          this.updateSets()
           return this.$store.state.activeProject.project.id
         }
       },
@@ -145,6 +211,7 @@ Last update: 2018-07-26
         // Load the optimization summaries of the current project.
         this.getOptimSummaries()
         this.getDefaultOptim()
+        this.updateSets()
       }
     },
 
@@ -170,12 +237,46 @@ Last update: 2018-07-26
         return id
       },
 
+      // TO_PORT
+      updateSets() {
+        console.log('updateSets() called')
+        // Get the current user's parsets from the server.
+        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+          .then(response => {
+            this.parsetOptions = response.data // Set the scenarios to what we received.
+            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+              console.log('Parameter set ' + this.activeParset + ' no longer found')
+              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Parameter set ' + this.activeParset + ' still found')
+            }
+            this.newParsetName = this.activeParset // WARNING, KLUDGY
+            console.log('Parset options: ' + this.parsetOptions)
+            console.log('Active parset: ' + this.activeParset)
+          })
+        // Get the current user's progsets from the server.
+        rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          .then(response => {
+            this.progsetOptions = response.data // Set the scenarios to what we received.
+            if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+              console.log('Program set ' + this.activeProgset + ' no longer found')
+              this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Program set ' + this.activeProgset + ' still found')
+            }
+            this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+            console.log('Progset options: ' + this.progsetOptions)
+            console.log('Active progset: ' + this.activeProgset)
+          })
+      },
+
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
-            console.log('This is the default:'+this.defaultOptim);
+            console.log('This is the default:')
+            console.log(this.defaultOptim);
           });
       },
 

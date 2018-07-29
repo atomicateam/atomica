@@ -814,7 +814,7 @@ def export_results(project_id, resultset=-1):
 
 
 ##################################################################################
-#%% Scenario functions and RPCs
+#%% Parset functions and RPCs
 ##################################################################################
 
 #TO_PORT
@@ -860,6 +860,58 @@ def delete_parset(project_id, parsetname=None):
     else:
         raise Exception('Cannot delete last parameter set')
     print('Number of parsets after delete: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+##################################################################################
+#%% Progset functions and RPCs
+##################################################################################
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def get_progset_info(project_id):
+    print('Returning progset info...')
+    proj = load_project(project_id, raise_exception=True)
+    progset_names = proj.progsets.keys()
+    return progset_names
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def rename_progset(project_id, progsetname=None, new_name=None):
+    print('Renaming progset from %s to %s...' % (progsetname, new_name))
+    proj = load_project(project_id, raise_exception=True)
+    proj.progsets.rename(progsetname, new_name)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def copy_progset(project_id, progsetname=None):
+    print('Copying progset %s...' % progsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of progsets before copy: %s' % len(proj.progsets))
+    new_name = get_unique_name(progsetname, other_names=proj.progsets.keys())
+    print('Old name: %s; new name: %s' % (progsetname, new_name))
+    proj.progsets[new_name] = sc.dcp(proj.progsets[progsetname])
+    print('Number of progsets after copy: %s' % len(proj.progsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def delete_progset(project_id, progsetname=None):
+    print('Deleting progset %s...' % progsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of progsets before delete: %s' % len(proj.progsets))
+    if len(proj.progsets)>1:
+        proj.progsets.pop(progsetname)
+    else:
+        raise Exception('Cannot delete last program set')
+    print('Number of progsets after delete: %s' % len(proj.progsets))
     print('Saving project...')
     save_project(proj)
     return None
@@ -1054,7 +1106,6 @@ def set_optim_info(project_id, optim_summaries):
         proj.make_optimization(json=json)
     print('Saving project...')
     save_project(proj)   
-    
     return None
 
 
