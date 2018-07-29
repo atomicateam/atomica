@@ -548,7 +548,7 @@ Last update: 2018-07-25
           .catch(error => {
             this.$modal.hide('popup-spinner') // Dispel the spinner.
             this.$notifications.notify({ // Failure popup.
-              message: 'Could not delete parameter set',
+              message: 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one',
               icon: 'ti-face-sad',
               type: 'warning',
               verticalAlign: 'top',
