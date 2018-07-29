@@ -851,6 +851,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                 apply_series_formatting(ax, plot_type)
                 handles, labels = ax.get_legend_handles_labels()
                 ax.set_title('%s' % (labels[0]))
+#                sc.SIticks(ax=ax, axis='y', fixed=True)
 #                if settings['legend_mode'] == 'together':
 #                    render_legend(ax, plot_type)
 
@@ -887,6 +888,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                 apply_series_formatting(ax, plot_type)
                 handles, labels = ax.get_legend_handles_labels()
                 ax.set_title('%s' % (labels[0]))
+#                sc.SIticks(ax=ax, axis='y', fixed=True)
 #                if settings['legend_mode'] == 'together':
 #                    render_legend(ax, plot_type)
 
@@ -921,6 +923,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                 apply_series_formatting(ax, plot_type)
                 handles, labels = ax.get_legend_handles_labels()
                 ax.set_title('%s' % (labels[0]))
+#                sc.SIticks(ax=ax, axis='y', fixed=True)
 #                if settings['legend_mode'] == 'together':
 #                    render_legend(ax, plot_type)
     else:

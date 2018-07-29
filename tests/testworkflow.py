@@ -35,9 +35,9 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
-# "parameterscenario",
+ "parameterscenario",
 #'budgetscenario',
-'optimization',
+#'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -293,6 +293,9 @@ if "autocalibrate" in torun:
     au.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
+    
+    P = au.demo(which=test)
+    
     scvalues = dict()
     if test == "sir":
         scen_par = "infdeath"
