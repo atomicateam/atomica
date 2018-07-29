@@ -730,19 +730,21 @@ def set_y_factors(project_id, y_factors, parsetname=-1):
     output = get_plots(proj,result)
     return output
 
+#TO_PORT
 @register_RPC(validation_type='nonanonymous user')    
-def automatic_calibration(project_id, year=None, parsetname=-1):
+def automatic_calibration(project_id, year=None, parsetname=-1, max_time=10):
     
     print('Running automatic calibration...')
     proj = load_project(project_id, raise_exception=True)
+    proj.calibrate(max_time=max_time) # WARNING, add kwargs!
     
     print('Rerunning calibrated model...')
-    proj.modified = sc.today()
+    
     print('Resultsets before run: %s' % len(proj.results))
-    proj.run_sim(parset=parsetname, store_results=True)
+    result = proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
-    output = get_plots(proj.uid, year=year)
+    output = get_plots(proj, result)
     return output
 
 

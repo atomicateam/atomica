@@ -82,15 +82,7 @@ Last update: 2018-07-25
     </div>
     
     <!-- Popup spinner -->
-    <modal name="popup-spinner" 
-           height="80px" 
-           width="85px" 
-           style="opacity: 0.6">
-      <clip-loader color="#0000ff" 
-                   size="50px" 
-                   style="padding: 15px">
-      </clip-loader>
-    </modal>
+    <popup-spinner></popup-spinner>
     
   </div>
 </template>
@@ -102,13 +94,13 @@ Last update: 2018-07-25
   import rpcservice from '@/services/rpc-service'
   import router from '@/router'
   import Vue from 'vue'
-  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'CalibrationPage',
     
     components: {
-      ClipLoader
+      PopupSpinner
     },
     
     data() {
@@ -237,11 +229,6 @@ Last update: 2018-07-25
             horizontalAlign: 'center',
           })      
         })
-        
-//      // Set the active values from the loaded in data.
-//      for (let ind=0; ind < this.parList.length; ind++) {
-//        this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
-//      }
       },
 
       toggleShowingParams() {
@@ -250,9 +237,7 @@ Last update: 2018-07-25
 
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
-        
-        // Bring up a spinner.
-        this.$modal.show('popup-spinner')
+        this.$modal.show('popup-spinner') // Bring up a spinner.
         
         // Start the loading bar.
         this.$Progress.start()
@@ -280,15 +265,9 @@ Last update: 2018-07-25
               console.log('failled:' + err.message);
             }
           }
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-        
-          // Success popup.
-          this.$notifications.notify({
+          this.$modal.hide('popup-spinner') // Dispel the spinner.
+          this.$Progress.finish() // Finish the loading bar.
+          this.$notifications.notify({ // Success popup.
             message: 'Graphs created',
             icon: 'ti-check',
             type: 'success',
@@ -322,54 +301,58 @@ Last update: 2018-07-25
 
       autoCalibrate(project_id) {
 
-        this.$notifications.notify({
-          message: 'This is not yet implemented, please check back soon.',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        console.log('autoCalibrate() called')
 
-//        console.log('autoCalibrate() called')
-//
-//        // Go to the server to get the results from the package set.
-//        rpcservice.rpcCall('automatic_calibration', [project_id, this.cascadeYear])
-//          .then(response => {
-//            this.serverresponse = response.data // Pull out the response data.
-//            var n_plots = response.data.graphs.length
-//            console.log('Rendering ' + n_plots + ' graphs')
-//
-//            for (var index = 0; index <= n_plots; index++) {
-//              console.log('Rendering plot ' + index)
-//              var divlabel = 'fig' + index
-//              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-//              while (div.firstChild) {
-//                div.removeChild(div.firstChild);
-//              }
-//              try {
-//                console.log(response.data.graphs[index]);
-//                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-//              }
-//              catch (err) {
-//                console.log('failled:' + err.message);
-//              }
-//            }
-//          })
-//          .catch(error => {
-//            // Pull out the error message.
-//            this.serverresponse = 'There was an error: ' + error.message
-//
-//            // Set the server error.
-//            this.servererror = error.message
-//          }).then( response => {
-//          this.$notifications.notify({
-//            message: 'Graphs created',
-//            icon: 'ti-check',
-//            type: 'success',
-//            verticalAlign: 'top',
-//            horizontalAlign: 'center',
-//          });
-//        })
+        this.$modal.show('popup-spinner') // Bring up a spinner.
+
+        // Go to the server to get the results from the package set.
+        rpcservice.rpcCall('automatic_calibration', [project_id])
+          .then(response => {
+            this.serverresponse = response.data // Pull out the response data.
+            var n_plots = response.data.graphs.length
+            console.log('Rendering ' + n_plots + ' graphs')
+
+            for (var index = 0; index <= n_plots; index++) {
+              console.log('Rendering plot ' + index)
+              var divlabel = 'fig' + index
+              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+              while (div.firstChild) {
+                div.removeChild(div.firstChild);
+              }
+              try {
+                console.log(response.data.graphs[index]);
+                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+                this.haveDrawnGraphs = true
+              }
+              catch (err) {
+                console.log('failled:' + err.message);
+              }
+            }
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$Progress.finish() // Finish the loading bar.
+            this.$notifications.notify({ // Success popup.
+              message: 'Automatic calibration complete',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
+          })
+          .catch(error => {
+            // Pull out the error message.
+            this.serverresponse = 'There was an error: ' + error.message
+
+            // Set the server error.
+            this.servererror = error.message
+          }).then( response => {
+          this.$notifications.notify({
+            message: 'Graphs created',
+            icon: 'ti-check',
+            type: 'success',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          });
+        })
       },
 
       clearGraphs() {
