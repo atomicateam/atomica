@@ -171,7 +171,7 @@ class TimeDependentConnections(Table):
 
         return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None):
+    def write(self,worksheet,start_row,formats,references=None, verbose=False):
 
         if not references:
             references = {x:x for x in self.pops} # Default null mapping for populations
@@ -261,7 +261,12 @@ class TimeDependentConnections(Table):
                     if v is None:
                         worksheet.write_blank(current_row, offset + idx, v, formats['unlocked'])
                     else:
-                        worksheet.write(current_row, offset + idx, v, formats['unlocked'])
+                        try:
+                            assert np.isfinite(v) # Check that it's finite
+                        except:
+                            v = str(v) # Convert it to a string --  WARNING, is this the right approach?
+                            if verbose: print('Note: Value "%s" (row=%s, column=%s) not writable to Excel, converted to string' % (v, current_row, offset+idx))
+                        worksheet.write(current_row, offset+idx, v, formats['unlocked'])
 
         current_row += 2
 
@@ -409,7 +414,7 @@ class TimeDependentValuesEntry(TableTemplate):
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
         return TimeDependentValuesEntry(name,tvec,ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None):
+    def write(self,worksheet,start_row,formats,references=None, verbose=False):
         # references is a dict where the key is a string value and the content is a cell
         # Any populations that appear in this dict will have their value replaced by a reference
         # formats should be the dict returned by `excel.standard_formats` when it was called to add
@@ -464,6 +469,11 @@ class TimeDependentValuesEntry(TableTemplate):
                 if v is None:
                     worksheet.write_blank(current_row, offset+idx, v, formats['unlocked'])
                 else:
+                    try:
+                        assert np.isfinite(v) # Check that it's finite
+                    except:
+                        v = str(v) # Convert it to a string --  WARNING, is this the right approach?
+                        if verbose: print('Note: Value "%s" (row=%s, column=%s) not writable to Excel, converted to string' % (v, current_row, offset+idx))
                     worksheet.write(current_row, offset+idx, v, formats['unlocked'])
 
         return current_row+2 # Add two so there is a blank line after this table

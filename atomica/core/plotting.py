@@ -933,7 +933,7 @@ def plot_cascade(project=None, year=None, pop=None):
     rc('font', size=14)
     
     figsize = (9,6)
-    axsize = [0.35,0.15,0.55,0.8]
+    axsize = [0.45,0.15,0.45,0.8]
     POPULATION = 0
     RESULT = -1
     print('WARNING, population and result hard-coded!')
