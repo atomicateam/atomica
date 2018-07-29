@@ -350,8 +350,8 @@ Last update: 2018-07-26
                     div.removeChild(div.firstChild);
                   }
                   try {
-//                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure (use with the rpcCall).
-                    mpld3.draw_figure(divlabel, response.data.result.graphs[index]); // Draw the figure (use with task).
+                    mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure (use with the rpcCall).
+//                    mpld3.draw_figure(divlabel, response.data.result.graphs[index]); // Draw the figure (use with task).
                   }
                   catch (err) {
                     console.log('failled:' + err.message);
