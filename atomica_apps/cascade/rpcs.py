@@ -11,8 +11,9 @@ Last update: 2018jun04 by cliffk
 import os
 from zipfile import ZipFile
 from flask_login import current_user
-from mpld3 import fig_to_dict as make_mpld3_graph_dict
+import mpld3
 import uuid
+import time
 
 import sciris.corelib.fileio as fileio
 import sciris.weblib.user as user
@@ -408,7 +409,7 @@ def load_zip_of_frw_files(framework_ids):
     
     # Make the zip file name and the full server file path version of the same..
     zip_fname = 'Frameworks %s.zip' % sc.getdate()
-    server_zip_fname = os.path.join(dirname, zip_fname)
+    server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
     
     # Create the zip file, putting all of the .frw files in a frameworks 
     # directory.
@@ -561,7 +562,7 @@ def create_framework_from_frw_file(frw_filename, user_id):
         frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
     except Exception as E:
         print('ERROR, load failed: %s' % repr(E))
-        return { 'frameworkId': 'BadFileFormatError' }
+        return { 'error': 'BadFileFormatError' }
     
     # Reset the framework name to a new framework name that is unique.
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
@@ -631,7 +632,7 @@ def load_current_user_project_summaries():
     return load_current_user_project_summaries2()
 
 
-@register_RPC(validation_type='nonanonymous user')                
+@register_RPC(validation_type='nonanonymous user')
 def load_all_project_summaries():
     """
     Return project summaries for all projects to the client.
@@ -737,7 +738,7 @@ def load_zip_of_prj_files(project_ids):
     
     # Make the zip file name and the full server file path version of the same..
     zip_fname = 'Projects %s.zip' % sc.getdate()
-    server_zip_fname = os.path.join(dirname, zip_fname)
+    server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
     
     # Create the zip file, putting all of the .prj files in a projects 
     # directory.
@@ -909,7 +910,7 @@ def create_project_from_prj_file(prj_filename, user_id):
     try:
         proj = fileio.gzip_string_pickle_file_to_object(prj_filename)
     except Exception:
-        return { 'projectId': 'BadFileFormatError' }
+        return { 'error': 'BadFileFormatError' }
     
     # Reset the project name to a new project name that is unique.
     proj.name = get_unique_name(proj.name, other_names=None)
@@ -929,7 +930,7 @@ def do_get_plots(project_id, year=None, pop=None):
     figs = au.plot_cascade(proj, year=year, pop=pop)
     print('Number of figures: %s' % len(figs))
     for f,fig in enumerate(figs):
-        graph_dict = make_mpld3_graph_dict(fig)
+        graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
         print(graph_dict)
@@ -954,7 +955,8 @@ def get_y_factors(project_id, parsetname=-1):
             if proj.framework.get_spec_value(parname, "can_calibrate"):
                 for popname,y_factor in thispar.y_factor.items():
                     parlabel = proj.framework.get_spec_value(parname,'label')
-                    poplabel = popname.capitalize() if popname.islower() else popname # proj.framework.get_spec_value(popname,'label')
+                    popindex = parset.pop_names.index(popname)
+                    poplabel = parset.pop_labels[popindex]
                     thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)
@@ -1051,7 +1053,7 @@ def run_default_scenario(project_id):
     pl.gca().set_facecolor('none')
     
     for f,fig in enumerate(figs):
-        graph_dict = make_mpld3_graph_dict(fig)
+        graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
         print('Converted figure %s of %s' % (f+1, len(figs)))
     
@@ -1075,3 +1077,141 @@ def export_results(project_id, resultset=-1):
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
+
+
+
+
+##################################################################################
+#%% Optimization functions and RPCs
+##################################################################################
+
+def rpc_optimize(proj=None, json=None):
+    proj.make_optimization(json=json) # Make optimization
+    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
+    return optimized_result
+
+def py_to_js_optim(py_optim, prog_names):
+    ''' Convert a Python to JSON representation of an optimization '''
+    attrs = ['name', 'mults', 'add_funds']
+    js_optim = {}
+    for attr in attrs:
+        js_optim[attr] = getattr(py_optim, attr) # Copy the attributes into a dictionary
+    js_optim['obj'] = py_optim.obj[0]
+    js_optim['spec'] = []
+    for prog_name in prog_names:
+        this_spec = {}
+        this_spec['name'] = prog_name
+        this_spec['included'] = True if prog_name in py_optim.prog_set else False
+        this_spec['vals'] = []
+        js_optim['spec'].append(this_spec)
+    return js_optim
+    
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_optim_info(project_id):
+
+    print('Getting optimization info...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    optim_summaries = []
+    for py_optim in proj.optims.values():
+        js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
+        optim_summaries.append(js_optim)
+    
+    print('JavaScript optimization info:')
+    print(optim_summaries)
+
+    return optim_summaries
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_default_optim(project_id):
+
+    print('Getting default optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    py_optim = proj.demo_optims(doadd=False)[0]
+    js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
+    js_optim['objective_options'] = ['thrive', 'child_deaths', 'stunting_prev', 'wasting_prev', 'anaemia_prev'] # WARNING, stick allowable optimization options here
+    
+    print('Created default JavaScript optimization:')
+    print(js_optim)
+    return js_optim
+
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def set_optim_info(project_id, optim_summaries):
+
+    print('Setting optimization info...')
+    proj = load_project(project_id, raise_exception=True)
+    proj.optims.clear()
+    
+    for j,js_optim in enumerate(optim_summaries):
+        print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
+        json = sc.odict()
+        json['name'] = js_optim['name']
+        json['obj'] = js_optim['obj']
+        jsm = js_optim['mults']
+        if isinstance(jsm, list):
+            vals = jsm
+        elif sc.isstring(jsm):
+            try:
+                vals = [float(jsm)]
+            except Exception as E:
+                print('Cannot figure out what to do with multipliers "%s"' % jsm)
+                raise E
+        else:
+            raise Exception('Cannot figure out multipliers type "%s" for "%s"' % (type(jsm), jsm))
+        json['mults'] = vals
+        json['add_funds'] = sc.sanitize(js_optim['add_funds'], forcefloat=True)
+        json['prog_set'] = [] # These require more TLC
+        for js_spec in js_optim['spec']:
+            if js_spec['included']:
+                json['prog_set'].append(js_spec['name'])
+        
+        print('Python optimization info for optimization %s:' % (j+1))
+        print(json)
+        
+        proj.add_optim(json=json)
+    
+    print('Saving project...')
+    save_project(proj)   
+    
+    return None
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def run_optim(project_id, optim_name):
+    
+    print('Running optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    
+    proj.run_optims(keys=[optim_name], parallel=False)
+    figs = proj.plot(toplot=['alloc']) # Only plot allocation
+    graphs = []
+    for f,fig in enumerate(figs.values()):
+        for ax in fig.get_axes():
+            ax.set_facecolor('none')
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+    
+    print('Saving project...')
+    save_project(proj)    
+    return {'graphs':graphs}
+
+
+##################################################################################
+#%% Miscellaneous RPCs
+##################################################################################
+
+@register_RPC(validation_type='nonanonymous user')    
+def simulate_slow_rpc(sleep_secs, succeed=True):
+    time.sleep(sleep_secs)
+    
+    if succeed:
+        return 'success'
+    else:
+        return {'error': 'failure'}
+

@@ -5,7 +5,7 @@ from .version import version
 from bisect import bisect
 import sciris.core as sc
 import numpy as np
-
+import scipy.interpolate
 
 class SemanticUnknownException(AtomicaException):
     def __init__(self, term, attribute=None, **kwargs):
@@ -81,22 +81,27 @@ def get_quantity_type_list(include_absolute=False, include_relative=False, inclu
 class TimeSeries(object):
     def __init__(self, t=None, vals=None, format=None, units=None):
 
-        t = t if t is not None else list()
-        vals = vals if vals is not None else list()
+        t = sc.promotetoarray(t) if t is not None else list()
+        vals = sc.promotetoarray(vals) if vals is not None else list()
 
         assert len(t) == len(vals)
 
         self.t = []
         self.vals = []
-        self.format = format
+        self.format = format # TODO - what's the difference between format and units?!
         self.units = units
         self.assumption = None
 
-        for tx, vx in zip(t, vals):
+        for tx, vx in zip(t,vals):
             self.insert(tx, vx)
 
     @property
     def has_data(self):
+        # Returns true if any time-specific data has been entered (not just an assumption)
+        return self.assumption is not None or self.has_time_data
+
+    @property
+    def has_time_data(self):
         # Returns true if any time-specific data has been entered (not just an assumption)
         return len(self.t) > 0
 
@@ -142,55 +147,35 @@ class TimeSeries(object):
         else:
             raise AtomicaException('Item not found')
 
-            # Todo - unit conversion (should it return a new instance?)
-            # Todo - interpolation/expansion
+    def remove_between(self, t_remove):
+        # t is a two element vector [min,max] such that
+        # times > min and < max are removed
+        # Note that the endpoints are not included!
+        for tval in sc.dcp(self.t):
+            if t_remove[0] < tval < t_remove[1]:
+                self.remove(tval)
 
+    def interpolate(self,t2):
+        # Output is guaranteed to be of type np.array
+        t2 = sc.promotetoarray(t2) # Deal with case where user prompts for single time point
+        t1,v1 = self.get_arrays()
 
-class KeyData(object):
-    """ 
-    A custom object for storing values associated with time points. 
-    The values for each timepoint are listed in order as the 'keys' that represent the series.
-    For example:
-        self.keys = ["a","b","c"]
-        self.values = {2010.0:[1,1001,-15],
-                       2020.0:[2,2001,-50]}
-    Note: The values structure contains special lists for assumptions and formats.
-    """
+        # Remove NaNs
+        idx = ~np.isnan(t1) & ~np.isnan(v1)
+        t1 = t1[idx]
+        v1 = v1[idx]
 
-    def __init__(self, keys=None, default_format=None):
-        self.data = {}
-        self.default_format = default_format
-        if keys is not None:
-            [self.add_key(x) for x in keys]
-
-    def __getitem__(self, key):
-        return self.data[key]
-
-    def keys(self):
-        return self.data.keys()
-
-    def add_key(self, key, format=None):
-        format = format if format is not None else self.default_format
-        self.data[key] = TimeSeries(format=format)
-
-    def get_value(self, key, t=None):
-        return self.data[key].get(t)
-
-    def set_value(self, key, value, t=None):
-        self.data[key].insert(t, value)
-
-    def get_arrays(self, key):
-        return self.data[key].get_arrays()
-
-    def get_format(self, key):
-        return self.data[key].format
-
-    def set_format(self, key, value_format):
-        self.data[key].format = value_format
-
-    def __repr__(self, **kwargs):
-        return "Keydata: " + str(self.keys())
-
+        if t1.size == 0:
+            raise AtomicaException('No time points remained after removing NaNs from the TimeSeries')
+        elif t1.size == 1:
+            return np.full(t2.shape,v1[0])
+        else:
+            v2 = np.zeros(t2.shape)
+            f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
+            v2[(t2>=t1[0]) & (t2<=t1[-1])] = f(t2[(t2>=t1[0]) & (t2<=t1[-1])])
+            v2[t2<t1[0]] = v1[0]
+            v2[t2>t1[-1]] = v1[-1]
+            return v2
 
 @apply_to_all_methods(log_usage)
 class CoreProjectStructure(object):

@@ -5,48 +5,44 @@ Version:
 import logging
 logger = logging.getLogger()
 
-## Write the log to a file
-# h = logging.FileHandler('testworkflow.log',mode='w')
-# logger.addHandler(h)
-
-## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
-# logger.setLevel('DEBUG')
-
 import os
 import atomica.ui as au
 import sciris.core as sc
+import pylab as pl
 
-# Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
-# logger.setLevel('DEBUG')
 
-test = "sir"
-#test = "tb"
+# test = "sir"
+test = "tb"
 #test = "diabetes"
 # test = "service"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
-# "makeplots",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#'plotcascade',
+#"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
+#"makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
-# "autocalibrate",
+#"autocalibrate",
 # "parameterscenario",
+#'budgetscenario',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
+
+forceshow = True # Whether or not to force plots to show (warning, only partly implemented)
 
 # Define plotting variables in case plots are generated
 if test == "sir":
@@ -87,13 +83,10 @@ if "loadframework" in torun:
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
-    if test == "sir": args = {"num_pops":1, "num_trans":1, "num_progs":3,
-                              "data_start":2000, "data_end":2015, "data_dt":1.0}
-    elif test == "tb": args = {"num_pops":12, "num_trans":3, "num_progs":31, "data_end":2018}
-    elif test == "diabetes": args = {"num_pops":1, "num_trans":0, "num_progs":0,
-                              "data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test == "service": args = {"num_pops":1, "num_trans":0, "num_progs":0,
-                              "data_start":2014, "data_end":2017, "data_dt":1.0}
+    if test == "sir": args = {"num_pops":1, "num_transfers":1,"data_start":2000, "data_end":2015, "data_dt":1.0}
+    elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
+    elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -127,6 +120,16 @@ if "runsim" in torun:
 
 if 'plotcascade' in torun:
     au.plot_cascade(project=P, year=2020)
+    if forceshow: pl.show()
+    
+    # Browser test
+    as_mpld3 = True
+    if as_mpld3:
+        import sciris.weblib.quickserver as sqs
+        fig = pl.gcf()
+        sqs.browser(fig)
+        
+    
     
     
     
@@ -176,9 +179,8 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
-    if test in ['tb','diabetes','service']:
-        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
-    else:
+
+    if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
         instructions = au.ProgramInstructions() 
@@ -188,41 +190,51 @@ if "runsim_programs" in torun:
         d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
         au.plot_series(d, axis="results")
 
+    elif test == 'tb':
+        instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
+#        P.run_sim(parset="default", result_name="default-noprogs")
+        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+
+    elif test in ['diabetes','service']:
+        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
+
+    else:
+        print('\n\n\nUnknown test.')
 
 if "makeplots" in torun:
 
     # Low level debug plots.
     for var in test_vars:
-        P.results["default"].get_variable(test_pop,var)[0].plot()
+        P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
     # Plot population decomposition.
-    d = au.PlotData(P.results["default"],outputs=decomp,pops=plot_pop)
+    d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
     au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
         au.plot_bars(d, outer="results", stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
         au.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
 
-        d = au.PlotData(P.results["default"], pops='0-4')
+        d = au.PlotData(P.results["parset_default"], pops='0-4')
         au.plot_series(d, plot_type='stacked')
 
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = au.PlotData(P.results["default"],outputs=grouped_deaths,pops=plot_pop)
+        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
 
     # Plot aggregate flows
-    d = au.PlotData(P.results["default"],outputs=[{"Death rate":deaths}])
+    d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
     au.plot_series(d, axis="pops")
 
 
@@ -261,7 +273,6 @@ if "manualcalibrate" in torun:
     au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
-    # Manual fit was not good enough according to plots, so run autofit.
 #    if test == "sir":
 #        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
 #        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
@@ -274,6 +285,10 @@ if "autocalibrate" in torun:
 #        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
     P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
+    if test == "sir":
+        outputs = ["ch_prev"]
+    if test == "tb":
+        outputs = ["ac_inf"]
     d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
     au.plot_series(d, axis='results', data=P.data)
     
@@ -309,6 +324,11 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
     au.plot_series(d, axis="results")
+
+
+if "optimization" in torun:
+    P = au.demo(which='tb')
+    P.run_optimization()
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions

@@ -1,81 +1,103 @@
 <!--
 Define health packages
 
-Last update: 2018-05-29
+Last update: 2018-07-25
 -->
 
 <template>
   <div class="SitePage">
-
-    <div class="calib-controls">
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      <div class="control-group">
-        Select cascade year:
-        <select v-model="cascadeYear">
-          <option v-for='year in cascadeYears'>
-            {{ year }}
-          </option>
-        </select>
+  
+    <div v-if="activeProjectID ==''">
+      <div style="font-style:italic">
+        <p>No project is loaded.</p>
       </div>
-      <button class="btn" @click="toggleShowingParams()">
-        <span v-if="areShowingParameters">Hide</span>
-        <span v-else>Show</span>
-        parameters
-      </button>
-      <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
-      <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
     </div>
 
-    <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
-      <div class="calib-params" v-if="areShowingParameters">
-        <table class="table table-bordered table-hover table-striped" style="width: 100%">
-          <thead>
-          <tr>
-            <th @click="updateSorting('parameter')" class="sortable">
-              Parameter
-              <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-              <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-              <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-            </th>
-            <th @click="updateSorting('population')" class="sortable">
-              Population
-              <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-              <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-              <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-            </th>
-            <th @click="updateSorting('value')" class="sortable">
-              Value
-              <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-              <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-              <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-            </th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="par in sortedPars">
-            <td>
-              {{par.parlabel}}
-            </td>
-            <td>
-              {{par.poplabel}}
-            </td>
-            <td>
-              <input type="text"
-                     class="txbox"
-                     v-model="par.value"/>
-            </td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="calib-graph">
-        <div v-for="index in placeholders" :id="'fig'+index">
-          <!--mpld3 content goes here-->
+    <div v-else>
+    
+      <div class="calib-controls">
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+        <div class="control-group">
+          Select cascade year:
+          <select v-model="cascadeYear">
+            <option v-for='year in cascadeYears'>
+              {{ year }}
+            </option>
+          </select>
         </div>
+        <button class="btn" @click="toggleShowingParams()">
+          <span v-if="areShowingParameters">Hide</span>
+          <span v-else>Show</span>
+          parameters
+        </button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
+        <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
       </div>
-    </div>
 
+      <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
+        <div class="calib-params" v-if="areShowingParameters">
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th @click="updateSorting('parameter')" class="sortable">
+                Parameter
+                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('population')" class="sortable">
+                Population
+                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('value')" class="sortable">
+                Value
+                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="par in sortedPars">
+              <td>
+                {{par.parlabel}}
+              </td>
+              <td>
+                {{par.poplabel}}
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="par.value"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="calib-graph">
+          <div v-for="index in placeholders" :id="'fig'+index">
+            <!--mpld3 content goes here-->
+          </div>
+        </div>
+        
+      </div>
+      
+    </div>
+    
+    <!-- Popup spinner -->
+    <modal name="popup-spinner" 
+           height="80px" 
+           width="85px" 
+           style="opacity: 0.6">
+      <clip-loader color="#0000ff" 
+                   size="50px" 
+                   style="padding: 15px">
+      </clip-loader>
+    </modal>
+    
   </div>
 </template>
 
@@ -85,10 +107,16 @@ Last update: 2018-05-29
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
   import router from '@/router'
-  import Vue from 'vue';
-
+  import Vue from 'vue'
+  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  
   export default {
     name: 'CalibrationPage',
+    
+    components: {
+      ClipLoader
+    },
+    
     data() {
       return {
         serverresponse: 'no response',
@@ -96,7 +124,7 @@ Last update: 2018-05-29
         sortReverse: false,
         parList: [],
         cascadeYear: [],
-        areShowingParameters: true,
+        areShowingParameters: true
       }
     },
 
@@ -147,9 +175,9 @@ Last update: 2018-05-29
       },
 
       sortedPars() {
-//        var sortedParList = this.applySorting(this.parList);
-        var sortedParList = this.parList;
-        console.log(sortedParList);
+        var sortedParList = this.applySorting(this.parList);
+/*        var sortedParList = this.parList;
+        console.log(sortedParList); */
         return sortedParList;
       },
 
@@ -161,7 +189,7 @@ Last update: 2018-05-29
         router.push('/login')
       }
 
-      else {
+      else if (this.$store.state.activeProject.project != undefined) {
         this.viewTable();
         this.cascadeYear = this.$store.state.activeProject.project.sim_end
       }
@@ -191,29 +219,50 @@ Last update: 2018-05-29
       },
 
       applySorting(pars) {
-        return pars.sort((par1, par2) =>
+        return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parname') { return par1[0] > par2[0] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'popname') { return par1[1] > par2[1] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1[2] > par2[2] ? sortDir: -sortDir}
+            if      (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}
           }
         )
       },
 
       viewTable() {
         console.log('viewTable() called')
+        
+        // Note: For some reason, the popup spinner doesn't work from inside created().
+        
+        // Start the loading bar.
+        this.$Progress.start()
 
         // Go to the server to get the diseases from the burden set.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id])
-          .then(response => {
-            this.parList = response.data // Set the disease list.
-          })
-
-//        // Set the active values from the loaded in data.
-//        for (let ind=0; ind < this.parList.length; ind++) {
-//          this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
-//        }
+        .then(response => {
+          this.parList = response.data // Set the disease list.
+          
+          // Finish the loading bar.
+          this.$Progress.finish()          
+        })
+        .catch(error => {
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not load diseases',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })      
+        })
+        
+//      // Set the active values from the loaded in data.
+//      for (let ind=0; ind < this.parList.length; ind++) {
+//        this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
+//      }
       },
 
       toggleShowingParams() {
@@ -222,46 +271,74 @@ Last update: 2018-05-29
 
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
-
+        
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
+        // Start the loading bar.
+        this.$Progress.start()
+        
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('set_y_factors', [project_id, this.parList, this.cascadeYear])
-          .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
+        .then(response => {
+          this.serverresponse = response.data // Pull out the response data.
+          var n_plots = response.data.graphs.length
+          console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
+          for (var index = 0; index <= n_plots; index++) {
+            console.log('Rendering plot ' + index)
+            var divlabel = 'fig' + index
+            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            while (div.firstChild) {
+              div.removeChild(div.firstChild);
             }
-          })
-          .catch(error => {
-            // Pull out the error message.
-            this.serverresponse = 'There was an error: ' + error.message
-
-            // Set the server error.
-            this.servererror = error.message
-          }).then( response => {
+            try {
+              console.log(response.data.graphs[index]);
+              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              this.haveDrawnGraphs = true
+            }
+            catch (err) {
+              console.log('failled:' + err.message);
+            }
+          }
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
+          // Finish the loading bar.
+          this.$Progress.finish()
+        
+          // Success popup.
           this.$notifications.notify({
             message: 'Graphs created',
             icon: 'ti-check',
             type: 'success',
             verticalAlign: 'top',
             horizontalAlign: 'center',
-          });
+          })           
         })
+        .catch(error => {
+          // Pull out the error message.
+          this.serverresponse = 'There was an error: ' + error.message
+
+          // Set the server error.
+          this.servererror = error.message
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
+          // Fail the loading bar.
+          this.$Progress.fail()
+        
+          // Failure popup.
+          this.$notifications.notify({
+            message: 'Could not make graphs',
+            icon: 'ti-face-sad',
+            type: 'warning',
+            verticalAlign: 'top',
+            horizontalAlign: 'center',
+          })          
+        }) 
       },
 
       autoCalibrate(project_id) {

@@ -104,3 +104,5 @@ ENV/
 
 # other stuff
 package-lock.json
+temp
+vueapp

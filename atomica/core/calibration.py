@@ -1,8 +1,5 @@
-from copy import deepcopy as dcp
-
 import numpy as np
-
-from .asd import asd
+import sciris.core as sc
 from .interpolation import interpolate_func
 from .structure import SemanticUnknownException
 
@@ -50,8 +47,10 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
     objective = 0.0
 
     for var_label, pop_name, weight, metric in output_quantities:
-        target = project.data.get_spec(var_label)['data'][pop_name]
-        if not target.has_data:     # Only use this output quantity if the user entered time-specific data
+        target = project.data.get_ts(var_label,pop_name) # This is the TimeSeries with the data for the requested quantity
+        if target is None:
+            continue
+        if not target.has_time_data:     # Only use this output quantity if the user entered time-specific data
             continue
         var = result.model.get_pop(pop_name).get_variable(var_label)
         data_t, data_v = target.get_arrays()
@@ -142,7 +141,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     for output_tuple in output_quantities:
         if output_tuple[1] is None:  # If the pop name is None
             try:
-                pops = project.data.get_spec(output_tuple[0])['data'].keys()
+                pops = project.data.pops.keys()
             except SemanticUnknownException:
                 continue
             for pop_name in pops:
@@ -191,7 +190,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     if max_time is not None:
         optim_args['maxtime'] = max_time
 
-    x1, _, _ = asd(calculate_objective, x0, args, **optim_args)
+    x1, _, _ = sc.asd(calculate_objective, x0, args, **optim_args)
 
     update_parset(args['parset'], x1, pars_to_adjust)
 

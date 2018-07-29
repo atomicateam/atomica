@@ -4,7 +4,6 @@ import itertools
 import os
 import textwrap
 from collections import defaultdict
-from copy import deepcopy as dcp
 
 import matplotlib.cm as cmx
 import matplotlib.colors as matplotlib_colors
@@ -546,7 +545,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
 
     assert outer in ['times', 'results'], 'Supported outer groups are "times" or "results"'
 
-    plotdata = dcp(plotdata)
+    plotdata = sc.dcp(plotdata)
 
     # Note - all of the tvecs must be the same
     tvals, t_labels = plotdata.tvals()  # We have to iterate over these, with offsets, if there is more than one
@@ -817,7 +816,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
     figs = []
     ax = None
 
-    plotdata = dcp(plotdata)
+    plotdata = sc.dcp(plotdata)
 
     if axis == 'results':
         plotdata.set_colors(results=plotdata.results)
@@ -934,7 +933,7 @@ def plot_cascade(project=None, year=None, pop=None):
     rc('font', size=14)
     
     figsize = (9,6)
-    axsize = [0.35,0.15,0.55,0.8]
+    axsize = [0.45,0.15,0.45,0.8]
     POPULATION = 0
     RESULT = -1
     print('WARNING, population and result hard-coded!')
@@ -1018,17 +1017,14 @@ def render_data(ax, data, series,baseline=None,filled=False):
     # name - The name-formatting function to retrieve full names (currently unused)
     # color - The color of the data points to use
 
-    if series.data_label in data.filter['datapar']:
-        d = data.get_spec(series.data_label)
-    else:
+    ts = data.get_ts(series.data_label,series.pop)
+    if ts is None:
         return
 
-    if series.pop in d['data'].keys():
-        t, y = d['data'].get_arrays(series.pop)
-        if len(t) == 0:
-            return
-    else:
+    if not ts.has_time_data:
         return
+
+    t, y = ts.get_arrays()
 
     if baseline is not None:
         y_data = interpolate_func(series.tvec, baseline, t, method='pchip', extrapolate_nan=False)
@@ -1038,7 +1034,6 @@ def render_data(ax, data, series,baseline=None,filled=False):
         ax.scatter(t,y,marker='o', s=40, linewidths=1, facecolors=series.color,color='k')#label='Data %s %s' % (name(pop,proj),name(output,proj)))
     else:
         ax.scatter(t,y,marker='o', s=40, linewidths=3, facecolors='none',color=series.color)#label='Data %s %s' % (name(pop,proj),name(output,proj)))
-
 
 
 def set_ytick_format(ax, formatter):

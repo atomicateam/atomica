@@ -5,7 +5,10 @@ import Vue from 'vue'
 // Simple alert plugin
 import Simplert from 'vue2-simplert-plugin'
 require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
+// Modal dialogs plugin
 import VModal from 'vue-js-modal'
+// Progress bar plugin
+import VueProgressBar from 'vue-progressbar'
 
 import GlobalComponents from './globalComponents'
 import GlobalDirectives from './globalDirectives'
@@ -25,10 +28,21 @@ import 'es6-promise/auto'
 // plugin setup
 Vue.use(GlobalComponents);
 Vue.use(GlobalDirectives);
-Vue.use(Notifications); // WARNING, not used?
+Vue.use(Notifications);
 Vue.use(SideBar);
 Vue.use(Simplert);
 Vue.use(VModal);
+Vue.use(VueProgressBar, {
+  color: 'rgb(0, 0, 255)',
+  failedColor: 'red',
+  thickness: '3px',
+  transition: {
+    speed: '0.2s',
+    opacity: '0.6s',
+    termination: 300
+  }       
+});
+
 // global library setup
 Object.defineProperty(Vue.prototype, '$Chartist', {
   get () {

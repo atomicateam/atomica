@@ -8,6 +8,7 @@ Last update: 7/5/18 (gchadder3)
   <div :class="{'nav-open': $sidebar.showSidebar}">
     <simplert></simplert>
     <router-view></router-view>
+    <vue-progress-bar></vue-progress-bar>
     <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
     <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">
       <ul class="nav navbar-nav">

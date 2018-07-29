@@ -1,8 +1,8 @@
 {
   "name": "atomica",
-  "version": "0.13.4",
+  "version": "0.15.1",
   "description": "Atomica",
-  "author": "University of Copenhagen <cascade.tools>",
+  "author": "University of Copenhagen <info@cascade.tools>",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
@@ -23,9 +23,11 @@
     "normalize.css": "^7.0.0",
     "vue": "^2.3.3",
     "vue-clickaway": "^2.1.0",
-    "vue-router": "^2.6.0",
-    "vue2-simplert-plugin": "^0.4.1",
     "vue-js-modal": "^1.3",
+    "vue-progressbar": "^0.7.5",
+    "vue-router": "^2.6.0",
+    "vue-spinner": "^1.0.3",
+    "vue2-simplert-plugin": "^0.4.1",
     "vuex": "^2.4.0"
   },
   "devDependencies": {
