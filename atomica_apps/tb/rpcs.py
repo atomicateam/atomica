@@ -667,7 +667,7 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plotdata=None, replace_nans=True):
+def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plotdata=None, replace_nans=True,stacked=False):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
@@ -689,7 +689,11 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
                             nans_replaced += 1
             if nans_replaced:
                 print('Warning: %s nans were replaced' % nans_replaced)
-            figs = au.plot_series(plotdata, data=data, axis='results')
+
+            if stacked:
+                figs = au.plot_series(plotdata, data=data, axis='pops',plot_type='stacked')
+            else:
+                figs = au.plot_series(plotdata, data=data, axis='results')
 
             # Todo - customize plot formatting here
             for fig in figs:
@@ -697,9 +701,9 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
                 ax.set_facecolor('none')
                 ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-                if len(results) == 1:
-                    legend = fig.findobj(Legend)[0]
-                    legend.remove()
+                legend = fig.findobj(Legend)[0]
+                if len(legend.get_texts())==1:
+                    legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
@@ -748,7 +752,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_plots(proj,result)
+    output = get_plots(proj, result,pops=None,stacked=True)
     return output
 
 #TO_PORT
@@ -765,7 +769,7 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     result = proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
-    output = get_plots(proj, result)
+    output = get_plots(proj, result,pops=None,stacked=True)
     return output
 
 
