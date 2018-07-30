@@ -83,7 +83,8 @@ class ProjectData(object):
 
         # First, check if it's the name of a TDVE
         if name in self.tdve:
-            return self.tdve[name].ts[key]
+            if key in self.tdve[name].ts:
+                return self.tdve[name].ts[key]
 
         # Then, if the key is None, we are working on a transfer parameter. So reconstruct the key
         if key is None:
