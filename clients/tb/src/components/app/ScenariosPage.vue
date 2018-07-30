@@ -291,6 +291,8 @@ Last update: 2018-07-29
         rpcservice.rpcCall('get_scen_info', [this.projectID()])
           .then(response => {
             this.scenSummaries = response.data // Set the scenarios to what we received.
+            console.log('Scenario summaries:')
+            console.log(this.scenSummaries)
             this.$notifications.notify({
               message: 'Scenarios loaded',
               icon: 'ti-check',

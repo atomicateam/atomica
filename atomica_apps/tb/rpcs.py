@@ -935,19 +935,36 @@ def py_to_js_scen(py_scen):
         js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
     js_scen['alloc'] = []
     for prog_name,budget in py_scen.alloc.items():
-        js_scen['alloc'].append([prog_name,budget])
+        print('SHMAAAP')
+        print prog_name,budget
+        if sc.isiterable(budget):
+            if len(budget)>1:
+                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            else:
+                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+        js_scen['alloc'].append([prog_name,float(budget)])
     return js_scen
 
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    attrs = ['name', 'parsetname', 'progsetname'] 
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
-    js_scen['alloc'] = sc.odict()
+    py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+    py_scen['alloc'] = sc.odict()
     for item in js_scen['alloc']:
-        js_scen['alloc'][item[0]] = item[1]
-    return js_scen
+        print('TESMMP')
+        print item
+        prog_name = item[0]
+        budget = item[1]
+        if sc.isiterable(budget):
+            if len(budget)>1:
+                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            else:
+                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+        py_scen['alloc'][prog_name] = float(budget)
+    return py_scen
     
 
 @register_RPC(validation_type='nonanonymous user')    
