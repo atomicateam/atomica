@@ -580,19 +580,19 @@ Last update: 2018-07-30
     display: block;
   }
   .calib-params {
-    flex: 1 0 20%;
+    flex: 1 0 10%;
   }
   .plotopts-main {
-    width: 350px;
-    padding-left: 20px;
+    /*width: 350px;*/
+    /*padding-left: 20px;*/
     display: flex;
-    float: left;
+    /*float: left;*/
   }
   .plotopts-main--full {
     display: block;
   }
   .plotopts-params {
-    flex: 1 0 20%;
+    flex: 1 0 10%;
   }
   .calib-graphs {
     flex: 1 0 60%;
