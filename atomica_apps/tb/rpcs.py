@@ -22,9 +22,8 @@ import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
 from matplotlib.legend import Legend
-from matplotlib.pyplot import rc
 import matplotlib.pyplot as pl
-
+from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
@@ -215,21 +214,11 @@ def save_project_as_new(proj, user_id):
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
     """ 
-    
-    # Set a new project UID, so we aren't replicating the UID passed in.
-    proj.uid = sc.uuid()
-    
-    # Create the new project entry and enter it into the ProjectCollection.
-    projSO = prj.ProjectSO(proj, user_id)
+    proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
+    projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
-
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> save_project_as_new '%s'" % proj.name)
-
-    # Save the changed Project object to the DataStore.
-    save_project(proj)
-    
+    print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
+    save_project(proj) # Save the changed Project object to the DataStore.
     return None
 
 @timeit
@@ -380,36 +369,43 @@ def download_project(project_id):
     print(">> download_project %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
+
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_databook(project_id):
     """
     Download databook
     """
-    N_POPS = 5
-    print('WARNING, N_POPS HARDCODED')
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.create_databook(full_file_name, num_pops=N_POPS)
+    proj.databook.save(full_file_name)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_progbook(project_id):
-    """
-    Download program book
-    """
-    N_PROGS = 5
-    print("WARNING, PROGRAMS HARD_CODED")
+    """ Download program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.make_progbook(full_file_name, progs=N_PROGS)
-    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    proj.progbook.save(full_file_name)
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
+    
+    
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def create_progbook(project_id, num_progs):
+    """ Create program book """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.    
     
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
@@ -432,96 +428,50 @@ def load_zip_of_prj_files(project_ids):
     Given a list of project UIDs, make a .zip file containing all of these 
     projects as .prj files, and return the full path to this file.
     """
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-
-    # Build a list of prj.ProjectSO objects for each of the selected projects, 
-    # saving each of them in separate .prj files.
-    prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids]
-    
-    # Make the zip file name and the full server file path version of the same..
-    zip_fname = 'Projects %s.zip' % sc.getdate()
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids] # Build a list of prj.ProjectSO objects for each of the selected projects, saving each of them in separate .prj files.
+    zip_fname = 'Projects %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
-    
-    # Create the zip file, putting all of the .prj files in a projects 
-    # directory.
-    with ZipFile(server_zip_fname, 'w') as zipfile:
+    with ZipFile(server_zip_fname, 'w') as zipfile: # Create the zip file, putting all of the .prj files in a projects directory.
         for project in prjs:
             zipfile.write(os.path.join(dirname, project), 'projects/{}'.format(project))
-            
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> load_zip_of_prj_files %s" % (server_zip_fname))
+    print(">> load_zip_of_prj_files %s" % (server_zip_fname)) # Display the call information.
+    return server_zip_fname # Return the server file name.
 
-    # Return the server file name.
-    return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
 def add_demo_project(user_id):
     """
     Add a demo Optima TB project
     """
-    # Get a unique name for the project to be added
-    new_proj_name = get_unique_name('Demo project', other_names=None)
-    
-    # Create the project, loading in the desired spreadsheets.
-    proj = au.demo(which='tb',do_plot=0) 
+    new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
+    proj = au.demo(which='tb',do_plot=0)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
     result = proj.results[0]
     proj.results = au.NDict()
-    save_project_as_new(proj, user_id)
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     store_result_separately(proj,result)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
     print(">> add_demo_project %s" % (proj.name))    
-    
-    # Save the new project in the DataStore.
-
-    # Return the new project UID in the return message.
-    return { 'projectId': str(proj.uid) }
+    return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
+def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data_end):
     """
     Create a new project.
     """
-    
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
-    
-    # Get a unique name for the project to be added.
-    new_proj_name = get_unique_name(proj_name, other_names=None)
-    
-    # Create the project, loading in the desired spreadsheets.
+    new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
-    proj = au.Project(framework=F, name=new_proj_name)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
+    proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
-    
-    # Save the new project in the DataStore.
-    save_project_as_new(proj, user_id)
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-        
-    # Create a filename containing the project name followed by a .prj 
-    # suffix.
-    file_name = '%s.xlsx' % proj.name
-        
-    # Generate the full file name with path.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
-    
-    # Return the databook
-    proj.create_databook(databook_path=full_file_name, **args)
-    
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.create_databook(databook_path=full_file_name, **args) # Return the databook
     print(">> download_databook %s" % (full_file_name))
-    
-    # Return the new project UID in the return message.
-    return full_file_name
+    return full_file_name # Return the filename
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
@@ -531,7 +481,7 @@ def upload_databook(databook_filename, project_id):
     """
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_databook(databook_path=databook_filename, overwrite=True) 
+    proj.load_databook(databook_path=databook_filename) 
     proj.modified = sc.today()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
@@ -632,29 +582,29 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 def supported_plots_func():
-    supported_plots = {
-            'Population size':['alive'],
-            'Latent infections':['lt_inf'],
-            'Active TB':['ac_inf'],
-            'Active DS-TB':['ds_inf'],
-            'Active MDR-TB':['mdr_inf'],
-            'Active XDR-TB':['xdr_inf'],
-            'New active DS-TB':['pd_div:flow','nd_div:flow'],
-            'New active MDR-TB':['pm_div:flow','nm_div:flow'],
-            'New active XDR-TB':['px_div:flow','nx_div:flow'],
-            'Smear negative active TB':['sn_inf'],
-            'Smear positive active TB':['sp_inf'],
-            'Latent diagnoses':['le_treat:flow','ll_treat:flow'],
-            'New active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow'],
-            'New active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow'],
-            'New active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow'],
-            'New active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow'],
-            'Latent treatment':['ltt_inf'],
-            'Active treatment':['num_treat'],
-            'TB-related deaths':[':ddis'],
-            }
-    return supported_plots
 
+    supported_plots = sc.odict() # Preserve order
+    supported_plots['Population size'] = 'alive'
+    supported_plots['Latent infections'] = 'lt_inf'
+    supported_plots['Active TB'] = 'ac_inf'
+    supported_plots['Active DS-TB'] = 'ds_inf'
+    supported_plots['Active MDR-TB'] = 'mdr_inf'
+    supported_plots['Active XDR-TB'] = 'xdr_inf'
+    supported_plots['New active DS-TB'] = ['pd_div:flow','nd_div:flow']
+    supported_plots['New active MDR-TB'] = ['pm_div:flow','nm_div:flow']
+    supported_plots['New active XDR-TB'] = ['px_div:flow','nx_div:flow']
+    supported_plots['Smear negative active TB'] = 'sn_inf'
+    supported_plots['Smear positive active TB'] = 'sp_inf'
+    supported_plots['Latent diagnoses'] = ['le_treat:flow','ll_treat:flow']
+    supported_plots['New active TB diagnoses'] = ['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']
+    supported_plots['New active DS-TB diagnoses'] = ['pd_diag:flow','nd_diag:flow']
+    supported_plots['New active MDR-TB diagnoses'] = ['pm_diag:flow','nm_diag:flow']
+    supported_plots['New active XDR-TB diagnoses'] = ['px_diag:flow','nx_diag:flow']
+    supported_plots['Latent treatment'] = 'ltt_inf'
+    supported_plots['Active treatment'] = 'num_treat'
+    supported_plots['TB-related deaths'] = ':ddis'
+
+    return supported_plots
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_supported_plots(only_keys=False):
@@ -667,7 +617,56 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plotdata=None, replace_nans=True,stacked=False):
+def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None, replace_nans=True,stacked=False):
+    # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
+    supported_plots = supported_plots_func()
+    if plot_names is None: plot_names = supported_plots.keys()
+    plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
+    graphs = []
+    for output in outputs:
+        try:
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(result, outputs=output, project=proj, pops=pops)
+            else:
+                plotdata = au.PlotData(result, outputs=output.values()[0], project=proj, pops=pops) # Don't rename the plot, this will allow data to be retrieved
+
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+
+            if stacked:
+                figs = au.plot_series(plotdata, axis='pops', plot_type='stacked')
+            else:
+                figs = au.plot_series(plotdata, axis='pops', data=proj.data) # Only plot data if not stacked
+
+            # Todo - customize plot formatting here
+            for fig in figs:
+                ax = fig.get_axes()[0]
+                ax.set_facecolor('none')
+                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                graph_dict = mpld3.fig_to_dict(fig)
+                graphs.append(graph_dict)
+            pl.close('all')
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+
+
+    return {'graphs':graphs}
+
+
+def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
@@ -675,7 +674,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     graphs = []
-    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
@@ -691,7 +690,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
                 print('Warning: %s nans were replaced' % nans_replaced)
 
             if stacked:
-                figs = au.plot_series(plotdata, data=data, axis='pops',plot_type='stacked')
+                figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
             else:
                 figs = au.plot_series(plotdata, data=data, axis='results')
 
@@ -752,7 +751,14 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_plots(proj, result,pops=None,stacked=True)
+    output = get_calibration_plots(proj, result,pops=None,stacked=True)
+
+    # Commands below will render unstacked plots with data, and will interleave them
+    # so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+
+
     return output
 
 #TO_PORT
@@ -769,7 +775,14 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     result = proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
-    output = get_plots(proj, result,pops=None,stacked=True)
+
+    output = get_calibration_plots(proj, result,pops=None,stacked=True)
+
+    # Commands below will render unstacked plots with data, and will interleave them
+    # so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+
     return output
 
 
@@ -781,6 +794,9 @@ def export_results(project_id, resultset=-1):
     print('Exporting results...')
     proj = load_project(project_id, raise_exception=True)
     result = proj.results[resultset]
+    if isinstance(result, ResultPlaceholder):
+        print('Getting actual result...')
+        result = result.get()
     
     dirname = fileio.downloads_dir.dir_path 
     file_name = '%s.xlsx' % result.name 
@@ -1017,7 +1033,7 @@ def run_scenarios(project_id):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    output = get_plots(proj, results) # , outputs=scen_outputs, pops=scen_pops, plotdata=False
+    output = get_plots(proj, results)
     print('Saving project...')
     save_project(proj)    
     return output
@@ -1109,18 +1125,3 @@ def set_optim_info(project_id, optim_summaries):
 #    print('Saving project...')
 #    save_project(proj)    
 #    return output
-
-
-##################################################################################
-#%% Miscellaneous RPCs
-##################################################################################
-
-@register_RPC(validation_type='nonanonymous user')    
-def simulate_slow_rpc(sleep_secs, succeed=True):
-    time.sleep(sleep_secs)
-    
-    if succeed:
-        return 'success'
-    else:
-        return {'error': 'failure'}
-

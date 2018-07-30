@@ -202,7 +202,7 @@ Last update: 2018-07-29
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
-  import progressIndicator from '@/services/progress-indicator-service'
+  import status from '@/services/status-service'
   import router from '@/router'
   import PopupSpinner from './Spinner.vue'
   
@@ -305,7 +305,7 @@ Last update: 2018-07-29
         })
         .catch(error => {
           // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not load frameworks')           
+          status.failurePopup(this, 'Could not load frameworks')           
         })
       },
 
@@ -314,7 +314,7 @@ Last update: 2018-07-29
         this.$modal.hide('demo-framework')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         // Have the server create a new framework.
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
@@ -323,11 +323,11 @@ Last update: 2018-07-29
           this.updateFrameworkSummaries(response.data.frameworkId)
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Library framework loaded')
+          status.succeed(this, 'Library framework loaded')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not load framework')  
+          status.fail(this, 'Could not load framework')  
         })            
       },
 

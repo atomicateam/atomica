@@ -7,22 +7,16 @@
 // component and instantiated it.
 
 function start(vueInstance) {
-  // Bring up a spinner.
-  vueInstance.$modal.show('popup-spinner')
-
-  // Start the loading bar.
-  vueInstance.$Progress.start()         
+  console.log('Starting progress')
+  vueInstance.$modal.show('popup-spinner') // Bring up a spinner.
+  vueInstance.$Progress.start() // Start the loading bar.
 }
 
 function succeed(vueInstance, successMessage) {
-  // Dispel the spinner.
-  vueInstance.$modal.hide('popup-spinner')
-
-  // Finish the loading bar.
-  vueInstance.$Progress.finish()
-      
-  // Success popup.
-  if (successMessage != '') {
+  console.log(successMessage)
+  vueInstance.$modal.hide('popup-spinner') // Dispel the spinner.
+  vueInstance.$Progress.finish()   // Finish the loading bar.
+  if (successMessage != '') { // Success popup.
     vueInstance.$notifications.notify({
       message: successMessage,
       icon: 'ti-check',
@@ -34,14 +28,10 @@ function succeed(vueInstance, successMessage) {
 }
 
 function fail(vueInstance, failMessage) {
-  // Dispel the spinner.
-  vueInstance.$modal.hide('popup-spinner')
-
-  // Fail the loading bar.
-  vueInstance.$Progress.fail()
-
-  // Put up a failure notification.
-  if (failMessage != '') {  
+  console.log(failMessage)
+  vueInstance.$modal.hide('popup-spinner') // Dispel the spinner.
+  vueInstance.$Progress.fail() // Fail the loading bar.
+  if (failMessage != '') {  // Put up a failure notification.
     vueInstance.$notifications.notify({
       message: failMessage,
       icon: 'ti-face-sad',
