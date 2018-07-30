@@ -356,30 +356,63 @@ def supported_plots_func():
             }
     return supported_plots
 
-def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+#def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+#    results = sc.promotetolist(results)
+#    supported_plots = supported_plots_func() 
+#    if plot_names is None: plot_names = supported_plots.keys()
+#    plot_names = sc.promotetolist(plot_names)
+#    if outputs is None:
+#        outputs = [supported_plots[plot_name] for plot_name in plot_names]
+#    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+#    all_figs = []
+#    for output in outputs:
+#        try:
+#            import numpy as np # TEMP
+#            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+#            for series in plotdata.series:
+#                if any(np.isnan(series.vals)):
+#                    print('NANS?????????!!')
+#                    print series.vals
+#            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+#            all_figs += sc.promotetolist(figs)
+#            print('Plot %s succeeded' % (output))
+#        except Exception as E:
+#            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+#
+#    return all_figs
+
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None, replace_nans=True):
+    import numpy as np
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [supported_plots[plot_name] for plot_name in plot_names]
+    graphs = []
     data = proj.data if plotdata is not False else None # Plot data unless asked not to
-    all_figs = []
     for output in outputs:
         try:
-            import numpy as np # TEMP
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            for series in plotdata.series:
-                if any(np.isnan(series.vals)):
-                    print('NANS?????????!!')
-                    print series.vals
+            nans_replaced = 0
+            series_list = sc.promotetolist(plotdata.series)
+            for series in series_list:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
             figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
-            all_figs += sc.promotetolist(figs)
+            graphs += figs
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
-    return all_figs
+    return graphs
 
 
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios

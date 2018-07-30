@@ -679,12 +679,16 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
         try:
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
             nans_replaced = 0
-            for series in plotdata.series:
+            series_list = sc.promotetolist(plotdata.series)
+            for series in series_list:
                 if replace_nans and any(np.isnan(series.vals)):
                     nan_inds = sc.findinds(np.isnan(series.vals))
                     for nan_ind in nan_inds:
-                        if nan_ind>0: # Skip the first point
-                            series[nan_ind] = series[nan_ind-1]
+                        if nan_ind>0: 
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+                        else: # For the first point, take the next point
+                            series.vals[nan_ind] = series.vals[nan_ind+1]
                             nans_replaced += 1
             if nans_replaced:
                 print('Warning: %s nans were replaced' % nans_replaced)
