@@ -11,6 +11,9 @@ P = Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path="./databooks/databook_tb.xlsx", make_default_parset=True, do_run=True)
 result = P.results[0]
 
+result.export(F,filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
+result.export(filename='./temp/export_everything.xlsx') # Export everything
+
 au.plot_cascade(result,cascade='main',framework=F,pops='all',year=2000)
 au.plot_cascade(result,cascade='main',framework=F,pops='all',year=2030)
 au.plot_cascade(result,cascade='main',framework=F,pops='0-4',year=2030)

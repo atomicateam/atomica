@@ -72,26 +72,42 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self, filename=None, ):
+    def export(self, framework=None, filename=None):
         """Convert output to a single DataFrame and optionally write it to a file"""
 
         # Assemble the outputs into a dict
         d = dict()
+
+        if framework:
+            exportable = set()
+            for df in [framework.comps,framework.characs,framework.pars]:
+                exports = df['Export']
+                for var,flag in zip(exports.index,exports.values):
+                    if flag == 'y':
+                        exportable.add(var)
+        else:
+            exportable = None
+
+
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('compartments', pop.name, comp.name)] = comp.vals
+                if exportable is None or comp.name in exportable:
+                    d[('compartments', pop.name, comp.name)] = comp.vals
             for charac in pop.characs:
                 if charac.vals is not None:
-                    d[('characteristics', pop.name, charac.name)] = charac.vals
+                    if exportable is None or charac.name in exportable:
+                        d[('characteristics', pop.name, charac.name)] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('parameters', pop.name, par.name)] = par.vals
+                    if exportable is None or par.name in exportable:
+                        d[('parameters', pop.name, par.name)] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
                 key = ('flow rates', pop.name, link.name)
-                if key not in d:
-                    d[key] = np.zeros(self.t.shape)
-                d[key] += link.vals / self.dt
+                if exportable is None or link.parameter.name in exportable:
+                    if key not in d:
+                        d[key] = np.zeros(self.t.shape)
+                    d[key] += link.vals / self.dt
 
         # Create DataFrame from dict
         df = pd.DataFrame(d, index=self.t)
