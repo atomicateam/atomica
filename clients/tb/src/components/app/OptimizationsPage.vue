@@ -472,7 +472,7 @@ Last update: 2018-07-26
                 this.$modal.hide('popup-spinner') // Dispel the spinner.
                 this.$Progress.fail() // Fail the loading bar.
                 this.$notifications.notify({ // Failure popup.
-                  message: 'Could not make graphs',
+                  message: 'Could not make graphs: ' + error.message,
                   icon: 'ti-face-sad',
                   type: 'warning',
                   verticalAlign: 'top',

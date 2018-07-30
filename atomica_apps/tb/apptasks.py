@@ -8,7 +8,7 @@ Last update: 7/16/18 (gchadder3)
 # Imports
 #
 
-import config
+from . import config
 from sciris.weblib.tasks import make_celery_instance, add_task_funcs, make_register_async_task
 import projects as prj
 from rpcs import load_project, save_project, get_plots
