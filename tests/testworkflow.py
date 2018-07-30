@@ -11,7 +11,7 @@ import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 
-# test = "sir"
+#test = "sir"
 test = "tb"
 #test = "diabetes"
 # test = "service"
@@ -28,8 +28,8 @@ torun = [
 #"runsim",
 #'plotcascade',
 #"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 # "export",
 # "listspecs",
@@ -139,7 +139,7 @@ if "makeprogramspreadsheet" in torun:
         P = au.demo(which=test, do_plot=0)
         filename = "temp/progbook_"+test+"_blank.xlsx"
         if test == "tb":
-            P.make_progbook(filename, progs=31)
+            P.make_progbook(filename, progs=29)
         else:
             P.make_progbook(filename, progs=5)
 
@@ -151,9 +151,12 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        P.load_progbook(progbook_path=filename, make_default_progset=True)
-        if test not in ["tb"]:      # TODO: Test TB progset after successful progset construction.
-            P.progsets[0].programs[0].get_spend(year=2015)
+        blh_effects = False if test=='tb' else True
+        P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
+
+        P.progsets[0].programs[0].get_spend(year=2015)
+
+        if test =="sir":      
 
             # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
             coverage = sc.odict([('Risk avoidance',     .99),
@@ -177,8 +180,46 @@ if "loadprogramspreadsheet" in torun:
             print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
             print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
 
+        elif test =="tb":      
+
+            # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+            denominator = sc.odict([('BCG',             [9e6]),
+                                    ('MS-PHC',          [9e6]),
+                                    ('ENH-MS-PHC',      [9e6]),
+                                    ('MS-HR',           [9e6]),
+                                    ('CT-DS',           [9e6]),
+                                    ('CT-DR',           [9e6]),
+                                    ('ACF-PLHIV',       [9e6]),
+                                    ('DS-TB',           [9e6]),
+                                    ('Old MDR',         [9e6]),
+                                    ('Old MDR/BDQ',     [9e6]),
+                                    ('MDR/BDQ',         [9e6]),
+                                    ('KM-SC',           [9e6]),
+                                    ('BDQ-SC',          [9e6]),
+                                    ('XDR-Current',     [9e6]),
+                                    ('XDR-new',         [9e6]),
+                                    ('PLHIV/DS-TB',     [9e6]),
+                                    ('PLHIV/Old MDR',   [9e6]),
+                                    ('PLHIV/Old MDR-BDQ',[9e6]),
+                                    ('PLHIV/New MDR',   [9e6]),
+                                    ('PLHIV/Old XDR',   [9e6]),
+                                    ('PLHIV/New XDR',   [9e6]),
+                                    ('Pris DS-TB',      [9e6]),
+                                    ('Pris MDR',        [9e6]),
+                                    ('Pris XDR',        [9e6]),
+                                    ('Min DS-TB',       [9e6]),
+                                    ('Min MDR',         [9e6]),
+                                    ('Min XDR',         [9e6]),
+                                    ('PCF-HIV-',        [9e6]),
+                                    ('PCF-HIV+',        [9e6])])
+
+            print(P.progsets[0].get_num_covered(year=[2017]))
+            print(P.progsets[0].get_prop_covered(year=[2017],denominator = denominator))
+
 
 if "runsim_programs" in torun:
+
+    P = au.demo(which=test,do_plot=0)
 
     if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
@@ -196,7 +237,7 @@ if "runsim_programs" in torun:
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
     elif test in ['diabetes','service']:
-        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
+        print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
 
     else:
         print('\n\n\nUnknown test.')

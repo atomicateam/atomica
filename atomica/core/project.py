@@ -193,7 +193,7 @@ class Project(object):
         self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None):
+    def make_progbook(self, progbook_path=None, progs=None, blh_effects=False):
         ''' Make a programs databook'''
 
         # Check imports
@@ -209,14 +209,14 @@ class Project(object):
         comps = [c['label'] for c in F.specs['comp'].values() if not (c['is_source'] or
                                                                       c['is_sink'] or
                                                                       c['is_junction'])]
-        # TODO: Think about whether the following makes sense.
-        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
+        # Get targetable parameters
+        pars = [p['label'] for p in F.specs['par'].values() if p['is_impact']]
 
-        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars)
+        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
         
 
 
-    def load_progbook(self, progbook_path=None, make_default_progset=True):
+    def load_progbook(self, progbook_path=None, make_default_progset=True, blh_effects=False):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
@@ -226,7 +226,7 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-        progdata = load_progbook(progbook_spreadsheet)
+        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
         self.progbook = sc.dcp(progbook_spreadsheet)
 
         # Check if the populations match - if not, raise an error, if so, add the data
