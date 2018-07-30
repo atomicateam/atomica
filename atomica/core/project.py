@@ -433,7 +433,7 @@ class Project(object):
         return new_parset
 
     def run_scenario(self, scenario, parset, progset=None, progset_instructions=None,
-                     store_results=True, result_name=None):
+                     store_results=True):
         """ Run a scenario. """
         parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         if progset:
@@ -444,7 +444,7 @@ class Project(object):
         scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
 
         result = self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
-                            store_results=store_results, result_type="scenario", result_name=result_name)
+                            store_results=store_results, result_type="scenario", result_name=scenario.name)
 
         scenario.result_uid = result.uid
         return result

@@ -17,15 +17,15 @@ test = "tb"
 # test = "service"
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
+"makeframeworkfile",
+"makeframework",
+"saveframework",
+"loadframework",
 #"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
 #'plotcascade',
 #"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
@@ -35,9 +35,9 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
-# "parameterscenario",
+"parameterscenario",
 #'budgetscenarios',
-'optimization',
+# 'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -314,18 +314,18 @@ if "parameterscenario" in torun:
     scvalues[scen_par][scen_pop]["t"] = [2015.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
 
-    P.make_scenario(name="varying_infections", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
+    P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
+    P.run_scenario(scenario="Varying Infections", parset="default")
 
     # Insert two values and eliminate everything between them.
     scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
     scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
 
-    P.make_scenario(name="varying_infections2", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
+    P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
+    P.run_scenario(scenario="Varying Infections 2", parset="default")
 
-    d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
     au.plot_series(d, axis="results")
 
 
