@@ -91,8 +91,8 @@ Last update: 2018-07-30
           </table>
         </div>
 
-        <div class="calib-graph">
-          <div v-for="index in placeholders" :id="'fig'+index">
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
             <!--mpld3 content goes here-->
           </div>
         </div>
@@ -510,10 +510,14 @@ Last update: 2018-07-30
     display: block;
   }
   .calib-params {
-    flex: 1 0 40%;
+    flex: 1 0 20%;
+  }
+  .calib-graphs {
+    flex: 1 0 60%;
   }
   .calib-graph {
-    flex: 1 0 60%;
+    width:650px;
+    float:left;
   }
   .parset-controls {
     border: 2px solid #ddd;
