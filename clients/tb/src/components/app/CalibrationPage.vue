@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-29
+Last update: 2018-07-30
 -->
 
 <template>
@@ -131,10 +131,6 @@ Last update: 2018-07-29
         </div>
       </div>
 
-
-      <div>
-
-      </div>
     </modal>
     
     <!-- Popup spinner -->
@@ -231,13 +227,7 @@ Last update: 2018-07-29
     methods: {
 
       notImplemented(message) {
-        this.$notifications.notify({
-          message: 'Function "' + message + '" not yet implemented',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        progressIndicator.failurePopup(this, 'Function "' + message + '" not yet implemented')
       },
 
       projectID() {
@@ -250,18 +240,22 @@ Last update: 2018-07-29
         console.log('updateParset() called')
         // Get the current user's parsets from the server.
         rpcservice.rpcCall('get_parset_info', [this.projectID()])
-          .then(response => {
-            this.parsetOptions = response.data // Set the scenarios to what we received.
-            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-              console.log('Parameter set ' + this.activeParset + ' no longer found')
-              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-            } else {
-              console.log('Parameter set ' + this.activeParset + ' still found')
-            }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
-            console.log('Parset options: ' + this.parsetOptions)
-            console.log('Active parset: ' + this.activeParset)
-          })
+        .then(response => {
+          this.parsetOptions = response.data // Set the scenarios to what we received.
+          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+            console.log('Parameter set ' + this.activeParset + ' no longer found')
+            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+          } else {
+            console.log('Parameter set ' + this.activeParset + ' still found')
+          }
+          this.newParsetName = this.activeParset // WARNING, KLUDGY
+          console.log('Parset options: ' + this.parsetOptions)
+          console.log('Active parset: ' + this.activeParset)
+        })
+        .catch(error => {
+          // Failure popup.
+          progressIndicator.failurePopup(this, 'Could not update parset')    
+        })         
       },
 
       updateSorting(sortColumn) {
@@ -289,31 +283,22 @@ Last update: 2018-07-29
       viewTable() {
         console.log('viewTable() called')
         
-        // Note: For some reason, the popup spinner doesn't work from inside created().
-        
-        // Start the loading bar.
-        this.$Progress.start()
+        // Start indicating progress.
+        // Note: For some reason, the popup spinner doesn't work from inside created() 
+        // so it doesn't show up here.        
+        progressIndicator.start(this)
 
         // Go to the server to get the diseases from the burden set.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
           this.parList = response.data // Set the disease list.
           
-          // Finish the loading bar.
-          this.$Progress.finish()          
+          // Indicate success.
+          progressIndicator.succeed(this, '')  // No green notification.          
         })
         .catch(error => {
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load parameters',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          // Indicate failure.
+          progressIndicator.fail(this, 'Could not load parameters')
         })
       },
 
@@ -323,10 +308,9 @@ Last update: 2018-07-29
 
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
-        this.$modal.show('popup-spinner') // Bring up a spinner.
         
-        // Start the loading bar.
-        this.$Progress.start()
+        // Start indicating progress.
+        progressIndicator.start(this)
         
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList])
@@ -350,84 +334,61 @@ Last update: 2018-07-29
               console.log('failled:' + err.message);
             }
           }
-          this.$modal.hide('popup-spinner') // Dispel the spinner.
-          this.$Progress.finish() // Finish the loading bar.
-          this.$notifications.notify({ // Success popup.
-            message: 'Graphs created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })           
+          
+          // Indicate success.
+          progressIndicator.succeed(this, 'Graphs created')           
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
-          this.$modal.hide('popup-spinner') // Dispel the spinner.
-          this.$Progress.fail() // Fail the loading bar.
-          this.$notifications.notify({ // Failure popup.
-            message: 'Could not make graphs',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })          
+          
+          // Indicate failure.
+          progressIndicator.fail(this, 'Could not make graphs')         
         }) 
       },
 
       autoCalibrate(project_id) {
-
         console.log('autoCalibrate() called')
-
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        progressIndicator.start(this)
 
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])
-          .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
+        .then(response => {
+          this.serverresponse = response.data // Pull out the response data.
+          var n_plots = response.data.graphs.length
+          console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
+          for (var index = 0; index <= n_plots; index++) {
+            console.log('Rendering plot ' + index)
+            var divlabel = 'fig' + index
+            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            while (div.firstChild) {
+              div.removeChild(div.firstChild);
             }
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$Progress.finish() // Finish the loading bar.
-            this.$notifications.notify({ // Success popup.
-              message: 'Automatic calibration complete',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            // Pull out the error message.
-            this.serverresponse = 'There was an error: ' + error.message
+            try {
+              console.log(response.data.graphs[index]);
+              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              this.haveDrawnGraphs = true
+            }
+            catch (err) {
+              console.log('failled:' + err.message);
+            }
+          }
+          
+          // Indicate success.
+          progressIndicator.succeed(this, 'Automatic calibration complete')
+        })
+        .catch(error => {
+          // Pull out the error message.
+          this.serverresponse = 'There was an error: ' + error.message
 
-            // Set the server error.
-            this.servererror = error.message
-          }).then( response => {
-          this.$notifications.notify({
-            message: 'Graphs created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          });
+          // Set the server error.
+          this.servererror = error.message
+          
+          // Indicate failure.
+          progressIndicator.fail(this, 'Automatic calibration failed')           
         })
       },
 
@@ -445,6 +406,10 @@ Last update: 2018-07-29
       exportResults(project_id) {
         console.log('exportResults() called')
         rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
+        .catch(error => {
+          // Failure popup.
+          progressIndicator.failurePopup(this, 'Could not export results')    
+        })         
       },
 
       // TO_PORT
@@ -460,30 +425,22 @@ Last update: 2018-07-29
         let uid = this.$store.state.activeProject.project.id
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        progressIndicator.start(this)
+      
         rpcservice.rpcCall('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            // Update the project summaries so the copied program shows up on the list.
-            this.updateParset()
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Success popup.
-              message: 'Parameter set "'+this.activeParset+'" renamed',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Failure popup.
-              message: 'Could not rename parameter set',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          progressIndicator.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
+        })
+        .catch(error => {
+          // Indicate failure.
+          progressIndicator.fail(this, 'Could not rename parameter set')
+        })
       },
 
       // TO_PORT
@@ -491,30 +448,22 @@ Last update: 2018-07-29
         // Find the project that matches the UID passed in.
         let uid = this.$store.state.activeProject.project.id
         console.log('copyParset() called for ' + this.activeParset)
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        progressIndicator.start(this)
+        
         rpcservice.rpcCall('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            // Update the project summaries so the copied program shows up on the list.
-            this.updateParset()
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Success popup.
-              message: 'Parameter set "'+this.activeParset+'" copied',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Failure popup.
-              message: 'Could not copy parameter set',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          progressIndicator.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
+        })
+        .catch(error => {
+          // Indicate failure.
+          progressIndicator.fail(this, 'Could not copy parameter set')
+        })
       },
 
       // TO_PORT
@@ -522,30 +471,22 @@ Last update: 2018-07-29
         // Find the project that matches the UID passed in.
         let uid = this.$store.state.activeProject.project.id
         console.log('deleteParset() called for ' + this.activeParset)
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        progressIndicator.start(this)
+        
         rpcservice.rpcCall('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            // Update the project summaries so the copied program shows up on the list.
-            this.updateParset()
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Success popup.
-              message: 'Parameter set "'+this.activeParset+'" deleted',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Failure popup.
-              message: 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          progressIndicator.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
+        })
+        .catch(error => {
+          // Indicate failure.
+          progressIndicator.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
+        })
       },
     }
   }
