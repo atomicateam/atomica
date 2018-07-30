@@ -1028,7 +1028,25 @@ def run_scenarios(project_id):
     scen_outputs = ["lt_inf", "ac_inf"]
     scen_pop = "15-64"
     P = au.demo(which='tb')
-    results = P.run_scenarios()
+    
+    print('FIRST')
+    for scen in P.scens.values():
+        sc.pr(scen)
+#    results = P.run_scenarios()
+#    print('LEN RESULTS 1')
+#    print(len(results))
+    
+    
+    
+    print('Running scenarios...')
+    proj = load_project(project_id, raise_exception=True)
+    print('SECOND')
+    for scen in proj.scens.values():
+        sc.pr(scen)
+    results = proj.run_scenarios()
+    print('LEN RESULTS 2')
+    print(len(results))
+    
     d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
     figs = au.plot_series(d, axis="results")
     import pylab as pl
@@ -1040,11 +1058,8 @@ def run_scenarios(project_id):
         graphs.append(graph_dict)
     pl.close('all')
     output = {'graphs':graphs}
-    return output
     
-#    print('Running scenarios...')
-#    proj = load_project(project_id, raise_exception=True)
-#    results = proj.run_scenarios()
+    return output
 #    
 #    print('TEMP plotting')
 #    scen_outputs = ["lt_inf", "ac_inf"]
