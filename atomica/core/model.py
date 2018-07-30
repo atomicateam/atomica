@@ -956,7 +956,7 @@ class Model(object):
     def process(self):
         """ Run the full model. """
 
-        assert self.t_index == 0  # Only makes sense to process a simulation once, starting at ti=0
+        assert self.t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
 
         self.update_program_cache()
 
@@ -965,8 +965,7 @@ class Model(object):
             # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
             # initial flow rates
             self.update_pars()
-            self.update_links()
-            self.update_junctions()
+            self.update_junctions(initial_flush=True)
             self.update_pars()
             self.update_links()
             self.update_junctions()
@@ -1083,7 +1082,7 @@ class Model(object):
             for comp in pop.comps:
                 comp.vals[ti + 1] = max(0, comp.vals[ti + 1])
 
-    def update_junctions(self):
+    def update_junctions(self,initial_flush=False):
         """
         For every compartment considered a junction, propagate the contents onwards.
         Do so until all junctions are empty.
@@ -1111,12 +1110,18 @@ class Model(object):
                 for junc in junctions:
 
                     if review_count == 1: # On the first iteration
-                        # Accumulate inflow
-                        if junc.vals[ti] == 0: # this is the normal workflow, where we need to fill up the junction using inlinks - maybe should be isfinite
+                        if not initial_flush:
+                            # Normal workflow is to accumulate people from the inlinks
                             junc.vals[ti] = 0
                             for link in junc.inlinks:
                                 if not link.source.is_junction: # inlinks that come from a junction won't have been initialized at this timestep yet
                                     junc.vals[ti] += link.vals[ti]
+                        else:
+                            # At the first timestep, initialize the junction to 0 if there's nobody in it, or flush the current contents if this junction is
+                            # nonzero based on the initialization of the compartments
+                            if np.isnan(junc.vals[ti]):
+                                junc.vals[ti] = 0
+
 
                         # Initialize the outflow links
                         for link in junc.outlinks:
