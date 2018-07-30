@@ -240,12 +240,16 @@ class Project(object):
         if make_default_progset: self.make_progset(name="default")
         
 
-    def make_progset(self, progdata=None, name="default"):
+    def make_progset(self, progdata=None, name="default", verbose=False):
         '''Make a progset from program spreadsheet data'''
         
+        if verbose: print('Making ProgramSet')
         progset = ProgramSet(name=name)
+        if verbose: print('Making program data')
         progset.make(progdata=progdata, project=self)
+        if verbose: print('Updating program sets')
         self.progsets.append(progset)
+        if verbose: print('Done with make_progset().')
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
@@ -483,7 +487,7 @@ class Project(object):
         """ Convenience class method for loading a project in the absence of an instance. """
         return sc.loadobj(filepath)
 
-    def demo_scenarios(self, dorun=False):
+    def demo_scenarios(self, dorun=False, doadd=True):
         json1 = sc.odict()
         json1['name']        ='Default budget'
         json1['parsetname']  = -1
@@ -499,13 +503,16 @@ class Project(object):
         json3['name']        ='Zero budget'
         json3['alloc'][:] *= 0.0
         
-        for json in [json1, json2, json3]:
-            self.make_scenario(which='budget', json=json)
-        if dorun:
-            results = self.run_scenarios()
-            return results
+        if doadd:
+            for json in [json1, json2, json3]:
+                self.make_scenario(which='budget', json=json)
+            if dorun:
+                results = self.run_scenarios()
+                return results
+            else:
+                return None
         else:
-            return None
+            return json1
     
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''

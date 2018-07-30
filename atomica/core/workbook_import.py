@@ -494,6 +494,7 @@ def load_progbook(spreadsheet, verbose=False):
         else:
             if verbose: print('Not reading data for row %s, row is blank' % row)
     
+    if verbose: print('Done with load_progbook().')
     return data
 
 

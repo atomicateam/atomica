@@ -1,7 +1,7 @@
 <!--
 Define equity
 
-Last update: 2018-07-26
+Last update: 2018-07-29
 -->
 
 <template>
@@ -27,7 +27,6 @@ Last update: 2018-07-26
             <b>{{ scenSummary.name }}</b>
           </td>
           <td style="white-space: nowrap">
-            <button class="btn __green" @click="runScen(scenSummary)">Run</button>
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
             <button class="btn" @click="deleteScen(scenSummary)">Delete</button>
@@ -37,6 +36,8 @@ Last update: 2018-07-26
       </table>
 
       <div>
+        <button class="btn __green" @click="runScens()">Run scenarios</button>
+        <button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>
         <button class="btn __blue" @click="addBudgetScenModal()">Add budget scenario</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
@@ -66,7 +67,7 @@ Last update: 2018-07-26
             Scenario name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultScen.name"/><br>
+                   v-model="defaultBudgetScen.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -78,74 +79,43 @@ Last update: 2018-07-26
               <option v-for='progset in progsetOptions'>
                 {{ progset }}
               </option>
-            </select>
-            Start year:<br>
+            </select><br><br>
+            Budget year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultScen.start_year"/><br>
-            End year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="defaultScen.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="defaultScen.budget_factor"/><br>
-            <br>
-            <!--<b>Relative objective weights</b><br>-->
-            <!--People alive:-->
-            <!--<input type="text"-->
-                   <!--class="txbox"-->
-                   <!--v-model="defaultScen.objective_weights.alive"/><br>-->
-            <!--TB-related deaths:-->
-            <!--<input type="text"-->
-                   <!--class="txbox"-->
-                   <!--v-model="defaultScen.objective_weights.ddis"/><br>-->
-            <!--New TB infections:-->
-            <!--<input type="text"-->
-                   <!--class="txbox"-->
-                   <!--v-model="defaultScen.objective_weights.acj"/><br>-->
-            <!--<br>-->
-            <!--<b>Relative spending constraints</b><br>-->
-            <!--<table class="table table-bordered table-hover table-striped" style="width: 100%">-->
-              <!--<thead>-->
-              <!--<tr>-->
-                <!--<th>Program</th>-->
-                <!--<th>Minimum</th>-->
-                <!--<th>Maximum</th>-->
-              <!--</tr>-->
-              <!--</thead>-->
-              <!--<tbody>-->
-              <!--<tr v-for="(val,key) in defaultScen.prog_spending">-->
-                <!--<td>-->
-                  <!--{{ key }}-->
-                <!--</td>-->
-                <!--<td>-->
-                  <!--<input type="text"-->
-                         <!--class="txbox"-->
-                         <!--v-model="defaultScen.prog_spending[key][0]"/>-->
-                <!--</td>-->
-                <!--<td>-->
-                  <!--<input type="text"-->
-                         <!--class="txbox"-->
-                         <!--v-model="defaultScen.prog_spending[key][1]"/>-->
-                <!--</td>-->
-              <!--</tr>-->
-              <!--</tbody>-->
-            <!--</table>-->
+                   v-model="defaultBudgetScen.start_year"/><br>
+            <b>Budget values</b><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Budget</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in defaultBudgetScen.alloc">
+                <td>
+                  {{ item[0] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="item[1]"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
           </div>
           <div style="text-align:justify">
-            <button @click="addScen()" class='btn __green' style="display:inline-block">
+            <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
               Save scenario
             </button>
-            <button @click="$modal.hide('add-scen')" class='btn __red' style="display:inline-block">
+            <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
               Cancel
             </button>
           </div>
         </div>
       </modal>
-
-
 
       <!-- Popup spinner -->
       <popup-spinner></popup-spinner>
@@ -160,6 +130,7 @@ Last update: 2018-07-26
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
+  import progressIndicator from '@/services/progress-indicator-service'
   import router from '@/router'
   import Vue from 'vue';
   import PopupSpinner from './Spinner.vue'
@@ -175,7 +146,7 @@ Last update: 2018-07-26
       return {
         serverresponse: 'no response',
         scenSummaries: [],
-        defaultScen: [],
+        defaultBudgetScen: [],
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -191,10 +162,7 @@ Last update: 2018-07-26
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-//          WARNING, these shouldn't be duplicated!
-          this.getScenSummaries()
-          this.getDefaultScen()
-          this.updateSets()
+          console.log('activeProjectID() called')
           return this.$store.state.activeProject.project.id
         }
       },
@@ -216,8 +184,9 @@ Last update: 2018-07-26
       }
       else { // Otherwise...
         // Load the scenario summaries of the current project.
+        console.log('created() called')
         this.getScenSummaries()
-        this.getDefaultScen()
+        this.getDefaultBudgetScen()
         this.updateSets()
       }
     },
@@ -277,13 +246,13 @@ Last update: 2018-07-26
           })
       },
 
-      getDefaultScen() {
-        console.log('getDefaultScen() called')
-        rpcservice.rpcCall('get_default_scen', [this.projectID()])
+      getDefaultBudgetScen() {
+        console.log('getDefaultBudgetScen() called')
+        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
           .then(response => {
-            this.defaultScen = response.data // Set the scenario to what we received.
+            this.defaultBudgetScen = response.data // Set the scenario to what we received.
             console.log('This is the default:')
-            console.log(this.defaultScen);
+            console.log(this.defaultBudgetScen);
           });
       },
 
@@ -293,13 +262,28 @@ Last update: 2018-07-26
         rpcservice.rpcCall('get_scen_info', [this.projectID()])
           .then(response => {
             this.scenSummaries = response.data // Set the scenarios to what we received.
+            console.log('Scenario summaries:')
+            console.log(this.scenSummaries)
             this.$notifications.notify({
-              message: 'scenarios loaded',
+              message: 'Scenarios loaded',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
               horizontalAlign: 'center',
             });
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$Progress.fail() // Fail the loading bar.
+            this.$notifications.notify({ // Failure popup.
+              message: 'Could not get scenarios: ' + error.message,
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
           })
       },
 
@@ -319,12 +303,25 @@ Last update: 2018-07-26
 
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
-        console.log('addScenModal() called');
-        rpcservice.rpcCall('get_default_scen', [this.projectID()])
+        console.log('addBudgetScenModal() called');
+        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
           .then(response => {
-            this.defaultScen = response.data // Set the scenario to what we received.
-            this.$modal.show('add-scen');
-            console.log(this.defaultScen)
+            this.defaultBudgetScen = response.data // Set the scenario to what we received.
+            this.$modal.show('add-budget-scen');
+            console.log(this.defaultBudgetScen)
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$Progress.fail() // Fail the loading bar.
+            this.$notifications.notify({ // Failure popup.
+              message: 'Could not open add scenario modal: '  + error.message,
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
           });
       },
 
@@ -374,9 +371,10 @@ Last update: 2018-07-26
       editScen(scenSummary) {
         // Open a model dialog for creating a new project
         console.log('editScen() called');
-        this.defaultScen = scenSummary
-        console.log('defaultScen', this.defaultScen.obj)
-        this.$modal.show('add-scen');
+        this.defaultBudgetScen = scenSummary
+        console.log('defaultBudgetScen')
+        console.log(this.defaultBudgetScen)
+        this.$modal.show('add-budget-scen');
       },
 
       copyScen(scenSummary) {
@@ -419,16 +417,14 @@ Last update: 2018-07-26
           })
       },
 
-      runScen(scenSummary) {
-        console.log('runScen() called for '+this.currentScen)
+      runScens() {
+        console.log('runScens() called')
         // Make sure they're saved first
-        this.$modal.show('popup-spinner') // Dispel the spinner.
+        this.$modal.show('popup-spinner') // SHow the spinner.
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcservice.rpcCall('run_scenarios',
-//            taskservice.getTaskResultPolling('run_scenario', 90, 3, 'run_scenario',
-              [this.projectID(), scenSummary.name])
+            rpcservice.rpcCall('run_scenarios', [this.projectID()])
               .then(response => {
                 this.serverresponse = response.data // Pull out the response data.
                 var n_plots = response.data.graphs.length
