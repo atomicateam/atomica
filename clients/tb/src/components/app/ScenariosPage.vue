@@ -1,7 +1,7 @@
 <!--
 Define equity
 
-Last update: 2018-07-29
+Last update: 2018-07-30
 -->
 
 <template>
@@ -248,20 +248,20 @@ Last update: 2018-07-29
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
         rpcservice.rpcCall('get_parset_info', [this.projectID()])
-          .then(response => {
-            this.parsetOptions = response.data // Set the scenarios to what we received.
-            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-              console.log('Parameter set ' + this.activeParset + ' no longer found')
-              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-            } else {
-              console.log('Parameter set ' + this.activeParset + ' still found')
-            }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
-            console.log('Parset options: ' + this.parsetOptions)
-            console.log('Active parset: ' + this.activeParset)
-          })
-        // Get the current user's progsets from the server.
-        rpcservice.rpcCall('get_progset_info', [this.projectID()])
+        .then(response => {
+          this.parsetOptions = response.data // Set the scenarios to what we received.
+          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+            console.log('Parameter set ' + this.activeParset + ' no longer found')
+            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+          } else {
+            console.log('Parameter set ' + this.activeParset + ' still found')
+          }
+          this.newParsetName = this.activeParset // WARNING, KLUDGY
+          console.log('Parset options: ' + this.parsetOptions)
+          console.log('Active parset: ' + this.activeParset)
+                    
+          // Get the current user's progsets from the server.
+          rpcservice.rpcCall('get_progset_info', [this.projectID()])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -274,32 +274,49 @@ Last update: 2018-07-29
             console.log('Progset options: ' + this.progsetOptions)
             console.log('Active progset: ' + this.activeProgset)
           })
+          .catch(error => {
+            // Failure popup.
+            progressIndicator.failurePopup(this, 'Could not get progset info')    
+          })            
+        })
+        .catch(error => {
+          // Failure popup.
+          progressIndicator.failurePopup(this, 'Could not get parset info')    
+        })
       },
 
       getDefaultScen() {
-        console.log('getDefaultScen() called')
+        console.log('getDefaultScen() called') 
         rpcservice.rpcCall('get_default_scen', [this.projectID()])
-          .then(response => {
-            this.defaultScen = response.data // Set the scenario to what we received.
-            console.log('This is the default:')
-            console.log(this.defaultScen);
-          });
+        .then(response => {
+          this.defaultScen = response.data // Set the scenario to what we received.
+          console.log('This is the default:')
+          console.log(this.defaultScen);
+        })
+        .catch(error => {
+          // Failure popup.
+          progressIndicator.failurePopup(this, 'Could not get default scenario')
+        })         
       },
 
       getScenSummaries() {
         console.log('getScenSummaries() called')
+        
+        // Start indicating progress.
+        progressIndicator.start(this)
+        
         // Get the current project's scenario summaries from the server.
         rpcservice.rpcCall('get_scen_info', [this.projectID()])
-          .then(response => {
-            this.scenSummaries = response.data // Set the scenarios to what we received.
-            this.$notifications.notify({
-              message: 'scenarios loaded',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
-          })
+        .then(response => {         
+          this.scenSummaries = response.data // Set the scenarios to what we received.
+          
+          // Indicate success.
+          progressIndicator.succeed(this, 'Scenarios loaded')
+        })
+        .catch(error => {
+          // Indicate failure.
+          progressIndicator.fail(this, 'Could not load scenarios')
+        })        
       },
 
       setScenSummaries() {
