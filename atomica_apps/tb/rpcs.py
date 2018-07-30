@@ -27,9 +27,9 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
-#def TickFormat():
-#    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
-#    return plugin
+def TickFormat():
+    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
+    return plugin
 
 #class TickFormat(mpld3.plugins.PluginBase):
 #    """Tick format plugin."""
@@ -683,7 +683,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-#                mpld3.plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -734,7 +734,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-#                mpld3.plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             # pl.close('all')
