@@ -27,7 +27,7 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
-class TickFormat(plugins.PluginBase):
+class TickFormat(mpld3.plugins.PluginBase):
     """Tick format plugin."""
 
     JAVASCRIPT = """
@@ -528,18 +528,11 @@ def update_project_from_summary(project_summary):
     Given the passed in project summary, update the underlying project 
     accordingly.
     """ 
-    
-    # Load the project corresponding with this summary.
-    proj = load_project(project_summary['project']['id'])
-       
-    # Use the summary to set the actual project.
-    proj.name = project_summary['project']['name']
-    
-    # Set the modified time to now.
-    proj.modified = sc.today()
-    
-    # Save the changed project to the DataStore.
-    save_project(proj)
+    proj = load_project(project_summary['project']['id']) # Load the project corresponding with this summary.
+    proj.name = project_summary['project']['name'] # Use the summary to set the actual project.
+    proj.modified = sc.today() # Set the modified time to now.
+    save_project(proj) # Save the changed project to the DataStore.
+    return
 
 @register_RPC(validation_type='nonanonymous user')
 def copy_project(project_id):
@@ -547,7 +540,6 @@ def copy_project(project_id):
     Given a project UID, creates a copy of the project with a new UID and 
     returns that UID.
     """
-    
     # Get the Project object for the project to be copied.
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
@@ -563,7 +555,6 @@ def copy_project(project_id):
     user_id = current_user.get_id() 
     
     # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
     print(">> copy_project %s" % (new_project.name)) 
     
     # Save a DataStore projects record for the copy project.
@@ -688,7 +679,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -739,7 +730,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             # pl.close('all')
