@@ -195,10 +195,6 @@ Last update: 2018-07-30
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-//          WARNING, these shouldn't be duplicated!
-          this.getOptimSummaries()
-          this.getDefaultOptim()
-          this.updateSets()
           return this.$store.state.activeProject.project.id
         }
       },
