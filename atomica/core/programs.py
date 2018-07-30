@@ -113,23 +113,24 @@ class ProgramSet(NamedItem):
             for yrno,year in enumerate(progdata['years']):
 
                 spend = progdata[pkey]['spend'][yrno]
-                base_spend = progdata[pkey]['basespend'][yrno]
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
                     self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
         
                 if not isnan(spend):
                     self.programs[np].add_spend(spend=spend, year=year)
-                if not isnan(base_spend):
-                    self.programs[np].add_spend(spend=base_spend, year=year, spend_type='basespend')
         
 
         # Read in the information for covout functions and update the target pars
         if verbose: print('Adding program effects')
         prognames = progdata['progs']['short']
+        covouts = odict()
         prog_effects = odict()
 
-        for par,pardata in progdata['pars'].iteritems():
+        for parname,pardata in progdata['pars'].iteritems():
+            
+            par = comp_short_name(parname) # Get short name of parameter
+            covouts[par] = progdata['pars'][parname]
             if verbose: print('  Adding effects for program %s' % (par))
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
@@ -137,7 +138,7 @@ class ProgramSet(NamedItem):
                 prog_effects[par][pop] = odict()
                 for pno in range(len(prognames)):
                     vals = []
-                    for blh in range(3):
+                    for blh in range(len(popdata['prog_vals'])):
                         val = popdata['prog_vals'][blh][pno]
                         if isnumber(val) and val is not nan: vals.append(val) 
                     if vals:
@@ -147,7 +148,7 @@ class ProgramSet(NamedItem):
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
         
         if verbose: print('Adding coverage-outcome effects')
-        self.add_covouts(progdata['pars'], prog_effects, pop_short_name)
+        self.add_covouts(covouts, prog_effects, pop_short_name)
         if verbose: print('Updating')
         self.update()
         if verbose: print('Done with make().')
@@ -294,6 +295,7 @@ class ProgramSet(NamedItem):
             errormsg = 'Covout list not supplied.'
             raise AtomicaException(errormsg)
             
+            
         for par,pardata in covouts.iteritems():
             if verbose: print('  Adding coverage-outcome effect for parameter %s' % par)
             if par in prog_effects.keys():
@@ -303,8 +305,7 @@ class ProgramSet(NamedItem):
                         # Sanitize inputs
                         if verbose: print('    For population %s' % pop)
                         npi_val = sanitize(popdata['npi_val'], defaultval=0., label=', '.join([par, pop, 'npi_val']))
-                        max_val = sanitize(popdata['max_val'], defaultval=0., label=', '.join([par, pop, 'max_val']))
-                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+                        self.add_covout(par=par, pop=pop, npi_val=npi_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -452,21 +453,16 @@ class ProgramSet(NamedItem):
         
         # Initialise output
         outcomes = odict()
-        max_vals  = odict()
 
         # Loop over parameter types
         for par_type in self.target_par_types:
             outcomes[par_type] = odict()
-            max_vals[par_type] = odict()
 
             relevant_progs = self.relevant_progs[par_type]
             # Loop over populations relevant for this parameter type
             for popno, pop in enumerate(relevant_progs.keys()):
 
                 delta, thiscov = odict(), odict()
-                # CK: These seem to be unused
-#                effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
-#                best_prog = min(effects, key=effects.get)
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
@@ -477,7 +473,6 @@ class ProgramSet(NamedItem):
                         outcomes[par_type][pop]  = self.covout[(par_type,pop)].npi_val.get(sample)
                         thiscov[prog.short]         = coverage[prog.short]
                         delta[prog.short]           = self.covout[(par_type,pop)].progs[prog.short].get(sample) - outcomes[par_type][pop]
-                        max_vals[par_type][pop]   = self.covout[(par_type,pop)].max_val.get(sample)
                         
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
@@ -577,7 +572,6 @@ class Program(NamedItem):
         self.target_pops        = None # Populations targeted by the program
         self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
-        self.base_spend_data    = None # Latest or estimated base expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
@@ -933,7 +927,6 @@ class Covout(object):
     Covout(par='contacts',
            pop='Adults',
            npi_val=120,
-           max_val=[10,5,15],
            progs={'Prog1':[15,10,10], 'Prog2':20}
            )
     '''
@@ -945,7 +938,6 @@ class Covout(object):
         self.cov_interaction = cov_interaction
         self.imp_interaction = imp_interaction
         self.npi_val = Val(npi_val)
-        self.max_val = Val(max_val)
         self.progs = odict()
         if prog is not None: self.add(prog=prog)
         return None
@@ -955,7 +947,6 @@ class Covout(object):
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
         output += indent('     NPI val: ', self.npi_val.get('all'))
-        output += indent('     Max val: ', self.max_val.get('all'))
         output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val.get('all')) for key,val in self.progs.items()]))
         output += '\n'
         return output
@@ -988,7 +979,6 @@ class Covout(object):
         tests = {}
         try:
             tests['NPI values invalid']         = not(isnumber(self.npi_val.get() ))
-            tests['Max values invalid']         = not(isnumber(self.max_val.get() ))
             tests['Program values invalid']     = not(array([isnumber(prog.get()) for prog in self.progs.values()]).any())
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized

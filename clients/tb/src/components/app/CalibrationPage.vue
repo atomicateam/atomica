@@ -14,7 +14,6 @@ Last update: 2018-07-30
     </div>
 
     <div v-else>
-
       <div class="calib-controls">
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
         <button class="btn" @click="toggleShowingParams()">
@@ -22,10 +21,10 @@ Last update: 2018-07-30
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
-        <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Calibrate</button>
 
-        <div class="parset-controls">
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
         <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
@@ -44,15 +43,44 @@ Last update: 2018-07-30
             <i class="ti-trash"></i>
           </button>
         </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <b>Start year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="startYear"
+                 style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>End year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:70px"/>
+        </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" @click="exportResults(activeProjectID)">Export</button>
+        <button class="btn" @click="clearGraphs()">Clear</button>
+        <button class="btn" @click="toggleShowingPlots()">
+          <span v-if="areShowingPlots">Hide</span>
+          <span v-else>Show</span>
+          plot controls
+        </button>
+
       </div>
     
-      <br>
-
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
+              <th @click="updateSorting('index')" class="sortable">
+                No.
+                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -76,6 +104,9 @@ Last update: 2018-07-30
             <tbody>
             <tr v-for="par in sortedPars">
               <td>
+                {{par.index}}
+              </td>
+              <td>
                 {{par.parlabel}}
               </td>
               <td>
@@ -84,7 +115,7 @@ Last update: 2018-07-30
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.value"/>
+                       v-model="par.dispvalue"/>
               </td>
             </tr>
             </tbody>
@@ -96,7 +127,32 @@ Last update: 2018-07-30
             <!--mpld3 content goes here-->
           </div>
         </div>
-        
+
+        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
+          <div class="plotopts-params" v-if="areShowingPlots">
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Plot</th>
+                <th>Active</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in plotOptions">
+                <td>
+                  {{ item.plot_name }}
+                </td>
+                <td style="text-align: center">
+                  <input type="checkbox" v-model="item.active"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+
       </div>
       
     </div>
@@ -159,13 +215,17 @@ Last update: 2018-07-30
     data() {
       return {
         serverresponse: 'no response',
-        sortColumn: 'parname',
+        sortColumn: 'index',
         sortReverse: false,
         parList: [],
         areShowingParameters: true,
+        areShowingPlots: true,
         activeParset: -1,
         parsetOptions: [],
         newParsetName: [],
+        startYear: 0,
+        endYear: 0,
+        plotOptions: [],
       }
     },
 
@@ -217,10 +277,11 @@ Last update: 2018-07-30
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      }
-
-      else if (this.$store.state.activeProject.project != undefined) {
+      } else if (this.$store.state.activeProject.project != undefined) {
+        this.startYear = this.active_sim_start
+        this.endYear = this.active_sim_end
         this.viewTable();
+        this.getPlotOptions();
       }
     },
 
@@ -273,37 +334,46 @@ Last update: 2018-07-30
         return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
+            if      (this.sortColumn === 'index') { return par1.index > par2.index ? sortDir: -sortDir}
+            else if (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
             else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
           }
         )
       },
 
       viewTable() {
         console.log('viewTable() called')
-        
-        // Start indicating progress.
-        // Note: For some reason, the popup spinner doesn't work from inside created() 
-        // so it doesn't show up here.        
-        status.start(this)
-
-        // Go to the server to get the diseases from the burden set.
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
-          this.parList = response.data // Set the disease list.
-          
-          // Indicate success.
+          this.parList = response.data // Get the parameter values
           status.succeed(this, '')  // No green notification.
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not load parameters')
+          status.fail(this, 'Could not load parameters: ' + error.message)
         })
+      },
+
+      getPlotOptions() {
+        console.log('getPlotOptions() called')
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
+        rpcservice.rpcCall('get_supported_plots', [true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+            status.succeed(this, '')  // No green notification.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not get plot options: ' + error.message)
+          })
       },
 
       toggleShowingParams() {
         this.areShowingParameters = !this.areShowingParameters
+      },
+
+      toggleShowingPlots() {
+        this.areShowingPlots = !this.areShowingPlots
       },
 
       makeGraphs(project_id) {
@@ -313,7 +383,7 @@ Last update: 2018-07-30
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -327,7 +397,14 @@ Last update: 2018-07-30
             }
             try {
               console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                fig.setXTicks(6, function(d) {
+                    return d3.format('.0f')(d);
+                });
+                fig.setYTicks(null, function(d) {
+                    return d3.format('.2s')(d);
+                });
+              });
               this.haveDrawnGraphs = true
             }
             catch (err) {
@@ -510,16 +587,28 @@ Last update: 2018-07-30
     display: block;
   }
   .calib-params {
-    flex: 1 0 20%;
+    flex: 1 0 30%;
+  }
+  .plotopts-main {
+    /*width: 350px;*/
+    /*padding-left: 20px;*/
+    display: flex;
+    /*float: left;*/
+  }
+  .plotopts-main--full {
+    display: block;
+  }
+  .plotopts-params {
+    flex: 1 0 10%;
   }
   .calib-graphs {
-    flex: 1 0 60%;
+    flex: 1 0 50%;
   }
   .calib-graph {
     width:650px;
     float:left;
   }
-  .parset-controls {
+  .controls-box {
     border: 2px solid #ddd;
     padding: 7px;
     display: inline-block;
