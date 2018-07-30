@@ -165,7 +165,7 @@ class Project(object):
                                newly-added data
         - do_run: If True, a simulation will be run using the new parset
         """
-        if isinstance(databook_path,str):
+        if isinstance(databook_path,basestring):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -204,11 +204,18 @@ class Project(object):
 
         ## Get other inputs
         F = self.framework
-        comps = [c['label'] for c in F.specs['comp'].values() if not (c['is_source'] or
-                                                                      c['is_sink'] or
-                                                                      c['is_junction'])]
+        comps = []
+        for _,spec in F.comps.iterrows():
+            if spec['Is Source']=='y' or spec['Is Sink']=='y' or spec['Is Junction']=='y':
+                continue
+            else:
+                comps.append(spec.name)
+
         # TODO: Think about whether the following makes sense.
-        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
+        pars = []
+        for _,spec in F.pars.iterrows():
+            if spec['Is Impact']=='y':
+                pars.append(spec.name)
 
         make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars)
         
@@ -218,7 +225,7 @@ class Project(object):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        if isinstance(progbook_path,str):
+        if isinstance(progbook_path,basestring):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -411,10 +418,10 @@ class Project(object):
             measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys()
             measurables += self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
         for index, adjustable in enumerate(adjustables):
-            if isinstance(adjustable, str):  # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(adjustable, basestring):  # Assume that a parameter name was passed in if not a tuple.
                 adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
         for index, measurable in enumerate(measurables):
-            if isinstance(measurable, str):  # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(measurable, basestring):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = perform_autofit(project=self, parset=parset,
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)

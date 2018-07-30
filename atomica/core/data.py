@@ -183,7 +183,7 @@ class ProjectData(object):
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
         self = ProjectData()
 
-        if isinstance(spreadsheet,str):
+        if isinstance(spreadsheet,basestring):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.

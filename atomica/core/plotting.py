@@ -184,7 +184,7 @@ class PlotData(object):
                 if isinstance(x, dict):
                     k = list(x.keys())
                     assert len(k) == 1, 'Aggregation dict can only have one key'
-                    if isinstance(x[k[0]], str):
+                    if isinstance(x[k[0]], basestring):
                         continue
                     else:
                         out += x[k[0]]
@@ -277,7 +277,7 @@ class PlotData(object):
 
                     output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
 
-                    if not isinstance(f_stack_str, str):
+                    if not isinstance(f_stack_str, basestring):
                         continue
 
                     placeholder_pop = lambda: None
@@ -306,7 +306,7 @@ class PlotData(object):
                         labels = output[output_name]
 
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
-                        if isinstance(labels, str):
+                        if isinstance(labels, basestring):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[
                                 output_name] = 'unknown'  # Also, we don't know what the units of a function are
@@ -389,7 +389,7 @@ class PlotData(object):
                     upper = self.series[0].tvec[-1]
                 t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
 
-            if isinstance(t_bins, str) and t_bins == 'all':
+            if isinstance(t_bins, basestring) and t_bins == 'all':
                 t_out = np.zeros((1,))
                 lower = [-np.inf]
                 upper = [np.inf]
@@ -426,7 +426,7 @@ class PlotData(object):
 
                 s.tvec = np.array(tvec)
                 s.vals = np.array(vals)
-                if isinstance(t_bins, str) and t_bins == 'all':
+                if isinstance(t_bins, basestring) and t_bins == 'all':
                     s.t_labels = ['All']
                 else:
                     s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
@@ -592,7 +592,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', '', x) if len(x) > 1 else (x[0], '', x))
                     items.update(x)
-                elif isinstance(x, str):
+                elif isinstance(x, basestring):
                     output_stacks.append((x, '', [x]))
                     items.add(x)
                 else:
@@ -603,7 +603,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', k, x) if len(x) > 1 else (x[0], k, x))
                     items.update(x)
-                elif isinstance(x, str):
+                elif isinstance(x, basestring):
                     output_stacks.append((x, k, [x]))
                     items.add(x)
                 else:
@@ -932,7 +932,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 
 
 
-def plot_cascade(result,cascade,framework=None,pops='all',year=None):
+def plot_cascade(result,cascade,pops='all',year=None):
     # For inputs, see `Result.get_cascade_vals`
 
     print('Making cascade plot')
@@ -943,7 +943,7 @@ def plot_cascade(result,cascade,framework=None,pops='all',year=None):
     if year is None:
         year = result.t[0] # Draw cascade for first year
 
-    cascade_vals,t = result.get_cascade_vals(cascade,framework,pops,[year,year])
+    cascade_vals,t = result.get_cascade_vals(cascade,pops,[year,year])
     assert len(t) == 1, 'Plot cascade requires time aggregation'
     cascade_array = np.hstack(cascade_vals.values())
 
@@ -988,7 +988,7 @@ def plot_cascade(result,cascade,framework=None,pops='all',year=None):
     loss = np.diff(cascade_array)
     for i,val in enumerate(loss):
 
-        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
+        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
 
     pop_label = 'entire population' if pops=='all' else pops
     plt.ylabel('Number of people')

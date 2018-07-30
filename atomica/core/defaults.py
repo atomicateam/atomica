@@ -45,19 +45,19 @@ def default_project(which='sir', do_run=True, **kwargs):
     if which == 'sir':
         logger.info("Creating an SIR epidemic project...")
 
-        F = ProjectFramework(name=which, filepath=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
 
     elif which=='tb':
         logger.info("Creating a TB epidemic project...")
         
-        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
 
     elif which=='service':
         logger.info("Creating a disease-agnostic 5-stage service delivery cascade project...")
         
-        F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
 
     else:

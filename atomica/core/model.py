@@ -276,7 +276,7 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
-        assert isinstance(fcn_str,str), "Parameter function must be supplied as a string"
+        assert isinstance(fcn_str,basestring), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
         self._fcn, dep_list = parse_function(self.fcn_str)
         if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG"):
@@ -775,7 +775,8 @@ class Model(object):
         self.dt = None
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
-        self.build(settings, framework, parset)
+        self.framework = sc.dcp(framework) # Store a copy of the Framework used to generate this model
+        self.build(settings, parset)
 
     def unlink(self):
         # Break cycles when deepcopying or pickling by swapping them for IDs
@@ -871,19 +872,19 @@ class Model(object):
         return self.pops[pop_index]
 
 
-    def build(self, settings, framework, parset):
+    def build(self, settings, parset):
         """ Build the full model. """
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
         for k, pop_name in enumerate(parset.pop_names):
-            self.pops.append(Population(framework=framework, name=pop_name))
+            self.pops.append(Population(framework=self.framework, name=pop_name))
             # TODO: Update preallocate case.
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
             self.pop_ids[pop_name] = k
-            self.pops[-1].initialize_compartments(parset, framework, self.t[0])
+            self.pops[-1].initialize_compartments(parset, self.framework, self.t[0])
 
         # Expand interactions into matrix form
         self.interactions = dict()

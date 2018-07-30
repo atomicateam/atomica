@@ -67,7 +67,7 @@ class ProgramSet(NamedItem):
         '''Make a program set from a program data object.'''
 
         pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
-        comp_short_name = project.framework.get_spec_name
+        comp_short_name = lambda x: project.framework.get_variable(x)[0].name
 
         # Sort out inputs
         if progdata is None:

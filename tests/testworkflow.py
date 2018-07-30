@@ -26,7 +26,6 @@ test = "tb"
 # test = "service"
 
 torun = [
-"makeframeworkfile",
 "makeframework",
 "saveframework",
 "loadframework",
@@ -70,15 +69,8 @@ if test == "tb":
 
 tmpdir = "." + os.sep + "temp" + os.sep
 
-if "makeframeworkfile" in torun:
-    if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
-    elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
-    elif test == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
-    elif test == "service": args = {"num_comps":7, "num_characs":4, "num_pars":10}
-    au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
-        
 if "makeframework" in torun:
-    F = au.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
+    F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
     F.save(tmpdir+test+".frw")
@@ -121,11 +113,11 @@ if "runsim" in torun:
             P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
         P.run_sim(parset="default", result_name="default")
         
-        cascade = P.results[-1].get_cascade_vals(project=P)
+        cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(project=P, year=2020)
-    
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
+
     
     
 if "makeprogramspreadsheet" in torun:
