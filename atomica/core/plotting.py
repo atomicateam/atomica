@@ -18,10 +18,14 @@ from matplotlib.ticker import FuncFormatter
 import sciris.core as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, logger
+from .system import AtomicaException, NotFoundError
 from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
+from .structure_settings import FrameworkSettings as FS
+
+import logging
+logger = logging.getLogger(__name__)
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -180,7 +184,7 @@ class PlotData(object):
                 if isinstance(x, dict):
                     k = list(x.keys())
                     assert len(k) == 1, 'Aggregation dict can only have one key'
-                    if isinstance(x[k[0]], str):
+                    if isinstance(x[k[0]], basestring):
                         continue
                     else:
                         out += x[k[0]]
@@ -231,16 +235,14 @@ class PlotData(object):
 
                         for link in vars:
                             data_dict[output_label] += link.vals
-                            compsize[output_label] += (
-                                link.source.vals if not link.source.is_junction else link.source.outflow)
+                            compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
                         if t_bins is None:  # Annualize if not time aggregating
                             data_dict[output_label] /= dt
                             output_units[output_label] = vars[0].units + '/year'
                         else:
-                            output_units[output_label] = vars[
-                                0].units  # If we sum links in a bin, we get a number of people
-                        data_label[output_label] = vars[0].parameter.name
+                            output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
+                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
@@ -273,7 +275,7 @@ class PlotData(object):
 
                     output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
 
-                    if not isinstance(f_stack_str, str):
+                    if not isinstance(f_stack_str, basestring):
                         continue
 
                     placeholder_pop = lambda: None
@@ -284,8 +286,7 @@ class PlotData(object):
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
-                        if t_bins is not None and (isinstance(var[0], Link) or isinstance(var[0], Parameter)) and \
-                                time_aggregation == "sum" and not displayed_annualization_warning:
+                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
                             raise AtomicaException("Function includes Parameter/Link so annualized rates are being "
                                                    "used. Aggregation should use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
@@ -303,7 +304,7 @@ class PlotData(object):
                         labels = output[output_name]
 
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
-                        if isinstance(labels, str):
+                        if isinstance(labels, basestring):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[
                                 output_name] = 'unknown'  # Also, we don't know what the units of a function are
@@ -311,14 +312,12 @@ class PlotData(object):
 
                         units = list(set([output_units[x] for x in labels]))
                         if len(units) > 1:
-                            logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly "
-                                           "not desired.".format(output_name))
+                            logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly not desired.".format(output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
                             if units[0] in ['', 'fraction', 'proportion', 'probability'] and \
                                     output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
-                                logger.warning("Output '{0}' is not in number units, so output aggregation probably "
-                                               "should not be 'sum'.".format(output_name))
+                                logger.warning("Output '{0}' is not in number units, so output aggregation probably should not be 'sum'.".format(output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
 
                         if output_aggregation == 'sum':
@@ -346,8 +345,7 @@ class PlotData(object):
                         if pop_aggregation == 'sum':
                             if aggregated_units[output_name] in ['', 'fraction', 'proportion', 'probability'] and len(
                                     pop_labels) > 1:
-                                logger.warning("Output '{0}' is not in number units, so population aggregation "
-                                               "probably should not be 'sum'".format(output_name))
+                                logger.warning("Output '{0}' is not in number units, so population aggregation probably should not be 'sum'".format(output_name))
                             vals = sum(
                                 aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
@@ -389,7 +387,7 @@ class PlotData(object):
                     upper = self.series[0].tvec[-1]
                 t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
 
-            if isinstance(t_bins, str) and t_bins == 'all':
+            if isinstance(t_bins, basestring) and t_bins == 'all':
                 t_out = np.zeros((1,))
                 lower = [-np.inf]
                 upper = [np.inf]
@@ -411,7 +409,11 @@ class PlotData(object):
                     if (not np.isinf(low) and low < s.tvec[0]) or (not np.isinf(high) and high > s.tvec[-1]):
                         vals.append(np.nan)
                     else:
-                        flt = (s.tvec >= low) & (s.tvec < high)
+                        if low == high:
+                            flt = s.tvec == low
+                        else:
+                            flt = (s.tvec >= low) & (s.tvec < high)
+
                         if time_aggregation == 'sum':
                             if s.units in ['', 'fraction', 'proportion', 'probability']:
                                 logger.warning("'{0}' is not in number units, so time aggregation probably should not "
@@ -422,7 +424,7 @@ class PlotData(object):
 
                 s.tvec = np.array(tvec)
                 s.vals = np.array(vals)
-                if isinstance(t_bins, str) and t_bins == 'all':
+                if isinstance(t_bins, basestring) and t_bins == 'all':
                     s.t_labels = ['All']
                 else:
                     s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
@@ -588,7 +590,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', '', x) if len(x) > 1 else (x[0], '', x))
                     items.update(x)
-                elif isinstance(x, str):
+                elif isinstance(x, basestring):
                     output_stacks.append((x, '', [x]))
                     items.add(x)
                 else:
@@ -599,7 +601,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', k, x) if len(x) > 1 else (x[0], k, x))
                     items.update(x)
-                elif isinstance(x, str):
+                elif isinstance(x, basestring):
                     output_stacks.append((x, k, [x]))
                     items.add(x)
                 else:
@@ -801,7 +803,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     return figs
 
 
-def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -810,6 +812,8 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
     # - data - Draw scatter points for data wherever the output label matches
     #   a data label. Only draws data if the plot_type is 'line'
     global settings
+    
+    if axis is None: axis = 'outputs'
 
     assert axis in ['outputs', 'results', 'pops']
 

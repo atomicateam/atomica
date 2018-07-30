@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-25
+Last update: 2018-07-29
 -->
 
 <template>
@@ -220,22 +220,10 @@ Last update: 2018-07-25
         </div>
       </div>
 
-
-      <div>
-
-      </div>
     </modal>
     
     <!-- Popup spinner -->
-    <modal name="popup-spinner" 
-           height="80px" 
-           width="85px" 
-           style="opacity: 0.6">
-      <clip-loader color="#0000ff" 
-                   size="50px" 
-                   style="padding: 15px">
-      </clip-loader>
-    </modal>
+    <popup-spinner></popup-spinner>
     
   </div>
 
@@ -245,14 +233,15 @@ Last update: 2018-07-25
 import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
+import status from '@/services/status-service'
 import router from '@/router'
-import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+import PopupSpinner from './Spinner.vue'
   
 export default {
   name: 'ProjectsPage',
   
   components: {
-    ClipLoader
+    PopupSpinner
   },
     
   data() {
@@ -421,8 +410,7 @@ export default {
           verticalAlign: 'top',
           horizontalAlign: 'center',
         })      
-      })        
-      
+      })     
     },
 
     addDemoProject() {
@@ -541,7 +529,7 @@ export default {
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-
+     
       // Have the server upload the project.
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
       .then(response => {
@@ -550,8 +538,8 @@ export default {
         
         // Start the loading bar.  (This is here because we don't want the 
         // progress bar running when the user is picking a file to upload.)
-        this.$Progress.start()        
-        
+        this.$Progress.start()
+      
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
@@ -568,7 +556,7 @@ export default {
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })               
+        })       
       })
       .catch(error => {
         // Dispel the spinner.
@@ -738,7 +726,7 @@ export default {
         // Finish the loading bar.
         this.$Progress.finish()
         
-        // Success popup.        
+        // Success popup.
         this.$notifications.notify({
           message: 'Project "'+matchProject.project.name+'" copied',
           icon: 'ti-check',
@@ -761,7 +749,7 @@ export default {
           type: 'warning',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })      
+        })
       })
     },
 
@@ -791,7 +779,7 @@ export default {
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
         rpcservice.rpcCall('update_project_from_summary', [newProjectSummary])
-        .then(response => {          
+        .then(response => {
           // Update the project summaries so the rename shows up on the list.
           this.updateProjectSummaries(newProjectSummary.project.id)
 
@@ -802,7 +790,7 @@ export default {
           this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
-          this.$Progress.finish()           
+          this.$Progress.finish()          
         })
         .catch(error => {
           // Dispel the spinner.
@@ -962,14 +950,14 @@ export default {
         // Finish the loading bar.
         this.$Progress.finish() 
           
-        // Success popup.        
+        // Success popup.
         this.$notifications.notify({
           message: 'Data uploaded to project "'+matchProject.project.name+'"',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })
+        })     
       })
       .catch(error => {
         // Dispel the spinner.
@@ -1048,7 +1036,7 @@ export default {
         theProj.selected).map(theProj => theProj.project.id)
         
       // Only if something is selected...
-      if (selectProjectsUIDs.length > 0) {    
+      if (selectProjectsUIDs.length > 0) {         
         // Alert object data
         var obj = {
               message: 'Are you sure you want to delete the selected projects?',
@@ -1074,8 +1062,8 @@ export default {
         this.$modal.show('popup-spinner')
         
         // Start the loading bar.
-        this.$Progress.start()        
-        
+        this.$Progress.start()
+      
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
           // Get the active project ID.
@@ -1101,7 +1089,7 @@ export default {
           this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
-          this.$Progress.finish()            
+          this.$Progress.finish()
         })
         .catch(error => {
           // Dispel the spinner.
@@ -1127,8 +1115,8 @@ export default {
       let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
         theProj.selected).map(theProj => theProj.project.id)
 
-      console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
-
+      console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
+          
       // Have the server download the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
         // Bring up a spinner.
@@ -1160,7 +1148,7 @@ export default {
             verticalAlign: 'top',
             horizontalAlign: 'center',
           })      
-        })        
+        })       
       }
     }
   }
@@ -1168,60 +1156,5 @@ export default {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<!--<style lang="scss" scoped>-->
-<!--</style>-->
-<style>
-  .vue-dialog div {
-    box-sizing: border-box;
-  }
-  .vue-dialog .dialog-flex {
-    width: 100%;
-    height: 100%;
-  }
-  .vue-dialog .dialog-content {
-    flex: 1 0 auto;
-    width: 100%;
-    padding: 15px;
-    font-size: 14px;
-  }
-  .vue-dialog .dialog-c-title {
-    font-weight: 600;
-    padding-bottom: 15px;
-  }
-  .vue-dialog .dialog-c-text {
-  }
-  .vue-dialog .vue-dialog-buttons {
-    display: flex;
-    flex: 0 1 auto;
-    width: 100%;
-    border-top: 1px solid #eee;
-  }
-  .vue-dialog .vue-dialog-buttons-none {
-    width: 100%;
-    padding-bottom: 15px;
-  }
-  .vue-dialog-button {
-    font-size: 12px !important;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-    border: 0;
-    cursor: pointer;
-    box-sizing: border-box;
-    line-height: 40px;
-    height: 40px;
-    color: inherit;
-    font: inherit;
-    outline: none;
-  }
-  .vue-dialog-button:hover {
-    background: rgba(0, 0, 0, 0.01);
-  }
-  .vue-dialog-button:active {
-    background: rgba(0, 0, 0, 0.025);
-  }
-  .vue-dialog-button:not(:first-of-type) {
-    border-left: 1px solid #eee;
-  }
-
+<style scoped>
 </style>

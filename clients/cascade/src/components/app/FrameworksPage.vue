@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-25
+Last update: 2018-07-29
 -->
 
 <template>
@@ -92,16 +92,26 @@ Last update: 2018-07-25
           </td>
           <td>
 <!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
-            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)">Copy</button>
-            <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
-            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
+            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" title="Copy">
+              <i class="ti-files"></i>
+            </button>
+            <button class="btn" @click="renameFramework(frameworkSummary)" title="Rename">
+              <i class="ti-pencil"></i>
+            </button>
+            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)" title="Download">
+              <i class="ti-download"></i>
+            </button>
           </td>
           <td>{{ frameworkSummary.framework.creationTime.toUTCString() }}</td>
           <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
           <td>
-            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)">Upload</button>
-            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)">Download</button>
+            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)" title="Upload">
+              <i class="ti-upload"></i>
+            </button>
+            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)" title="Download">
+              <i class="ti-download"></i>
+            </button>
           </td>
         </tr>
         </tbody>
@@ -182,15 +192,7 @@ Last update: 2018-07-25
     </modal>
     
     <!-- Popup spinner -->
-    <modal name="popup-spinner" 
-           height="80px" 
-           width="85px" 
-           style="opacity: 0.6">
-      <clip-loader color="#0000ff" 
-                   size="50px" 
-                   style="padding: 15px">
-      </clip-loader>
-    </modal>
+    <popup-spinner></popup-spinner>
     
   </div>
 
@@ -200,14 +202,15 @@ Last update: 2018-07-25
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
+  import status from '@/services/status-service'
   import router from '@/router'
-  import ClipLoader from 'vue-spinner/src/ClipLoader.vue'
+  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'FrameworksPage',
     
     components: {
-      ClipLoader
+      PopupSpinner
     },
     
     data() {
@@ -302,13 +305,7 @@ Last update: 2018-07-25
         })
         .catch(error => {
           // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load frameworks',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.failurePopup(this, 'Could not load frameworks')           
         })
       },
 
@@ -316,11 +313,8 @@ Last update: 2018-07-25
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
         
-        // Bring up a spinner.
-        this.$modal.show('popup-spinner')
-        
-        // Start the loading bar.
-        this.$Progress.start()
+        // Start indicating progress.
+        status.start(this)
         
         // Have the server create a new framework.
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
@@ -328,36 +322,12 @@ Last update: 2018-07-25
           // Update the framework summaries so the new framework shows up on the list.
           this.updateFrameworkSummaries(response.data.frameworkId)
           
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()  
-
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Library framework loaded',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })
+          // Indicate success.
+          status.succeed(this, 'Library framework loaded')
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load framework',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          // Indicate failure.
+          status.fail(this, 'Could not load framework')  
         })            
       },
 

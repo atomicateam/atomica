@@ -6,12 +6,12 @@ Version: 2018mar26
 import sciris.core as sc
 from .system import AtomicaException, NotAllowedError
 from .utils import NamedItem
-from copy import deepcopy as dcp
 import numpy as np
 from .model import Model, Link
 import pickle
 import scipy.optimize
 from collections import defaultdict
+from .structure import TimeSeries
 import logging
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,10 @@ class SpendingAdjustment(Adjustment):
         # There is one Adjustable for each time point, so the adjustable_values
         # are a list of this same length, one value for each time point
         for i,t in enumerate(self.t):
-            instructions.alloc[self.prog_name].insert(t,adjustable_values[i])
+            if self.prog_name not in instructions.alloc:
+                instructions.alloc[self.prog_name] = TimeSeries(t=t, vals=adjustable_values[i])
+            else:
+                instructions.alloc[self.prog_name].insert(t,adjustable_values[i])
 
     def get_initialization(self,progset,instructions):
         initialization = []
@@ -240,14 +243,17 @@ class TotalSpendConstraint(Constraint):
     #
     # Important - this constraint only acts on program spending that is reached by an Adjustment.
 
-    def __init__(self, total_spend = None, t = None):
+    def __init__(self, total_spend = None, t = None, budget_factor = 1.0):
         # total_spend allows the total spending in a particular year to be explicitly specified
         # rather than drawn from the initial allocation. This could be useful when using parametric
         # programs.
         # This constraint can be set to only apply in certain years.
-
+        # The budget_factor multiplies the total spend at the time the hard_constraint is assigned
+        # Typically this is to scale up the available spending when that spending is being drawn from
+        # the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
         self.total_spend = total_spend  # Optionally a number, or a list of tuples of time-spending pairs e.g. [(2018,10000),(2020,200000)]
         self.t = sc.promotetoarray(t) if t is not None else ()
+        self.budget_factor = budget_factor
 
     def get_hard_constraint(self,optimization, instructions):
         # First, at each time point where a program overwrite exists, we need to store
@@ -278,14 +284,14 @@ class TotalSpendConstraint(Constraint):
             if isinstance(self.total_spend, list):
                 for spend in self.total_spend:
                     if t == spend[0]:
-                        hard_constraints['total_spend'][t] = spend[1]
+                        hard_constraints['total_spend'][t] = spend[1]*self.budget_factor
             elif self.total_spend:
-                hard_constraints['total_spend'][t] = self.total_spend
+                hard_constraints['total_spend'][t] = self.total_spend*self.budget_factor
             else:
                 total_spend = 0.0
                 for prog in progs:
                     total_spend += instructions.alloc[prog].get(t)
-                hard_constraints['total_spend'][t] = total_spend
+                hard_constraints['total_spend'][t] = total_spend*self.budget_factor
 
         # Finally, for each adjustable, we need to store its upper and lower bounds
         # _in the year that the adjustment is being made_
@@ -341,26 +347,75 @@ class TotalSpendConstraint(Constraint):
                 instructions.alloc[name].insert(t,val)
 
         return penalty
+    
+
+class OptimInstructions(NamedItem):
+    def __init__(self, json=None):
+        self.name = json['name']
+        self.json = json
+    
+    def make(self, project=None):
+        proj = project
+        name              = self.json['name']
+        parset_name       = self.json['parset_name'] # WARNING, shouldn't be unused
+        progset_name      = self.json['progset_name']
+        start_year        = self.json['start_year']
+        end_year          = self.json['end_year']
+        budget_factor     = self.json['budget_factor']
+        objective_weights = self.json['objective_weights']
+        prog_spending     = self.json['prog_spending']
+        maxtime           = self.json['maxtime']
+    
+        progset = proj.progsets[progset_name] # Retrieve the progset
+    
+        # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
+        # passed in as arguments to this function
+        adjustments = []
+        for prog_name in progset.programs:
+            limits = prog_spending[prog_name]
+            adjustments.append(SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
+    
+        # Add a total spending constraint with the given budget scale up
+        constraints = [TotalSpendConstraint(budget_factor=budget_factor)]
+    
+        # Add all of the terms in the objective
+        measurables = []
+        for mname,mweight in objective_weights.items():
+            measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
+    
+        # Create the Optimization object
+        optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
+        
+        return optim
+    
+    
 
 class Optimization(NamedItem):
     """ An object that defines an Optimization to perform """
 
-    def __init__(self,  name='default', adjustments=None, measurables = None, constraints = None,  maxtime = 10, maxiters=None):
+    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None):
 
+        # Get the name
+        if name is None:
+            name = 'default'
         NamedItem.__init__(self, name)
 
-        assert adjustments is not None
-        assert measurables is not None
-
+        self.parsetname = parsetname
+        self.progsetname = progsetname
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
-        self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
-        self.measurables = [measurables] if not isinstance(measurables,list) else measurables
-        self.constraints = [constraints] if constraints and not isinstance(constraints,list) else constraints
-
+        self.adjustments = adjustments
+        self.measurables = measurables
+        self.constraints = constraints
+        
+        if adjustments is None or measurables is None:
+            raise AtomicaException('Must supply either a json or an adjustments+measurables')
+        return
+    
+    
     def __repr__(self):
         return sc.desc(self)
-
+    
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable
         x0 = []
@@ -388,7 +443,7 @@ class Optimization(NamedItem):
 
     def get_hard_constraints(self,x0,instructions):
         # Return hard constraints based on the starting initialization
-        instructions = dcp(instructions)
+        instructions = sc.dcp(instructions)
         self.update_instructions(x0,instructions)
         if not self.constraints:
             return None
@@ -410,7 +465,6 @@ class Optimization(NamedItem):
         for measurable in self.measurables:
             objective += measurable.eval(model)
         return objective
-
 
 
 def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
@@ -470,18 +524,20 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
     optimization.constrain_instructions(model.program_instructions,hard_constraints)
     return model.program_instructions # Return the modified instructions
 
-def parallel_optimize(project,optimization,parset,progset,program_instructions):
+#def parallel_optimize(project,optimization,parset,progset,program_instructions):
+#
+#    raise NotImplementedError
+#
+#    initialization = optimization.get_initialization(progset, program_instructions)
+#    xmin = initialization[1]
+#    xmax = initialization[2]
+#
+#    initial_instructions = program_instructions
+#    for i in range(0,n_rounds):
+#        for i in range(0,n_threads):
+#            optimized_instructions[i] = optimize(optimization, parset, progset, initial_instructions, x0=None, xmin=xmin, xmax=xmax)
+#        initial_instructions = pick_best(optimized_instructions)
+#    return initial_instructions # Best one from the last round
 
-    raise NotImplementedError
 
-    initialization = optimization.get_initialization(progset, program_instructions)
-    xmin = initialization[1]
-    xmax = initialization[2]
-
-    initial_instructions = program_instructions
-    for i in range(0,n_rounds):
-        for i in range(0,n_threads):
-            optimized_instructions[i] = optimize(optimization, parset, progset, initial_instructions, x0=None, xmin=xmin, xmax=xmax)
-        initial_instructions = pick_best(optimized_instructions)
-    return initial_instructions # Best one from the last round
 

@@ -5,20 +5,11 @@ Version:
 import logging
 logger = logging.getLogger()
 
-## Write the log to a file
-# h = logging.FileHandler('testworkflow.log',mode='w')
-# logger.addHandler(h)
-
-## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
-# logger.setLevel('DEBUG')
-
 import os
 import atomica.ui as au
 import sciris.core as sc
-import numpy as np
-
-# Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
-# logger.setLevel('DEBUG')
+import pylab as pl
+import matplotlib.pyplot as plt
 
 # test = "sir"
 test = "tb"
@@ -26,25 +17,27 @@ test = "tb"
 # test = "service"
 
 torun = [
-"makeframeworkfile",
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
-"makeplots",
+#"makeframeworkfile",
+#"makeframework",
+#"saveframework",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#'plotcascade',
+#"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
+#"makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
-#  "autocalibrate",
+#"autocalibrate",
 # "parameterscenario",
+'budgetscenarios',
+#'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -300,6 +293,9 @@ if "autocalibrate" in torun:
     au.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
+    
+    P = au.demo(which=test)
+    
     scvalues = dict()
     if test == "sir":
         scen_par = "infdeath"
@@ -318,19 +314,128 @@ if "parameterscenario" in torun:
     scvalues[scen_par][scen_pop]["t"] = [2015.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
 
-    P.make_scenario(name="varying_infections", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
+    P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
+    P.run_scenario(scenario="Varying Infections", parset="default")
 
     # Insert two values and eliminate everything between them.
     scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
     scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
 
-    P.make_scenario(name="varying_infections2", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
+    P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
+    P.run_scenario(scenario="Varying Infections 2", parset="default")
 
-    d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
     au.plot_series(d, axis="results")
+    plt.title('Scenario comparison')
+    plt.ylabel('Number of people')
+
+
+def supported_plots_func():
+    ''' TEMP '''
+    supported_plots = {
+            'Population size':'alive',
+            'Latent infections':'lt_inf',
+            'Active TB':'ac_inf',
+            'Active DS-TB':'ds_inf',
+            'Active MDR-TB':'mdr_inf',
+            'Active XDR-TB':'xdr_inf',
+            'New active DS-TB':{'New active DS-TB':['pd_div:flow','nd_div:flow']},
+            'New active MDR-TB':{'New active MDR-TB':['pm_div:flow','nm_div:flow']},
+            'New active XDR-TB':{'New active XDR-TB':['px_div:flow','nx_div:flow']},
+            'Smear negative active TB':'sn_inf',
+            'Smear positive active TB':'sp_inf',
+            'Latent diagnoses':{'Latent diagnoses':['le_treat:flow','ll_treat:flow']},
+            'New active TB diagnoses':{'Active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']},
+            'New active DS-TB diagnoses':{'Active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow']},
+            'New active MDR-TB diagnoses':{'Active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow']},
+            'New active XDR-TB diagnoses':{'Active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow']},
+            'Latent treatment':'ltt_inf',
+            'Active treatment':'num_treat',
+            'TB-related deaths':':ddis',
+            }
+    return supported_plots
+
+#def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+#    results = sc.promotetolist(results)
+#    supported_plots = supported_plots_func() 
+#    if plot_names is None: plot_names = supported_plots.keys()
+#    plot_names = sc.promotetolist(plot_names)
+#    if outputs is None:
+#        outputs = [supported_plots[plot_name] for plot_name in plot_names]
+#    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+#    all_figs = []
+#    for output in outputs:
+#        try:
+#            import numpy as np # TEMP
+#            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+#            for series in plotdata.series:
+#                if any(np.isnan(series.vals)):
+#                    print('NANS?????????!!')
+#                    print series.vals
+#            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+#            all_figs += sc.promotetolist(figs)
+#            print('Plot %s succeeded' % (output))
+#        except Exception as E:
+#            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+#
+#    return all_figs
+
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None, replace_nans=True):
+    import numpy as np
+    results = sc.promotetolist(results)
+    supported_plots = supported_plots_func() 
+    if plot_names is None: plot_names = supported_plots.keys()
+    plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [supported_plots[plot_name] for plot_name in plot_names]
+    graphs = []
+    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    for output in outputs:
+        try:
+            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            nans_replaced = 0
+            series_list = sc.promotetolist(plotdata.series)
+            for series in series_list:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+            graphs += figs
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+
+    return graphs
+
+
+if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
+    browser = False # Display as mpld3 plots in the browser
+    plot_option = 2
+    scen_outputs = ["lt_inf", "ac_inf"]
+    scen_pop = "15-64"
+    P = au.demo(which='tb')
+    results = P.run_scenarios()
+    if plot_option == 1:
+        d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+        figs = au.plot_series(d, axis="results")
+    elif plot_option == 2:
+        figs = get_plots(P, results, axis="results")
+    if browser:
+        from sciris.weblib import quickserver as qs
+        qs.browser(figs)
+    
+
+if "optimization" in torun:
+    P = au.demo(which='tb')
+    P.run_optimization(maxtime=300)
+
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions

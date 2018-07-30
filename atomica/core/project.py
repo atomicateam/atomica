@@ -21,7 +21,7 @@ Methods for structure lists:
     3. copy -- copy a structure in the odict
     4. rename -- rename a structure in the odict
 
-Version: 2018jun04
+Version: 2018jul29
 """
 
 from .version import version
@@ -31,17 +31,14 @@ from .excel import ExcelSettings as ES
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
-from .programs import ProgramSet
-from .scenarios import Scenario, ParameterScenario
-
-from .optimization import Optimization, optimize
+from .programs import ProgramSet, ProgramInstructions
+from .scenarios import Scenario, ParameterScenario, BudgetScenario
+from .optimization import OptimInstructions, optimize
 from .structure_settings import FrameworkSettings as FS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from .workbook_export import write_workbook, make_instructions, make_progbook
-from .workbook_import import read_workbook, load_progbook
+from .workbook_export import make_progbook # write_workbook, make_instructions, 
+from .workbook_import import load_progbook # read_workbook, 
 from .utils import NDict
-#from .optimization import Optim
-#from .results import Result
 import sciris.core as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
@@ -51,7 +48,7 @@ class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
         self.sim_start = sim_start if sim_start is not None else 2000.0
-        self.sim_end = sim_end if sim_end is not None else 2030.0
+        self.sim_end = sim_end if sim_end is not None else 2035.0
         self.sim_dt = sim_dt if sim_dt is not None else 1.0 / 4
 
         # Other
@@ -128,7 +125,7 @@ class Project(object):
         output += '   Atomica version: %s\n' % self.version
         output += '      Date created: %s\n' % sc.getdate(self.created)
         output += '     Date modified: %s\n' % sc.getdate(self.modified)
-        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
+#        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
         output += '        Git branch: %s\n' % self.gitinfo['branch']
         output += '          Git hash: %s\n' % self.gitinfo['hash']
         output += '               UID: %s\n' % self.uid
@@ -243,12 +240,16 @@ class Project(object):
         if make_default_progset: self.make_progset(name="default")
         
 
-    def make_progset(self, progdata=None, name="default"):
+    def make_progset(self, progdata=None, name="default", verbose=False):
         '''Make a progset from program spreadsheet data'''
         
+        if verbose: print('Making ProgramSet')
         progset = ProgramSet(name=name)
+        if verbose: print('Making program data')
         progset.make(progdata=progdata, project=self)
+        if verbose: print('Updating program sets')
         self.progsets.append(progset)
+        if verbose: print('Done with make_progset().')
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
@@ -272,15 +273,25 @@ class Project(object):
 #
 #        return None
         
-    def make_scenario(self, name="default", instructions=None):
-        scenario = ParameterScenario(name=name, scenario_values=instructions)
+    def make_scenario(self, name="default", which=None, instructions=None, json=None):
+        if json is not None:
+            if which=='budget':
+                scenario = BudgetScenario(**json)
+            else:
+                raise Exception('Parameter scenarios from JSON not implemented')
+        else:
+            if which=='parameter':
+                scenario = ParameterScenario(name=name, scenario_values=instructions)
+            else:
+                raise Exception('Budget scenarios not from JSON not implemented')
+                
         self.scens.append(scenario)
         return scenario
 
-    def make_optimization(self, **kwargs):
-        optimization = Optimization(**kwargs)
-        self.optims.append(optimization)
-        return optimization
+    def make_optimization(self, json=None):
+        optim_ins = OptimInstructions(json=json)
+        self.optims[optim_ins.json['name']] = optim_ins
+        return optim_ins
 
 
 #    #######################################################################################################
@@ -294,41 +305,37 @@ class Project(object):
 #                item.projectref = Link(self)
 #        return None
 #
-#
-#    def pars(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active set of parameters, i.e. self.parsets[-1].pars '''
-#        try:    return self.parsets[key].pars
-#        except: return printv('Warning, parameters dictionary not found!', 1, verbose) # Returns None
-#    
-#    def parset(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active parameters set, i.e. self.parsets[-1] '''
-#        try:    return self.parsets[key]
-#        except: return printv('Warning, parameter set not found!', 1, verbose) # Returns None
-#    
-#    def programs(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active set of programs '''
-#        try:    return self.progsets[key].programs
-#        except: return printv('Warning, programs not found!', 1, verbose) # Returns None
-#
-#    def progset(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active program set, i.e. self.progsets[-1]'''
-#        try:    return self.progsets[key]
-#        except: return printv('Warning, program set not found!', 1, verbose) # Returns None
-#    
-#    def scen(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest scenario, i.e. self.scens[-1]'''
-#        try:    return self.scens[key]
-#        except: return printv('Warning, scenario not found!', 1, verbose) # Returns None
-#
-#    def optim(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest optimization, i.e. self.optims[-1]'''
-#        try:    return self.optims[key]
-#        except: return printv('Warning, optimization not found!', 1, verbose) # Returns None
-#
-#    def result(self, key=-1, verbose=2):
-#        ''' Shortcut for getting the latest active results, i.e. self.results[-1]'''
-#        try:    return self.results[key]
-#        except: return printv('Warning, results set not found!', 1, verbose) # Returns None
+
+    def parset(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest parset '''
+        if key is None: key = -1
+        try:    return self.parsets[key]
+        except: return sc.printv('Warning, parset "%s" not found!' %key, 1, verbose) # Returns None
+
+    def progset(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest progset '''
+        if key is None: key = -1
+        try:    return self.progsets[key]
+        except: return sc.printv('Warning, progset "%s" not found!' %key, 1, verbose) # Returns None
+
+    def scen(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest scenario '''
+        if key is None: key = -1
+        try:    return self.scens[key]
+        except: return sc.printv('Warning, scenario "%s" not found!' %key, 1, verbose) # Returns None
+
+    def optim(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest optim '''
+        if key is None: key = -1
+        try:    return self.optims[key]
+        except: return sc.printv('Warning, optim "%s" not found!' %key, 1, verbose) # Returns None
+
+    def result(self, key=None, verbose=2):
+        ''' Shortcut for getting the latest result '''
+        if key is None: key = -1
+        try:    return self.results[key]
+        except: return sc.printv('Warning, results "%s" not found!' %key, 1, verbose) # Returns None
+
 
 
     #######################################################################################################
@@ -429,12 +436,8 @@ class Project(object):
 
         return new_parset
 
-    #    def outcome(self):
-    #        ''' Function to get the outcome for a particular sim and objective'''
-    #        pass
-
     def run_scenario(self, scenario, parset, progset=None, progset_instructions=None,
-                     store_results=True, result_name=None):
+                     store_results=True):
         """ Run a scenario. """
         parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         if progset:
@@ -445,18 +448,32 @@ class Project(object):
         scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
 
         result = self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
-                            store_results=store_results, result_type="scenario", result_name=result_name)
+                            store_results=store_results, result_type="scenario", result_name=scenario.name)
 
         scenario.result_uid = result.uid
         return result
+    
+    def run_scenarios(self):
+        results = []
+        for scenario in self.scens.values():
+            result = scenario.run(project=self)
+            results.append(result)
+        return results
 
-    def run_optimization(self,optimization,parset,progset,progset_instructions):
+    def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
         '''Run an optimization'''
-        parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
-        progset = progset if isinstance(progset,ProgramSet) else self.progsets[progset]
-        optimization = optimization if isinstance(optimization,ProgramSet) else self.optims[optimization]
-        optimized_instructions = optimize(self,optimization,parset,progset,progset_instructions)
-        return self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        optim_ins = self.optim(optimname)
+        optim = optim_ins.make(project=self)
+        if maxtime is not None: optim.maxtime = maxtime
+        if maxiters is not None: optim.maxiters = maxiters
+        parset = self.parset(optim.parsetname)
+        progset = self.progset(optim.progsetname)
+        progset_instructions = ProgramInstructions(alloc=None, start_year=optim_ins.json['start_year'])
+        optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+        optimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline")
+        results = [unoptimized_result, optimized_result]
+        return results
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
@@ -469,3 +486,51 @@ class Project(object):
     def load(cls, filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
         return sc.loadobj(filepath)
+
+    def demo_scenarios(self, dorun=False, doadd=True):
+        json1 = sc.odict()
+        json1['name']        ='Default budget'
+        json1['parsetname']  = -1
+        json1['progsetname'] = -1
+        json1['start_year']  = 2020
+        json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['start_year'])
+        
+        json2 = sc.dcp(json1)
+        json2['name']        ='Doubled budget'
+        json2['alloc'][:] *= 2.0
+        
+        json3 = sc.dcp(json1)
+        json3['name']        ='Zero budget'
+        json3['alloc'][:] *= 0.0
+        
+        if doadd:
+            for json in [json1, json2, json3]:
+                self.make_scenario(which='budget', json=json)
+            if dorun:
+                results = self.run_scenarios()
+                return results
+            else:
+                return None
+        else:
+            return json1
+    
+    def demo_optimization(self, dorun=False):
+        ''' WARNING, only works for TB '''
+        json = sc.odict()
+        json['name']              = 'Demo optimization'
+        json['parset_name']       = -1
+        json['progset_name']      = -1
+        json['start_year']        = 2018
+        json['end_year']          = 2025
+        json['budget_factor']     = 1.0
+        json['objective_weights'] = {'alive':-1,'ddis':1,'acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
+        json['maxtime']           = 20 # WARNING, default!
+        json['prog_spending']     = sc.odict()
+        for prog_name in self.progset().programs.keys():
+            json['prog_spending'][prog_name] = [1,None]
+        self.make_optimization(json=json)
+        if dorun:
+            results = self.run_optimization(optimization=json['name'])
+            return results
+        else:
+            return json

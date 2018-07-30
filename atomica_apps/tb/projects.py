@@ -93,13 +93,21 @@ class ProjectSO(sw.ScirisObject):
         print 'Update Time: %s' % self.proj.modified
             
     def get_user_front_end_repr(self):
+        try:    
+            n_pops = len(self.proj.parsets[0].pop_names)
+        except: 
+            print('Could not load populations for project')
+            n_pops = 'N/A'
         obj_info = {
             'project': {
-                'id': self.uid,
-                'name': self.proj.name,
-                'userId': self.owner_uid,
-                'creationTime': self.proj.created,
-                'updatedTime': self.proj.modified     
+                'id':            self.uid,
+                'name':          self.proj.name,
+                'userId':        self.owner_uid,
+                'creationTime':  self.proj.created,
+                'updatedTime':   self.proj.modified,
+                'n_pops':        n_pops,
+                'sim_start':     self.proj.settings.sim_start,
+                'sim_end':       self.proj.settings.sim_end
             }
         }
         return obj_info
@@ -238,3 +246,34 @@ def init_projects(app):
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ProjectCollection.    
         proj_collection.show()
+
+
+def apptasks_load_projects(config):
+    global proj_collection  # need this to allow modification within the module 
+    
+    # We need to load in the whole DataStore here because the Celery worker 
+    # (in which this function is running) will not know about the same context 
+    # from the datastore.py module that the server code will.
+    
+    # Create the DataStore object, setting up Redis.
+    ds.data_store = ds.DataStore(redis_db_URL=config.REDIS_URL)
+    
+    # Load the DataStore state from disk.
+    ds.data_store.load()
+    
+    # Look for an existing ProjectCollection.
+    proj_collection_uid = ds.data_store.get_uid_from_instance('projectscoll', 
+        'Projects Collection')
+    
+    # Create the projects collection object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    proj_collection = ProjectCollection(proj_collection_uid)
+    
+    # If there was a match...
+    if proj_collection_uid is not None:  
+        # Load the project collection from the DataStore.
+        proj_collection.load_from_data_store()        
+        
+#        proj_collection.show()      
+    
+    return None
