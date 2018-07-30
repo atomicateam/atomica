@@ -381,7 +381,7 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
     return result
 
 
-def load_progbook(spreadsheet, verbose=False):
+def load_progbook(spreadsheet, blh_effects=False, verbose=False):
     '''
     Loads programs book (i.e. reads its contents into the data).
 
@@ -490,15 +490,22 @@ def load_progbook(spreadsheet, verbose=False):
     for row in range(sheetdata.nrows): # Even though it loops over every row, skip all except the best rows
         if sheetdata.cell_value(row, 1)!='': # Data row
             par_name = sheetdata.cell_value(row, 1) # Get the name of the parameter
-            pop_name = sheetdata.cell_value(row, 2).split(': ')[0]
-            est_name = sheetdata.cell_value(row, 2).split(': ')[1]
-            if est_name == 'best':
-                if verbose: print('  Reading data for row %s (%s/%s/%s): ' % (row, par_name, pop_name, est_name))
+            if blh_effects:
+                pop_name = sheetdata.cell_value(row, 2).split(': ')[0]
+                est_name = sheetdata.cell_value(row, 2).split(': ')[1]
+                if est_name == 'best':
+                    if verbose: print('  Reading data for row %s (%s/%s/%s): ' % (row, par_name, pop_name, est_name))
+                    if par_name not in data['pars']: data['pars'][par_name] = sc.odict() # Initialize only if it doesn't exist yet
+                    if pop_name not in data['pars'][par_name]: data['pars'][par_name][pop_name] = sc.odict()  # Initialize only if it doesn't exist yet
+                    data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 3) if sheetdata.cell_value(row+i, 3)!='' else np.nan for i in range(3)]
+                    data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=5, end_colx=5+len(data['progs']['short'])) ) for i in range(3)]
+            else:
+                pop_name = sheetdata.cell_value(row, 2)
+                if verbose: print('  Reading data for row %s (%s/%s/): ' % (row, par_name, pop_name))
                 if par_name not in data['pars']: data['pars'][par_name] = sc.odict() # Initialize only if it doesn't exist yet
                 if pop_name not in data['pars'][par_name]: data['pars'][par_name][pop_name] = sc.odict()  # Initialize only if it doesn't exist yet
-                data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 3) if sheetdata.cell_value(row+i, 3)!='' else np.nan for i in range(3)]
-#                data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 4) if sheetdata.cell_value(row+i, 4)!='' else np.nan for i in range(3)]
-                data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=5, end_colx=5+len(data['progs']['short'])) ) for i in range(3)]
+                data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row, 3) if sheetdata.cell_value(row, 3)!='' else np.nan]
+                data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row, start_colx=5, end_colx=5+len(data['progs']['short'])) )]
         else:
             if verbose: print('Not reading data for row %s, row is blank' % row)
     

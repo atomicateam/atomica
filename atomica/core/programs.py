@@ -113,23 +113,24 @@ class ProgramSet(NamedItem):
             for yrno,year in enumerate(progdata['years']):
 
                 spend = progdata[pkey]['spend'][yrno]
-#                base_spend = progdata[pkey]['basespend'][yrno]
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
                     self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
         
                 if not isnan(spend):
                     self.programs[np].add_spend(spend=spend, year=year)
-#                if not isnan(base_spend):
-#                    self.programs[np].add_spend(spend=base_spend, year=year, spend_type='basespend')
         
 
         # Read in the information for covout functions and update the target pars
         if verbose: print('Adding program effects')
         prognames = progdata['progs']['short']
+        covouts = odict()
         prog_effects = odict()
 
-        for par,pardata in progdata['pars'].iteritems():
+        for parname,pardata in progdata['pars'].iteritems():
+            
+            par = comp_short_name(parname) # Get short name of parameter
+            covouts[par] = progdata['pars'][parname]
             if verbose: print('  Adding effects for program %s' % (par))
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
@@ -137,9 +138,8 @@ class ProgramSet(NamedItem):
                 prog_effects[par][pop] = odict()
                 for pno in range(len(prognames)):
                     vals = []
-                    for blh in range(3):
-                        try: val = popdata['prog_vals'][blh][pno]
-                        except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+                    for blh in range(len(popdata['prog_vals'])):
+                        val = popdata['prog_vals'][blh][pno]
                         if isnumber(val) and val is not nan: vals.append(val) 
                     if vals:
                         prog_effects[par][pop][prognames[pno]] = vals
@@ -148,7 +148,7 @@ class ProgramSet(NamedItem):
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
         
         if verbose: print('Adding coverage-outcome effects')
-        self.add_covouts(progdata['pars'], prog_effects, pop_short_name)
+        self.add_covouts(covouts, prog_effects, pop_short_name)
         if verbose: print('Updating')
         self.update()
         if verbose: print('Done with make().')
@@ -294,6 +294,7 @@ class ProgramSet(NamedItem):
         else:
             errormsg = 'Covout list not supplied.'
             raise AtomicaException(errormsg)
+            
             
         for par,pardata in covouts.iteritems():
             if verbose: print('  Adding coverage-outcome effect for parameter %s' % par)
