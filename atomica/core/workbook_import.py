@@ -492,7 +492,7 @@ def load_progbook(spreadsheet, verbose=False):
                 if par_name not in data['pars']: data['pars'][par_name] = sc.odict() # Initialize only if it doesn't exist yet
                 if pop_name not in data['pars'][par_name]: data['pars'][par_name][pop_name] = sc.odict()  # Initialize only if it doesn't exist yet
                 data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 3) if sheetdata.cell_value(row+i, 3)!='' else np.nan for i in range(3)]
-                data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 4) if sheetdata.cell_value(row+i, 4)!='' else np.nan for i in range(3)]
+#                data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 4) if sheetdata.cell_value(row+i, 4)!='' else np.nan for i in range(3)]
                 data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=6, end_colx=6+len(data['progs']['short'])) ) for i in range(3)]
         else:
             if verbose: print('Not reading data for row %s, row is blank' % row)
