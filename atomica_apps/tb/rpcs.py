@@ -667,7 +667,7 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plotdata=None, replace_nans=True,stacked=False):
+def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
@@ -675,7 +675,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     graphs = []
-    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
@@ -691,7 +691,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
                 print('Warning: %s nans were replaced' % nans_replaced)
 
             if stacked:
-                figs = au.plot_series(plotdata, data=data, axis='pops',plot_type='stacked')
+                figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
             else:
                 figs = au.plot_series(plotdata, data=data, axis='results')
 
@@ -1017,7 +1017,7 @@ def run_scenarios(project_id):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    output = get_plots(proj, results) # , outputs=scen_outputs, pops=scen_pops, plotdata=False
+    output = get_plots(proj, results)
     print('Saving project...')
     save_project(proj)    
     return output
@@ -1109,18 +1109,3 @@ def set_optim_info(project_id, optim_summaries):
 #    print('Saving project...')
 #    save_project(proj)    
 #    return output
-
-
-##################################################################################
-#%% Miscellaneous RPCs
-##################################################################################
-
-@register_RPC(validation_type='nonanonymous user')    
-def simulate_slow_rpc(sleep_secs, succeed=True):
-    time.sleep(sleep_secs)
-    
-    if succeed:
-        return 'success'
-    else:
-        return {'error': 'failure'}
-
