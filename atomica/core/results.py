@@ -4,7 +4,6 @@ import sciris.core as sc
 from .utils import NamedItem
 from .system import AtomicaException
 
-
 # import optima_tb.settings as project_settings
 
 class Result(NamedItem):
@@ -105,7 +104,7 @@ class Result(NamedItem):
         return df
 
 
-    def get_cascade_vals(self,cascade_name=None,pops=None):
+    def get_cascade_vals(self,cascade,framework=None,pops='all',t_bins=None):
         '''
         Gets values for populating a cascade plot
         See https://docs.google.com/presentation/d/1lEEyPFORH3UeFpmaxEAGTKyHAbJRnKTm5YIsfV1iJjc/edit?usp=sharing
@@ -115,28 +114,43 @@ class Result(NamedItem):
             conv: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion converted by year
             t: list of the years
         '''
-        if cascade_name is None:
-            return
-        if project is None:
-            errormsg = 'You need to supply a project in order to plot the cascade.'
-            raise AtomicaException(errormsg)
-            
-        cascade = sc.odict()
-        cascade['vals'] = sc.odict()
-        cascade['loss'] = sc.odict()
-        cascade['conv'] = sc.odict()
-        F = project.framework
-        for sno,stage in enumerate(F.filter['stages']):
-            cascade['vals'][stage] = sc.odict()
-            cascade['conv'][stage] = sc.odict()
-            cascade['loss'][stage] = sc.odict()
-            for pno,pop in enumerate(project.pop_names):
-                cascade['vals'][stage][pop] = self.get_variable(pop,stage)[0].vals
-                cascade['t'] = self.get_variable(pop,stage)[0].t
-                if sno > 0:
-                    cascade['conv'][stage][pop] = (cascade['vals'][stage][pop], cascade['vals'][sno][pop]/cascade['vals'][sno-1][pop])
-                    cascade['loss'][stage][pop] = (cascade['vals'][sno-1][pop]-cascade['vals'][sno][pop], 1.-cascade['conv'][stage][pop][1])
-                
-        return cascade
+        # INPUTS
+        # - cascade can be a list of cascade entries, or the name of a cascade in a Framework
+        # - framework should be a ProjectFramework and is only required if cascade is a string rather than a list
+        from .plotting import PlotData # Import here to avoid circular dependencies
 
+        assert isinstance(pops,str), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 
+        if isinstance(cascade,str):
+            if isinstance(framework.sheets['Cascades'],list):
+                available_cascades = []
+                for df in framework.sheets['Cascades']:
+                    if df.columns[0].strip() == cascade.strip(): # If this cascade name matches the requested cascade
+                        break
+                    else:
+                        available_cascades.append(df.columns[0])
+                else:
+                    raise AtomicaException('Cascade name "%s" not found in framework - must be one of %s' % (cascade,available_cascades))
+            else:
+                df = framework.sheets['Cascades']
+                assert df.columns[0].strip() == cascade.strip()
+
+            cascade = sc.odict()
+            for _,stage in df.iterrows():
+                cascade[stage[0]] = stage[1] # Split the name of the stage and the constituents
+
+        if t_bins is not None:
+            t_bins = sc.promotetoarray(t_bins)
+            if len(t_bins) == 1:
+                t_bins.append(t_bins[0]+self.dt) # Default is to aggregate over an entire year by summing over timesteps
+
+        d = PlotData(self,outputs=cascade,pops=pops,t_bins=t_bins)
+
+        cascade_output = sc.odict()
+        for result in d.results:
+            for pop in d.pops:
+                for output in d.outputs:
+                    cascade_output[output] = d[(result,pop,output)].vals # NB. Might want to return the Series here to retain formatting, units etc.
+        t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
+
+        return cascade_output,t
