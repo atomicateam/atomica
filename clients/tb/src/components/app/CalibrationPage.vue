@@ -144,7 +144,7 @@ Last update: 2018-07-30
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
-  import progressIndicator from '@/services/progress-indicator-service'
+  import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
   import PopupSpinner from './Spinner.vue'
@@ -227,7 +227,7 @@ Last update: 2018-07-30
     methods: {
 
       notImplemented(message) {
-        progressIndicator.failurePopup(this, 'Function "' + message + '" not yet implemented')
+        status.failurePopup(this, 'Function "' + message + '" not yet implemented')
       },
 
       projectID() {
@@ -254,7 +254,7 @@ Last update: 2018-07-30
         })
         .catch(error => {
           // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not update parset')    
+          status.failurePopup(this, 'Could not update parset')
         })         
       },
 
@@ -286,7 +286,7 @@ Last update: 2018-07-30
         // Start indicating progress.
         // Note: For some reason, the popup spinner doesn't work from inside created() 
         // so it doesn't show up here.        
-        progressIndicator.start(this)
+        status.start(this)
 
         // Go to the server to get the diseases from the burden set.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
@@ -294,11 +294,11 @@ Last update: 2018-07-30
           this.parList = response.data // Set the disease list.
           
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green notification.          
+          status.succeed(this, '')  // No green notification.
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not load parameters')
+          status.fail(this, 'Could not load parameters')
         })
       },
 
@@ -310,7 +310,7 @@ Last update: 2018-07-30
         console.log('makeGraphs() called')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList])
@@ -336,14 +336,14 @@ Last update: 2018-07-30
           }
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Graphs created')           
+          status.succeed(this, 'Graphs created')
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
           
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not make graphs')         
+          status.fail(this, 'Could not make graphs')
         }) 
       },
 
@@ -351,7 +351,7 @@ Last update: 2018-07-30
         console.log('autoCalibrate() called')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
 
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])
@@ -378,7 +378,7 @@ Last update: 2018-07-30
           }
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Automatic calibration complete')
+          status.succeed(this, 'Automatic calibration complete')
         })
         .catch(error => {
           // Pull out the error message.
@@ -388,7 +388,7 @@ Last update: 2018-07-30
           this.servererror = error.message
           
           // Indicate failure.
-          progressIndicator.fail(this, 'Automatic calibration failed')           
+          status.fail(this, 'Automatic calibration failed')           
         })
       },
 
@@ -408,7 +408,7 @@ Last update: 2018-07-30
         rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
         .catch(error => {
           // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not export results')    
+          status.failurePopup(this, 'Could not export results')    
         })         
       },
 
@@ -427,7 +427,7 @@ Last update: 2018-07-30
         this.$modal.hide('rename-parset');
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
       
         rpcservice.rpcCall('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
         .then(response => {
@@ -435,11 +435,11 @@ Last update: 2018-07-30
           this.updateParset()
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not rename parameter set')
+          status.fail(this, 'Could not rename parameter set')
         })
       },
 
@@ -450,7 +450,7 @@ Last update: 2018-07-30
         console.log('copyParset() called for ' + this.activeParset)
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         rpcservice.rpcCall('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
         .then(response => {
@@ -458,11 +458,11 @@ Last update: 2018-07-30
           this.updateParset()
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not copy parameter set')
+          status.fail(this, 'Could not copy parameter set')
         })
       },
 
@@ -473,7 +473,7 @@ Last update: 2018-07-30
         console.log('deleteParset() called for ' + this.activeParset)
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         rpcservice.rpcCall('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
         .then(response => {
@@ -481,11 +481,11 @@ Last update: 2018-07-30
           this.updateParset()
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
+          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
         })
       },
     }
