@@ -63,13 +63,15 @@ class ProgramSet(NamedItem):
         
         return output
 
-    def make(self, progdata=None, project=None):
+    def make(self, progdata=None, project=None, verbose=False):
         '''Make a program set from a program data object.'''
 
+        if verbose: print('Making program set from program data')
         pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
         comp_short_name = project.framework.get_spec_name
 
         # Sort out inputs
+        if verbose: print('Sorting out inputs')
         if progdata is None:
             if project.progdata is None:
                 errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
@@ -78,15 +80,18 @@ class ProgramSet(NamedItem):
                 progdata = project.progdata
                 
         # Check if the populations match - if not, raise an error, if so, add the data
+        if verbose: print('Checking if populations match')
         if project is not None and set(progdata['pops']) != set(project.pop_labels):
             errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(project.pop_labels))
             raise AtomicaException(errormsg)
                 
+        if verbose: print('Initializing programs')
         nprogs = len(progdata['progs']['short'])
         programs = []
         
         # Read in the information for programs
         for np in range(nprogs):
+            if verbose: print('  Reading in information for program %s/%s' % (np+1, nprogs))
             pkey = progdata['progs']['short'][np]
             capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
@@ -97,9 +102,12 @@ class ProgramSet(NamedItem):
                         )
             programs.append(p)
 
+        if verbose: print('Adding programs')
         self.add_programs(progs=programs)
 
+        if verbose: print('Updating program parameters')
         for np in range(nprogs):
+            if verbose: print('  Updating program %s/%s' % (np+1, nprogs))
             pkey = progdata['progs']['short'][np]
             for yrno,year in enumerate(progdata['years']):
 
@@ -107,7 +115,7 @@ class ProgramSet(NamedItem):
                 base_spend = progdata[pkey]['basespend'][yrno]
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
-                    self.programs[np].update(unit_cost=sanitize(unit_cost), year=year)
+                    self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
         
                 if not isnan(spend):
                     self.programs[np].add_spend(spend=spend, year=year)
@@ -116,10 +124,12 @@ class ProgramSet(NamedItem):
         
 
         # Read in the information for covout functions and update the target pars
+        if verbose: print('Adding program effects')
         prognames = progdata['progs']['short']
         prog_effects = odict()
 
         for par,pardata in progdata['pars'].iteritems():
+            if verbose: print('  Adding effects for program %s' % (par))
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
                 pop = pop_short_name[pop]
@@ -134,9 +144,12 @@ class ProgramSet(NamedItem):
                         self.programs[pno].update(target_pars=(par,pop))
                 if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
-            
+        
+        if verbose: print('Adding coverage-outcome effects')
         self.add_covouts(progdata['pars'], prog_effects, pop_short_name)
+        if verbose: print('Updating')
         self.update()
+        if verbose: print('Done with make().')
         return None
 
 
@@ -254,21 +267,24 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None):
+    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None, verbose=False):
         ''' add a single coverage-outcome parameter '''
         # Process inputs
+        if verbose: print('Adding single coverage-outcome parameter for par=%s, pop=%s' % (par, pop))
         if cov_interaction is None: cov_interaction = self.default_cov_interaction
         if imp_interaction is None: imp_interaction = self.default_imp_interaction
         self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, prog=prog)
+        if verbose: print('Done with add_covout().')
         return None
 
 
-    def add_covouts(self, covouts=None, prog_effects=None,pop_short_name=None):
+    def add_covouts(self, covouts=None, prog_effects=None, pop_short_name=None, verbose=False):
         '''
         Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
         covouts[parname][popname] = odict()
         '''
         # Process inputs
+        if verbose: print('Adding coverage-outcome effects')
         if covouts is not None:
             if isinstance(covouts, list) or isinstance(covouts,type(array([]))):
                 errormsg = 'Expecting a dictionary with specific structure, not a list'
@@ -278,13 +294,15 @@ class ProgramSet(NamedItem):
             raise AtomicaException(errormsg)
             
         for par,pardata in covouts.iteritems():
+            if verbose: print('  Adding coverage-outcome effect for parameter %s' % par)
             if par in prog_effects.keys():
                 for pop,popdata in covouts[par].iteritems():
                     pop = pop_short_name[pop]
                     if pop in prog_effects[par].keys():
                         # Sanitize inputs
-                        npi_val = sanitize(popdata['npi_val'])
-                        max_val = sanitize(popdata['max_val'])
+                        if verbose: print('    For population %s' % pop)
+                        npi_val = sanitize(popdata['npi_val'], label=', '.join([par, pop, 'npi_val']))
+                        max_val = sanitize(popdata['max_val'], label=', '.join([par, pop, 'max_val']))
                         self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
         
         return None
@@ -916,7 +934,8 @@ class Covout(object):
            )
     '''
     
-    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None):
+    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, verbose=False):
+        if verbose: print('Initializing Covout for par=%s, pop=%s, npi_val=%s' % (par, pop, npi_val))
         self.par = par
         self.pop = pop
         self.cov_interaction = cov_interaction
@@ -1006,8 +1025,9 @@ class Val(object):
     
     '''
     
-    def __init__(self, best=None, low=None, high=None, dist=None):
+    def __init__(self, best=None, low=None, high=None, dist=None, verbose=False):
         ''' Allow the object to be initialized, but keep the same infrastructure for updating '''
+        if verbose: print('Initializing Val for best=%s, low=%s, high=%s' % (best, low, high))
         self.best = None
         self.low = None
         self.high = None

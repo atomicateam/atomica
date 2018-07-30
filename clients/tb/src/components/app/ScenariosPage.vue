@@ -79,61 +79,32 @@ Last update: 2018-07-29
               <option v-for='progset in progsetOptions'>
                 {{ progset }}
               </option>
-            </select>
-            Start year:<br>
+            </select><br><br>
+            Budget year:<br>
             <input type="text"
                    class="txbox"
                    v-model="defaultBudgetScen.start_year"/><br>
-            End year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="defaultBudgetScen.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="defaultBudgetScen.budget_factor"/><br>
-            <br>
-            <!--<b>Relative objective weights</b><br>-->
-            <!--People alive:-->
-            <!--<input type="text"-->
-                   <!--class="txbox"-->
-                   <!--v-model="defaultBudgetScen.objective_weights.alive"/><br>-->
-            <!--TB-related deaths:-->
-            <!--<input type="text"-->
-                   <!--class="txbox"-->
-                   <!--v-model="defaultBudgetScen.objective_weights.ddis"/><br>-->
-            <!--New TB infections:-->
-            <!--<input type="text"-->
-                   <!--class="txbox"-->
-                   <!--v-model="defaultBudgetScen.objective_weights.acj"/><br>-->
-            <!--<br>-->
-            <!--<b>Relative spending constraints</b><br>-->
-            <!--<table class="table table-bordered table-hover table-striped" style="width: 100%">-->
-              <!--<thead>-->
-              <!--<tr>-->
-                <!--<th>Program</th>-->
-                <!--<th>Minimum</th>-->
-                <!--<th>Maximum</th>-->
-              <!--</tr>-->
-              <!--</thead>-->
-              <!--<tbody>-->
-              <!--<tr v-for="(val,key) in defaultBudgetScen.prog_spending">-->
-                <!--<td>-->
-                  <!--{{ key }}-->
-                <!--</td>-->
-                <!--<td>-->
-                  <!--<input type="text"-->
-                         <!--class="txbox"-->
-                         <!--v-model="defaultBudgetScen.prog_spending[key][0]"/>-->
-                <!--</td>-->
-                <!--<td>-->
-                  <!--<input type="text"-->
-                         <!--class="txbox"-->
-                         <!--v-model="defaultBudgetScen.prog_spending[key][1]"/>-->
-                <!--</td>-->
-              <!--</tr>-->
-              <!--</tbody>-->
-            <!--</table>-->
+            <b>Budget values</b><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Budget</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in defaultBudgetScen.alloc">
+                <td>
+                  {{ item[0] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="item[1]"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
           </div>
           <div style="text-align:justify">
             <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">

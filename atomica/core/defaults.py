@@ -33,7 +33,7 @@ def default_framework(which=None, **kwargs):
     return F
 
 
-def default_project(which=None, do_run=True, **kwargs):
+def default_project(which=None, do_run=True, verbose=False, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
@@ -54,11 +54,17 @@ def default_project(which=None, do_run=True, **kwargs):
 
     elif which=='tb':
         logger.info("Creating a TB epidemic project with programs...")
+        if verbose: print('Loading framework')
         F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+        if verbose: print('Loading databook')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
+        if verbose: print('Loading progbook')
         P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True)
+        if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
+        if verbose: print('Creating optimizations')
         P.demo_optimization() # Add optimization example
+        if verbose: print('Done!')
     
     elif which=='service':
         logger.info("Creating a disease-agnostic 5-stage service delivery cascade project...")
