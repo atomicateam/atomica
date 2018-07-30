@@ -22,7 +22,9 @@ import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
 
-from matplotlib.pyplot import rc 
+from matplotlib.pyplot import rc
+import matplotlib.pyplot as plt
+
 rc('font', size=14)
 
 
@@ -630,27 +632,27 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 def supported_plots_func():
-    supported_plots = {
-            'Population size':'alive',
-            'Latent infections':'lt_inf',
-            'Active TB':'ac_inf',
-            'Active DS-TB':'ds_inf',
-            'Active MDR-TB':'mdr_inf',
-            'Active XDR-TB':'xdr_inf',
-            'New active DS-TB':{'New active DS-TB':['pd_div:flow','nd_div:flow']},
-            'New active MDR-TB':{'New active MDR-TB':['pm_div:flow','nm_div:flow']},
-            'New active XDR-TB':{'New active XDR-TB':['px_div:flow','nx_div:flow']},
-            'Smear negative active TB':'sn_inf',
-            'Smear positive active TB':'sp_inf',
-            'Latent diagnoses':{'Latent diagnoses':['le_treat:flow','ll_treat:flow']},
-            'New active TB diagnoses':{'Active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']},
-            'New active DS-TB diagnoses':{'Active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow']},
-            'New active MDR-TB diagnoses':{'Active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow']},
-            'New active XDR-TB diagnoses':{'Active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow']},
-            'Latent treatment':'ltt_inf',
-            'Active treatment':'num_treat',
-            'TB-related deaths':':ddis',
-            }
+
+    supported_plots = sc.odict() # Preserve order
+    supported_plots['Population size'] = 'alive'
+    supported_plots['Latent infections'] = 'lt_inf'
+    supported_plots['Active TB'] = 'ac_inf'
+    supported_plots['Active DS-TB'] = 'ds_inf'
+    supported_plots['Active MDR-TB'] = 'mdr_inf'
+    supported_plots['Active XDR-TB'] = 'xdr_inf'
+    supported_plots['New active DS-TB'] = ['pd_div:flow','nd_div:flow']
+    supported_plots['New active MDR-TB'] = ['pm_div:flow','nm_div:flow']
+    supported_plots['New active XDR-TB'] = ['px_div:flow','nx_div:flow']
+    supported_plots['Smear negative active TB'] = 'sn_inf'
+    supported_plots['Smear positive active TB'] = 'sp_inf'
+    supported_plots['Latent diagnoses'] = ['le_treat:flow','ll_treat:flow']
+    supported_plots['New active TB diagnoses'] = ['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']
+    supported_plots['New active DS-TB diagnoses'] = ['pd_diag:flow','nd_diag:flow']
+    supported_plots['New active MDR-TB diagnoses'] = ['pm_diag:flow','nm_diag:flow']
+    supported_plots['New active XDR-TB diagnoses'] = ['px_diag:flow','nx_diag:flow']
+    supported_plots['Latent treatment'] = 'ltt_inf'
+    supported_plots['Active treatment'] = 'num_treat'
+    supported_plots['TB-related deaths'] = ':ddis'
     return supported_plots
 
 
@@ -665,8 +667,56 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None, replace_nans=True):
-    import pylab as pl
+def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None, replace_nans=True,stacked=False):
+    # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
+    supported_plots = supported_plots_func()
+    if plot_names is None: plot_names = supported_plots.keys()
+    plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
+    graphs = []
+    for output in outputs:
+        try:
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(result, outputs=output, project=proj, pops=pops)
+            else:
+                plotdata = au.PlotData(result, outputs=output.values()[0], project=proj, pops=pops) # Don't rename the plot, this will allow data to be retrieved
+
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+
+            if stacked:
+                figs = au.plot_series(plotdata, axis='pops', plot_type='stacked')
+            else:
+                figs = au.plot_series(plotdata, axis='pops', data=proj.data) # Only plot data if not stacked
+
+            # Todo - customize plot formatting here
+            for fig in figs:
+                ax = fig.get_axes()[0]
+                ax.set_facecolor('none')
+                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                graph_dict = mpld3.fig_to_dict(fig)
+                graphs.append(graph_dict)
+            pl.close('all')
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+
+
+    return {'graphs':graphs}
+
+
+def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
@@ -742,7 +792,13 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_plots(proj,result)
+    output = get_calibration_plots(proj, result,pops=None,stacked=True)
+
+    # Commands below will render unstacked plots with data, and will interleave them
+    # so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+
     return output
 
 #TO_PORT
@@ -759,7 +815,14 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     result = proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
     save_project(proj)    
-    output = get_plots(proj, result)
+
+    output = get_calibration_plots(proj, result,pops=None,stacked=True)
+
+    # Commands below will render unstacked plots with data, and will interleave them
+    # so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+
     return output
 
 
