@@ -193,7 +193,7 @@ class Project(object):
         self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None):
+    def make_progbook(self, progbook_path=None, progs=None, blh_effects=False):
         ''' Make a programs databook'''
 
         # Check imports
@@ -209,10 +209,10 @@ class Project(object):
         comps = [c['label'] for c in F.specs['comp'].values() if not (c['is_source'] or
                                                                       c['is_sink'] or
                                                                       c['is_junction'])]
-        # TODO: Think about whether the following makes sense.
-        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
+        # Get targetable parameters
+        pars = [p['label'] for p in F.specs['par'].values() if p['is_impact']]
 
-        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars)
+        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
         
 
 
