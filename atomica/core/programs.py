@@ -96,6 +96,7 @@ class ProgramSet(NamedItem):
             capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
+                        label = progdata['progs']['label'][np],
                         target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
                         capacity=capcacity,
@@ -570,6 +571,7 @@ class Program(NamedItem):
         NamedItem.__init__(self,name)
 
         self.short              = None # Short name of program
+        self.label              = None # Full name of the program
         self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
         self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
         self.target_pops        = None # Populations targeted by the program
@@ -588,6 +590,7 @@ class Program(NamedItem):
         ''' Print out useful info'''
         output = sc.desc(self)
         output += '          Program name: %s\n'    % self.short
+        output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
         output += ' Targeted compartments: %s\n'    % self.target_comps

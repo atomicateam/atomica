@@ -884,7 +884,7 @@ def delete_progset(project_id, progsetname=None):
 #%% Scenario functions and RPCs
 ##################################################################################
 
-def py_to_js_scen(py_scen):
+def py_to_js_scen(py_scen, project):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
     attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
@@ -899,12 +899,13 @@ def py_to_js_scen(py_scen):
     if isinstance(py_scen, dict): alloc = py_scen['alloc']
     else:                         alloc = py_scen.alloc
     for prog_name,budget in alloc.items():
+        prog_label = project.progset().programs[prog_name].name
         if sc.isiterable(budget):
             if len(budget)>1:
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        js_scen['alloc'].append([prog_name,float(budget)])
+        js_scen['alloc'].append([prog_name,float(budget), prog_label])
     return js_scen
 
 def js_to_py_scen(js_scen):
