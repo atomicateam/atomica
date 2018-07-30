@@ -381,22 +381,20 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
 
 
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
-    plot_option = 2
-    if plot_option == 1:
-        scen_outputs = ["lt_inf", "ac_inf"]
-        scen_pop = "15-64"
-    elif plot_option == 2:
-        scen_outputs = ['px_div:flow','nx_div:flow']
-        scen_pop = "15-64"# 'all'
+    browser = False # Display as mpld3 plots in the browser
+    plot_option = 1
+    scen_outputs = ["lt_inf", "ac_inf"]
+    scen_pop = "15-64"
     P = au.demo(which='tb')
-    P.scens.pop(2)
-    P.scens.pop(1)
     results = P.run_scenarios()
-    figs = get_plots(P, results, axis="results")
-#    d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-#    figs = au.plot_series(d, axis="results")
-#    from sciris.weblib import quickserver as qs
-#    qs.browser(figs)
+    if plot_option == 1:
+        d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+        figs = au.plot_series(d, axis="results")
+    elif plot_option == 2:
+        figs = get_plots(P, results, axis="results")
+    if browser:
+        from sciris.weblib import quickserver as qs
+        qs.browser(figs)
     
 
 if "optimization" in torun:

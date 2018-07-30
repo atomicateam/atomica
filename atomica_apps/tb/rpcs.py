@@ -665,7 +665,7 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None, replace_nans=True):
     import pylab as pl
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
@@ -678,6 +678,16 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
     for output in outputs:
         try:
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series[nan_ind] = series[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
             figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
             for fig in figs:
                 pl.figure(fig.number)
@@ -747,57 +757,6 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     save_project(proj)    
     output = get_plots(proj, result)
     return output
-
-
-#@register_RPC(validation_type='nonanonymous user')    
-#def run_default_scenario(project_id):
-#    
-#    import pylab as pl
-#    
-#    print('Running default scenario...')
-#    proj = load_project(project_id, raise_exception=True)
-#    
-#    scvalues = dict()
-#
-#    scen_par = "spd_infxness"
-#    scen_pop = "15-64"
-#    scen_outputs = ["lt_inf", "ac_inf"]
-#
-#    scvalues[scen_par] = dict()
-#    scvalues[scen_par][scen_pop] = dict()
-#
-#    # Insert (or possibly overwrite) one value.
-#    scvalues[scen_par][scen_pop]["y"] = [0.125]
-#    scvalues[scen_par][scen_pop]["t"] = [2015.]
-#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
-#
-#    proj.make_scenario(name="varying_infections", instructions=scvalues)
-#    result1 = proj.run_scenario(scenario="varying_infections", parset="default", store_results = False, result_name="scen1")
-#    store_result_separately(proj, result1)
-#
-#    # Insert two values and eliminate everything between them.
-#    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-#    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-#
-#    proj.make_scenario(name="varying_infections2", instructions=scvalues)
-#    result2 = proj.run_scenario(scenario="varying_infections2", parset="default", store_results = False, result_name="scen2")
-#    store_result_separately(proj, result2)
-#
-#    figs = []
-#    graphs = []
-#    d = au.PlotData([result1,result2], outputs=scen_outputs, pops=[scen_pop])
-#    figs += au.plot_series(d, axis="results")
-#    pl.gca().set_facecolor('none')
-#    
-#    for f,fig in enumerate(figs):
-#        graph_dict = mpld3.fig_to_dict(fig)
-#        graphs.append(graph_dict)
-#        print('Converted figure %s of %s' % (f+1, len(figs)))
-#    
-#    print('Saving project...')
-#    save_project(proj)    
-#    return {'graphs':graphs}
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
