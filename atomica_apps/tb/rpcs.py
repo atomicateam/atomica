@@ -22,6 +22,9 @@ import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
 
+from matplotlib.pyplot import rc 
+rc('font', size=14)
+
 
 def timeit(method):
     def timed(*args, **kw):
@@ -1127,15 +1130,16 @@ def set_optim_info(project_id, optim_summaries):
     return None
 
 
-@register_RPC(validation_type='nonanonymous user')    
-def run_optimization(project_id, optim_name):
-    print('Running optimization...')
-    proj = load_project(project_id, raise_exception=True)
-    results = proj.run_optimization(optim_name)
-    output = get_plots(proj, results) # outputs=['alive','ddis']
-    print('Saving project...')
-    save_project(proj)    
-    return output
+# Deprecated, see equivalent in apptasks.py
+#@register_RPC(validation_type='nonanonymous user')    
+#def run_optimization(project_id, optim_name):
+#    print('Running optimization...')
+#    proj = load_project(project_id, raise_exception=True)
+#    results = proj.run_optimization(optim_name)
+#    output = get_plots(proj, results) # outputs=['alive','ddis']
+#    print('Saving project...')
+#    save_project(proj)    
+#    return output
 
 
 ##################################################################################
