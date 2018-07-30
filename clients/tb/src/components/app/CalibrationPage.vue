@@ -24,8 +24,10 @@ Last update: 2018-07-30
         </button>
         <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
         <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
+        <button class="btn" @click="clearGraphs()">Clear graphs</button>
 
-        <div class="parset-controls">
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
         <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
@@ -44,6 +46,23 @@ Last update: 2018-07-30
             <i class="ti-trash"></i>
           </button>
         </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          &nbsp;&nbsp;&nbsp;
+          <b>Start year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="startYear"
+                 style="display: inline-block; width:30%"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>End year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:30%"/>
+        </div>
+
       </div>
     
       <br>
@@ -166,6 +185,8 @@ Last update: 2018-07-30
         activeParset: -1,
         parsetOptions: [],
         newParsetName: [],
+        startYear: 2000,
+        endYear: 2035,
       }
     },
 
@@ -313,7 +334,7 @@ Last update: 2018-07-30
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.startYear, this.endYear])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -519,7 +540,7 @@ Last update: 2018-07-30
     width:650px;
     float:left;
   }
-  .parset-controls {
+  .controls-box {
     border: 2px solid #ddd;
     padding: 7px;
     display: inline-block;

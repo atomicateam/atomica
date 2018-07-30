@@ -617,7 +617,7 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None, replace_nans=True,stacked=False):
+def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
     supported_plots = supported_plots_func()
     if plot_names is None: plot_names = supported_plots.keys()
@@ -654,6 +654,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None
                 ax.set_facecolor('none')
                 ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                if xlims is not None: ax.set_xlim(xlims)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
@@ -666,7 +667,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None
     return {'graphs':graphs}
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False):
+def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
@@ -700,6 +701,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
                 ax.set_facecolor('none')
                 ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                if xlims is not None: ax.set_xlim(xlims)
                 legend = fig.findobj(Legend)[0]
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
@@ -738,7 +740,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, start_year=None, end_year=None):
     print('Setting y factors for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
@@ -751,11 +753,11 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_calibration_plots(proj, result,pops=None,stacked=True)
+    output = get_calibration_plots(proj, result,pops=None, stacked=True, xlims=(float(start_year), float(end_year)))
 
     # Commands below will render unstacked plots with data, and will interleave them
     # so they appear next to each other in the FE
-    unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
+    unstacked_output = get_calibration_plots(proj, result,pops=None, stacked=False, xlims=(float(start_year), float(end_year)))
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
 
 
