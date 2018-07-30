@@ -468,6 +468,7 @@ Last update: 2018-07-26
               })
               .catch(error => {
                 this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+                console.log(this.serverresponse)
                 this.servererror = error.message // Set the server error.
                 this.$modal.hide('popup-spinner') // Dispel the spinner.
                 this.$Progress.fail() // Fail the loading bar.
