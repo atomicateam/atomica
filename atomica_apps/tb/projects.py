@@ -246,3 +246,34 @@ def init_projects(app):
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ProjectCollection.    
         proj_collection.show()
+
+
+def apptasks_load_projects(config):
+    global proj_collection  # need this to allow modification within the module 
+    
+    # We need to load in the whole DataStore here because the Celery worker 
+    # (in which this function is running) will not know about the same context 
+    # from the datastore.py module that the server code will.
+    
+    # Create the DataStore object, setting up Redis.
+    ds.data_store = ds.DataStore(redis_db_URL=config.REDIS_URL)
+    
+    # Load the DataStore state from disk.
+    ds.data_store.load()
+    
+    # Look for an existing ProjectCollection.
+    proj_collection_uid = ds.data_store.get_uid_from_instance('projectscoll', 
+        'Projects Collection')
+    
+    # Create the projects collection object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    proj_collection = ProjectCollection(proj_collection_uid)
+    
+    # If there was a match...
+    if proj_collection_uid is not None:  
+        # Load the project collection from the DataStore.
+        proj_collection.load_from_data_store()        
+        
+#        proj_collection.show()      
+    
+    return None

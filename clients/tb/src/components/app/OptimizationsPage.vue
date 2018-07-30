@@ -186,6 +186,7 @@ Last update: 2018-07-29
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        graphData: [],
       }
     },
 
@@ -429,12 +430,14 @@ Last update: 2018-07-29
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcservice.rpcCall('run_optimization',
-//            taskservice.getTaskResultPolling('run_optimization', 90, 3, 'run_optimization',
+//            rpcservice.rpcCall('run_optimization',
+            taskservice.getTaskResultPolling('run_optimization', 90, 3, 'run_optimization',
               [this.projectID(), optimSummary.name])
               .then(response => {
                 this.serverresponse = response.data // Pull out the response data.
-                var n_plots = response.data.graphs.length
+//                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+                this.graphData = response.data.result.graphs // Pull out the response data (use with task).
+                var n_plots = this.graphData.length
                 console.log('Rendering ' + n_plots + ' graphs')
                 for (var index = 0; index <= n_plots; index++) {
                   console.log('Rendering plot ' + index)
@@ -444,8 +447,8 @@ Last update: 2018-07-29
                     div.removeChild(div.firstChild);
                   }
                   try {
-                    console.log(response.data.graphs[index]);
-                    mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+                    console.log(this.graphData[index]);
+                    mpld3.draw_figure(divlabel, this.graphData[index]); // Draw the figure.
                     this.haveDrawnGraphs = true
                   }
                   catch (err) {
@@ -464,11 +467,12 @@ Last update: 2018-07-29
               })
               .catch(error => {
                 this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+                console.log(this.serverresponse)
                 this.servererror = error.message // Set the server error.
                 this.$modal.hide('popup-spinner') // Dispel the spinner.
                 this.$Progress.fail() // Fail the loading bar.
                 this.$notifications.notify({ // Failure popup.
-                  message: 'Could not make graphs',
+                  message: 'Could not make graphs: ' + error.message,
                   icon: 'ti-face-sad',
                   type: 'warning',
                   verticalAlign: 'top',

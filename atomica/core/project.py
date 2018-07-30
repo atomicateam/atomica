@@ -32,7 +32,7 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import Scenario, ParameterScenario
+from .scenarios import Scenario, ParameterScenario, BudgetScenario
 from .optimization import OptimInstructions, optimize
 from .structure_settings import FrameworkSettings as FS
 from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
@@ -269,8 +269,18 @@ class Project(object):
 #
 #        return None
         
-    def make_scenario(self, name="default", instructions=None):
-        scenario = ParameterScenario(name=name, scenario_values=instructions)
+    def make_scenario(self, name="default", which=None, instructions=None, json=None):
+        if json is not None:
+            if which=='budget':
+                scenario = BudgetScenario(**json)
+            else:
+                raise Exception('Parameter scenarios from JSON not implemented')
+        else:
+            if which=='parameter':
+                scenario = ParameterScenario(name=name, scenario_values=instructions)
+            else:
+                raise Exception('Budget scenarios not from JSON not implemented')
+                
         self.scens.append(scenario)
         return scenario
 
@@ -438,11 +448,20 @@ class Project(object):
 
         scenario.result_uid = result.uid
         return result
+    
+    def run_scenarios(self):
+        results = []
+        for scenario in self.scens.values():
+            result = scenario.run(project=self)
+            results.append(result)
+        return results
 
-    def run_optimization(self, optimname=None):
+    def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
         '''Run an optimization'''
         optim_ins = self.optim(optimname)
         optim = optim_ins.make(project=self)
+        if maxtime is not None: optim.maxtime = maxtime
+        if maxiters is not None: optim.maxiters = maxiters
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         progset_instructions = ProgramInstructions(alloc=None, start_year=optim_ins.json['start_year'])
@@ -464,6 +483,30 @@ class Project(object):
         """ Convenience class method for loading a project in the absence of an instance. """
         return sc.loadobj(filepath)
 
+    def demo_scenarios(self, dorun=False):
+        json1 = sc.odict()
+        json1['name']        ='Default budget'
+        json1['parsetname']  = -1
+        json1['progsetname'] = -1
+        json1['start_year']  = 2020
+        json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['start_year'])
+        
+        json2 = sc.dcp(json1)
+        json2['name']        ='Doubled budget'
+        json2['alloc'][:] *= 2.0
+        
+        json3 = sc.dcp(json1)
+        json3['name']        ='Zero budget'
+        json3['alloc'][:] *= 0.0
+        
+        for json in [json1, json2, json3]:
+            self.make_scenario(which='budget', json=json)
+        if dorun:
+            results = self.run_scenarios()
+            return results
+        else:
+            return None
+    
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''
         json = sc.odict()
@@ -480,5 +523,7 @@ class Project(object):
             json['prog_spending'][prog_name] = (1,None)
         self.make_optimization(json=json)
         if dorun:
-            self.run_optimization(optimization=json['name'])
-        return json
+            results = self.run_optimization(optimization=json['name'])
+            return results
+        else:
+            return json

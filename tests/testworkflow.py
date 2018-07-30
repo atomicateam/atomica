@@ -35,9 +35,9 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
- "parameterscenario",
-#'budgetscenario',
-#'optimization',
+# "parameterscenario",
+#'budgetscenarios',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -329,9 +329,19 @@ if "parameterscenario" in torun:
     au.plot_series(d, axis="results")
 
 
+if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are 
+    scen_outputs = ["lt_inf", "ac_inf"]
+    scen_pop = "15-64"
+    P = au.demo(which='tb')
+    results = P.run_scenarios()
+    d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+    au.plot_series(d, axis="results")
+    
+
 if "optimization" in torun:
     P = au.demo(which='tb')
-    P.run_optimization()
+    P.run_optimization(maxtime=300)
+
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions

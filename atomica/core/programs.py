@@ -3,10 +3,10 @@ This module defines the Program and Programset classes, which are
 used to define a single program/modality (e.g., FSW programs) and a
 set of programs, respectively.
 
-Version: 2018mar23
+Version: 2018jul30
 """
 
-from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+from sciris.core import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
 import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
@@ -445,9 +445,9 @@ class ProgramSet(NamedItem):
             for popno, pop in enumerate(relevant_progs.keys()):
 
                 delta, thiscov = odict(), odict()
-                effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
-                best_prog = min(effects, key=effects.get)
-                best_eff  = effects[best_prog]
+                # CK: These seem to be unused
+#                effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
+#                best_prog = min(effects, key=effects.get)
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
@@ -463,7 +463,7 @@ class ProgramSet(NamedItem):
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
                         self.covout[(par_type,pop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
@@ -508,9 +508,11 @@ class ProgramSet(NamedItem):
                             accum = 0
                             for j in range(indexes[-1]+1,len(thiscov)):
                                 accum += overlap_calc(indexes+[j],target_depth)
-                            return thiscov.values()[indexes[-1]]*accum
+                            output = thiscov.values()[indexes[-1]]*accum
+                            return output
                         else:
-                            return thiscov.values()[indexes[-1]]* max(abs(([delta.values()[x] for x in [0]],0)))
+                            output = thiscov.values()[indexes[-1]]* max(abs(list(([delta.values()[x] for x in [0]],0))))
+                            return output
 
                     # Iterate over overlap levels
                     for i in range(2,len(thiscov)): # Iterate over numbers of overlapping programs
