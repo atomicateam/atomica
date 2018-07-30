@@ -1029,6 +1029,11 @@ def get_optim_info(project_id):
     print(proj.optims.keys())
     for py_optim in proj.optims.values():
         js_optim = sw.json_sanitize_result(py_optim.json)
+        for prog_name in js_optim['prog_spending']:
+            prog_label = proj.progset().programs[prog_name].label
+            this_prog = js_optim['prog_spending'][prog_name]
+            this_prog.append(prog_label)
+            js_optim['prog_spending'][prog_name] = {'min':this_prog[0], 'max':this_prog[1], 'label':prog_label}
         optim_summaries.append(js_optim)
     print('JavaScript optimization info:')
     print(optim_summaries)
@@ -1071,7 +1076,7 @@ def set_optim_info(project_id, optim_summaries):
             json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
         for subkey in json['prog_spending'].keys():
             this = json['prog_spending'][subkey]
-            json['prog_spending'][subkey] = (to_number(this[0]), to_number(this[1]))
+            json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
         print('Python optimization info for optimization %s:' % (j+1))
         print(json)
         proj.make_optimization(json=json)

@@ -122,17 +122,17 @@ Last update: 2018-07-30
               <tbody>
               <tr v-for="(val,key) in defaultOptim.prog_spending">
                 <td>
-                  {{ key }}
+                  {{ defaultOptim.prog_spending[key].label }}
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key][0]"/>
+                         v-model="defaultOptim.prog_spending[key].min"/>
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key][1]"/>
+                         v-model="defaultOptim.prog_spending[key].max"/>
                 </td>
               </tr>
               </tbody>
