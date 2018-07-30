@@ -794,6 +794,9 @@ def export_results(project_id, resultset=-1):
     print('Exporting results...')
     proj = load_project(project_id, raise_exception=True)
     result = proj.results[resultset]
+    if isinstance(result, ResultPlaceholder):
+        print('Getting actual result...')
+        result = result.get()
     
     dirname = fileio.downloads_dir.dir_path 
     file_name = '%s.xlsx' % result.name 

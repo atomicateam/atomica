@@ -405,7 +405,7 @@ Last update: 2018-07-30
 
       exportResults(project_id) {
         console.log('exportResults() called')
-        rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
         .catch(error => {
           // Failure popup.
           status.failurePopup(this, 'Could not export results')    
