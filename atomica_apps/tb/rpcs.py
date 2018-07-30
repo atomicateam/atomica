@@ -27,6 +27,10 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
+#def TickFormat():
+#    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
+#    return plugin
+
 #class TickFormat(mpld3.plugins.PluginBase):
 #    """Tick format plugin."""
 #
