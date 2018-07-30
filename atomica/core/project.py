@@ -216,7 +216,7 @@ class Project(object):
         
 
 
-    def load_progbook(self, progbook_path=None, make_default_progset=True):
+    def load_progbook(self, progbook_path=None, make_default_progset=True, blh_effects=False):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
@@ -226,7 +226,7 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-        progdata = load_progbook(progbook_spreadsheet)
+        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
         self.progbook = sc.dcp(progbook_spreadsheet)
 
         # Check if the populations match - if not, raise an error, if so, add the data
