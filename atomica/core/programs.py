@@ -113,15 +113,15 @@ class ProgramSet(NamedItem):
             for yrno,year in enumerate(progdata['years']):
 
                 spend = progdata[pkey]['spend'][yrno]
-                base_spend = progdata[pkey]['basespend'][yrno]
+#                base_spend = progdata[pkey]['basespend'][yrno]
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
                     self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
         
                 if not isnan(spend):
                     self.programs[np].add_spend(spend=spend, year=year)
-                if not isnan(base_spend):
-                    self.programs[np].add_spend(spend=base_spend, year=year, spend_type='basespend')
+#                if not isnan(base_spend):
+#                    self.programs[np].add_spend(spend=base_spend, year=year, spend_type='basespend')
         
 
         # Read in the information for covout functions and update the target pars
@@ -138,7 +138,8 @@ class ProgramSet(NamedItem):
                 for pno in range(len(prognames)):
                     vals = []
                     for blh in range(3):
-                        val = popdata['prog_vals'][blh][pno]
+                        try: val = popdata['prog_vals'][blh][pno]
+                        except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
                         if isnumber(val) and val is not nan: vals.append(val) 
                     if vals:
                         prog_effects[par][pop][prognames[pno]] = vals
@@ -303,8 +304,9 @@ class ProgramSet(NamedItem):
                         # Sanitize inputs
                         if verbose: print('    For population %s' % pop)
                         npi_val = sanitize(popdata['npi_val'], defaultval=0., label=', '.join([par, pop, 'npi_val']))
-                        max_val = sanitize(popdata['max_val'], defaultval=0., label=', '.join([par, pop, 'max_val']))
-                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+#                        max_val = sanitize(popdata['max_val'], defaultval=0., label=', '.join([par, pop, 'max_val']))
+#                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+                        self.add_covout(par=par, pop=pop, npi_val=npi_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -577,7 +579,7 @@ class Program(NamedItem):
         self.target_pops        = None # Populations targeted by the program
         self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
-        self.base_spend_data    = None # Latest or estimated base expenditure
+#        self.base_spend_data    = None # Latest or estimated base expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
@@ -945,7 +947,7 @@ class Covout(object):
         self.cov_interaction = cov_interaction
         self.imp_interaction = imp_interaction
         self.npi_val = Val(npi_val)
-        self.max_val = Val(max_val)
+#        self.max_val = Val(max_val)
         self.progs = odict()
         if prog is not None: self.add(prog=prog)
         return None
@@ -955,7 +957,6 @@ class Covout(object):
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
         output += indent('     NPI val: ', self.npi_val.get('all'))
-        output += indent('     Max val: ', self.max_val.get('all'))
         output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val.get('all')) for key,val in self.progs.items()]))
         output += '\n'
         return output

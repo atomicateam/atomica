@@ -407,33 +407,38 @@ def load_progbook(spreadsheet, verbose=False):
     colindices = []
     if verbose: print('Reading program targeting data with %s rows' % sheetdata.nrows)
     for row in range(sheetdata.nrows): 
-        if sheetdata.cell_value(row,0)!='':
+
+        # Get data
+        thesedata = sheetdata.row_values(row, start_colx=2) 
+
+        # Get metadata from first row
+        if row==0:
             for col in range(2,sheetdata.ncols):
                 cell_val = sheetdata.cell(row, col).value
                 if cell_val!='': colindices.append(col-1)
+
+        if row==1:
+#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+            data['pops'] = thesedata[3:colindices[1]-2]
+            data['comps'] = thesedata[colindices[1]-1:]
+
         else:
-            thesedata = sheetdata.row_values(row, start_colx=2) 
-        
-            if row==1:
-                data['pops'] = thesedata[3:colindices[1]-2]
-                data['comps'] = thesedata[colindices[1]-1:]
-            else:
-                if thesedata[0]:
-                    if verbose: print('  Reading row for program: %s' % thesedata[0])
-                    progname = str(thesedata[0])
-                    data['progs']['short'].append(progname)
-                    data['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
-                    data['progs']['label'].append(str(thesedata[1]))
-                    data['progs']['target_pops'].append(thesedata[3:colindices[0]])
-                    data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
-                    data[progname] = sc.odict()
-                    data[progname]['name'] = str(thesedata[1])
-                    data[progname]['target_pops'] = thesedata[3:colindices[0]]
-                    data[progname]['target_comps'] = blank2newtype(thesedata[colindices[1]-1:], 0)
-                    data[progname]['spend'] = []
-                    data[progname]['basespend'] = []
-                    data[progname]['capacity'] = []
-                    data[progname]['unitcost'] = sc.odict()
+            if thesedata[0]:
+                if verbose: print('  Reading row for program: %s' % thesedata[0])
+                progname = str(thesedata[0])
+                data['progs']['short'].append(progname)
+                data['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
+                data['progs']['label'].append(str(thesedata[1]))
+                data['progs']['target_pops'].append(thesedata[3:colindices[0]])
+                data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
+                data[progname] = sc.odict()
+                data[progname]['name'] = str(thesedata[1])
+                data[progname]['target_pops'] = thesedata[3:colindices[0]]
+                data[progname]['target_comps'] = blank2newtype(thesedata[colindices[1]-1:], 0)
+                data[progname]['spend'] = []
+#                    data[progname]['basespend'] = []
+                data[progname]['capacity'] = []
+                data[progname]['unitcost'] = sc.odict()
 
     ## Calculate columns for which data are entered, and store the year ranges
     sheetdata = workbook.sheet_by_name('Spending data') # Load this workbook
@@ -493,7 +498,7 @@ def load_progbook(spreadsheet, verbose=False):
                 if pop_name not in data['pars'][par_name]: data['pars'][par_name][pop_name] = sc.odict()  # Initialize only if it doesn't exist yet
                 data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 3) if sheetdata.cell_value(row+i, 3)!='' else np.nan for i in range(3)]
 #                data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 4) if sheetdata.cell_value(row+i, 4)!='' else np.nan for i in range(3)]
-                data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=6, end_colx=6+len(data['progs']['short'])) ) for i in range(3)]
+                data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=5, end_colx=5+len(data['progs']['short'])) ) for i in range(3)]
         else:
             if verbose: print('Not reading data for row %s, row is blank' % row)
     

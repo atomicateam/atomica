@@ -58,8 +58,8 @@ def default_project(which=None, do_run=True, verbose=False, **kwargs):
         F = ProjectFramework(name=which, filepath=atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
         if verbose: print('Loading databook')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
-#        if verbose: print('Loading progbook')
-#        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True)
+        if verbose: print('Loading progbook')
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True)
 #        if verbose: print('Creating scenarios')
 #        P.demo_scenarios() # Add example scenarios
 #        if verbose: print('Creating optimizations')

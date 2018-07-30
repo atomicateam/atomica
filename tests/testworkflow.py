@@ -139,7 +139,7 @@ if "makeprogramspreadsheet" in torun:
         P = au.demo(which=test, do_plot=0)
         filename = "temp/progbook_"+test+"_blank.xlsx"
         if test == "tb":
-            P.make_progbook(filename, progs=31)
+            P.make_progbook(filename, progs=29)
         else:
             P.make_progbook(filename, progs=5)
 
