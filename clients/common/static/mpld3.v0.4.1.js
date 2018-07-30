@@ -4,7 +4,7 @@
     figures: [],
     plugin_map: {}
   };
-  mpld3.version = "0.4.0";
+  mpld3.version = "0.4.1";
   mpld3.register_plugin = function(name, obj) {
     mpld3.plugin_map[name] = obj;
   };
@@ -369,6 +369,8 @@
     this.props.xy = xy[this.props.position];
     this.cssclass = "mpld3-" + this.props.xy + "axis";
     this.scale = this.ax[this.props.xy + "dom"];
+    this.tickNr = null;
+    this.tickFormat = null;
   }
   mpld3_Axis.prototype.getGrid = function() {
     var gridprop = {
@@ -394,14 +396,19 @@
         return new Date(ordinal_to_js_date(value));
       });
     }
-    var tickformat = mpld3_tickFormat(this.props.tickformat, this.props.tickvalues);
     var scaleMethod = {
       left: "axisLeft",
       right: "axisRight",
       top: "axisTop",
       bottom: "axisBottom"
     }[this.props.position];
-    this.axis = d3[scaleMethod](this.scale).ticks(this.props.nticks).tickValues(this.props.tickvalues).tickFormat(tickformat);
+    this.axis = d3[scaleMethod](this.scale);
+    if (this.tickNr) {
+      this.axis = this.axis.ticks(this.tickNr);
+    }
+    if (this.tickFormat) {
+      this.axis = this.axis.tickFormat(this.tickFormat);
+    }
     this.filter_ticks(this.axis.tickValues, this.axis.scale().domain());
     this.elem = this.ax.baseaxes.append("g").attr("transform", this.transform).attr("class", this.cssclass).call(this.axis);
     mpld3.insert_css("div#" + this.ax.fig.figid + " ." + this.cssclass + " line, " + " ." + this.cssclass + " path", {
@@ -416,15 +423,6 @@
       stroke: "none"
     });
   };
-  function mpld3_tickFormat(tickformat, tickvalues) {
-    if (tickformat === "" || tickformat === null) {
-      return function(d) {
-        return d;
-      };
-    } else {
-      return d3.scaleThreshold().domain(tickvalues.slice(1)).range(tickformat);
-    }
-  }
   mpld3_Axis.prototype.zoomed = function(transform) {
     if (transform) {
       if (this.props.xy == "x") {
@@ -435,6 +433,10 @@
     } else {
       this.elem.call(this.axis);
     }
+  };
+  mpld3_Axis.prototype.setTicks = function(nr, format) {
+    this.tickNr = nr;
+    this.tickFormat = format;
   };
   mpld3_Axis.prototype.filter_ticks = function(tickValues, domain) {
     if (this.props.tickvalues != null) {
@@ -812,6 +814,7 @@
     this.sharex = [];
     this.sharey = [];
     this.elements = [];
+    this.axisList = [];
     var bbox = this.props.bbox;
     this.position = [ bbox[0] * this.fig.width, (1 - bbox[1] - bbox[3]) * this.fig.height ];
     this.width = bbox[2] * this.fig.width;
@@ -846,6 +849,7 @@
     var axes = this.props.axes;
     for (var i = 0; i < axes.length; i++) {
       var axis = new mpld3.Axis(this, axes[i]);
+      this.axisList.push(axis);
       this.elements.push(axis);
       if (this.props.gridOn || axis.props.grid.gridOn) {
         this.elements.push(axis.getGrid());
@@ -887,10 +891,11 @@
       this.sharey.push(mpld3.get_element(this.props.sharey[i]));
     }
     this.baseaxes = this.fig.canvas.append("g").attr("transform", "translate(" + this.position[0] + "," + this.position[1] + ")").attr("width", this.width).attr("height", this.height).attr("class", "mpld3-baseaxes");
-    this.clip = this.baseaxes.append("svg:clipPath").attr("id", this.clipid).append("svg:rect").attr("x", 0).attr("y", 0).attr("width", this.width).attr("height", this.height);
     this.axes = this.baseaxes.append("g").attr("class", "mpld3-axes").style("pointer-events", "visiblefill");
+    this.clip = this.axes.append("svg:clipPath").attr("id", this.clipid).append("svg:rect").attr("x", 0).attr("y", 0).attr("width", this.width).attr("height", this.height);
     this.axesbg = this.axes.append("svg:rect").attr("width", this.width).attr("height", this.height).attr("class", "mpld3-axesbg").style("fill", this.props.axesbg).style("fill-opacity", this.props.axesbgalpha);
-    this.paths = this.axes.append("g").attr("class", "mpld3-paths");
+    this.pathsContainer = this.axes.append("g").attr("clip-path", "url(#" + this.clipid + ")").attr("x", 0).attr("y", 0).attr("width", this.width).attr("height", this.height).attr("class", "mpld3-paths-container");
+    this.paths = this.pathsContainer.append("g").attr("class", "mpld3-paths");
     this.staticPaths = this.axes.append("g").attr("class", "mpld3-staticpaths");
     this.brush = d3.brush().extent([ [ 0, 0 ], [ this.fig.width, this.fig.height ] ]).on("start", this.brushStart.bind(this)).on("brush", this.brushMove.bind(this)).on("end", this.brushEnd.bind(this)).on("start.nokey", function() {
       d3.select(window).on("keydown.brush keyup.brush", null);
@@ -1065,6 +1070,13 @@
       }
       this.isCurrentLinkedBrushTarget = false;
     }
+  };
+  mpld3_Axes.prototype.setTicks = function(xy, nr, format) {
+    this.axisList.forEach(function(axis) {
+      if (axis.props.xy == xy) {
+        axis.setTicks(nr, format);
+      }
+    });
   };
   mpld3.Toolbar = mpld3_Toolbar;
   mpld3_Toolbar.prototype = Object.create(mpld3_PlotElement.prototype);
@@ -1603,6 +1615,17 @@
     } else {
       this.enableZoom();
     }
+  };
+  mpld3_Figure.prototype.setTicks = function(xy, nr, format) {
+    this.axes.forEach(function(axes) {
+      axes.setTicks(xy, nr, format);
+    });
+  };
+  mpld3_Figure.prototype.setXTicks = function(nr, format) {
+    this.setTicks("x", nr, format);
+  };
+  mpld3_Figure.prototype.setYTicks = function(nr, format) {
+    this.setTicks("y", nr, format);
   };
   mpld3_Figure.prototype.get_data = function(data) {
     if (data === null || typeof data === "undefined") {
