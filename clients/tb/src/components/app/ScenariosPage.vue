@@ -129,7 +129,7 @@ Last update: 2018-07-30
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
-  import progressIndicator from '@/services/progress-indicator-service'
+  import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
   import PopupSpinner from './Spinner.vue'
@@ -245,12 +245,12 @@ Last update: 2018-07-30
           })
           .catch(error => {
             // Failure popup.
-            progressIndicator.failurePopup(this, 'Could not get progset info')    
+            status.failurePopup(this, 'Could not get progset info')    
           })            
         })
         .catch(error => {
           // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not get parset info')    
+          status.failurePopup(this, 'Could not get parset info')    
         })
       },
 
@@ -264,7 +264,7 @@ Last update: 2018-07-30
         })
         .catch(error => {
           // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not get default budget scenario')
+          status.failurePopup(this, 'Could not get default budget scenario')
         })         
       },
 
@@ -272,7 +272,7 @@ Last update: 2018-07-30
         console.log('getScenSummaries() called')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         // Get the current project's scenario summaries from the server.
         rpcservice.rpcCall('get_scen_info', [this.projectID()])
@@ -282,14 +282,14 @@ Last update: 2018-07-30
           console.log(this.scenSummaries)
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Scenarios loaded')
+          status.succeed(this, 'Scenarios loaded')
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
           
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not get scenarios: ' + error.message)
+          status.fail(this, 'Could not get scenarios: ' + error.message)
         })
       },
 
@@ -297,16 +297,16 @@ Last update: 2018-07-30
         console.log('setScenSummaries() called')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
-          progressIndicator.succeed(this, 'Scenarios saved')
+          status.succeed(this, 'Scenarios saved')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not save scenarios') 
+          status.fail(this, 'Could not save scenarios') 
         })        
       },
 
@@ -324,7 +324,7 @@ Last update: 2018-07-30
           this.servererror = error.message // Set the server error.
           
            // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
+          status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
         })
       },
 
@@ -333,7 +333,7 @@ Last update: 2018-07-30
         this.$modal.hide('add-budget-scen')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         let newScen = this.dcp(this.defaultBudgetScen); // You've got to be kidding me, buster
         let otherNames = []
@@ -353,11 +353,11 @@ Last update: 2018-07-30
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
-          progressIndicator.succeed(this, 'Scenario added')
+          status.succeed(this, 'Scenario added')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not add scenario') 
+          status.fail(this, 'Could not add scenario') 
           
           // TODO: Should probably fix the corrupted this.scenSummaries.
         })         
@@ -376,7 +376,7 @@ Last update: 2018-07-30
         console.log('copyScen() called')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         var newScen = this.dcp(scenSummary); // You've got to be kidding me, buster
         var otherNames = []
@@ -388,11 +388,11 @@ Last update: 2018-07-30
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
-          progressIndicator.succeed(this, 'Scenario copied')
+          status.succeed(this, 'Scenario copied')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not copy scenario') 
+          status.fail(this, 'Could not copy scenario') 
           
           // TODO: Should probably fix the corrupted this.scenSummaries.
         })        
@@ -402,7 +402,7 @@ Last update: 2018-07-30
         console.log('deleteScen() called')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         for(var i = 0; i< this.scenSummaries.length; i++) {
           if(this.scenSummaries[i].name === scenSummary.name) {
@@ -412,11 +412,11 @@ Last update: 2018-07-30
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
-          progressIndicator.succeed(this, 'Scenario deleted')
+          status.succeed(this, 'Scenario deleted')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not delete scenario') 
+          status.fail(this, 'Could not delete scenario') 
           
           // TODO: Should probably fix the corrupted this.scenSummaries.
         })        
@@ -428,7 +428,7 @@ Last update: 2018-07-30
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Start indicating progress.
-          progressIndicator.start(this)
+          status.start(this)
           
           // Go to the server to get the results from the package set.
           rpcservice.rpcCall('run_scenarios', [this.projectID()])
@@ -454,14 +454,14 @@ Last update: 2018-07-30
             }
             
             // Indicate success.
-            progressIndicator.succeed(this, 'Graphs created')
+            status.succeed(this, 'Graphs created')
           })
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
             
             // Indicate failure.
-            progressIndicator.fail(this, 'Could not make graphs')
+            status.fail(this, 'Could not make graphs')
           })
         })
         .catch(error => {
@@ -472,7 +472,7 @@ Last update: 2018-07-30
           this.servererror = error.message
           
           // Put up a failure notification.
-          progressIndicator.failurePopup(this, 'Could not make graphs')      
+          status.failurePopup(this, 'Could not make graphs')      
         })        
       },
 

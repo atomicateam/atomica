@@ -1,4 +1,4 @@
-// progress-indicator-service.js -- functions for showing progress
+// status-service.js -- functions for showing status
 //
 // Last update: 7/28/18 (gchadder3)
 
