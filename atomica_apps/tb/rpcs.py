@@ -402,7 +402,7 @@ def create_progbook(project_id, num_progs):
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.make_progbook(progbook_path=full_file_name, progs=float(num_progs))
+    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.    
     

@@ -110,9 +110,6 @@ Last update: 2018-07-29
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
-              <button class="btn __green" @click="createDatabook(projectSummary.project.id)" title="New">
-                <i class="ti-plus"></i>
-              </button>
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
                 <i class="ti-upload"></i>
               </button>
@@ -205,7 +202,7 @@ Last update: 2018-07-29
                  v-model="num_progs"/><br>
         </div>
         <div style="text-align:justify">
-          <button @click="createProgbook(projectSummary.project.id)" class='btn __green' style="display:inline-block">
+          <button @click="createProgbook()" class='btn __green' style="display:inline-block">
             Create
           </button>
 
@@ -251,33 +248,25 @@ export default {
       num_progs:  5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end:   2035, // For creating a new project: number of populations
+      activeuid:  [], // WARNING, kludgy to get create progbook working
     }
   },
 
   computed: {
     sortedFilteredProjectSummaries() {
       return this.applyNameFilter(this.applySorting(this.projectSummaries))
-//      return this.applyNameFilter(this.applySorting(this.applyCountryFilter(this.projectSummaries)))
     }
   },
 
   created() {
     let projectId = null
-    
-    // If we have no user logged in, automatically redirect to the login page.
-    if (this.$store.state.currentUser.displayname == undefined) {
+    if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
       router.push('/login')
-    }
-
-    // Otherwise...
-    else {
-      // Get the active project ID if there is an active project.
-      if (this.$store.state.activeProject.project != undefined) {
+    } else {    // Otherwise...
+      if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
         projectId = this.$store.state.activeProject.project.id
       }
-      
-      // Load the project summaries of the current user.
-      this.updateProjectSummaries(projectId)
+      this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
     }
   },
 
@@ -285,8 +274,7 @@ export default {
 
     beforeOpen (event) {
       console.log(event)
-      // Set the opening time of the modal
-      this.TEMPtime = Date.now()
+      this.TEMPtime = Date.now() // Set the opening time of the modal
     },
 
     beforeClose (event) {
@@ -299,79 +287,48 @@ export default {
 
     updateProjectSummaries(setActiveID) {
       console.log('updateProjectSummaries() called')
-
-      // Get the current user's project summaries from the server.
-      rpcservice.rpcCall('load_current_user_project_summaries')
+      rpcservice.rpcCall('load_current_user_project_summaries') // Get the current user's project summaries from the server.
       .then(response => {
         let lastCreationTime = null
         let lastCreatedID = null
-        
-        // Set the projects to what we received.
-        this.projectSummaries = response.data.projects
-        
-        // Initialize the last creation time stuff if we have a non-empty list.
-        if (this.projectSummaries.length > 0) {
+        this.projectSummaries = response.data.projects // Set the projects to what we received.
+        if (this.projectSummaries.length > 0) { // Initialize the last creation time stuff if we have a non-empty list.
           lastCreationTime = new Date(this.projectSummaries[0].project.creationTime)
           lastCreatedID = this.projectSummaries[0].project.id
         }
-        
-        // Preprocess all projects.
-        this.projectSummaries.forEach(theProj => {
-          // Set to not selected.
-          theProj.selected = false
-            
-          // Set to not being renamed.
-          theProj.renaming = ''
-            
-          // Extract actual Date objects from the strings.
-          theProj.project.creationTime = new Date(theProj.project.creationTime)
+        this.projectSummaries.forEach(theProj => { // Preprocess all projects.
+          theProj.selected = false // Set to not selected.
+          theProj.renaming = '' // Set to not being renamed.
+          theProj.project.creationTime = new Date(theProj.project.creationTime) // Extract actual Date objects from the strings.
           theProj.project.updatedTime = new Date(theProj.project.updatedTime)
-          
-          // Update the last creation time and ID if what se see is later.
-          if (theProj.project.creationTime >= lastCreationTime) {
+          if (theProj.project.creationTime >= lastCreationTime) { // Update the last creation time and ID if what se see is later.
             lastCreationTime = theProj.project.creationTime
             lastCreatedID = theProj.project.id
           } 
         }) 
-          
-        // If we have a project on the list...
-        if (this.projectSummaries.length > 0) {
-          // If no ID is passed in, set the active project to the last-created 
-          // project.
-          if (setActiveID == null) {
+        if (this.projectSummaries.length > 0) { // If we have a project on the list...
+          if (setActiveID == null) { // If no ID is passed in, set the active project to the last-created project.
             this.openProject(lastCreatedID)            
-          }
-          
-          // Otherwise, set the active project to the one passed in.
-          else {
+          } else { // Otherwise, set the active project to the one passed in.
             this.openProject(setActiveID)
           }
         }
       })
       .catch(error => {
-        // Failure popup.
-        status.failurePopup(this, 'Could not load projects')    
+        status.failurePopup(this, 'Could not load projects: ' + error.message)
       })     
     },
 
     addDemoProject() {
       console.log('addDemoProject() called')
-      
-      // Start indicating progress.
       status.start(this)
-      
-      // Have the server create a new project.
-      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
       .then(response => {
-        // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries(response.data.projectId)
-        
-        // Indicate success.
+        this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
         status.succeed(this, 'Demo project added')
       })
       .catch(error => {
-        // Indicate failure.
-        status.fail(this, 'Could not add project') 
+        status.fail(this, 'Could not add demo project: ' + error.message)
       })
     },
 
@@ -382,8 +339,10 @@ export default {
     },
 
     // Open a model dialog for creating a progbook
-    createProgbookModal() {
-      console.log('createProgbookModal() called');
+    createProgbookModal(uid) {
+      this.activeuid = uid
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
+      console.log('createProgbookModal() called for ' + matchProject.project.name)
       this.$modal.show('create-progbook');
     },
 
@@ -391,62 +350,34 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
-      rpcservice.rpcCall('create_new_project',  // Have the server create a new project.
+      rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
         [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
       .then(response => {
         this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
         status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
       })
       .catch(error => {
-        status.fail(this, 'Could not add new project: ' + error.message)    // Indicate failure.
+        status.fail(this, 'Could not add new project')    // Indicate failure.
       })  
-    },
-
-    createNewProject() {
-      console.log('createNewProject() called')
-      this.$modal.hide('create-project')
-      status.start(this) // Start indicating progress.
-      rpcservice.rpcDownloadCall('create_databook',  // Have the server create a new project.
-        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
-        .then(response => {
-          this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
-          status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
-        })
-        .catch(error => {
-          status.fail(this, 'Could not add new project: ' + error.message)    // Indicate failure.
-        })
     },
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-     
-      // Have the server upload the project.
-      rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
+      status.start(this)
+      rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj') // Have the server upload the project.
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        status.start(this)
-      
-        // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries(response.data.projectId)
-        
-        // Indicate success.
-        status.succeed(this, 'New project uploaded')       
+        this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+        status.succeed(this, 'New project uploaded')
       })
       .catch(error => {
-        // Indicate failure.
-        status.fail(this, 'Could not upload file')     
+        status.fail(this, 'Could not upload file')
       }) 
     },
 
     projectIsActive(uid) {
-      // If the project is undefined, it is not active.
-      if (this.$store.state.activeProject.project === undefined) {
+      if (this.$store.state.activeProject.project === undefined) { // If the project is undefined, it is not active.
         return false
-      }
-
-      // Otherwise, the project is active if the UIDs match.
-      else {
+      } else { // Otherwise, the project is active if the UIDs match.
         return (this.$store.state.activeProject.project.id === uid)
       }
     },
@@ -495,14 +426,9 @@ export default {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
             return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
-          }
-/*          else if (this.sortColumn === 'country') {
-            return proj1.country > proj2.country ? sortDir: -sortDir
-          } */
-          else if (this.sortColumn === 'creationTime') {
+          } else if (this.sortColumn === 'creationTime') {
             return proj1.project.creationTime > proj2.project.creationTime ? sortDir: -sortDir
-          }
-          else if (this.sortColumn === 'updatedTime') {
+          } else if (this.sortColumn === 'updatedTime') {
             return proj1.project.updatedTime > proj2.project.updatedTime ? sortDir: -sortDir
           }
         }
@@ -632,10 +558,12 @@ export default {
       })      
     },
 
-    createProgbook(uid) {
+    createProgbook() {
       // Find the project that matches the UID passed in.
+      let uid = this.activeuid
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
       console.log('createProgbook() called for ' + matchProject.project.name)
+      this.$modal.hide('create-progbook')
       status.start(this, 'Creating program book...') // Start indicating progress.
       rpcservice.rpcDownloadCall('create_progbook', [uid, this.num_progs])
         .then(response => {
