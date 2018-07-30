@@ -1,5 +1,5 @@
 <!--
-Define health packages
+Define equity
 
 Last update: 2018-07-26
 -->
@@ -14,13 +14,10 @@ Last update: 2018-07-26
     </div>
 
     <div v-else>
-
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
         <tr>
           <th>Name</th>
-          <th>Type</th>
-          <th>Active?</th>
           <th>Actions</th>
         </tr>
         </thead>
@@ -29,13 +26,8 @@ Last update: 2018-07-26
           <td>
             <b>{{ scenSummary.name }}</b>
           </td>
-          <td>
-            {{ scenSummary.scen_type }}
-          </td>
-          <td>
-            <input type="checkbox" v-model="scenSummary.active"/>
-          </td>
           <td style="white-space: nowrap">
+            <button class="btn __green" @click="runScen(scenSummary)">Run</button>
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
             <button class="btn" @click="deleteScen(scenSummary)">Delete</button>
@@ -45,22 +37,17 @@ Last update: 2018-07-26
       </table>
 
       <div>
-        <button class="btn __blue" @click="addScenarioModal()">Add scenario</button>
-        <button class="btn __green" @click="runScenarios()">Run scenarios</button>
+        <button class="btn __blue" @click="addBudgetScenModal()">Add budget scenario</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
-      <br>
 
-      <div style="float:left">
-      </div>
       <div>
         <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
           <!--mpld3 content goes here-->
         </div>
       </div>
 
-
-      <modal name="add-scenario"
+      <modal name="add-budget-scen"
              height="auto"
              :scrollable="true"
              :width="900"
@@ -70,6 +57,7 @@ Last update: 2018-07-26
              :clickToClose="clickToClose"
              :transition="transition">
 
+        <!--TO_PORT-->
         <div class="dialog-content">
           <div class="dialog-c-title">
             Add/edit scenario
@@ -79,53 +67,90 @@ Last update: 2018-07-26
             <input type="text"
                    class="txbox"
                    v-model="defaultScen.name"/><br>
-            Scenario type:<br>
+            Parameter set:<br>
+            <select v-model="parsetOptions[0]">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select><br><br>
+            Program set:<br>
+            <select v-model="progsetOptions[0]">
+              <option v-for='progset in progsetOptions'>
+                {{ progset }}
+              </option>
+            </select>
+            Start year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultScen.scen_type"/><br>
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Name</th>
-                <th>Include?</th>
-                <th v-for="year in defaultScenYears">{{ year }}</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="prog_spec in defaultScen.spec">
-                <td>
-                  {{ prog_spec.name }}
-                </td>
-                <td>
-                  <input type="checkbox" v-model="prog_spec.included"/>
-                </td>
-                <td v-for="(val, index) in prog_spec.vals">
-                  <input type="text"
-                         class="txbox"
-                         v-model="prog_spec.vals[index]"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
+                   v-model="defaultScen.start_year"/><br>
+            End year:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultScen.end_year"/><br>
+            Budget factor:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultScen.budget_factor"/><br>
+            <br>
+            <!--<b>Relative objective weights</b><br>-->
+            <!--People alive:-->
+            <!--<input type="text"-->
+                   <!--class="txbox"-->
+                   <!--v-model="defaultScen.objective_weights.alive"/><br>-->
+            <!--TB-related deaths:-->
+            <!--<input type="text"-->
+                   <!--class="txbox"-->
+                   <!--v-model="defaultScen.objective_weights.ddis"/><br>-->
+            <!--New TB infections:-->
+            <!--<input type="text"-->
+                   <!--class="txbox"-->
+                   <!--v-model="defaultScen.objective_weights.acj"/><br>-->
+            <!--<br>-->
+            <!--<b>Relative spending constraints</b><br>-->
+            <!--<table class="table table-bordered table-hover table-striped" style="width: 100%">-->
+              <!--<thead>-->
+              <!--<tr>-->
+                <!--<th>Program</th>-->
+                <!--<th>Minimum</th>-->
+                <!--<th>Maximum</th>-->
+              <!--</tr>-->
+              <!--</thead>-->
+              <!--<tbody>-->
+              <!--<tr v-for="(val,key) in defaultScen.prog_spending">-->
+                <!--<td>-->
+                  <!--{{ key }}-->
+                <!--</td>-->
+                <!--<td>-->
+                  <!--<input type="text"-->
+                         <!--class="txbox"-->
+                         <!--v-model="defaultScen.prog_spending[key][0]"/>-->
+                <!--</td>-->
+                <!--<td>-->
+                  <!--<input type="text"-->
+                         <!--class="txbox"-->
+                         <!--v-model="defaultScen.prog_spending[key][1]"/>-->
+                <!--</td>-->
+              <!--</tr>-->
+              <!--</tbody>-->
+            <!--</table>-->
           </div>
           <div style="text-align:justify">
-            <button @click="addScenario()" class='btn __green' style="display:inline-block">
+            <button @click="addScen()" class='btn __green' style="display:inline-block">
               Save scenario
             </button>
-
-            <button @click="$modal.hide('add-scenario')" class='btn __red' style="display:inline-block">
+            <button @click="$modal.hide('add-scen')" class='btn __red' style="display:inline-block">
               Cancel
             </button>
           </div>
         </div>
-
-        <div>
-
-        </div>
       </modal>
 
-    </div>
 
+
+      <!-- Popup spinner -->
+      <popup-spinner></popup-spinner>
+
+    </div>
   </div>
 </template>
 
@@ -134,18 +159,30 @@ Last update: 2018-07-26
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
+  import taskservice from '@/services/task-service'
   import router from '@/router'
   import Vue from 'vue';
+  import PopupSpinner from './Spinner.vue'
 
   export default {
-    name: 'ScenariosPage',
+    name: 'scenarioPage',
+
+    components: {
+      PopupSpinner
+    },
+
     data() {
       return {
         serverresponse: 'no response',
         scenSummaries: [],
         defaultScen: [],
-        defaultScenYears: [],
-        graphData: [],
+        objectiveOptions: [],
+        activeParset:  -1,
+        activeProgset: -1,
+        parsetOptions:  [],
+        progsetOptions: [],
+        newParsetName:  [],
+        newProgsetName: [],
       }
     },
 
@@ -154,6 +191,10 @@ Last update: 2018-07-26
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
+//          WARNING, these shouldn't be duplicated!
+          this.getScenSummaries()
+          this.getDefaultScen()
+          this.updateSets()
           return this.$store.state.activeProject.project.id
         }
       },
@@ -174,17 +215,17 @@ Last update: 2018-07-26
         router.push('/login')
       }
       else { // Otherwise...
-        // Load the project summaries of the current user.
+        // Load the scenario summaries of the current project.
         this.getScenSummaries()
         this.getDefaultScen()
+        this.updateSets()
       }
-
     },
 
     methods: {
 
       dcp(input) {
-        let output = JSON.parse(JSON.stringify(input))
+        var output = JSON.parse(JSON.stringify(input))
         return output
       },
 
@@ -199,46 +240,61 @@ Last update: 2018-07-26
       },
 
       projectID() {
-        let id = this.$store.state.activeProject.project.id // Shorten this
+        var id = this.$store.state.activeProject.project.id // Shorten this
         return id
       },
 
-      getScenSummaries() {
-        console.log('getScenSummaries() called')
-        // Get the current user's scenario summaries from the server.
-        rpcservice.rpcCall('get_scenario_info', [this.projectID()])
+      // TO_PORT
+      updateSets() {
+        console.log('updateSets() called')
+        // Get the current user's parsets from the server.
+        rpcservice.rpcCall('get_parset_info', [this.projectID()])
           .then(response => {
-            this.scenSummaries = response.data // Set the scenarios to what we received.
-
-            this.$notifications.notify({
-              message: 'Scenarios loaded',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+            this.parsetOptions = response.data // Set the scenarios to what we received.
+            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+              console.log('Parameter set ' + this.activeParset + ' no longer found')
+              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Parameter set ' + this.activeParset + ' still found')
+            }
+            this.newParsetName = this.activeParset // WARNING, KLUDGY
+            console.log('Parset options: ' + this.parsetOptions)
+            console.log('Active parset: ' + this.activeParset)
+          })
+        // Get the current user's progsets from the server.
+        rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          .then(response => {
+            this.progsetOptions = response.data // Set the scenarios to what we received.
+            if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+              console.log('Program set ' + this.activeProgset + ' no longer found')
+              this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Program set ' + this.activeProgset + ' still found')
+            }
+            this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+            console.log('Progset options: ' + this.progsetOptions)
+            console.log('Active progset: ' + this.activeProgset)
           })
       },
 
       getDefaultScen() {
         console.log('getDefaultScen() called')
-        // Get the current user's scenario summaries from the server.
-        rpcservice.rpcCall('get_default_scenario', [this.projectID()])
+        rpcservice.rpcCall('get_default_scen', [this.projectID()])
           .then(response => {
-            this.defaultScen = response.data // Set the scenarios to what we received.
-            this.defaultScenYears = []
-            for (let year = this.defaultScen.t[0]; year <= this.defaultScen.t[1]; year++) {
-              this.defaultScenYears.push(year);
-            }
+            this.defaultScen = response.data // Set the scenario to what we received.
+            console.log('This is the default:')
+            console.log(this.defaultScen);
           });
       },
 
-      setScenSummaries() {
-        console.log('setScenSummaries() called')
-        rpcservice.rpcCall('set_scenario_info', [this.projectID(), this.scenSummaries])
-          .then( response => {
+      getScenSummaries() {
+        console.log('getScenSummaries() called')
+        // Get the current project's scenario summaries from the server.
+        rpcservice.rpcCall('get_scen_info', [this.projectID()])
+          .then(response => {
+            this.scenSummaries = response.data // Set the scenarios to what we received.
             this.$notifications.notify({
-              message: 'Scenarios saved',
+              message: 'scenarios loaded',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
@@ -247,39 +303,53 @@ Last update: 2018-07-26
           })
       },
 
-      addScenarioModal() {
+      setScenSummaries() {
+        console.log('setScenSummaries() called')
+        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+          .then( response => {
+            this.$notifications.notify({
+              message: 'scenarios saved',
+              icon: 'ti-check',
+              type: 'success',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            });
+          })
+      },
+
+      addBudgetScenModal() {
         // Open a model dialog for creating a new project
-        console.log('addScenarioModal() called');
-        rpcservice.rpcCall('get_default_scenario', [this.projectID()])
+        console.log('addScenModal() called');
+        rpcservice.rpcCall('get_default_scen', [this.projectID()])
           .then(response => {
-            this.defaultScen = response.data // Set the scenarios to what we received.
-            this.$modal.show('add-scenario');
+            this.defaultScen = response.data // Set the scenario to what we received.
+            this.$modal.show('add-scen');
             console.log(this.defaultScen)
           });
       },
 
-      addScenario() {
-        console.log('addScenario() called')
-        this.$modal.hide('add-scenario')
-        let newScen = this.dcp(this.defaultScen); // You've got to be kidding me, buster
+      addBudgetScen() {
+        console.log('addBudgetScen() called')
+        this.$modal.hide('add-budget-scen')
+        let newScen = this.dcp(this.defaultBudgetScen); // You've got to be kidding me, buster
         let otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
         });
         let index = otherNames.indexOf(newScen.name);
         if (index > -1) {
-          console.log('Scenario named '+newScen.name+' exists, overwriting...')
+          console.log('scenario named '+newScen.name+' exists, overwriting...')
           this.scenSummaries[index] = newScen
         }
         else {
-          console.log('Scenario named '+newScen.name+' does not exist, creating new...')
+          console.log('scenario named '+newScen.name+' does not exist, creating new...')
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
-        rpcservice.rpcCall('set_scenario_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then( response => {
             this.$notifications.notify({
-              message: 'Scenario added',
+              message: 'scenario added',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
@@ -288,11 +358,25 @@ Last update: 2018-07-26
           })
       },
 
+      openScen(scenSummary) {
+        // Open a model dialog for creating a new project
+        console.log('openScen() called');
+        this.currentScen = scenSummary.name
+        this.$notifications.notify({
+          message: 'scenario "'+scenSummary.name+'" opened',
+          icon: 'ti-check',
+          type: 'success',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        });
+      },
+
       editScen(scenSummary) {
         // Open a model dialog for creating a new project
         console.log('editScen() called');
         this.defaultScen = scenSummary
-        this.$modal.show('add-scenario');
+        console.log('defaultScen', this.defaultScen.obj)
+        this.$modal.show('add-scen');
       },
 
       copyScen(scenSummary) {
@@ -304,10 +388,10 @@ Last update: 2018-07-26
         })
         newScen.name = this.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcservice.rpcCall('set_scenario_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then( response => {
             this.$notifications.notify({
-              message: 'Scenario copied',
+              message: 'Opimization copied',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
@@ -323,10 +407,10 @@ Last update: 2018-07-26
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_scenario_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then( response => {
             this.$notifications.notify({
-              message: 'Scenario deleted',
+              message: 'scenario deleted',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
@@ -335,21 +419,20 @@ Last update: 2018-07-26
           })
       },
 
-      runScenarios() {
-        console.log('runScenarios() called')
-
+      runScen(scenSummary) {
+        console.log('runScen() called for '+this.currentScen)
         // Make sure they're saved first
-        rpcservice.rpcCall('set_scenario_info', [this.projectID(), this.scenSummaries])
+        this.$modal.show('popup-spinner') // Dispel the spinner.
+        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then(response => {
-
             // Go to the server to get the results from the package set.
-            rpcservice.rpcCall('run_scenarios', [this.projectID()])
+            rpcservice.rpcCall('run_scenarios',
+//            taskservice.getTaskResultPolling('run_scenario', 90, 3, 'run_scenario',
+              [this.projectID(), scenSummary.name])
               .then(response => {
-                this.clearGraphs() // Once we receive a response, we can work with a clean slate
                 this.serverresponse = response.data // Pull out the response data.
                 var n_plots = response.data.graphs.length
                 console.log('Rendering ' + n_plots + ' graphs')
-
                 for (var index = 0; index <= n_plots; index++) {
                   console.log('Rendering plot ' + index)
                   var divlabel = 'fig' + index
@@ -358,32 +441,59 @@ Last update: 2018-07-26
                     div.removeChild(div.firstChild);
                   }
                   try {
+                    console.log(response.data.graphs[index]);
                     mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+                    this.haveDrawnGraphs = true
                   }
                   catch (err) {
                     console.log('failled:' + err.message);
                   }
                 }
+                this.$modal.hide('popup-spinner') // Dispel the spinner.
+                this.$Progress.finish() // Finish the loading bar.
+                this.$notifications.notify({ // Success popup.
+                  message: 'Graphs created',
+                  icon: 'ti-check',
+                  type: 'success',
+                  verticalAlign: 'top',
+                  horizontalAlign: 'center',
+                })
               })
               .catch(error => {
-                // Pull out the error message.
-                this.serverresponse = 'There was an error: ' + error.message
-
-                // Set the server error.
-                this.servererror = error.message
-              }).then(response => {
-              this.$notifications.notify({
-                message: 'Graphs created',
-                icon: 'ti-check',
-                type: 'success',
-                verticalAlign: 'top',
-                horizontalAlign: 'center',
-              });
-            })
+                this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+                this.servererror = error.message // Set the server error.
+                this.$modal.hide('popup-spinner') // Dispel the spinner.
+                this.$Progress.fail() // Fail the loading bar.
+                this.$notifications.notify({ // Failure popup.
+                  message: 'Could not make graphs',
+                  icon: 'ti-face-sad',
+                  type: 'warning',
+                  verticalAlign: 'top',
+                  horizontalAlign: 'center',
+                })
+              })
           })
       },
 
+      reloadGraphs() {
+        console.log('Reload graphs')
+        let n_plots = this.graphData.length
+        console.log('Rendering ' + n_plots + ' graphs')
+        for (let index = 0; index <= n_plots; index++) {
+          console.log('Rendering plot ' + index)
+          var divlabel = 'fig' + index
+          try {
+            mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+          }
+          catch (err) {
+            console.log('failled:' + err.message);
+          }
+        }
+      },
+
       clearGraphs() {
+        console.log('Clear graphs')
+        this.graphData = []
         for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
           var divlabel = 'fig' + index
@@ -393,6 +503,12 @@ Last update: 2018-07-26
           }
         }
       }
+
     }
   }
 </script>
+
+
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style scoped>
+</style>

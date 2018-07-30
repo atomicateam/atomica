@@ -3,17 +3,14 @@ import numpy as np
 
 import xlrd
 import sciris.core as sc
-from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
 from .excel import ExcelSettings as ES
 from .excel import extract_header_columns_mapping, extract_excel_sheet_value
 from .structure import SemanticUnknownException
-from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, \
-    SwitchType, QuantityFormatType
+from .structure_settings import DetailColumns, TableTemplate, ConnectionMatrix, TimeDependentValuesEntry, SwitchType, QuantityFormatType
 from .system import SystemSettings as SS
-from .system import logger, AtomicaException, accepts, display_name
-from .workbook_utils import WorkbookTypeException, WorkbookRequirementException, get_workbook_page_keys, \
-    get_workbook_page_specs, get_workbook_page_spec, get_workbook_item_type_specs, get_workbook_item_specs
+from .system import logger, AtomicaException, display_name
+from .workbook_utils import WorkbookTypeException, WorkbookRequirementException, get_workbook_page_keys, get_workbook_page_specs, get_workbook_page_spec, get_workbook_item_type_specs
 
 
 def get_target_structure(framework=None, data=None, workbook_type=None):
@@ -135,7 +132,6 @@ def read_connection_matrix(worksheet, table, start_row, framework=None, data=Non
     Ensure a logical read order in structure settings, even for different display order.
     In practice, this means a relevant 'detail columns' table should get parsed before associated matrices.
     """
-    item_type_specs = get_workbook_item_type_specs(framework=framework, workbook_type=workbook_type)
     structure = get_target_structure(framework=framework, data=data, workbook_type=workbook_type)
 
     header_row, header_col = None, 0
@@ -385,7 +381,7 @@ def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklowe
     return result
 
 
-def load_progbook(spreadsheet):
+def load_progbook(spreadsheet, verbose=False):
     '''
     Loads programs book (i.e. reads its contents into the data).
 
@@ -408,6 +404,7 @@ def load_progbook(spreadsheet):
     data['progs']['target_comps'] = []
     
     colindices = []
+    if verbose: print('Reading populations & programs data with %s rows' % sheetdata.nrows)
     for row in range(sheetdata.nrows): 
         if sheetdata.cell_value(row,0)!='':
             for col in range(2,sheetdata.ncols):
@@ -421,6 +418,7 @@ def load_progbook(spreadsheet):
                 data['comps'] = thesedata[colindices[1]-1:]
             else:
                 if thesedata[0]:
+                    if verbose: print('  Reading row for program: %s' % thesedata[0])
                     progname = str(thesedata[0])
                     data['progs']['short'].append(progname)
                     data['progs']['name'].append(str(thesedata[1]))
@@ -446,12 +444,13 @@ def load_progbook(spreadsheet):
                'Capacity constraints': 'capacity'}
 
     validunitcosts = sc.odict()
-
+    if verbose: print('Reading program spend data with %s rows' % sheetdata.nrows)
     for row in range(sheetdata.nrows):
         sheetname = sheetdata.cell_value(row,0) # Sheet name
         progname = sheetdata.cell_value(row, 1) # Get the name of the program
 
         if progname != '': # The first column is blank: it's time for the data
+            if verbose: print('  Reading row for program: %s' % progname)
             validunitcosts[progname] = []
             thesedata = blank2newtype(sheetdata.row_values(row, start_colx=3, end_colx=lastdatacol)) # Data starts in 3rd column, and ends lastdatacol-1
             assumptiondata = sheetdata.cell_value(row, assumptioncol)
@@ -479,18 +478,22 @@ def load_progbook(spreadsheet):
 
     ## Load parameter information
     sheetdata = workbook.sheet_by_name('Program effects') # Load 
-    for row in range(sheetdata.nrows): 
+    if verbose: print('Reading program effects data with %s rows' % sheetdata.nrows)
+    for row in range(sheetdata.nrows): # Even though it loops over every row, skip all except the best rows
         if sheetdata.cell_value(row, 1)!='': # Data row
             par_name = sheetdata.cell_value(row, 1) # Get the name of the parameter
             pop_name = sheetdata.cell_value(row, 2).split(': ')[0]
             est_name = sheetdata.cell_value(row, 2).split(': ')[1]
             if est_name == 'best':
-                data['pars'][par_name] = sc.odict()
-                data['pars'][par_name][pop_name] = sc.odict()
+                if verbose: print('  Reading data for row %s (%s/%s/%s): ' % (row, par_name, pop_name, est_name))
+                if par_name not in data['pars']: data['pars'][par_name] = sc.odict() # Initialize only if it doesn't exist yet
+                if pop_name not in data['pars'][par_name]: data['pars'][par_name][pop_name] = sc.odict()  # Initialize only if it doesn't exist yet
                 data['pars'][par_name][pop_name]['npi_val'] = [sheetdata.cell_value(row+i, 3) if sheetdata.cell_value(row+i, 3)!='' else np.nan for i in range(3)]
                 data['pars'][par_name][pop_name]['max_val'] = [sheetdata.cell_value(row+i, 4) if sheetdata.cell_value(row+i, 4)!='' else np.nan for i in range(3)]
                 data['pars'][par_name][pop_name]['prog_vals'] = [blank2newtype(sheetdata.row_values(row+i, start_colx=6, end_colx=6+len(data['progs']['short'])) ) for i in range(3)]
-
+        else:
+            if verbose: print('Not reading data for row %s, row is blank' % row)
+    
     return data
 
 

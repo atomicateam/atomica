@@ -849,8 +849,11 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if settings['legend_mode'] == 'together':
-                    render_legend(ax, plot_type)
+                handles, labels = ax.get_legend_handles_labels()
+                ax.set_title('%s' % (labels[0]))
+#                sc.SIticks(ax=ax, axis='y', fixed=True)
+#                if settings['legend_mode'] == 'together':
+#                    render_legend(ax, plot_type)
 
     elif axis == 'pops':
         plotdata.set_colors(pops=plotdata.pops)
@@ -867,7 +870,7 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                 else:
                     ax.set_ylabel('%s' % (plotdata.output_names[output]))
 
-                ax.set_title('%s' % (plotdata.result_names[result]))
+#                ax.set_title('%s' % (plotdata.result_names[result]))
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for pop in plotdata.pops])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
@@ -883,8 +886,11 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if settings['legend_mode'] == 'together':
-                    render_legend(ax, plot_type)
+                handles, labels = ax.get_legend_handles_labels()
+                ax.set_title('%s' % (labels[0]))
+#                sc.SIticks(ax=ax, axis='y', fixed=True)
+#                if settings['legend_mode'] == 'together':
+#                    render_legend(ax, plot_type)
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs)
@@ -915,8 +921,11 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if settings['legend_mode'] == 'together':
-                    render_legend(ax, plot_type)
+                handles, labels = ax.get_legend_handles_labels()
+                ax.set_title('%s' % (labels[0]))
+#                sc.SIticks(ax=ax, axis='y', fixed=True)
+#                if settings['legend_mode'] == 'together':
+#                    render_legend(ax, plot_type)
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 

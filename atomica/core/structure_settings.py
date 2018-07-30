@@ -31,7 +31,7 @@ from .excel import ExcelSettings
 from .parser_config import load_config_file, get_config_value, configparser
 from .system import SystemSettings as SS, AtomicaException, logger, atomica_path, display_name
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-from xlsxwriter.utility import xl_cell_to_rowcol
+#from xlsxwriter.utility import xl_cell_to_rowcol
 
 import numpy as np
 
