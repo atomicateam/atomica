@@ -483,7 +483,7 @@ class Project(object):
         """ Convenience class method for loading a project in the absence of an instance. """
         return sc.loadobj(filepath)
 
-    def demo_scenarios(self, dorun=False):
+    def demo_scenarios(self, dorun=False, doadd=True):
         json1 = sc.odict()
         json1['name']        ='Default budget'
         json1['parsetname']  = -1
@@ -500,12 +500,15 @@ class Project(object):
         json3['alloc'][:] *= 0.0
         
         for json in [json1, json2, json3]:
-            self.make_scenario(which='budget', json=json)
-        if dorun:
-            results = self.run_scenarios()
-            return results
-        else:
-            return json1
+            if doadd:
+                self.make_scenario(which='budget', json=json)
+                if dorun:
+                    results = self.run_scenarios()
+                    return results
+                else:
+                    return None
+            else:
+                return json1
     
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''
