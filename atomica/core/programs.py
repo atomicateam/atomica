@@ -93,12 +93,13 @@ class ProgramSet(NamedItem):
         for np in range(nprogs):
             if verbose: print('  Reading in information for program %s/%s' % (np+1, nprogs))
             pkey = progdata['progs']['short'][np]
-            capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
+            capacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
+                        label = progdata['progs']['label'][np],
                         target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
-                        capacity=capcacity,
+                        capacity=capacity,
                         )
             programs.append(p)
 
@@ -565,11 +566,12 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self,short=None, name=None, label=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
         self.short              = None # Short name of program
+        self.label              = None # Full name of the program
         self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
         self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
         self.target_pops        = None # Populations targeted by the program
@@ -580,7 +582,7 @@ class Program(NamedItem):
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.update(short=short, name=name, label=label, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
@@ -588,6 +590,7 @@ class Program(NamedItem):
         ''' Print out useful info'''
         output = sc.desc(self)
         output += '          Program name: %s\n'    % self.short
+        output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
         output += ' Targeted compartments: %s\n'    % self.target_comps
@@ -596,7 +599,7 @@ class Program(NamedItem):
     
 
 
-    def update(self, short=None, name=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
+    def update(self, short=None, name=None, label=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
@@ -732,6 +735,7 @@ class Program(NamedItem):
         # Actually set everything
         if short        is not None: self.short          = short # short name
         if name         is not None: self.name           = name # full name
+        if label        is not None: self.label          = label # full name
         if target_pops  is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
         if target_pars  is not None: set_target_pars(target_pars) # targeted parameters
         if target_comps is not None: self.target_comps    = promotetolist(target_comps, 'string') # key(s) for targeted populations

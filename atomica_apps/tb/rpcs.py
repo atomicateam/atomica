@@ -677,36 +677,37 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, plo
     graphs = []
     data = proj.data if plotdata is not False else None # Plot data unless asked not to
     for output in outputs:
-        # try:
-        plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-        nans_replaced = 0
-        for series in plotdata.series:
-            if replace_nans and any(np.isnan(series.vals)):
-                nan_inds = sc.findinds(np.isnan(series.vals))
-                for nan_ind in nan_inds:
-                    if nan_ind>0: # Skip the first point
-                        series.vals[nan_ind] = series.vals[nan_ind-1]
-                        nans_replaced += 1
-        if nans_replaced:
-            print('Warning: %s nans were replaced' % nans_replaced)
-        figs = au.plot_series(plotdata, data=data, axis='results')
+        try:
+            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+            figs = au.plot_series(plotdata, data=data, axis='results')
 
-        # Todo - customize plot formatting here
-        for fig in figs:
-            ax = fig.get_axes()[0]
-            ax.set_facecolor('none')
-            ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
-            ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-            if len(results) == 1:
-                legend = fig.findobj(Legend)[0]
-                legend.remove()
-            fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-            graph_dict = mpld3.fig_to_dict(fig)
-            graphs.append(graph_dict)
-        # pl.close('all')
-        print('Plot %s succeeded' % (output))
-        # except Exception as E:
-        #     print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+            # Todo - customize plot formatting here
+            for fig in figs:
+                ax = fig.get_axes()[0]
+                ax.set_facecolor('none')
+                ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                if len(results) == 1:
+                    legend = fig.findobj(Legend)[0]
+                    legend.remove()
+                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                graph_dict = mpld3.fig_to_dict(fig)
+                graphs.append(graph_dict)
+            # pl.close('all')
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+
 
     return {'graphs':graphs}
 
@@ -893,7 +894,7 @@ def delete_progset(project_id, progsetname=None):
 #%% Scenario functions and RPCs
 ##################################################################################
 
-def py_to_js_scen(py_scen):
+def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
     attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
@@ -908,12 +909,13 @@ def py_to_js_scen(py_scen):
     if isinstance(py_scen, dict): alloc = py_scen['alloc']
     else:                         alloc = py_scen.alloc
     for prog_name,budget in alloc.items():
+        prog_label = project.progset().programs[prog_name].label
         if sc.isiterable(budget):
             if len(budget)>1:
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        js_scen['alloc'].append([prog_name,float(budget)])
+        js_scen['alloc'].append([prog_name,float(budget), prog_label])
     return js_scen
 
 def js_to_py_scen(js_scen):
@@ -942,7 +944,7 @@ def get_scen_info(project_id):
     proj = load_project(project_id, raise_exception=True)
     scenario_summaries = []
     for py_scen in proj.scens.values():
-        js_scen = py_to_js_scen(py_scen)
+        js_scen = py_to_js_scen(py_scen, project=proj)
         scenario_summaries.append(js_scen)
     print('JavaScript scenario info:')
     print(scenario_summaries)
@@ -970,7 +972,7 @@ def get_default_budget_scen(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, raise_exception=True)
     py_scen = proj.demo_scenarios(doadd=False)
-    js_scen = py_to_js_scen(py_scen)
+    js_scen = py_to_js_scen(py_scen, project=proj)
     print('Created default JavaScript scenario:')
     print(js_scen)
     return js_scen
@@ -1037,6 +1039,11 @@ def get_optim_info(project_id):
     print(proj.optims.keys())
     for py_optim in proj.optims.values():
         js_optim = sw.json_sanitize_result(py_optim.json)
+        for prog_name in js_optim['prog_spending']:
+            prog_label = proj.progset().programs[prog_name].label
+            this_prog = js_optim['prog_spending'][prog_name]
+            this_prog.append(prog_label)
+            js_optim['prog_spending'][prog_name] = {'min':this_prog[0], 'max':this_prog[1], 'label':prog_label}
         optim_summaries.append(js_optim)
     print('JavaScript optimization info:')
     print(optim_summaries)
@@ -1079,7 +1086,7 @@ def set_optim_info(project_id, optim_summaries):
             json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
         for subkey in json['prog_spending'].keys():
             this = json['prog_spending'][subkey]
-            json['prog_spending'][subkey] = (to_number(this[0]), to_number(this[1]))
+            json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
         print('Python optimization info for optimization %s:' % (j+1))
         print(json)
         proj.make_optimization(json=json)
