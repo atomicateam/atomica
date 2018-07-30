@@ -395,7 +395,7 @@ def load_progbook(spreadsheet, verbose=False):
     workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
 
     ## Load program spend information
-    sheetdata = workbook.sheet_by_name('Populations & programs') # Load 
+    sheetdata = workbook.sheet_by_name('Program targeting') # Load 
     data['progs'] = sc.odict()
     data['pars'] = sc.odict()
     data['progs']['short'] = []
@@ -405,7 +405,7 @@ def load_progbook(spreadsheet, verbose=False):
     data['progs']['target_comps'] = []
     
     colindices = []
-    if verbose: print('Reading populations & programs data with %s rows' % sheetdata.nrows)
+    if verbose: print('Reading program targeting data with %s rows' % sheetdata.nrows)
     for row in range(sheetdata.nrows): 
         if sheetdata.cell_value(row,0)!='':
             for col in range(2,sheetdata.ncols):
@@ -436,17 +436,17 @@ def load_progbook(spreadsheet, verbose=False):
                     data[progname]['unitcost'] = sc.odict()
 
     ## Calculate columns for which data are entered, and store the year ranges
-    sheetdata = workbook.sheet_by_name('Program spend data') # Load this workbook
+    sheetdata = workbook.sheet_by_name('Spending data') # Load this workbook
     lastdatacol, data['years'] = getyears(sheetdata)
     assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
 
     namemap = {'Total spend': 'spend',
-               'Base spend':'basespend',
+#               'Base spend':'basespend',
                'Unit cost':'unitcost',
                'Capacity constraints': 'capacity'}
 
     validunitcosts = sc.odict()
-    if verbose: print('Reading program spend data with %s rows' % sheetdata.nrows)
+    if verbose: print('Reading spending data with %s rows' % sheetdata.nrows)
     for row in range(sheetdata.nrows):
         sheetname = sheetdata.cell_value(row,0) # Sheet name
         progname = sheetdata.cell_value(row, 1) # Get the name of the program
@@ -466,7 +466,8 @@ def load_progbook(spreadsheet, verbose=False):
                 thisvar = namemap[sheetdata.cell_value(row, 2).split(': ')[0]]  # Get the name of the indicator
                 thisestimate = sheetdata.cell_value(row, 2).split(': ')[1]
                 data[progname][thisvar][thisestimate] = thesedata # Store data
-            checkblank = False if thisvar in ['basespend','capacity'] else True # Don't check optional indicators, check everything else
+#            checkblank = False if thisvar in ['basespend','capacity'] else True # Don't check optional indicators, check everything else
+            checkblank = False if thisvar in ['capacity'] else True # Don't check optional indicators, check everything else
             result = validatedata(thesedata, sheetname, thisvar, row, checkblank=checkblank)
             if thisvar in namemap.keys():
                 if result['isvalid']==0: raise AtomicaException(result['errormsg'])
