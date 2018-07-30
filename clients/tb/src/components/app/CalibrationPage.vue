@@ -142,7 +142,7 @@ Last update: 2018-07-30
                 <td>
                   {{ item.plot_name }}
                 </td>
-                <td>
+                <td style="text-align: center">
                   <input type="checkbox" v-model="item.active"/>
                 </td>
               </tr>
