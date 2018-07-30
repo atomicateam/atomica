@@ -14,7 +14,6 @@ Last update: 2018-07-30
     </div>
 
     <div v-else>
-
       <div class="calib-controls">
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
         <button class="btn" @click="toggleShowingParams()">
@@ -22,9 +21,7 @@ Last update: 2018-07-30
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
-        <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Calibrate</button>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -62,10 +59,17 @@ Last update: 2018-07-30
                  style="display: inline-block; width:70px"/>
         </div>
 
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" @click="exportResults(activeProjectID)">Export</button>
+        <button class="btn" @click="clearGraphs()">Clear</button>
+        <button class="btn" @click="toggleShowingPlots()">
+          <span v-if="areShowingPlots">Hide</span>
+          <span v-else>Show</span>
+          plot controls
+        </button>
+
       </div>
     
-      <br>
-
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -123,7 +127,32 @@ Last update: 2018-07-30
             <!--mpld3 content goes here-->
           </div>
         </div>
-        
+
+        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
+          <div class="plotopts-params" v-if="areShowingPlots">
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Plot</th>
+                <th>Active</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in plotOptions">
+                <td>
+                  {{ item.plot_name }}
+                </td>
+                <td>
+                  <input type="checkbox" v-model="item.active"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+
       </div>
       
     </div>
@@ -190,11 +219,13 @@ Last update: 2018-07-30
         sortReverse: false,
         parList: [],
         areShowingParameters: true,
+        areShowingPlots: true,
         activeParset: -1,
         parsetOptions: [],
         newParsetName: [],
-        startYear: 2000,
-        endYear: 2035,
+        startYear: 0,
+        endYear: 0,
+        plotOptions: [],
       }
     },
 
@@ -246,10 +277,11 @@ Last update: 2018-07-30
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      }
-
-      else if (this.$store.state.activeProject.project != undefined) {
+      } else if (this.$store.state.activeProject.project != undefined) {
+        this.startYear = this.active_sim_start
+        this.endYear = this.active_sim_end
         this.viewTable();
+        this.getPlotOptions();
       }
     },
 
@@ -312,28 +344,36 @@ Last update: 2018-07-30
 
       viewTable() {
         console.log('viewTable() called')
-        
-        // Start indicating progress.
-        // Note: For some reason, the popup spinner doesn't work from inside created() 
-        // so it doesn't show up here.        
-        status.start(this)
-
-        // Go to the server to get the diseases from the burden set.
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
-          this.parList = response.data // Set the disease list.
-          
-          // Indicate success.
+          this.parList = response.data // Get the parameter values
           status.succeed(this, '')  // No green notification.
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not load parameters')
+          status.fail(this, 'Could not load parameters: ' + error.message)
         })
+      },
+
+      getPlotOptions() {
+        console.log('getPlotOptions() called')
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
+        rpcservice.rpcCall('get_supported_plots', [true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+            status.succeed(this, '')  // No green notification.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not get plot options: ' + error.message)
+          })
       },
 
       toggleShowingParams() {
         this.areShowingParameters = !this.areShowingParameters
+      },
+
+      toggleShowingPlots() {
+        this.areShowingPlots = !this.areShowingPlots
       },
 
       makeGraphs(project_id) {
@@ -343,7 +383,7 @@ Last update: 2018-07-30
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.startYear, this.endYear])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -540,6 +580,18 @@ Last update: 2018-07-30
     display: block;
   }
   .calib-params {
+    flex: 1 0 20%;
+  }
+  .plotopts-main {
+    width: 350px;
+    padding-left: 20px;
+    display: flex;
+    float: left;
+  }
+  .plotopts-main--full {
+    display: block;
+  }
+  .plotopts-params {
     flex: 1 0 20%;
   }
   .calib-graphs {

@@ -608,19 +608,29 @@ def supported_plots_func():
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_supported_plots(only_keys=False):
-    
     supported_plots = supported_plots_func()
-    
     if only_keys:
-        return supported_plots.keys()
+        plot_names = supported_plots.keys()
+        vals = np.ones(len(plot_names))
+        output = []
+        for plot_name,val in zip(plot_names,vals):
+            this = {'plot_name':plot_name, 'active':val}
+            output.append(this)
+        return output
     else:
         return supported_plots
 
 
-def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
+def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
     supported_plots = supported_plots_func()
-    if plot_names is None: plot_names = supported_plots.keys()
+    if plot_names is None: 
+        if plot_options is not None:
+            plot_names = []
+            for item in plot_options:
+                if item['active']: plot_names.append(item['plot_name'])
+        else:
+            plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
@@ -744,7 +754,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, start_year=None, end_year=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -762,14 +772,11 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, start_year=None, en
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_calibration_plots(proj, result,pops=None, stacked=True, xlims=(float(start_year), float(end_year)))
+    output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
 
-    # Commands below will render unstacked plots with data, and will interleave them
-    # so they appear next to each other in the FE
-    unstacked_output = get_calibration_plots(proj, result,pops=None, stacked=False, xlims=(float(start_year), float(end_year)))
+    # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-
-
     return output
 
 #TO_PORT
