@@ -21,9 +21,9 @@ import sciris.web as sw
 import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
-
+from matplotlib.legend import Legend
+import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
-import matplotlib.pyplot as plt
 
 rc('font', size=14)
 
@@ -653,8 +653,8 @@ def supported_plots_func():
     supported_plots['Latent treatment'] = 'ltt_inf'
     supported_plots['Active treatment'] = 'num_treat'
     supported_plots['TB-related deaths'] = ':ddis'
-    return supported_plots
 
+    return supported_plots
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_supported_plots(only_keys=False):
@@ -722,36 +722,45 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
     if plot_names is None: plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
-        outputs = [supported_plots[plot_name] for plot_name in plot_names]
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     graphs = []
-    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
             nans_replaced = 0
-            series_list = sc.promotetolist(plotdata.series)
-            for series in series_list:
+            for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
                     nan_inds = sc.findinds(np.isnan(series.vals))
                     for nan_ind in nan_inds:
-                        if nan_ind>0: 
+                        if nan_ind>0: # Skip the first point
                             series.vals[nan_ind] = series.vals[nan_ind-1]
-                            nans_replaced += 1
-                        else: # For the first point, take the next point
-                            series.vals[nan_ind] = series.vals[nan_ind+1]
                             nans_replaced += 1
             if nans_replaced:
                 print('Warning: %s nans were replaced' % nans_replaced)
-            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+
+            if stacked:
+                figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
+            else:
+                figs = au.plot_series(plotdata, data=data, axis='results')
+
+            # Todo - customize plot formatting here
             for fig in figs:
-                pl.figure(fig.number)
-                pl.gca().set_facecolor('none')
+                ax = fig.get_axes()[0]
+                ax.set_facecolor('none')
+                ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                legend = fig.findobj(Legend)[0]
+                if len(legend.get_texts())==1:
+                    legend.remove() # Can remove the legend if it only has one entry
+                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
-            pl.close('all')
+            # pl.close('all')
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+
 
     return {'graphs':graphs}
 
@@ -798,6 +807,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
     # so they appear next to each other in the FE
     unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+
 
     return output
 
@@ -1070,7 +1080,7 @@ def run_scenarios(project_id):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    output = get_plots(proj, results, axis="results") # , outputs=scen_outputs, pops=scen_pops, plotdata=False
+    output = get_plots(proj, results)
     print('Saving project...')
     save_project(proj)    
     return output
@@ -1162,18 +1172,3 @@ def set_optim_info(project_id, optim_summaries):
 #    print('Saving project...')
 #    save_project(proj)    
 #    return output
-
-
-##################################################################################
-#%% Miscellaneous RPCs
-##################################################################################
-
-@register_RPC(validation_type='nonanonymous user')    
-def simulate_slow_rpc(sleep_secs, succeed=True):
-    time.sleep(sleep_secs)
-    
-    if succeed:
-        return 'success'
-    else:
-        return {'error': 'failure'}
-

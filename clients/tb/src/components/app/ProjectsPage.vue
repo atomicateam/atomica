@@ -195,7 +195,7 @@ Last update: 2018-07-29
 import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
-import progressIndicator from '@/services/progress-indicator-service'
+import status from '@/services/status-service'
 import router from '@/router'
 import PopupSpinner from './Spinner.vue'
   
@@ -317,7 +317,7 @@ export default {
       })
       .catch(error => {
         // Failure popup.
-        progressIndicator.failurePopup(this, 'Could not load projects')    
+        status.failurePopup(this, 'Could not load projects')    
       })     
     },
 
@@ -325,7 +325,7 @@ export default {
       console.log('addDemoProject() called')
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
       
       // Have the server create a new project.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
@@ -334,11 +334,11 @@ export default {
         this.updateProjectSummaries(response.data.projectId)
         
         // Indicate success.
-        progressIndicator.succeed(this, 'Demo project added')
+        status.succeed(this, 'Demo project added')
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not add project') 
+        status.fail(this, 'Could not add project') 
       })
     },
 
@@ -354,7 +354,7 @@ export default {
       this.$modal.hide('create-project')
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
       
       // Have the server create a new project.
       rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
@@ -366,11 +366,11 @@ export default {
         this.updateProjectSummaries(null)
         
         // Indicate success.
-        progressIndicator.succeed(this, 'New project "' + this.proj_name + '" created')
+        status.succeed(this, 'New project "' + this.proj_name + '" created')
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not add new project')   
+        status.fail(this, 'Could not add new project')   
       })  
     },
 
@@ -382,17 +382,17 @@ export default {
       .then(response => {
         // Start indicating progress. (This is here because we don't want the 
         // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
+        status.start(this)
       
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
         // Indicate success.
-        progressIndicator.succeed(this, 'New project uploaded')       
+        status.succeed(this, 'New project uploaded')       
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload file')     
+        status.fail(this, 'Could not upload file')     
       }) 
     },
 
@@ -504,7 +504,7 @@ export default {
       this.$store.commit('newActiveProject', matchProject)
       
       // Success popup.
-      progressIndicator.successPopup(this, 'Project "'+matchProject.project.name+'" loaded')
+      status.successPopup(this, 'Project "'+matchProject.project.name+'" loaded')
     },
 
     copyProject(uid) {
@@ -514,7 +514,7 @@ export default {
       console.log('copyProject() called for ' + matchProject.project.name)
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
       
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcCall('copy_project', [uid])
@@ -523,11 +523,11 @@ export default {
         this.updateProjectSummaries(response.data.projectId)
         
         // Indicate success.
-        progressIndicator.succeed(this, 'Project "'+matchProject.project.name+'" copied')       
+        status.succeed(this, 'Project "'+matchProject.project.name+'" copied')       
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not copy project')
+        status.fail(this, 'Could not copy project')
       })
     },
 
@@ -549,7 +549,7 @@ export default {
         newProjectSummary.project.name = projectSummary.renaming
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
@@ -562,11 +562,11 @@ export default {
           projectSummary.renaming = ''
           
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green popup message.          
+          status.succeed(this, '')  // No green popup message.          
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not rename project')    
+          status.fail(this, 'Could not rename project')    
         })      
       }
 
@@ -586,17 +586,17 @@ export default {
       console.log('downloadProjectFile() called for ' + matchProject.project.name)
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
         
       // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
       .then(response => {
         // Indicate success.
-        progressIndicator.succeed(this, '')  // No green popup message.        
+        status.succeed(this, '')  // No green popup message.        
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not download project')      
+        status.fail(this, 'Could not download project')      
       })
     },
 
@@ -625,17 +625,17 @@ export default {
       console.log('downloadProgbook() called for ' + matchProject.project.name)
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
       
       // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_progbook', [uid])
       .then(response => {
         // Indicate success.
-        progressIndicator.succeed(this, '')  // No green popup message.          
+        status.succeed(this, '')  // No green popup message.          
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not download progbook')     
+        status.fail(this, 'Could not download progbook')     
       })      
     },
 
@@ -646,17 +646,17 @@ export default {
       console.log('downloadDefaults() called for ' + matchProject.project.name)
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
       
       // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_defaults', [uid])
       .then(response => {
         // Indicate success.
-        progressIndicator.succeed(this, '')  // No green popup message.        
+        status.succeed(this, '')  // No green popup message.        
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not download defaults')     
+        status.fail(this, 'Could not download defaults')     
       })       
     },
 
@@ -671,42 +671,32 @@ export default {
       .then(response => {
         // Start indicating progress. (This is here because we don't want the 
         // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
+        status.start(this)
         
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries(uid)
         
         // Indicate success.
-        progressIndicator.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"')     
+        status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"')     
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload data')     
+        status.fail(this, 'Could not upload data')     
       })
     },
 
     uploadProgbook(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('uploadProgbook() called for ' + matchProject.project.name)
-
-      // Have the server copy the project, giving it a new name.
+      status.start(this) // Start indicating progress. (This is here because we don't want the
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
-          
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(uid)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')        
+        this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
+        status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload progbook')     
+        status.fail(this, 'Could not upload progbook') // Indicate failure.
       })
     },
 
@@ -740,7 +730,7 @@ export default {
       // Have the server delete the selected projects.
       if (selectProjectsUIDs.length > 0) {
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
       
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
@@ -764,11 +754,11 @@ export default {
           this.updateProjectSummaries(activeProjectId)
           
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green popup message.
+          status.succeed(this, '')  // No green popup message.
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not delete project/s')     
+          status.fail(this, 'Could not delete project/s')     
         }) 
       }
     },
@@ -783,16 +773,16 @@ export default {
       // Have the server download the selected projects.
       if (selectProjectsUIDs.length > 0) {
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectProjectsUIDs])
         .then(response => {
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green popup message.         
+          status.succeed(this, '')  // No green popup message.         
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not download project/s')     
+          status.fail(this, 'Could not download project/s')     
         })       
       }
     }
