@@ -14,6 +14,7 @@ import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
+from mpld3 import plugins
 import sciris.corelib.fileio as fileio
 import sciris.weblib.user as user
 import sciris.core as sc
@@ -25,6 +26,28 @@ from matplotlib.legend import Legend
 import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
 rc('font', size=14)
+
+
+class TickFormat(plugins.PluginBase):
+    """Tick format plugin."""
+
+    JAVASCRIPT = """
+    mpld3.register_plugin("tickformat", TickFormat);
+    TickFormat.prototype = Object.create(mpld3.Plugin.prototype);
+    TickFormat.prototype.constructor = TickFormat;
+    function TickFormat(fig, props) {
+        mpld3.Plugin.call(this, fig, props);
+        console.log('hi');
+        fig.setXTicks(null, function(d) {
+            return 'hello' + d3.format('.2s')(d);
+        });
+        fig.setYTicks(null, function(d) {
+            return d3.format('.2s')(d);
+        });
+    };
+    """
+    def __init__(self):
+        self.dict_ = {"type": "tickformat"}
 
 
 def timeit(method):
@@ -655,6 +678,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None
                 ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -704,6 +728,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             # pl.close('all')
