@@ -36,8 +36,8 @@ torun = [
 # "manualcalibrate",
 #"autocalibrate",
 # "parameterscenario",
-#'budgetscenarios',
-'optimization',
+'budgetscenarios',
+#'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -335,7 +335,9 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are
     P = au.demo(which='tb')
     results = P.run_scenarios()
     d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-    au.plot_series(d, axis="results")
+    figs = au.plot_series(d, axis="results")
+    from sciris.weblib import quickserver as qs
+    qs.browser(figs)
     
 
 if "optimization" in torun:

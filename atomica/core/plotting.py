@@ -801,7 +801,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     return figs
 
 
-def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -810,6 +810,8 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
     # - data - Draw scatter points for data wherever the output label matches
     #   a data label. Only draws data if the plot_type is 'line'
     global settings
+    
+    if axis is None: axis = 'outputs'
 
     assert axis in ['outputs', 'results', 'pops']
 

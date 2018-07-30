@@ -667,26 +667,29 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all'):
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
     import pylab as pl
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [supported_plots[plot_name] for plot_name in plot_names]
     graphs = []
-    for plot_name in plot_names:
+    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=supported_plots[plot_name], project=proj, pops=pops)
-            figs = au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
             for fig in figs:
                 pl.figure(fig.number)
                 pl.gca().set_facecolor('none')
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
-            print('Plot %s succeeded' % (plot_name))
+            print('Plot %s succeeded' % (output))
         except Exception as E:
-            print('WARNING: plot %s failed (%s)' % (plot_name, repr(E)))
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
 
     return {'graphs':graphs}
 
@@ -1019,13 +1022,53 @@ def sanitize(vals, skip=False, forcefloat=False):
 
 @register_RPC(validation_type='nonanonymous user')    
 def run_scenarios(project_id):
-    print('Running scenarios...')
-    proj = load_project(project_id, raise_exception=True)
-    results = proj.run_scenarios()
-    output = get_plots(proj, results)
-    print('Saving project...')
-    save_project(proj)    
+    
+    print('TEMP')
+    
+    scen_outputs = ["lt_inf", "ac_inf"]
+    scen_pop = "15-64"
+    P = au.demo(which='tb')
+    results = P.run_scenarios()
+    d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+    figs = au.plot_series(d, axis="results")
+    import pylab as pl
+    graphs = []
+    for fig in figs:
+        pl.figure(fig.number)
+        pl.gca().set_facecolor('none')
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+    pl.close('all')
+    output = {'graphs':graphs}
     return output
+    
+#    print('Running scenarios...')
+#    proj = load_project(project_id, raise_exception=True)
+#    results = proj.run_scenarios()
+#    
+#    print('TEMP plotting')
+#    scen_outputs = ["lt_inf", "ac_inf"]
+#    scen_pops = ["15-64"]
+#    
+#    results = proj.run_scenarios()
+#    d = au.PlotData(results, outputs=scen_outputs, pops=scen_pops)
+#    figs = au.plot_series(d, axis="results")
+#    
+#    import pylab as pl
+#    graphs = []
+#    for fig in figs:
+#        pl.figure(fig.number)
+#        pl.gca().set_facecolor('none')
+#        graph_dict = mpld3.fig_to_dict(fig)
+#        graphs.append(graph_dict)
+#    pl.close('all')
+#    
+#    output = {'graphs':graphs}
+#    
+##    output = get_plots(proj, results, axis="results", outputs=scen_outputs, pops=scen_pops, plotdata=False)
+#    print('Saving project...')
+#    save_project(proj)    
+#    return output
     
 
 
