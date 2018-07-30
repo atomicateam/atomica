@@ -60,10 +60,10 @@ def default_project(which=None, do_run=True, verbose=False, **kwargs):
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
         if verbose: print('Loading progbook')
         P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True)
-#        if verbose: print('Creating scenarios')
-#        P.demo_scenarios() # Add example scenarios
-#        if verbose: print('Creating optimizations')
-#        P.demo_optimization() # Add optimization example
+        if verbose: print('Creating scenarios')
+        P.demo_scenarios() # Add example scenarios
+        if verbose: print('Creating optimizations')
+        P.demo_optimization() # Add optimization example
         if verbose: print('Done!')
     
     elif which=='service':

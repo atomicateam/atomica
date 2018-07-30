@@ -29,7 +29,7 @@ torun = [
 #'plotcascade',
 #"makeprogramspreadsheet",
 "loadprogramspreadsheet",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 # "export",
 # "listspecs",
