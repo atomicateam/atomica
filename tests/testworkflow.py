@@ -9,7 +9,7 @@ import os
 import atomica.ui as au
 import sciris.core as sc
 import pylab as pl
-
+import matplotlib.pyplot as plt
 
 # test = "sir"
 test = "tb"
@@ -327,7 +327,8 @@ if "parameterscenario" in torun:
 
     d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
     au.plot_series(d, axis="results")
-
+    plt.title('Scenario comparison')
+    plt.ylabel('Number of people')
 
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are 
     scen_outputs = ["lt_inf", "ac_inf"]
