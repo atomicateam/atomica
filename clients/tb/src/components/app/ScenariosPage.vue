@@ -37,8 +37,8 @@ Last update: 2018-07-29
 
       <div>
         <button class="btn __green" @click="runScens()">Run scenarios</button>
-        <button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>
-        <button class="btn __blue" @click="addBudgetScenModal()">Add budget scenario</button>
+        <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
+        <button class="btn __blue" @click="addBudgetScenModal()">Add scenario</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
 
@@ -84,7 +84,6 @@ Last update: 2018-07-29
             <input type="text"
                    class="txbox"
                    v-model="defaultBudgetScen.start_year"/><br>
-            <b>Budget values</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
               <tr>
@@ -95,7 +94,7 @@ Last update: 2018-07-29
               <tbody>
               <tr v-for="item in defaultBudgetScen.alloc">
                 <td>
-                  {{ item[0] }}
+                  {{ item[2] }}
                 </td>
                 <td>
                   <input type="text"

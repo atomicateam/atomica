@@ -884,7 +884,7 @@ def delete_progset(project_id, progsetname=None):
 #%% Scenario functions and RPCs
 ##################################################################################
 
-def py_to_js_scen(py_scen, project):
+def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
     attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
@@ -899,7 +899,7 @@ def py_to_js_scen(py_scen, project):
     if isinstance(py_scen, dict): alloc = py_scen['alloc']
     else:                         alloc = py_scen.alloc
     for prog_name,budget in alloc.items():
-        prog_label = project.progset().programs[prog_name].name
+        prog_label = project.progset().programs[prog_name].label
         if sc.isiterable(budget):
             if len(budget)>1:
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
@@ -934,7 +934,7 @@ def get_scen_info(project_id):
     proj = load_project(project_id, raise_exception=True)
     scenario_summaries = []
     for py_scen in proj.scens.values():
-        js_scen = py_to_js_scen(py_scen)
+        js_scen = py_to_js_scen(py_scen, project=proj)
         scenario_summaries.append(js_scen)
     print('JavaScript scenario info:')
     print(scenario_summaries)
@@ -962,7 +962,7 @@ def get_default_budget_scen(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, raise_exception=True)
     py_scen = proj.demo_scenarios(doadd=False)
-    js_scen = py_to_js_scen(py_scen)
+    js_scen = py_to_js_scen(py_scen, project=proj)
     print('Created default JavaScript scenario:')
     print(js_scen)
     return js_scen

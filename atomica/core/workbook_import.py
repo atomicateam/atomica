@@ -400,8 +400,7 @@ def load_progbook(spreadsheet, verbose=False):
     data['pars'] = sc.odict()
     data['progs']['short'] = []
     data['progs']['name'] = []
-    data['progs']['fullname'] = []
-    print('WARNING, temporary!')
+    data['progs']['label'] = []
     data['progs']['target_pops'] = []
     data['progs']['target_comps'] = []
     
@@ -423,8 +422,8 @@ def load_progbook(spreadsheet, verbose=False):
                     if verbose: print('  Reading row for program: %s' % thesedata[0])
                     progname = str(thesedata[0])
                     data['progs']['short'].append(progname)
-                    data['progs']['name'].append(str(thesedata[1]))
-                    data['progs']['fullname'].append(str(thesedata[1]))
+                    data['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
+                    data['progs']['label'].append(str(thesedata[1]))
                     data['progs']['target_pops'].append(thesedata[3:colindices[0]])
                     data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
                     data[progname] = sc.odict()
