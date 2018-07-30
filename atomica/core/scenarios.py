@@ -125,7 +125,8 @@ class ParameterScenario(Scenario):
 
 class BudgetScenario(Scenario):
 
-    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None):
+    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, verbose=False):
+        if verbose: print('Creating budget scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
         self.name = name
         self.parsetname = parsetname
         self.progsetname = progsetname
