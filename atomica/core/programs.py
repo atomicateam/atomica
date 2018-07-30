@@ -467,7 +467,6 @@ class ProgramSet(NamedItem):
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
                     if not self.covout[(par_type,pop)].has_pars():
-                        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
                     else:
@@ -573,7 +572,6 @@ class Program(NamedItem):
         self.target_pops        = None # Populations targeted by the program
         self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
-#        self.base_spend_data    = None # Latest or estimated base expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
