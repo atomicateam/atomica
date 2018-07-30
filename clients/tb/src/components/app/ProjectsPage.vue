@@ -688,25 +688,15 @@ export default {
     uploadProgbook(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('uploadProgbook() called for ' + matchProject.project.name)
-
-      // Have the server copy the project, giving it a new name.
+      progressIndicator.start(this) // Start indicating progress. (This is here because we don't want the
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
-          
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(uid)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')        
+        this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
+        progressIndicator.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload progbook')     
+        progressIndicator.fail(this, 'Could not upload progbook') // Indicate failure.
       })
     },
 

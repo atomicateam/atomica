@@ -15,7 +15,7 @@ Last update: 2018-05-28
           </span>
           <br/><br/>
           <div style="font-size:14px; font-weight:normal">
-            Beta version {{ version }} ({{ date }})
+            Version {{ version }} ({{ date }})
           </div>
         </div>
       </div>
