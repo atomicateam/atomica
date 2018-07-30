@@ -720,6 +720,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
 @register_RPC(validation_type='nonanonymous user')
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
@@ -731,7 +732,8 @@ def get_y_factors(project_id, parsetname=-1):
                     parlabel = proj.framework.get_spec_value(parname,'label')
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
-                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
+                    dispvalue = thispar.interpolate([TEMP_YEAR],popname)[0]*y_factor
+                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
@@ -742,13 +744,18 @@ def get_y_factors(project_id, parsetname=-1):
 @register_RPC(validation_type='nonanonymous user')    
 def set_y_factors(project_id, parsetname=-1, y_factors=None, start_year=None, end_year=None):
     print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
-    for par in y_factors:
-        value = float(par['value'])
-        parset.get_par(par['parname']).y_factor[par['popname']] = value
-        if value != 1:
-            print('Modified: %s' % par)
+    for pardict in y_factors:
+        parname   = pardict['parname']
+        dispvalue = float(pardict['dispvalue'])
+        popname   = pardict['popname']
+        thispar   = parset.get_par(parname)
+        y_factor  = dispvalue/thispar.interpolate([TEMP_YEAR],popname)[0]
+        parset.get_par(parname).y_factor[popname] = y_factor
+        if not sc.approx(y_factor, 1):
+            print('Modified: %s' % parname)
     
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)

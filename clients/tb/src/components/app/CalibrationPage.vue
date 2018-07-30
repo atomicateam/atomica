@@ -49,18 +49,17 @@ Last update: 2018-07-30
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
-          &nbsp;&nbsp;&nbsp;
           <b>Start year: &nbsp;</b>
           <input type="text"
                  class="txbox"
                  v-model="startYear"
-                 style="display: inline-block; width:30%"/>
+                 style="display: inline-block; width:70px"/>
           &nbsp;&nbsp;&nbsp;
           <b>End year: &nbsp;</b>
           <input type="text"
                  class="txbox"
                  v-model="endYear"
-                 style="display: inline-block; width:30%"/>
+                 style="display: inline-block; width:70px"/>
         </div>
 
       </div>
@@ -103,7 +102,7 @@ Last update: 2018-07-30
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.value"/>
+                       v-model="par.dispvalue"/>
               </td>
             </tr>
             </tbody>
