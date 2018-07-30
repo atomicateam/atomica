@@ -587,7 +587,7 @@ Last update: 2018-07-30
     display: block;
   }
   .calib-params {
-    flex: 1 0 10%;
+    flex: 1 0 30%;
   }
   .plotopts-main {
     /*width: 350px;*/
@@ -602,7 +602,7 @@ Last update: 2018-07-30
     flex: 1 0 10%;
   }
   .calib-graphs {
-    flex: 1 0 60%;
+    flex: 1 0 50%;
   }
   .calib-graph {
     width:650px;
