@@ -398,11 +398,11 @@ Last update: 2018-07-30
             try {
               console.log(response.data.graphs[index]);
               mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                fig.setYTicks(3, function(d) {
-                  return d3.format('.2s')(d);
+                fig.setXTicks(null, function(d) {
+                    return d3.timeFormat('%y')(d3.utcParse('%Y')(d));
                 });
-                fig.setXTicks(10, function(d) {
-                  return d3.format('.4i')(d);
+                fig.setYTicks(null, function(d) {
+                    return d3.format('.2s')(d);
                 });
               });
               this.haveDrawnGraphs = true
