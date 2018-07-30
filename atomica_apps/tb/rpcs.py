@@ -1,6 +1,6 @@
 """
 rpcs.py -- code related to HealthPrior project management
-    
+
 Last update: 2018jun04 by cliffk
 """
 
@@ -79,17 +79,17 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
-        
+
 #
 # Other functions (mostly helpers for the RPCs)
 #
-    
+
 
 def load_project_record(project_id, raise_exception=True):
     """
     Return the project DataStore reocord, given a project UID.
-    """ 
-    
+    """
+
     # Load the matching prj.ProjectSO object from the database.
     project_record = prj.proj_collection.get_object_by_uid(project_id)
 
@@ -97,17 +97,17 @@ def load_project_record(project_id, raise_exception=True):
     if project_record is None:
         if raise_exception:
             raise Exception('ProjectDoesNotExist(id=%s)' % project_id)
-            
+
     # Return the Project object for the match (None if none found).
     return project_record
 
 @timeit
 def load_project(project_id, raise_exception=True):
     """
-    Return the Nutrition Project object, given a project UID, or None if no 
+    Return the Nutrition Project object, given a project UID, or None if no
     ID match is found.
-    """ 
-    
+    """
+
     # Load the project record matching the ID passed in.
 
     ts = time.time()
@@ -124,7 +124,7 @@ def load_project(project_id, raise_exception=True):
             raise Exception('ProjectDoesNotExist(id=%s)' % project_id)
         else:
             return None
-        
+
     # Return the found project.
     proj = project_record.proj
 
@@ -136,8 +136,8 @@ def load_project(project_id, raise_exception=True):
 def load_project_summary_from_project_record(project_record):
     """
     Return the project summary, given the DataStore record.
-    """ 
-    
+    """
+
     # Return the built project summary.
     return project_record.get_user_front_end_repr()
 
@@ -145,49 +145,49 @@ def load_project_summary_from_project_record(project_record):
 def load_current_user_project_summaries2():
     """
     Return project summaries for all projects the user has to the client.
-    """ 
-    
+    """
+
     # Get the prj.ProjectSO entries matching the user UID.
     project_entries = prj.proj_collection.get_project_entries_by_user(current_user.get_id())
-    
-    # Grab a list of project summaries from the list of prj.ProjectSO objects we 
+
+    # Grab a list of project summaries from the list of prj.ProjectSO objects we
     # just got.
-    return {'projects': map(load_project_summary_from_project_record, 
+    return {'projects': map(load_project_summary_from_project_record,
         project_entries)}
 
 @timeit
 def get_unique_name(name, other_names=None):
     """
-    Given a name and a list of other names, find a replacement to the name 
+    Given a name and a list of other names, find a replacement to the name
     that doesn't conflict with the other names, and pass it back.
     """
-    
-    # If no list of other_names is passed in, load up a list with all of the 
+
+    # If no list of other_names is passed in, load up a list with all of the
     # names from the project summaries.
     if other_names is None:
         other_names = [p['project']['name'] for p in load_current_user_project_summaries2()['projects']]
-      
+
     # Start with the passed in name.
     i = 0
     unique_name = name
-    
-    # Try adding an index (i) to the name until we find one that no longer 
+
+    # Try adding an index (i) to the name until we find one that no longer
     # matches one of the other names in the list.
     while unique_name in other_names:
         i += 1
         unique_name = "%s (%d)" % (name, i)
-        
+
     # Return the found name.
     return unique_name
 
 @timeit
 def save_project(proj):
     """
-    Given a Project object, wrap it in a new prj.ProjectSO object and put this 
-    in the project collection (either adding a new object, or updating an 
+    Given a Project object, wrap it in a new prj.ProjectSO object and put this
+    in the project collection (either adding a new object, or updating an
     existing one)  skip_result lets you null out saved results in the Project.
-    """ 
-    
+    """
+
     # Load the project record matching the UID of the project passed in.
 
     ts = time.time()
@@ -197,26 +197,26 @@ def save_project(proj):
     print 'Loaded project record - elapsed time %.2f' % ((time.time()-ts)*1000)
 
     # Create the new project entry and enter it into the ProjectCollection.
-    # Note: We don't need to pass in project.uid as a 3rd argument because 
+    # Note: We don't need to pass in project.uid as a 3rd argument because
     # the constructor will automatically use the Project's UID.
     projSO = prj.ProjectSO(proj, project_record.owner_uid)
 
     print 'ProjectSO constructor - elapsed time %.2f' % ((time.time()-ts)*1000)
 
     prj.proj_collection.update_object(projSO)
-    
+
     print 'Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000)
 
 @timeit
 def save_project_as_new(proj, user_id):
     """
-    Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
+    Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
-    """ 
+    """
     proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
     projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
-    prj.proj_collection.add_object(projSO)  
+    prj.proj_collection.add_object(projSO)
     print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
     save_project(proj) # Save the changed Project object to the DataStore.
     return None
@@ -263,42 +263,42 @@ def get_package_set_fe_repr(packageset):
 # RPC definitions
 @register_RPC()
 def get_version_info():
-	''' Return the information about the project. '''
-	gitinfo = sc.gitinfo(__file__)
-	version_info = {
-	       'version':   au.version,
-	       'date':      au.versiondate,
-	       'gitbranch': gitinfo['branch'],
-	       'githash':   gitinfo['hash'],
-	       'gitdate':   gitinfo['date'],
-	}
-	return version_info
+    ''' Return the information about the project. '''
+    gitinfo = sc.gitinfo(__file__)
+    version_info = {
+           'version':   au.version,
+           'date':      au.versiondate,
+           'gitbranch': gitinfo['branch'],
+           'githash':   gitinfo['hash'],
+           'gitdate':   gitinfo['date'],
+    }
+    return version_info
 
 
 ##################################################################################
 #%% Project RPCs
 ##################################################################################
-    
+
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
     Return the projects associated with the Sciris Demo user.
     """
-    
+
     # Get the user UID for the _ScirisDemo user.
     user_id = user.get_scirisdemo_user()
-   
+
     # Get the prj.ProjectSO entries matching the _ScirisDemo user UID.
     project_entries = prj.proj_collection.get_project_entries_by_user(user_id)
 
     # Collect the project summaries for that user into a list.
-    project_summary_list = map(load_project_summary_from_project_record, 
+    project_summary_list = map(load_project_summary_from_project_record,
         project_entries)
-    
+
     # Sort the projects by the project name.
-    sorted_summary_list = sorted(project_summary_list, 
+    sorted_summary_list = sorted(project_summary_list,
         key=lambda proj: proj['project']['name']) # Sorts by project name
-    
+
     # Return a dictionary holding the project summaries.
     output = {'projects': sorted_summary_list}
     return output
@@ -307,11 +307,11 @@ def get_scirisdemo_projects():
 def load_project_summary(project_id):
     """
     Return the project summary, given the Project UID.
-    """ 
-    
+    """
+
     # Load the project record matching the UID of the project passed in.
     project_entry = load_project_record(project_id)
-    
+
     # Return a project summary from the accessed prj.ProjectSO entry.
     return load_project_summary_from_project_record(project_entry)
 
@@ -320,8 +320,8 @@ def load_project_summary(project_id):
 def load_current_user_project_summaries():
     """
     Return project summaries for all projects the user has to the client.
-    """ 
-    
+    """
+
     return load_current_user_project_summaries2()
 
 
@@ -329,36 +329,36 @@ def load_current_user_project_summaries():
 def load_all_project_summaries():
     """
     Return project summaries for all projects to the client.
-    """ 
-    
+    """
+
     # Get all of the prj.ProjectSO entries.
     project_entries = prj.proj_collection.get_all_objects()
-    
-    # Grab a list of project summaries from the list of prj.ProjectSO objects we 
+
+    # Grab a list of project summaries from the list of prj.ProjectSO objects we
     # just got.
-    return {'projects': map(load_project_summary_from_project_record, 
+    return {'projects': map(load_project_summary_from_project_record,
         project_entries)}
-            
-@register_RPC(validation_type='nonanonymous user')    
+
+@register_RPC(validation_type='nonanonymous user')
 def delete_projects(project_ids):
     """
     Delete all of the projects with the passed in UIDs.
-    """ 
-    
+    """
+
     # Loop over the project UIDs of the projects to be deleted...
     for project_id in project_ids:
         # Load the project record matching the UID of the project passed in.
         record = load_project_record(project_id, raise_exception=True)
-        
-        # If a matching record is found, delete the object from the 
+
+        # If a matching record is found, delete the object from the
         # ProjectCollection.
         if record is not None:
             prj.proj_collection.delete_object_by_uid(project_id)
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@register_RPC(call_type='download', validation_type='nonanonymous user')
 def download_project(project_id):
     """
-    For the passed in project UID, get the Project on the server, save it in a 
+    For the passed in project UID, get the Project on the server, save it in a
     file, minus results, and pass the full path of this file back.
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
@@ -370,7 +370,7 @@ def download_project(project_id):
     return full_file_name # Return the full filename.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@register_RPC(call_type='download', validation_type='nonanonymous user')
 def download_databook(project_id):
     """
     Download databook
@@ -384,7 +384,7 @@ def download_databook(project_id):
     return full_file_name # Return the full filename.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@register_RPC(call_type='download', validation_type='nonanonymous user')
 def download_progbook(project_id):
     """ Download program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
@@ -394,9 +394,9 @@ def download_progbook(project_id):
     proj.progbook.save(full_file_name)
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
-    
-    
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
 def create_progbook(project_id, num_progs):
     """ Create program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
@@ -405,10 +405,10 @@ def create_progbook(project_id, num_progs):
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.    
-    
+    return full_file_name # Return the full filename.
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
 def download_defaults(project_id):
     """
     Download defaults
@@ -425,7 +425,7 @@ def download_defaults(project_id):
 @register_RPC(call_type='download', validation_type='nonanonymous user')
 def load_zip_of_prj_files(project_ids):
     """
-    Given a list of project UIDs, make a .zip file containing all of these 
+    Given a list of project UIDs, make a .zip file containing all of these
     projects as .prj files, and return the full path to this file.
     """
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
@@ -451,7 +451,7 @@ def add_demo_project(user_id):
     proj.results = au.NDict()
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     store_result_separately(proj,result)
-    print(">> add_demo_project %s" % (proj.name))    
+    print(">> add_demo_project %s" % (proj.name))
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
@@ -464,7 +464,7 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
     proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
-    print(">> create_new_project %s" % (proj.name))    
+    print(">> create_new_project %s" % (proj.name))
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
@@ -481,7 +481,7 @@ def upload_databook(databook_filename, project_id):
     """
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_databook(databook_path=databook_filename) 
+    proj.load_databook(databook_path=databook_filename)
     proj.modified = sc.today()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
@@ -494,7 +494,7 @@ def upload_progbook(progbook_filename, project_id):
     """
     print(">> upload_progbook '%s'" % progbook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_progbook(progbook_path=progbook_filename) 
+    proj.load_progbook(progbook_path=progbook_filename)
     proj.modified = sc.today()
     save_project(proj)
     return { 'projectId': str(proj.uid) }
@@ -503,50 +503,50 @@ def upload_progbook(progbook_filename, project_id):
 @register_RPC(validation_type='nonanonymous user')
 def update_project_from_summary(project_summary):
     """
-    Given the passed in project summary, update the underlying project 
+    Given the passed in project summary, update the underlying project
     accordingly.
-    """ 
-    
+    """
+
     # Load the project corresponding with this summary.
     proj = load_project(project_summary['project']['id'])
-       
+
     # Use the summary to set the actual project.
     proj.name = project_summary['project']['name']
-    
+
     # Set the modified time to now.
     proj.modified = sc.today()
-    
+
     # Save the changed project to the DataStore.
     save_project(proj)
 
 @register_RPC(validation_type='nonanonymous user')
 def copy_project(project_id):
     """
-    Given a project UID, creates a copy of the project with a new UID and 
+    Given a project UID, creates a copy of the project with a new UID and
     returns that UID.
     """
-    
+
     # Get the Project object for the project to be copied.
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
-    
+
     # Make a copy of the project loaded in to work with.
     new_project = sc.dcp(proj)
-    
-    # Just change the project name, and we have the new version of the 
+
+    # Just change the project name, and we have the new version of the
     # Project object to be saved as a copy.
     new_project.name = get_unique_name(proj.name, other_names=None)
-    
+
     # Set the user UID for the new projects record to be the current user.
-    user_id = current_user.get_id() 
-    
+    user_id = current_user.get_id()
+
     # Display the call information.
     # TODO: have this so that it doesn't show when logging is turned off
-    print(">> copy_project %s" % (new_project.name)) 
-    
+    print(">> copy_project %s" % (new_project.name))
+
     # Save a DataStore projects record for the copy project.
     save_project_as_new(new_project, user_id)
-    
+
     # Remember the new project UID (created in save_project_as_new()).
     copy_project_id = new_project.uid
 
@@ -556,25 +556,25 @@ def copy_project(project_id):
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
 def create_project_from_prj_file(prj_filename, user_id):
     """
-    Given a .prj file name and a user UID, create a new project from the file 
+    Given a .prj file name and a user UID, create a new project from the file
     with a new UID and return the new UID.
     """
-    
+
     # Display the call information.
     print(">> create_project_from_prj_file '%s'" % prj_filename)
-    
+
     # Try to open the .prj file, and return an error message if this fails.
     try:
         proj = fileio.gzip_string_pickle_file_to_object(prj_filename)
     except Exception:
         return { 'error': 'BadFileFormatError' }
-    
+
     # Reset the project name to a new project name that is unique.
     proj.name = get_unique_name(proj.name, other_names=None)
-    
+
     # Save the new project in the DataStore.
     save_project_as_new(proj, user_id)
-    
+
     # Return the new project UID in the return message.
     return { 'projectId': str(proj.uid) }
 
@@ -606,11 +606,11 @@ def supported_plots_func():
 
     return supported_plots
 
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def get_supported_plots(only_keys=False):
-    
+
     supported_plots = supported_plots_func()
-    
+
     if only_keys:
         return supported_plots.keys()
     else:
@@ -668,7 +668,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None
 
 def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False):
     results = sc.promotetolist(results)
-    supported_plots = supported_plots_func() 
+    supported_plots = supported_plots_func()
     if plot_names is None: plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
@@ -737,7 +737,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 
 @timeit
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def set_y_factors(project_id, parsetname=-1, y_factors=None):
     print('Setting y factors for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -747,7 +747,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
         parset.get_par(par['parname']).y_factor[par['popname']] = value
         if value != 1:
             print('Modified: %s' % par)
-    
+
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
@@ -762,19 +762,19 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None):
     return output
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def automatic_calibration(project_id, parsetname=-1, max_time=10):
-    
+
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     proj.calibrate(max_time=max_time) # WARNING, add kwargs!
-    
+
     print('Rerunning calibrated model...')
-    
+
     print('Resultsets before run: %s' % len(proj.results))
     result = proj.run_sim(parset=parsetname, store_results=True)
     print('Resultsets after run: %s' % len(proj.results))
-    save_project(proj)    
+    save_project(proj)
 
     output = get_calibration_plots(proj, result,pops=None,stacked=True)
 
@@ -797,9 +797,9 @@ def export_results(project_id, resultset=-1):
     if isinstance(result, ResultPlaceholder):
         print('Getting actual result...')
         result = result.get()
-    
-    dirname = fileio.downloads_dir.dir_path 
-    file_name = '%s.xlsx' % result.name 
+
+    dirname = fileio.downloads_dir.dir_path
+    file_name = '%s.xlsx' % result.name
     full_file_name = os.path.join(dirname, file_name)
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
@@ -811,7 +811,7 @@ def export_results(project_id, resultset=-1):
 ##################################################################################
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def get_parset_info(project_id):
     print('Returning parset info...')
     proj = load_project(project_id, raise_exception=True)
@@ -819,7 +819,7 @@ def get_parset_info(project_id):
     return parset_names
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def rename_parset(project_id, parsetname=None, new_name=None):
     print('Renaming parset from %s to %s...' % (parsetname, new_name))
     proj = load_project(project_id, raise_exception=True)
@@ -829,7 +829,7 @@ def rename_parset(project_id, parsetname=None, new_name=None):
     return None
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def copy_parset(project_id, parsetname=None):
     print('Copying parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -843,7 +843,7 @@ def copy_parset(project_id, parsetname=None):
     return None
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def delete_parset(project_id, parsetname=None):
     print('Deleting parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -863,7 +863,7 @@ def delete_parset(project_id, parsetname=None):
 ##################################################################################
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def get_progset_info(project_id):
     print('Returning progset info...')
     proj = load_project(project_id, raise_exception=True)
@@ -871,7 +871,7 @@ def get_progset_info(project_id):
     return progset_names
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def rename_progset(project_id, progsetname=None, new_name=None):
     print('Renaming progset from %s to %s...' % (progsetname, new_name))
     proj = load_project(project_id, raise_exception=True)
@@ -881,7 +881,7 @@ def rename_progset(project_id, progsetname=None, new_name=None):
     return None
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def copy_progset(project_id, progsetname=None):
     print('Copying progset %s...' % progsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -895,7 +895,7 @@ def copy_progset(project_id, progsetname=None):
     return None
 
 #TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+@register_RPC(validation_type='nonanonymous user')
 def delete_progset(project_id, progsetname=None):
     print('Deleting progset %s...' % progsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -917,14 +917,14 @@ def delete_progset(project_id, progsetname=None):
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
-    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    attrs = ['name', 'parsetname', 'progsetname', 'start_year']
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
-            
+
         else:
             js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
-            
+
     js_scen['alloc'] = []
     if isinstance(py_scen, dict): alloc = py_scen['alloc']
     else:                         alloc = py_scen.alloc
@@ -941,7 +941,7 @@ def py_to_js_scen(py_scen, project=None):
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'parsetname', 'progsetname'] 
+    attrs = ['name', 'parsetname', 'progsetname']
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
     py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
@@ -956,9 +956,9 @@ def js_to_py_scen(js_scen):
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
         py_scen['alloc'][prog_name] = float(budget)
     return py_scen
-    
 
-@register_RPC(validation_type='nonanonymous user')    
+
+@register_RPC(validation_type='nonanonymous user')
 def get_scen_info(project_id):
     print('Getting scenario info...')
     proj = load_project(project_id, raise_exception=True)
@@ -971,7 +971,7 @@ def get_scen_info(project_id):
     return scenario_summaries
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def set_scen_info(project_id, scenario_summaries):
     print('Setting scenario info...')
     proj = load_project(project_id, raise_exception=True)
@@ -987,7 +987,7 @@ def set_scen_info(project_id, scenario_summaries):
     return None
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def get_default_budget_scen(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, raise_exception=True)
@@ -1025,19 +1025,19 @@ def sanitize(vals, skip=False, forcefloat=False):
         return output
     else:
         return output[0]
-    
-    
 
-@register_RPC(validation_type='nonanonymous user')    
+
+
+@register_RPC(validation_type='nonanonymous user')
 def run_scenarios(project_id):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     output = get_plots(proj, results)
     print('Saving project...')
-    save_project(proj)    
+    save_project(proj)
     return output
-    
+
 
 
 ##################################################################################
@@ -1050,7 +1050,7 @@ def rpc_optimize(proj=None, json=None):
     return optimized_result
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def get_optim_info(project_id):
     print('Getting optimization info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1070,7 +1070,7 @@ def get_optim_info(project_id):
     return optim_summaries
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def get_default_optim(project_id):
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
@@ -1093,7 +1093,7 @@ def to_number(raw):
     return output
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@register_RPC(validation_type='nonanonymous user')
 def set_optim_info(project_id, optim_summaries):
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1111,17 +1111,17 @@ def set_optim_info(project_id, optim_summaries):
         print(json)
         proj.make_optimization(json=json)
     print('Saving project...')
-    save_project(proj)   
+    save_project(proj)
     return None
 
 
 # Deprecated, see equivalent in apptasks.py
-#@register_RPC(validation_type='nonanonymous user')    
+#@register_RPC(validation_type='nonanonymous user')
 #def run_optimization(project_id, optim_name):
 #    print('Running optimization...')
 #    proj = load_project(project_id, raise_exception=True)
 #    results = proj.run_optimization(optim_name)
 #    output = get_plots(proj, results) # outputs=['alive','ddis']
 #    print('Saving project...')
-#    save_project(proj)    
+#    save_project(proj)
 #    return output
