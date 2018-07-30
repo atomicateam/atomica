@@ -630,7 +630,6 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 def supported_plots_func():
-    
     supported_plots = {
             'Population size':'alive',
             'Latent infections':'lt_inf',
@@ -652,7 +651,6 @@ def supported_plots_func():
             'Active treatment':'num_treat',
             'TB-related deaths':':ddis',
             }
-    
     return supported_plots
 
 
@@ -667,26 +665,39 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all'):
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None, replace_nans=True):
     import pylab as pl
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [supported_plots[plot_name] for plot_name in plot_names]
     graphs = []
-    for plot_name in plot_names:
+    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=supported_plots[plot_name], project=proj, pops=pops)
-            figs = au.plot_series(plotdata, data=proj.data) # Todo - customize plot formatting here
+            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series[nan_ind] = series[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
             for fig in figs:
                 pl.figure(fig.number)
                 pl.gca().set_facecolor('none')
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
-            print('Plot %s succeeded' % (plot_name))
+            print('Plot %s succeeded' % (output))
         except Exception as E:
-            print('WARNING: plot %s failed (%s)' % (plot_name, repr(E)))
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
 
     return {'graphs':graphs}
 
@@ -746,57 +757,6 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     save_project(proj)    
     output = get_plots(proj, result)
     return output
-
-
-#@register_RPC(validation_type='nonanonymous user')    
-#def run_default_scenario(project_id):
-#    
-#    import pylab as pl
-#    
-#    print('Running default scenario...')
-#    proj = load_project(project_id, raise_exception=True)
-#    
-#    scvalues = dict()
-#
-#    scen_par = "spd_infxness"
-#    scen_pop = "15-64"
-#    scen_outputs = ["lt_inf", "ac_inf"]
-#
-#    scvalues[scen_par] = dict()
-#    scvalues[scen_par][scen_pop] = dict()
-#
-#    # Insert (or possibly overwrite) one value.
-#    scvalues[scen_par][scen_pop]["y"] = [0.125]
-#    scvalues[scen_par][scen_pop]["t"] = [2015.]
-#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
-#
-#    proj.make_scenario(name="varying_infections", instructions=scvalues)
-#    result1 = proj.run_scenario(scenario="varying_infections", parset="default", store_results = False, result_name="scen1")
-#    store_result_separately(proj, result1)
-#
-#    # Insert two values and eliminate everything between them.
-#    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-#    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-#
-#    proj.make_scenario(name="varying_infections2", instructions=scvalues)
-#    result2 = proj.run_scenario(scenario="varying_infections2", parset="default", store_results = False, result_name="scen2")
-#    store_result_separately(proj, result2)
-#
-#    figs = []
-#    graphs = []
-#    d = au.PlotData([result1,result2], outputs=scen_outputs, pops=[scen_pop])
-#    figs += au.plot_series(d, axis="results")
-#    pl.gca().set_facecolor('none')
-#    
-#    for f,fig in enumerate(figs):
-#        graph_dict = mpld3.fig_to_dict(fig)
-#        graphs.append(graph_dict)
-#        print('Converted figure %s of %s' % (f+1, len(figs)))
-#    
-#    print('Saving project...')
-#    save_project(proj)    
-#    return {'graphs':graphs}
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
@@ -924,56 +884,84 @@ def delete_progset(project_id, progsetname=None):
 #%% Scenario functions and RPCs
 ##################################################################################
 
-def py_to_js_scen(py_scen, prog_names):
+def py_to_js_scen(py_scen):
+    ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
+    js_scen = {}
+    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    for attr in attrs:
+        if isinstance(py_scen, dict):
+            js_scen[attr] = py_scen[attr] # Copy the attributes directly
+            
+        else:
+            js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
+            
+    js_scen['alloc'] = []
+    if isinstance(py_scen, dict): alloc = py_scen['alloc']
+    else:                         alloc = py_scen.alloc
+    for prog_name,budget in alloc.items():
+        if sc.isiterable(budget):
+            if len(budget)>1:
+                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            else:
+                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+        js_scen['alloc'].append([prog_name,float(budget)])
+    return js_scen
+
+def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
-    print('NOT IMPLEMENTED')
-    return None
-#    settings = nu.Settings()
-#    attrs = ['name', 'active', 'scen_type']
-#    js_scen = {}
-#    for attr in attrs:
-#        js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
-#    js_scen['spec'] = []
-#    for prog_name in prog_names:
-#        this_spec = {}
-#        this_spec['name'] = prog_name
-#        this_spec['included'] = True if prog_name in py_scen.prog_set else False
-#        this_spec['vals'] = []
-#        if prog_name in py_scen.covs:
-#            this_spec['vals'] = py_scen.covs[prog_name]
-#        else:
-#            this_spec['vals'] = [None]*settings.n_years # WARNING, kludgy way to extract the number of years
-#        js_scen['spec'].append(this_spec)
-#        js_scen['t'] = settings.t
-#    return js_scen
+    py_scen = sc.odict()
+    attrs = ['name', 'parsetname', 'progsetname'] 
+    for attr in attrs:
+        py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
+    py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+    py_scen['alloc'] = sc.odict()
+    for item in js_scen['alloc']:
+        prog_name = item[0]
+        budget = item[1]
+        if sc.isiterable(budget):
+            if len(budget)>1:
+                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            else:
+                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+        py_scen['alloc'][prog_name] = float(budget)
+    return py_scen
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def get_scenario_info(project_id):
-
+def get_scen_info(project_id):
     print('Getting scenario info...')
     proj = load_project(project_id, raise_exception=True)
-    
     scenario_summaries = []
     for py_scen in proj.scens.values():
-        js_scen = py_to_js_scen(py_scen, proj.dataset().prog_names())
+        js_scen = py_to_js_scen(py_scen)
         scenario_summaries.append(js_scen)
-    
     print('JavaScript scenario info:')
     print(scenario_summaries)
-
     return scenario_summaries
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def get_default_scenario(project_id):
+def set_scen_info(project_id, scenario_summaries):
+    print('Setting scenario info...')
+    proj = load_project(project_id, raise_exception=True)
+    proj.scens.clear()
+    for j,js_scen in enumerate(scenario_summaries):
+        print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
+        py_scen = js_to_py_scen(js_scen)
+        print('Python scenario info for scenario %s:' % (j+1))
+        print(py_scen)
+        proj.make_scenario(which='budget', json=py_scen)
+    print('Saving project...')
+    save_project(proj)
+    return None
 
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_default_budget_scen(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, raise_exception=True)
-    
-    py_scen = proj.demo_scens(doadd=False)[0]
-    js_scen = py_to_js_scen(py_scen, proj.dataset().prog_names())
-    
+    py_scen = proj.demo_scenarios(doadd=False)
+    js_scen = py_to_js_scen(py_scen)
     print('Created default JavaScript scenario:')
     print(js_scen)
     return js_scen
@@ -1008,55 +996,16 @@ def sanitize(vals, skip=False, forcefloat=False):
         return output[0]
     
     
-@register_RPC(validation_type='nonanonymous user')    
-def set_scenario_info(project_id, scenario_summaries):
-
-    print('Setting scenario info...')
-    proj = load_project(project_id, raise_exception=True)
-    proj.scens.clear()
-    
-    for j,js_scen in enumerate(scenario_summaries):
-        print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
-        json = sc.odict()
-        for attr in ['name', 'scen_type', 'active']: # Copy these directly
-            json[attr] = js_scen[attr]
-        json['prog_set'] = [] # These require more TLC
-        json['covs'] = sc.odict()
-        for js_spec in js_scen['spec']:
-            if js_spec['included']:
-                json['prog_set'].append(js_spec['name'])
-                json['covs'][js_spec['name']] = sanitize(js_spec['vals'])
-        
-        print('Python scenario info for scenario %s:' % (j+1))
-        print(json)
-        
-        proj.add_scen(json=json)
-    
-    print('Saving project...')
-    save_project(proj)
-    
-    return None
-
 
 @register_RPC(validation_type='nonanonymous user')    
 def run_scenarios(project_id):
-    
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
-    
-    proj.run_scens()
-    figs = proj.plot(toplot=['prevs', 'outputs']) # Do not plot allocation
-    graphs = []
-    for f,fig in enumerate(figs.values()):
-        for ax in fig.get_axes():
-            ax.set_facecolor('none')
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-    
+    results = proj.run_scenarios()
+    output = get_plots(proj, results, axis="results") # , outputs=scen_outputs, pops=scen_pops, plotdata=False
     print('Saving project...')
     save_project(proj)    
-    return {'graphs':graphs}
+    return output
     
 
 
