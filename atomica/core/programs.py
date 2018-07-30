@@ -301,8 +301,8 @@ class ProgramSet(NamedItem):
                     if pop in prog_effects[par].keys():
                         # Sanitize inputs
                         if verbose: print('    For population %s' % pop)
-                        npi_val = sanitize(popdata['npi_val'], label=', '.join([par, pop, 'npi_val']))
-                        max_val = sanitize(popdata['max_val'], label=', '.join([par, pop, 'max_val']))
+                        npi_val = sanitize(popdata['npi_val'], defaultval=0., label=', '.join([par, pop, 'npi_val']))
+                        max_val = sanitize(popdata['max_val'], defaultval=0., label=', '.join([par, pop, 'max_val']))
                         self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
         
         return None
