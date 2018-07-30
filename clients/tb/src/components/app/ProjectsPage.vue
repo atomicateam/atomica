@@ -110,6 +110,9 @@ Last update: 2018-07-29
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
+              <button class="btn __green" @click="createDatabook(projectSummary.project.id)" title="New">
+                <i class="ti-plus"></i>
+              </button>
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
                 <i class="ti-upload"></i>
               </button>
@@ -118,6 +121,9 @@ Last update: 2018-07-29
               </button>
             </td>
             <td style="white-space: nowrap">
+              <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" title="New">
+                <i class="ti-plus"></i>
+              </button>
               <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
                 <i class="ti-upload"></i>
               </button>
@@ -177,10 +183,36 @@ Last update: 2018-07-29
           </button>
         </div>
       </div>
+    </modal>
 
+    <modal name="create-progbook"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
 
-      <div>
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create program book
+        </div>
+        <div class="dialog-c-text">
+          Number of programs:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="num_progs"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="createProgbook(projectSummary.project.id)" class='btn __green' style="display:inline-block">
+            Create
+          </button>
 
+          <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
       </div>
     </modal>
     
@@ -214,10 +246,11 @@ export default {
       sortColumn: 'name',  // Column of table used for sorting the projects: name, country, creationTime, updatedTime, dataUploadTime
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
-      proj_name: 'New project', // For creating a new project: number of populations
-      num_pops: 5, // For creating a new project: number of populations
+      proj_name:  'New project', // For creating a new project: number of populations
+      num_pops:   5, // For creating a new project: number of populations
+      num_progs:  5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
-      data_end: 2035, // For creating a new project: number of populations
+      data_end:   2035, // For creating a new project: number of populations
     }
   },
 
@@ -342,36 +375,46 @@ export default {
       })
     },
 
+    // Open a model dialog for creating a new project
     createNewProjectModal() {
-      // Open a model dialog for creating a new project
       console.log('createNewProjectModal() called');
       this.$modal.show('create-project');
     },
 
+    // Open a model dialog for creating a progbook
+    createProgbookModal() {
+      console.log('createProgbookModal() called');
+      this.$modal.show('create-progbook');
+    },
 
     createNewProject() {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
-      
-      // Start indicating progress.
-      status.start(this)
-      
-      // Have the server create a new project.
-      rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
+      status.start(this) // Start indicating progress.
+      rpcservice.rpcCall('create_new_project',  // Have the server create a new project.
+        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
       .then(response => {
-        // Update the project summaries so the new project shows up on the list.
-        // Note: There's no easy way to get the new project UID to tell the 
-        // project update to choose the new project because the RPC cannot pass 
-        // it back.
-        this.updateProjectSummaries(null)
-        
-        // Indicate success.
-        status.succeed(this, 'New project "' + this.proj_name + '" created')
+        this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
+        status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        status.fail(this, 'Could not add new project')   
+        status.fail(this, 'Could not add new project: ' + error.message)    // Indicate failure.
       })  
+    },
+
+    createNewProject() {
+      console.log('createNewProject() called')
+      this.$modal.hide('create-project')
+      status.start(this) // Start indicating progress.
+      rpcservice.rpcDownloadCall('create_databook',  // Have the server create a new project.
+        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
+        .then(response => {
+          this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
+          status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
+        })
+        .catch(error => {
+          status.fail(this, 'Could not add new project: ' + error.message)    // Indicate failure.
+        })
     },
 
     uploadProjectFromFile() {
@@ -466,68 +509,27 @@ export default {
       )
     },
 
-/*    applyCountryFilter(projects) {
-      if (this.selectedCountry === 'Select country...')
-        return projects
-      else
-        return projects.filter(theProj => theProj.country === this.selectedCountry)
-    }, */
+
 
     openProject(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('openProject() called for ' + matchProject.project.name)
-          
-
-// Code for testing loading bar.  
-/*      this.$Progress.start()      // with this (default) setting, the bar takes about 7 sec. to fully progress        
-//      this.$Progress.start(9700)  // with this setting, about 75% of the bar is progressed in 5 min.
-      this.$Progress.setTransition(
-        {
-          speed: '0.2s',
-          opacity: '0.6s',
-          termination: 1000  // milliseconds that bar stays around after finish or fail
-        })
-        
-//      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
-      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
-      .then(response => { 
-        this.$Progress.finish()         
-      })
-      .catch(error => {
-        this.$Progress.fail()
-      }) */
-      
-      
-      // Set the active project to the matched project.
-      this.$store.commit('newActiveProject', matchProject)
-      
-      // Success popup.
-      status.successPopup(this, 'Project "'+matchProject.project.name+'" loaded')
+      this.$store.commit('newActiveProject', matchProject) // Set the active project to the matched project.
+      status.successPopup(this, 'Project "'+matchProject.project.name+'" loaded') // Success popup.
     },
 
     copyProject(uid) {
-      // Find the project that matches the UID passed in.
-      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
       console.log('copyProject() called for ' + matchProject.project.name)
-      
-      // Start indicating progress.
-      status.start(this)
-      
-      // Have the server copy the project, giving it a new name.
-      rpcservice.rpcCall('copy_project', [uid])
+      status.start(this) // Start indicating progress.
+      rpcservice.rpcCall('copy_project', [uid]) // Have the server copy the project, giving it a new name.
       .then(response => {
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(response.data.projectId)
-        
-        // Indicate success.
-        status.succeed(this, 'Project "'+matchProject.project.name+'" copied')       
+        this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
+        status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        status.fail(this, 'Could not copy project')
+        status.fail(this, 'Could not copy project: ' + error.message) // Indicate failure.
       })
     },
 
@@ -602,86 +604,60 @@ export default {
 
     downloadDatabook(uid) {
       // Find the project that matches the UID passed in.
-//      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-//
-//      console.log('downloadDatabook() called for ' + matchProject.project.name)
-//
-//      // Make the server call to download the project to a .prj file.
-//      rpcservice.rpcDownloadCall('download_databook', [uid])
-        this.$notifications.notify({
-          message: 'This is not yet implemented, please check back soon.',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
-
-      },
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+      console.log('downloadDatabook() called for ' + matchProject.project.name)
+      status.start(this, 'Downloading data book...') // Start indicating progress.
+      rpcservice.rpcDownloadCall('download_databook', [uid])
+        .then(response => {
+          status.succeed(this, '')  // No green popup message.
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not download databook: ' + error.message)
+        })
+    },
 
     downloadProgbook(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('downloadProgbook() called for ' + matchProject.project.name)
-      
-      // Start indicating progress.
-      status.start(this)
-      
-      // Make the server call to download the project to a .prj file.
+      status.start(this, 'Downloading program book...') // Start indicating progress.
       rpcservice.rpcDownloadCall('download_progbook', [uid])
       .then(response => {
-        // Indicate success.
-        status.succeed(this, '')  // No green popup message.          
+        status.succeed(this, '')  // No green popup message.
       })
       .catch(error => {
         // Indicate failure.
-        status.fail(this, 'Could not download progbook')     
+        status.fail(this, 'Could not download program book: ' + error.message)
       })      
     },
 
-    downloadDefaults(uid) {
+    createProgbook(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
-      console.log('downloadDefaults() called for ' + matchProject.project.name)
-      
-      // Start indicating progress.
-      status.start(this)
-      
-      // Make the server call to download the project to a .prj file.
-      rpcservice.rpcDownloadCall('download_defaults', [uid])
-      .then(response => {
-        // Indicate success.
-        status.succeed(this, '')  // No green popup message.        
-      })
-      .catch(error => {
-        // Indicate failure.
-        status.fail(this, 'Could not download defaults')     
-      })       
+      console.log('createProgbook() called for ' + matchProject.project.name)
+      status.start(this, 'Creating program book...') // Start indicating progress.
+      rpcservice.rpcDownloadCall('create_progbook', [uid, this.num_progs])
+        .then(response => {
+          status.succeed(this, '')  // No green popup message.
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not create program book: ' + error.message)
+        })
     },
 
     uploadDatabook(uid) {
-      // Find the project that matches the UID passed in.
-      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
       console.log('uploadDatabook() called for ' + matchProject.project.name)
-
-      // Have the server copy the project, giving it a new name.
+      status.start(this, 'Uploading databook...')
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        status.start(this)
-        
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(uid)
-        
-        // Indicate success.
-        status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"')     
+        this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
+        status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        status.fail(this, 'Could not upload data')     
+        status.fail(this, 'Could not upload data: ' + error.message) // Indicate failure.
       })
     },
 
@@ -696,7 +672,7 @@ export default {
         status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
       })
       .catch(error => {
-        status.fail(this, 'Could not upload progbook') // Indicate failure.
+        status.fail(this, 'Could not upload progbook: ' + error.message) // Indicate failure.
       })
     },
 

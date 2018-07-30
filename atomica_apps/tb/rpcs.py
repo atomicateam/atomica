@@ -23,8 +23,6 @@ import atomica.ui as au
 from . import projects as prj
 from matplotlib.legend import Legend
 from matplotlib.pyplot import rc
-import matplotlib.pyplot as pl
-
 rc('font', size=14)
 
 
@@ -215,21 +213,11 @@ def save_project_as_new(proj, user_id):
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
     """ 
-    
-    # Set a new project UID, so we aren't replicating the UID passed in.
-    proj.uid = sc.uuid()
-    
-    # Create the new project entry and enter it into the ProjectCollection.
-    projSO = prj.ProjectSO(proj, user_id)
+    proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
+    projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
-
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> save_project_as_new '%s'" % proj.name)
-
-    # Save the changed Project object to the DataStore.
-    save_project(proj)
-    
+    print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
+    save_project(proj) # Save the changed Project object to the DataStore.
     return None
 
 @timeit
@@ -380,36 +368,43 @@ def download_project(project_id):
     print(">> download_project %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
+
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_databook(project_id):
     """
     Download databook
     """
-    N_POPS = 5
-    print('WARNING, N_POPS HARDCODED')
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.create_databook(full_file_name, num_pops=N_POPS)
+    proj.databook.save(full_file_name)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_progbook(project_id):
-    """
-    Download program book
-    """
-    N_PROGS = 5
-    print("WARNING, PROGRAMS HARD_CODED")
+    """ Download program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.make_progbook(full_file_name, progs=N_PROGS)
-    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    proj.progbook.save(full_file_name)
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
+    
+    
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def create_progbook(project_id, num_progs):
+    """ Create program book """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.make_progbook(progbook_path=full_file_name, progs=float(num_progs))
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.    
     
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
@@ -432,96 +427,50 @@ def load_zip_of_prj_files(project_ids):
     Given a list of project UIDs, make a .zip file containing all of these 
     projects as .prj files, and return the full path to this file.
     """
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-
-    # Build a list of prj.ProjectSO objects for each of the selected projects, 
-    # saving each of them in separate .prj files.
-    prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids]
-    
-    # Make the zip file name and the full server file path version of the same..
-    zip_fname = 'Projects %s.zip' % sc.getdate()
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids] # Build a list of prj.ProjectSO objects for each of the selected projects, saving each of them in separate .prj files.
+    zip_fname = 'Projects %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
-    
-    # Create the zip file, putting all of the .prj files in a projects 
-    # directory.
-    with ZipFile(server_zip_fname, 'w') as zipfile:
+    with ZipFile(server_zip_fname, 'w') as zipfile: # Create the zip file, putting all of the .prj files in a projects directory.
         for project in prjs:
             zipfile.write(os.path.join(dirname, project), 'projects/{}'.format(project))
-            
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> load_zip_of_prj_files %s" % (server_zip_fname))
+    print(">> load_zip_of_prj_files %s" % (server_zip_fname)) # Display the call information.
+    return server_zip_fname # Return the server file name.
 
-    # Return the server file name.
-    return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
 def add_demo_project(user_id):
     """
     Add a demo Optima TB project
     """
-    # Get a unique name for the project to be added
-    new_proj_name = get_unique_name('Demo project', other_names=None)
-    
-    # Create the project, loading in the desired spreadsheets.
-    proj = au.demo(which='tb',do_plot=0) 
+    new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
+    proj = au.demo(which='tb',do_plot=0)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
     result = proj.results[0]
     proj.results = au.NDict()
-    save_project_as_new(proj, user_id)
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     store_result_separately(proj,result)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
     print(">> add_demo_project %s" % (proj.name))    
-    
-    # Save the new project in the DataStore.
-
-    # Return the new project UID in the return message.
-    return { 'projectId': str(proj.uid) }
+    return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
+def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data_end):
     """
     Create a new project.
     """
-    
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
-    
-    # Get a unique name for the project to be added.
-    new_proj_name = get_unique_name(proj_name, other_names=None)
-    
-    # Create the project, loading in the desired spreadsheets.
+    new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
-    proj = au.Project(framework=F, name=new_proj_name)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
+    proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
-    
-    # Save the new project in the DataStore.
-    save_project_as_new(proj, user_id)
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-        
-    # Create a filename containing the project name followed by a .prj 
-    # suffix.
-    file_name = '%s.xlsx' % proj.name
-        
-    # Generate the full file name with path.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
-    
-    # Return the databook
-    proj.create_databook(databook_path=full_file_name, **args)
-    
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.create_databook(databook_path=full_file_name, **args) # Return the databook
     print(">> download_databook %s" % (full_file_name))
-    
-    # Return the new project UID in the return message.
-    return full_file_name
+    return full_file_name # Return the filename
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
@@ -531,7 +480,7 @@ def upload_databook(databook_filename, project_id):
     """
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_databook(databook_path=databook_filename, overwrite=True) 
+    proj.load_databook(databook_path=databook_filename) 
     proj.modified = sc.today()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
