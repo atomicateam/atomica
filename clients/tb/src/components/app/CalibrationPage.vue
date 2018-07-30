@@ -71,6 +71,12 @@ Last update: 2018-07-30
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
+              <th @click="updateSorting('index')" class="sortable">
+                No.
+                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -93,6 +99,9 @@ Last update: 2018-07-30
             </thead>
             <tbody>
             <tr v-for="par in sortedPars">
+              <td>
+                {{par.index}}
+              </td>
               <td>
                 {{par.parlabel}}
               </td>
@@ -177,7 +186,7 @@ Last update: 2018-07-30
     data() {
       return {
         serverresponse: 'no response',
-        sortColumn: 'parname',
+        sortColumn: 'index',
         sortReverse: false,
         parList: [],
         areShowingParameters: true,
@@ -293,9 +302,10 @@ Last update: 2018-07-30
         return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
+            if      (this.sortColumn === 'index') { return par1.index > par2.index ? sortDir: -sortDir}
+            else if (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
             else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
           }
         )
       },

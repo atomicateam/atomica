@@ -724,16 +724,18 @@ def get_y_factors(project_id, parsetname=-1):
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
+    count = 0
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
             thispar = parset.get_par(parname)
             if proj.framework.get_spec_value(parname, "can_calibrate"):
                 for popname,y_factor in thispar.y_factor.items():
+                    count += 1
                     parlabel = proj.framework.get_spec_value(parname,'label')
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     dispvalue = thispar.interpolate([TEMP_YEAR],popname)[0]*y_factor
-                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
+                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
