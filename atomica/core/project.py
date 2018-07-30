@@ -505,7 +505,7 @@ class Project(object):
             results = self.run_scenarios()
             return results
         else:
-            return None
+            return json1
     
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''

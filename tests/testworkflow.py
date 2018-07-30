@@ -382,7 +382,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
 
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
     browser = False # Display as mpld3 plots in the browser
-    plot_option = 1
+    plot_option = 2
     scen_outputs = ["lt_inf", "ac_inf"]
     scen_pop = "15-64"
     P = au.demo(which='tb')
