@@ -630,7 +630,6 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 def supported_plots_func():
-    
     supported_plots = {
             'Population size':'alive',
             'Latent infections':'lt_inf',
@@ -652,7 +651,6 @@ def supported_plots_func():
             'Active treatment':'num_treat',
             'TB-related deaths':':ddis',
             }
-    
     return supported_plots
 
 
@@ -935,8 +933,6 @@ def py_to_js_scen(py_scen):
         js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
     js_scen['alloc'] = []
     for prog_name,budget in py_scen.alloc.items():
-        print('SHMAAAP')
-        print prog_name,budget
         if sc.isiterable(budget):
             if len(budget)>1:
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
@@ -954,8 +950,6 @@ def js_to_py_scen(js_scen):
     py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
     py_scen['alloc'] = sc.odict()
     for item in js_scen['alloc']:
-        print('TESMMP')
-        print item
         prog_name = item[0]
         budget = item[1]
         if sc.isiterable(budget):
@@ -1039,68 +1033,13 @@ def sanitize(vals, skip=False, forcefloat=False):
 
 @register_RPC(validation_type='nonanonymous user')    
 def run_scenarios(project_id):
-    
-    print('TEMP')
-    
-    scen_outputs = ["lt_inf", "ac_inf"]
-    scen_pop = "15-64"
-    P = au.demo(which='tb')
-    
-    print('FIRST')
-    for scen in P.scens.values():
-        sc.pr(scen)
-#    results = P.run_scenarios()
-#    print('LEN RESULTS 1')
-#    print(len(results))
-    
-    
-    
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
-    print('SECOND')
-    for scen in proj.scens.values():
-        sc.pr(scen)
     results = proj.run_scenarios()
-    print('LEN RESULTS 2')
-    print(len(results))
-    
-    d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-    figs = au.plot_series(d, axis="results")
-    import pylab as pl
-    graphs = []
-    for fig in figs:
-        pl.figure(fig.number)
-        pl.gca().set_facecolor('none')
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-    pl.close('all')
-    output = {'graphs':graphs}
-    
+    output = get_plots(proj, results, axis="results") # , outputs=scen_outputs, pops=scen_pops, plotdata=False
+    print('Saving project...')
+    save_project(proj)    
     return output
-#    
-#    print('TEMP plotting')
-#    scen_outputs = ["lt_inf", "ac_inf"]
-#    scen_pops = ["15-64"]
-#    
-#    results = proj.run_scenarios()
-#    d = au.PlotData(results, outputs=scen_outputs, pops=scen_pops)
-#    figs = au.plot_series(d, axis="results")
-#    
-#    import pylab as pl
-#    graphs = []
-#    for fig in figs:
-#        pl.figure(fig.number)
-#        pl.gca().set_facecolor('none')
-#        graph_dict = mpld3.fig_to_dict(fig)
-#        graphs.append(graph_dict)
-#    pl.close('all')
-#    
-#    output = {'graphs':graphs}
-#    
-##    output = get_plots(proj, results, axis="results", outputs=scen_outputs, pops=scen_pops, plotdata=False)
-#    print('Saving project...')
-#    save_project(proj)    
-#    return output
     
 
 

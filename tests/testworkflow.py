@@ -329,15 +329,74 @@ if "parameterscenario" in torun:
     au.plot_series(d, axis="results")
 
 
-if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are 
-    scen_outputs = ["lt_inf", "ac_inf"]
-    scen_pop = "15-64"
+def supported_plots_func():
+    ''' TEMP '''
+    supported_plots = {
+            'Population size':'alive',
+            'Latent infections':'lt_inf',
+            'Active TB':'ac_inf',
+            'Active DS-TB':'ds_inf',
+            'Active MDR-TB':'mdr_inf',
+            'Active XDR-TB':'xdr_inf',
+            'New active DS-TB':{'New active DS-TB':['pd_div:flow','nd_div:flow']},
+            'New active MDR-TB':{'New active MDR-TB':['pm_div:flow','nm_div:flow']},
+            'New active XDR-TB':{'New active XDR-TB':['px_div:flow','nx_div:flow']},
+            'Smear negative active TB':'sn_inf',
+            'Smear positive active TB':'sp_inf',
+            'Latent diagnoses':{'Latent diagnoses':['le_treat:flow','ll_treat:flow']},
+            'New active TB diagnoses':{'Active TB diagnoses':['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']},
+            'New active DS-TB diagnoses':{'Active DS-TB diagnoses':['pd_diag:flow','nd_diag:flow']},
+            'New active MDR-TB diagnoses':{'Active MDR-TB diagnoses':['pm_diag:flow','nm_diag:flow']},
+            'New active XDR-TB diagnoses':{'Active XDR-TB diagnoses':['px_diag:flow','nx_diag:flow']},
+            'Latent treatment':'ltt_inf',
+            'Active treatment':'num_treat',
+            'TB-related deaths':':ddis',
+            }
+    return supported_plots
+
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+    results = sc.promotetolist(results)
+    supported_plots = supported_plots_func() 
+    if plot_names is None: plot_names = supported_plots.keys()
+    plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [supported_plots[plot_name] for plot_name in plot_names]
+    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+    all_figs = []
+    for output in outputs:
+        try:
+            import numpy as np # TEMP
+            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            for series in plotdata.series:
+                if any(np.isnan(series.vals)):
+                    print('NANS?????????!!')
+                    print series.vals
+            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+            all_figs += sc.promotetolist(figs)
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+
+    return all_figs
+
+
+if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
+    plot_option = 2
+    if plot_option == 1:
+        scen_outputs = ["lt_inf", "ac_inf"]
+        scen_pop = "15-64"
+    elif plot_option == 2:
+        scen_outputs = ['px_div:flow','nx_div:flow']
+        scen_pop = "15-64"# 'all'
     P = au.demo(which='tb')
+    P.scens.pop(2)
+    P.scens.pop(1)
     results = P.run_scenarios()
-    d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-    figs = au.plot_series(d, axis="results")
-    from sciris.weblib import quickserver as qs
-    qs.browser(figs)
+    figs = get_plots(P, results, axis="results")
+#    d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+#    figs = au.plot_series(d, axis="results")
+#    from sciris.weblib import quickserver as qs
+#    qs.browser(figs)
     
 
 if "optimization" in torun:
