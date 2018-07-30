@@ -503,16 +503,16 @@ class Project(object):
         json3['name']        ='Zero budget'
         json3['alloc'][:] *= 0.0
         
-        for json in [json1, json2, json3]:
-            if doadd:
+        if doadd:
+            for json in [json1, json2, json3]:
                 self.make_scenario(which='budget', json=json)
-                if dorun:
-                    results = self.run_scenarios()
-                    return results
-                else:
-                    return None
+            if dorun:
+                results = self.run_scenarios()
+                return results
             else:
-                return json1
+                return None
+        else:
+            return json1
     
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''
