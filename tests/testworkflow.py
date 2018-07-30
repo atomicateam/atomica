@@ -414,5 +414,13 @@ if "saveproject" in torun:
 if "loadproject" in torun:
     P = au.Project.load(tmpdir+test+".prj")
 
-
-
+#
+# flow_in = results.pops[0].get_variable(':acj')
+# flow_out = results.pops[0].get_variable('acj:')
+#
+# d = au.PlotData(results[-1], outputs=':acj', pops='0-4')
+# d.series[0].vals
+# d = au.PlotData(results[-1], outputs='acj:', pops='0-4')
+# d.series[0].vals
+#
+# figs = au.plot_series(d, axis="results")

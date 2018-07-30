@@ -965,17 +965,19 @@ class Model(object):
             # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
             # initial flow rates
             self.update_pars()
+            self.update_links()
             self.update_junctions()
             self.update_pars()
             self.update_links()
+            self.update_junctions()
 
         # Main integration loop
         while self.t_index < (self.t.size-1):
             self.update_comps() # This writes values to comp.vals[ti+1] so this will be out of bounds if self.t_index == self.t.size-1
             self.t_index += 1  # Step the simulation forward
-            self.update_junctions()
             self.update_pars()
             self.update_links()
+            self.update_junctions()
 
         for pop in self.pops:
             [par.update() for par in pop.pars if not par.dependency]  # Update any remaining parameters
@@ -1072,7 +1074,7 @@ class Model(object):
         for pop in self.pops:
             for comp in pop.comps:
                 if not comp.is_junction:
-                    for link in comp.outlinks:
+                    for link in comp.inlinks:
                         link.source.vals[ti + 1] -= link.vals[ti]
                         link.dest.vals[ti + 1] += link.vals[ti]
 
@@ -1087,10 +1089,11 @@ class Model(object):
         Do so until all junctions are empty.
         """
 
-        ti = self.t_index
-        ti_link = ti - 1
-        if ti_link < 0:
-            ti_link = ti  # For the case where junctions are processed immediately after model initialisation.
+        # A junction can be called either at the very start of the simulation, when it might have
+        # some people in it initially, or after `update_links` in which case it won't have any people
+        # so it needs to fill itself from its incoming links
+
+        ti = self.t_index # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
 
         review_required = True
         review_count = 0
@@ -1100,16 +1103,24 @@ class Model(object):
 
             if review_count > model_settings["iteration_limit"]:
                 raise AtomicaException("Processing junctions (i.e. propagating contents onwards) for timestep {0} "
-                                       "is taking far too long. Infinite loop suspected.".format(ti_link))
+                                       "is taking far too long. Infinite loop suspected.".format(ti))
 
             for pop in self.pops:
                 junctions = [comp for comp in pop.comps if comp.is_junction]
 
                 for junc in junctions:
 
-                    if review_count == 1:
+                    if review_count == 1: # On the first iteration
+                        # Accumulate inflow
+                        if junc.vals[ti] == 0: # this is the normal workflow, where we need to fill up the junction using inlinks - maybe should be isfinite
+                            junc.vals[ti] = 0
+                            for link in junc.inlinks:
+                                if not link.source.is_junction: # inlinks that come from a junction won't have been initialized at this timestep yet
+                                    junc.vals[ti] += link.vals[ti]
+
+                        # Initialize the outflow links
                         for link in junc.outlinks:
-                            link.vals[ti_link] = 0
+                            link.vals[ti] = 0
 
                     # If the compartment is numerically empty, make it empty
                     if junc.vals[ti] <= model_settings['tolerance']:  # Includes negative values.
@@ -1118,17 +1129,17 @@ class Model(object):
                         current_size = junc.vals[ti]
                         # This is the total fraction of people requested to leave.
                         # Outflows are scaled to the entire compartment size.
-                        denom_val = sum(link.parameter.vals[ti_link] for link in junc.outlinks)
+                        denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
                         if denom_val == 0:
                             raise AtomicaException("ERROR: Proportions for junction '{0}' outflows sum to zero, "
                                                    "resulting in a nonsensical ratio. There may even be (invalidly) "
                                                    "no outgoing transitions for this junction.".format(junc.name))
                         for link in junc.outlinks:
-                            flow = current_size * link.parameter.vals[ti_link] / denom_val
-                            link.source.vals[ti] -= flow
-                            link.dest.vals[ti] += flow
-                            link.vals[ti_link] += flow
+                            flow = current_size * link.parameter.vals[ti] / denom_val
+                            junc.vals[ti] -= flow
+                            link.vals[ti] += flow
                             if link.dest.is_junction:
+                                link.dest.vals[ti] += flow
                                 review_required = True  # Need to review if a junction received an inflow at this step
 
     def update_pars(self):
