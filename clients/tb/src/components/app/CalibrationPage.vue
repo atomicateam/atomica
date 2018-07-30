@@ -398,12 +398,8 @@ Last update: 2018-07-30
             try {
               console.log(response.data.graphs[index]);
               mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                fig.setXTicks(6, function(d) {
-                    return d3.format('.0f')(d);
-                });
-                fig.setYTicks(null, function(d) {
-                    return d3.format('.2s')(d);
-                });
+                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
               });
               this.haveDrawnGraphs = true
             }
@@ -446,7 +442,10 @@ Last update: 2018-07-30
             }
             try {
               console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+              });
               this.haveDrawnGraphs = true
             }
             catch (err) {
