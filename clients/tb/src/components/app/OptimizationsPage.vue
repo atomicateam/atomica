@@ -304,6 +304,8 @@ Last update: 2018-07-30
         console.log('getOptimSummaries() called')
         
         // Start indicating progress.
+        // Note: For some reason, the popup spinner doesn't work from inside created() 
+        // so it doesn't show up here.         
         progressIndicator.start(this)
         
         // Get the current project's optimization summaries from the server.
@@ -444,7 +446,6 @@ Last update: 2018-07-30
       runOptim(optimSummary) {
         console.log('runOptim() called for '+this.currentOptim)
         // Make sure they're saved first
-        this.$modal.show('popup-spinner') // Dispel the spinner.
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then(response => {
           // Start indicating progress.
@@ -489,6 +490,14 @@ Last update: 2018-07-30
             progressIndicator.fail(this, 'Could not make graphs: ' + error.message)
           })
         })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          console.log(this.serverresponse)
+          this.servererror = error.message // Set the server error.
+           
+          // Indicate failure.
+          progressIndicator.failurePopup(this, 'Could not make graphs: ' + error.message)
+        })        
       },
 
       reloadGraphs() {
