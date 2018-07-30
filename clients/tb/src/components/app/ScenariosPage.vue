@@ -190,10 +190,7 @@ Last update: 2018-07-29
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-//          WARNING, these shouldn't be duplicated!
-          this.getScenSummaries()
-          this.getDefaultScen()
-          this.updateSets()
+          console.log('activeProjectID() called')
           return this.$store.state.activeProject.project.id
         }
       },
@@ -215,6 +212,7 @@ Last update: 2018-07-29
       }
       else { // Otherwise...
         // Load the scenario summaries of the current project.
+        console.log('created() called')
         this.getScenSummaries()
         this.getDefaultScen()
         this.updateSets()
