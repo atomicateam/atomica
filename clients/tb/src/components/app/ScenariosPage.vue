@@ -27,7 +27,6 @@ Last update: 2018-07-29
             <b>{{ scenSummary.name }}</b>
           </td>
           <td style="white-space: nowrap">
-            <button class="btn __green" @click="runScen(scenSummary)">Run</button>
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
             <button class="btn" @click="deleteScen(scenSummary)">Delete</button>
@@ -37,6 +36,8 @@ Last update: 2018-07-29
       </table>
 
       <div>
+        <button class="btn __green" @click="runScens()">Run scenarios</button>
+        <button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>
         <button class="btn __blue" @click="addBudgetScenModal()">Add budget scenario</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
       </div>
@@ -291,12 +292,25 @@ Last update: 2018-07-29
           .then(response => {
             this.scenSummaries = response.data // Set the scenarios to what we received.
             this.$notifications.notify({
-              message: 'scenarios loaded',
+              message: 'Scenarios loaded',
               icon: 'ti-check',
               type: 'success',
               verticalAlign: 'top',
               horizontalAlign: 'center',
             });
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            this.$modal.hide('popup-spinner') // Dispel the spinner.
+            this.$Progress.fail() // Fail the loading bar.
+            this.$notifications.notify({ // Failure popup.
+              message: 'Could not get scenarios: ' + error.message,
+              icon: 'ti-face-sad',
+              type: 'warning',
+              verticalAlign: 'top',
+              horizontalAlign: 'center',
+            })
           })
       },
 
@@ -416,16 +430,14 @@ Last update: 2018-07-29
           })
       },
 
-      runScen(scenSummary) {
-        console.log('runScen() called for '+this.currentScen)
+      runScens() {
+        console.log('runScens() called')
         // Make sure they're saved first
-        this.$modal.show('popup-spinner') // Dispel the spinner.
+        this.$modal.show('popup-spinner') // SHow the spinner.
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcservice.rpcCall('run_scenarios',
-//            taskservice.getTaskResultPolling('run_scenario', 90, 3, 'run_scenario',
-              [this.projectID(), scenSummary.name])
+            rpcservice.rpcCall('run_scenarios', [this.projectID()])
               .then(response => {
                 this.serverresponse = response.data // Pull out the response data.
                 var n_plots = response.data.graphs.length

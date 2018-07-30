@@ -924,43 +924,64 @@ def delete_progset(project_id, progsetname=None):
 #%% Scenario functions and RPCs
 ##################################################################################
 
-def py_to_js_scen(py_scen, prog_names):
+def py_to_js_scen(py_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     js_scen = {}
     attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
     for attr in attrs:
         js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
     js_scen['alloc'] = []
-    for prog_name,budget in py_scen.alloc:
+    for prog_name,budget in py_scen.alloc.items():
         js_scen['alloc'].append([prog_name,budget])
+    return js_scen
+
+def js_to_py_scen(js_scen):
+    ''' Convert a Python to JSON representation of a scenario '''
+    py_scen = sc.odict()
+    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    for attr in attrs:
+        py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
+    js_scen['alloc'] = sc.odict()
+    for item in js_scen['alloc']:
+        js_scen['alloc'][item[0]] = item[1]
     return js_scen
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def get_scenario_info(project_id):
-
+def get_scen_info(project_id):
     print('Getting scenario info...')
     proj = load_project(project_id, raise_exception=True)
     scenario_summaries = []
     for py_scen in proj.scens.values():
         js_scen = py_to_js_scen(py_scen)
         scenario_summaries.append(js_scen)
-    
     print('JavaScript scenario info:')
     print(scenario_summaries)
-
     return scenario_summaries
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def get_default_scenario(project_id):
+def set_scen_info(project_id, scenario_summaries):
+    print('Setting scenario info...')
+    proj = load_project(project_id, raise_exception=True)
+    proj.scens.clear()
+    for j,js_scen in enumerate(scenario_summaries):
+        print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
+        py_scen = js_to_py_scen(js_scen)
+        print('Python scenario info for scenario %s:' % (j+1))
+        print(py_scen)
+        proj.make_scenario(which='budget', json=py_scen)
+    print('Saving project...')
+    save_project(proj)
+    return None
 
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_default_scenario(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, raise_exception=True)
-    
     py_scen = proj.demo_scens(doadd=False)[0]
     js_scen = py_to_js_scen(py_scen, proj.dataset().prog_names())
-    
     print('Created default JavaScript scenario:')
     print(js_scen)
     return js_scen
@@ -995,55 +1016,16 @@ def sanitize(vals, skip=False, forcefloat=False):
         return output[0]
     
     
-@register_RPC(validation_type='nonanonymous user')    
-def set_scenario_info(project_id, scenario_summaries):
-
-    print('Setting scenario info...')
-    proj = load_project(project_id, raise_exception=True)
-    proj.scens.clear()
-    
-    for j,js_scen in enumerate(scenario_summaries):
-        print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
-        json = sc.odict()
-        for attr in ['name', 'scen_type', 'active']: # Copy these directly
-            json[attr] = js_scen[attr]
-        json['prog_set'] = [] # These require more TLC
-        json['covs'] = sc.odict()
-        for js_spec in js_scen['spec']:
-            if js_spec['included']:
-                json['prog_set'].append(js_spec['name'])
-                json['covs'][js_spec['name']] = sanitize(js_spec['vals'])
-        
-        print('Python scenario info for scenario %s:' % (j+1))
-        print(json)
-        
-        proj.add_scen(json=json)
-    
-    print('Saving project...')
-    save_project(proj)
-    
-    return None
-
 
 @register_RPC(validation_type='nonanonymous user')    
 def run_scenarios(project_id):
-    
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
-    
-    proj.run_scens()
-    figs = proj.plot(toplot=['prevs', 'outputs']) # Do not plot allocation
-    graphs = []
-    for f,fig in enumerate(figs.values()):
-        for ax in fig.get_axes():
-            ax.set_facecolor('none')
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-    
+    results = proj.run_scenarios()
+    output = get_plots(proj, results)
     print('Saving project...')
     save_project(proj)    
-    return {'graphs':graphs}
+    return output
     
 
 
