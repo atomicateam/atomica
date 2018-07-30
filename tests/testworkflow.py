@@ -36,8 +36,8 @@ torun = [
 # "manualcalibrate",
 #"autocalibrate",
 # "parameterscenario",
-'budgetscenarios',
-#'optimization',
+#'budgetscenarios',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -340,7 +340,7 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are
 
 if "optimization" in torun:
     P = au.demo(which='tb')
-    P.run_optimization(maxtime=180)
+    P.run_optimization(maxtime=300)
 
 
 if "runsimprogs" in torun:
