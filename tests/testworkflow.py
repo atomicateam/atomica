@@ -27,9 +27,9 @@ torun = [
 #"makeparset",
 #"runsim",
 #'plotcascade',
-"makeprogramspreadsheet",
+#"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 # "export",
 # "listspecs",
@@ -179,6 +179,8 @@ if "loadprogramspreadsheet" in torun:
 
 
 if "runsim_programs" in torun:
+
+    P = au.demo(which=test,do_plot=0)
 
     if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)

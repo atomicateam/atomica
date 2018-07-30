@@ -305,8 +305,6 @@ class ProgramSet(NamedItem):
                         # Sanitize inputs
                         if verbose: print('    For population %s' % pop)
                         npi_val = sanitize(popdata['npi_val'], defaultval=0., label=', '.join([par, pop, 'npi_val']))
-#                        max_val = sanitize(popdata['max_val'], defaultval=0., label=', '.join([par, pop, 'max_val']))
-#                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
                         self.add_covout(par=par, pop=pop, npi_val=npi_val, prog=prog_effects[par][pop])
         
         return None
@@ -455,32 +453,27 @@ class ProgramSet(NamedItem):
         
         # Initialise output
         outcomes = odict()
-        max_vals  = odict()
 
         # Loop over parameter types
         for par_type in self.target_par_types:
             outcomes[par_type] = odict()
-            max_vals[par_type] = odict()
 
             relevant_progs = self.relevant_progs[par_type]
             # Loop over populations relevant for this parameter type
             for popno, pop in enumerate(relevant_progs.keys()):
 
                 delta, thiscov = odict(), odict()
-                # CK: These seem to be unused
-#                effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
-#                best_prog = min(effects, key=effects.get)
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
                     if not self.covout[(par_type,pop)].has_pars():
+                        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
                     else:
                         outcomes[par_type][pop]  = self.covout[(par_type,pop)].npi_val.get(sample)
                         thiscov[prog.short]         = coverage[prog.short]
                         delta[prog.short]           = self.covout[(par_type,pop)].progs[prog.short].get(sample) - outcomes[par_type][pop]
-                        max_vals[par_type][pop]   = self.covout[(par_type,pop)].max_val.get(sample)
                         
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
@@ -936,7 +929,6 @@ class Covout(object):
     Covout(par='contacts',
            pop='Adults',
            npi_val=120,
-           max_val=[10,5,15],
            progs={'Prog1':[15,10,10], 'Prog2':20}
            )
     '''
@@ -948,7 +940,6 @@ class Covout(object):
         self.cov_interaction = cov_interaction
         self.imp_interaction = imp_interaction
         self.npi_val = Val(npi_val)
-#        self.max_val = Val(max_val)
         self.progs = odict()
         if prog is not None: self.add(prog=prog)
         return None
@@ -990,7 +981,6 @@ class Covout(object):
         tests = {}
         try:
             tests['NPI values invalid']         = not(isnumber(self.npi_val.get() ))
-            tests['Max values invalid']         = not(isnumber(self.max_val.get() ))
             tests['Program values invalid']     = not(array([isnumber(prog.get()) for prog in self.progs.values()]).any())
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized
