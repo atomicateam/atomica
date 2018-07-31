@@ -833,6 +833,8 @@ class Model(object):
 
             self.program_cache['alloc'] = self.progset.get_alloc(self.program_instructions,self.t)
             self.program_cache['coverage'] = self.progset.get_num_covered(year=self.t,alloc=self.program_cache['alloc'])
+
+            self.progset.prepare_cache()
         else:
             self.programs_active = False
 
