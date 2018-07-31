@@ -1,7 +1,7 @@
 <!--
-Define equity
+Scenarios Page
 
-Last update: 2018-07-30
+Last update: 2018-07-31
 -->
 
 <template>
@@ -36,11 +36,11 @@ Last update: 2018-07-30
       </table>
 
       <div>
-        <button class="btn __green" @click="runScens()">Run scenarios</button>
+        <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
-        <button class="btn __blue" @click="addBudgetScenModal()">Add scenario</button>
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="toggleShowingPlots()">
+        <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">
           <span v-if="areShowingPlots">Hide</span>
           <span v-else>Show</span>
           plot controls
@@ -186,6 +186,7 @@ Last update: 2018-07-30
         newProgsetName: [],
         areShowingPlots: false,
         plotOptions: [],
+        scenariosLoaded: false
       }
     },
 
@@ -314,6 +315,8 @@ Last update: 2018-07-30
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
           console.log(this.scenSummaries)
+          
+          this.scenariosLoaded = true
           
           // Indicate success.
           status.succeed(this, 'Scenarios loaded')
