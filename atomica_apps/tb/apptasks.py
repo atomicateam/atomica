@@ -40,7 +40,7 @@ celery_instance = make_celery_instance(config=config)
 #    return 'here be dummy result'
 
 @register_async_task
-def run_optimization(project_id, optim_name):
+def run_optimization(project_id, optim_name, saveresults=False):
     # Load the projects from the DataStore.
     prj.apptasks_load_projects(config)
     
@@ -48,8 +48,9 @@ def run_optimization(project_id, optim_name):
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name)
     output = get_plots(proj, results) # outputs=['alive','ddis']
-    print('Saving project...')
-    save_project(proj)    
+    if saveresults:
+        print('Saving project...')
+        save_project(proj)    
     return output
 
 
