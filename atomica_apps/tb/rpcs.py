@@ -1066,13 +1066,14 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id):
+def run_scenarios(project_id, saveresults=False):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     output = get_plots(proj, results)
-    print('Saving project...')
-    save_project(proj)    
+    if saveresults:
+        print('Saving project...')
+        save_project(proj)    
     return output
     
 
