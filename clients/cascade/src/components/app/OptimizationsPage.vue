@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-07-29
+Last update: 2018-07-30
 -->
 
 <template>
@@ -39,13 +39,51 @@ Last update: 2018-07-29
       <div>
         <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="toggleShowingPlots()">
+          <span v-if="areShowingPlots">Hide</span>
+          <span v-else>Show</span>
+          plot controls
+        </button>
+      </div>
+
+
+      <div>
+        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
+          <!--mpld3 content goes here-->
+        </div>
+      </div>
+
+
+
+      <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}" style="max-width:400px">
+        <div class="plotopts-params" v-if="areShowingPlots">
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th>Plot</th>
+              <th>Active</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="item in plotOptions">
+              <td>
+                {{ item.plot_name }}
+              </td>
+              <td style="text-align: center">
+                <input type="checkbox" v-model="item.active"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
 
       <modal name="add-optim"
              height="auto"
+             :scrollable="true"
+             :width="900"
              :classes="['v--modal', 'vue-dialog']"
-             :width="width"
              :pivot-y="0.3"
              :adaptive="true"
              :clickToClose="clickToClose"
@@ -60,38 +98,81 @@ Last update: 2018-07-29
             <input type="text"
                    class="txbox"
                    v-model="defaultOptim.name"/><br>
-            Parameter set name:<br>
-            <select v-model="defaultOptim.parsetname">
+            Parameter set:<br>
+            <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
                 {{ parset }}
               </option>
             </select><br><br>
-            Program set name:<br>
-            <select v-model="defaultOptim.progsetname">
+            Program set:<br>
+            <select v-model="progsetOptions[0]">
               <option v-for='progset in progsetOptions'>
                 {{ progset }}
               </option>
             </select><br><br>
-            Optimization objective:<br>
-            <select v-model="defaultOptim.obj">
-              <option v-for='obj in objectiveOptions'>
-                {{ obj }}
-              </option>
-            </select><br><br>
-            Budget multiplier:<br>
+            Maximum time to run optimization (s):<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.maxtime"/><br>
+            Start year:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.start_year"/><br>
+            End year:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.end_year"/><br>
+            Budget factor:<br>
             <input type="text"
                    class="txbox"
                    v-model="defaultOptim.budget_factor"/><br>
-            Additional funds:<br>
+            <br>
+            <b>Relative objective weights</b><br>
+            People alive:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.add_funds"/><br>
+                   v-model="defaultOptim.objective_weights.alive"/><br>
+            TB-related deaths:
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.objective_weights.ddis"/><br>
+            New TB infections:
+            <input type="text"
+                   class="txbox"
+                   v-model="defaultOptim.objective_weights.acj"/><br>
+            <br>
+            <b>Relative spending constraints</b><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Minimum</th>
+                <th>Maximum</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(val,key) in defaultOptim.prog_spending">
+                <td>
+                  {{ defaultOptim.prog_spending[key].label }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="defaultOptim.prog_spending[key].min"/>
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="defaultOptim.prog_spending[key].max"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
           </div>
           <div style="text-align:justify">
             <button @click="addOptim()" class='btn __green' style="display:inline-block">
               Save optimization
             </button>
-
             <button @click="$modal.hide('add-optim')" class='btn __red' style="display:inline-block">
               Cancel
             </button>
@@ -99,12 +180,6 @@ Last update: 2018-07-29
         </div>
       </modal>
 
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
-        </div>
-      </div>
-      
       <!-- Popup spinner -->
       <popup-spinner></popup-spinner>
     
@@ -117,7 +192,7 @@ Last update: 2018-07-29
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
-//  import taskservice from '@/services/task-service'
+  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
@@ -125,17 +200,26 @@ Last update: 2018-07-29
 
   export default {
     name: 'OptimizationPage',
-    
+
     components: {
       PopupSpinner
     },
-    
+
     data() {
       return {
         serverresponse: 'no response',
         optimSummaries: [],
         defaultOptim: [],
         objectiveOptions: [],
+        activeParset:  -1,
+        activeProgset: -1,
+        parsetOptions:  [],
+        progsetOptions: [],
+        newParsetName:  [],
+        newProgsetName: [],
+        graphData: [],
+        areShowingPlots: false,
+        plotOptions: [],
       }
     },
 
@@ -167,6 +251,8 @@ Last update: 2018-07-29
         // Load the optimization summaries of the current project.
         this.getOptimSummaries()
         this.getDefaultOptim()
+        this.updateSets()
+        this.getPlotOptions()
       }
     },
 
@@ -192,60 +278,119 @@ Last update: 2018-07-29
         return id
       },
 
+      // TO_PORT
+      updateSets() {
+        console.log('updateSets() called')
+        // Get the current user's parsets from the server.
+        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        .then(response => {
+          this.parsetOptions = response.data // Set the scenarios to what we received.
+          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+            console.log('Parameter set ' + this.activeParset + ' no longer found')
+            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+          } else {
+            console.log('Parameter set ' + this.activeParset + ' still found')
+          }
+          this.newParsetName = this.activeParset // WARNING, KLUDGY
+          console.log('Parset options: ' + this.parsetOptions)
+          console.log('Active parset: ' + this.activeParset)
+          
+          // Get the current user's progsets from the server.
+          rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          .then(response => {
+            this.progsetOptions = response.data // Set the scenarios to what we received.
+            if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+              console.log('Program set ' + this.activeProgset + ' no longer found')
+              this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Program set ' + this.activeProgset + ' still found')
+            }
+            this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+            console.log('Progset options: ' + this.progsetOptions)
+            console.log('Active progset: ' + this.activeProgset)
+          })          
+          .catch(error => {
+            // Failure popup.
+            status.failurePopup(this, 'Could not get progset info')
+          })          
+        })
+        .catch(error => {
+          // Failure popup.
+          status.failurePopup(this, 'Could not get parset info')
+        })              
+      },
+
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
-          .then(response => {
-            this.defaultOptim = response.data // Set the optimization to what we received.
-            this.objectiveOptions = response.data.objective_options
-            console.log('TEMPPPPPPP these are the options:'+this.objectiveOptions);
-          });
+        .then(response => {
+          this.defaultOptim = response.data // Set the optimization to what we received.
+          console.log('This is the default:')
+          console.log(this.defaultOptim);
+        })
+        .catch(error => {
+          // Failure popup.
+          status.failurePopup(this, 'Could not get default optimization')
+        })        
       },
 
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
+        
+        // Start indicating progress.
+        // Note: For some reason, the popup spinner doesn't work from inside created() 
+        // so it doesn't show up here.         
+        status.start(this)
+        
         // Get the current project's optimization summaries from the server.
         rpcservice.rpcCall('get_optim_info', [this.projectID()])
-          .then(response => {
-            this.optimSummaries = response.data // Set the optimizations to what we received.
-            this.$notifications.notify({
-              message: 'Optimizations loaded',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
-          })
+        .then(response => {
+          this.optimSummaries = response.data // Set the optimizations to what we received.
+          
+          // Indicate success.
+          status.succeed(this, 'Optimizations loaded')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not load optimizations')
+        })          
       },
 
       setOptimSummaries() {
         console.log('setOptimSummaries() called')
+        
+        // Start indicating progress.
+        status.start(this)
+        
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
-          .then( response => {
-            this.$notifications.notify({
-              message: 'Optimizations saved',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
-          })
+        .then( response => {
+          // Indicate success.
+          status.succeed(this, 'Optimizations saved')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not save optimizations')
+        })        
       },
 
       addOptimModal() {
         // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
-          .then(response => {
-            this.defaultOptim = response.data // Set the optimization to what we received.
-            this.$modal.show('add-optim');
-            console.log(this.defaultOptim)
-          });
+        .then(response => {
+          this.defaultOptim = response.data // Set the optimization to what we received.
+          this.$modal.show('add-optim');
+          console.log(this.defaultOptim)
+        })
       },
 
       addOptim() {
         console.log('addOptim() called')
         this.$modal.hide('add-optim')
+        
+        // Start indicating progress.
+        status.start(this)
+        
         let newOptim = this.dcp(this.defaultOptim); // You've got to be kidding me, buster
         let otherNames = []
         this.optimSummaries.forEach(optimSum => {
@@ -262,28 +407,16 @@ Last update: 2018-07-29
         }
         console.log(newOptim)
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
-          .then( response => {
-            this.$notifications.notify({
-              message: 'Optimization added',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
-          })
-      },
-
-      openOptim(optimSummary) {
-        // Open a model dialog for creating a new project
-        console.log('openOptim() called');
-        this.currentOptim = optimSummary.name
-        this.$notifications.notify({
-          message: 'Optimization "'+optimSummary.name+'" opened',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        .then( response => {
+          // Indicate success.
+          status.succeed(this, 'Optimization added')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not add optimization')
+          
+          // TODO: Should probably fix the corrupted this.optimSummaries.
+        })        
       },
 
       editOptim(optimSummary) {
@@ -296,6 +429,10 @@ Last update: 2018-07-29
 
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
+        
+        // Start indicating progress.
+        status.start(this)
+        
         var newOptim = this.dcp(optimSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
@@ -304,110 +441,115 @@ Last update: 2018-07-29
         newOptim.name = this.getUniqueName(newOptim.name, otherNames)
         this.optimSummaries.push(newOptim)
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
-          .then( response => {
-            this.$notifications.notify({
-              message: 'Opimization copied',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
-          })
+        .then( response => {
+          // Indicate success.
+          status.succeed(this, 'Opimization copied')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not copy optimization')
+          
+          // TODO: Should probably fix the corrupted this.optimSummaries.
+        })        
       },
 
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
+        
+        // Start indicating progress.
+        status.start(this)
+        
         for(var i = 0; i< this.optimSummaries.length; i++) {
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
           }
         }
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
-          .then( response => {
-            this.$notifications.notify({
-              message: 'Optimization deleted',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            });
+        .then( response => {
+          // Indicate success.
+          status.succeed(this, 'Optimization deleted')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not delete optimization')
+          
+          // TODO: Should probably fix the corrupted this.optimSummaries.
+        })        
+      },
+
+      getPlotOptions() {
+        console.log('getPlotOptions() called')
+        rpcservice.rpcCall('get_supported_plots', [true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
           })
+          .catch(error => {
+            status.failurePopup(this, 'Could not get plot options: ' + error.message)
+          })
+      },
+
+      toggleShowingPlots() {
+        this.areShowingPlots = !this.areShowingPlots
       },
 
       runOptim(optimSummary) {
         console.log('runOptim() called for '+this.currentOptim)
-
-//        rpcservice.rpcCall('launch_task', ['my_crazy_id', 'async_add', [23, 57]])
-//        rpcservice.rpcCall('check_task', ['my_crazy_id'])
-//        rpcservice.rpcCall('get_task_result', ['my_crazy_id'])
-//        rpcservice.rpcCall('delete_task', ['my_crazy_id'])
-//        rpcservice.rpcCall('delete_task', ['run_optimization'])
-
-        // Do an async_add() and try for at most 15 sec. to get a result, polling every 5 sec.
-        // Should succeed.
-        /*          taskservice.getTaskResultPolling('run_optimization', 15, 3, 'run_optim', [23, 57])
-         .then(response => {
-         console.log('The result is: ' + response.data.result)
-         }) */
-
+        // Start indicating progress.
+        status.start(this)
+        this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        .then(response => {          
+          // Go to the server to get the results from the package set.
+//            rpcservice.rpcCall('run_optimization',
+          taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optimization',
+            [this.projectID(), optimSummary.name, this.plotOptions])
           .then(response => {
-
-            // Go to the server to get the results from the package set.
-//          rpcservice.rpcCall('run_optim', [this.projectID(), optimSummary.name])
-            taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optim',
-              [this.projectID(), optimSummary.name])
-              .then(response => {
-                this.clearGraphs() // Once we receive a response, we can work with a clean slate
-//            this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
-                this.graphData = response.data.result.graphs // Pull out the response data (use with task).
-                let n_plots = this.graphData.length
-                console.log('Rendering ' + n_plots + ' graphs')
-
-                for (var index = 0; index <= n_plots; index++) {
-                  console.log('Rendering plot ' + index)
-                  var divlabel = 'fig' + index
-                  var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-                  while (div.firstChild) {
-                    div.removeChild(div.firstChild);
-                  }
-                  try {
-//                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure (use with the rpcCall).
-                    mpld3.draw_figure(divlabel, response.data.result.graphs[index]); // Draw the figure (use with task).
-                  }
-                  catch (err) {
-                    console.log('failled:' + err.message);
-                  }
-                }
-
-                // Success popup.
-                this.$notifications.notify({
-                  message: 'Graphs created',
-                  icon: 'ti-check',
-                  type: 'success',
-                  verticalAlign: 'top',
-                  horizontalAlign: 'center',
-                })
-              })
-              .catch(error => {
-                // Pull out the error message.
-                this.serverresponse = 'There was an error: ' + error.message
-
-                // Set the server error.
-                this.servererror = error.message
-
-                // Put up a failure notification.
-                this.$notifications.notify({
-                  message: 'Optimization failed',
-                  icon: 'ti-face-sad',
-                  type: 'warning',
-                  verticalAlign: 'top',
-                  horizontalAlign: 'center',
-                })
-              })
-
+            this.serverresponse = response.data // Pull out the response data.
+//                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+            this.graphData = response.data.result.graphs // Pull out the response data (use with task).
+            var n_plots = this.graphData.length
+            console.log('Rendering ' + n_plots + ' graphs')
+            for (var index = 0; index <= n_plots; index++) {
+              console.log('Rendering plot ' + index)
+              var divlabel = 'fig' + index
+              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+              while (div.firstChild) {
+                div.removeChild(div.firstChild);
+              }
+              try {
+                console.log(this.graphData[index]);
+                mpld3.draw_figure(divlabel, this.graphData[index], function(fig, element) {
+                  fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+                });
+                this.haveDrawnGraphs = true
+              }
+              catch (err) {
+                console.log('failled:' + err.message);
+              }
+            }
+            
+            // Indicate success.
+            status.succeed(this, 'Graphs created')
           })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            console.log(this.serverresponse)
+            this.servererror = error.message // Set the server error.
+             
+            // Indicate failure.
+            status.fail(this, 'Could not make graphs: ' + error.message)
+          })
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          console.log(this.serverresponse)
+          this.servererror = error.message // Set the server error.
+           
+          // Indicate failure.
+          status.fail(this, 'Could not make graphs: ' + error.message)
+        })        
       },
 
       reloadGraphs() {
@@ -418,7 +560,10 @@ Last update: 2018-07-29
           console.log('Rendering plot ' + index)
           var divlabel = 'fig' + index
           try {
-            mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+            mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+              fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+              fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+            });
           }
           catch (err) {
             console.log('failled:' + err.message);

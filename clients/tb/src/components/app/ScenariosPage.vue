@@ -48,13 +48,6 @@ Last update: 2018-07-30
       </div>
 
 
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
-        </div>
-      </div>
-
-
 
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}" style="max-width:400px">
         <div class="calib-params" v-if="areShowingPlots">
@@ -78,6 +71,14 @@ Last update: 2018-07-30
           </table>
         </div>
       </div>
+
+
+      <div>
+        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
+          <!--mpld3 content goes here-->
+        </div>
+      </div>
+
 
 
 
@@ -570,6 +571,52 @@ Last update: 2018-07-30
 
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-
+<style>
+  .calib-controls {
+    margin-bottom: 3rem;
+  }
+  .calib-controls .control-group {
+    display: inline-block;
+  }
+  .calib-controls button, .calib-controls .control-group {
+    margin-right: 1rem;
+  }
+  .calib-main {
+    display: flex;
+  }
+  .calib-main--full {
+    display: block;
+  }
+  .calib-params {
+    flex: 1 0 30%;
+  }
+  .plotopts-main {
+    /*width: 350px;*/
+    /*padding-left: 20px;*/
+    display: flex;
+    /*float: left;*/
+  }
+  .plotopts-main--full {
+    display: block;
+  }
+  .plotopts-params {
+    flex: 1 0 10%;
+  }
+  .calib-graphs {
+    flex: 1 0 50%;
+  }
+  .calib-graph {
+    width:650px;
+    float:left;
+  }
+  .controls-box {
+    border: 2px solid #ddd;
+    padding: 7px;
+    display: inline-block;
+  }
+  .small-button {
+    background: inherit;
+    padding: 0 0 0 0;
+  }
 </style>
+
