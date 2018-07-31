@@ -409,7 +409,7 @@ class ProjectData(object):
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet,next_row,self._formats,self._references)
+            next_row = transfer.write(sheet,next_row,self._formats,self._references,widths)
         apply_widths(sheet,widths)
 
     def _read_interpops(self,sheet):
