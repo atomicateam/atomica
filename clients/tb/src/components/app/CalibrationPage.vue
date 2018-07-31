@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-30
+Last update: 2018-07-31
 -->
 
 <template>
@@ -235,7 +235,7 @@ Last update: 2018-07-30
           return ''
         } else {
           let projectID = this.$store.state.activeProject.project.id
-          this.updateParset()
+//          this.updateParset()  // why was this here?
           return projectID
         }
       },
@@ -280,8 +280,9 @@ Last update: 2018-07-30
       } else if (this.$store.state.activeProject.project != undefined) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
-        this.viewTable();
-        this.getPlotOptions();
+        this.viewTable()
+        this.getPlotOptions()
+        this.updateParset()
       }
     },
 
@@ -299,6 +300,7 @@ Last update: 2018-07-30
       // TO_PORT
       updateParset() {
         console.log('updateParset() called')
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
         // Get the current user's parsets from the server.
         rpcservice.rpcCall('get_parset_info', [this.projectID()])
         .then(response => {
@@ -312,10 +314,11 @@ Last update: 2018-07-30
           this.newParsetName = this.activeParset // WARNING, KLUDGY
           console.log('Parset options: ' + this.parsetOptions)
           console.log('Active parset: ' + this.activeParset)
+          status.succeed(this, '')  // No green notification.
         })
         .catch(error => {
           // Failure popup.
-          status.failurePopup(this, 'Could not update parset')
+          status.fail(this, 'Could not update parset')
         })         
       },
 
@@ -344,27 +347,23 @@ Last update: 2018-07-30
 
       viewTable() {
         console.log('viewTable() called')
-        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
           this.parList = response.data // Get the parameter values
-          status.succeed(this, '')  // No green notification.
         })
         .catch(error => {
-          status.fail(this, 'Could not load parameters: ' + error.message)
+          status.failurePopup(this, 'Could not load parameters: ' + error.message)
         })
       },
 
       getPlotOptions() {
         console.log('getPlotOptions() called')
-        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcservice.rpcCall('get_supported_plots', [true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
-            status.succeed(this, '')  // No green notification.
           })
           .catch(error => {
-            status.fail(this, 'Could not get plot options: ' + error.message)
+            status.failurePopup(this, 'Could not get plot options: ' + error.message)
           })
       },
 
