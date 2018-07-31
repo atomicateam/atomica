@@ -282,10 +282,21 @@ Last update: 2018-07-31
         this.viewTable()
         this.getPlotOptions()
         this.updateParset()
+        this.sleep(1000)
+          .then(response => {
+            this.makeGraphs(this.activeProjectID)
+            }
+          );
       }
     },
 
     methods: {
+
+      sleep(time) {
+        // Return a promise that resolves after _time_ milliseconds.
+        console.log('Sleeping for ' + time)
+        return new Promise((resolve) => setTimeout(resolve, time));
+      },
 
       notImplemented(message) {
         status.failurePopup(this, 'Function "' + message + '" not yet implemented')
