@@ -49,7 +49,7 @@ Last update: 2018-07-30
 
 
 
-      <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}" style="max-width:400px">
+      <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
         <div class="calib-params" v-if="areShowingPlots">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
@@ -70,18 +70,12 @@ Last update: 2018-07-30
             </tbody>
           </table>
         </div>
-      </div>
-
-
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index">
+            <!--mpld3 content goes here-->
+          </div>
         </div>
       </div>
-
-
-
-
 
       <modal name="add-budget-scen"
              height="auto"
@@ -581,15 +575,23 @@ Last update: 2018-07-30
   .calib-controls button, .calib-controls .control-group {
     margin-right: 1rem;
   }
+
   .calib-main {
     display: flex;
-  }
-  .calib-main--full {
-    display: block;
+    margin-top: 4rem;
   }
   .calib-params {
-    flex: 1 0 30%;
+    flex: 0 0 30%;
   }
+  .calib-graphs {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    & > div {
+      flex: 0 0 650px;
+    }
+  }
+
   .plotopts-main {
     /*width: 350px;*/
     /*padding-left: 20px;*/
@@ -601,13 +603,6 @@ Last update: 2018-07-30
   }
   .plotopts-params {
     flex: 1 0 10%;
-  }
-  .calib-graphs {
-    flex: 1 0 50%;
-  }
-  .calib-graph {
-    width:650px;
-    float:left;
   }
   .controls-box {
     border: 2px solid #ddd;
