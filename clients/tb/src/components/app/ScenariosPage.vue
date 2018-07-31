@@ -424,12 +424,11 @@ Last update: 2018-07-30
 
       runScens() {
         console.log('runScens() called')
+        status.start(this)
+        this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
-          // Start indicating progress.
-          status.start(this)
-          
           // Go to the server to get the results from the package set.
           rpcservice.rpcCall('run_scenarios', [this.projectID()])
           .then(response => {
@@ -475,7 +474,7 @@ Last update: 2018-07-30
           this.servererror = error.message
           
           // Put up a failure notification.
-          status.failurePopup(this, 'Could not make graphs')      
+          status.fail(this, 'Could not make graphs')      
         })        
       },
 

@@ -235,7 +235,6 @@ Last update: 2018-07-31
           return ''
         } else {
           let projectID = this.$store.state.activeProject.project.id
-//          this.updateParset()  // why was this here?
           return projectID
         }
       },
