@@ -472,7 +472,7 @@ class Project(object):
         original_end = self.settings.sim_end
         self.settings.sim_end = optim_ins.json['end_year']
         optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
-        optimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions,result_name="Optimized")
+        optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized")
         unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline")
         self.settings.sim_end = original_end
         results = [unoptimized_result, optimized_result]
