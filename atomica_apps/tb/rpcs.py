@@ -805,7 +805,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
 
 #TO_PORT
 @register_RPC(validation_type='nonanonymous user')    
-def automatic_calibration(project_id, parsetname=-1, max_time=10):
+def automatic_calibration(project_id, parsetname=-1, max_time=10, saveresults=False):
     
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -814,9 +814,13 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     print('Rerunning calibrated model...')
     
     print('Resultsets before run: %s' % len(proj.results))
-    result = proj.run_sim(parset=parsetname, store_results=True)
+    if saveresults:
+        result = proj.run_sim(parset=parsetname, store_results=True)
+        save_project(proj)
+    else:
+        result = proj.run_sim(parset=parsetname, store_results=False) 
+        store_result_separately(proj, result)
     print('Resultsets after run: %s' % len(proj.results))
-    save_project(proj)    
 
     output = get_calibration_plots(proj, result,pops=None,stacked=True)
 
@@ -1071,13 +1075,14 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id):
+def run_scenarios(project_id, saveresults=False):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     output = get_plots(proj, results)
-    print('Saving project...')
-    save_project(proj)    
+    if saveresults:
+        print('Saving project...')
+        save_project(proj)    
     return output
     
 

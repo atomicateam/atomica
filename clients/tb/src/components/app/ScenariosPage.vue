@@ -431,7 +431,7 @@ Last update: 2018-07-30
           status.start(this)
           
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID()])
+          rpcservice.rpcCall('run_scenarios', [this.projectID()], {saveresults: false})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
