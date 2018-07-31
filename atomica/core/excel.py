@@ -392,13 +392,11 @@ class TimeDependentConnections(object):
         worksheet.write(current_row, 0, 'Abbreviation', formats["center_bold"])
         update_widths(widths, 0, 'Abbreviation')
         worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
-        update_widths(widths, 1, 'Full Name')
 
         current_row += 1
         worksheet.write(current_row, 0, self.code_name)
         update_widths(widths, 0, self.code_name)
         worksheet.write(current_row, 1, self.full_name)
-        update_widths(widths, 1, self.full_name)
         references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
         references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
 
