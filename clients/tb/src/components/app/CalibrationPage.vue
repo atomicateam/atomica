@@ -589,15 +589,23 @@ Last update: 2018-07-31
   .calib-controls button, .calib-controls .control-group {
     margin-right: 1rem;
   }
+
   .calib-main {
     display: flex;
-  }
-  .calib-main--full {
-    display: block;
+    margin-top: 4rem;
   }
   .calib-params {
-    flex: 1 0 30%;
+    flex: 0 0 30%;
   }
+  .calib-graphs {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    & > div {
+      flex: 0 0 650px;
+    }
+  }
+
   .plotopts-main {
     /*width: 350px;*/
     /*padding-left: 20px;*/
@@ -609,13 +617,6 @@ Last update: 2018-07-31
   }
   .plotopts-params {
     flex: 1 0 10%;
-  }
-  .calib-graphs {
-    flex: 1 0 50%;
-  }
-  .calib-graph {
-    width:650px;
-    float:left;
   }
   .controls-box {
     border: 2px solid #ddd;

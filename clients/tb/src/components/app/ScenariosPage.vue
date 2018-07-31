@@ -586,7 +586,10 @@ Last update: 2018-07-30
   .calib-graphs {
     flex: 1;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    & > div {
+      flex: 0 0 650px;
+    }
   }
 
   .plotopts-main {
