@@ -43,6 +43,8 @@ class ProgramSet(NamedItem):
         NamedItem.__init__(self,name)
         self.programs   = sc.odict()
         self.covout     = sc.odict()
+        self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
+
         if programs is not None: self.add_programs(programs)
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
@@ -51,6 +53,11 @@ class ProgramSet(NamedItem):
         self.modified = today()
         self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
         return None
+
+    def prepare_cache(self):
+        # This function is called once at the start of model.py, which allows various checks to be
+        # performed once at the start of the simulation rather than at every timestep
+        self._covout_valid_cache = {k:v.has_pars() for k,v in self.covout.items()}
 
     def __repr__(self):
         ''' Print out useful information'''
@@ -466,7 +473,7 @@ class ProgramSet(NamedItem):
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
-                    if not self.covout[(par_type,pop)].has_pars():
+                    if not self._covout_valid_cache[(par_type,pop)]:
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
                     else:
@@ -485,7 +492,7 @@ class ProgramSet(NamedItem):
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
                     for prog in relevant_progs[pop]:
-                        if not self.covout[(par_type,pop)].has_pars():
+                        if not self._covout_valid_cache[(par_type,pop)]:
                             print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
                             outcomes[par_type][pop] = None
                         else: 
@@ -939,7 +946,9 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.npi_val = Val(npi_val)
         self.progs = odict()
-        if prog is not None: self.add(prog=prog)
+        if prog is not None:
+            self.add(prog=prog)
+
         return None
     
     def __repr__(self):
@@ -1026,6 +1035,7 @@ class Val(object):
         self.low = None
         self.high = None
         self.dist = None
+        self.usable = False # A Val is usable if a 'best' value was assigned so that Val() or Val.get() will return a number. Because update() calls float() it is guaranteed to be a number
         self.update(best=best, low=low, high=high, dist=dist)
         return None
     
