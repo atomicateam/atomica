@@ -10,7 +10,7 @@ button[data-tooltip]:hover,
 button[data-tooltip]:focus {
   &:after, &:before {
     opacity: 1;
-    transition: opacity 0s linear 0.8s;
+    transition: opacity 0s linear 0.5s;
   }
   &:after {
     content: attr(data-tooltip);
