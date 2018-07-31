@@ -691,10 +691,16 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     return {'graphs':graphs}
 
 
-def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None):
+def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
-    if plot_names is None: plot_names = supported_plots.keys()
+    if plot_names is None: 
+        if plot_options is not None:
+            plot_names = []
+            for item in plot_options:
+                if item['active']: plot_names.append(item['plot_name'])
+        else:
+            plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
@@ -1093,11 +1099,11 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id, saveresults=False):
+def run_scenarios(project_id, plot_options, saveresults=False):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    output = get_plots(proj, results)
+    output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:
         print('Saving project...')
         save_project(proj)    

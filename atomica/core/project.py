@@ -520,7 +520,7 @@ class Project(object):
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''
         json = sc.odict()
-        json['name']              = 'Demo optimization'
+        json['name']              = 'Default optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
         json['start_year']        = 2018

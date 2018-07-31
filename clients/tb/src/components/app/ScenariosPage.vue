@@ -40,11 +40,40 @@ Last update: 2018-07-30
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
         <button class="btn __blue" @click="addBudgetScenModal()">Add scenario</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="toggleShowingPlots()">
+          <span v-if="areShowingPlots">Hide</span>
+          <span v-else>Show</span>
+          plot controls
+        </button>
       </div>
 
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
+
+
+      <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
+        <div class="calib-params" v-if="areShowingPlots">
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th>Plot</th>
+              <th>Active</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="item in plotOptions">
+              <td>
+                {{ item.plot_name }}
+              </td>
+              <td style="text-align: center">
+                <input type="checkbox" v-model="item.active"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index">
+            <!--mpld3 content goes here-->
+          </div>
         </div>
       </div>
 
@@ -155,6 +184,8 @@ Last update: 2018-07-30
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        areShowingPlots: false,
+        plotOptions: [],
       }
     },
 
@@ -189,6 +220,7 @@ Last update: 2018-07-30
         this.getScenSummaries()
         this.getDefaultBudgetScen()
         this.updateSets()
+        this.getPlotOptions()
       }
     },
 
@@ -424,6 +456,21 @@ Last update: 2018-07-30
         })        
       },
 
+      getPlotOptions() {
+        console.log('getPlotOptions() called')
+        rpcservice.rpcCall('get_supported_plots', [true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not get plot options: ' + error.message)
+          })
+      },
+
+      toggleShowingPlots() {
+        this.areShowingPlots = !this.areShowingPlots
+      },
+
       runScens() {
         console.log('runScens() called')
         status.start(this)
@@ -432,7 +479,7 @@ Last update: 2018-07-30
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID()], {saveresults: false})
+          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length
@@ -518,5 +565,53 @@ Last update: 2018-07-30
 
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style>
+  .calib-controls {
+    margin-bottom: 3rem;
+  }
+  .calib-controls .control-group {
+    display: inline-block;
+  }
+  .calib-controls button, .calib-controls .control-group {
+    margin-right: 1rem;
+  }
+
+  .calib-main {
+    display: flex;
+    margin-top: 4rem;
+  }
+  .calib-params {
+    flex: 0 0 30%;
+  }
+  .calib-graphs {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    & > div {
+      flex: 0 0 650px;
+    }
+  }
+
+  .plotopts-main {
+    /*width: 350px;*/
+    /*padding-left: 20px;*/
+    display: flex;
+    /*float: left;*/
+  }
+  .plotopts-main--full {
+    display: block;
+  }
+  .plotopts-params {
+    flex: 1 0 10%;
+  }
+  .controls-box {
+    border: 2px solid #ddd;
+    padding: 7px;
+    display: inline-block;
+  }
+  .small-button {
+    background: inherit;
+    padding: 0 0 0 0;
+  }
 </style>
+
