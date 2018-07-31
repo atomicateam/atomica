@@ -72,8 +72,8 @@ def standard_formats(workbook):
     # Conditional formats
     formats['unlocked_boolean_true'] = workbook.add_format({'bg_color': OPT_COLOR})
     formats['unlocked_boolean_false'] = workbook.add_format({'bg_color': BG_COLOR})
-    formats['not_required'] = workbook.add_format({'bg_color': '#EEEEEE'})
-    formats['white_bg'] = workbook.add_format({'bg_color': '#FFFFFF'})
+    formats['not_required'] = workbook.add_format({'bg_color': '#EEEEEE','border': 1,'border_color': '#CCCCCC'})
+    formats['white_bg'] = workbook.add_format({'bg_color': '#FFFFFF','border': 1,'border_color': '#CCCCCC'})
     formats['ignored'] = workbook.add_format({'pattern': 14}) # Hatched with diagonal lines - this represents a cell whose value will not be used in the model run (e.g., an assumption that also has time-specific points)
     formats['warning'] = workbook.add_format({'bg_color': '#FF0000'})
     formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'})
@@ -82,13 +82,16 @@ def standard_formats(workbook):
 
 def apply_widths(worksheet,width_dict):
     for idx,width in width_dict.items():
-        worksheet.set_column(idx, idx, width*1.1)
+        worksheet.set_column(idx, idx, width*1.1 + 1)
 
 def update_widths(width_dict,column_index,contents):
     # Keep track of the maximum length of the contents in a column
     # width_dict is a dict that is keyed by column index e.g. 0,1,2
     # and the value is the length of the longest contents seen for that column
     if width_dict is None or contents is None or not isinstance(contents,string_types):
+        return
+
+    if len(contents) == 0:
         return
 
     if column_index not in width_dict:
@@ -240,7 +243,7 @@ def read_tables(worksheet):
 
     return tables
 
-def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False):
+def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False,widths=None):
     # This function writes a matrix
     # It gets used for
     # - Transfer matrix
@@ -264,9 +267,12 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
     values_written = {}
 
     # Write the headers
+    max_length = max([len(x) for x in nodes])
     for i,node in enumerate(nodes):
         worksheet.write_formula(start_row+i+1, 0  , references[node], formats['center_bold'],value=node)
+        update_widths(widths,0,node)
         worksheet.write_formula(start_row  , i+1, references[node], formats['center_bold'],value=node)
+        update_widths(widths,i+1,node)
 
     # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
     # after writing content, so have to do the writing in a single pass over the entire matrix
@@ -392,6 +398,7 @@ class TimeDependentConnections(object):
         worksheet.write(current_row, 0, 'Abbreviation', formats["center_bold"])
         update_widths(widths, 0, 'Abbreviation')
         worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
+        update_widths(widths, 1, 'Full Name')
 
         current_row += 1
         worksheet.write(current_row, 0, self.code_name)
@@ -407,7 +414,7 @@ class TimeDependentConnections(object):
         # For example, there could be two transfers, and each of them could potentially transfer between 0-4 and 5-14
         # so the worksheet might contain two references from 0-4 to 5-14 but they would be for different transfers and thus
         # the time-dependent rows would depend on different boolean table cells
-        current_row,table_references,values_written = write_matrix(worksheet,current_row,self.pops,self.ts,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True)
+        current_row,table_references,values_written = write_matrix(worksheet,current_row,self.pops,self.ts,formats,references,enable_diagonal=self.enable_diagonal,boolean_choice=True,widths=widths)
 
         ### Finally, write the time dependent part
         headings = []
@@ -420,6 +427,7 @@ class TimeDependentConnections(object):
         headings += [str(x) for x in self.tvec] # Times
         for i, entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats['center_bold'])
+            update_widths(widths,i,entry)
 
         # Now, we will write a wrapper that gates the content
         # If the gating cell is 'Y', then the content will be displayed, otherwise not
@@ -447,7 +455,7 @@ class TimeDependentConnections(object):
                 if ts:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value=from_pop)
                     update_widths(widths, 0, from_pop)
-                    worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center_bold'], value='--->')
+                    worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
                     worksheet.write(current_row, 3, ts.format.title())
@@ -456,16 +464,19 @@ class TimeDependentConnections(object):
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
                     worksheet.write(current_row, 4, ts.assumption, format)
-                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='OR')
+                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='OR')
+                    # update_widths(widths, 5,  '...') # The largest length it will be here is '...' so use that
+
                 else:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
-                    worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center_bold'], value='...')
+                    worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='...')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_blank(current_row, 3, '')
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
                     worksheet.write_blank(current_row, 4, '', format)
-                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center_bold'], value='...')
+                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='...')
+                    # update_widths(widths, 5,  '...')
 
                 # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
                 # whether it was originally Y or N
@@ -627,7 +638,8 @@ class TimeDependentValuesEntry(object):
             worksheet.write(current_row,2,pop_ts.assumption, format)
 
             # Write the separator between the assumptions and the time values
-            worksheet.write(current_row,3,'OR')
+            worksheet.write(current_row,3,'OR',formats['center'])
+            update_widths(widths, 3, 'OR')
 
             # Write the time values
             offset = 4 # This is the column where the time values begin
