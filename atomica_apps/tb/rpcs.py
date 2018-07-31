@@ -802,7 +802,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
 
 #TO_PORT
 @register_RPC(validation_type='nonanonymous user')    
-def automatic_calibration(project_id, parsetname=-1, max_time=10, saveresults=False):
+def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
     
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)

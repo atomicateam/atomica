@@ -356,7 +356,7 @@ Last update: 2018-07-29
 
             // Go to the server to get the results from the package set.
 //          rpcservice.rpcCall('run_optim', [this.projectID(), optimSummary.name])
-            taskservice.getTaskResultPolling('run_optimization', 90, 3, 'run_optim',
+            taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optim',
               [this.projectID(), optimSummary.name])
               .then(response => {
                 this.clearGraphs() // Once we receive a response, we can work with a clean slate

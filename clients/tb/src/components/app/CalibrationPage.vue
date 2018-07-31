@@ -423,6 +423,7 @@ Last update: 2018-07-31
         
         // Start indicating progress.
         status.start(this)
+        this.$Progress.start(7000)
 
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])

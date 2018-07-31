@@ -524,7 +524,7 @@ class Project(object):
         json['end_year']          = 2025
         json['budget_factor']     = 1.0
         json['objective_weights'] = {'alive':-1,'ddis':1,'acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
-        json['maxtime']           = 20 # WARNING, default!
+        json['maxtime']           = 30 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
             json['prog_spending'][prog_name] = [1,None]
