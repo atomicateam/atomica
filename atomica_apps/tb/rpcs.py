@@ -471,12 +471,9 @@ def add_demo_project(user_id):
     Add a demo Optima TB project
     """
     new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-    proj = au.demo(which='tb',do_plot=0)  # Create the project, loading in the desired spreadsheets.
+    proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
-    result = proj.results[0]
-    proj.results = au.NDict()
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
-    store_result_separately(proj,result)
     print(">> add_demo_project %s" % (proj.name))    
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
