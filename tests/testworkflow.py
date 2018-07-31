@@ -21,7 +21,8 @@ import numpy as np
 # logger.setLevel('DEBUG')
 
 # test = "sir"
-test = "tb"
+#test = "tb"
+test = "udt"
 #test = "diabetes"
 # test = "service"
 
@@ -30,15 +31,15 @@ torun = [
 "saveframework",
 "loadframework",
 "makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
-"makeplots",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#'plotcascade',
+#"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
+#"makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
@@ -84,6 +85,7 @@ if "makedatabook" in torun:
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:

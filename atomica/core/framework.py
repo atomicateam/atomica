@@ -168,11 +168,11 @@ class ProjectFramework(object):
         # - Checking that the provided information is internally consistent
 
         # Check for required sheets
-        for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions','Interactions']:
+        for page in ['Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
 
         ### VALIDATE COMPARTMENTS
-        required_columns = ['Display Name','Is Source', 'Is Sink','Is Junction','Databook Page']
+        required_columns = ['Display Name','Is Source', 'Is Sink','Is Junction']
         defaults = {
             'Is Sink':'n',
             'Is Source':'n',
@@ -197,7 +197,7 @@ class ProjectFramework(object):
         if 'Setup Weight' not in self.comps:
             self.comps['Setup Weight'] = (~self.comps['Databook Page'].isnull()).astype(int)
         else:
-            fill_ones = self.comps['Setup Weight'].isnull() & self.comps['Databook Page']
+            fill_ones = self.comps['Setup Weight'].isnull() 
             self.comps['Setup Weight'][fill_ones] = 1
             self.comps['Setup Weight'].fillna(0, inplace=True)
 
@@ -217,7 +217,7 @@ class ProjectFramework(object):
 
         ### VALIDATE PARAMETERS
 
-        required_columns = ['Display Name','Format','Databook Page']
+        required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
             'Minimum Value':None,
@@ -278,7 +278,7 @@ class ProjectFramework(object):
                         raise AtomicaException('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
 
         ### VALIDATE CHARACTERISTICS
-        required_columns = ['Display Name','Databook Page']
+        required_columns = ['Display Name']
         defaults = {
             'Components':None,
             'Denominator':None,
