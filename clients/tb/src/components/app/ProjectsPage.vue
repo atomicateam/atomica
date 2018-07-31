@@ -93,13 +93,13 @@ Last update: 2018-07-29
             </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
-              <button class="btn" @click="copyProject(projectSummary.project.id)" title="Copy">
+              <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
                 <i class="ti-files"></i>
               </button>
-              <button class="btn" @click="renameProject(projectSummary)" title="Rename">
+              <button class="btn" @click="renameProject(projectSummary)" data-tooltip="Rename">
                 <i class="ti-pencil"></i>
               </button>
-              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
@@ -110,21 +110,21 @@ Last update: 2018-07-29
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
-              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
-              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" title="New">
+              <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
                 <i class="ti-plus"></i>
               </button>
-              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
-              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>

@@ -978,7 +978,7 @@ def py_to_js_scen(py_scen, project=None):
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        js_scen['alloc'].append([prog_name,float(budget), prog_label])
+        js_scen['alloc'].append([prog_name,round(float(budget)), prog_label])
     return js_scen
 
 def js_to_py_scen(js_scen):
@@ -1099,6 +1099,16 @@ def rpc_optimize(proj=None, json=None):
     return optimized_result
 
 
+def py_to_js_optim(py_optim, project=None):
+    js_optim = sw.json_sanitize_result(py_optim.json)
+    for prog_name in js_optim['prog_spending']:
+        prog_label = project.progset().programs[prog_name].label
+        this_prog = js_optim['prog_spending'][prog_name]
+        this_prog.append(prog_label)
+        js_optim['prog_spending'][prog_name] = {'min':this_prog[0], 'max':this_prog[1], 'label':prog_label}
+    return js_optim
+    
+
 @register_RPC(validation_type='nonanonymous user')    
 def get_optim_info(project_id):
     print('Getting optimization info...')
@@ -1107,12 +1117,7 @@ def get_optim_info(project_id):
     optim_summaries = []
     print(proj.optims.keys())
     for py_optim in proj.optims.values():
-        js_optim = sw.json_sanitize_result(py_optim.json)
-        for prog_name in js_optim['prog_spending']:
-            prog_label = proj.progset().programs[prog_name].label
-            this_prog = js_optim['prog_spending'][prog_name]
-            this_prog.append(prog_label)
-            js_optim['prog_spending'][prog_name] = {'min':this_prog[0], 'max':this_prog[1], 'label':prog_label}
+        js_optim = py_to_js_optim(py_optim, project=proj)
         optim_summaries.append(js_optim)
     print('JavaScript optimization info:')
     print(optim_summaries)
@@ -1124,7 +1129,7 @@ def get_default_optim(project_id):
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
     py_optim = proj.demo_optimization()
-    js_optim = sw.json_sanitize_result(py_optim)
+    js_optim = py_to_js_optim(py_optim, project=proj)
     print('Created default optimization:')
     print(js_optim)
     return js_optim
