@@ -287,6 +287,7 @@ export default {
 
     updateProjectSummaries(setActiveID) {
       console.log('updateProjectSummaries() called')
+      status.start(this)
       rpcservice.rpcCall('load_current_user_project_summaries') // Get the current user's project summaries from the server.
       .then(response => {
         let lastCreationTime = null
@@ -313,9 +314,10 @@ export default {
             this.openProject(setActiveID)
           }
         }
+        status.succeed(this, '')  // No green popup.
       })
       .catch(error => {
-        status.failurePopup(this, 'Could not load projects: ' + error.message)
+        status.fail(this, 'Could not load projects: ' + error.message)
       })     
     },
 
