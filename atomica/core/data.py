@@ -8,13 +8,14 @@ from .structure import TimeSeries
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections
+from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
 import xlsxwriter as xw
 import io
 import numpy as np
 from .system import AtomicaException
 from .structure import FrameworkSettings as FS
 from collections import defaultdict
+from six import string_types
 
 # Data maps to a databook
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
@@ -192,7 +193,7 @@ class ProjectData(object):
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
         self = ProjectData()
 
-        if isinstance(spreadsheet,basestring):
+        if isinstance(spreadsheet,string_types):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
@@ -375,17 +376,24 @@ class ProjectData(object):
     def _write_pops(self):
         # Writes the 'Population Definitions' sheet
         sheet = self._book.add_worksheet("Population Definitions")
+        widths = dict()
 
         current_row = 0
         sheet.write(current_row, 0, 'Abbreviation', self._formats["center_bold"])
+        update_widths(widths,0,'Abbreviation')
         sheet.write(current_row, 1, 'Full Name', self._formats["center_bold"])
+        update_widths(widths,1,'Abbreviation')
 
         for name,content in self.pops.items():
             current_row += 1
             sheet.write(current_row, 0, name)
+            update_widths(widths, 0, name)
             sheet.write(current_row, 1, content['label'])
+            update_widths(widths, 1, content['label'])
             self._references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
             self._references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
+
+        apply_widths(sheet,widths)
 
     def _read_transfers(self,sheet):
         tables = read_tables(sheet)
@@ -398,9 +406,11 @@ class ProjectData(object):
     def _write_transfers(self):
         # Writes a sheet for every transfer
         sheet = self._book.add_worksheet("Transfers")
+        widths = dict()
         next_row = 0
         for transfer in self.transfers:
             next_row = transfer.write(sheet,next_row,self._formats,self._references)
+        apply_widths(sheet,widths)
 
     def _read_interpops(self,sheet):
         tables = read_tables(sheet)
@@ -413,18 +423,21 @@ class ProjectData(object):
     def _write_interpops(self):
         # Writes a sheet for every
         sheet = self._book.add_worksheet("Interactions")
+        widths = dict()
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet,next_row,self._formats,self._references)
+            next_row = interpop.write(sheet,next_row,self._formats,self._references,widths)
+        apply_widths(sheet,widths)
 
     def _write_tdve(self):
         # Writes several sheets, one for each custom page specified in the Framework
         for sheet_name,code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)
-            current_row = 0
+            widths = dict()
+            next_row = 0
             for code_name in code_names:
-                current_row = self.tdve[code_name].write(sheet,current_row,self._formats,self._references)
-
+                next_row = self.tdve[code_name].write(sheet,next_row,self._formats,self._references,widths)
+            apply_widths(sheet,widths)
 
 
 

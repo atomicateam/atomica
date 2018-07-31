@@ -42,6 +42,7 @@ from .utils import NDict
 import sciris.core as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
+from six import string_types
 
 
 class ProjectSettings(object):
@@ -165,7 +166,7 @@ class Project(object):
                                newly-added data
         - do_run: If True, a simulation will be run using the new parset
         """
-        if isinstance(databook_path,basestring):
+        if isinstance(databook_path,string_types):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -225,7 +226,7 @@ class Project(object):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        if isinstance(progbook_path,basestring):
+        if isinstance(progbook_path,string_types):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -418,10 +419,10 @@ class Project(object):
             measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys()
             measurables += self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
         for index, adjustable in enumerate(adjustables):
-            if isinstance(adjustable, basestring):  # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(adjustable, string_types):  # Assume that a parameter name was passed in if not a tuple.
                 adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
         for index, measurable in enumerate(measurables):
-            if isinstance(measurable, basestring):  # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(measurable, string_types):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = perform_autofit(project=self, parset=parset,
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)

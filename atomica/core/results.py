@@ -5,8 +5,7 @@ from .utils import NamedItem
 from .system import AtomicaException
 import matplotlib.pyplot as plt
 import ast
-
-# import optima_tb.settings as project_settings
+from six import string_types
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -174,9 +173,9 @@ class Result(NamedItem):
         # - framework should be a ProjectFramework and is only required if cascade is a string rather than a list
         from .plotting import PlotData # Import here to avoid circular dependencies
 
-        assert isinstance(pops,basestring), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
+        assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 
-        if isinstance(cascade,basestring):
+        if isinstance(cascade,string_types):
             if isinstance(self.framework.sheets['Cascades'],list):
                 available_cascades = []
                 for df in self.framework.sheets['Cascades']:

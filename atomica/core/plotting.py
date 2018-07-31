@@ -24,6 +24,7 @@ from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
 
+from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
@@ -184,7 +185,7 @@ class PlotData(object):
                 if isinstance(x, dict):
                     k = list(x.keys())
                     assert len(k) == 1, 'Aggregation dict can only have one key'
-                    if isinstance(x[k[0]], basestring):
+                    if isinstance(x[k[0]], string_types):
                         continue
                     else:
                         out += x[k[0]]
@@ -277,7 +278,7 @@ class PlotData(object):
 
                     output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
 
-                    if not isinstance(f_stack_str, basestring):
+                    if not isinstance(f_stack_str, string_types):
                         continue
 
                     placeholder_pop = lambda: None
@@ -306,7 +307,7 @@ class PlotData(object):
                         labels = output[output_name]
 
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
-                        if isinstance(labels, basestring):
+                        if isinstance(labels, string_types):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[
                                 output_name] = 'unknown'  # Also, we don't know what the units of a function are
@@ -389,7 +390,7 @@ class PlotData(object):
                     upper = self.series[0].tvec[-1]
                 t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
 
-            if isinstance(t_bins, basestring) and t_bins == 'all':
+            if isinstance(t_bins, string_types) and t_bins == 'all':
                 t_out = np.zeros((1,))
                 lower = [-np.inf]
                 upper = [np.inf]
@@ -426,7 +427,7 @@ class PlotData(object):
 
                 s.tvec = np.array(tvec)
                 s.vals = np.array(vals)
-                if isinstance(t_bins, basestring) and t_bins == 'all':
+                if isinstance(t_bins, string_types) and t_bins == 'all':
                     s.t_labels = ['All']
                 else:
                     s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
@@ -592,7 +593,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', '', x) if len(x) > 1 else (x[0], '', x))
                     items.update(x)
-                elif isinstance(x, basestring):
+                elif isinstance(x, string_types):
                     output_stacks.append((x, '', [x]))
                     items.add(x)
                 else:
@@ -603,7 +604,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', k, x) if len(x) > 1 else (x[0], k, x))
                     items.update(x)
-                elif isinstance(x, basestring):
+                elif isinstance(x, string_types):
                     output_stacks.append((x, k, [x]))
                     items.add(x)
                 else:

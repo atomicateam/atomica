@@ -13,6 +13,7 @@ from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
+from six import string_types
 
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
@@ -949,7 +950,7 @@ class Covout(object):
         elif isinstance(prog, (list, tuple)):
             for key,val in prog:
                 self.progs[key] = Val(val)
-        elif isinstance(prog, basestring) and val is not None:
+        elif isinstance(prog, string_types) and val is not None:
             self.progs[prog] = Val(val)
         else:
             errormsg = 'Could not understand prog=%s and val=%s' % (prog, val)

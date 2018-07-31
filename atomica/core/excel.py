@@ -13,6 +13,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
+from six import string_types
 
 import logging
 logger = logging.getLogger(__name__)
@@ -78,6 +79,22 @@ def standard_formats(workbook):
     formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'})
 
     return formats
+
+def apply_widths(worksheet,width_dict):
+    for idx,width in width_dict.items():
+        worksheet.set_column(idx, idx, width*1.1)
+
+def update_widths(width_dict,column_index,contents):
+    # Keep track of the maximum length of the contents in a column
+    # width_dict is a dict that is keyed by column index e.g. 0,1,2
+    # and the value is the length of the longest contents seen for that column
+    if width_dict is None or contents is None or not isinstance(contents,string_types):
+        return
+
+    if column_index not in width_dict:
+        width_dict[column_index] = len(contents)
+    else:
+        width_dict[column_index] = max(width_dict[column_index],len(contents))
 
 class AtomicaSpreadsheet(object):
     ''' A class for reading and writing data in binary format, so a project contains the spreadsheet loaded '''
@@ -365,7 +382,7 @@ class TimeDependentConnections(object):
 
         return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None):
+    def write(self,worksheet,start_row,formats,references=None, widths = None):
 
         if not references:
             references = {x:x for x in self.pops} # Default null mapping for populations
@@ -373,10 +390,15 @@ class TimeDependentConnections(object):
         ### First, write the titles
         current_row = start_row
         worksheet.write(current_row, 0, 'Abbreviation', formats["center_bold"])
+        update_widths(widths, 0, 'Abbreviation')
         worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
+        update_widths(widths, 1, 'Full Name')
+
         current_row += 1
         worksheet.write(current_row, 0, self.code_name)
+        update_widths(widths, 0, self.code_name)
         worksheet.write(current_row, 1, self.full_name)
+        update_widths(widths, 1, self.full_name)
         references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
         references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
 
@@ -426,9 +448,13 @@ class TimeDependentConnections(object):
 
                 if ts:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value=from_pop)
+                    update_widths(widths, 0, from_pop)
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center_bold'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
+                    update_widths(widths, 2, to_pop)
                     worksheet.write(current_row, 3, ts.format.title())
+                    update_widths(widths, 3, ts.format.title())
+
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
                     worksheet.write(current_row, 4, ts.assumption, format)
@@ -549,11 +575,14 @@ class TimeDependentValuesEntry(object):
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
         return TimeDependentValuesEntry(name,tvec,ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None):
+    def write(self,worksheet,start_row,formats,references=None,widths=None):
         # references is a dict where the key is a string value and the content is a cell
         # Any populations that appear in this dict will have their value replaced by a reference
         # formats should be the dict returned by `excel.standard_formats` when it was called to add
         # formatting to the Workbook containing the worksheet passed in here.
+        #
+        # widths should be a dict that will store sizing information for some of the columns
+        # it is updated in place
 
         if not references:
             references = dict()
@@ -569,6 +598,7 @@ class TimeDependentValuesEntry(object):
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats['center_bold'])
+            update_widths(widths,i,entry)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
         for pop_name, pop_ts in self.ts.items():
@@ -577,12 +607,16 @@ class TimeDependentValuesEntry(object):
             # Write the name
             if pop_name in references:
                 worksheet.write_formula(current_row, 0, references[pop_name], formats['center_bold'],value=pop_name)
+                update_widths(widths, 0, pop_name)
             else:
                 worksheet.write_string(current_row, 0, pop_name, formats['center_bold'])
+                update_widths(widths, 0, pop_name)
 
             # Write the units
             # TODO - change ts.format to ts.units??
             worksheet.write(current_row,1,pop_ts.format.title() if pop_ts.format else None)
+            update_widths(widths, 1, pop_ts.format.title() if pop_ts.format else None)
+
             if self.allowed_units: # Add validation if a list of options is specified
                 worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
 
