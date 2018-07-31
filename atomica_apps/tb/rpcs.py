@@ -1093,10 +1093,10 @@ def run_scenarios(project_id, saveresults=False):
 #%% Optimization functions and RPCs
 ##################################################################################
 
-def rpc_optimize(proj=None, json=None):
-    proj.make_optimization(json=json) # Make optimization
-    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
-    return optimized_result
+#def rpc_optimize(proj=None, json=None):
+#    proj.make_optimization(json=json) # Make optimization
+#    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
+#    return optimized_result
 
 
 def py_to_js_optim(py_optim, project=None):
