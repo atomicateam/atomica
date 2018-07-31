@@ -1056,11 +1056,11 @@ def make_framework_file(filename, datapages, comps, characs, interpops, pars, fr
 # %% Program spreadsheet exports.
 
 class ProgramSpreadsheet(Workbook):
-    def __init__(self, name, pops, comps, progs, pars, data_start=None, data_end=None):
-        super(ProgramSpreadsheet, self).__init__(name=name)
+    def __init__(self, filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
+        super(ProgramSpreadsheet, self).__init__(name=filename)
         self.sheet_names = sc.odict([
-            ('targeting', 'Populations & programs'),
-            ('costcovdata', 'Program spend data'),
+            ('targeting', 'Program targeting'),
+            ('costcovdata', 'Spending data'),
             ('covoutdata', 'Program effects'),
         ])
 
@@ -1068,9 +1068,10 @@ class ProgramSpreadsheet(Workbook):
         self.comps = comps
         self.progs = progs
         self.pars = pars
+        self.blh_effects = blh_effects
 
-        self.data_start = data_start if data_start is not None else 2015.0
-        self.data_end = data_end if data_end is not None else 2018.0
+        self.data_start = data_start if data_start is not None else 2015.0 # WARNING, remove
+        self.data_end = data_end if data_end is not None else 2018.0 # WARNING, remove
         self.prog_range = None
         self.ref_pop_range = None
         self.data_range = range(int(self.data_start), int(self.data_end + 1))
@@ -1114,7 +1115,7 @@ class ProgramSpreadsheet(Workbook):
                                  self.formats.formats["center_bold"])
 
         column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
-        content = AtomicaContent(name='Populations & programs',
+        content = AtomicaContent(name='',
                                  row_names=range(1, len(self.progs) + 1),
                                  column_names=column_names,
                                  data=coded_params,
@@ -1126,9 +1127,9 @@ class ProgramSpreadsheet(Workbook):
     def generate_costcovdata(self):
         current_row = 0
         self.current_sheet.set_column('C:C', 20)
-        row_levels = ['Total spend', 'Base spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
+        row_levels = ['Total spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
                       'Unit cost: high']
-        content = AtomicaContent(name='Cost & coverage',
+        content = AtomicaContent(name='',
                                  row_names=self.ref_prog_range.param_refs(),
                                  column_names=range(int(self.data_start), int(self.data_end + 1)))
         content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
@@ -1141,16 +1142,20 @@ class ProgramSpreadsheet(Workbook):
 
     def generate_covoutdata(self):
         current_row = 0
-        self.current_sheet.set_column(1, 1, 10)
+        self.current_sheet.set_column(1, 1, 30)
         self.current_sheet.set_column(2, 2, 12)
         self.current_sheet.set_column(3, 3, 12)
-        self.current_sheet.set_column(4, 4, 12)
-        self.current_sheet.set_column(5, 5, 2)
+#        self.current_sheet.set_column(4, 4, 12)
+#        self.current_sheet.set_column(5, 5, 2)
+        self.current_sheet.set_column(4, 4, 2)
+
         row_levels = []
         for p in self.pops:
-            row_levels.extend([p + ': best', p + ': low', p + ': high'])
+            if self.blh_effects:
+                row_levels.extend([p + ': best', p + ': low', p + ': high'])
+            else: row_levels.extend([p])
         content = AtomicaContent(row_names=self.pars,
-                                 column_names=['Value with no interventions', 'Best attainable value'])
+                                 column_names=['Value if none of the programs listed here are targeting this parameter'])
         content.row_format = AtomicaFormats.GENERAL
         content.row_levels = row_levels
 
@@ -1163,7 +1168,7 @@ class ProgramSpreadsheet(Workbook):
         current_row = the_range.emit(self.formats, rc_title_align='left')
 
 
-def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None):
+def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
     """ Generate the Atomica programs spreadsheet """
 
     # An integer argument is given: just create a pops dict using empty entries
@@ -1185,7 +1190,7 @@ def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=
         for p in range(nprogs):
             progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
 
-    book = ProgramSpreadsheet(filename, pops, comps, progs, pars, data_start, data_end)
+    book = ProgramSpreadsheet(filename=filename, pops=pops, comps=comps, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
     ss = book.to_spreadsheet()
     ss.save(filename)
     return filename

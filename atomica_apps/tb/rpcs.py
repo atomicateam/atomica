@@ -27,6 +27,32 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
+def TickFormat():
+    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
+    return plugin
+
+#class TickFormat(mpld3.plugins.PluginBase):
+#    """Tick format plugin."""
+#
+#    JAVASCRIPT = """
+#    mpld3.register_plugin("tickformat", TickFormat);
+#    TickFormat.prototype = Object.create(mpld3.Plugin.prototype);
+#    TickFormat.prototype.constructor = TickFormat;
+#    function TickFormat(fig, props) {
+#        mpld3.Plugin.call(this, fig, props);
+#        console.log('hi');
+#        fig.setXTicks(null, function(d) {
+#            return 'hello' + d3.format('.2s')(d);
+#        });
+#        fig.setYTicks(null, function(d) {
+#            return d3.format('.2s')(d);
+#        });
+#    };
+#    """
+#    def __init__(self):
+#        self.dict_ = {"type": "tickformat"}
+
+
 def timeit(method):
     def timed(*args, **kw):
         ts = time.time()
@@ -506,18 +532,11 @@ def update_project_from_summary(project_summary):
     Given the passed in project summary, update the underlying project 
     accordingly.
     """ 
-    
-    # Load the project corresponding with this summary.
-    proj = load_project(project_summary['project']['id'])
-       
-    # Use the summary to set the actual project.
-    proj.name = project_summary['project']['name']
-    
-    # Set the modified time to now.
-    proj.modified = sc.today()
-    
-    # Save the changed project to the DataStore.
-    save_project(proj)
+    proj = load_project(project_summary['project']['id']) # Load the project corresponding with this summary.
+    proj.name = project_summary['project']['name'] # Use the summary to set the actual project.
+    proj.modified = sc.today() # Set the modified time to now.
+    save_project(proj) # Save the changed project to the DataStore.
+    return
 
 @register_RPC(validation_type='nonanonymous user')
 def copy_project(project_id):
@@ -525,7 +544,6 @@ def copy_project(project_id):
     Given a project UID, creates a copy of the project with a new UID and 
     returns that UID.
     """
-    
     # Get the Project object for the project to be copied.
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
@@ -541,7 +559,6 @@ def copy_project(project_id):
     user_id = current_user.get_id() 
     
     # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
     print(">> copy_project %s" % (new_project.name)) 
     
     # Save a DataStore projects record for the copy project.
@@ -608,19 +625,29 @@ def supported_plots_func():
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_supported_plots(only_keys=False):
-    
     supported_plots = supported_plots_func()
-    
     if only_keys:
-        return supported_plots.keys()
+        plot_names = supported_plots.keys()
+        vals = np.ones(len(plot_names))
+        output = []
+        for plot_name,val in zip(plot_names,vals):
+            this = {'plot_name':plot_name, 'active':val}
+            output.append(this)
+        return output
     else:
         return supported_plots
 
 
-def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
+def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
     supported_plots = supported_plots_func()
-    if plot_names is None: plot_names = supported_plots.keys()
+    if plot_names is None: 
+        if plot_options is not None:
+            plot_names = []
+            for item in plot_options:
+                if item['active']: plot_names.append(item['plot_name'])
+        else:
+            plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
@@ -656,6 +683,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, outputs=None
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                mpld3.plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -706,6 +734,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                mpld3.plugins.connect(fig, TickFormat())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             # pl.close('all')
@@ -720,18 +749,22 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
 @register_RPC(validation_type='nonanonymous user')
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
+    count = 0
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
             thispar = parset.get_par(parname)
             if proj.framework.get_spec_value(parname, "can_calibrate"):
                 for popname,y_factor in thispar.y_factor.items():
+                    count += 1
                     parlabel = proj.framework.get_spec_value(parname,'label')
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
-                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
+                    dispvalue = thispar.interpolate([TEMP_YEAR],popname)[0]*y_factor
+                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
@@ -740,27 +773,29 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, start_year=None, end_year=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None):
     print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
-    for par in y_factors:
-        value = float(par['value'])
-        parset.get_par(par['parname']).y_factor[par['popname']] = value
-        if value != 1:
-            print('Modified: %s' % par)
+    for pardict in y_factors:
+        parname   = pardict['parname']
+        dispvalue = float(pardict['dispvalue'])
+        popname   = pardict['popname']
+        thispar   = parset.get_par(parname)
+        y_factor  = dispvalue/thispar.interpolate([TEMP_YEAR],popname)[0]
+        parset.get_par(parname).y_factor[popname] = y_factor
+        if not sc.approx(y_factor, 1):
+            print('Modified: %s' % parname)
     
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_calibration_plots(proj, result,pops=None, stacked=True, xlims=(float(start_year), float(end_year)))
+    output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
 
-    # Commands below will render unstacked plots with data, and will interleave them
-    # so they appear next to each other in the FE
-    unstacked_output = get_calibration_plots(proj, result,pops=None, stacked=False, xlims=(float(start_year), float(end_year)))
+    # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-
-
     return output
 
 #TO_PORT
