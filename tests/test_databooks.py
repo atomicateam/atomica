@@ -46,8 +46,21 @@ d2.add_pop('asdf','The ASDF pop')
 d2.save('./temp/d_blug_newpop.xlsx')
 
 # Make a brand new databook
-data = ProjectData.new(F,np.arange(2000,2017),pops=2,transfers=4)
-data.save('./temp/d_blug_blank.xlsx')
+d2 = ProjectData.new(F,np.arange(2000,2017),pops=2,transfers=4)
+d2.save('./temp/d_blug_blank.xlsx')
+
+# Make a blank databook with the same pops and transfers from the old one
+pops = sc.odict()
+for pop,val in data.pops.items():
+    pops[pop] = val['label']
+
+transfers = sc.odict()
+for transfer in data.transfers:
+    transfers[transfer.code_name] = transfer.full_name
+
+d2 = ProjectData.new(F,np.arange(2000,2017),pops=pops,transfers=transfers)
+d2.save('./temp/d_cleared.xlsx')
+
 
 # Modify incomplete databook
 d2 = ProjectData.from_spreadsheet('./temp/d_blug_blank.xlsx',F)

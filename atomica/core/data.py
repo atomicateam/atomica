@@ -431,13 +431,15 @@ class ProjectData(object):
 
     def _write_tdve(self):
         # Writes several sheets, one for each custom page specified in the Framework
+        widths = dict()
         for sheet_name,code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)
-            widths = dict()
             next_row = 0
             for code_name in code_names:
                 next_row = self.tdve[code_name].write(sheet,next_row,self._formats,self._references,widths)
-            apply_widths(sheet,widths)
+
+        for sheet_name in self.tdve_pages.keys():
+            apply_widths(self._book.get_worksheet_by_name(sheet_name),widths)
 
 
 
