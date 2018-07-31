@@ -99,7 +99,9 @@ Last update: 2018-07-30
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="item[1]"/>
+                         v-model="item[1]"
+                         style="text-align: right"
+                  />
                 </td>
               </tr>
               </tbody>
