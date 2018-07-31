@@ -33,13 +33,13 @@ Last update: 2018-07-31
             </option>
           </select>
           &nbsp;
-          <button class="btn small-button" @click="renameParsetModal()" title="Rename">
+          <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
             <i class="ti-pencil"></i>
           </button>
-          <button class="btn small-button" @click="copyParset()" title="Copy">
+          <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
             <i class="ti-files"></i>
           </button>
-          <button class="btn small-button" @click="deleteParset()" title="Delete">
+          <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
             <i class="ti-trash"></i>
           </button>
         </div>

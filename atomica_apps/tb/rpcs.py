@@ -771,7 +771,15 @@ def get_y_factors(project_id, parsetname=-1):
                     parlabel = proj.framework.get_spec_value(parname,'label')
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
-                    dispvalue = thispar.interpolate([TEMP_YEAR],popname)[0]*y_factor
+                    try:    
+                        interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
+                        if not np.isfinite(interp_val):
+                            interp_val = 1
+                        if sc.approx(interp_val, 0):
+                            interp_val = 1
+                    except: 
+                        interp_val = 1
+                    dispvalue = interp_val*y_factor
                     thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)
@@ -791,10 +799,18 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
         dispvalue = float(pardict['dispvalue'])
         popname   = pardict['popname']
         thispar   = parset.get_par(parname)
-        y_factor  = dispvalue/thispar.interpolate([TEMP_YEAR],popname)[0]
+        try:    
+            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
+            if not np.isfinite(interp_val):
+                interp_val = 1
+            if sc.approx(interp_val, 0):
+                interp_val = 1
+        except: 
+            interp_val = 1
+        y_factor  = dispvalue/interp_val
         parset.get_par(parname).y_factor[popname] = y_factor
         if not sc.approx(y_factor, 1):
-            print('Modified: %s' % parname)
+            print('Modified: %s (%s)' % (parname, y_factor))
     
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
@@ -1099,10 +1115,10 @@ def run_scenarios(project_id, plot_options, saveresults=False):
 #%% Optimization functions and RPCs
 ##################################################################################
 
-def rpc_optimize(proj=None, json=None):
-    proj.make_optimization(json=json) # Make optimization
-    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
-    return optimized_result
+#def rpc_optimize(proj=None, json=None):
+#    proj.make_optimization(json=json) # Make optimization
+#    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
+#    return optimized_result
 
 
 def py_to_js_optim(py_optim, project=None):
