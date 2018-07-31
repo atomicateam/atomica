@@ -1035,7 +1035,6 @@ class Val(object):
         self.low = None
         self.high = None
         self.dist = None
-        self.usable = False # A Val is usable if a 'best' value was assigned so that Val() or Val.get() will return a number. Because update() calls float() it is guaranteed to be a number
         self.update(best=best, low=low, high=high, dist=dist)
         return None
     
