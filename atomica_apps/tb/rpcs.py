@@ -992,12 +992,17 @@ def js_to_py_scen(js_scen):
     for item in js_scen['alloc']:
         prog_name = item[0]
         budget = item[1]
+        if sc.isstring(budget):
+            try:
+                budget = to_number(budget)
+            except Exception as E:
+                raise Exception('Could not convert budget to number: %s' % repr(E))
         if sc.isiterable(budget):
             if len(budget)>1:
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        py_scen['alloc'][prog_name] = float(budget)
+        py_scen['alloc'][prog_name] = to_number(budget)
     return py_scen
     
 
