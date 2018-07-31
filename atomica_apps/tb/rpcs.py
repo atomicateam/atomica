@@ -471,12 +471,9 @@ def add_demo_project(user_id):
     Add a demo Optima TB project
     """
     new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-    proj = au.demo(which='tb',do_plot=0)  # Create the project, loading in the desired spreadsheets.
+    proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
-    result = proj.results[0]
-    proj.results = au.NDict()
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
-    store_result_separately(proj,result)
     print(">> add_demo_project %s" % (proj.name))    
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
@@ -675,7 +672,6 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
             else:
                 figs = au.plot_series(plotdata, axis='pops', data=proj.data) # Only plot data if not stacked
 
-            # Todo - customize plot formatting here
             for fig in figs:
                 ax = fig.get_axes()[0]
                 ax.set_facecolor('none')
@@ -706,7 +702,13 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
     data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            else:
+                # Pass string in directly so that it is not treated as a function aggregation
+                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
+
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -727,7 +729,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
             for fig in figs:
                 ax = fig.get_axes()[0]
                 ax.set_facecolor('none')
-                ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 legend = fig.findobj(Legend)[0]
@@ -800,7 +802,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
 
 #TO_PORT
 @register_RPC(validation_type='nonanonymous user')    
-def automatic_calibration(project_id, parsetname=-1, max_time=10):
+def automatic_calibration(project_id, parsetname=-1, max_time=10, saveresults=False):
     
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -809,9 +811,13 @@ def automatic_calibration(project_id, parsetname=-1, max_time=10):
     print('Rerunning calibrated model...')
     
     print('Resultsets before run: %s' % len(proj.results))
-    result = proj.run_sim(parset=parsetname, store_results=True)
+    if saveresults:
+        result = proj.run_sim(parset=parsetname, store_results=True)
+        save_project(proj)
+    else:
+        result = proj.run_sim(parset=parsetname, store_results=False) 
+        store_result_separately(proj, result)
     print('Resultsets after run: %s' % len(proj.results))
-    save_project(proj)    
 
     output = get_calibration_plots(proj, result,pops=None,stacked=True)
 
@@ -1066,13 +1072,14 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id):
+def run_scenarios(project_id, saveresults=False):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     output = get_plots(proj, results)
-    print('Saving project...')
-    save_project(proj)    
+    if saveresults:
+        print('Saving project...')
+        save_project(proj)    
     return output
     
 

@@ -445,12 +445,12 @@ Last update: 2018-07-30
 
       runOptim(optimSummary) {
         console.log('runOptim() called for '+this.currentOptim)
+        // Start indicating progress.
+        status.start(this)
+        this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
-        .then(response => {
-          // Start indicating progress.
-          status.start(this)
-          
+        .then(response => {          
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
           taskservice.getTaskResultPolling('run_optimization', 90, 3, 'run_optimization',
@@ -499,7 +499,7 @@ Last update: 2018-07-30
           this.servererror = error.message // Set the server error.
            
           // Indicate failure.
-          status.failurePopup(this, 'Could not make graphs: ' + error.message)
+          status.fail(this, 'Could not make graphs: ' + error.message)
         })        
       },
 
