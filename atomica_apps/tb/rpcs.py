@@ -675,7 +675,6 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
             else:
                 figs = au.plot_series(plotdata, axis='pops', data=proj.data) # Only plot data if not stacked
 
-            # Todo - customize plot formatting here
             for fig in figs:
                 ax = fig.get_axes()[0]
                 ax.set_facecolor('none')
@@ -706,7 +705,13 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
     data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            else:
+                # Pass string in directly so that it is not treated as a function aggregation
+                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
+
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -727,7 +732,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', outputs=None, do_
             for fig in figs:
                 ax = fig.get_axes()[0]
                 ax.set_facecolor('none')
-                ax.set_title(plotdata.outputs[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 legend = fig.findobj(Legend)[0]
