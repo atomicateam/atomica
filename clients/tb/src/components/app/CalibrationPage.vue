@@ -219,7 +219,7 @@ Last update: 2018-07-31
         sortReverse: false,
         parList: [],
         areShowingParameters: true,
-        areShowingPlots: true,
+        areShowingPlots: false,
         activeParset: -1,
         parsetOptions: [],
         newParsetName: [],
