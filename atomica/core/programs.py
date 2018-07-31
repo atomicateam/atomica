@@ -532,7 +532,7 @@ class ProgramSet(NamedItem):
                             output = thiscov.values()[indexes[-1]]*accum
                             return output
                         else:
-                            output = thiscov.values()[indexes[-1]]* max(abs(list(([delta.values()[x] for x in [0]],0))))
+                            output = thiscov.values()[indexes[-1]]* max(delta.values()[0],0)
                             return output
 
                     # Iterate over overlap levels
