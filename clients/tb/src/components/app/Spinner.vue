@@ -4,7 +4,8 @@
   <modal name="popup-spinner"
          height="85px"
          width="80px"
-         style="opacity: 1.0">
+         style="opacity: 1.0" 
+         :click-to-close="false">
     <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
       <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
         <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
