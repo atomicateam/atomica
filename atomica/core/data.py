@@ -164,6 +164,15 @@ class ProjectData(object):
                         ts = TimeSeries(format=interpop.allowed_units[0],units=interpop.allowed_units[0])
                         ts.insert(None,spec['default_value'])
                         interpop.ts[(from_pop,to_pop)] = ts
+
+        # Finally, insert parameter and characteristic default values
+        for df in [framework.characs, framework.pars]:
+            for _,spec in df.iterrows():
+                if 'Default Value' in spec and spec['Default Value'] and spec['Databook Page']:
+                    tdve = data.tdve[spec['Display Name']]
+                    for ts in tdve.ts.values():
+                        ts.insert(None,spec['Default Value'])
+
         return data
 
     @staticmethod
