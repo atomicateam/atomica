@@ -978,7 +978,7 @@ def py_to_js_scen(py_scen, project=None):
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        js_scen['alloc'].append([prog_name,float(budget), prog_label])
+        js_scen['alloc'].append([prog_name,round(float(budget)), prog_label])
     return js_scen
 
 def js_to_py_scen(js_scen):
