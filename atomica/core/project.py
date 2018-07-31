@@ -528,9 +528,9 @@ class Project(object):
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
             json['prog_spending'][prog_name] = [1,None]
-        self.make_optimization(json=json)
+        optim = self.make_optimization(json=json)
         if dorun:
             results = self.run_optimization(optimization=json['name'])
             return results
         else:
-            return json
+            return optim
