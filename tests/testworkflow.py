@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 #test = "sir"
 # test = "tb"
-test = "diabetes"
-# test = "service"
+# test = "diabetes"
+test = "service"
 
 torun = [
 "makeframework",

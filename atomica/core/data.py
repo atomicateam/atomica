@@ -200,10 +200,9 @@ class ProjectData(object):
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
 
         # These sheets are optional - if none of these are provided in the databook
-        # then they will remain as None. If the sheet is present but empty, then these
-        # will be empty lists
-        self.transfers = None
-        self.interpops = None
+        # then they will remain empty
+        self.transfers = list()
+        self.interpops = list()
 
         for sheet in workbook.worksheets:
             if sheet.title.startswith('#ignore'):
