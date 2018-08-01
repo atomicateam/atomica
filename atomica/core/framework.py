@@ -157,10 +157,12 @@ class ProjectFramework(object):
             from_comp = from_row[0]
             assert from_comp in comp_names
             from_row = from_row[1:]
-            for to_comp,par_name in from_row.iteritems():
-                assert par_name in self.transitions, 'Parameter %s appears in the transition matrix but not on the Parameters page' % (par_name)
-                assert to_comp in comp_names
-                self.transitions[par_name].append((from_comp,to_comp))
+            for to_comp,par_names in from_row.iteritems():
+                for par_name in par_names.split(','):
+                    par_name = par_name.strip()
+                    assert par_name in self.transitions, 'Parameter %s appears in the transition matrix but not on the Parameters page' % (par_name)
+                    assert to_comp in comp_names
+                    self.transitions[par_name].append((from_comp,to_comp))
 
     def _validate(self):
         # This function validates the content of Framework. There are two aspects to this
@@ -335,6 +337,9 @@ class ProjectFramework(object):
         for name in code_names:
             if ':' in name:
                 raise NotAllowedError('Cannot have a ":" in a code name')
+
+            if ',' in name:
+                raise NotAllowedError('Cannot have a "," in a code name')
 
             if name in FS.RESERVED_KEYWORDS:
                 raise NotAllowedError('Requested code name "%s" is a reserved keyword' % name)
