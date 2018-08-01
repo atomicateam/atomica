@@ -12,23 +12,23 @@ import pylab as pl
 import matplotlib.pyplot as plt
 
 #test = "sir"
-test = "tb"
-#test = "diabetes"
+# test = "tb"
+test = "diabetes"
 # test = "service"
 
 torun = [
-# "makeframework",
-# "saveframework",
-# "loadframework",
-# "makedatabook",
-# "makeproject",
-# "loaddatabook",
-# "makeparset",
-# "runsim",
-# 'plotcascade',
-# "makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-# "runsim_programs",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+'plotcascade',
+"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+"runsim_programs",
 # "makeplots",
 # "export",
 # "listspecs",
@@ -36,7 +36,7 @@ torun = [
 #"autocalibrate",
 # "parameterscenario",
 # 'budgetscenarios',
-'optimization',
+# 'optimization',
 # "saveproject",
 # "loadproject",
 ]

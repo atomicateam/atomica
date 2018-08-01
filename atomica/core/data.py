@@ -199,6 +199,12 @@ class ProjectData(object):
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
 
+        # These sheets are optional - if none of these are provided in the databook
+        # then they will remain as None. If the sheet is present but empty, then these
+        # will be empty lists
+        self.transfers = None
+        self.interpops = None
+
         for sheet in workbook.worksheets:
             if sheet.title.startswith('#ignore'):
                 continue
@@ -271,6 +277,9 @@ class ProjectData(object):
                             assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
                             if allowed_units:
                                 assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
+
+        # TODO - check that interactions are present if they are called for in the Framework
+
         return True
 
     def to_spreadsheet(self):
@@ -406,6 +415,11 @@ class ProjectData(object):
 
     def _write_transfers(self):
         # Writes a sheet for every transfer
+
+        # Skip if no transfers
+        if not self.transfers:
+            return
+
         sheet = self._book.add_worksheet("Transfers")
         widths = dict()
         next_row = 0
@@ -422,7 +436,11 @@ class ProjectData(object):
         return
 
     def _write_interpops(self):
-        # Writes a sheet for every
+        # Writes a sheet for every interaction
+
+        # Skip if no interpops
+        if not self.interpops:
+            return
         sheet = self._book.add_worksheet("Interactions")
         widths = dict()
         next_row = 0

@@ -168,16 +168,17 @@ class ProjectFramework(object):
         # - Checking that the provided information is internally consistent
 
         # Check for required sheets
-        for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions','Interactions']:
+        for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
 
         ### VALIDATE COMPARTMENTS
-        required_columns = ['Display Name','Is Source', 'Is Sink','Is Junction','Databook Page']
+        required_columns = ['Display Name','Is Source', 'Is Sink']
         defaults = {
             'Is Sink':'n',
             'Is Source':'n',
             'Is Junction':'n',
             'Can Calibrate':'n',
+            'Databook Page':None,
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
             'Export': 'n',
         }
@@ -217,12 +218,13 @@ class ProjectFramework(object):
 
         ### VALIDATE PARAMETERS
 
-        required_columns = ['Display Name','Format','Databook Page']
+        required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
             'Minimum Value':None,
             'Maximum Value':None,
             'Function':None,
+            'Databook Page':None,
             'Databook Order':None,
             'Is Impact':'n',
             'Can Calibrate':'n',
@@ -278,12 +280,13 @@ class ProjectFramework(object):
                         raise AtomicaException('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
 
         ### VALIDATE CHARACTERISTICS
-        required_columns = ['Display Name','Databook Page']
+        required_columns = ['Display Name']
         defaults = {
             'Components':None,
             'Denominator':None,
             'Default Value':None,
             'Function':None,
+            'Databook Page': None,
             'Databook Order':None,
             'Can Calibrate':'n',
             'Export': 'n',
@@ -313,7 +316,18 @@ class ProjectFramework(object):
                     assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
 
         # VALIDATE INTERACTIONS
+        if 'Interactions' not in self.sheets:
+            self.sheets['Interactions'] = pd.DataFrame(columns=['Code Name','Display Name'])
+
+        required_columns = ['Display Name']
+        defaults = {
+            'Default Value':None,
+        }
+        valid_content = {
+            'Display Name': None,
+        }
         self.interactions.set_index('Code Name',inplace=True)
+        self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
         # VALIDATE NAMES - No collisions, no keywords
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
@@ -402,7 +416,9 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
             assert set(df[col]).issubset(validation), 'DataFrame column "%s" can only contain the following values: %s' % (col,validation)
 
     # Strip all strings
-    df.applymap(lambda x: x.strip() if type(x) is str else x)
+    df.applymap(lambda x: x.strip() if isinstance(x,string_types) else x)
+    if df.columns.isnull().any():
+        raise NotAllowedError('There cannot be any empty cells in the header row')
     df.columns = [x.strip() for x in df.columns]
 
     return df
