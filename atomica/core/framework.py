@@ -74,12 +74,13 @@ class ProjectFramework(object):
     @property
     def comps(self):
         # Shortcut to Compartments sheet
-        return self.sheets['Compartments']
+        return self.sheets.get('Compartments')
 
     @comps.setter
     def comps(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Compartments'] = value
+        if 'Compartments' in self.sheets.keys(): self.sheets['Compartments'] = value
+        else: raise AtomicaException('Cannot set compartment value as Compartment sheet was not defined.')
 
     def get_comp(self,comp_name):
         return self.comps.loc[comp_name]
@@ -87,12 +88,13 @@ class ProjectFramework(object):
     @property
     def characs(self):
         # Shortcut to Characteristics sheet
-        return self.sheets['Characteristics']
+        return self.sheets.get('Characteristics')
 
     @characs.setter
     def characs(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Characteristics'] = value
+        if 'Characteristics' in self.sheets.keys(): self.sheets['Characteristics'] = value
+        else: raise AtomicaException('Cannot set value as Characteristics sheet was not defined.')
 
     def get_charac(self,charac_name):
         return self.characs.loc[charac_name]
@@ -100,28 +102,45 @@ class ProjectFramework(object):
     @property
     def pars(self):
         # Shortcut to Parameters sheet
-        return self.sheets['Parameters']
+        return self.sheets.get('Parameters')
 
     @pars.setter
     def pars(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Parameters'] = value
+        if 'Parameters' in self.sheets.keys(): self.sheets['Parameters'] = value
+        else: raise AtomicaException('Cannot set value as Parameters sheet was not defined.')
 
     def get_par(self,par_name):
         return self.pars.loc[par_name]
 
     @property
     def interactions(self):
-        # Shortcut to Characteristics sheet
-        return self.sheets['Interactions']
+        # Shortcut to Interactions sheet
+        return self.sheets.get('Interactions')
 
     @interactions.setter
     def interactions(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Interactions'] = value
+        if 'Interactions' in self.sheets.keys(): self.sheets['Interactions'] = value
+        else: raise AtomicaException('Cannot set value as Interactions sheet was not defined.')
 
     def get_interaction(self,interaction_name):
         return self.interactions.loc[interaction_name]
+
+    @property
+    def dbpages(self):
+        # Shortcut to Interactions sheet
+        return self.sheets.get('Databook Pages')
+
+    @dbpages.setter
+    def dbpages(self, value):
+        assert isinstance(value,pd.DataFrame)
+        if 'Databook Pages' in self.sheets.keys(): self.sheets['Databook Pages'] = value
+        else: raise AtomicaException('Cannot set value as Databook Pages sheet was not defined.')
+
+    def get_dbpages(self,page_name):
+        return self.dbpages.loc[page_name]
+
 
     def get_variable(self,name):
         # This function will return either a Comp, a Charac, Par, or Interaction
@@ -170,14 +189,19 @@ class ProjectFramework(object):
         # Check for required sheets
         for page in ['Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
+        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+        if 'Databook Page' not in self.sheets:
+            self.sheets['Databook Pages'] = pd.DataFrame
+            
 
         ### VALIDATE COMPARTMENTS
-        required_columns = ['Display Name','Is Source', 'Is Sink','Is Junction']
+        required_columns = ['Display Name']
         defaults = {
             'Is Sink':'n',
             'Is Source':'n',
             'Is Junction':'n',
             'Can Calibrate':'n',
+            'Databook Page':'Data', # Default is for it to all appear on a single page
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
             'Export': 'n',
         }
@@ -195,7 +219,7 @@ class ProjectFramework(object):
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
         if 'Setup Weight' not in self.comps:
-            self.comps['Setup Weight'] = (~self.comps['Databook Page'].isnull()).astype(int)
+            self.comps['Setup Weight'] = (~self.comps['Databook Order'].isnull()).astype(int)
         else:
             fill_ones = self.comps['Setup Weight'].isnull() 
             self.comps['Setup Weight'][fill_ones] = 1
@@ -216,7 +240,6 @@ class ProjectFramework(object):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
         ### VALIDATE PARAMETERS
-
         required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
@@ -284,6 +307,7 @@ class ProjectFramework(object):
             'Denominator':None,
             'Default Value':None,
             'Function':None,
+            'Databook Page':'Data', # Default is for it to all appear on a single page
             'Databook Order':None,
             'Can Calibrate':'n',
             'Export': 'n',
@@ -313,10 +337,11 @@ class ProjectFramework(object):
                     assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
 
         # VALIDATE INTERACTIONS
-        self.interactions.set_index('Code Name',inplace=True)
+        if self.interactions is not None: self.interactions.set_index('Code Name',inplace=True)
 
         # VALIDATE NAMES - No collisions, no keywords
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) 
+        if self.interactions is not None: code_names += list(self.interactions.index)
         tmp = set()
         for name in code_names:
             if ':' in name:
@@ -330,7 +355,8 @@ class ProjectFramework(object):
             else:
                 raise NotAllowedError('Duplicate code name "%s"' % name)
 
-        display_names = list(self.comps['Display Name']) + list(self.characs['Display Name']) + list(self.pars['Display Name']) + list(self.interactions['Display Name'])
+        display_names = list(self.comps['Display Name']) + list(self.characs['Display Name']) + list(self.pars['Display Name']) 
+        if self.interactions is not None: display_names += list(self.interactions['Display Name'])
         tmp = set()
         for name in display_names:
             if name not in tmp:

@@ -130,8 +130,8 @@ class ProjectData(object):
 
         for df in [framework.comps, framework.characs, framework.pars]:
             for _,spec in df.iterrows():
-                databook_page = spec['Databook Page']
-                databook_order = spec['Databook Order']
+                databook_page = spec.get('Databook Page')
+                databook_order = spec.get('Databook Order')
                 full_name = spec['Display Name']
                 if databook_page is not None:
                     if databook_order is None:
