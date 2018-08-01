@@ -27,21 +27,23 @@ Version: 2018jul29
 from .version import version
 from .calibration import perform_autofit
 from .data import ProjectData
-from .excel import ExcelSettings as ES
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
+
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import Scenario, ParameterScenario, BudgetScenario
-from .optimization import OptimInstructions, optimize
-from .structure_settings import FrameworkSettings as FS
-from .system import SystemSettings as SS, apply_to_all_methods, log_usage, AtomicaException, logger
-from .workbook_export import make_progbook # write_workbook, make_instructions, 
-from .workbook_import import load_progbook # read_workbook, 
+from .scenarios import Scenario, ParameterScenario
+from .optimization import Optimization, optimize, OptimInstructions
+from .structure import FrameworkSettings as FS
+from .system import SystemSettings as SS, AtomicaException, logger
+from .workbook_export import make_progbook
+from .workbook_import import load_progbook
+from .scenarios import BudgetScenario
 from .utils import NDict
 import sciris.core as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
+from six import string_types
 
 
 class ProjectSettings(object):
@@ -76,8 +78,6 @@ class ProjectSettings(object):
             self.sim_dt = dt
 
 
-
-@apply_to_all_methods(log_usage)
 class Project(object):
     def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
         """ Initialize the project. """
@@ -152,7 +152,7 @@ class Project(object):
     def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, num_interpops=0,data_start=2000.0, data_end=2020.0, data_dt=1.0):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
-            databook_path = "./databook_" + self.name + ES.FILE_EXTENSION
+            databook_path = "./databook_" + self.name + ".xlsx"
         data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
 
@@ -167,7 +167,7 @@ class Project(object):
                                newly-added data
         - do_run: If True, a simulation will be run using the new parset
         """
-        if isinstance(databook_path,str):
+        if isinstance(databook_path,string_types):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -193,7 +193,7 @@ class Project(object):
         self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None):
+    def make_progbook(self, progbook_path=None, progs=None, blh_effects=False):
         ''' Make a programs databook'''
 
         # Check imports
@@ -206,27 +206,35 @@ class Project(object):
 
         ## Get other inputs
         F = self.framework
-        comps = [c['label'] for c in F.specs['comp'].values() if not (c['is_source'] or
-                                                                      c['is_sink'] or
-                                                                      c['is_junction'])]
-        # TODO: Think about whether the following makes sense.
-        pars = [p for p in F.specs['par'].keys() if F.specs['par'][p]['is_impact']]
+        comps = []
+        for _,spec in F.comps.iterrows():
+            if spec['Is Source']=='y' or spec['Is Sink']=='y' or spec['Is Junction']=='y':
+                continue
+            else:
+                comps.append(spec.name)
 
-        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars)
+        # TODO: Think about whether the following makes sense.
+        pars = []
+        for _,spec in F.pars.iterrows():
+            if spec['Is Impact']=='y':
+                pars.append(spec.name)
+
+
+        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
         
 
 
-    def load_progbook(self, progbook_path=None, make_default_progset=True):
+    def load_progbook(self, progbook_path=None, make_default_progset=True, blh_effects=False):
         ''' Load a programs databook'''
         
         ## Load spreadsheet and update metadata
-        if isinstance(progbook_path,str):
+        if isinstance(progbook_path,string_types):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
 
-        progdata = load_progbook(progbook_spreadsheet)
+        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
         self.progbook = sc.dcp(progbook_spreadsheet)
 
         # Check if the populations match - if not, raise an error, if so, add the data
@@ -423,10 +431,10 @@ class Project(object):
             measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys()
             measurables += self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
         for index, adjustable in enumerate(adjustables):
-            if isinstance(adjustable, str):  # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(adjustable, string_types):  # Assume that a parameter name was passed in if not a tuple.
                 adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
         for index, measurable in enumerate(measurables):
-            if isinstance(measurable, str):  # Assume that a parameter name was passed in if not a tuple.
+            if isinstance(measurable, string_types):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = perform_autofit(project=self, parset=parset,
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
@@ -437,7 +445,7 @@ class Project(object):
         return new_parset
 
     def run_scenario(self, scenario, parset, progset=None, progset_instructions=None,
-                     store_results=True, result_name=None):
+                     store_results=True):
         """ Run a scenario. """
         parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
         if progset:
@@ -448,7 +456,7 @@ class Project(object):
         scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
 
         result = self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
-                            store_results=store_results, result_type="scenario", result_name=result_name)
+                            store_results=store_results, result_type="scenario", result_name=scenario.name)
 
         scenario.result_uid = result.uid
         return result
@@ -469,9 +477,12 @@ class Project(object):
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         progset_instructions = ProgramInstructions(alloc=None, start_year=optim_ins.json['start_year'])
+        original_end = self.settings.sim_end
+        self.settings.sim_end = optim_ins.json['end_year']
         optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
-        optimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=optimized_instructions)
+        optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized")
         unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline")
+        self.settings.sim_end = original_end
         results = [unoptimized_result, optimized_result]
         return results
 
@@ -517,20 +528,20 @@ class Project(object):
     def demo_optimization(self, dorun=False):
         ''' WARNING, only works for TB '''
         json = sc.odict()
-        json['name']              = 'Demo optimization'
+        json['name']              = 'Default optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
         json['start_year']        = 2018
         json['end_year']          = 2025
         json['budget_factor']     = 1.0
         json['objective_weights'] = {'alive':-1,'ddis':1,'acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
-        json['maxtime']           = 20 # WARNING, default!
+        json['maxtime']           = 30 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
-            json['prog_spending'][prog_name] = (1,None)
-        self.make_optimization(json=json)
+            json['prog_spending'][prog_name] = [1,None]
+        optim = self.make_optimization(json=json)
         if dorun:
             results = self.run_optimization(optimization=json['name'])
             return results
         else:
-            return json
+            return optim

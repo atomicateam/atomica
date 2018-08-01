@@ -92,13 +92,13 @@ Last update: 2018-07-29
           </td>
           <td>
 <!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
-            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" title="Copy">
+            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" data-tooltip="Copy">
               <i class="ti-files"></i>
             </button>
-            <button class="btn" @click="renameFramework(frameworkSummary)" title="Rename">
+            <button class="btn" @click="renameFramework(frameworkSummary)" data-tooltip="Rename">
               <i class="ti-pencil"></i>
             </button>
-            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)" title="Download">
+            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)" data-tooltip="Download">
               <i class="ti-download"></i>
             </button>
           </td>
@@ -106,10 +106,10 @@ Last update: 2018-07-29
           <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
           <td>
-            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)" title="Upload">
+            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)" data-tooltip="Upload">
               <i class="ti-upload"></i>
             </button>
-            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)" title="Download">
+            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)" data-tooltip="Download">
               <i class="ti-download"></i>
             </button>
           </td>
@@ -202,7 +202,7 @@ Last update: 2018-07-29
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
-  import progressIndicator from '@/services/progress-indicator-service'
+  import status from '@/services/status-service'
   import router from '@/router'
   import PopupSpinner from './Spinner.vue'
   
@@ -305,7 +305,7 @@ Last update: 2018-07-29
         })
         .catch(error => {
           // Failure popup.
-          progressIndicator.failurePopup(this, 'Could not load frameworks')           
+          status.failurePopup(this, 'Could not load frameworks')           
         })
       },
 
@@ -314,7 +314,7 @@ Last update: 2018-07-29
         this.$modal.hide('demo-framework')
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         // Have the server create a new framework.
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
@@ -323,11 +323,11 @@ Last update: 2018-07-29
           this.updateFrameworkSummaries(response.data.frameworkId)
           
           // Indicate success.
-          progressIndicator.succeed(this, 'Library framework loaded')
+          status.succeed(this, 'Library framework loaded')
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not load framework')  
+          status.fail(this, 'Could not load framework')  
         })            
       },
 

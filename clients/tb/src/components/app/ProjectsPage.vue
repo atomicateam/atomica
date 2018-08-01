@@ -93,13 +93,13 @@ Last update: 2018-07-29
             </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
-              <button class="btn" @click="copyProject(projectSummary.project.id)" title="Copy">
+              <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
                 <i class="ti-files"></i>
               </button>
-              <button class="btn" @click="renameProject(projectSummary)" title="Rename">
+              <button class="btn" @click="renameProject(projectSummary)" data-tooltip="Rename">
                 <i class="ti-pencil"></i>
               </button>
-              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
@@ -110,18 +110,21 @@ Last update: 2018-07-29
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
-              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
-              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
+              <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
+                <i class="ti-plus"></i>
+              </button>
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
-              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
@@ -177,10 +180,36 @@ Last update: 2018-07-29
           </button>
         </div>
       </div>
+    </modal>
 
+    <modal name="create-progbook"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
 
-      <div>
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create program book
+        </div>
+        <div class="dialog-c-text">
+          Number of programs:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="num_progs"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="createProgbook()" class='btn __green' style="display:inline-block">
+            Create
+          </button>
 
+          <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
       </div>
     </modal>
     
@@ -195,7 +224,7 @@ Last update: 2018-07-29
 import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
-import progressIndicator from '@/services/progress-indicator-service'
+import status from '@/services/status-service'
 import router from '@/router'
 import PopupSpinner from './Spinner.vue'
   
@@ -214,37 +243,30 @@ export default {
       sortColumn: 'name',  // Column of table used for sorting the projects: name, country, creationTime, updatedTime, dataUploadTime
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
-      proj_name: 'New project', // For creating a new project: number of populations
-      num_pops: 5, // For creating a new project: number of populations
+      proj_name:  'New project', // For creating a new project: number of populations
+      num_pops:   5, // For creating a new project: number of populations
+      num_progs:  5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
-      data_end: 2035, // For creating a new project: number of populations
+      data_end:   2035, // For creating a new project: number of populations
+      activeuid:  [], // WARNING, kludgy to get create progbook working
     }
   },
 
   computed: {
     sortedFilteredProjectSummaries() {
       return this.applyNameFilter(this.applySorting(this.projectSummaries))
-//      return this.applyNameFilter(this.applySorting(this.applyCountryFilter(this.projectSummaries)))
     }
   },
 
   created() {
     let projectId = null
-    
-    // If we have no user logged in, automatically redirect to the login page.
-    if (this.$store.state.currentUser.displayname == undefined) {
+    if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
       router.push('/login')
-    }
-
-    // Otherwise...
-    else {
-      // Get the active project ID if there is an active project.
-      if (this.$store.state.activeProject.project != undefined) {
+    } else {    // Otherwise...
+      if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
         projectId = this.$store.state.activeProject.project.id
       }
-      
-      // Load the project summaries of the current user.
-      this.updateProjectSummaries(projectId)
+      this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
     }
   },
 
@@ -252,8 +274,7 @@ export default {
 
     beforeOpen (event) {
       console.log(event)
-      // Set the opening time of the modal
-      this.TEMPtime = Date.now()
+      this.TEMPtime = Date.now() // Set the opening time of the modal
     },
 
     beforeClose (event) {
@@ -266,144 +287,99 @@ export default {
 
     updateProjectSummaries(setActiveID) {
       console.log('updateProjectSummaries() called')
-
-      // Get the current user's project summaries from the server.
-      rpcservice.rpcCall('load_current_user_project_summaries')
+      status.start(this)
+      rpcservice.rpcCall('load_current_user_project_summaries') // Get the current user's project summaries from the server.
       .then(response => {
         let lastCreationTime = null
         let lastCreatedID = null
-        
-        // Set the projects to what we received.
-        this.projectSummaries = response.data.projects
-        
-        // Initialize the last creation time stuff if we have a non-empty list.
-        if (this.projectSummaries.length > 0) {
+        this.projectSummaries = response.data.projects // Set the projects to what we received.
+        if (this.projectSummaries.length > 0) { // Initialize the last creation time stuff if we have a non-empty list.
           lastCreationTime = new Date(this.projectSummaries[0].project.creationTime)
           lastCreatedID = this.projectSummaries[0].project.id
         }
-        
-        // Preprocess all projects.
-        this.projectSummaries.forEach(theProj => {
-          // Set to not selected.
-          theProj.selected = false
-            
-          // Set to not being renamed.
-          theProj.renaming = ''
-            
-          // Extract actual Date objects from the strings.
-          theProj.project.creationTime = new Date(theProj.project.creationTime)
+        this.projectSummaries.forEach(theProj => { // Preprocess all projects.
+          theProj.selected = false // Set to not selected.
+          theProj.renaming = '' // Set to not being renamed.
+          theProj.project.creationTime = new Date(theProj.project.creationTime) // Extract actual Date objects from the strings.
           theProj.project.updatedTime = new Date(theProj.project.updatedTime)
-          
-          // Update the last creation time and ID if what se see is later.
-          if (theProj.project.creationTime >= lastCreationTime) {
+          if (theProj.project.creationTime >= lastCreationTime) { // Update the last creation time and ID if what se see is later.
             lastCreationTime = theProj.project.creationTime
             lastCreatedID = theProj.project.id
           } 
         }) 
-          
-        // If we have a project on the list...
-        if (this.projectSummaries.length > 0) {
-          // If no ID is passed in, set the active project to the last-created 
-          // project.
-          if (setActiveID == null) {
+        if (this.projectSummaries.length > 0) { // If we have a project on the list...
+          if (setActiveID == null) { // If no ID is passed in, set the active project to the last-created project.
             this.openProject(lastCreatedID)            
-          }
-          
-          // Otherwise, set the active project to the one passed in.
-          else {
+          } else { // Otherwise, set the active project to the one passed in.
             this.openProject(setActiveID)
           }
         }
+        status.succeed(this, '')  // No green popup.
       })
       .catch(error => {
-        // Failure popup.
-        progressIndicator.failurePopup(this, 'Could not load projects')    
+        status.fail(this, 'Could not load projects: ' + error.message)
       })     
     },
 
     addDemoProject() {
       console.log('addDemoProject() called')
-      
-      // Start indicating progress.
-      progressIndicator.start(this)
-      
-      // Have the server create a new project.
-      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID])
+      status.start(this)
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
       .then(response => {
-        // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries(response.data.projectId)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'Demo project added')
+        this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+        status.succeed(this, 'Demo project added')
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not add project') 
+        status.fail(this, 'Could not add demo project: ' + error.message)
       })
     },
 
+    // Open a model dialog for creating a new project
     createNewProjectModal() {
-      // Open a model dialog for creating a new project
       console.log('createNewProjectModal() called');
       this.$modal.show('create-project');
     },
 
+    // Open a model dialog for creating a progbook
+    createProgbookModal(uid) {
+      this.activeuid = uid
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
+      console.log('createProgbookModal() called for ' + matchProject.project.name)
+      this.$modal.show('create-progbook');
+    },
 
     createNewProject() {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
-      
-      // Start indicating progress.
-      progressIndicator.start(this)
-      
-      // Have the server create a new project.
-      rpcservice.rpcDownloadCall('create_new_project', [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.data_start, this.data_end])
+      status.start(this) // Start indicating progress.
+      rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
+        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
       .then(response => {
-        // Update the project summaries so the new project shows up on the list.
-        // Note: There's no easy way to get the new project UID to tell the 
-        // project update to choose the new project because the RPC cannot pass 
-        // it back.
-        this.updateProjectSummaries(null)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'New project "' + this.proj_name + '" created')
+        this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
+        status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not add new project')   
+        status.fail(this, 'Could not add new project')    // Indicate failure.
       })  
     },
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-     
-      // Have the server upload the project.
-      rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
+      status.start(this)
+      rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj') // Have the server upload the project.
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
-      
-        // Update the project summaries so the new project shows up on the list.
-        this.updateProjectSummaries(response.data.projectId)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'New project uploaded')       
+        this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+        status.succeed(this, 'New project uploaded')
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload file')     
+        status.fail(this, 'Could not upload file')
       }) 
     },
 
     projectIsActive(uid) {
-      // If the project is undefined, it is not active.
-      if (this.$store.state.activeProject.project === undefined) {
+      if (this.$store.state.activeProject.project === undefined) { // If the project is undefined, it is not active.
         return false
-      }
-
-      // Otherwise, the project is active if the UIDs match.
-      else {
+      } else { // Otherwise, the project is active if the UIDs match.
         return (this.$store.state.activeProject.project.id === uid)
       }
     },
@@ -452,82 +428,36 @@ export default {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
             return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
-          }
-/*          else if (this.sortColumn === 'country') {
-            return proj1.country > proj2.country ? sortDir: -sortDir
-          } */
-          else if (this.sortColumn === 'creationTime') {
+          } else if (this.sortColumn === 'creationTime') {
             return proj1.project.creationTime > proj2.project.creationTime ? sortDir: -sortDir
-          }
-          else if (this.sortColumn === 'updatedTime') {
+          } else if (this.sortColumn === 'updatedTime') {
             return proj1.project.updatedTime > proj2.project.updatedTime ? sortDir: -sortDir
           }
         }
       )
     },
 
-/*    applyCountryFilter(projects) {
-      if (this.selectedCountry === 'Select country...')
-        return projects
-      else
-        return projects.filter(theProj => theProj.country === this.selectedCountry)
-    }, */
+
 
     openProject(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('openProject() called for ' + matchProject.project.name)
-          
-
-// Code for testing loading bar.  
-/*      this.$Progress.start()      // with this (default) setting, the bar takes about 7 sec. to fully progress        
-//      this.$Progress.start(9700)  // with this setting, about 75% of the bar is progressed in 5 min.
-      this.$Progress.setTransition(
-        {
-          speed: '0.2s',
-          opacity: '0.6s',
-          termination: 1000  // milliseconds that bar stays around after finish or fail
-        })
-        
-//      rpcservice.rpcCall('simulate_slow_rpc', [7, true])  // 7 seconds, then succeed  
-      rpcservice.rpcCall('simulate_slow_rpc', [7, false])  // 7 seconds, then fail
-      .then(response => { 
-        this.$Progress.finish()         
-      })
-      .catch(error => {
-        this.$Progress.fail()
-      }) */
-      
-      
-      // Set the active project to the matched project.
-      this.$store.commit('newActiveProject', matchProject)
-      
-      // Success popup.
-      progressIndicator.successPopup(this, 'Project "'+matchProject.project.name+'" loaded')
+      this.$store.commit('newActiveProject', matchProject) // Set the active project to the matched project.
+      status.successPopup(this, 'Project "'+matchProject.project.name+'" loaded') // Success popup.
     },
 
     copyProject(uid) {
-      // Find the project that matches the UID passed in.
-      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
       console.log('copyProject() called for ' + matchProject.project.name)
-      
-      // Start indicating progress.
-      progressIndicator.start(this)
-      
-      // Have the server copy the project, giving it a new name.
-      rpcservice.rpcCall('copy_project', [uid])
+      status.start(this) // Start indicating progress.
+      rpcservice.rpcCall('copy_project', [uid]) // Have the server copy the project, giving it a new name.
       .then(response => {
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(response.data.projectId)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'Project "'+matchProject.project.name+'" copied')       
+        this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
+        status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not copy project')
+        status.fail(this, 'Could not copy project: ' + error.message) // Indicate failure.
       })
     },
 
@@ -549,7 +479,7 @@ export default {
         newProjectSummary.project.name = projectSummary.renaming
         
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
@@ -562,11 +492,11 @@ export default {
           projectSummary.renaming = ''
           
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green popup message.          
+          status.succeed(this, '')  // No green popup message.          
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not rename project')    
+          status.fail(this, 'Could not rename project')    
         })      
       }
 
@@ -586,127 +516,93 @@ export default {
       console.log('downloadProjectFile() called for ' + matchProject.project.name)
       
       // Start indicating progress.
-      progressIndicator.start(this)
+      status.start(this)
         
       // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
       .then(response => {
         // Indicate success.
-        progressIndicator.succeed(this, '')  // No green popup message.        
+        status.succeed(this, '')  // No green popup message.        
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not download project')      
+        status.fail(this, 'Could not download project')      
       })
     },
 
     downloadDatabook(uid) {
       // Find the project that matches the UID passed in.
-//      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-//
-//      console.log('downloadDatabook() called for ' + matchProject.project.name)
-//
-//      // Make the server call to download the project to a .prj file.
-//      rpcservice.rpcDownloadCall('download_databook', [uid])
-        this.$notifications.notify({
-          message: 'This is not yet implemented, please check back soon.',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
-
-      },
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+      console.log('downloadDatabook() called for ' + matchProject.project.name)
+      status.start(this, 'Downloading data book...') // Start indicating progress.
+      rpcservice.rpcDownloadCall('download_databook', [uid])
+        .then(response => {
+          status.succeed(this, '')  // No green popup message.
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not download databook: ' + error.message)
+        })
+    },
 
     downloadProgbook(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('downloadProgbook() called for ' + matchProject.project.name)
-      
-      // Start indicating progress.
-      progressIndicator.start(this)
-      
-      // Make the server call to download the project to a .prj file.
+      status.start(this, 'Downloading program book...') // Start indicating progress.
       rpcservice.rpcDownloadCall('download_progbook', [uid])
       .then(response => {
-        // Indicate success.
-        progressIndicator.succeed(this, '')  // No green popup message.          
+        status.succeed(this, '')  // No green popup message.
       })
       .catch(error => {
         // Indicate failure.
-        progressIndicator.fail(this, 'Could not download progbook')     
+        status.fail(this, 'Could not download program book: ' + error.message)
       })      
     },
 
-    downloadDefaults(uid) {
+    createProgbook() {
       // Find the project that matches the UID passed in.
+      let uid = this.activeuid
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
-      console.log('downloadDefaults() called for ' + matchProject.project.name)
-      
-      // Start indicating progress.
-      progressIndicator.start(this)
-      
-      // Make the server call to download the project to a .prj file.
-      rpcservice.rpcDownloadCall('download_defaults', [uid])
-      .then(response => {
-        // Indicate success.
-        progressIndicator.succeed(this, '')  // No green popup message.        
-      })
-      .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not download defaults')     
-      })       
+      console.log('createProgbook() called for ' + matchProject.project.name)
+      this.$modal.hide('create-progbook')
+      status.start(this, 'Creating program book...') // Start indicating progress.
+      rpcservice.rpcDownloadCall('create_progbook', [uid, this.num_progs])
+        .then(response => {
+          status.succeed(this, '')  // No green popup message.
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not create program book: ' + error.message)
+        })
     },
 
     uploadDatabook(uid) {
-      // Find the project that matches the UID passed in.
-      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
       console.log('uploadDatabook() called for ' + matchProject.project.name)
-
-      // Have the server copy the project, giving it a new name.
+      status.start(this, 'Uploading databook...')
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
-        
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(uid)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"')     
+        this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
+        status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload data')     
+        status.fail(this, 'Could not upload data: ' + error.message) // Indicate failure.
       })
     },
 
     uploadProgbook(uid) {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
       console.log('uploadProgbook() called for ' + matchProject.project.name)
-
-      // Have the server copy the project, giving it a new name.
+      status.start(this) // Start indicating progress. (This is here because we don't want the
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
       .then(response => {
-        // Start indicating progress. (This is here because we don't want the 
-        // progress bar and spinner running when the user is picking a file to upload.)
-        progressIndicator.start(this)
-          
-        // Update the project summaries so the copied program shows up on the list.
-        this.updateProjectSummaries(uid)
-        
-        // Indicate success.
-        progressIndicator.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')        
+        this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
+        status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
       })
       .catch(error => {
-        // Indicate failure.
-        progressIndicator.fail(this, 'Could not upload progbook')     
+        status.fail(this, 'Could not upload progbook: ' + error.message) // Indicate failure.
       })
     },
 
@@ -740,7 +636,7 @@ export default {
       // Have the server delete the selected projects.
       if (selectProjectsUIDs.length > 0) {
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
       
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
@@ -764,11 +660,11 @@ export default {
           this.updateProjectSummaries(activeProjectId)
           
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green popup message.
+          status.succeed(this, '')  // No green popup message.
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not delete project/s')     
+          status.fail(this, 'Could not delete project/s')     
         }) 
       }
     },
@@ -783,16 +679,16 @@ export default {
       // Have the server download the selected projects.
       if (selectProjectsUIDs.length > 0) {
         // Start indicating progress.
-        progressIndicator.start(this)
+        status.start(this)
         
         rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectProjectsUIDs])
         .then(response => {
           // Indicate success.
-          progressIndicator.succeed(this, '')  // No green popup message.         
+          status.succeed(this, '')  // No green popup message.         
         })
         .catch(error => {
           // Indicate failure.
-          progressIndicator.fail(this, 'Could not download project/s')     
+          status.fail(this, 'Could not download project/s')     
         })       
       }
     }
@@ -801,59 +697,5 @@ export default {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<!--<style lang="scss" scoped>-->
-<!--</style>-->
-<style>
-  .vue-dialog div {
-    box-sizing: border-box;
-  }
-  .vue-dialog .dialog-flex {
-    width: 100%;
-    height: 100%;
-  }
-  .vue-dialog .dialog-content {
-    flex: 1 0 auto;
-    width: 100%;
-    padding: 15px;
-    font-size: 14px;
-  }
-  .vue-dialog .dialog-c-title {
-    font-weight: 600;
-    padding-bottom: 15px;
-  }
-  .vue-dialog .dialog-c-text {
-  }
-  .vue-dialog .vue-dialog-buttons {
-    display: flex;
-    flex: 0 1 auto;
-    width: 100%;
-    border-top: 1px solid #eee;
-  }
-  .vue-dialog .vue-dialog-buttons-none {
-    width: 100%;
-    padding-bottom: 15px;
-  }
-  .vue-dialog-button {
-    font-size: 12px !important;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-    border: 0;
-    cursor: pointer;
-    box-sizing: border-box;
-    line-height: 40px;
-    height: 40px;
-    color: inherit;
-    font: inherit;
-    outline: none;
-  }
-  .vue-dialog-button:hover {
-    background: rgba(0, 0, 0, 0.01);
-  }
-  .vue-dialog-button:active {
-    background: rgba(0, 0, 0, 0.025);
-  }
-  .vue-dialog-button:not(:first-of-type) {
-    border-left: 1px solid #eee;
-  }
+<style lang="scss" scoped>
 </style>

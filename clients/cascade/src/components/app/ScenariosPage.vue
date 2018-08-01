@@ -118,7 +118,7 @@ Last update: 2018-07-29
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
-  import progressIndicator from '@/services/progress-indicator-service'
+  import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
   import PopupSpinner from './Spinner.vue'
@@ -230,57 +230,5 @@ Last update: 2018-07-29
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
-  .vue-dialog div {
-    box-sizing: border-box;
-  }
-  .vue-dialog .dialog-flex {
-    width: 100%;
-    height: 100%;
-  }
-  .vue-dialog .dialog-content {
-    flex: 1 0 auto;
-    width: 100%;
-    padding: 15px;
-    font-size: 14px;
-  }
-  .vue-dialog .dialog-c-title {
-    font-weight: 600;
-    padding-bottom: 15px;
-  }
-  .vue-dialog .dialog-c-text {
-  }
-  .vue-dialog .vue-dialog-buttons {
-    display: flex;
-    flex: 0 1 auto;
-    width: 100%;
-    border-top: 1px solid #eee;
-  }
-  .vue-dialog .vue-dialog-buttons-none {
-    width: 100%;
-    padding-bottom: 15px;
-  }
-  .vue-dialog-button {
-    font-size: 12px !important;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-    border: 0;
-    cursor: pointer;
-    box-sizing: border-box;
-    line-height: 40px;
-    height: 40px;
-    color: inherit;
-    font: inherit;
-    outline: none;
-  }
-  .vue-dialog-button:hover {
-    background: rgba(0, 0, 0, 0.01);
-  }
-  .vue-dialog-button:active {
-    background: rgba(0, 0, 0, 0.025);
-  }
-  .vue-dialog-button:not(:first-of-type) {
-    border-left: 1px solid #eee;
-  }
+<style scoped>
 </style>

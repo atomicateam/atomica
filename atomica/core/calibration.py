@@ -1,7 +1,6 @@
 import numpy as np
 import sciris.core as sc
 from .interpolation import interpolate_func
-from .structure import SemanticUnknownException
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()
@@ -140,10 +139,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     o2 = []
     for output_tuple in output_quantities:
         if output_tuple[1] is None:  # If the pop name is None
-            try:
-                pops = project.data.pops.keys()
-            except SemanticUnknownException:
-                continue
+            pops = project.data.pops.keys()
             for pop_name in pops:
                 o2.append((output_tuple[0], pop_name, output_tuple[2], output_tuple[3]))
         else:

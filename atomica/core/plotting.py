@@ -14,14 +14,23 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
+import matplotlib
 
 import sciris.core as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, logger
+from .system import AtomicaException, NotFoundError
 from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
+from .structure import FrameworkSettings as FS
+
+import logging
+logger = logging.getLogger(__name__)
+
+from six import string_types
+import logging
+logger = logging.getLogger(__name__)
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -180,7 +189,7 @@ class PlotData(object):
                 if isinstance(x, dict):
                     k = list(x.keys())
                     assert len(k) == 1, 'Aggregation dict can only have one key'
-                    if isinstance(x[k[0]], str):
+                    if isinstance(x[k[0]], string_types):
                         continue
                     else:
                         out += x[k[0]]
@@ -231,16 +240,14 @@ class PlotData(object):
 
                         for link in vars:
                             data_dict[output_label] += link.vals
-                            compsize[output_label] += (
-                                link.source.vals if not link.source.is_junction else link.source.outflow)
+                            compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
                         if t_bins is None:  # Annualize if not time aggregating
                             data_dict[output_label] /= dt
                             output_units[output_label] = vars[0].units + '/year'
                         else:
-                            output_units[output_label] = vars[
-                                0].units  # If we sum links in a bin, we get a number of people
-                        data_label[output_label] = vars[0].parameter.name
+                            output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
+                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
@@ -273,7 +280,7 @@ class PlotData(object):
 
                     output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
 
-                    if not isinstance(f_stack_str, str):
+                    if not isinstance(f_stack_str, string_types):
                         continue
 
                     placeholder_pop = lambda: None
@@ -284,8 +291,7 @@ class PlotData(object):
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
-                        if t_bins is not None and (isinstance(var[0], Link) or isinstance(var[0], Parameter)) and \
-                                time_aggregation == "sum" and not displayed_annualization_warning:
+                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
                             raise AtomicaException("Function includes Parameter/Link so annualized rates are being "
                                                    "used. Aggregation should use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
@@ -303,7 +309,7 @@ class PlotData(object):
                         labels = output[output_name]
 
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
-                        if isinstance(labels, str):
+                        if isinstance(labels, string_types):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[
                                 output_name] = 'unknown'  # Also, we don't know what the units of a function are
@@ -311,14 +317,12 @@ class PlotData(object):
 
                         units = list(set([output_units[x] for x in labels]))
                         if len(units) > 1:
-                            logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly "
-                                           "not desired.".format(output_name))
+                            logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly not desired.".format(output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
                             if units[0] in ['', 'fraction', 'proportion', 'probability'] and \
                                     output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
-                                logger.warning("Output '{0}' is not in number units, so output aggregation probably "
-                                               "should not be 'sum'.".format(output_name))
+                                logger.warning("Output '{0}' is not in number units, so output aggregation probably should not be 'sum'.".format(output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
 
                         if output_aggregation == 'sum':
@@ -346,8 +350,7 @@ class PlotData(object):
                         if pop_aggregation == 'sum':
                             if aggregated_units[output_name] in ['', 'fraction', 'proportion', 'probability'] and len(
                                     pop_labels) > 1:
-                                logger.warning("Output '{0}' is not in number units, so population aggregation "
-                                               "probably should not be 'sum'".format(output_name))
+                                logger.warning("Output '{0}' is not in number units, so population aggregation probably should not be 'sum'".format(output_name))
                             vals = sum(
                                 aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
@@ -389,7 +392,7 @@ class PlotData(object):
                     upper = self.series[0].tvec[-1]
                 t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
 
-            if isinstance(t_bins, str) and t_bins == 'all':
+            if isinstance(t_bins, string_types) and t_bins == 'all':
                 t_out = np.zeros((1,))
                 lower = [-np.inf]
                 upper = [np.inf]
@@ -411,7 +414,11 @@ class PlotData(object):
                     if (not np.isinf(low) and low < s.tvec[0]) or (not np.isinf(high) and high > s.tvec[-1]):
                         vals.append(np.nan)
                     else:
-                        flt = (s.tvec >= low) & (s.tvec < high)
+                        if low == high:
+                            flt = s.tvec == low
+                        else:
+                            flt = (s.tvec >= low) & (s.tvec < high)
+
                         if time_aggregation == 'sum':
                             if s.units in ['', 'fraction', 'proportion', 'probability']:
                                 logger.warning("'{0}' is not in number units, so time aggregation probably should not "
@@ -422,7 +429,7 @@ class PlotData(object):
 
                 s.tvec = np.array(tvec)
                 s.vals = np.array(vals)
-                if isinstance(t_bins, str) and t_bins == 'all':
+                if isinstance(t_bins, string_types) and t_bins == 'all':
                     s.t_labels = ['All']
                 else:
                     s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
@@ -588,7 +595,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', '', x) if len(x) > 1 else (x[0], '', x))
                     items.update(x)
-                elif isinstance(x, str):
+                elif isinstance(x, string_types):
                     output_stacks.append((x, '', [x]))
                     items.add(x)
                 else:
@@ -599,7 +606,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                 if isinstance(x, list):
                     output_stacks.append(('', k, x) if len(x) > 1 else (x[0], k, x))
                     items.update(x)
-                elif isinstance(x, str):
+                elif isinstance(x, string_types):
                     output_stacks.append((x, k, [x]))
                     items.add(x)
                 else:
@@ -851,11 +858,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                handles, labels = ax.get_legend_handles_labels()
-                ax.set_title('%s' % (labels[0]))
-#                sc.SIticks(ax=ax, axis='y', fixed=True)
-#                if settings['legend_mode'] == 'together':
-#                    render_legend(ax, plot_type)
+                if settings['legend_mode'] == 'together':
+                    render_legend(ax, plot_type)
 
     elif axis == 'pops':
         plotdata.set_colors(pops=plotdata.pops)
@@ -872,7 +876,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                 else:
                     ax.set_ylabel('%s' % (plotdata.output_names[output]))
 
-#                ax.set_title('%s' % (plotdata.result_names[result]))
+                ax.set_title('%s' % (plotdata.result_names[result]))
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for pop in plotdata.pops])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
@@ -888,11 +892,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                handles, labels = ax.get_legend_handles_labels()
-                ax.set_title('%s' % (labels[0]))
-#                sc.SIticks(ax=ax, axis='y', fixed=True)
-#                if settings['legend_mode'] == 'together':
-#                    render_legend(ax, plot_type)
+                if settings['legend_mode'] == 'together':
+                    render_legend(ax, plot_type)
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs)
@@ -923,11 +924,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                handles, labels = ax.get_legend_handles_labels()
-                ax.set_title('%s' % (labels[0]))
-#                sc.SIticks(ax=ax, axis='y', fixed=True)
-#                if settings['legend_mode'] == 'together':
-#                    render_legend(ax, plot_type)
+                if settings['legend_mode'] == 'together':
+                    render_legend(ax, plot_type)
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
@@ -937,78 +935,70 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
     return figs
 
 
-def plot_cascade(project=None, year=None, pop=None):
-    print('Making cascade plot')
-    import pylab as pl
-    from matplotlib.pyplot import rc 
-    rc('font', size=14)
-    
-    figsize = (9,6)
-    axsize = [0.45,0.15,0.45,0.8]
-    POPULATION = 0
-    RESULT = -1
-    print('WARNING, population and result hard-coded!')
-    
-    result = project.results[RESULT]
-    cascade = result.get_cascade_vals(project=project)
-    data = dict()
-    data['t'] = cascade['t'].tolist()
-    if year is not None: year = int(year)
-    if year in data['t']:
-        ind = sc.findnearest(data['t'], year)
-    else:
-        if year is None: year = 0
-        ind = year
-        year = data['t'][ind]
-    data['keys'] = cascade['vals'].keys()
-    data['labels'] = []
-    for key in data['keys']:
-        data['labels'].append(project.framework.get_spec_value(key,'label'))
-    data['x'] = np.arange(2*len(data['keys']),0,-2)
-    data['vals'] = []
-    for i in range(len(data['t'])):
-        data['vals'].append([])
-        for key in data['keys']:
-            data['vals'][i].append(cascade['vals'][key][POPULATION][i])
-    data['loss'] = []
-    data['lossfrac'] = []
-    for i in range(len(data['t'])):
-        data['loss'].append([])
-        data['lossfrac'].append([])
-        for key in data['keys']:
-            try:
-                data['loss'][i].append(cascade['loss'][key][POPULATION][0][i])
-                data['lossfrac'][i].append(cascade['loss'][key][POPULATION][1][i])
-            except:
-                pass
-    
-    print('Cascade plot data:')
-    print(data)
 
-    figs = []
-    fig = pl.figure(figsize=figsize)
-    fig.add_axes(axsize)
-    pl.barh(data['x'], data['vals'][ind], height=1)
-    pl.gca().set_yticks(data['x'])
-    pl.gca().set_yticklabels(data['labels'])
-    pl.xlabel('Number of people')
-    pl.title('Cascade for %s' % year)
-    sc.boxoff()
-    sc.SIticks(fig=fig, axis='x')
-    pl.gca().spines['left'].set_visible(False)
-    xlims = pl.xlim()
-    pl.xlim([xlims[0], 1.1*xlims[1]])
-    
-    # Add labels
-    for x,xval in enumerate(data['x']):
-        thisval = data['vals'][ind][x]
-        label = ' '+sc.sigfig(thisval, sigfigs=3, sep=True)
-        pl.text(thisval, xval, label, verticalalignment='center')
-    for x,xval in enumerate(data['x'][:-1]):
-        label = ' Loss: %s' % sc.sigfig(data['loss'][ind][x], sigfigs=3, sep=True)
-        pl.text(0,xval-1,label, verticalalignment='center', color=(0.8,0.2,0.2))
-    figs.append(fig)
-    return figs
+
+def plot_cascade(result,cascade,pops='all',year=None):
+    # For inputs, see `Result.get_cascade_vals`
+
+    from matplotlib.pyplot import rc
+    rc('font', size=14)
+
+    if year is None:
+        year = result.t[0] # Draw cascade for first year
+
+    cascade_vals,t = result.get_cascade_vals(cascade,pops,[year,year])
+    assert len(t) == 1, 'Plot cascade requires time aggregation'
+    cascade_array = np.hstack(cascade_vals.values())
+
+    fig = plt.figure()
+    fig.set_figwidth(fig.get_figwidth()*1.5)
+    ax = plt.gca()
+    h= plt.bar(np.arange(len(cascade_vals)),cascade_array, width=0.5)
+    ax.set_xticks(np.arange(len(cascade_vals)))
+    ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
+
+    ylim = ax.get_ylim()
+    yticks = ax.get_yticks()
+    data_yrange = np.diff(ylim)
+    ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
+    ax.set_yticks(yticks)
+    for i,val in enumerate(cascade_array):
+        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center')
+
+    bars = h.get_children()
+    conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost
+    conversion_text_height = cascade_array[-1]/2
+
+    for i in range(len(bars)-1):
+        left_bar = bars[i]
+        right_bar = bars[i+1]
+
+        xy = np.array([
+        (left_bar.get_x() + left_bar.get_width(), 0), # Bottom left corner
+        (left_bar.get_x() + left_bar.get_width(), left_bar.get_y() + left_bar.get_height()), # Top left corner
+        (right_bar.get_x(), right_bar.get_y() + right_bar.get_height()),  # Top right corner
+        (right_bar.get_x(), 0),  # Bottom right corner
+        ])
+
+        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=(0.93,0.93,0.93))
+        ax.add_patch(p)
+
+        bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
+
+        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0,size=15,bbox=bbox_props)
+
+
+    loss = np.diff(cascade_array)
+    for i,val in enumerate(loss):
+
+        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
+
+    pop_label = 'entire population' if pops=='all' else pops
+    plt.ylabel('Number of people')
+    plt.title('Cascade for %s in %d' % (pop_label,year))
+    plt.tight_layout()
+
+    return fig
 
 
 def stack_data(ax,data,series):
@@ -1247,32 +1237,37 @@ def get_full_name(output_id, proj):
     For a given output_id, returns the user-friendly version of the name. 
     """
 
+    # Note that an output_id could be a Compartment, Characteristic, Parameter, Population, or Link Expression
     if proj is None:
         return output_id
 
-    labels = {y['name']: x for x, y in proj.framework.semantics.items() if y['attribute'] == 'label'}
+    if output_id in proj.data.pops:
+        return proj.data.pops[output_id]['label'] # Convert population
 
-    # Handle Links specified with colon syntax
-    if ':' in output_id:
+    full_name = lambda x: proj.framework.get_variable(x)[0]['Display Name']
+
+    if ':' in output_id: # We are parsing a link
+        # Handle Links specified with colon syntax
         output_tokens = output_id.split(':')
         if len(output_tokens) == 2:
             output_tokens.append('')
         src, dest, par = output_tokens
 
+        # If 'par_name:flow' syntax was used
         if dest == 'flow':
-            if src in labels:
-                return "{0} (flow)".format(labels[src])
+            if src in proj.framework:
+                return "{0} (flow)".format(full_name(src))
             else:
                 return "{0} (flow)".format(src)
 
-        if src and src in labels:
-            src = labels[src]
+        if src and src in proj.framework:
+            src = full_name(src)
 
-        if dest and dest in labels:
-            dest = labels[dest]
+        if dest and dest in proj.framework:
+            dest = full_name(dest)
 
-        if par and par in labels:
-            par = labels[par]
+        if par and par in proj.framework:
+            par = full_name(par)
 
         full = 'Flow'
         if src:
@@ -1283,8 +1278,8 @@ def get_full_name(output_id, proj):
             full += ' ({})'.format(par)
         return full
     else:
-        if output_id in labels:
-            return labels[output_id]
+        if output_id in proj.framework:
+            return full_name(output_id)
         else:
             return output_id
 

@@ -1,7 +1,7 @@
 <!--
 Define health packages
 
-Last update: 2018-07-29
+Last update: 2018-07-31
 -->
 
 <template>
@@ -14,7 +14,6 @@ Last update: 2018-07-29
     </div>
 
     <div v-else>
-
       <div class="calib-controls">
         <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
         <button class="btn" @click="toggleShowingParams()">
@@ -22,10 +21,10 @@ Last update: 2018-07-29
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
-        <button class="btn" @click="exportResults(activeProjectID)">Export results</button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Calibrate</button>
 
-        <div class="parset-controls">
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
         <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
@@ -34,25 +33,54 @@ Last update: 2018-07-29
             </option>
           </select>
           &nbsp;
-          <button class="btn small-button" @click="renameParsetModal()" title="Rename">
+          <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
             <i class="ti-pencil"></i>
           </button>
-          <button class="btn small-button" @click="copyParset()" title="Copy">
+          <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
             <i class="ti-files"></i>
           </button>
-          <button class="btn small-button" @click="deleteParset()" title="Delete">
+          <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
             <i class="ti-trash"></i>
           </button>
         </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <b>Start year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="startYear"
+                 style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>End year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:70px"/>
+        </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" @click="exportResults(activeProjectID)">Export</button>
+        <button class="btn" @click="clearGraphs()">Clear</button>
+        <button class="btn" @click="toggleShowingPlots()">
+          <span v-if="areShowingPlots">Hide</span>
+          <span v-else>Show</span>
+          plot controls
+        </button>
+
       </div>
     
-      <br>
-
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
+              <th @click="updateSorting('index')" class="sortable">
+                No.
+                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -76,6 +104,9 @@ Last update: 2018-07-29
             <tbody>
             <tr v-for="par in sortedPars">
               <td>
+                {{par.index}}
+              </td>
+              <td>
                 {{par.parlabel}}
               </td>
               <td>
@@ -84,19 +115,44 @@ Last update: 2018-07-29
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.value"/>
+                       v-model="par.dispvalue"/>
               </td>
             </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="calib-graph">
-          <div v-for="index in placeholders" :id="'fig'+index">
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
             <!--mpld3 content goes here-->
           </div>
         </div>
-        
+
+        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
+          <div class="plotopts-params" v-if="areShowingPlots">
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Plot</th>
+                <th>Active</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in plotOptions">
+                <td>
+                  {{ item.plot_name }}
+                </td>
+                <td style="text-align: center">
+                  <input type="checkbox" v-model="item.active"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+
       </div>
       
     </div>
@@ -131,10 +187,6 @@ Last update: 2018-07-29
         </div>
       </div>
 
-
-      <div>
-
-      </div>
     </modal>
     
     <!-- Popup spinner -->
@@ -148,7 +200,7 @@ Last update: 2018-07-29
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
-  import progressIndicator from '@/services/progress-indicator-service'
+  import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
   import PopupSpinner from './Spinner.vue'
@@ -163,13 +215,17 @@ Last update: 2018-07-29
     data() {
       return {
         serverresponse: 'no response',
-        sortColumn: 'parname',
+        sortColumn: 'index',
         sortReverse: false,
         parList: [],
         areShowingParameters: true,
+        areShowingPlots: false,
         activeParset: -1,
         parsetOptions: [],
         newParsetName: [],
+        startYear: 0,
+        endYear: 0,
+        plotOptions: [],
       }
     },
 
@@ -179,7 +235,6 @@ Last update: 2018-07-29
           return ''
         } else {
           let projectID = this.$store.state.activeProject.project.id
-          this.updateParset()
           return projectID
         }
       },
@@ -221,23 +276,30 @@ Last update: 2018-07-29
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      }
-
-      else if (this.$store.state.activeProject.project != undefined) {
-        this.viewTable();
+      } else if (this.$store.state.activeProject.project != undefined) {
+        this.startYear = this.active_sim_start
+        this.endYear = this.active_sim_end
+        this.viewTable()
+        this.getPlotOptions()
+        this.updateParset()
+        this.sleep(1000)
+          .then(response => {
+            this.makeGraphs(this.activeProjectID)
+            }
+          );
       }
     },
 
     methods: {
 
+      sleep(time) {
+        // Return a promise that resolves after _time_ milliseconds.
+        console.log('Sleeping for ' + time)
+        return new Promise((resolve) => setTimeout(resolve, time));
+      },
+
       notImplemented(message) {
-        this.$notifications.notify({
-          message: 'Function "' + message + '" not yet implemented',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        status.failurePopup(this, 'Function "' + message + '" not yet implemented')
       },
 
       projectID() {
@@ -248,20 +310,26 @@ Last update: 2018-07-29
       // TO_PORT
       updateParset() {
         console.log('updateParset() called')
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
         // Get the current user's parsets from the server.
         rpcservice.rpcCall('get_parset_info', [this.projectID()])
-          .then(response => {
-            this.parsetOptions = response.data // Set the scenarios to what we received.
-            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-              console.log('Parameter set ' + this.activeParset + ' no longer found')
-              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-            } else {
-              console.log('Parameter set ' + this.activeParset + ' still found')
-            }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
-            console.log('Parset options: ' + this.parsetOptions)
-            console.log('Active parset: ' + this.activeParset)
-          })
+        .then(response => {
+          this.parsetOptions = response.data // Set the scenarios to what we received.
+          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+            console.log('Parameter set ' + this.activeParset + ' no longer found')
+            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+          } else {
+            console.log('Parameter set ' + this.activeParset + ' still found')
+          }
+          this.newParsetName = this.activeParset // WARNING, KLUDGY
+          console.log('Parset options: ' + this.parsetOptions)
+          console.log('Active parset: ' + this.activeParset)
+          status.succeed(this, '')  // No green notification.
+        })
+        .catch(error => {
+          // Failure popup.
+          status.fail(this, 'Could not update parset')
+        })         
       },
 
       updateSorting(sortColumn) {
@@ -279,57 +347,52 @@ Last update: 2018-07-29
         return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
+            if      (this.sortColumn === 'index') { return par1.index > par2.index ? sortDir: -sortDir}
+            else if (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
             else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1.value > par2.value ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
           }
         )
       },
 
       viewTable() {
         console.log('viewTable() called')
-        
-        // Note: For some reason, the popup spinner doesn't work from inside created().
-        
-        // Start the loading bar.
-        this.$Progress.start()
-
-        // Go to the server to get the diseases from the burden set.
         rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
-          this.parList = response.data // Set the disease list.
-          
-          // Finish the loading bar.
-          this.$Progress.finish()          
+          this.parList = response.data // Get the parameter values
         })
         .catch(error => {
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load parameters',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.failurePopup(this, 'Could not load parameters: ' + error.message)
         })
+      },
+
+      getPlotOptions() {
+        console.log('getPlotOptions() called')
+        rpcservice.rpcCall('get_supported_plots', [true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not get plot options: ' + error.message)
+          })
       },
 
       toggleShowingParams() {
         this.areShowingParameters = !this.areShowingParameters
       },
 
+      toggleShowingPlots() {
+        this.areShowingPlots = !this.areShowingPlots
+      },
+
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
-        this.$modal.show('popup-spinner') // Bring up a spinner.
         
-        // Start the loading bar.
-        this.$Progress.start()
+        // Start indicating progress.
+        status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -343,91 +406,75 @@ Last update: 2018-07-29
             }
             try {
               console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+              });
               this.haveDrawnGraphs = true
             }
             catch (err) {
               console.log('failled:' + err.message);
             }
           }
-          this.$modal.hide('popup-spinner') // Dispel the spinner.
-          this.$Progress.finish() // Finish the loading bar.
-          this.$notifications.notify({ // Success popup.
-            message: 'Graphs created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })           
+          
+          // Indicate success.
+          status.succeed(this, 'Graphs created')
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
-          this.$modal.hide('popup-spinner') // Dispel the spinner.
-          this.$Progress.fail() // Fail the loading bar.
-          this.$notifications.notify({ // Failure popup.
-            message: 'Could not make graphs',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })          
+          
+          // Indicate failure.
+          status.fail(this, 'Could not make graphs')
         }) 
       },
 
       autoCalibrate(project_id) {
-
         console.log('autoCalibrate() called')
-
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        status.start(this)
+        this.$Progress.start(7000)
 
         // Go to the server to get the results from the package set.
         rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])
-          .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
+        .then(response => {
+          this.serverresponse = response.data // Pull out the response data.
+          var n_plots = response.data.graphs.length
+          console.log('Rendering ' + n_plots + ' graphs')
 
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
+          for (var index = 0; index <= n_plots; index++) {
+            console.log('Rendering plot ' + index)
+            var divlabel = 'fig' + index
+            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            while (div.firstChild) {
+              div.removeChild(div.firstChild);
             }
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$Progress.finish() // Finish the loading bar.
-            this.$notifications.notify({ // Success popup.
-              message: 'Automatic calibration complete',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            // Pull out the error message.
-            this.serverresponse = 'There was an error: ' + error.message
+            try {
+              console.log(response.data.graphs[index]);
+              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+              });
+              this.haveDrawnGraphs = true
+            }
+            catch (err) {
+              console.log('failled:' + err.message);
+            }
+          }
+          
+          // Indicate success.
+          status.succeed(this, 'Automatic calibration complete')
+        })
+        .catch(error => {
+          // Pull out the error message.
+          this.serverresponse = 'There was an error: ' + error.message
 
-            // Set the server error.
-            this.servererror = error.message
-          }).then( response => {
-          this.$notifications.notify({
-            message: 'Graphs created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          });
+          // Set the server error.
+          this.servererror = error.message
+          
+          // Indicate failure.
+          status.fail(this, 'Automatic calibration failed')           
         })
       },
 
@@ -444,7 +491,11 @@ Last update: 2018-07-29
 
       exportResults(project_id) {
         console.log('exportResults() called')
-        rpcservice.rpcDownloadCall('export_results', [project_id, this.activeParset]) // Make the server call to download the framework to a .prj file.
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        .catch(error => {
+          // Failure popup.
+          status.failurePopup(this, 'Could not export results')    
+        })         
       },
 
       // TO_PORT
@@ -460,30 +511,22 @@ Last update: 2018-07-29
         let uid = this.$store.state.activeProject.project.id
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        status.start(this)
+      
         rpcservice.rpcCall('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            // Update the project summaries so the copied program shows up on the list.
-            this.updateParset()
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Success popup.
-              message: 'Parameter set "'+this.activeParset+'" renamed',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Failure popup.
-              message: 'Could not rename parameter set',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not rename parameter set')
+        })
       },
 
       // TO_PORT
@@ -491,30 +534,22 @@ Last update: 2018-07-29
         // Find the project that matches the UID passed in.
         let uid = this.$store.state.activeProject.project.id
         console.log('copyParset() called for ' + this.activeParset)
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        status.start(this)
+        
         rpcservice.rpcCall('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            // Update the project summaries so the copied program shows up on the list.
-            this.updateParset()
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Success popup.
-              message: 'Parameter set "'+this.activeParset+'" copied',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Failure popup.
-              message: 'Could not copy parameter set',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not copy parameter set')
+        })
       },
 
       // TO_PORT
@@ -522,30 +557,22 @@ Last update: 2018-07-29
         // Find the project that matches the UID passed in.
         let uid = this.$store.state.activeProject.project.id
         console.log('deleteParset() called for ' + this.activeParset)
-        this.$modal.show('popup-spinner') // Bring up a spinner.
+        
+        // Start indicating progress.
+        status.start(this)
+        
         rpcservice.rpcCall('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            // Update the project summaries so the copied program shows up on the list.
-            this.updateParset()
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Success popup.
-              message: 'Parameter set "'+this.activeParset+'" deleted',
-              icon: 'ti-check',
-              type: 'success',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
-          .catch(error => {
-            this.$modal.hide('popup-spinner') // Dispel the spinner.
-            this.$notifications.notify({ // Failure popup.
-              message: 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })
-          })
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
+        })
       },
     }
   }
@@ -562,19 +589,36 @@ Last update: 2018-07-29
   .calib-controls button, .calib-controls .control-group {
     margin-right: 1rem;
   }
+
   .calib-main {
     display: flex;
-  }
-  .calib-main--full {
-    display: block;
+    margin-top: 4rem;
   }
   .calib-params {
-    flex: 1 0 40%;
+    flex: 0 0 30%;
   }
-  .calib-graph {
-    flex: 1 0 60%;
+  .calib-graphs {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    & > div {
+      flex: 0 0 650px;
+    }
   }
-  .parset-controls {
+
+  .plotopts-main {
+    /*width: 350px;*/
+    /*padding-left: 20px;*/
+    display: flex;
+    /*float: left;*/
+  }
+  .plotopts-main--full {
+    display: block;
+  }
+  .plotopts-params {
+    flex: 1 0 10%;
+  }
+  .controls-box {
     border: 2px solid #ddd;
     padding: 7px;
     display: inline-block;

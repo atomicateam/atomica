@@ -331,7 +331,7 @@ class TotalSpendConstraint(Constraint):
             x0 = sc.odict()  # Order matters here
             bounds = []
             progs = hard_constraints['programs'][t]  # Programs eligible for constraining at this time
-            LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend}]  # Constrain spend
+            LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend,'jac':lambda x: np.ones(x.shape)}]  # Constrain spend
 
             for prog in progs:
                 x0[prog] = instructions.alloc[prog].get(t)
@@ -339,7 +339,9 @@ class TotalSpendConstraint(Constraint):
 
             x0_array = np.array(x0.values()).ravel()
             res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array) ** 2)), x0_array, bounds=bounds,constraints=LinearConstraint)
-            # TODO - If there's a failure to constrain, return np.inf here
+
+            if not res['success']:
+                logger.error('TotalSpendConstraint failed - how to handle this is yet to be determined')
 
             penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
 

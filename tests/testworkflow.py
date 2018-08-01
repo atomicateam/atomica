@@ -9,35 +9,35 @@ import os
 import atomica.ui as au
 import sciris.core as sc
 import pylab as pl
-
+import matplotlib.pyplot as plt
 
 # test = "sir"
-test = "tb"
-#test = "diabetes"
-# test = "service"
+# test = "tb"
+test = "diabetes"
+#test = "service"
+
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
 #"runsim",
 #'plotcascade',
-#"makeprogramspreadsheet",
+"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
 #"runsim_programs",
-#"makeplots",
+# "makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
 # "parameterscenario",
-'budgetscenarios',
-#'optimization',
+# 'budgetscenarios',
+# 'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -65,15 +65,8 @@ if test == "tb":
 
 tmpdir = "." + os.sep + "temp" + os.sep
 
-if "makeframeworkfile" in torun:
-    if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
-    elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
-    elif test == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
-    elif test == "service": args = {"num_comps":7, "num_characs":4, "num_pars":10}
-    au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
-        
 if "makeframework" in torun:
-    F = au.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
+    F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
     F.save(tmpdir+test+".frw")
@@ -94,32 +87,29 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    if test in ['diabetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
-    else:
-        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    if test in ['diabetes']:
+    if test in ['di2abetes']:
         print('\n\n\nDatabook not yet filled in for diabetes example.')
     else:
         P.make_parset(name="default")
     
 if "runsim" in torun:
-    if test in ['diabetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    if test in ["tb"]:
+        P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    elif test=='diabetes':
+        print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     else:
-        if test in ["tb"]:
-            P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-        else:
-            P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-        P.run_sim(parset="default", result_name="default")
-        
-        cascade = P.results[-1].get_cascade_vals(project=P)
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+
+    P.run_sim(parset="default", result_name="default")    
+    cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(project=P, year=2020)
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
     if forceshow: pl.show()
     
     # Browser test
@@ -128,20 +118,18 @@ if 'plotcascade' in torun:
         import sciris.weblib.quickserver as sqs
         fig = pl.gcf()
         sqs.browser(fig)
-        
-    
-    
-    
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    if test not in ['diabetes']:
-        P = au.demo(which=test, do_plot=0)
-        filename = "temp/progbook_"+test+"_blank.xlsx"
-        if test == "tb":
-            P.make_progbook(filename, progs=31)
-        else:
-            P.make_progbook(filename, progs=5)
+    P = au.demo(which=test, do_plot=0, do_run=False)
+    filename = "temp/progbook_"+test+"_blank.xlsx"
+    if test == "tb":
+        P.make_progbook(filename, progs=29)
+    elif test == "diabetes":
+        P.make_progbook(filename, progs=14)
+    else:
+        P.make_progbook(filename, progs=5)
+
 
 if "loadprogramspreadsheet" in torun:
     if test in ['diabetes','service']:
@@ -151,9 +139,12 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        P.load_progbook(progbook_path=filename, make_default_progset=True)
-        if test not in ["tb"]:      # TODO: Test TB progset after successful progset construction.
-            P.progsets[0].programs[0].get_spend(year=2015)
+        blh_effects = False if test=='tb' else True
+        P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
+
+        P.progsets[0].programs[0].get_spend(year=2015)
+
+        if test =="sir":      
 
             # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
             coverage = sc.odict([('Risk avoidance',     .99),
@@ -177,8 +168,46 @@ if "loadprogramspreadsheet" in torun:
             print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
             print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
 
+        elif test =="tb":      
+
+            # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
+            denominator = sc.odict([('BCG',             [9e6]),
+                                    ('MS-PHC',          [9e6]),
+                                    ('ENH-MS-PHC',      [9e6]),
+                                    ('MS-HR',           [9e6]),
+                                    ('CT-DS',           [9e6]),
+                                    ('CT-DR',           [9e6]),
+                                    ('ACF-PLHIV',       [9e6]),
+                                    ('DS-TB',           [9e6]),
+                                    ('Old MDR',         [9e6]),
+                                    ('Old MDR/BDQ',     [9e6]),
+                                    ('MDR/BDQ',         [9e6]),
+                                    ('KM-SC',           [9e6]),
+                                    ('BDQ-SC',          [9e6]),
+                                    ('XDR-Current',     [9e6]),
+                                    ('XDR-new',         [9e6]),
+                                    ('PLHIV/DS-TB',     [9e6]),
+                                    ('PLHIV/Old MDR',   [9e6]),
+                                    ('PLHIV/Old MDR-BDQ',[9e6]),
+                                    ('PLHIV/New MDR',   [9e6]),
+                                    ('PLHIV/Old XDR',   [9e6]),
+                                    ('PLHIV/New XDR',   [9e6]),
+                                    ('Pris DS-TB',      [9e6]),
+                                    ('Pris MDR',        [9e6]),
+                                    ('Pris XDR',        [9e6]),
+                                    ('Min DS-TB',       [9e6]),
+                                    ('Min MDR',         [9e6]),
+                                    ('Min XDR',         [9e6]),
+                                    ('PCF-HIV-',        [9e6]),
+                                    ('PCF-HIV+',        [9e6])])
+
+            print(P.progsets[0].get_num_covered(year=[2017]))
+            print(P.progsets[0].get_prop_covered(year=[2017],denominator = denominator))
+
 
 if "runsim_programs" in torun:
+
+    P = au.demo(which=test,do_plot=0)
 
     if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
@@ -196,7 +225,7 @@ if "runsim_programs" in torun:
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
     elif test in ['diabetes','service']:
-        print('\n\n\nRunning with programs not yet implemented for TB, diabetes or service examples.')
+        print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
 
     else:
         print('\n\n\nUnknown test.')
@@ -314,19 +343,21 @@ if "parameterscenario" in torun:
     scvalues[scen_par][scen_pop]["t"] = [2015.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
 
-    P.make_scenario(name="varying_infections", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
+    P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
+    P.run_scenario(scenario="Varying Infections", parset="default")
 
     # Insert two values and eliminate everything between them.
     scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
     scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
     scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
 
-    P.make_scenario(name="varying_infections2", instructions=scvalues)
-    P.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
+    P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
+    P.run_scenario(scenario="Varying Infections 2", parset="default")
 
-    d = au.PlotData([P.results["scen1"],P.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
+    d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
     au.plot_series(d, axis="results")
+    plt.title('Scenario comparison')
+    plt.ylabel('Number of people')
 
 
 def supported_plots_func():
@@ -354,30 +385,63 @@ def supported_plots_func():
             }
     return supported_plots
 
-def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+#def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None):
+#    results = sc.promotetolist(results)
+#    supported_plots = supported_plots_func() 
+#    if plot_names is None: plot_names = supported_plots.keys()
+#    plot_names = sc.promotetolist(plot_names)
+#    if outputs is None:
+#        outputs = [supported_plots[plot_name] for plot_name in plot_names]
+#    data = proj.data if plotdata is not False else None # Plot data unless asked not to
+#    all_figs = []
+#    for output in outputs:
+#        try:
+#            import numpy as np # TEMP
+#            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+#            for series in plotdata.series:
+#                if any(np.isnan(series.vals)):
+#                    print('NANS?????????!!')
+#                    print series.vals
+#            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+#            all_figs += sc.promotetolist(figs)
+#            print('Plot %s succeeded' % (output))
+#        except Exception as E:
+#            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+#
+#    return all_figs
+
+def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, outputs=None, plotdata=None, replace_nans=True):
+    import numpy as np
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [supported_plots[plot_name] for plot_name in plot_names]
+    graphs = []
     data = proj.data if plotdata is not False else None # Plot data unless asked not to
-    all_figs = []
     for output in outputs:
         try:
-            import numpy as np # TEMP
             plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            for series in plotdata.series:
-                if any(np.isnan(series.vals)):
-                    print('NANS?????????!!')
-                    print series.vals
+            nans_replaced = 0
+            series_list = sc.promotetolist(plotdata.series)
+            for series in series_list:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
             figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
-            all_figs += sc.promotetolist(figs)
+            graphs += figs
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
-    return all_figs
+    return graphs
 
 
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
@@ -399,7 +463,7 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are bud
 
 if "optimization" in torun:
     P = au.demo(which='tb')
-    P.run_optimization(maxtime=300)
+    P.run_optimization(maxtime=30)
 
 
 if "runsimprogs" in torun:
