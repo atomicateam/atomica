@@ -23,7 +23,7 @@ torun = [
 "makedatabook",
 "makeproject",
 "loaddatabook",
-#"makeparset",
+"makeparset",
 #"runsim",
 #'plotcascade',
 "makeprogramspreadsheet",
@@ -96,16 +96,16 @@ if "makeparset" in torun:
         P.make_parset(name="default")
     
 if "runsim" in torun:
-    if test in ['d2iabetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    if test in ["tb"]:
+        P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    elif test=='diabetes':
+        print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     else:
-        if test in ["tb"]:
-            P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-        else:
-            P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-        P.run_sim(parset="default", result_name="default")
-        
-        cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+
+    P.run_sim(parset="default", result_name="default")    
+    cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
 
 if 'plotcascade' in torun:
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
@@ -117,19 +117,18 @@ if 'plotcascade' in torun:
         import sciris.weblib.quickserver as sqs
         fig = pl.gcf()
         sqs.browser(fig)
-
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    if test not in ['di3abetes']:
-        P = au.demo(which=test, do_plot=0, do_run=False)
-        filename = "temp/progbook_"+test+"_blank.xlsx"
-        if test == "tb":
-            P.make_progbook(filename, progs=29)
-        elif test == "diabetes":
-            P.make_progbook(filename, progs=14)
-        else:
-            P.make_progbook(filename, progs=5)
+    P = au.demo(which=test, do_plot=0, do_run=False)
+    filename = "temp/progbook_"+test+"_blank.xlsx"
+    if test == "tb":
+        P.make_progbook(filename, progs=29)
+    elif test == "diabetes":
+        P.make_progbook(filename, progs=14)
+    else:
+        P.make_progbook(filename, progs=5)
+
 
 if "loadprogramspreadsheet" in torun:
     if test in ['diabetes','service']:
