@@ -277,7 +277,17 @@ class ProjectData(object):
                             if allowed_units:
                                 assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
 
-        # TODO - check that interactions are present if they are called for in the Framework
+        for _,spec in framework.interactions.iterrows():
+            for tdc in self.interpops:
+                if tdc.code_name == spec.name:
+                    for (to_pop,from_pop),ts in tdc.ts.items():
+                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop,from_pop)
+                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title()
+                    break
+            else:
+                raise AtomicaException('Required interaction "%s" not found in databook' % spec.name)
 
         return True
 

@@ -11,10 +11,10 @@ import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 
-#test = "sir"
+test = "sir"
 # test = "tb"
 # test = "diabetes"
-test = "service"
+# test = "service"
 
 torun = [
 "makeframework",

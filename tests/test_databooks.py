@@ -39,7 +39,6 @@ d2.remove_pop('Pris')
 d2.remove_pop('Pris (HIV+)')
 d2.save('./temp/d_blug_nopris.xlsx')
 
-
 # Remove a transfer, add an interaction, add a pop
 d2.remove_transfer('hiv_inf')
 d2.add_interaction('d_ctc','New interpop')

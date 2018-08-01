@@ -368,7 +368,7 @@ class ProjectFramework(object):
             allowed_units = [item_spec["Format"]]
         else:
             # User choice if a transfer or a transition parameter.
-            if item_type in [FS.KEY_TRANSFER] or self.transitions[item_spec.name]:
+            if item_type in [FS.KEY_TRANSFER] or (item_spec.name in self.transitions and self.transitions[item_spec.name]):
                 allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
             # If not a transition, the format of this parameter is meaningless but can still be used when plotting
             else:
