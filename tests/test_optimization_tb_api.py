@@ -5,7 +5,6 @@ Version:
 import atomica.ui as au
 import sciris.core as sc
 import numpy as np
-import matplotlib.pyplot as plt
 
 def rpc_optimize(proj,parset_name,progset_name,optimization_name,start_year,end_year,budget_factor,objective_weights,prog_spending,maxtime=10):
     # RPC call for TB optimization
@@ -46,7 +45,7 @@ def rpc_optimize(proj,parset_name,progset_name,optimization_name,start_year,end_
         measurables.append(au.Measurable(name,t=[start_year,end_year],weight=weight))
 
     # Create the Optimization object
-    proj.make_optimization(name=optimization_name, adjustments=adjustments, measurables=measurables,constraints=constraints,maxtime=maxtime) # Evaluate from 2020 to end of simulation
+    proj.make_optimization(name=optimization_name, adjustments=adjustments, measurables=measurables,constraints=constraints, maxtime=maxtime) # Evaluate from 2020 to end of simulation
 
     # Run the optimization
     optimized_result = proj.run_optimization(optimization=optimization_name,parset='default',progset='default',progset_instructions=instructions)

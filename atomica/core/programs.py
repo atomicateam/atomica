@@ -3,10 +3,10 @@ This module defines the Program and Programset classes, which are
 used to define a single program/modality (e.g., FSW programs) and a
 set of programs, respectively.
 
-Version: 2018mar23
+Version: 2018jul30
 """
 
-from sciris.core import odict, today, getdate, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+from sciris.core import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
 import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
@@ -44,6 +44,8 @@ class ProgramSet(NamedItem):
         NamedItem.__init__(self,name)
         self.programs   = sc.odict()
         self.covout     = sc.odict()
+        self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
+
         if programs is not None: self.add_programs(programs)
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
@@ -52,6 +54,11 @@ class ProgramSet(NamedItem):
         self.modified = today()
         self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
         return None
+
+    def prepare_cache(self):
+        # This function is called once at the start of model.py, which allows various checks to be
+        # performed once at the start of the simulation rather than at every timestep
+        self._covout_valid_cache = {k:v.has_pars() for k,v in self.covout.items()}
 
     def __repr__(self):
         ''' Print out useful information'''
@@ -64,13 +71,15 @@ class ProgramSet(NamedItem):
         
         return output
 
-    def make(self, progdata=None, project=None):
+    def make(self, progdata=None, project=None, verbose=False):
         '''Make a program set from a program data object.'''
 
+        if verbose: print('Making program set from program data')
         pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
         comp_short_name = lambda x: project.framework.get_variable(x)[0].name
 
         # Sort out inputs
+        if verbose: print('Sorting out inputs')
         if progdata is None:
             if project.progdata is None:
                 errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
@@ -79,55 +88,65 @@ class ProgramSet(NamedItem):
                 progdata = project.progdata
                 
         # Check if the populations match - if not, raise an error, if so, add the data
+        if verbose: print('Checking if populations match')
         if project is not None and set(progdata['pops']) != set(project.pop_labels):
             errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(project.pop_labels))
             raise AtomicaException(errormsg)
                 
+        if verbose: print('Initializing programs')
         nprogs = len(progdata['progs']['short'])
         programs = []
         
         # Read in the information for programs
         for np in range(nprogs):
+            if verbose: print('  Reading in information for program %s/%s' % (np+1, nprogs))
             pkey = progdata['progs']['short'][np]
-            capcacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
+            capacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
             p = Program(short=pkey,
                         name=progdata['progs']['short'][np],
+                        label = progdata['progs']['label'][np],
                         target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
                         target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
-                        capacity=capcacity,
+                        capacity=capacity,
                         )
             programs.append(p)
 
+        if verbose: print('Adding programs')
         self.add_programs(progs=programs)
 
+        if verbose: print('Updating program parameters')
         for np in range(nprogs):
+            if verbose: print('  Updating program %s/%s' % (np+1, nprogs))
             pkey = progdata['progs']['short'][np]
             for yrno,year in enumerate(progdata['years']):
 
                 spend = progdata[pkey]['spend'][yrno]
-                base_spend = progdata[pkey]['basespend'][yrno]
                 unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
                 if not (isnan(unit_cost)).all():
-                    self.programs[np].update(unit_cost=sanitize(unit_cost), year=year)
+                    self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
         
                 if not isnan(spend):
                     self.programs[np].add_spend(spend=spend, year=year)
-                if not isnan(base_spend):
-                    self.programs[np].add_spend(spend=base_spend, year=year, spend_type='basespend')
         
 
         # Read in the information for covout functions and update the target pars
+        if verbose: print('Adding program effects')
         prognames = progdata['progs']['short']
+        covouts = odict()
         prog_effects = odict()
 
-        for par,pardata in progdata['pars'].iteritems():
+        for parname,pardata in progdata['pars'].iteritems():
+            
+            par = comp_short_name(parname) # Get short name of parameter
+            covouts[par] = progdata['pars'][parname]
+            if verbose: print('  Adding effects for program %s' % (par))
             prog_effects[par] = odict()
             for pop,popdata in pardata.iteritems():
                 pop = pop_short_name[pop]
                 prog_effects[par][pop] = odict()
                 for pno in range(len(prognames)):
                     vals = []
-                    for blh in range(3):
+                    for blh in range(len(popdata['prog_vals'])):
                         val = popdata['prog_vals'][blh][pno]
                         if isnumber(val) and val is not nan: vals.append(val) 
                     if vals:
@@ -135,9 +154,12 @@ class ProgramSet(NamedItem):
                         self.programs[pno].update(target_pars=(par,pop))
                 if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
             if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
-            
-        self.add_covouts(progdata['pars'], prog_effects, pop_short_name)
+        
+        if verbose: print('Adding coverage-outcome effects')
+        self.add_covouts(covouts, prog_effects, pop_short_name)
+        if verbose: print('Updating')
         self.update()
+        if verbose: print('Done with make().')
         return None
 
 
@@ -255,21 +277,24 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None):
+    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None, verbose=False):
         ''' add a single coverage-outcome parameter '''
         # Process inputs
+        if verbose: print('Adding single coverage-outcome parameter for par=%s, pop=%s' % (par, pop))
         if cov_interaction is None: cov_interaction = self.default_cov_interaction
         if imp_interaction is None: imp_interaction = self.default_imp_interaction
         self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, prog=prog)
+        if verbose: print('Done with add_covout().')
         return None
 
 
-    def add_covouts(self, covouts=None, prog_effects=None,pop_short_name=None):
+    def add_covouts(self, covouts=None, prog_effects=None, pop_short_name=None, verbose=False):
         '''
         Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
         covouts[parname][popname] = odict()
         '''
         # Process inputs
+        if verbose: print('Adding coverage-outcome effects')
         if covouts is not None:
             if isinstance(covouts, list) or isinstance(covouts,type(array([]))):
                 errormsg = 'Expecting a dictionary with specific structure, not a list'
@@ -278,15 +303,17 @@ class ProgramSet(NamedItem):
             errormsg = 'Covout list not supplied.'
             raise AtomicaException(errormsg)
             
+            
         for par,pardata in covouts.iteritems():
+            if verbose: print('  Adding coverage-outcome effect for parameter %s' % par)
             if par in prog_effects.keys():
                 for pop,popdata in covouts[par].iteritems():
                     pop = pop_short_name[pop]
                     if pop in prog_effects[par].keys():
                         # Sanitize inputs
-                        npi_val = sanitize(popdata['npi_val'])
-                        max_val = sanitize(popdata['max_val'])
-                        self.add_covout(par=par, pop=pop, npi_val=npi_val, max_val=max_val, prog=prog_effects[par][pop])
+                        if verbose: print('    For population %s' % pop)
+                        npi_val = sanitize(popdata['npi_val'], defaultval=0., label=', '.join([par, pop, 'npi_val']))
+                        self.add_covout(par=par, pop=pop, npi_val=npi_val, prog=prog_effects[par][pop])
         
         return None
 
@@ -434,37 +461,31 @@ class ProgramSet(NamedItem):
         
         # Initialise output
         outcomes = odict()
-        max_vals  = odict()
 
         # Loop over parameter types
         for par_type in self.target_par_types:
             outcomes[par_type] = odict()
-            max_vals[par_type] = odict()
 
             relevant_progs = self.relevant_progs[par_type]
             # Loop over populations relevant for this parameter type
             for popno, pop in enumerate(relevant_progs.keys()):
 
                 delta, thiscov = odict(), odict()
-                effects = odict([(k,v.get(sample)) for k,v in self.covout[(par_type,pop)].progs.iteritems()])
-                best_prog = min(effects, key=effects.get)
-                best_eff  = effects[best_prog]
                 
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
-                    if not self.covout[(par_type,pop)].has_pars():
+                    if not self._covout_valid_cache[(par_type,pop)]:
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
                         outcomes[par_type][pop] = None
                     else:
                         outcomes[par_type][pop]  = self.covout[(par_type,pop)].npi_val.get(sample)
                         thiscov[prog.short]         = coverage[prog.short]
                         delta[prog.short]           = self.covout[(par_type,pop)].progs[prog.short].get(sample) - outcomes[par_type][pop]
-                        max_vals[par_type][pop]   = self.covout[(par_type,pop)].max_val.get(sample)
                         
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Reseting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
+                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
                         self.covout[(par_type,pop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
@@ -472,7 +493,7 @@ class ProgramSet(NamedItem):
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
                     for prog in relevant_progs[pop]:
-                        if not self.covout[(par_type,pop)].has_pars():
+                        if not self._covout_valid_cache[(par_type,pop)]:
                             print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
                             outcomes[par_type][pop] = None
                         else: 
@@ -509,9 +530,11 @@ class ProgramSet(NamedItem):
                             accum = 0
                             for j in range(indexes[-1]+1,len(thiscov)):
                                 accum += overlap_calc(indexes+[j],target_depth)
-                            return thiscov.values()[indexes[-1]]*accum
+                            output = thiscov.values()[indexes[-1]]*accum
+                            return output
                         else:
-                            return thiscov.values()[indexes[-1]]* max(abs(([delta.values()[x] for x in [0]],0)))
+                            output = thiscov.values()[indexes[-1]]* max(delta.values()[0],0)
+                            return output
 
                     # Iterate over overlap levels
                     for i in range(2,len(thiscov)): # Iterate over numbers of overlapping programs
@@ -546,22 +569,22 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self,short=None, name=None, label=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
         self.short              = None # Short name of program
+        self.label              = None # Full name of the program
         self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
         self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
         self.target_pops        = None # Populations targeted by the program
         self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
-        self.base_spend_data    = None # Latest or estimated base expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.update(short=short, name=name, label=label, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
@@ -569,6 +592,7 @@ class Program(NamedItem):
         ''' Print out useful info'''
         output = sc.desc(self)
         output += '          Program name: %s\n'    % self.short
+        output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
         output += ' Targeted compartments: %s\n'    % self.target_comps
@@ -577,7 +601,7 @@ class Program(NamedItem):
     
 
 
-    def update(self, short=None, name=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
+    def update(self, short=None, name=None, label=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
@@ -713,6 +737,7 @@ class Program(NamedItem):
         # Actually set everything
         if short        is not None: self.short          = short # short name
         if name         is not None: self.name           = name # full name
+        if label        is not None: self.label          = label # full name
         if target_pops  is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
         if target_pars  is not None: set_target_pars(target_pars) # targeted parameters
         if target_comps is not None: self.target_comps    = promotetolist(target_comps, 'string') # key(s) for targeted populations
@@ -910,20 +935,21 @@ class Covout(object):
     Covout(par='contacts',
            pop='Adults',
            npi_val=120,
-           max_val=[10,5,15],
            progs={'Prog1':[15,10,10], 'Prog2':20}
            )
     '''
     
-    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None):
+    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, verbose=False):
+        if verbose: print('Initializing Covout for par=%s, pop=%s, npi_val=%s' % (par, pop, npi_val))
         self.par = par
         self.pop = pop
         self.cov_interaction = cov_interaction
         self.imp_interaction = imp_interaction
         self.npi_val = Val(npi_val)
-        self.max_val = Val(max_val)
         self.progs = odict()
-        if prog is not None: self.add(prog=prog)
+        if prog is not None:
+            self.add(prog=prog)
+
         return None
     
     def __repr__(self):
@@ -931,7 +957,6 @@ class Covout(object):
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
         output += indent('     NPI val: ', self.npi_val.get('all'))
-        output += indent('     Max val: ', self.max_val.get('all'))
         output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val.get('all')) for key,val in self.progs.items()]))
         output += '\n'
         return output
@@ -964,7 +989,6 @@ class Covout(object):
         tests = {}
         try:
             tests['NPI values invalid']         = not(isnumber(self.npi_val.get() ))
-            tests['Max values invalid']         = not(isnumber(self.max_val.get() ))
             tests['Program values invalid']     = not(array([isnumber(prog.get()) for prog in self.progs.values()]).any())
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized
@@ -1005,8 +1029,9 @@ class Val(object):
     
     '''
     
-    def __init__(self, best=None, low=None, high=None, dist=None):
+    def __init__(self, best=None, low=None, high=None, dist=None, verbose=False):
         ''' Allow the object to be initialized, but keep the same infrastructure for updating '''
+        if verbose: print('Initializing Val for best=%s, low=%s, high=%s' % (best, low, high))
         self.best = None
         self.low = None
         self.high = None

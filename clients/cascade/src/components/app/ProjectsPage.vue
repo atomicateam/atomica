@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-13
+Last update: 2018-07-29
 -->
 
 <template>
@@ -94,18 +94,18 @@ Last update: 2018-07-13
 			      </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
-              <button class="btn" @click="copyProject(projectSummary.project.id)" title="Copy">
+              <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
                 <i class="ti-files"></i>
               </button>
-              <button class="btn" @click="renameProject(projectSummary)" title="Rename">
+              <button class="btn" @click="renameProject(projectSummary)" data-tooltip="Rename">
                 <i class="ti-pencil"></i>
               </button>
-              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td>{{ projectSummary.project.creationTime }}</td>
-            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
+            <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
+            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
             <td>
               {{ projectSummary.project.framework }}
@@ -114,18 +114,18 @@ Last update: 2018-07-13
               {{ projectSummary.project.n_pops }}
             </td>
             <td>
-              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" title="Upload">
+              <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
-              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" title="Upload">
+              <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
-              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" title="Download">
+              <button class="btn" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
@@ -220,11 +220,11 @@ Last update: 2018-07-13
         </div>
       </div>
 
-
-      <div>
-
-      </div>
     </modal>
+    
+    <!-- Popup spinner -->
+    <popup-spinner></popup-spinner>
+    
   </div>
 
 </template>
@@ -233,11 +233,17 @@ Last update: 2018-07-13
 import axios from 'axios'
 var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
+import status from '@/services/status-service'
 import router from '@/router'
-
+import PopupSpinner from './Spinner.vue'
+  
 export default {
   name: 'ProjectsPage',
-
+  
+  components: {
+    PopupSpinner
+  },
+    
   data() {
     return {
       filterPlaceholder: 'Type here to filter projects', // Placeholder text for table filter box
@@ -248,7 +254,7 @@ export default {
       projectSummaries: [], // List of summary objects for projects the user has
       frameworkSummaries: [],
       currentFramework: '',
-      proj_name: '', // For creating a new project: number of populations
+      proj_name: 'New project', // For creating a new project: number of populations
       num_pops: 5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
       data_end: 2020, // For creating a new project: number of populations
@@ -265,6 +271,8 @@ export default {
   },
 
   created() {
+    let projectId = null
+    
     // If we have no user logged in, automatically redirect to the login page.
     if (this.$store.state.currentUser.displayname == undefined) {
       router.push('/login')
@@ -272,8 +280,13 @@ export default {
 
     // Otherwise...
     else {
-      // Load the project summaries of the current user.
-      this.updateProjectSummaries(null)
+      // Get the active project ID if there is an active project.
+      if (this.$store.state.activeProject.project != undefined) {
+        projectId = this.$store.state.activeProject.project.id
+      }
+      
+      // Load the project summaries of the current user.  
+      this.updateProjectSummaries(projectId)
       this.updateFrameworkSummaries()
     }
   },
@@ -302,21 +315,39 @@ export default {
       .then(response => {
         // Set the frameworks to what we received.
         this.frameworkSummaries = response.data.frameworks
-        if (this.frameworkSummaries.length) {
+
+/*        if (this.frameworkSummaries.length) {
           console.log('Framework summaries found')
           console.log(this.frameworkSummaries)
           this.currentFramework = this.frameworkSummaries[0].framework.name
           console.log('Current framework: '+this.currentFramework)
         } else {
           console.log('No framework summaries found')
-        }
+        } */
 
-        // Set select flags for false initially.
+        // Preprocess all frameworks.
         this.frameworkSummaries.forEach(theFrame => {
+          // Set to not selected.
           theFrame.selected = false
+            
+          // Set to not being renamed.
           theFrame.renaming = ''
+            
+          // Extract actual Date objects from the strings.
+          theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
+          theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
         })
       })
+      .catch(error => {
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not load frameworks',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })  
     },
 
     updateProjectSummaries(setActiveID) {
@@ -325,23 +356,43 @@ export default {
       // Get the current user's project summaries from the server.
       rpcservice.rpcCall('load_current_user_project_summaries')
       .then(response => {
+        let lastCreationTime = null
+        let lastCreatedID = null
+        
         // Set the projects to what we received.
         this.projectSummaries = response.data.projects
 
-        // Set select flags for false initially.
-        this.projectSummaries.forEach(theProj => {
-		      theProj.selected = false
-		      theProj.renaming = ''
-		    })
+        // Initialize the last creation time stuff if we have a non-empty list.
+        if (this.projectSummaries.length > 0) {
+          lastCreationTime = new Date(this.projectSummaries[0].project.creationTime)
+          lastCreatedID = this.projectSummaries[0].project.id
+        }
         
+        // Preprocess all projects.
+        this.projectSummaries.forEach(theProj => {
+          // Set to not selected.
+          theProj.selected = false
+            
+          // Set to not being renamed.
+          theProj.renaming = ''
+            
+          // Extract actual Date objects from the strings.
+          theProj.project.creationTime = new Date(theProj.project.creationTime)
+          theProj.project.updatedTime = new Date(theProj.project.updatedTime)
+          
+          // Update the last creation time and ID if what se see is later.
+          if (theProj.project.creationTime >= lastCreationTime) {
+            lastCreationTime = theProj.project.creationTime
+            lastCreatedID = theProj.project.id
+          } 
+        }) 
+          
         // If we have a project on the list...
         if (this.projectSummaries.length > 0) {
-          // If no ID is passed in, set the active project to the first one in 
-          // the list.
-          // TODO: We should write a function that extracts the last-created 
-          // project and then uses the UID for that as the thing to set.
+          // If no ID is passed in, set the active project to the last-created 
+          // project.
           if (setActiveID == null) {
-            this.openProject(this.projectSummaries[0].project.id)
+            this.openProject(lastCreatedID)            
           }
           
           // Otherwise, set the active project to the one passed in.
@@ -350,21 +401,37 @@ export default {
           }
         }
       })
+      .catch(error => {
+        // Failure popup.
+        this.$notifications.notify({
+          message: 'Could not load projects',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center',
+        })      
+      })     
     },
 
     addDemoProject() {
       console.log('addDemoProject() called')
       this.$modal.hide('demo-project')
       
+      // Bring up a spinner.
+      this.$modal.show('popup-spinner')
+        
       // Start the loading bar.
       this.$Progress.start()
       
-      // Have the server create a new framework.
+      // Have the server create a new project.
       rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID, this.currentProject])
       .then(response => {
         // Update the framework summaries so the new framework shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish()
 
@@ -378,6 +445,9 @@ export default {
         })
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -409,6 +479,9 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       
+      // Bring up a spinner.
+      this.$modal.show('popup-spinner')
+        
       // Start the loading bar.
       this.$Progress.start()
       
@@ -421,6 +494,9 @@ export default {
         // it back.
         this.updateProjectSummaries(null)
         
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish()
         
@@ -434,6 +510,9 @@ export default {
         })
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -450,17 +529,23 @@ export default {
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-
+     
       // Have the server upload the project.
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj')
       .then(response => {
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.  (This is here because we don't want the 
         // progress bar running when the user is picking a file to upload.)
-        this.$Progress.start()        
-        
+        this.$Progress.start()
+      
         // Update the project summaries so the new project shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish()
         
@@ -471,9 +556,12 @@ export default {
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })               
+        })       
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -486,6 +574,15 @@ export default {
           horizontalAlign: 'center',
         })      
       })
+      .catch(error => {
+        this.$notifications.notify({
+          message: 'Could not upload file',
+          icon: 'ti-face-sad',
+          type: 'warning',
+          verticalAlign: 'top',
+          horizontalAlign: 'center'
+        })        
+      })      
     },
 
     projectIsActive(uid) {
@@ -539,7 +636,7 @@ export default {
     },
 
     applySorting(projects) {
-      return projects.sort((proj1, proj2) =>
+      return projects.slice(0).sort((proj1, proj2) =>
         {
           let sortDir = this.sortReverse ? -1: 1
           if (this.sortColumn === 'name') {
@@ -552,7 +649,7 @@ export default {
             return proj1.project.creationTime > proj2.project.creationTime ? sortDir: -sortDir
           }
           else if (this.sortColumn === 'updatedTime') {
-            return proj1.project.updateTime > proj2.project.updateTime ? sortDir: -sortDir
+            return proj1.project.updatedTime > proj2.project.updatedTime ? sortDir: -sortDir
           }
         }
       )
@@ -611,6 +708,9 @@ export default {
 
       console.log('copyProject() called for ' + matchProject.project.name)
       
+      // Bring up a spinner.
+      this.$modal.show('popup-spinner')
+        
       // Start the loading bar.
       this.$Progress.start()
       
@@ -620,10 +720,13 @@ export default {
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries(response.data.projectId)
         
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish()
         
-        // Success popup.        
+        // Success popup.
         this.$notifications.notify({
           message: 'Project "'+matchProject.project.name+'" copied',
           icon: 'ti-check',
@@ -633,6 +736,9 @@ export default {
         })        
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -643,7 +749,7 @@ export default {
           type: 'warning',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })      
+        })
       })
     },
 
@@ -664,23 +770,32 @@ export default {
         // Rename the project name in the client list from what's in the textbox.
         newProjectSummary.project.name = projectSummary.renaming
         
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start()
         
         // Have the server change the name of the project by passing in the new copy of the
         // summary.
         rpcservice.rpcCall('update_project_from_summary', [newProjectSummary])
-        .then(response => {          
+        .then(response => {
           // Update the project summaries so the rename shows up on the list.
           this.updateProjectSummaries(newProjectSummary.project.id)
 
 		      // Turn off the renaming mode.
 		      projectSummary.renaming = ''
           
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Finish the loading bar.
-          this.$Progress.finish()           
+          this.$Progress.finish()          
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -710,16 +825,25 @@ export default {
 
       console.log('downloadProjectFile() called for ' + matchProject.project.name)
       
+      // Bring up a spinner.
+      this.$modal.show('popup-spinner')
+        
       // Start the loading bar.
       this.$Progress.start()
       
 	    // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_project', [uid])
       .then(response => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish()          
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -758,16 +882,25 @@ export default {
 
       console.log('downloadProgbook() called for ' + matchProject.project.name)
       
+      // Bring up a spinner.
+      this.$modal.show('popup-spinner')
+        
       // Start the loading bar.
       this.$Progress.start()
       
       // Make the server call to download the project to a .prj file.
       rpcservice.rpcDownloadCall('download_progbook', [uid])
       .then(response => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish()          
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -801,6 +934,9 @@ export default {
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
       .then(response => {
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.  (This is here because we don't want the 
         // progress bar running when the user is picking a file to upload.)        
         this.$Progress.start()
@@ -808,19 +944,25 @@ export default {
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries(uid)
         
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish() 
           
-        // Success popup.        
+        // Success popup.
         this.$notifications.notify({
           message: 'Data uploaded to project "'+matchProject.project.name+'"',
           icon: 'ti-check',
           type: 'success',
           verticalAlign: 'top',
           horizontalAlign: 'center',
-        })
+        })     
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -844,6 +986,9 @@ export default {
       // Have the server copy the project, giving it a new name.
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
       .then(response => {
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.  (This is here because we don't want the 
         // progress bar running when the user is picking a file to upload.)        
         this.$Progress.start()
@@ -851,6 +996,9 @@ export default {
         // Update the project summaries so the copied program shows up on the list.
         this.updateProjectSummaries(uid)
         
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Finish the loading bar.
         this.$Progress.finish() 
           
@@ -864,6 +1012,9 @@ export default {
         })        
       })
       .catch(error => {
+        // Dispel the spinner.
+        this.$modal.hide('popup-spinner')
+          
         // Fail the loading bar.
         this.$Progress.fail()
         
@@ -880,15 +1031,22 @@ export default {
 
   // Confirmation alert
     deleteModal() {
-      // Alert object data
-      var obj = {
-            message: 'Are you sure you want to delete the selected projects?',
-            useConfirmBtn: true,
-            customConfirmBtnClass: 'btn __red',
-            customCloseBtnClass: 'btn',
-            onConfirm: this.deleteSelectedProjects
-          }
-      this.$Simplert.open(obj)
+      // Pull out the names of the projects that are selected.
+      let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
+        theProj.selected).map(theProj => theProj.project.id)
+        
+      // Only if something is selected...
+      if (selectProjectsUIDs.length > 0) {         
+        // Alert object data
+        var obj = {
+              message: 'Are you sure you want to delete the selected projects?',
+              useConfirmBtn: true,
+              customConfirmBtnClass: 'btn __red',
+              customCloseBtnClass: 'btn',
+              onConfirm: this.deleteSelectedProjects
+            }
+        this.$Simplert.open(obj)
+      }
     },
 
     deleteSelectedProjects() {
@@ -900,9 +1058,12 @@ export default {
 
       // Have the server delete the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
-        // Start the loading bar.
-        this.$Progress.start()        
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
         
+        // Start the loading bar.
+        this.$Progress.start()
+      
         rpcservice.rpcCall('delete_projects', [selectProjectsUIDs])
         .then(response => {
           // Get the active project ID.
@@ -911,17 +1072,29 @@ export default {
             activeProjectId = null
           } 
           
+          // If the active project ID is one of the ones deleted...
+          if (selectProjectsUIDs.find(theId => theId === activeProjectId)) {
+            // Set the active project to an empty project.
+            this.$store.commit('newActiveProject', {})   
+
+            // Null out the project.
+            activeProjectId = null            
+          }
+          
           // Update the project summaries so the deletions show up on the list. 
-          // Make sure it tries to set the project that was active.
-          // TODO: This will cause problems until we add a check to 
-          // updateProjectSummaries() to make sure a project still exists with 
-          // that ID.
+          // Make sure it tries to set the project that was active (if any).
           this.updateProjectSummaries(activeProjectId)
           
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Finish the loading bar.
-          this.$Progress.finish()            
+          this.$Progress.finish()
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -942,19 +1115,28 @@ export default {
       let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
         theProj.selected).map(theProj => theProj.project.id)
 
-      console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
-
+      console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
+          
       // Have the server download the selected projects.
 	    if (selectProjectsUIDs.length > 0) {
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start() 
         
         rpcservice.rpcDownloadCall('load_zip_of_prj_files', [selectProjectsUIDs])
         .then(response => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Finish the loading bar.
           this.$Progress.finish()          
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -966,7 +1148,7 @@ export default {
             verticalAlign: 'top',
             horizontalAlign: 'center',
           })      
-        })        
+        })       
       }
     }
   }
@@ -974,60 +1156,5 @@ export default {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<!--<style lang="scss" scoped>-->
-<!--</style>-->
-<style>
-  .vue-dialog div {
-    box-sizing: border-box;
-  }
-  .vue-dialog .dialog-flex {
-    width: 100%;
-    height: 100%;
-  }
-  .vue-dialog .dialog-content {
-    flex: 1 0 auto;
-    width: 100%;
-    padding: 15px;
-    font-size: 14px;
-  }
-  .vue-dialog .dialog-c-title {
-    font-weight: 600;
-    padding-bottom: 15px;
-  }
-  .vue-dialog .dialog-c-text {
-  }
-  .vue-dialog .vue-dialog-buttons {
-    display: flex;
-    flex: 0 1 auto;
-    width: 100%;
-    border-top: 1px solid #eee;
-  }
-  .vue-dialog .vue-dialog-buttons-none {
-    width: 100%;
-    padding-bottom: 15px;
-  }
-  .vue-dialog-button {
-    font-size: 12px !important;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-    border: 0;
-    cursor: pointer;
-    box-sizing: border-box;
-    line-height: 40px;
-    height: 40px;
-    color: inherit;
-    font: inherit;
-    outline: none;
-  }
-  .vue-dialog-button:hover {
-    background: rgba(0, 0, 0, 0.01);
-  }
-  .vue-dialog-button:active {
-    background: rgba(0, 0, 0, 0.025);
-  }
-  .vue-dialog-button:not(:first-of-type) {
-    border-left: 1px solid #eee;
-  }
-
+<style scoped>
 </style>

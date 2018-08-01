@@ -5,6 +5,7 @@ import Vue from 'vue'
 // Simple alert plugin
 import Simplert from 'vue2-simplert-plugin'
 require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
+// Modal dialogs plugin
 import VModal from 'vue-js-modal'
 // Progress bar plugin
 import VueProgressBar from 'vue-progressbar'

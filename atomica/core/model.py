@@ -73,7 +73,7 @@ class Compartment(Variable):
 
     def __init__(self, pop, name):
         Variable.__init__(self, pop=pop, id=(pop.name,name))
-        self.units = 'people'
+        self.units = 'Number of people'
         self.tag_birth = False  # Tag for whether this compartment contains unborn people.
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
         self.is_junction = False
@@ -159,7 +159,7 @@ class Characteristic(Variable):
         # the denominator is another Characteristic that normalizes this one
         # All passed by reference so minimal performance impact
         Variable.__init__(self, pop=pop, id=(pop.name,name))
-        self.units = 'people'
+        self.units = 'Number of people'
         self.includes = []
         self.denominator = None
         # The following flag indicates if another variable depends on this one.
@@ -409,7 +409,7 @@ class Link(Variable):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, id=(pop.name,source.name,dest.name,tag)) # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.vals = None
-        self.units = 'people'
+        self.units = 'Number of people'
 
         # Source parameter where unscaled link value is drawn from (a single parameter may have multiple links).
         self.parameter = parameter
@@ -834,6 +834,8 @@ class Model(object):
 
             self.program_cache['alloc'] = self.progset.get_alloc(self.program_instructions,self.t)
             self.program_cache['coverage'] = self.progset.get_num_covered(year=self.t,alloc=self.program_cache['alloc'])
+
+            self.progset.prepare_cache()
         else:
             self.programs_active = False
 

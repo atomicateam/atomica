@@ -1,67 +1,197 @@
 <!--
 Define health packages
 
-Last update: 2018-07-13
+Last update: 2018-07-31
 -->
 
 <template>
   <div class="SitePage">
-
-    <div>
-      <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
-      <button class="btn" @click="clearGraphs()">Clear plots</button>
-    </div>
-    <br>
-
-    <div style="width:200px; float:left">
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th @click="updateSorting('parameter')" class="sortable">
-            Parameter
-            <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('population')" class="sortable">
-            Population
-            <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-          <th @click="updateSorting('value')" class="sortable">
-            Value
-            <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-            <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-            <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-          </th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="par in sortedPars">
-          <td>
-            {{par.parname}}
-          </td>
-          <td>
-            {{par.popname}}
-          </td>
-          <td>
-            <input type="text"
-                   class="txbox"
-                   v-model="par.value"/>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="margin-left:350px">
-      <div v-for="index in placeholders" :id="'fig'+index" style="width:550px; float:left;">
-        <!--mpld3 content goes here-->
+  
+    <div v-if="activeProjectID ==''">
+      <div style="font-style:italic">
+        <p>No project is loaded.</p>
       </div>
     </div>
 
+    <div v-else>
+      <div class="calib-controls">
+        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+        <button class="btn" @click="toggleShowingParams()">
+          <span v-if="areShowingParameters">Hide</span>
+          <span v-else>Show</span>
+          parameters
+        </button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Calibrate</button>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+        <!--<div style="display: inline-block; padding-left: 100px">-->
+          <b>Parameter set: &nbsp;</b>
+          <select v-model="activeParset">
+            <option v-for='parset in parsetOptions'>
+              {{ parset }}
+            </option>
+          </select>
+          &nbsp;
+          <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
+            <i class="ti-pencil"></i>
+          </button>
+          <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
+            <i class="ti-files"></i>
+          </button>
+          <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
+            <i class="ti-trash"></i>
+          </button>
+        </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <b>Start year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="startYear"
+                 style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>End year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:70px"/>
+        </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" @click="exportResults(activeProjectID)">Export</button>
+        <button class="btn" @click="clearGraphs()">Clear</button>
+        <button class="btn" @click="toggleShowingPlots()">
+          <span v-if="areShowingPlots">Hide</span>
+          <span v-else>Show</span>
+          plot controls
+        </button>
+
+      </div>
+    
+      <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
+        <div class="calib-params" v-if="areShowingParameters">
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th @click="updateSorting('index')" class="sortable">
+                No.
+                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('parameter')" class="sortable">
+                Parameter
+                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('population')" class="sortable">
+                Population
+                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('value')" class="sortable">
+                Value
+                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="par in sortedPars">
+              <td>
+                {{par.index}}
+              </td>
+              <td>
+                {{par.parlabel}}
+              </td>
+              <td>
+                {{par.poplabel}}
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="par.dispvalue"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+            <!--mpld3 content goes here-->
+          </div>
+        </div>
+
+        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
+          <div class="plotopts-params" v-if="areShowingPlots">
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Plot</th>
+                <th>Active</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in plotOptions">
+                <td>
+                  {{ item.plot_name }}
+                </td>
+                <td style="text-align: center">
+                  <input type="checkbox" v-model="item.active"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
 
+
+      </div>
+      
+    </div>
+
+    <modal name="rename-parset"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Rename parameter set
+        </div>
+        <div class="dialog-c-text">
+          New name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="newParsetName"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="renameParset()" class='btn __green' style="display:inline-block">
+            Rename
+          </button>
+
+          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+    </modal>
+    
+    <!-- Popup spinner -->
+    <popup-spinner></popup-spinner>
+    
   </div>
 </template>
 
@@ -70,17 +200,32 @@ Last update: 2018-07-13
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
+  import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-
+  import Vue from 'vue'
+  import PopupSpinner from './Spinner.vue'
+  
   export default {
     name: 'CalibrationPage',
+    
+    components: {
+      PopupSpinner
+    },
+    
     data() {
       return {
         serverresponse: 'no response',
-        sortColumn: 'parname',
+        sortColumn: 'index',
         sortReverse: false,
         parList: [],
+        areShowingParameters: true,
+        areShowingPlots: false,
+        activeParset: -1,
+        parsetOptions: [],
+        newParsetName: [],
+        startYear: 0,
+        endYear: 0,
+        plotOptions: [],
       }
     },
 
@@ -89,22 +234,39 @@ Last update: 2018-07-13
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-          return this.$store.state.activeProject.project.id
+          let projectID = this.$store.state.activeProject.project.id
+          return projectID
+        }
+      },
+
+      active_sim_start() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_start
+        }
+      },
+
+      active_sim_end() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_end
         }
       },
 
       placeholders() {
         var indices = []
-        for (var i = 1; i <= 100; i++) {
+        for (var i = 0; i <= 100; i++) {
           indices.push(i);
         }
         return indices;
       },
 
       sortedPars() {
-//        var sortedParList = this.applySorting(this.parList);
-        var sortedParList = this.parList;
-        console.log(sortedParList);
+        var sortedParList = this.applySorting(this.parList);
+/*        var sortedParList = this.parList;
+        console.log(sortedParList); */
         return sortedParList;
       },
 
@@ -114,23 +276,60 @@ Last update: 2018-07-13
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      }
-
-      else {
-        this.viewTable();
+      } else if (this.$store.state.activeProject.project != undefined) {
+        this.startYear = this.active_sim_start
+        this.endYear = this.active_sim_end
+        this.viewTable()
+        this.getPlotOptions()
+        this.updateParset()
+        this.sleep(1000)
+          .then(response => {
+            this.makeGraphs(this.activeProjectID)
+            }
+          );
       }
     },
 
     methods: {
 
+      sleep(time) {
+        // Return a promise that resolves after _time_ milliseconds.
+        console.log('Sleeping for ' + time)
+        return new Promise((resolve) => setTimeout(resolve, time));
+      },
+
       notImplemented(message) {
-        this.$notifications.notify({
-          message: 'Function "' + message + '" not yet implemented',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        status.failurePopup(this, 'Function "' + message + '" not yet implemented')
+      },
+
+      projectID() {
+        var id = this.$store.state.activeProject.project.id // Shorten this
+        return id
+      },
+
+      // TO_PORT
+      updateParset() {
+        console.log('updateParset() called')
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
+        // Get the current user's parsets from the server.
+        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        .then(response => {
+          this.parsetOptions = response.data // Set the scenarios to what we received.
+          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+            console.log('Parameter set ' + this.activeParset + ' no longer found')
+            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+          } else {
+            console.log('Parameter set ' + this.activeParset + ' still found')
+          }
+          this.newParsetName = this.activeParset // WARNING, KLUDGY
+          console.log('Parset options: ' + this.parsetOptions)
+          console.log('Active parset: ' + this.activeParset)
+          status.succeed(this, '')  // No green notification.
+        })
+        .catch(error => {
+          // Failure popup.
+          status.fail(this, 'Could not update parset')
+        })         
       },
 
       updateSorting(sortColumn) {
@@ -145,63 +344,60 @@ Last update: 2018-07-13
       },
 
       applySorting(pars) {
-        return pars.sort((par1, par2) =>
+        return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'parname') { return par1[0] > par2[0] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'popname') { return par1[1] > par2[1] ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1[2] > par2[2] ? sortDir: -sortDir}
+            if      (this.sortColumn === 'index') { return par1.index > par2.index ? sortDir: -sortDir}
+            else if (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')   { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
           }
         )
       },
 
       viewTable() {
         console.log('viewTable() called')
-        
-        // Start the loading bar.
-        this.$Progress.start()
-      
-        // Go to the server to get the diseases from the burden set.
-        rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id])
+        rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
-          this.parList = response.data // Set the disease list.
-          
-          // Finish the loading bar.
-          this.$Progress.finish()          
+          this.parList = response.data // Get the parameter values
         })
         .catch(error => {
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load diseases',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.failurePopup(this, 'Could not load parameters: ' + error.message)
         })
-//        // Set the active values from the loaded in data.
-//        for (let ind=0; ind < this.parList.length; ind++) {
-//          this.parList[ind].value = Number(this.value[ind][2]).toLocaleString()
-//        }
+      },
+
+      getPlotOptions() {
+        console.log('getPlotOptions() called')
+        rpcservice.rpcCall('get_supported_plots', [true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not get plot options: ' + error.message)
+          })
+      },
+
+      toggleShowingParams() {
+        this.areShowingParameters = !this.areShowingParameters
+      },
+
+      toggleShowingPlots() {
+        this.areShowingPlots = !this.areShowingPlots
       },
 
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         
-        // Start the loading bar.
-        this.$Progress.start()
+        // Start indicating progress.
+        status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.parList])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
           console.log('Rendering ' + n_plots + ' graphs')
-
-          for (var index = 1; index <= n_plots; index++) {
+          for (var index = 0; index <= n_plots; index++) {
             console.log('Rendering plot ' + index)
             var divlabel = 'fig' + index
             var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
@@ -209,25 +405,66 @@ Last update: 2018-07-13
               div.removeChild(div.firstChild);
             }
             try {
-              mpld3.draw_figure(divlabel, response.data.graphs[index]); // Draw the figure.
+              console.log(response.data.graphs[index]);
+              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+              });
+              this.haveDrawnGraphs = true
             }
             catch (err) {
               console.log('failled:' + err.message);
             }
           }
           
-          // Finish the loading bar.
-          this.$Progress.finish()
-        
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Graphs created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          // Indicate success.
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
           
+          // Indicate failure.
+          status.fail(this, 'Could not make graphs')
+        }) 
+      },
+
+      autoCalibrate(project_id) {
+        console.log('autoCalibrate() called')
+        
+        // Start indicating progress.
+        status.start(this)
+        this.$Progress.start(7000)
+
+        // Go to the server to get the results from the package set.
+        rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])
+        .then(response => {
+          this.serverresponse = response.data // Pull out the response data.
+          var n_plots = response.data.graphs.length
+          console.log('Rendering ' + n_plots + ' graphs')
+
+          for (var index = 0; index <= n_plots; index++) {
+            console.log('Rendering plot ' + index)
+            var divlabel = 'fig' + index
+            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            while (div.firstChild) {
+              div.removeChild(div.firstChild);
+            }
+            try {
+              console.log(response.data.graphs[index]);
+              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+              });
+              this.haveDrawnGraphs = true
+            }
+            catch (err) {
+              console.log('failled:' + err.message);
+            }
+          }
+          
+          // Indicate success.
+          status.succeed(this, 'Automatic calibration complete')
         })
         .catch(error => {
           // Pull out the error message.
@@ -236,22 +473,13 @@ Last update: 2018-07-13
           // Set the server error.
           this.servererror = error.message
           
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not make graphs',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })              
+          // Indicate failure.
+          status.fail(this, 'Automatic calibration failed')           
         })
       },
 
       clearGraphs() {
-        for (var index = 1; index <= 100; index++) {
+        for (var index = 0; index <= 100; index++) {
           console.log('Clearing plot ' + index)
           var divlabel = 'fig' + index
           var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
@@ -259,11 +487,144 @@ Last update: 2018-07-13
             div.removeChild(div.firstChild);
           }
         }
-      }
+      },
+
+      exportResults(project_id) {
+        console.log('exportResults() called')
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        .catch(error => {
+          // Failure popup.
+          status.failurePopup(this, 'Could not export results')    
+        })         
+      },
+
+      // TO_PORT
+      renameParsetModal() {
+        // Open a model dialog for creating a new project
+        console.log('renameParsetModal() called');
+        this.$modal.show('rename-parset');
+      },
+
+      // TO_PORT
+      renameParset() {
+        // Find the project that matches the UID passed in.
+        let uid = this.$store.state.activeProject.project.id
+        console.log('renameParset() called for ' + this.activeParset)
+        this.$modal.hide('rename-parset');
+        
+        // Start indicating progress.
+        status.start(this)
+      
+        rpcservice.rpcCall('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not rename parameter set')
+        })
+      },
+
+      // TO_PORT
+      copyParset() {
+        // Find the project that matches the UID passed in.
+        let uid = this.$store.state.activeProject.project.id
+        console.log('copyParset() called for ' + this.activeParset)
+        
+        // Start indicating progress.
+        status.start(this)
+        
+        rpcservice.rpcCall('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not copy parameter set')
+        })
+      },
+
+      // TO_PORT
+      deleteParset() {
+        // Find the project that matches the UID passed in.
+        let uid = this.$store.state.activeProject.project.id
+        console.log('deleteParset() called for ' + this.activeParset)
+        
+        // Start indicating progress.
+        status.start(this)
+        
+        rpcservice.rpcCall('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        .then(response => {
+          // Update the project summaries so the copied program shows up on the list.
+          this.updateParset()
+          
+          // Indicate success.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
+        })
+      },
     }
   }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style>
+  .calib-controls {
+    margin-bottom: 3rem;
+  }
+  .calib-controls .control-group {
+    display: inline-block;
+  }
+  .calib-controls button, .calib-controls .control-group {
+    margin-right: 1rem;
+  }
+
+  .calib-main {
+    display: flex;
+    margin-top: 4rem;
+  }
+  .calib-params {
+    flex: 0 0 30%;
+  }
+  .calib-graphs {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    & > div {
+      flex: 0 0 650px;
+    }
+  }
+
+  .plotopts-main {
+    /*width: 350px;*/
+    /*padding-left: 20px;*/
+    display: flex;
+    /*float: left;*/
+  }
+  .plotopts-main--full {
+    display: block;
+  }
+  .plotopts-params {
+    flex: 1 0 10%;
+  }
+  .controls-box {
+    border: 2px solid #ddd;
+    padding: 7px;
+    display: inline-block;
+  }
+  .small-button {
+    background: inherit;
+    padding: 0 0 0 0;
+  }
 </style>

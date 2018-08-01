@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-13
+Last update: 2018-07-29
 -->
 
 <template>
@@ -92,16 +92,26 @@ Last update: 2018-07-13
           </td>
           <td>
 <!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
-            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)">Copy</button>
-            <button class="btn" @click="renameFramework(frameworkSummary)">Rename</button>
-            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)">Download</button>
+            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" data-tooltip="Copy">
+              <i class="ti-files"></i>
+            </button>
+            <button class="btn" @click="renameFramework(frameworkSummary)" data-tooltip="Rename">
+              <i class="ti-pencil"></i>
+            </button>
+            <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)" data-tooltip="Download">
+              <i class="ti-download"></i>
+            </button>
           </td>
-          <td>{{ frameworkSummary.framework.creationTime }}</td>
-          <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime:
+          <td>{{ frameworkSummary.framework.creationTime.toUTCString() }}</td>
+          <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
           <td>
-            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)">Upload</button>
-            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)">Download</button>
+            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)" data-tooltip="Upload">
+              <i class="ti-upload"></i>
+            </button>
+            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)" data-tooltip="Download">
+              <i class="ti-download"></i>
+            </button>
           </td>
         </tr>
         </tbody>
@@ -180,6 +190,10 @@ Last update: 2018-07-13
         </div>
       </div>
     </modal>
+    
+    <!-- Popup spinner -->
+    <popup-spinner></popup-spinner>
+    
   </div>
 
 </template>
@@ -188,11 +202,17 @@ Last update: 2018-07-13
   import axios from 'axios'
   var filesaver = require('file-saver')
   import rpcservice from '@/services/rpc-service'
+  import status from '@/services/status-service'
   import router from '@/router'
-
+  import PopupSpinner from './Spinner.vue'
+  
   export default {
     name: 'FrameworksPage',
-
+    
+    components: {
+      PopupSpinner
+    },
+    
     data() {
       return {
         filterPlaceholder: 'Type here to filter frameworks', // Placeholder text for table filter box
@@ -201,7 +221,7 @@ Last update: 2018-07-13
         sortColumn: 'name',  // Column of table used for sorting the frameworks: name, country, creationTime, updatedTime, dataUploadTime
         sortReverse: false, // Sort in reverse order?
         frameworkSummaries: [], // List of summary objects for frameworks the user has
-        frame_name: 'Default', // For creating a new framework: number of populations
+        frame_name: 'New framework', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
         frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
         currentFramework: 'Service delivery'
@@ -254,12 +274,19 @@ Last update: 2018-07-13
           // Set the frameworks to what we received.
           this.frameworkSummaries = response.data.frameworks
 
-          // Set select flags for false initially.
+          // Preprocess all frameworks.
           this.frameworkSummaries.forEach(theFrame => {
+            // Set to not selected.
             theFrame.selected = false
+            
+            // Set to not being renamed.
             theFrame.renaming = ''
-          })
-        
+            
+            // Extract actual Date objects from the strings.
+            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
+            theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
+          }) 
+          
           // If we have a framework on the list...
 /*          if (this.frameworkSummaries.length > 0) {
             // If no ID is passed in, set the active framework to the first one in 
@@ -278,22 +305,16 @@ Last update: 2018-07-13
         })
         .catch(error => {
           // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load frameworks',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
-        })      
+          status.failurePopup(this, 'Could not load frameworks')           
+        })
       },
 
       addDemoFramework() {
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
         
-        // Start the loading bar.
-        this.$Progress.start()
+        // Start indicating progress.
+        status.start(this)
         
         // Have the server create a new framework.
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
@@ -301,30 +322,12 @@ Last update: 2018-07-13
           // Update the framework summaries so the new framework shows up on the list.
           this.updateFrameworkSummaries(response.data.frameworkId)
           
-          // Finish the loading bar.
-          this.$Progress.finish()  
-
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Library framework loaded',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })
+          // Indicate success.
+          status.succeed(this, 'Library framework loaded')
         })
         .catch(error => {
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not load framework',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          // Indicate failure.
+          status.fail(this, 'Could not load framework')  
         })            
       },
 
@@ -345,6 +348,9 @@ Last update: 2018-07-13
         console.log('createNewFramework() called')
         this.$modal.hide('create-framework')
         
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start()
         
@@ -356,6 +362,9 @@ Last update: 2018-07-13
           // framework update to choose the new framework because the RPC cannot pass 
           // it back.            
           this.updateFrameworkSummaries(null)
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
           this.$Progress.finish()
@@ -370,6 +379,9 @@ Last update: 2018-07-13
           })
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -390,12 +402,18 @@ Last update: 2018-07-13
         // Have the server upload the framework.
         rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.frw')
         .then(response => {
+          // Bring up a spinner.
+          this.$modal.show('popup-spinner')
+        
            // Start the loading bar.  (This is here because we don't want the 
           // progress bar running when the user is picking a file to upload.)
           this.$Progress.start()
         
           // Update the framework summaries so the new framework shows up on the list.
           this.updateFrameworkSummaries(response.data.frameworkId)
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
           this.$Progress.finish()
@@ -410,12 +428,15 @@ Last update: 2018-07-13
           })          
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
           // Failure popup.
           this.$notifications.notify({
-            message: 'Could not upload framework',
+            message: 'Could not upload file',
             icon: 'ti-face-sad',
             type: 'warning',
             verticalAlign: 'top',
@@ -475,20 +496,20 @@ Last update: 2018-07-13
       },
 
       applySorting(frameworks) {
-        return frameworks.sort((proj1, proj2) =>
+        return frameworks.slice(0).sort((frw1, frw2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
             if (this.sortColumn === 'name') {
-              return (proj1.framework.name > proj2.framework.name ? sortDir: -sortDir)
+              return (frw1.framework.name > frw2.framework.name ? sortDir: -sortDir)
             }
             /*          else if (this.sortColumn === 'country') {
-             return proj1.country > proj2.country ? sortDir: -sortDir
+             return frw1.country > frw2.country ? sortDir: -sortDir
              } */
             else if (this.sortColumn === 'creationTime') {
-              return proj1.framework.creationTime > proj2.framework.creationTime ? sortDir: -sortDir
+              return frw1.framework.creationTime > frw2.framework.creationTime ? sortDir: -sortDir
             }
             else if (this.sortColumn === 'updatedTime') {
-              return proj1.framework.updateTime > proj2.framework.updateTime ? sortDir: -sortDir
+              return frw1.framework.updatedTime > frw2.framework.updatedTime ? sortDir: -sortDir
             }
           }
         )
@@ -525,6 +546,9 @@ Last update: 2018-07-13
 
         console.log('copyFramework() called for ' + matchFramework.framework.name)
         
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start()
         
@@ -533,6 +557,9 @@ Last update: 2018-07-13
         .then(response => {
           // Update the framework summaries so the copied program shows up on the list.
           this.updateFrameworkSummaries(response.data.frameworkId)
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
           this.$Progress.finish()
@@ -547,6 +574,9 @@ Last update: 2018-07-13
           })         
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -578,6 +608,9 @@ Last update: 2018-07-13
           // Rename the framework name in the client list from what's in the textbox.
           newFrameworkSummary.framework.name = frameworkSummary.renaming
           
+          // Bring up a spinner.
+          this.$modal.show('popup-spinner')
+        
           // Start the loading bar.
           this.$Progress.start()
         
@@ -591,10 +624,16 @@ Last update: 2018-07-13
             // Turn off the renaming mode.
             frameworkSummary.renaming = ''
             
+            // Dispel the spinner.
+            this.$modal.hide('popup-spinner')
+          
             // Finish the loading bar.
             this.$Progress.finish()              
           })
           .catch(error => {
+            // Dispel the spinner.
+            this.$modal.hide('popup-spinner')  
+            
             // Fail the loading bar.
             this.$Progress.fail()
         
@@ -624,16 +663,25 @@ Last update: 2018-07-13
 
         console.log('downloadFrameworkFile() called for ' + matchFramework.framework.name)
         
+        // Bring up a spinner.
+        this.$modal.show('popup-spinner')
+        
         // Start the loading bar.
         this.$Progress.start()
       
         // Make the server call to download the framework to a .prj file.
         rpcservice.rpcDownloadCall('download_framework', [uid])
         .then(response => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Finish the loading bar.
           this.$Progress.finish()          
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -682,12 +730,18 @@ Last update: 2018-07-13
         // Have the server copy the framework, giving it a new name.
         rpcservice.rpcUploadCall('upload_frameworkbook', [uid], {})
         .then(response => {
+          // Bring up a spinner.
+          this.$modal.show('popup-spinner')
+        
           // Start the loading bar.  (This is here because we don't want the 
           // progress bar running when the user is picking a file to upload.)
           this.$Progress.start()          
           
           // Update the framework summaries so the copied program shows up on the list.
           this.updateFrameworkSummaries(uid)
+          
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
           
           // Finish the loading bar.
           this.$Progress.finish()
@@ -702,6 +756,9 @@ Last update: 2018-07-13
           })          
         })
         .catch(error => {
+          // Dispel the spinner.
+          this.$modal.hide('popup-spinner')
+          
           // Fail the loading bar.
           this.$Progress.fail()
         
@@ -718,15 +775,22 @@ Last update: 2018-07-13
 
       // Confirmation alert
       deleteModal() {
-        // Alert object data
-        var obj = {
-          message: 'Are you sure you want to delete the selected frameworks?',
-          useConfirmBtn: true,
-          customConfirmBtnClass: 'btn __red',
-          customCloseBtnClass: 'btn',
-          onConfirm: this.deleteSelectedFrameworks
+        // Pull out the names of the frameworks that are selected.
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
+          theFrame.selected).map(theFrame => theFrame.framework.id)
+          
+        // Only if something is selected...
+        if (selectFrameworksUIDs.length > 0) {
+          // Alert object data
+          var obj = {
+            message: 'Are you sure you want to delete the selected frameworks?',
+            useConfirmBtn: true,
+            customConfirmBtnClass: 'btn __red',
+            customCloseBtnClass: 'btn',
+            onConfirm: this.deleteSelectedFrameworks
+          }
+          this.$Simplert.open(obj)
         }
-        this.$Simplert.open(obj)
       },
 
       deleteSelectedFrameworks() {
@@ -738,6 +802,9 @@ Last update: 2018-07-13
               
         // Have the server delete the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
+          // Bring up a spinner.
+          this.$modal.show('popup-spinner')   
+          
           // Start the loading bar.
           this.$Progress.start()          
           
@@ -758,10 +825,16 @@ Last update: 2018-07-13
               
             this.updateFrameworkSummaries(null)
             
+            // Dispel the spinner.
+            this.$modal.hide('popup-spinner')
+          
             // Finish the loading bar.
             this.$Progress.finish()              
           })
           .catch(error => {
+            // Dispel the spinner.
+            this.$modal.hide('popup-spinner')
+          
             // Fail the loading bar.
             this.$Progress.fail()
         
@@ -786,15 +859,24 @@ Last update: 2018-07-13
                  
         // Have the server download the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
+          // Bring up a spinner.
+          this.$modal.show('popup-spinner')
+        
           // Start the loading bar.
           this.$Progress.start()   
           
           rpcservice.rpcDownloadCall('load_zip_of_frw_files', [selectFrameworksUIDs])
           .then(response => {
+            // Dispel the spinner.
+            this.$modal.hide('popup-spinner')
+          
             // Finish the loading bar.
             this.$Progress.finish()          
           })
           .catch(error => {
+            // Dispel the spinner.
+            this.$modal.hide('popup-spinner')
+          
             // Fail the loading bar.
             this.$Progress.fail()
         

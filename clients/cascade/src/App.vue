@@ -107,4 +107,7 @@ export default {
   color: #2c3e50;
   margin-top: 60px;
 } */
+
+  // Modal dialog styling.
+  @import './assets/sass/_dialogs.scss';
 </style>

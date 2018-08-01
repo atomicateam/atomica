@@ -23,6 +23,10 @@ from .system import AtomicaException, NotFoundError
 from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
+from .structure import FrameworkSettings as FS
+
+import logging
+logger = logging.getLogger(__name__)
 
 from six import string_types
 import logging
@@ -236,16 +240,14 @@ class PlotData(object):
 
                         for link in vars:
                             data_dict[output_label] += link.vals
-                            compsize[output_label] += (
-                                link.source.vals if not link.source.is_junction else link.source.outflow)
+                            compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
                         if t_bins is None:  # Annualize if not time aggregating
                             data_dict[output_label] /= dt
                             output_units[output_label] = vars[0].units + '/year'
                         else:
-                            output_units[output_label] = vars[
-                                0].units  # If we sum links in a bin, we get a number of people
-                        data_label[output_label] = vars[0].parameter.name
+                            output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
+                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
@@ -806,7 +808,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     return figs
 
 
-def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -815,6 +817,8 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
     # - data - Draw scatter points for data wherever the output label matches
     #   a data label. Only draws data if the plot_type is 'line'
     global settings
+    
+    if axis is None: axis = 'outputs'
 
     assert axis in ['outputs', 'results', 'pops']
 
@@ -936,8 +940,6 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 def plot_cascade(result,cascade,pops='all',year=None):
     # For inputs, see `Result.get_cascade_vals`
 
-    print('Making cascade plot')
-    import pylab as pl
     from matplotlib.pyplot import rc
     rc('font', size=14)
 
