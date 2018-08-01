@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 #test = "sir"
 # test = "tb"
-# test = "diabetes"
-test = "service"
+test = "diabetes"
+#test = "service"
 
 torun = [
 "makeframework",
@@ -23,12 +23,12 @@ torun = [
 "makedatabook",
 "makeproject",
 "loaddatabook",
-"makeparset",
-"runsim",
-'plotcascade',
+#"makeparset",
+#"runsim",
+#'plotcascade',
 "makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+#"loadprogramspreadsheet",
+#"runsim_programs",
 # "makeplots",
 # "export",
 # "listspecs",
@@ -86,20 +86,17 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    if test in ['diabetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
-    else:
-        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    if test in ['diabetes']:
+    if test in ['di2abetes']:
         print('\n\n\nDatabook not yet filled in for diabetes example.')
     else:
         P.make_parset(name="default")
     
 if "runsim" in torun:
-    if test in ['diabetes']:
+    if test in ['d2iabetes']:
         print('\n\n\nDatabook not yet filled in for diabetes example.')
     else:
         if test in ["tb"]:
@@ -124,11 +121,13 @@ if 'plotcascade' in torun:
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    if test not in ['diabetes']:
-        P = au.demo(which=test, do_plot=0)
+    if test not in ['di3abetes']:
+        P = au.demo(which=test, do_plot=0, do_run=False)
         filename = "temp/progbook_"+test+"_blank.xlsx"
         if test == "tb":
             P.make_progbook(filename, progs=29)
+        elif test == "diabetes":
+            P.make_progbook(filename, progs=14)
         else:
             P.make_progbook(filename, progs=5)
 

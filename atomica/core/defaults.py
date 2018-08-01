@@ -72,6 +72,12 @@ def default_project(which=None, do_run=True, verbose=False, **kwargs):
         F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
 
+    elif which=='diabetes':
+        logger.info("Creating a diabetes cascade project...")
+        
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
+        P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+
     else:
         raise AtomicaException("Default project type '{0}' not understood; choices are 'sir', 'tb'.".format(which))
     return P
