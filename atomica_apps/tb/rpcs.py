@@ -485,7 +485,7 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     """
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+    F = au.ProjectFramework(name='TB', inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
     proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
@@ -764,15 +764,16 @@ def get_y_factors(project_id, parsetname=-1):
     count = 0
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
-            thispar = parset.get_par(parname)
-            if proj.framework.get_spec_value(parname, "can_calibrate"):
-                for popname,y_factor in thispar.y_factor.items():
+            this_par = parset.get_par(parname)
+            this_spec = proj.framework.get_variable(parname)[0]
+            if 'Can Calibrate' in this_spec and this_spec['Can Calibrate'] == 'y':
+                for popname,y_factor in this_par.y_factor.items():
                     count += 1
-                    parlabel = proj.framework.get_spec_value(parname,'label')
+                    parlabel = this_spec['Display Name']
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     try:    
-                        interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
+                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
                         if not np.isfinite(interp_val):
                             interp_val = 1
                         if sc.approx(interp_val, 0):

@@ -31,13 +31,14 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet
+from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
-from .optimization import Optimization, optimize
+from .optimization import Optimization, optimize, OptimInstructions
 from .structure import FrameworkSettings as FS
 from .system import SystemSettings as SS, AtomicaException, logger
 from .workbook_export import make_progbook
 from .workbook_import import load_progbook
+from .scenarios import BudgetScenario
 from .utils import NDict
 import sciris.core as sc
 import numpy as np

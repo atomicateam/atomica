@@ -271,58 +271,13 @@ class AtomicaContent(object):
             else:
                 return [self.row_format for name in self.row_names for level in self.row_levels]
 
-
-# %% Base class for framework file, databook and progbook.
-
-class Workbook(object):
-    def __init__(self, name):
-        self.name = name
-        self.sheet_names = sc.odict()
-
-        self.book = None
-        self.sheets = None
-        self.formats = None
-        self.current_sheet = None
-
-    def create(self):
-        # Return a AtomicaSpreadsheet with the contents of this Workbook
-        f = io.BytesIO() # Write to this binary stream in memory
-
-        self.book = xw.Workbook(f)
-        self.formats = standard_formats(self.book)
-        self.write_pages()    # This calls an overloadable method for nonstandard page generation.
-        self.book.close()
-
-        # Dump the file content into a AtomicaSpreadsheet
-        return AtomicaSpreadsheet(f)
-
-    def write_pages(self):
-        # By default, call `self.generate_<sheetname>` for every sheet in self.sheets
-        # However, overloading this function enables writing arbitrary sheets. This is important because the `generate...`
-        # function does not create the sheet and some functions, like writing multiple transfer tables or user-controlled
-        # TDVE pages, might create multiple sheets
-        self.sheets = {}
-        for name in self.sheet_names:
-            self.sheets[name] = self.book.add_worksheet(self.sheet_names[name])
-            self.current_sheet = self.sheets[name]
-            getattr(self, "generate_{0}".format(name))()  # This calls the corresponding page generating function.
-
-    def construct_other_pages(self):
-        """ Method that is only typically overloaded by Databook, due to its UI-driven page organisation. """
-        pass
-
-
-
 # %% Program spreadsheet exports.
 
-class ProgramSpreadsheet(Workbook):
-    def __init__(self, filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
-        super(ProgramSpreadsheet, self).__init__(name=filename)
-        self.sheet_names = sc.odict([
-            ('targeting', 'Program targeting'),
-            ('costcovdata', 'Spending data'),
-            ('covoutdata', 'Program effects'),
-        ])
+class ProgramSpreadsheet(object):
+    def __init__(self, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
+
+        self.book = None
+        self.formats = None
 
         self.pops = pops
         self.comps = comps
@@ -344,20 +299,27 @@ class ProgramSpreadsheet(Workbook):
         f = io.BytesIO() # Write to this binary stream in memory
 
         self.book = xw.Workbook(f)
-        self.formats = AtomicaFormats(self.book)
-        self.write_pages()    # This calls an overloadable method for nonstandard page generation.
+        self.formats = AtomicaFormats(self.book) # TODO - move some of the AtomicaFormats methods to excel.py
+
+        self.generate_targeting()
+        self.generate_costcovdata()
+        self.generate_covoutdata()
+
         self.book.close()
 
         # Dump the file content into a AtomicaSpreadsheet
         return AtomicaSpreadsheet(f)
 
     def generate_targeting(self):
-        self.current_sheet.set_column(2, 2, 15)
-        self.current_sheet.set_column(3, 3, 40)
-        self.current_sheet.set_column(6, 6, 12)
-        self.current_sheet.set_column(7, 7, 16)
-        self.current_sheet.set_column(8, 8, 16)
-        self.current_sheet.set_column(9, 9, 12)
+
+        sheet = self.book.add_worksheet('Program targeting')
+
+        sheet.set_column(2, 2, 15)
+        sheet.set_column(3, 3, 40)
+        sheet.set_column(6, 6, 12)
+        sheet.set_column(7, 7, 16)
+        sheet.set_column(8, 8, 16)
+        sheet.set_column(9, 9, 12)
         current_row = 0
 
         coded_params = []
@@ -370,8 +332,8 @@ class ProgramSpreadsheet(Workbook):
             coded_params.append([short, name] + target_pops + target_comps)
 
         # Hard-coded writing of target descriptions in sheet.
-        self.current_sheet.write(0, 5, "Targeted to (populations)", self.formats.formats["center_bold"])
-        self.current_sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)",
+        sheet.write(0, 5, "Targeted to (populations)", self.formats.formats["center_bold"])
+        sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)",
                                  self.formats.formats["center_bold"])
 
         column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
@@ -380,13 +342,16 @@ class ProgramSpreadsheet(Workbook):
                                  column_names=column_names,
                                  data=coded_params,
                                  assumption=False)
-        self.prog_range = TitledRange(sheet=self.current_sheet, first_row=current_row, content=content)
+        self.prog_range = TitledRange(sheet=sheet, first_row=current_row, content=content)
         current_row = self.prog_range.emit(self.formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range
 
     def generate_costcovdata(self):
+
+        sheet = self.book.add_worksheet('Spending data')
+
         current_row = 0
-        self.current_sheet.set_column('C:C', 20)
+        sheet.set_column('C:C', 20)
         row_levels = ['Total spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
                       'Unit cost: high']
         content = AtomicaContent(name='',
@@ -396,18 +361,21 @@ class ProgramSpreadsheet(Workbook):
                                AtomicaFormats.GENERAL]
         content.assumption = True
         content.row_levels = row_levels
-        the_range = TitledRange(self.current_sheet, current_row, content)
+        the_range = TitledRange(sheet, current_row, content)
         content.get_row_formats()
         current_row = the_range.emit(self.formats)
 
     def generate_covoutdata(self):
+
+        sheet = self.book.add_worksheet('Program effects')
+
         current_row = 0
-        self.current_sheet.set_column(1, 1, 30)
-        self.current_sheet.set_column(2, 2, 12)
-        self.current_sheet.set_column(3, 3, 12)
-#        self.current_sheet.set_column(4, 4, 12)
-#        self.current_sheet.set_column(5, 5, 2)
-        self.current_sheet.set_column(4, 4, 2)
+        sheet.set_column(1, 1, 30)
+        sheet.set_column(2, 2, 12)
+        sheet.set_column(3, 3, 12)
+#        sheet.set_column(4, 4, 12)
+#        sheet.set_column(5, 5, 2)
+        sheet.set_column(4, 4, 2)
 
         row_levels = []
         for p in self.pops:
@@ -424,7 +392,7 @@ class ProgramSpreadsheet(Workbook):
                                  'columns': self.ref_prog_range.param_refs()}
 
         content.assumption_properties = assumption_properties
-        the_range = TitledRange(self.current_sheet, current_row, content)
+        the_range = TitledRange(sheet, current_row, content)
         current_row = the_range.emit(self.formats, rc_title_align='left')
 
 
@@ -450,7 +418,7 @@ def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=
         for p in range(nprogs):
             progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
 
-    book = ProgramSpreadsheet(filename=filename, pops=pops, comps=comps, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
+    book = ProgramSpreadsheet(pops=pops, comps=comps, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
     ss = book.to_spreadsheet()
     ss.save(filename)
     return filename

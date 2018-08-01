@@ -9,9 +9,9 @@ P.load_databook(databook_path="./databooks/databook_tb.xlsx", make_default_parse
 result = P.results[0]
 
 # Make some plots from plot names and groups in the Framework
-result.plot(plot_name='plot5')
-result.plot(plot_name='plot5',pops='all')
-result.plot(plot_name='plot19',pops='all')
+result.plot(plot_name='plot5',project=P)
+result.plot(plot_name='plot5',pops='all',project=P)
+result.plot(plot_name='plot19',pops='all',project=P)
 result.plot(plot_group='latency')
 
 # Export limited set of results based on 'Export' column in Framework, or export everything

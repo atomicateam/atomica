@@ -17,36 +17,19 @@ test = "tb"
 # test = "service"
 
 torun = [
-<<<<<<< HEAD
-"makeframework",
-"saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-'plotcascade',
-"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
-"makeplots",
-=======
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#'plotcascade',
-#"makeprogramspreadsheet",
+# "makeframework",
+# "saveframework",
+# "loadframework",
+# "makedatabook",
+# "makeproject",
+# "loaddatabook",
+# "makeparset",
+# "runsim",
+# 'plotcascade',
+# "makeprogramspreadsheet",
 # "loadprogramspreadsheet",
 # "runsim_programs",
-#"makeplots",
->>>>>>> develop
+# "makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
@@ -128,11 +111,7 @@ if "runsim" in torun:
         cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
 
 if 'plotcascade' in torun:
-<<<<<<< HEAD
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
-
-=======
-    au.plot_cascade(project=P, year=2020)
     if forceshow: pl.show()
     
     # Browser test
@@ -141,11 +120,7 @@ if 'plotcascade' in torun:
         import sciris.weblib.quickserver as sqs
         fig = pl.gcf()
         sqs.browser(fig)
-        
-    
-    
->>>>>>> develop
-    
+
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
@@ -489,7 +464,7 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are bud
 
 if "optimization" in torun:
     P = au.demo(which='tb')
-    P.run_optimization(maxtime=300)
+    P.run_optimization(maxtime=30)
 
 
 if "runsimprogs" in torun:
