@@ -1101,51 +1101,41 @@ class Model(object):
 
         ti = self.t_index # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
 
-        review_required = True
-        review_count = 0
-        while review_required:
-            review_count += 1
-            review_required = False  # Don't re-run unless a junction has refilled
+        for pop in self.pops:
 
-            if review_count > model_settings["iteration_limit"]:
-                raise AtomicaException("Processing junctions (i.e. propagating contents onwards) for timestep {0} "
-                                       "is taking far too long. Infinite loop suspected.".format(ti))
+            # Initialize the junctions and their links
+            junctions = [comp for comp in pop.comps if comp.is_junction]
+            for junc in junctions:
+                if not initial_flush:  # At most timesteps, initialize based on inflows
+                    junc.vals[ti] = 0.
+                    for link in junc.inlinks:
+                        if not link.source.is_junction:  # inlinks that come from a junction won't have been initialized at this timestep yet
+                            junc.vals[ti] += link.vals[ti]
+                else:  # At the very first iteration, use the junction's current value (e.g., if a nonzero value arose from the databook)
+                    if np.isnan(junc.vals[ti]):
+                        junc.vals[ti] = 0.
 
-            for pop in self.pops:
-                junctions = [comp for comp in pop.comps if comp.is_junction]
+                # Initialize the outflow links
+                for link in junc.outlinks:
+                    link.vals[ti] = 0.
+
+            # Repeatedly flush the junctions until they have all resolved (this deals with cases where one
+            # junction has a flow into another junction)
+            for i in range(0,model_settings["iteration_limit"]):
+                review_required = False
 
                 for junc in junctions:
-
-                    if review_count == 1: # On the first iteration
-                        if not initial_flush:
-                            # Normal workflow is to accumulate people from the inlinks
-                            junc.vals[ti] = 0
-                            for link in junc.inlinks:
-                                if not link.source.is_junction: # inlinks that come from a junction won't have been initialized at this timestep yet
-                                    junc.vals[ti] += link.vals[ti]
-                        else:
-                            # At the first timestep, initialize the junction to 0 if there's nobody in it, or flush the current contents if this junction is
-                            # nonzero based on the initialization of the compartments
-                            if np.isnan(junc.vals[ti]):
-                                junc.vals[ti] = 0
-
-
-                        # Initialize the outflow links
-                        for link in junc.outlinks:
-                            link.vals[ti] = 0
-
                     # If the compartment is numerically empty, make it empty
                     if junc.vals[ti] <= model_settings['tolerance']:  # Includes negative values.
-                        junc.vals[ti] = 0
+                        junc.vals[ti] = 0.
                     else:
                         current_size = junc.vals[ti]
                         # This is the total fraction of people requested to leave.
                         # Outflows are scaled to the entire compartment size.
                         denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
                         if denom_val == 0:
-                            raise AtomicaException("ERROR: Proportions for junction '{0}' outflows sum to zero, "
-                                                   "resulting in a nonsensical ratio. There may even be (invalidly) "
-                                                   "no outgoing transitions for this junction.".format(junc.name))
+                            raise AtomicaException("Total junction outflow for junction %s was zero - all junctions must have a nonzero outflow" % (junc.name))
+
                         for link in junc.outlinks:
                             flow = current_size * link.parameter.vals[ti] / denom_val
                             junc.vals[ti] -= flow
@@ -1153,6 +1143,11 @@ class Model(object):
                             if link.dest.is_junction:
                                 link.dest.vals[ti] += flow
                                 review_required = True  # Need to review if a junction received an inflow at this step
+
+                if not review_required:
+                    break
+            else:
+                raise AtomicaException("Processing junctions for timestep {0} is taking too long. Infinite loop suspected.".format(ti))
 
     def update_pars(self):
         """
