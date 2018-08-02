@@ -1072,11 +1072,16 @@ class Model(object):
             for comp in pop.comps:
                 comp.vals[ti + 1] = comp.vals[ti]
 
+        # update_junctions will perform the compartment size update for all junctions but nothing else
+        # Therefore, we need to resolve any links where neither endpoint is a junction
+        # This is because a junction with inlinks still needs its sources to have the flow deducted, and
+        # a junction with outlinks still needs its destination to have the flow applied
         for pop in self.pops:
             for comp in pop.comps:
-                if not comp.is_junction:
-                    for link in comp.inlinks:
+                for link in comp.outlinks:
+                    if not link.source.is_junction:
                         link.source.vals[ti + 1] -= link.vals[ti]
+                    if not link.dest.is_junction:
                         link.dest.vals[ti + 1] += link.vals[ti]
 
         # Guard against populations becoming negative due to numerical artifacts
