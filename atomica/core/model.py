@@ -965,13 +965,12 @@ class Model(object):
 
         # Initial flush of people in junctions
         if self.t_index == 0:
-            # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
-            # initial flow rates
-            self.update_pars()
-            self.update_junctions(initial_flush=True)
-            self.update_pars()
-            self.update_links()
-            self.update_junctions()
+            # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate initial flows
+            self.update_pars() # Update transition parameters in case junction outflows are function parameters
+            self.update_junctions(initial_flush=True) # Flush the current contents of the junction without considering any inflows
+            self.update_pars() # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
+            self.update_links() # Update all of the links
+            self.update_junctions() # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
 
         # Main integration loop
         while self.t_index < (self.t.size-1):
