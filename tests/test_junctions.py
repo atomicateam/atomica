@@ -1,3 +1,5 @@
+## This script checks that the junction update is correct
+
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData, PlotData, plot_series
 

@@ -1,4 +1,6 @@
-import atomica.ui as au
+## This script tests some databook IO operations
+
+# import atomica.ui as au
 from atomica.core.excel import AtomicaSpreadsheet, transfer_comments
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData

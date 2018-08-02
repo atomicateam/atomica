@@ -8,6 +8,8 @@ import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from .programs import ProgramInstructions
+import logging
+logger = logging.getLogger(__name__)
 
 class Scenario(NamedItem):
     def __init__(self, name):
@@ -81,6 +83,7 @@ class ParameterScenario(Scenario):
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
+                # If the Parameter had an assumption, then expand the assumption out first
                 if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
                     par.t[pop_label] = np.array([settings.sim_start, settings.sim_end])
                     par.y[pop_label] = par.y[pop_label] * np.ones(par.t[pop_label].shape)
@@ -92,32 +95,43 @@ class ParameterScenario(Scenario):
                     onset = np.zeros((len(overwrite['y']),))
                     onset[0] = overwrite['smooth_onset']
                 else:
-                    assert len(overwrite['smooth_onset']) == len(overwrite['y']), \
-                        'Smooth onset must be either a scalar or an array with length matching y-values'
+                    assert len(overwrite['smooth_onset']) == len(overwrite['y']), 'Smooth onset must be either a scalar or an array with length matching y-values'
                     onset = overwrite['smooth_onset']
 
                 # Now, insert all of the program overwrites
+                if len(overwrite['t']) != len(overwrite['y']):
+                    raise AtomicaException('Number of time points in overwrite does not match number of values')
+
+                if len(overwrite['t']) == 1:
+                    logger.warning('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
+
                 for i in range(0, len(overwrite['t'])):
 
                     # Account for smooth onset
                     if onset[i] > 0:
                         t = overwrite['t'][i] - onset[i]
-                        if i == 0:
-                            # Interpolation does not rescale, so don't worry about it here
-                            y = par.interpolate(np.array([t]), pop_label)
-                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
-                            par.insert_value_pair(t, y, pop_label)
-                        elif t > overwrite['t'][i-1]:
+
+                        if i > 0 and t > overwrite['t'][i - 1]:
+                            # If the smooth onset extends to before the previous point, then just use the
+                            # previous point directly instead
                             y = overwrite['y'][i - 1] / par.y_factor[pop_label]
                             par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
                             par.insert_value_pair(t, y, pop_label)
                         else:
-                            par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
+                            # Otherwise, get the value at the smooth onset time, add it as a control
+                            # point, and remove any intermediate points
+                            y = par.interpolate(np.array([t]), pop_label)
+                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
+                            par.insert_value_pair(t, y, pop_label)
+                    elif i > 0:
+                        # If not doing smooth onset, and this is not the first point being overwritten,
+                        # then remove all control points between this point and the last one
+                        par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
                     par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)
 
-                # Add an extra point
+                # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
 
             new_parset.name = self.name + '_' + parset.name
