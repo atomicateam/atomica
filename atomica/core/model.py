@@ -1140,7 +1140,8 @@ class Model(object):
                             flow = current_size * link.parameter.vals[ti] / denom_val
                             junc.vals[ti] -= flow
                             link.vals[ti] += flow
-                            if link.dest.is_junction:
+                            if link.dest.is_junction or initial_flush:
+                                # In the initial flush, we need to update the downstream compartments
                                 link.dest.vals[ti] += flow
                                 review_required = True  # Need to review if a junction received an inflow at this step
 
