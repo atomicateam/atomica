@@ -190,11 +190,7 @@ class ProjectFramework(object):
         # - Checking that the provided information is internally consistent
 
         # Check for required sheets
-<<<<<<< HEAD
-        for page in ['Compartments','Parameters','Characteristics','Transitions']:
-=======
         for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
->>>>>>> develop
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
         import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         if 'Databook Page' not in self.sheets:
@@ -208,22 +204,14 @@ class ProjectFramework(object):
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
         ### VALIDATE COMPARTMENTS
-<<<<<<< HEAD
-        required_columns = ['Display Name']
-=======
         required_columns = ['Display Name','Is Source', 'Is Sink']
->>>>>>> develop
         defaults = {
             'Is Sink':'n',
             'Is Source':'n',
             'Is Junction':'n',
             'Can Calibrate':'n',
-<<<<<<< HEAD
-            'Databook Page':'Data', # Default is for it to all appear on a single page
-=======
             'Databook Page':None,
             'Default Value':None,
->>>>>>> develop
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
         }
         valid_content = {
@@ -261,10 +249,6 @@ class ProjectFramework(object):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
         ### VALIDATE PARAMETERS
-<<<<<<< HEAD
-=======
-
->>>>>>> develop
         required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
@@ -332,11 +316,7 @@ class ProjectFramework(object):
             'Denominator':None,
             'Default Value':None,
             'Function':None,
-<<<<<<< HEAD
-            'Databook Page':'Data', # Default is for it to all appear on a single page
-=======
             'Databook Page': None,
->>>>>>> develop
             'Databook Order':None,
             'Can Calibrate':'n',
         }
@@ -365,9 +345,6 @@ class ProjectFramework(object):
                     assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
 
         # VALIDATE INTERACTIONS
-<<<<<<< HEAD
-        if self.interactions is not None: self.interactions.set_index('Code Name',inplace=True)
-=======
         if 'Interactions' not in self.sheets:
             self.sheets['Interactions'] = pd.DataFrame(columns=['Code Name','Display Name'])
 
@@ -380,7 +357,6 @@ class ProjectFramework(object):
         }
         self.interactions.set_index('Code Name',inplace=True)
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
->>>>>>> develop
 
         # VALIDATE NAMES - No collisions, no keywords
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) 
