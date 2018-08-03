@@ -340,7 +340,7 @@ class ProjectFramework(object):
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
         # VALIDATE NAMES - No collisions, no keywords
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index)  + list(self.interactions.index)
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
         tmp = set()
         for name in code_names:
             if ':' in name:
@@ -357,7 +357,7 @@ class ProjectFramework(object):
             else:
                 raise NotAllowedError('Duplicate code name "%s"' % name)
 
-        display_names = list(self.comps['Display Name']) + list(self.characs['Display Name']) + list(self.pars['Display Name'])  + list(self.interactions['Display Name'])
+        display_names = list(self.comps['Display Name']) + list(self.characs['Display Name']) + list(self.pars['Display Name']) + list(self.interactions['Display Name'])
         tmp = set()
         for name in display_names:
             if name not in tmp:
