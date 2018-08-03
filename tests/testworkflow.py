@@ -26,7 +26,7 @@ torun = [
 #"loaddatabook",
 #"makeparset",
 #"runsim",
-#'plotcascade',
+'plotcascade',
 #"makeprogramspreadsheet",
 # "loadprogramspreadsheet",
 # "runsim_programs",
@@ -37,7 +37,7 @@ torun = [
 #"autocalibrate",
 # "parameterscenario",
 # 'budgetscenarios',
-'optimization',
+#'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -119,6 +119,8 @@ if "runsim" in torun:
         cascade = P.results[-1].get_cascade_vals(project=P)
 
 if 'plotcascade' in torun:
+    P = au.demo()
+    
     au.plot_cascade(project=P, year=2020)
     if forceshow: pl.show()
     
