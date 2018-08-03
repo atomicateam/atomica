@@ -12,8 +12,8 @@ import pylab as pl
 import matplotlib.pyplot as plt
 
 # test = "sir"
-# test = "tb"
-test = "diabetes"
+test = "tb"
+# test = "diabetes"
 #test = "service"
 
 
@@ -27,7 +27,7 @@ torun = [
 "makeparset",
 #"runsim",
 #'plotcascade',
-"makeprogramspreadsheet",
+# "makeprogramspreadsheet",
 #"loadprogramspreadsheet",
 #"runsim_programs",
 # "makeplots",
@@ -35,7 +35,7 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
-# "parameterscenario",
+"parameterscenario",
 # 'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -339,9 +339,9 @@ if "parameterscenario" in torun:
     scvalues[scen_par][scen_pop] = dict()
 
     # Insert (or possibly overwrite) one value.
-    scvalues[scen_par][scen_pop]["y"] = [0.125]
-    scvalues[scen_par][scen_pop]["t"] = [2015.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
+    scvalues[scen_par][scen_pop]["y"] = [0.125,0.15]
+    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+    scvalues[scen_par][scen_pop]["smooth_onset"] = 2
 
     P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
     P.run_scenario(scenario="Varying Infections", parset="default")
@@ -478,5 +478,13 @@ if "saveproject" in torun:
 if "loadproject" in torun:
     P = au.Project.load(tmpdir+test+".prj")
 
-
-
+#
+# flow_in = results.pops[0].get_variable(':acj')
+# flow_out = results.pops[0].get_variable('acj:')
+#
+# d = au.PlotData(results[-1], outputs=':acj', pops='0-4')
+# d.series[0].vals
+# d = au.PlotData(results[-1], outputs='acj:', pops='0-4')
+# d.series[0].vals
+#
+# figs = au.plot_series(d, axis="results")

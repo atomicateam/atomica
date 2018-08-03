@@ -24,6 +24,7 @@ from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
+import scipy.interpolate
 
 import logging
 logger = logging.getLogger(__name__)
@@ -452,6 +453,14 @@ class PlotData(object):
             assert (all(np.equal(self.series[i].tvec, tvec))), 'All series must have the same time points'
         return tvec, t_labels
 
+    def interpolate(self,t2):
+        # This will interpolate all Series onto a new time axis
+        # Note that NaNs will be set anywhere that extrapolation is needed
+        t2 = sc.promotetoarray(t2)
+        for series in self.series:
+            series.vals = series.interpolate(t2)
+            series.tvec = t2
+
     def __getitem__(self, key):
         # key is a tuple of (result,pop,output)
         # retrive a single Series e.g. plotdata['default','0-4','sus']
@@ -523,8 +532,7 @@ class PlotData(object):
 
 
 class Series(object):
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None,
-                 units=''):
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None,units=''):
         self.tvec = np.copy(tvec)
         self.t_labels = np.copy(self.tvec)  # Iterable array of time labels - could become strings like [2010-2014]
         self.vals = np.copy(vals)
@@ -535,9 +543,18 @@ class Series(object):
         self.data_label = data_label  # Used to identify data for plotting
         self.units = units
 
+        if np.any(np.isnan(vals)):
+            logger.warning('%s contains NaNs' % (self))
+
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)
 
+    def interpolate(self,t2):
+        # Return an np.array() with the values of this series interpolated onto the requested
+        # time array t2. To ensure results are not misleading, extrapolation is disabled
+        # and will return NaN if t2 contains values outside the original time range
+        f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
+        return f(sc.promotetoarray(t2))
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.

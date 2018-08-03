@@ -168,9 +168,12 @@ class ProjectData(object):
                         interpop.ts[(from_pop,to_pop)] = ts
 
         # Finally, insert parameter and characteristic default values
-        for df in [framework.characs, framework.pars]:
+        for df in [framework.comps,framework.characs, framework.pars]:
             for _,spec in df.iterrows():
-                if 'Default Value' in spec and spec['Default Value'] and spec['Databook Page']:
+                # In order to write a default value
+                # - The default value should be present and not None
+                # - The quantity should appear in the databook
+                if 'Default Value' in spec and (spec['Default Value'] is not None) and spec['Databook Page']:
                     tdve = data.tdve[spec['Display Name']]
                     for ts in tdve.ts.values():
                         ts.insert(None,spec['Default Value'])

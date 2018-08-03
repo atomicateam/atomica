@@ -759,7 +759,7 @@ class Population(object):
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
-    def __init__(self, settings, framework, parset, progset=None, instructions=None):
+    def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
@@ -769,7 +769,7 @@ class Model(object):
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
-        self.program_instructions = sc.dcp(instructions) # program instructions
+        self.program_instructions = sc.dcp(program_instructions) # program instructions
         self.program_cache = None
 
         self.t = None
@@ -959,26 +959,26 @@ class Model(object):
     def process(self):
         """ Run the full model. """
 
-        assert self.t_index == 0  # Only makes sense to process a simulation once, starting at ti=0
+        assert self.t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
 
         self.update_program_cache()
 
         # Initial flush of people in junctions
         if self.t_index == 0:
-            # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate
-            # initial flow rates
-            self.update_pars()
-            self.update_junctions()
-            self.update_pars()
-            self.update_links()
+            # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate initial flows
+            self.update_pars() # Update transition parameters in case junction outflows are function parameters
+            self.update_junctions(initial_flush=True) # Flush the current contents of the junction without considering any inflows
+            self.update_pars() # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
+            self.update_links() # Update all of the links
+            self.update_junctions() # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
 
         # Main integration loop
         while self.t_index < (self.t.size-1):
             self.update_comps() # This writes values to comp.vals[ti+1] so this will be out of bounds if self.t_index == self.t.size-1
             self.t_index += 1  # Step the simulation forward
-            self.update_junctions()
             self.update_pars()
             self.update_links()
+            self.update_junctions()
 
         for pop in self.pops:
             [par.update() for par in pop.pars if not par.dependency]  # Update any remaining parameters
@@ -1072,11 +1072,16 @@ class Model(object):
             for comp in pop.comps:
                 comp.vals[ti + 1] = comp.vals[ti]
 
+        # update_junctions will perform the compartment size update for all junctions but nothing else
+        # Therefore, we need to resolve any links where neither endpoint is a junction
+        # This is because a junction with inlinks still needs its sources to have the flow deducted, and
+        # a junction with outlinks still needs its destination to have the flow applied
         for pop in self.pops:
             for comp in pop.comps:
-                if not comp.is_junction:
-                    for link in comp.outlinks:
+                for link in comp.outlinks:
+                    if not link.source.is_junction:
                         link.source.vals[ti + 1] -= link.vals[ti]
+                    if not link.dest.is_junction:
                         link.dest.vals[ti + 1] += link.vals[ti]
 
         # Guard against populations becoming negative due to numerical artifacts
@@ -1084,55 +1089,66 @@ class Model(object):
             for comp in pop.comps:
                 comp.vals[ti + 1] = max(0, comp.vals[ti + 1])
 
-    def update_junctions(self):
+    def update_junctions(self,initial_flush=False):
         """
         For every compartment considered a junction, propagate the contents onwards.
         Do so until all junctions are empty.
         """
 
-        ti = self.t_index
-        ti_link = ti - 1
-        if ti_link < 0:
-            ti_link = ti  # For the case where junctions are processed immediately after model initialisation.
+        # A junction can be called either at the very start of the simulation, when it might have
+        # some people in it initially, or after `update_links` in which case it won't have any people
+        # so it needs to fill itself from its incoming links
 
-        review_required = True
-        review_count = 0
-        while review_required:
-            review_count += 1
-            review_required = False  # Don't re-run unless a junction has refilled
+        ti = self.t_index # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
 
-            if review_count > model_settings["iteration_limit"]:
-                raise AtomicaException("Processing junctions (i.e. propagating contents onwards) for timestep {0} "
-                                       "is taking far too long. Infinite loop suspected.".format(ti_link))
+        for pop in self.pops:
 
-            for pop in self.pops:
-                junctions = [comp for comp in pop.comps if comp.is_junction]
+            # Initialize the junctions and their links
+            junctions = [comp for comp in pop.comps if comp.is_junction]
+            for junc in junctions:
+                if not initial_flush:  # At most timesteps, initialize based on inflows
+                    junc.vals[ti] = 0.
+                    for link in junc.inlinks:
+                        if not link.source.is_junction:  # inlinks that come from a junction won't have been initialized at this timestep yet
+                            junc.vals[ti] += link.vals[ti]
+                else:  # At the very first iteration, use the junction's current value (e.g., if a nonzero value arose from the databook)
+                    if np.isnan(junc.vals[ti]):
+                        junc.vals[ti] = 0.
+
+                # Initialize the outflow links
+                for link in junc.outlinks:
+                    link.vals[ti] = 0.
+
+            # Repeatedly flush the junctions until they have all resolved (this deals with cases where one
+            # junction has a flow into another junction)
+            for i in range(0,model_settings["iteration_limit"]):
+                review_required = False
 
                 for junc in junctions:
-
-                    if review_count == 1:
-                        for link in junc.outlinks:
-                            link.vals[ti_link] = 0
-
                     # If the compartment is numerically empty, make it empty
                     if junc.vals[ti] <= model_settings['tolerance']:  # Includes negative values.
-                        junc.vals[ti] = 0
+                        junc.vals[ti] = 0.
                     else:
                         current_size = junc.vals[ti]
                         # This is the total fraction of people requested to leave.
                         # Outflows are scaled to the entire compartment size.
-                        denom_val = sum(link.parameter.vals[ti_link] for link in junc.outlinks)
+                        denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
                         if denom_val == 0:
-                            raise AtomicaException("ERROR: Proportions for junction '{0}' outflows sum to zero, "
-                                                   "resulting in a nonsensical ratio. There may even be (invalidly) "
-                                                   "no outgoing transitions for this junction.".format(junc.name))
+                            raise AtomicaException("Total junction outflow for junction %s was zero - all junctions must have a nonzero outflow" % (junc.name))
+
                         for link in junc.outlinks:
-                            flow = current_size * link.parameter.vals[ti_link] / denom_val
-                            link.source.vals[ti] -= flow
-                            link.dest.vals[ti] += flow
-                            link.vals[ti_link] += flow
-                            if link.dest.is_junction:
+                            flow = current_size * link.parameter.vals[ti] / denom_val
+                            junc.vals[ti] -= flow
+                            link.vals[ti] += flow
+                            if link.dest.is_junction or initial_flush:
+                                # In the initial flush, we need to update the downstream compartments
+                                link.dest.vals[ti] += flow
                                 review_required = True  # Need to review if a junction received an inflow at this step
+
+                if not review_required:
+                    break
+            else:
+                raise AtomicaException("Processing junctions for timestep {0} is taking too long. Infinite loop suspected.".format(ti))
 
     def update_pars(self):
         """
@@ -1227,7 +1243,7 @@ class Model(object):
             for par in pars:
                 par.constrain(ti)
 
-def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
+def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):
     """
     Processes the TB epidemiological model.
     Parset-based overwrites are generally done externally, so the parset is only used for model-building.
@@ -1235,7 +1251,7 @@ def run_model(settings, framework, parset, progset=None, progset_instructions=No
     The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
     """
 
-    m = Model(settings, framework, parset, progset, progset_instructions)
+    m = Model(settings, framework, parset, progset, program_instructions)
     m.process()
-    # TODO: Pass progset and instructions into results just like parset.
+    # NOTE - the `model` object contains model.framework, model.progset, and model.program_instructions
     return Result(model=m, parset=parset, name=name)

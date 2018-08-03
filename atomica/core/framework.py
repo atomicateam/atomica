@@ -36,6 +36,7 @@ class ProjectFramework(object):
                 for table in tables:
                     # Get a dataframe
                     df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
+                    df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
                     df.columns = df.iloc[0]
                     df = df[1:]
                     self.sheets[worksheet.title].append(df)
@@ -173,6 +174,12 @@ class ProjectFramework(object):
         for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
 
+        if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
+            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
+
+        if 'Plot' in self.sheets and 'Plots' not in self.sheets:
+            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
+
         ### VALIDATE COMPARTMENTS
         required_columns = ['Display Name','Is Source', 'Is Sink']
         defaults = {
@@ -181,11 +188,11 @@ class ProjectFramework(object):
             'Is Junction':'n',
             'Can Calibrate':'n',
             'Databook Page':None,
+            'Default Value':None,
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
-            'Export': 'n',
         }
         valid_content = {
-            'Display Name':None,
+            'Display Name':None, # Valid content being `None` means that it just cannot be empty
             'Is Sink':{'y','n'},
             'Is Source':{'y','n'},
             'Is Junction':{'y','n'},
@@ -202,7 +209,7 @@ class ProjectFramework(object):
         else:
             fill_ones = self.comps['Setup Weight'].isnull() & self.comps['Databook Page']
             self.comps['Setup Weight'][fill_ones] = 1
-            self.comps['Setup Weight'].fillna(0, inplace=True)
+            self.comps['Setup Weight'] = self.comps['Setup Weight'].fillna(0)
 
         # VALIDATE THE COMPARTMENT SPECIFICATION
         for index,row in self.comps.iterrows():
@@ -230,7 +237,6 @@ class ProjectFramework(object):
             'Databook Order':None,
             'Is Impact':'n',
             'Can Calibrate':'n',
-            'Export':'n',
         }
         valid_content = {
             'Display Name': None,
@@ -291,7 +297,6 @@ class ProjectFramework(object):
             'Databook Page': None,
             'Databook Order':None,
             'Can Calibrate':'n',
-            'Export': 'n',
         }
         valid_content = {
             'Display Name': None,
@@ -307,7 +312,7 @@ class ProjectFramework(object):
         else:
             fill_ones = self.characs['Setup Weight'].isnull() & self.characs['Databook Page']
             self.characs['Setup Weight'][fill_ones] = 1
-            self.characs['Setup Weight'].fillna(0, inplace=True)
+            self.characs['Setup Weight'] = self.characs['Setup Weight'].fillna(0)
 
         for i,spec in self.characs.iterrows():
 
@@ -409,7 +414,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
         if col not in df:
             df[col] = default_value
         elif default_value is not None:
-            df[col].fillna(default_value,inplace=True)
+            df[col] = df[col].fillna(default_value)
 
     # Finally check content
     for col, validation in valid_content.items():
