@@ -37,7 +37,7 @@ torun = [
 #"autocalibrate",
 # "parameterscenario",
 # 'budgetscenarios',
-# 'optimization',
+#'optimization',
 # "saveproject",
 # "loadproject",
 ]
