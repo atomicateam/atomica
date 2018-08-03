@@ -1,14 +1,14 @@
 # Imports
 
 from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
-from .structure_settings import FrameworkSettings as FS
-from .excel import ExcelSettings as ES
+from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
 import sciris.core as sc
 import numpy as np
 import matplotlib.pyplot as plt
+from six import string_types
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -268,7 +268,7 @@ class Parameter(Variable):
         self.deps = None # Dict of dependencies containing lists of integration objects
         self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
 
-    def set_fcn(self, framework, spec):
+    def set_fcn(self, framework, fcn_str):
         # fcn_input could be
         # - string, which gets converted to a functor via parse_function()
         # - functor, which gets stored in self._fcn directly
@@ -277,17 +277,16 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
-        fcn_input = spec[FS.TERM_FUNCTION]
-        dep_list = spec['dependencies']
-
-        assert isinstance(fcn_input,str), "Parameter function must be supplied as a string"
-        self.fcn_str = fcn_input
-        self._fcn = parse_function(self.fcn_str)[0]
-        if fcn_input.startswith("SRC_POP_AVG") or fcn_input.startswith("TGT_POP_AVG"):
+        assert isinstance(fcn_str,string_types), "Parameter function must be supplied as a string"
+        self.fcn_str = fcn_str
+        self._fcn, dep_list = parse_function(self.fcn_str)
+        if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
             special_function, temp_list = self.fcn_str.split("(")
-            function_args = temp_list.rstrip(")").split(ES.LIST_SEPARATOR)
+            function_args = temp_list.rstrip(")").split(',')
+            function_args = [x.strip() for x in function_args]
+
             if len(function_args) == 2: # If weighting variable not provided
                 function_args.append(None)
 
@@ -307,8 +306,9 @@ class Parameter(Variable):
             self.pop_aggregation = [special_function] + function_args
 
         deps = {}
+        interactions = set(framework.interactions.index)
         for dep_name in dep_list:
-            if not (self.pop_aggregation and dep_name in framework.specs[FS.KEY_INTERACTION]):
+            if not dep_name in interactions: # There are no integration variables associated with the interactions, as they are treated as a special matrix
                 deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
@@ -463,8 +463,7 @@ class Population(object):
         self.par_lookup = dict()
         self.link_lookup = dict()  # Map name of Link to a list of Links with that name
 
-        self.gen_cascade(
-            framework=framework)  # Convert compartmental cascade into lists of compartment and link objects.
+        self.gen_cascade(framework=framework)  # Convert compartmental cascade into lists of compartment and link objects.
 
         self.popsize_cache_time = None
         self.popsize_cache_val = None
@@ -592,41 +591,42 @@ class Population(object):
         Maintaining order as defined in a cascade workbook is crucial due to cross-referencing.
         """
 
-        # Instantiate Compartments
-        for name in framework.specs[FS.KEY_COMPARTMENT]:
-            spec = framework.get_spec(name)
-            self.comps.append(Compartment(pop=self, name=name))
-            if spec["is_source"]:
+        comps = framework.comps
+        characs = framework.characs
+        pars = framework.pars
+
+        # Instantiate compartments
+        for comp_name in list(comps.index):
+            self.comps.append(Compartment(pop=self, name=comp_name))
+            if comps.at[comp_name,"Is Source"] == 'y':
                 self.comps[-1].tag_birth = True
-            if spec["is_sink"]:
+            if comps.at[comp_name,"Is Sink"] == 'y':
                 self.comps[-1].tag_dead = True
-            if spec["is_junction"]:
+            if comps.at[comp_name,"Is Junction"] == 'y':
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
         # Characteristics first pass, instantiate objects
-        for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            self.characs.append(Characteristic(pop=self, name=name))
+        for charac_name in list(characs.index):
+            self.characs.append(Characteristic(pop=self, name=charac_name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
-        for name in framework.specs[FS.KEY_CHARACTERISTIC]:
-            spec = framework.get_spec(name)
-            charac = self.get_charac(name)
-            for inc_name in spec["includes"]:
-                charac.add_include(
-                    self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            if "denominator" in spec and not spec["denominator"] is None:
-                charac.add_denom(self.get_variable(spec["denominator"])[0])
+        for charac_name,charac in zip(list(characs.index),self.characs):
+            includes = [x.strip() for x in characs.at[charac_name,'Components'].split(',')]
+            for inc_name in includes:
+                charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
+            denominator = characs.at[charac_name,"Denominator"]
+            if denominator is not None:
+                charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
 
         # Parameters first pass, create parameter objects and links
-        for name in framework.specs[FS.KEY_PARAMETER]:
-            spec = framework.get_spec(name)
-            par = Parameter(pop=self, name=name)
+        for par_name in list(pars.index):
+            par = Parameter(pop=self, name=par_name)
             self.pars.append(par)
-            if "links" in spec:
-                par.units = spec["format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
-                for pair in spec["links"]:
+            if framework.transitions[par_name]: # If there are any links associated with this parameter
+                par.units = pars.at[par_name,"Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+                for pair in framework.transitions[par_name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
                     tag = par.name + ':flow'  # Temporary tag solution.
@@ -639,19 +639,20 @@ class Population(object):
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Parameters second pass, process f_stacks, deps, and limits
-        for name in framework.specs[FS.KEY_PARAMETER]:
-            spec = framework.get_spec(name)
-            par = self.get_par(name)
+        for par_name,par in zip(list(pars.index),self.pars):
+            min_value = pars.at[par_name,'Minimum Value']
+            max_value = pars.at[par_name,'Maximum Value']
 
-            if ("min" in spec and spec["min"] is not None) or ("max" in spec and spec["max"] is not None):
+            if (min_value is not None) or (max_value is not None):
                 par.limits = [-np.inf, np.inf]
-                if "min" in spec and spec["min"] is not None:
-                    par.limits[0] = spec["min"]
-                if "max" in spec and spec["max"] is not None:
-                    par.limits[1] = spec["max"]
+                if min_value is not None:
+                    par.limits[0] = min_value
+                if max_value is not None:
+                    par.limits[1] = max_value
 
-            if not spec[FS.TERM_FUNCTION] is None:
-                par.set_fcn(framework, spec)
+            fcn_str = pars.at[par_name,'Function']
+            if fcn_str is not None:
+                par.set_fcn(framework,fcn_str)
 
     def preallocate(self, tvec, dt):
         """
@@ -666,9 +667,9 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c in self.characs if framework.get_spec_value(c.name, "datapage_order") != -1]
-        characs += [c for c in self.comps if framework.get_spec_value(c.name, "datapage_order") != -1]
-        #        print(characs)
+        characs = [c for c in self.characs if framework.get_charac(c.name)['Databook Page'] is not None]
+        characs += [c for c in self.comps if framework.get_comp(c.name)['Databook Page'] is not None]
+
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name: i for i, c in enumerate(characs)}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
@@ -676,7 +677,6 @@ class Population(object):
         b = np.zeros((len(characs), 1))
         A = np.zeros((len(characs), len(comps)))
 
-        #        print([(c,framework.get_spec_value(c.name,"datapage_order")) for c in self.characs])
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i, c in enumerate(characs):
             # Look up the characteristic value
@@ -765,7 +765,7 @@ class Model(object):
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self.interactions = sc.odict()
         self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
-        self.par_list = list(framework.specs[FS.KEY_PARAMETER].keys()) # This is a list of all parameters to iterate over when updating
+        self.par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
@@ -776,7 +776,8 @@ class Model(object):
         self.dt = None
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
-        self.build(settings, framework, parset)
+        self.framework = sc.dcp(framework) # Store a copy of the Framework used to generate this model
+        self.build(settings, parset)
 
     def unlink(self):
         # Break cycles when deepcopying or pickling by swapping them for IDs
@@ -874,19 +875,19 @@ class Model(object):
         return self.pops[pop_index]
 
 
-    def build(self, settings, framework, parset):
+    def build(self, settings, parset):
         """ Build the full model. """
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
         for k, pop_name in enumerate(parset.pop_names):
-            self.pops.append(Population(framework=framework, name=pop_name))
+            self.pops.append(Population(framework=self.framework, name=pop_name))
             # TODO: Update preallocate case.
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
             self.pop_ids[pop_name] = k
-            self.pops[-1].initialize_compartments(parset, framework, self.t[0])
+            self.pops[-1].initialize_compartments(parset, self.framework, self.t[0])
 
         # Expand interactions into matrix form
         self.interactions = dict()

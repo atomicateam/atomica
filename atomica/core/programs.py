@@ -13,6 +13,7 @@ from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
+from six import string_types
 
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
@@ -75,7 +76,7 @@ class ProgramSet(NamedItem):
 
         if verbose: print('Making program set from program data')
         pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
-        comp_short_name = project.framework.get_spec_name
+        comp_short_name = lambda x: project.framework.get_variable(x)[0].name
 
         # Sort out inputs
         if verbose: print('Sorting out inputs')
@@ -974,7 +975,7 @@ class Covout(object):
         elif isinstance(prog, (list, tuple)):
             for key,val in prog:
                 self.progs[key] = Val(val)
-        elif isinstance(prog, basestring) and val is not None:
+        elif isinstance(prog, string_types) and val is not None:
             self.progs[prog] = Val(val)
         else:
             errormsg = 'Could not understand prog=%s and val=%s' % (prog, val)

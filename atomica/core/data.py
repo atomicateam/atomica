@@ -4,18 +4,18 @@ Atomica data file.
 Sets out a structure to store context-specific databook-imported values relating to a model.
 """
 
-from .structure_settings import TimeDependentValuesEntry, TimeDependentConnections
 from .structure import TimeSeries
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import standard_formats, AtomicaSpreadsheet, read_tables
+from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
 import xlsxwriter as xw
 import io
 import numpy as np
 from .system import AtomicaException
-from .structure_settings import DataSettings as DS
+from .structure import FrameworkSettings as FS
 from collections import defaultdict
+from six import string_types
 
 # Data maps to a databook
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
@@ -127,48 +127,54 @@ class ProjectData(object):
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
         data.tvec = tvec
+        pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
 
-        pages = defaultdict(list) # This will store {sheet_name:(code_name,databook_order)}
-        item_types = [DS.KEY_PARAMETER,DS.KEY_CHARACTERISTIC,DS.KEY_COMPARTMENT]
-        for item_type in item_types:
-            for code_name,spec in framework.specs[item_type].items():
-                if 'datapage' in spec and 'datapage_order' in spec and spec['datapage_order'] != -1:
-                    if spec['datapage_order'] is None:
+        for df in [framework.comps, framework.characs, framework.pars]:
+            for _,spec in df.iterrows():
+                databook_page = spec['Databook Page']
+                databook_order = spec['Databook Order']
+                full_name = spec['Display Name']
+                if databook_page is not None:
+                    if databook_order is None:
                         order = np.inf
                     else:
-                        order = spec['datapage_order']
-                    pages[spec['datapage']].append((code_name,order))
-                    data.tdve[code_name] = TimeDependentValuesEntry(name=spec['label'],tvec=tvec,allowed_units=framework.get_allowed_units(code_name))
+                        order = databook_order
+                    pages[databook_page].append((full_name,order))
+                    data.tdve[full_name] = TimeDependentValuesEntry(name=full_name,tvec=tvec,allowed_units=framework.get_allowed_units(full_name))
 
         # Now convert pages to full names and sort them into the correct order
-        for page_name,spec in framework.specs['datapage'].items():
+        for _,spec in framework.sheets['Databook Pages'].iterrows():
 
-            # TODO: Work out how to get rid of these pages properly
-            # Also, work out how the 'Parameters' and 'State Variables' tabs work
-            if page_name in ['pop','transfer','transferdata','interpop']:
-                continue
-
-            if page_name in pages:
-                pages[page_name].sort(key=lambda x: x[1])
-                data.tdve_pages[spec['label']] = [x[0] for x in pages[page_name]]
+            if spec['Datasheet Code Name'] in pages:
+                pages[spec['Datasheet Code Name']].sort(key=lambda x: x[1])
+                data.tdve_pages[spec['Datasheet Title']] = [x[0] for x in pages[spec['Datasheet Code Name']]]
             else:
-                data.tdve_pages[spec['label']] = list()
+                data.tdve_pages[spec['Datasheet Title']] = list()
 
-        # Now, proceed to add the pops, transfers, and interactions
+        # Now, proceed to add pops, transfers, and interactions
         for code_name,full_name in new_pops.items():
             data.add_pop(code_name,full_name)
 
         for code_name,full_name in new_transfers.items():
             data.add_transfer(code_name,full_name)
 
-        for name,spec in framework.specs['interpop'].items():
-            interpop = data.add_interaction(name, spec['label'])
+        for _,spec in framework.interactions.iterrows():
+            interpop = data.add_interaction(spec.name, spec['Display Name'])
             if 'default_value' in spec and spec['default_value']:
                 for from_pop in interpop.pops:
                     for to_pop in interpop.pops:
                         ts = TimeSeries(format=interpop.allowed_units[0],units=interpop.allowed_units[0])
                         ts.insert(None,spec['default_value'])
                         interpop.ts[(from_pop,to_pop)] = ts
+
+        # Finally, insert parameter and characteristic default values
+        for df in [framework.characs, framework.pars]:
+            for _,spec in df.iterrows():
+                if 'Default Value' in spec and spec['Default Value'] and spec['Databook Page']:
+                    tdve = data.tdve[spec['Display Name']]
+                    for ts in tdve.ts.values():
+                        ts.insert(None,spec['Default Value'])
+
         return data
 
     @staticmethod
@@ -188,10 +194,15 @@ class ProjectData(object):
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
         self = ProjectData()
 
-        if isinstance(spreadsheet,str):
+        if isinstance(spreadsheet,string_types):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-write mode so that we can correctly dump the file
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
+
+        # These sheets are optional - if none of these are provided in the databook
+        # then they will remain empty
+        self.transfers = list()
+        self.interpops = list()
 
         for sheet in workbook.worksheets:
             if sheet.title.startswith('#ignore'):
@@ -211,8 +222,8 @@ class ProjectData(object):
                     tdve = TimeDependentValuesEntry.from_rows(table)
 
                     # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
-                    code_name = framework.get_spec_name(tdve.name)
-                    tdve.allowed_units = framework.get_allowed_units(code_name)
+                    code_name = framework.get_variable(tdve.name)[0].name
+                    tdve.allowed_units = [x.title() for x in framework.get_allowed_units(code_name)]
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
@@ -251,17 +262,33 @@ class ProjectData(object):
         #
         # Make sure that all of the quantities the Framework says we should read in have been read in, and that
         # those quantities all have some data values associated with them
-        for item_type in [DS.KEY_PARAMETER,DS.KEY_COMPARTMENT,DS.KEY_CHARACTERISTIC]:
-            for item_name,spec in framework.specs[item_type].items():
-                if spec['datapage_order'] != -1:
-                    if item_name not in self.tdve:
-                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['label'],item_name))
+        for df in [framework.comps, framework.characs, framework.pars]:
+            for _, spec in df.iterrows():
+                if spec['Databook Page'] is not None:
+                    if spec.name not in self.tdve:
+                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['Display Name'],spec.name))
                     else:
-                        for name,ts in self.tdve[item_name].ts.items():
-                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[item_name].name,self.pops.keys())
-                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[item_name].name, name)
-                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[item_name].name, name)
-                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[item_name].name, name)
+                        allowed_units = framework.get_allowed_units(spec.name)
+                        for name,ts in self.tdve[spec.name].ts.items():
+                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[spec.name].name,self.pops.keys())
+                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            if allowed_units:
+                                assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
+
+        for _,spec in framework.interactions.iterrows():
+            for tdc in self.interpops:
+                if tdc.code_name == spec.name:
+                    for (to_pop,from_pop),ts in tdc.ts.items():
+                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop,from_pop)
+                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title()
+                    break
+            else:
+                raise AtomicaException('Required interaction "%s" not found in databook' % spec.name)
+
         return True
 
     def to_spreadsheet(self):
@@ -368,17 +395,24 @@ class ProjectData(object):
     def _write_pops(self):
         # Writes the 'Population Definitions' sheet
         sheet = self._book.add_worksheet("Population Definitions")
+        widths = dict()
 
         current_row = 0
         sheet.write(current_row, 0, 'Abbreviation', self._formats["center_bold"])
+        update_widths(widths,0,'Abbreviation')
         sheet.write(current_row, 1, 'Full Name', self._formats["center_bold"])
+        update_widths(widths,1,'Abbreviation')
 
         for name,content in self.pops.items():
             current_row += 1
             sheet.write(current_row, 0, name)
+            update_widths(widths, 0, name)
             sheet.write(current_row, 1, content['label'])
+            update_widths(widths, 1, content['label'])
             self._references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
             self._references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
+
+        apply_widths(sheet,widths)
 
     def _read_transfers(self,sheet):
         tables = read_tables(sheet)
@@ -390,10 +424,17 @@ class ProjectData(object):
 
     def _write_transfers(self):
         # Writes a sheet for every transfer
+
+        # Skip if no transfers
+        if not self.transfers:
+            return
+
         sheet = self._book.add_worksheet("Transfers")
+        widths = dict()
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet,next_row,self._formats,self._references)
+            next_row = transfer.write(sheet,next_row,self._formats,self._references,widths)
+        apply_widths(sheet,widths)
 
     def _read_interpops(self,sheet):
         tables = read_tables(sheet)
@@ -404,20 +445,29 @@ class ProjectData(object):
         return
 
     def _write_interpops(self):
-        # Writes a sheet for every
+        # Writes a sheet for every interaction
+
+        # Skip if no interpops
+        if not self.interpops:
+            return
         sheet = self._book.add_worksheet("Interactions")
+        widths = dict()
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet,next_row,self._formats,self._references)
+            next_row = interpop.write(sheet,next_row,self._formats,self._references,widths)
+        apply_widths(sheet,widths)
 
     def _write_tdve(self):
         # Writes several sheets, one for each custom page specified in the Framework
+        widths = dict()
         for sheet_name,code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)
-            current_row = 0
+            next_row = 0
             for code_name in code_names:
-                current_row = self.tdve[code_name].write(sheet,current_row,self._formats,self._references)
+                next_row = self.tdve[code_name].write(sheet,next_row,self._formats,self._references,widths)
 
+        for sheet_name in self.tdve_pages.keys():
+            apply_widths(self._book.get_worksheet_by_name(sheet_name),widths)
 
 
 

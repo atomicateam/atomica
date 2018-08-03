@@ -3,9 +3,9 @@ import pandas as pd
 import sciris.core as sc
 from .utils import NamedItem
 from .system import AtomicaException
-
-
-# import optima_tb.settings as project_settings
+import matplotlib.pyplot as plt
+import ast
+from six import string_types
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -25,6 +25,10 @@ class Result(NamedItem):
     # Property methods trade off storage space against computation time. The property methods below
     # are cheap to compute or used less frequently, are read-only, and can always be changed to actual
     # later without needing changes in other code that uses Result objects
+    @property
+    def framework(self):
+        return self.model.framework
+
     @property
     def t(self):
         return self.model.t
@@ -73,26 +77,42 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self, filename=None, ):
+    def export(self, export_everything=False, filename=None):
         """Convert output to a single DataFrame and optionally write it to a file"""
 
         # Assemble the outputs into a dict
         d = dict()
+
+        if not export_everything:
+            exportable = set()
+            for df in [self.framework.comps,self.framework.characs,self.framework.pars]:
+                exports = df['Export']
+                for var,flag in zip(exports.index,exports.values):
+                    if flag == 'y':
+                        exportable.add(var)
+        else:
+            exportable = None
+
+
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('compartments', pop.name, comp.name)] = comp.vals
+                if export_everything or comp.name in exportable:
+                    d[('compartments', pop.name, comp.name)] = comp.vals
             for charac in pop.characs:
                 if charac.vals is not None:
-                    d[('characteristics', pop.name, charac.name)] = charac.vals
+                    if export_everything or charac.name in exportable:
+                        d[('characteristics', pop.name, charac.name)] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('parameters', pop.name, par.name)] = par.vals
+                    if export_everything or par.name in exportable:
+                        d[('parameters', pop.name, par.name)] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
                 key = ('flow rates', pop.name, link.name)
-                if key not in d:
-                    d[key] = np.zeros(self.t.shape)
-                d[key] += link.vals / self.dt
+                if export_everything or link.parameter.name in exportable:
+                    if key not in d:
+                        d[key] = np.zeros(self.t.shape)
+                    d[key] += link.vals / self.dt
 
         # Create DataFrame from dict
         df = pd.DataFrame(d, index=self.t)
@@ -104,8 +124,41 @@ class Result(NamedItem):
 
         return df
 
+    def plot(self,plot_name=None,plot_group=None,pops=None,project=None):
+        from .plotting import PlotData, plot_series
 
-    def get_cascade_vals(self, project=None):
+        df = self.framework.sheets['Plots']
+
+        if plot_group is not None:
+            for plot_name in df.loc[df['Plot Group']==plot_group,'Code Name']:
+                self.plot(plot_name=plot_name)
+            return
+
+        this_plot = df.loc[df['Code Name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
+
+        if this_plot['Aggregate pops'] == 'y':
+            pops = 'all'
+
+        quantities = this_plot['Quantities']
+        if '{' in quantities or '[' in quantities:
+            # Evaluate the string to set lists and dicts - do at least a little validation
+            assert '__' not in quantities, 'Cannot use double underscores in functions'
+            assert len(quantities) < 1800  # Function string must be less than 1800 characters
+            fcn_ast = ast.parse(quantities, mode='eval')
+            for node in ast.walk(fcn_ast):
+                if not (node is fcn_ast):
+                    assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
+            compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
+            quantities = eval(compiled_code)
+
+        d = PlotData(self, outputs=quantities, pops=pops,project=project)
+        h = plot_series(d, axis='pops',data=(project.data if project is not None else None))
+        plt.title(this_plot['Display Name'])
+        return h
+
+
+
+    def get_cascade_vals(self,cascade,pops='all',t_bins=None):
         '''
         Gets values for populating a cascade plot
         See https://docs.google.com/presentation/d/1lEEyPFORH3UeFpmaxEAGTKyHAbJRnKTm5YIsfV1iJjc/edit?usp=sharing
@@ -115,143 +168,43 @@ class Result(NamedItem):
             conv: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion converted by year
             t: list of the years
         '''
-        if project is None:
-            errormsg = 'You need to supply a project in order to plot the cascade.'
-            raise AtomicaException(errormsg)
-            
-        cascade = sc.odict()
-        cascade['vals'] = sc.odict()
-        cascade['loss'] = sc.odict()
-        cascade['conv'] = sc.odict()
-        F = project.framework
-        for sno,stage in enumerate(F.filter['stages']):
-            cascade['vals'][stage] = sc.odict()
-            cascade['conv'][stage] = sc.odict()
-            cascade['loss'][stage] = sc.odict()
-            for pno,pop in enumerate(project.pop_names):
-                cascade['vals'][stage][pop] = self.get_variable(pop,stage)[0].vals
-                cascade['t'] = self.get_variable(pop,stage)[0].t
-                if sno > 0:
-                    cascade['conv'][stage][pop] = (cascade['vals'][stage][pop], cascade['vals'][sno][pop]/cascade['vals'][sno-1][pop])
-                    cascade['loss'][stage][pop] = (cascade['vals'][sno-1][pop]-cascade['vals'][sno][pop], 1.-cascade['conv'][stage][pop][1])
-                
-        return cascade
+        # INPUTS
+        # - cascade can be a list of cascade entries, or the name of a cascade in a Framework
+        # - framework should be a ProjectFramework and is only required if cascade is a string rather than a list
+        from .plotting import PlotData # Import here to avoid circular dependencies
 
+        assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 
+        if isinstance(cascade,string_types):
+            if isinstance(self.framework.sheets['Cascades'],list):
+                available_cascades = []
+                for df in self.framework.sheets['Cascades']:
+                    if df.columns[0].strip() == cascade.strip(): # If this cascade name matches the requested cascade
+                        break
+                    else:
+                        available_cascades.append(df.columns[0])
+                else:
+                    raise AtomicaException('Cascade name "%s" not found in framework - must be one of %s' % (cascade,available_cascades))
+            else:
+                df = self.framework.sheets['Cascades']
+                assert df.columns[0].strip() == cascade.strip()
 
-# """
-# Defines the classes for storing results.
-# Version: 2018mar23
-# """
-#
-# from .system import AtomicaException
+            cascade = sc.odict()
+            for _,stage in df.iterrows():
+                cascade[stage[0]] = stage[1] # Split the name of the stage and the constituents
 
-# class Result(object):
-#    ''' Class to hold individual results '''
-#    def __init__(self, label=None):
-#        self.label = label # label of this parameter
-#    
-#    def __repr__(self):
-#        ''' Print out useful information when called '''
-#        output = desc(self)
-#        return output
-#
-#
-# class Resultset(object):
-#    ''' Structure to hold results '''
-#    def __init__(self, raw=None, label=None, pars=None, simpars=None, project=None, settings=None, data=None,
-# parsetlabel=None, progsetlabel=None, budget=None, coverage=None, budgetyears=None, domake=True, quantiles=None,
-# keepraw=False, verbose=2, doround=True):
-#        # Basic info
-#        self.created = today()
-#        self.label = label if label else 'default' # May be blank if automatically generated, but can be overwritten
-#        self.main = odict() # For storing main results
-#        self.other = odict() # For storing other results -- not available in the interface
-#
-#
-# class Multiresultset(Resultset):
-#    ''' Structure for holding multiple kinds of results, e.g. from an optimization, or scenarios '''
-#    def __init__(self, resultsetlist=None, label=None):
-#        # Basic info
-#        self.label = label if label else 'default'
-#        self.created = today()
-#        self.nresultsets = len(resultsetlist)
-#        self.resultsetlabels = [result.label for result in resultsetlist]
-#  Pull the labels of the constituent resultsets
-#        self.keys = []
-#        self.budgets = odict()
-#        self.coverages = odict()
-#        self.budgetyears = odict() 
-#        self.setup = odict() # For storing the setup attributes (e.g. tvec)
-#        if type(resultsetlist)==list: pass # It's already a list, carry on
-#        elif type(resultsetlist) in [odict, dict]: resultsetlist = resultsetlist.values() # Convert from odict to list
-#        elif resultsetlist is None: raise AtomicaException('To generate multi-results,
-# you must feed in a list of result sets: none provided')
-#        else: raise AtomicaException('Resultsetlist type "%s" not understood' % str(type(resultsetlist)))
-#
-#
-#
-# def getresults(project=None, pointer=None, die=True):
-#    '''
-#    Function for returning the results associated with something. 'pointer' can eiher be a UID,
-#    a string representation of the UID, the actual pointer to the results, or a function to return the
-#    results.
-#    
-#    Example:
-#        results = P.parsets[0].getresults()
-#        calls
-#        getresults(P, P.parsets[0].resultsref)
-#        which returns
-#        P.results[P.parsets[0].resultsref]
-#    
-#    The "die" keyword lets you choose whether a failure to retrieve results returns None or raises an exception.    
-#    
-#    Version: 1.2 (2016feb06)
-#    '''
-#    # Nothing supplied, don't try to guess
-#    if pointer is None: 
-#        return None 
-#    
-#    # Normal usage, e.g. getresults(P, 3) will retrieve the 3rd set of results
-#    elif isinstance(pointer, (str, unicode, Number, type(uuid()))): # CK: warning, should replace with sciris.utils.checktype()
-#        if project is not None:
-#            resultlabels = [res.label for res in project.results.values()]
-#            resultuids = [str(res.uid) for res in project.results.values()]
-#        else: 
-#            if die: raise AtomicaException('To get results using a key or index,
-# getresults() must be given the project')
-#            else: return None
-#        try: # Try using pointer as key -- works if label
-#            results = project.results[pointer]
-#            return results
-#        except: # If that doesn't match, keep going
-#            if pointer in resultlabels: # Try again to extract it based on the label
-#                results = project.results[resultlabels.index(pointer)]
-#                return results
-#            elif str(pointer) in resultuids: # Next, try extracting via the UID
-#                results = project.results[resultuids.index(str(pointer))]
-#                return results
-#            else: # Give up
-#                validchoices = ['#%i: label="%s", uid=%s' % (i, resultlabels[i], resultuids[i])
-# for i in range(len(resultlabels))]
-#                errormsg = 'Could not get result "%s": choices are:\n%s' % (pointer, '\n'.join(validchoices))
-#                if die: raise AtomicaException(errormsg)
-#                else: return None
-#    
-#    # The pointer is the results object
-#    elif isinstance(pointer, (Resultset, Multiresultset)):
-#        return pointer # Return pointer directly if it's already a results set
-#    
-#    # It seems to be some kind of function, so try calling it -- might be useful for the database or something
-#    elif callable(pointer): 
-#        try: 
-#            return pointer()
-#        except:
-#            if die: raise AtomicaException('Results pointer "%s" seems to be callable, but call failed' % str(pointer))
-#            else: return None
-#    
-#    # Could not figure out what to do with it
-#    else: 
-#        if die: raise AtomicaException('Could not retrieve results \n"%s"\n from project \n"%s"' % (pointer, project))
-#        else: return None
-#
+        if t_bins is not None:
+            t_bins = sc.promotetoarray(t_bins)
+            if len(t_bins) == 1:
+                t_bins = np.append(t_bins,t_bins[0]) # Default is to just select the one time point requested, if not aggregating over a range
+
+        d = PlotData(self,outputs=cascade,pops=pops,t_bins=t_bins)
+
+        cascade_output = sc.odict()
+        for result in d.results:
+            for pop in d.pops:
+                for output in d.outputs:
+                    cascade_output[output] = d[(result,pop,output)].vals # NB. Might want to return the Series here to retain formatting, units etc.
+        t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
+
+        return cascade_output,t

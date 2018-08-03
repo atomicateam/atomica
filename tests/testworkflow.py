@@ -11,26 +11,26 @@ import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 
-#test = "sir"
-test = "tb"
-#test = "diabetes"
-# test = "service"
+# test = "sir"
+# test = "tb"
+test = "diabetes"
+#test = "service"
+
 
 torun = [
-#"makeframeworkfile",
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
 #"runsim",
-'plotcascade',
-#"makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-# "runsim_programs",
-#"makeplots",
+#'plotcascade',
+"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
+# "makeplots",
 # "export",
 # "listspecs",
 # "manualcalibrate",
@@ -65,15 +65,8 @@ if test == "tb":
 
 tmpdir = "." + os.sep + "temp" + os.sep
 
-if "makeframeworkfile" in torun:
-    if test == "sir": args = {"num_comps":4, "num_characs":8, "num_pars":6}
-    elif test == "tb": args = {"num_comps":40, "num_characs":70, "num_pars":140, "num_datapages":10}
-    elif test == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
-    elif test == "service": args = {"num_comps":7, "num_characs":4, "num_pars":10}
-    au.ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
-        
 if "makeframework" in torun:
-    F = au.ProjectFramework(name=test.upper(), filepath="./frameworks/framework_" + test + ".xlsx")
+    F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
     F.save(tmpdir+test+".frw")
@@ -94,34 +87,29 @@ if "makeproject" in torun:
     P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
-    if test in ['diabetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
-    else:
-        # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-        P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
+    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    if test in ['diabetes']:
+    if test in ['di2abetes']:
         print('\n\n\nDatabook not yet filled in for diabetes example.')
     else:
         P.make_parset(name="default")
     
 if "runsim" in torun:
-    if test in ['diabetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
+    if test in ["tb"]:
+        P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
+    elif test=='diabetes':
+        print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     else:
-        if test in ["tb"]:
-            P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-        else:
-            P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-        P.run_sim(parset="default", result_name="default")
-        
-        cascade = P.results[-1].get_cascade_vals(project=P)
+        P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+
+    P.run_sim(parset="default", result_name="default")    
+    cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
 
 if 'plotcascade' in torun:
-    P = au.demo()
-    
-    au.plot_cascade(project=P, year=2020)
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
     if forceshow: pl.show()
     
     # Browser test
@@ -130,20 +118,18 @@ if 'plotcascade' in torun:
         import sciris.weblib.quickserver as sqs
         fig = pl.gcf()
         sqs.browser(fig)
-        
-    
-    
-    
     
 if "makeprogramspreadsheet" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    if test not in ['diabetes']:
-        P = au.demo(which=test, do_plot=0)
-        filename = "temp/progbook_"+test+"_blank.xlsx"
-        if test == "tb":
-            P.make_progbook(filename, progs=29)
-        else:
-            P.make_progbook(filename, progs=5)
+    P = au.demo(which=test, do_plot=0, do_run=False)
+    filename = "temp/progbook_"+test+"_blank.xlsx"
+    if test == "tb":
+        P.make_progbook(filename, progs=29)
+    elif test == "diabetes":
+        P.make_progbook(filename, progs=14)
+    else:
+        P.make_progbook(filename, progs=5)
+
 
 if "loadprogramspreadsheet" in torun:
     if test in ['diabetes','service']:
@@ -477,7 +463,7 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are bud
 
 if "optimization" in torun:
     P = au.demo(which='tb')
-    P.run_optimization(maxtime=300)
+    P.run_optimization(maxtime=30)
 
 
 if "runsimprogs" in torun:
