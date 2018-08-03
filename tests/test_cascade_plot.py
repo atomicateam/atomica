@@ -9,14 +9,14 @@ P.load_databook(databook_path="./databooks/databook_tb.xlsx", make_default_parse
 result = P.results[0]
 
 # Make some plots from plot names and groups in the Framework
-result.plot(plot_name='plot5')
-result.plot(plot_name='plot5',pops='all')
-result.plot(plot_name='plot19',pops='all')
-result.plot(plot_group='latency')
+# result.plot(plot_name='plot5',project=P)
+# result.plot(plot_name='plot5',pops='all',project=P)
+# result.plot(plot_name='plot19',pops='all',project=P)
+# result.plot(plot_group='latency')
 
 # Export limited set of results based on 'Export' column in Framework, or export everything
 result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
-result.export(export_everything=True,filename='./temp/export_everything.xlsx') # Export everything
+result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
 
 # Plot various cascades
 au.plot_cascade(result,cascade='main',pops='all',year=2000)

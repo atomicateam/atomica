@@ -12,7 +12,7 @@ Last update: 2018may28
       </div>
       <br/><br/>
       <p>Optima TB is currently under development. Development is supported through a partnership
-        between the <a href="http://www.burnet.edu.au">Burnet Institute</a> and the <a href="http://www.worldbank.org">World Bank</a>.</p>
+        between the <a href="http://www.burnet.edu.au">Burnet Institute</a> and the <a href="http://www.worldbank.org">World Bank</a>, under the auspices of the <a href="http://www.ocds.co">Optima Consortium for Decision Science</a>.</p>
 
     <p>Technical information:</p>
 

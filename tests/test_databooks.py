@@ -1,4 +1,6 @@
-import atomica.ui as au
+## This script tests some databook IO operations
+
+# import atomica.ui as au
 from atomica.core.excel import AtomicaSpreadsheet, transfer_comments
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData
@@ -60,7 +62,6 @@ for transfer in data.transfers:
 
 d2 = ProjectData.new(F,np.arange(2000,2017),pops=pops,transfers=transfers)
 d2.save('./temp/d_cleared.xlsx')
-
 
 # Modify incomplete databook
 d2 = ProjectData.from_spreadsheet('./temp/d_blug_blank.xlsx',F)

@@ -7,6 +7,9 @@ import numpy as np
 import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
+from .programs import ProgramInstructions
+import logging
+logger = logging.getLogger(__name__)
 
 class Scenario(NamedItem):
     def __init__(self, name):
@@ -80,6 +83,7 @@ class ParameterScenario(Scenario):
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
+                # If the Parameter had an assumption, then expand the assumption out first
                 if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
                     par.t[pop_label] = np.array([settings.sim_start, settings.sim_end])
                     par.y[pop_label] = par.y[pop_label] * np.ones(par.t[pop_label].shape)
@@ -91,70 +95,65 @@ class ParameterScenario(Scenario):
                     onset = np.zeros((len(overwrite['y']),))
                     onset[0] = overwrite['smooth_onset']
                 else:
-                    assert len(overwrite['smooth_onset']) == len(overwrite['y']), \
-                        'Smooth onset must be either a scalar or an array with length matching y-values'
+                    assert len(overwrite['smooth_onset']) == len(overwrite['y']), 'Smooth onset must be either a scalar or an array with length matching y-values'
                     onset = overwrite['smooth_onset']
 
                 # Now, insert all of the program overwrites
+                if len(overwrite['t']) != len(overwrite['y']):
+                    raise AtomicaException('Number of time points in overwrite does not match number of values')
+
+                if len(overwrite['t']) == 1:
+                    logger.warning('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
+
                 for i in range(0, len(overwrite['t'])):
 
                     # Account for smooth onset
                     if onset[i] > 0:
                         t = overwrite['t'][i] - onset[i]
-                        if i == 0:
-                            # Interpolation does not rescale, so don't worry about it here
-                            y = par.interpolate(np.array([t]), pop_label)
-                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
-                            par.insert_value_pair(t, y, pop_label)
-                        elif t > overwrite['t'][i-1]:
+
+                        if i > 0 and t > overwrite['t'][i - 1]:
+                            # If the smooth onset extends to before the previous point, then just use the
+                            # previous point directly instead
                             y = overwrite['y'][i - 1] / par.y_factor[pop_label]
                             par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
                             par.insert_value_pair(t, y, pop_label)
                         else:
-                            par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
+                            # Otherwise, get the value at the smooth onset time, add it as a control
+                            # point, and remove any intermediate points
+                            y = par.interpolate(np.array([t]), pop_label)
+                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
+                            par.insert_value_pair(t, y, pop_label)
+                    elif i > 0:
+                        # If not doing smooth onset, and this is not the first point being overwritten,
+                        # then remove all control points between this point and the last one
+                        par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
                     par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)
 
-                # Add an extra point
+                # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
 
             new_parset.name = self.name + '_' + parset.name
             return new_parset
 
-# class BudgetScenario(Scenario):
-#
-#     def __init__(self, name, scenario_values=None, **kwargs):
-#         super(BudgetScenario, self).__init__(name)
-#         self.makeScenarioProgset(budget_allocation=scenario_values)
-#         self.budget_allocation = budget_allocation
-#
-#     def get_progset(self, progset, settings, budget_options):
-#         """
-#         Get the updated program set and budget allocation for this scenario.
-#         This combines the values in the budget allocation with the values for the scenario.
-#
-#         Note that this assumes that all other budget allocations that are NOT
-#         specified in budget_options are left as they are.
-#
-#         Params:
-#             progset            program set object
-#             budget_options     budget_options dictionary
-#         """
-#         new_budget_options = dcp(budget_options)
-#         if self.overwrite:
-#             for prog in self.budget_allocation.keys():
-#                 new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
-#
-#         else:  # we add the amount as additional funding
-#             for prog in self.budget_allocation.keys():
-#
-#                 if new_budget_options['init_alloc'].has_key(prog):
-#                     new_budget_options['init_alloc'][prog] += self.budget_allocation[prog]
-#                 else:
-#                     new_budget_options['init_alloc'][prog] = self.budget_allocation[prog]
-#
-#         return progset, new_budget_options
+class BudgetScenario(Scenario):
+
+    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, verbose=False):
+        if verbose: print('Creating budget scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
+        self.name = name
+        self.parsetname = parsetname
+        self.progsetname = progsetname
+        self.alloc = alloc
+        self.start_year = start_year
+        return None
+    
+    def run(self, project=None):
+        instructions = ProgramInstructions(alloc=self.alloc, start_year=self.start_year) # Instructions for default spending
+        result = project.run_sim(parset=self.parsetname, progset=self.progsetname, progset_instructions=instructions, result_name=self.name)
+        return result
+
+
 #
 #
 # class CoverageScenario(BudgetScenario):

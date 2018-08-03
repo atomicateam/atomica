@@ -23,6 +23,11 @@ from .system import AtomicaException, NotFoundError
 from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
+from .structure import FrameworkSettings as FS
+import scipy.interpolate
+
+import logging
+logger = logging.getLogger(__name__)
 
 from six import string_types
 import logging
@@ -236,16 +241,14 @@ class PlotData(object):
 
                         for link in vars:
                             data_dict[output_label] += link.vals
-                            compsize[output_label] += (
-                                link.source.vals if not link.source.is_junction else link.source.outflow)
+                            compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
                         if t_bins is None:  # Annualize if not time aggregating
                             data_dict[output_label] /= dt
                             output_units[output_label] = vars[0].units + '/year'
                         else:
-                            output_units[output_label] = vars[
-                                0].units  # If we sum links in a bin, we get a number of people
-                        data_label[output_label] = vars[0].parameter.name
+                            output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
+                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
@@ -450,6 +453,14 @@ class PlotData(object):
             assert (all(np.equal(self.series[i].tvec, tvec))), 'All series must have the same time points'
         return tvec, t_labels
 
+    def interpolate(self,t2):
+        # This will interpolate all Series onto a new time axis
+        # Note that NaNs will be set anywhere that extrapolation is needed
+        t2 = sc.promotetoarray(t2)
+        for series in self.series:
+            series.vals = series.interpolate(t2)
+            series.tvec = t2
+
     def __getitem__(self, key):
         # key is a tuple of (result,pop,output)
         # retrive a single Series e.g. plotdata['default','0-4','sus']
@@ -521,8 +532,7 @@ class PlotData(object):
 
 
 class Series(object):
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None,
-                 units=''):
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None,units=''):
         self.tvec = np.copy(tvec)
         self.t_labels = np.copy(self.tvec)  # Iterable array of time labels - could become strings like [2010-2014]
         self.vals = np.copy(vals)
@@ -533,9 +543,18 @@ class Series(object):
         self.data_label = data_label  # Used to identify data for plotting
         self.units = units
 
+        if np.any(np.isnan(vals)):
+            logger.warning('%s contains NaNs' % (self))
+
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)
 
+    def interpolate(self,t2):
+        # Return an np.array() with the values of this series interpolated onto the requested
+        # time array t2. To ensure results are not misleading, extrapolation is disabled
+        # and will return NaN if t2 contains values outside the original time range
+        f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
+        return f(sc.promotetoarray(t2))
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
@@ -806,7 +825,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     return figs
 
 
-def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -815,6 +834,8 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
     # - data - Draw scatter points for data wherever the output label matches
     #   a data label. Only draws data if the plot_type is 'line'
     global settings
+    
+    if axis is None: axis = 'outputs'
 
     assert axis in ['outputs', 'results', 'pops']
 
@@ -936,8 +957,6 @@ def plot_series(plotdata, plot_type='line', axis='outputs', data=None):
 def plot_cascade(result,cascade,pops='all',year=None):
     # For inputs, see `Result.get_cascade_vals`
 
-    print('Making cascade plot')
-    import pylab as pl
     from matplotlib.pyplot import rc
     rc('font', size=14)
 

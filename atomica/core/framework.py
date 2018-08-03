@@ -36,6 +36,7 @@ class ProjectFramework(object):
                 for table in tables:
                     # Get a dataframe
                     df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
+                    df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
                     df.columns = df.iloc[0]
                     df = df[1:]
                     self.sheets[worksheet.title].append(df)
@@ -176,10 +177,12 @@ class ProjectFramework(object):
             from_comp = from_row[0]
             assert from_comp in comp_names
             from_row = from_row[1:]
-            for to_comp,par_name in from_row.iteritems():
-                assert par_name in self.transitions, 'Parameter %s appears in the transition matrix but not on the Parameters page' % (par_name)
-                assert to_comp in comp_names
-                self.transitions[par_name].append((from_comp,to_comp))
+            for to_comp,par_names in from_row.iteritems():
+                for par_name in par_names.split(','):
+                    par_name = par_name.strip()
+                    assert par_name in self.transitions, 'Parameter %s appears in the transition matrix but not on the Parameters page' % (par_name)
+                    assert to_comp in comp_names
+                    self.transitions[par_name].append((from_comp,to_comp))
 
     def _validate(self):
         # This function validates the content of Framework. There are two aspects to this
@@ -187,26 +190,44 @@ class ProjectFramework(object):
         # - Checking that the provided information is internally consistent
 
         # Check for required sheets
+<<<<<<< HEAD
         for page in ['Compartments','Parameters','Characteristics','Transitions']:
+=======
+        for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
+>>>>>>> develop
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
         import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
         if 'Databook Page' not in self.sheets:
             self.sheets['Databook Pages'] = pd.DataFrame
             
 
+        if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
+            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
+
+        if 'Plot' in self.sheets and 'Plots' not in self.sheets:
+            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
+
         ### VALIDATE COMPARTMENTS
+<<<<<<< HEAD
         required_columns = ['Display Name']
+=======
+        required_columns = ['Display Name','Is Source', 'Is Sink']
+>>>>>>> develop
         defaults = {
             'Is Sink':'n',
             'Is Source':'n',
             'Is Junction':'n',
             'Can Calibrate':'n',
+<<<<<<< HEAD
             'Databook Page':'Data', # Default is for it to all appear on a single page
+=======
+            'Databook Page':None,
+            'Default Value':None,
+>>>>>>> develop
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
-            'Export': 'n',
         }
         valid_content = {
-            'Display Name':None,
+            'Display Name':None, # Valid content being `None` means that it just cannot be empty
             'Is Sink':{'y','n'},
             'Is Source':{'y','n'},
             'Is Junction':{'y','n'},
@@ -223,7 +244,7 @@ class ProjectFramework(object):
         else:
             fill_ones = self.comps['Setup Weight'].isnull() 
             self.comps['Setup Weight'][fill_ones] = 1
-            self.comps['Setup Weight'].fillna(0, inplace=True)
+            self.comps['Setup Weight'] = self.comps['Setup Weight'].fillna(0)
 
         # VALIDATE THE COMPARTMENT SPECIFICATION
         for index,row in self.comps.iterrows():
@@ -240,16 +261,20 @@ class ProjectFramework(object):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
         ### VALIDATE PARAMETERS
+<<<<<<< HEAD
+=======
+
+>>>>>>> develop
         required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
             'Minimum Value':None,
             'Maximum Value':None,
             'Function':None,
+            'Databook Page':None,
             'Databook Order':None,
             'Is Impact':'n',
             'Can Calibrate':'n',
-            'Export':'n',
         }
         valid_content = {
             'Display Name': None,
@@ -307,10 +332,13 @@ class ProjectFramework(object):
             'Denominator':None,
             'Default Value':None,
             'Function':None,
+<<<<<<< HEAD
             'Databook Page':'Data', # Default is for it to all appear on a single page
+=======
+            'Databook Page': None,
+>>>>>>> develop
             'Databook Order':None,
             'Can Calibrate':'n',
-            'Export': 'n',
         }
         valid_content = {
             'Display Name': None,
@@ -326,7 +354,7 @@ class ProjectFramework(object):
         else:
             fill_ones = self.characs['Setup Weight'].isnull() & self.characs['Databook Page']
             self.characs['Setup Weight'][fill_ones] = 1
-            self.characs['Setup Weight'].fillna(0, inplace=True)
+            self.characs['Setup Weight'] = self.characs['Setup Weight'].fillna(0)
 
         for i,spec in self.characs.iterrows():
 
@@ -337,7 +365,22 @@ class ProjectFramework(object):
                     assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
 
         # VALIDATE INTERACTIONS
+<<<<<<< HEAD
         if self.interactions is not None: self.interactions.set_index('Code Name',inplace=True)
+=======
+        if 'Interactions' not in self.sheets:
+            self.sheets['Interactions'] = pd.DataFrame(columns=['Code Name','Display Name'])
+
+        required_columns = ['Display Name']
+        defaults = {
+            'Default Value':None,
+        }
+        valid_content = {
+            'Display Name': None,
+        }
+        self.interactions.set_index('Code Name',inplace=True)
+        self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
+>>>>>>> develop
 
         # VALIDATE NAMES - No collisions, no keywords
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) 
@@ -346,6 +389,9 @@ class ProjectFramework(object):
         for name in code_names:
             if ':' in name:
                 raise NotAllowedError('Cannot have a ":" in a code name')
+
+            if ',' in name:
+                raise NotAllowedError('Cannot have a "," in a code name')
 
             if name in FS.RESERVED_KEYWORDS:
                 raise NotAllowedError('Requested code name "%s" is a reserved keyword' % name)
@@ -380,7 +426,7 @@ class ProjectFramework(object):
             allowed_units = [item_spec["Format"]]
         else:
             # User choice if a transfer or a transition parameter.
-            if item_type in [FS.KEY_TRANSFER] or self.transitions[item_spec.name]:
+            if item_type in [FS.KEY_TRANSFER] or (item_spec.name in self.transitions and self.transitions[item_spec.name]):
                 allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
             # If not a transition, the format of this parameter is meaningless but can still be used when plotting
             else:
@@ -416,7 +462,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
         if col not in df:
             df[col] = default_value
         elif default_value is not None:
-            df[col].fillna(default_value,inplace=True)
+            df[col] = df[col].fillna(default_value)
 
     # Finally check content
     for col, validation in valid_content.items():
@@ -428,7 +474,9 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
             assert set(df[col]).issubset(validation), 'DataFrame column "%s" can only contain the following values: %s' % (col,validation)
 
     # Strip all strings
-    df.applymap(lambda x: x.strip() if type(x) is str else x)
+    df.applymap(lambda x: x.strip() if isinstance(x,string_types) else x)
+    if df.columns.isnull().any():
+        raise NotAllowedError('There cannot be any empty cells in the header row')
     df.columns = [x.strip() for x in df.columns]
 
     return df

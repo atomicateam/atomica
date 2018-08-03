@@ -83,7 +83,8 @@ class ProjectData(object):
 
         # First, check if it's the name of a TDVE
         if name in self.tdve:
-            return self.tdve[name].ts[key]
+            if key in self.tdve[name].ts:
+                return self.tdve[name].ts[key]
 
         # Then, if the key is None, we are working on a transfer parameter. So reconstruct the key
         if key is None:
@@ -167,9 +168,12 @@ class ProjectData(object):
                         interpop.ts[(from_pop,to_pop)] = ts
 
         # Finally, insert parameter and characteristic default values
-        for df in [framework.characs, framework.pars]:
+        for df in [framework.comps,framework.characs, framework.pars]:
             for _,spec in df.iterrows():
-                if 'Default Value' in spec and spec['Default Value'] and spec['Databook Page']:
+                # In order to write a default value
+                # - The default value should be present and not None
+                # - The quantity should appear in the databook
+                if 'Default Value' in spec and (spec['Default Value'] is not None) and spec['Databook Page']:
                     tdve = data.tdve[spec['Display Name']]
                     for ts in tdve.ts.values():
                         ts.insert(None,spec['Default Value'])
@@ -197,6 +201,11 @@ class ProjectData(object):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
+
+        # These sheets are optional - if none of these are provided in the databook
+        # then they will remain empty
+        self.transfers = list()
+        self.interpops = list()
 
         for sheet in workbook.worksheets:
             if sheet.title.startswith('#ignore'):
@@ -270,6 +279,19 @@ class ProjectData(object):
                             assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
                             if allowed_units:
                                 assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
+
+        for _,spec in framework.interactions.iterrows():
+            for tdc in self.interpops:
+                if tdc.code_name == spec.name:
+                    for (to_pop,from_pop),ts in tdc.ts.items():
+                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop,from_pop)
+                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title()
+                    break
+            else:
+                raise AtomicaException('Required interaction "%s" not found in databook' % spec.name)
+
         return True
 
     def to_spreadsheet(self):
@@ -405,6 +427,11 @@ class ProjectData(object):
 
     def _write_transfers(self):
         # Writes a sheet for every transfer
+
+        # Skip if no transfers
+        if not self.transfers:
+            return
+
         sheet = self._book.add_worksheet("Transfers")
         widths = dict()
         next_row = 0
@@ -421,7 +448,11 @@ class ProjectData(object):
         return
 
     def _write_interpops(self):
-        # Writes a sheet for every
+        # Writes a sheet for every interaction
+
+        # Skip if no interpops
+        if not self.interpops:
+            return
         sheet = self._book.add_worksheet("Interactions")
         widths = dict()
         next_row = 0
