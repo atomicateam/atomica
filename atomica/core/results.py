@@ -6,6 +6,7 @@ from .system import AtomicaException
 import matplotlib.pyplot as plt
 import ast
 from six import string_types
+from .excel import standard_formats
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -77,42 +78,81 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self, export_everything=False, filename=None):
-        """Convert output to a single DataFrame and optionally write it to a file"""
+    def export(self,filename):
+        # This function writes an XLSX file with the data corresponding to any Cascades or Plots
+        # that are present. Note that results are exported for every year by selecting integer years.
+        # Flow rates are annualized instantaneously. So for example, the flow will have values from
+        # 2014, 2015, 2016, but the 2015 flow rate is the actual flow at 2015.0 divided by dt, not the
+        # time-aggregated flow rate. Time-aggregation isn't appropriate here because many of the quantities
+        # plotted are probabilities. Selecting the annualized value at a particular year also means that the
+        # data being exported will match up with whatever plots are generated from within Atomica
+        #
+        # First, make a dataframe for all the plot data, if plots are specified in the cascade
+        from .plotting import PlotData
+        framework = self.framework
+        if 'Plots' not in self.framework.sheets:
+            plot_df = None
+        else:
+            plots_required = self.framework.sheets['Plots']
+            plot_df = []
+
+            # Now for each plot, we have one output and several populations
+            # We will have one dataframe for each output
+            for _,spec in plots_required.iterrows():
+                if 'Type' in spec and spec['Type'] == 'bar':
+                    continue # For now, don't do bars - not implemented yet
+
+                data = sc.odict()
+                popdata = PlotData(self,outputs=evaluate_plot_string(spec['Quantities']))
+                assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
+
+                original_tvals = popdata.tvals()[0]
+                new_tvals = np.arange(np.ceil(original_tvals[0]),np.floor(original_tvals[-1])+1)
+                for pop in popdata.pops:
+                    data[pop] = popdata[self.name,pop,popdata.outputs[0]].interpolate(new_tvals)
+                df = pd.DataFrame(data, index=new_tvals)
+                df = df.T
+                df.name = spec['Display Name']
+                plot_df.append(df)
+
+        writer = pd.ExcelWriter(filename + '.xlsx' if not filename.endswith('.xlsx') else filename,engine='xlsxwriter')
+        formats = standard_formats(writer.book)
+
+        # WRITE THE PLOTS
+        i = 0
+        for n, df in enumerate(plot_df):
+            df.to_excel(writer, 'Plots', startcol=0, startrow=i)
+            worksheet = writer.sheets['Plots']
+            worksheet.write_string(i,0, df.name,formats['center_bold'])
+            i += df.shape[0] + 2
+        worksheet = writer.sheets['Plots']
+        required_width = max(max([len(df.name) for df in plot_df]),max([max(df.index.str.len()) for df in plot_df]))
+        worksheet.set_column(0, 0, required_width * 1.1 + 1)
+        writer.save()
+        writer.close()
+
+        return
+
+    def export_raw(self, filename=None):
+        """Convert raw outputs to a single DataFrame and optionally write it to a file"""
 
         # Assemble the outputs into a dict
         d = dict()
 
-        if not export_everything:
-            exportable = set()
-            for df in [self.framework.comps,self.framework.characs,self.framework.pars]:
-                exports = df['Export']
-                for var,flag in zip(exports.index,exports.values):
-                    if flag == 'y':
-                        exportable.add(var)
-        else:
-            exportable = None
-
-
         for pop in self.model.pops:
             for comp in pop.comps:
-                if export_everything or comp.name in exportable:
-                    d[('compartments', pop.name, comp.name)] = comp.vals
+                d[('compartments', pop.name, comp.name)] = comp.vals
             for charac in pop.characs:
-                if charac.vals is not None:
-                    if export_everything or charac.name in exportable:
-                        d[('characteristics', pop.name, charac.name)] = charac.vals
+                d[('characteristics', pop.name, charac.name)] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    if export_everything or par.name in exportable:
-                        d[('parameters', pop.name, par.name)] = par.vals
+                    d[('parameters', pop.name, par.name)] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
                 key = ('flow rates', pop.name, link.name)
-                if export_everything or link.parameter.name in exportable:
-                    if key not in d:
-                        d[key] = np.zeros(self.t.shape)
-                    d[key] += link.vals / self.dt
+                if key not in d:
+                    d[key] = np.zeros(self.t.shape)
+                d[key] += link.vals / self.dt
 
         # Create DataFrame from dict
         df = pd.DataFrame(d, index=self.t)
@@ -136,27 +176,12 @@ class Result(NamedItem):
 
         this_plot = df.loc[df['Code Name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
-        if this_plot['Aggregate pops'] == 'y':
-            pops = 'all'
-
-        quantities = this_plot['Quantities']
-        if '{' in quantities or '[' in quantities:
-            # Evaluate the string to set lists and dicts - do at least a little validation
-            assert '__' not in quantities, 'Cannot use double underscores in functions'
-            assert len(quantities) < 1800  # Function string must be less than 1800 characters
-            fcn_ast = ast.parse(quantities, mode='eval')
-            for node in ast.walk(fcn_ast):
-                if not (node is fcn_ast):
-                    assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
-            compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
-            quantities = eval(compiled_code)
+        quantities = evaluate_plot_string(this_plot['Quantities'])
 
         d = PlotData(self, outputs=quantities, pops=pops,project=project)
         h = plot_series(d, axis='pops',data=(project.data if project is not None else None))
         plt.title(this_plot['Display Name'])
         return h
-
-
 
     def get_cascade_vals(self,cascade,pops='all',t_bins=None):
         '''
@@ -208,3 +233,34 @@ class Result(NamedItem):
         t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
 
         return cascade_output,t
+
+def evaluate_plot_string(plot_string):
+    # The plots in the framework are specified as strings - for example,
+    #
+    # plot_string = "{'New active DS-TB':['pd_div:flow','nd_div:flow']}"
+    #
+    # This needs to be (safely) evaluated so that the actual dict can be
+    # used. This function evaluates a string like this and returns a
+    # variable accordingly. For example
+    #
+    # x = evaluate_plot_string("{'New active DS-TB':['pd_div:flow','nd_div:flow']}")
+    #
+    # is the same as
+    #
+    # x = {'New active DS-TB':['pd_div:flow','nd_div:flow']}
+    #
+    # This will only happen if tokens associated with dicts and lists are present -
+    # otherwise the original string will just be returned directly
+
+    if '{' in plot_string or '[' in plot_string:
+        # Evaluate the string to set lists and dicts - do at least a little validation
+        assert '__' not in plot_string, 'Cannot use double underscores in functions'
+        assert len(plot_string) < 1800  # Function string must be less than 1800 characters
+        fcn_ast = ast.parse(plot_string, mode='eval')
+        for node in ast.walk(fcn_ast):
+            if not (node is fcn_ast):
+                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
+        compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
+        return eval(compiled_code)
+    else:
+        return plot_string

@@ -759,7 +759,7 @@ class Population(object):
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
-    def __init__(self, settings, framework, parset, progset=None, instructions=None):
+    def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
@@ -769,7 +769,7 @@ class Model(object):
 
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
-        self.program_instructions = sc.dcp(instructions) # program instructions
+        self.program_instructions = sc.dcp(program_instructions) # program instructions
         self.program_cache = None
 
         self.t = None
@@ -1243,7 +1243,7 @@ class Model(object):
             for par in pars:
                 par.constrain(ti)
 
-def run_model(settings, framework, parset, progset=None, progset_instructions=None, name=None):
+def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):
     """
     Processes the TB epidemiological model.
     Parset-based overwrites are generally done externally, so the parset is only used for model-building.
@@ -1251,7 +1251,7 @@ def run_model(settings, framework, parset, progset=None, progset_instructions=No
     The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
     """
 
-    m = Model(settings, framework, parset, progset, progset_instructions)
+    m = Model(settings, framework, parset, progset, program_instructions)
     m.process()
-    # TODO: Pass progset and instructions into results just like parset.
+    # NOTE - the `model` object contains model.framework, model.progset, and model.program_instructions
     return Result(model=m, parset=parset, name=name)

@@ -174,6 +174,12 @@ class ProjectFramework(object):
         for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
 
+        if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
+            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
+
+        if 'Plot' in self.sheets and 'Plots' not in self.sheets:
+            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
+
         ### VALIDATE COMPARTMENTS
         required_columns = ['Display Name','Is Source', 'Is Sink']
         defaults = {
@@ -184,7 +190,6 @@ class ProjectFramework(object):
             'Databook Page':None,
             'Default Value':None,
             'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
-            'Export': 'n',
         }
         valid_content = {
             'Display Name':None, # Valid content being `None` means that it just cannot be empty
@@ -232,7 +237,6 @@ class ProjectFramework(object):
             'Databook Order':None,
             'Is Impact':'n',
             'Can Calibrate':'n',
-            'Export':'n',
         }
         valid_content = {
             'Display Name': None,
@@ -293,7 +297,6 @@ class ProjectFramework(object):
             'Databook Page': None,
             'Databook Order':None,
             'Can Calibrate':'n',
-            'Export': 'n',
         }
         valid_content = {
             'Display Name': None,
