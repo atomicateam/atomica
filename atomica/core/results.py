@@ -90,6 +90,7 @@ class Result(NamedItem):
         # First, make a dataframe for all the plot data, if plots are specified in the cascade
         from .plotting import PlotData
         framework = self.framework
+
         if 'Plots' not in self.framework.sheets:
             plot_df = None
         else:
@@ -108,8 +109,9 @@ class Result(NamedItem):
 
                 original_tvals = popdata.tvals()[0]
                 new_tvals = np.arange(np.ceil(original_tvals[0]),np.floor(original_tvals[-1])+1)
+                popdata.interpolate(new_tvals)
                 for pop in popdata.pops:
-                    data[pop] = popdata[self.name,pop,popdata.outputs[0]].interpolate(new_tvals)
+                    data[pop] = popdata[self.name,pop,popdata.outputs[0]].vals
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
                 df.name = spec['Display Name']

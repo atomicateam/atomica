@@ -453,6 +453,14 @@ class PlotData(object):
             assert (all(np.equal(self.series[i].tvec, tvec))), 'All series must have the same time points'
         return tvec, t_labels
 
+    def interpolate(self,t2):
+        # This will interpolate all Series onto a new time axis
+        # Note that NaNs will be set anywhere that extrapolation is needed
+        t2 = sc.promotetoarray(t2)
+        for series in self.series:
+            series.vals = series.interpolate(t2)
+            series.tvec = t2
+
     def __getitem__(self, key):
         # key is a tuple of (result,pop,output)
         # retrive a single Series e.g. plotdata['default','0-4','sus']
