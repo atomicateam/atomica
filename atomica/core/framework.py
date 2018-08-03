@@ -128,21 +128,6 @@ class ProjectFramework(object):
     def get_interaction(self,interaction_name):
         return self.interactions.loc[interaction_name]
 
-    @property
-    def dbpages(self):
-        # Shortcut to Interactions sheet
-        return self.sheets.get('Databook Pages')
-
-    @dbpages.setter
-    def dbpages(self, value):
-        assert isinstance(value,pd.DataFrame)
-        if 'Databook Pages' in self.sheets.keys(): self.sheets['Databook Pages'] = value
-        else: raise AtomicaException('Cannot set value as Databook Pages sheet was not defined.')
-
-    def get_dbpages(self,page_name):
-        return self.dbpages.loc[page_name]
-
-
     def get_variable(self,name):
         # This function will return either a Comp, a Charac, Par, or Interaction
         # Lookup can be based on code name or full name
@@ -192,10 +177,6 @@ class ProjectFramework(object):
         # Check for required sheets
         for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
-        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-        if 'Databook Page' not in self.sheets:
-            self.sheets['Databook Pages'] = pd.DataFrame
-            
 
         if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
             logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
@@ -228,9 +209,9 @@ class ProjectFramework(object):
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
         if 'Setup Weight' not in self.comps:
-            self.comps['Setup Weight'] = (~self.comps['Databook Order'].isnull()).astype(int)
+            self.comps['Setup Weight'] = (~self.comps['Databook Page'].isnull()).astype(int)
         else:
-            fill_ones = self.comps['Setup Weight'].isnull() 
+            fill_ones = self.comps['Setup Weight'].isnull() & self.comps['Databook Page']
             self.comps['Setup Weight'][fill_ones] = 1
             self.comps['Setup Weight'] = self.comps['Setup Weight'].fillna(0)
 
@@ -359,7 +340,7 @@ class ProjectFramework(object):
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
         # VALIDATE NAMES - No collisions, no keywords
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) 
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index)  + list(self.interactions.index) + list(self.interactions['Display Name'])
         if self.interactions is not None: code_names += list(self.interactions.index)
         tmp = set()
         for name in code_names:
