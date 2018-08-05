@@ -951,10 +951,12 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
 
     return figs
 
-
+# def plot_multi_cascade(results,years,pops):
+#     # This is a cascade plot built on plot_bars
 
 
 def plot_cascade(result,cascade,pops='all',year=None):
+    # This is the fancy cascade plot, which only applies to a single result at a single time
     # For inputs, see `Result.get_cascade_vals`
 
     from matplotlib.pyplot import rc
@@ -962,8 +964,11 @@ def plot_cascade(result,cascade,pops='all',year=None):
 
     if year is None:
         year = result.t[0] # Draw cascade for first year
+    else:
+        year = sc.promotetoarray(year)
+        assert len(year) == 1
 
-    cascade_vals,t = result.get_cascade_vals(cascade,pops,[year,year])
+    cascade_vals,t = result.get_cascade_vals(cascade,pops,year)
     assert len(t) == 1, 'Plot cascade requires time aggregation'
     cascade_array = np.hstack(cascade_vals.values())
 
