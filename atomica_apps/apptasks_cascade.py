@@ -22,11 +22,11 @@ from rpcs import load_project, save_project, get_plots
 #
 
 # Dictionary to hold all of the registered task functions in this module.
-task_func_dict_cascade = {}
+task_func_dict = {}
 
 # Task function registration decorator created using call to 
 # make_register_async_task().
-register_async_task_cascade = make_register_async_task(task_func_dict_cascade)
+register_async_task = make_register_async_task(task_func_dict)
 
 # Create the Celery instance for this module.
 celery_instance = make_celery_instance(config=config_cascade)
@@ -39,8 +39,8 @@ celery_instance = make_celery_instance(config=config_cascade)
 #def dummy_result():
 #    return 'here be dummy result'
 
-@register_async_task_cascade
-def run_optimization(project_id, optim_name, plot_options=None, saveresults=False):
+@register_async_task
+def run_cascade_optimization(project_id, optim_name, plot_options=None, saveresults=False):
     # Load the projects from the DataStore.
     prj.apptasks_load_projects(config_cascade)
     
@@ -56,4 +56,4 @@ def run_optimization(project_id, optim_name, plot_options=None, saveresults=Fals
 
 # Add the asynchronous task functions in this module to the tasks.py module 
 # so run_task() can call them.
-add_task_funcs(task_func_dict_cascade)
+add_task_funcs(task_func_dict)
