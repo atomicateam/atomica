@@ -183,21 +183,11 @@ def save_framework_as_new(frame, user_id):
     object and put this in the framework collection, after getting a fresh UID
     for this Framework.  Then do the actual save.
     """ 
-    
-    # Set a new framework UID, so we aren't replicating the UID passed in.
-    frame.uid = sc.uuid()
-    
-    # Create the new framework entry and enter it into the FrameworkCollection.
-    frameSO = frw.FrameworkSO(frame, user_id)
+    frame.uid = sc.uuid() # Set a new framework UID, so we aren't replicating the UID passed in.
+    frameSO = frw.FrameworkSO(frame, user_id) # Create the new framework entry and enter it into the FrameworkCollection.
     frw.frame_collection.add_object(frameSO)  
-
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> save_framework_as_new '%s'" % frame.name)
-
-    # Save the changed Framework object to the DataStore.
-    save_framework(frame)
-    
+    print(">> save_framework_as_new '%s'" % frame.name) # Display the call information.
+    save_framework(frame) # Save the changed Framework object to the DataStore.
     return None
 
 
@@ -350,16 +340,16 @@ def save_project_as_new(proj, user_id):
 # RPC definitions
 @register_RPC()
 def get_version_info():
-	''' Return the information about the project. '''
-	gitinfo = sc.gitinfo(__file__)
-	version_info = {
-	       'version':   au.version,
-	       'date':      au.versiondate,
-	       'gitbranch': gitinfo['branch'],
-	       'githash':   gitinfo['hash'],
-	       'gitdate':   gitinfo['date'],
-	}
-	return version_info
+    ''' Return the information about the project. '''
+    gitinfo = sc.gitinfo(__file__)
+    version_info = {
+           'version':   au.version,
+           'date':      au.versiondate,
+           'gitbranch': gitinfo['branch'],
+           'githash':   gitinfo['hash'],
+           'gitdate':   gitinfo['date'],
+    }
+    return version_info
 
 
 ##################################################################################
@@ -464,30 +454,16 @@ def load_zip_of_frw_files(framework_ids):
     Given a list of framework UIDs, make a .zip file containing all of these 
     frameworks as .frw files, and return the full path to this file.
     """
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-
-    # Build a list of frw.FrameworkSO objects for each of the selected frameworks, 
-    # saving each of them in separate .frw files.
-    frws = [load_framework_record(id).save_as_file(dirname) for id in framework_ids]
-    
-    # Make the zip file name and the full server file path version of the same..
-    zip_fname = 'Frameworks %s.zip' % sc.getdate()
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    frws = [load_framework_record(id).save_as_file(dirname) for id in framework_ids] # Build a list of frw.FrameworkSO objects for each of the selected frameworks, saving each of them in separate .frw files.
+    zip_fname = 'Frameworks %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
-    
-    # Create the zip file, putting all of the .frw files in a frameworks 
-    # directory.
-    with ZipFile(server_zip_fname, 'w') as zipfile:
+    with ZipFile(server_zip_fname, 'w') as zipfile: # Create the zip file, putting all of the .frw files in a frameworks directory.
         for framework in frws:
             zipfile.write(os.path.join(dirname, framework), 'frameworks/{}'.format(framework))
-            
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> load_zip_of_frw_files %s" % (server_zip_fname))
+    print(">> load_zip_of_frw_files %s" % (server_zip_fname)) # Display the call information.
+    return server_zip_fname # Return the server file name.
 
-    # Return the server file name.
-    return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
 def add_demo_framework(user_id, framework_name):
@@ -555,59 +531,31 @@ def upload_frameworkbook(databook_filename, framework_id):
 @register_RPC(validation_type='nonanonymous user')
 def update_framework_from_summary(framework_summary):
     """
-    Given the passed in framework summary, update the underlying framework 
-    accordingly.
+    Given the passed in framework summary, update the underlying framework accordingly.
     """ 
-
-    # Load the framework corresponding with this summary.
-    frame = load_framework(framework_summary['framework']['id'])
-       
-    # Use the summary to set the actual framework, checking to make sure that 
-    # the framework name is unique.
-    frame_uid = uuid.UUID(framework_summary['framework']['id']).hex
+    frame = load_framework(framework_summary['framework']['id']) # Load the framework corresponding with this summary.
+    frame_uid = sc.uuid(framework_summary['framework']['id']).hex # Use the summary to set the actual framework, checking to make sure that the framework name is unique.
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
     frame.name = get_unique_name(framework_summary['framework']['name'], other_names=other_names)
-    
-    # Set the modified time to now.
-    frame.modified = sc.today()
-    
-    # Save the changed framework to the DataStore.
-    save_framework(frame)
+    frame.modified = sc.today() # Set the modified time to now.
+    save_framework(frame) # Save the changed framework to the DataStore.
+    return None
     
 @register_RPC(validation_type='nonanonymous user')    
 def copy_framework(framework_id):
     """
-    Given a framework UID, creates a copy of the framework with a new UID and 
-    returns that UID.
+    Given a framework UID, creates a copy of the framework with a new UID and returns that UID.
     """
-    
-    # Get the Framework object for the framework to be copied.
-    framework_record = load_framework_record(framework_id, raise_exception=True)
+    framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
     frame = framework_record.frame
-    
-    # Make a copy of the framework loaded in to work with.
-    new_framework = sc.dcp(frame)
-    
-    # Just change the framework name, and we have the new version of the 
-    # Framework object to be saved as a copy.
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    new_framework = sc.dcp(frame) # Make a copy of the framework loaded in to work with.
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Just change the framework name, and we have the new version of the Framework object to be saved as a copy
     new_framework.name = get_unique_name(frame.name, other_names=other_names)
-    
-    # Set the user UID for the new frameworks record to be the current user.
-    user_id = current_user.get_id() 
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> copy_framework %s" % (new_framework.name)) 
-    
-    # Save a DataStore frameworks record for the copy framework.
-    save_framework_as_new(new_framework, user_id)
-    
-    # Remember the new framework UID (created in save_framework_as_new()).
-    copy_framework_id = new_framework.uid
-
-    # Return the UID for the new frameworks record.
-    return { 'frameworkId': copy_framework_id }
+    user_id = current_user.get_id()  # Set the user UID for the new frameworks record to be the current user.
+    print(">> copy_framework %s" % (new_framework.name))  # Display the call information.
+    save_framework_as_new(new_framework, user_id) # Save a DataStore frameworks record for the copy framework.
+    copy_framework_id = new_framework.uid # Remember the new framework UID (created in save_framework_as_new()).
+    return { 'frameworkId': copy_framework_id } # Return the UID for the new frameworks record.
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
@@ -616,29 +564,17 @@ def create_framework_from_frw_file(frw_filename, user_id):
     Given a .frw file name and a user UID, create a new framework from the file 
     with a new UID and return the new UID.
     """
-    
-    # Display the call information.
     print(">> create_framework_from_frw_file '%s'" % frw_filename)
-    
-    # Try to open the .frw file, and return an error message if this fails.
     print('Trying to open the file')
-    try:
-        
+    try: # Try to open the .frw file, and return an error message if this fails.
         frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
     except Exception as E:
         print('ERROR, load failed: %s' % repr(E))
         return { 'error': 'BadFileFormatError' }
-    
-    # Reset the framework name to a new framework name that is unique.
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Reset the framework name to a new framework name that is unique.
     frame.name = get_unique_name(frame.name, other_names=other_names)
-    
-    # Save the new framework in the DataStore.
-    save_framework_as_new(frame, user_id)
-    
+    save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
     print('Created new framework %s, uid:%s' % (frame.name, frame.uid))
-    
-    # Return the new framework UID in the return message.
     return { 'frameworkId': str(frame.uid) }
 
 
@@ -816,19 +752,19 @@ def add_demo_project(user_id, project_name='default'):
     Add a demo project
     """
     if project_name is 'default':
-		new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-		proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
-		proj.name = new_proj_name
+        new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
+        proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj.name = new_proj_name
     else:
-		try:
-		    which = label_mapping[project_name]
-			new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
-			proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
-			proj.name = new_proj_name
-		    print('Adding demo project %s/%s...' % (project_name, which))
-		except Exception:
-		    errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
-		    raise Exception(errormsg)
+        try:
+            which = label_mapping[project_name]
+            new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
+            proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+            proj.name = new_proj_name
+            print('Adding demo project %s/%s...' % (project_name, which))
+        except Exception as E:
+            errormsg = 'Invalid demo framework name, must be one of "%s", not "%s": %s' % (label_mapping.keys(), project_name, repr(E))
+            raise Exception(errormsg)
 
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> add_demo_project %s" % (proj.name))    
