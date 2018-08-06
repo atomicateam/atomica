@@ -13,6 +13,7 @@ import scipy.optimize
 from collections import defaultdict
 from .structure import TimeSeries
 import logging
+from .results import Result
 logger = logging.getLogger(__name__)
 
 class Adjustable(object):
@@ -166,6 +167,20 @@ class Measurable(object):
         self.fcn = fcn # transformation function to apply
 
     def eval(self,model):
+        # This is the main interface with the optimization code - this function gets called
+        # to return the transformed, weighted objective value from this Measurable for use in ASD
+        # Only overload this if you want to customize the transformation and weighting
+        val = self.get_objective_val(model)
+        return self._transform_val(val)
+
+    def get_objective_val(self,model):
+        # This returns the base objective value, prior to any function transformation
+        # or weighting. The function transformation and weighting are handled by this base
+        # class - derived classes may wish to not expose things like the function mapping
+        # in their constructors, if that wouldn't be appropriate. But otherwise, they can
+        # inherit this behaviour for free. So derived classes should overload this method
+        #
+        # The base class has the default behaviour that the 'measurable name' is a model variable
         if len(self.t) == 1:
             t_filter = model.t==self.t # boolean vector for whether to use the time point or not
         else:
@@ -184,7 +199,10 @@ class Measurable(object):
                             val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
                         else:
                             val += np.sum(var.vals[t_filter])
+        return val
 
+    def _transform_val(self,val):
+        # Apply function transformation and weight to the value
         if self.fcn:
             val = self.fcn(val)
         val *= self.weight
@@ -219,6 +237,48 @@ class AtLeastMeasurable(Measurable):
         self.weight = 1.0
         self.threshold = threshold
         self.fcn = lambda x: np.inf if x<threshold else 0.0
+
+class MaximizeCascadeFinalStage(Measurable):
+    # This Measurable will maximize the number of people in the final cascade stage, whatever that stage is
+    # e.g. `measurable = MaximizeCascadeFinalStage('main',2020)
+    # If multiple years are provided, they will be summed over
+    # Could add option to weight specific years later on, if desired
+    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0):
+        # pop_names can be a single pop name (including all), or a list of pop names
+        # aggregations are supported by setting pop_names to a dict e.g.
+        # pop_names = {'foo':['0-4','5-14']}
+        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        if not isinstance(self.pop_names, list):
+            self.pop_names = [self.pop_names]
+
+    def get_objective_val(self,model):
+        result = Result(model=model)
+        val = 0
+        for pop_name in self.pop_names:
+            cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)
+            val += np.sum(cascade_vals[0][-1]) # The sum of final cascade stage values
+        return val
+
+class MaximizeCascadeConversionRate(Measurable):
+    # This Measurable will maximize the conversion rate, summed over all cascade stages
+    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0):
+        # pop_names can be a single pop name (including all), or a list of pop names
+        # aggregations are supported by setting pop_names to a dict e.g.
+        # pop_names = {'foo':['0-4','5-14']}
+        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        if not isinstance(self.pop_names,list):
+            self.pop_names = [self.pop_names]
+
+    def get_objective_val(self,model):
+        result = Result(model=model)
+        val = 0
+        for pop_name in self.pop_names:
+            cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)[0]
+            cascade_array = np.hstack(cascade_vals.values())
+            conversion = cascade_array[1:] / cascade_array[0:-1]
+            val += np.sum(conversion)
+        return val
+
 
 class Constraint(object):
     # A Constraint represents a condition that must be satisfied by the Instructions
@@ -406,9 +466,16 @@ class Optimization(NamedItem):
         self.progsetname = progsetname
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
-        self.adjustments = adjustments
-        self.measurables = measurables
-        self.constraints = constraints
+
+        assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
+        assert measurables is not None, 'Must specify some measurables to carry out an optimization'
+        self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
+        self.measurables = [measurables] if not isinstance(measurables,list) else measurables
+
+        if constraints:
+            self.constraints = [constraints] if not isinstance(constraints,list) else constraints
+        else:
+            self.constraints = None
         
         if adjustments is None or measurables is None:
             raise AtomicaException('Must supply either a json or an adjustments+measurables')
