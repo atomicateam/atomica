@@ -84,14 +84,14 @@ Last update: 2018-07-29
               <input type="checkbox" @click="uncheckSelectAll()" v-model="projectSummary.selected"/>
             </td>
             <td v-if="projectSummary.renaming !== ''">
-			        <input type="text"
+              <input type="text"
                      class="txbox"
                      @keyup.enter="renameProject(projectSummary)"
                      v-model="projectSummary.renaming"/>
-			      </td>
-			      <td v-else>
-			        {{ projectSummary.project.name }}
-			      </td>
+            </td>
+            <td v-else>
+              {{ projectSummary.project.name }}
+            </td>
             <td>
               <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
               <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
@@ -122,6 +122,9 @@ Last update: 2018-07-29
               </button>
             </td>
             <td style="white-space: nowrap">
+              <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
+                <i class="ti-plus"></i>
+              </button>
               <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>

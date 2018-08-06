@@ -15,7 +15,7 @@ Last update: 2018-03-25
         </ul>
       </nav>
       <div class="copyright pull-center">
-        &copy; 2018 by the Optima TB Working Group
+        &copy; 2018 by the <a href="http://ocds.co">Optima TB Working Group</a>
       </div>
     </div>
   </footer>
