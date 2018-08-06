@@ -1,14 +1,11 @@
-from .plotting import PlotData, grid_color_map, plot_legend
+from .plotting import grid_color_map, plot_legend
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import textwrap
 import sciris.core as sc
 import matplotlib
-from six import string_types
 from .utils import NDict
 from .results import Result
-from matplotlib.table import Table
 
 def plot_multi_cascade(results,cascade,pops='all',year=None):
     # This is a cascade plot that handles multiple results and times
