@@ -269,6 +269,9 @@ class ProjectFramework(object):
         self.pars.set_index('Code Name',inplace=True)
         self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
 
+        # Make sure all units are lowercase
+        self.pars['Format'] = self.pars['Format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+
         # Parse the transitions matrix
         self._process_transitions()
 
@@ -355,6 +358,7 @@ class ProjectFramework(object):
         valid_content = {
             'Display Name': None,
         }
+
         self.interactions.set_index('Code Name',inplace=True)
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
@@ -431,7 +435,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
 
     # First check required columns are present
     if any(df.index.isnull()):
-        raise AtomicaException('DataFrame index cannot be done (this probably means a "Code Name" was left empty')
+        raise AtomicaException('DataFrame index cannot be none (this probably means a "Code Name" was left empty')
 
     for col in required_columns:
         assert col in df, 'DataFrame did not contain the required column "%s"' % col
