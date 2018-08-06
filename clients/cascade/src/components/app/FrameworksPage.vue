@@ -91,13 +91,13 @@ Last update: 2018-07-29
             {{ frameworkSummary.framework.name }}
           </td>
           <td>
-<!--            <button class="btn __green" @click="openFramework(frameworkSummary.framework.id)">Open</button> -->
-            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" data-tooltip="Copy">
-              <i class="ti-files"></i>
-            </button>
             <button class="btn" @click="renameFramework(frameworkSummary)" data-tooltip="Rename">
               <i class="ti-pencil"></i>
             </button>
+            <button class="btn" @click="copyFramework(frameworkSummary.framework.id)" data-tooltip="Copy">
+              <i class="ti-files"></i>
+            </button>
+
             <button class="btn" @click="downloadFrameworkFile(frameworkSummary.framework.id)" data-tooltip="Download">
               <i class="ti-download"></i>
             </button>
@@ -322,7 +322,7 @@ Last update: 2018-07-29
         console.log('uploadFrameworkFromFile() called')
 
         // Have the server upload the framework.
-        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.frw')
+        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.xlsx')
         .then(response => {
           // Bring up a spinner.
           this.$modal.show('popup-spinner')

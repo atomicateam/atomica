@@ -98,11 +98,11 @@ Last update: 2018-07-29
                 <span v-if="projectLoaded(projectSummary.project.id)">Selected</span>
                 <span v-else>Open</span>
               </button>
-              <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
-                <i class="ti-files"></i>
-              </button>
               <button class="btn" @click="renameProject(projectSummary)" data-tooltip="Rename">
                 <i class="ti-pencil"></i>
+              </button>
+              <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
+                <i class="ti-files"></i>
               </button>
               <button class="btn" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
