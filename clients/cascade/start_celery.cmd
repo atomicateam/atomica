@@ -1,1 +1,1 @@
-celery worker -A atomica_apps.tb.apptasks -l info -P eventlet
+celery worker -A atomica_apps.apptasks_celery -l info -P eventlet
