@@ -121,6 +121,25 @@ class ProjectFramework(object):
         assert isinstance(value,pd.DataFrame)
         self.sheets['Interactions'] = value
 
+    @property
+    def cascades(self):
+        # If the Cascades sheet is present, return an odict where the key is the name of the cascade
+        # and the value is the corresponding dataframe
+
+        d = sc.odict()
+
+        if 'Cascades' not in self.sheets:
+            return d # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
+        elif isinstance(self.sheets['Cascades'],pd.DataFrame):
+            cascade_list = self.sheets['Cascades'] = [self.sheets['Cascades']] # Turn it into a list
+        else:
+            cascade_list = self.sheets['Cascades']
+
+        for df in cascade_list:
+            d[df.columns[0].strip()] = df
+
+        return d
+
     def get_interaction(self,interaction_name):
         return self.interactions.loc[interaction_name]
 

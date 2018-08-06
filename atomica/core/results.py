@@ -90,6 +90,7 @@ class Result(NamedItem):
         # First, make a dataframe for all the plot data, if plots are specified in the cascade
         from .plotting import PlotData
         framework = self.framework
+        new_tvals = np.arange(np.ceil(self.t[0]), np.floor(self.t[-1]) + 1)
 
         if 'Plots' not in self.framework.sheets:
             plot_df = None
@@ -102,13 +103,9 @@ class Result(NamedItem):
             for _,spec in plots_required.iterrows():
                 if 'Type' in spec and spec['Type'] == 'bar':
                     continue # For now, don't do bars - not implemented yet
-
                 data = sc.odict()
                 popdata = PlotData(self,outputs=evaluate_plot_string(spec['Quantities']))
                 assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
-
-                original_tvals = popdata.tvals()[0]
-                new_tvals = np.arange(np.ceil(original_tvals[0]),np.floor(original_tvals[-1])+1)
                 popdata.interpolate(new_tvals)
                 for pop in popdata.pops:
                     data[pop] = popdata[self.name,pop,popdata.outputs[0]].vals
@@ -117,19 +114,40 @@ class Result(NamedItem):
                 df.name = spec['Display Name']
                 plot_df.append(df)
 
+        cascade_df = list()
+        for name in self.framework.cascades.keys():
+            for pop in ['all'] + self.pop_names:
+                data = sc.odict()
+                cascade_vals,_ = self.get_cascade_vals(name,pops=pop,year=new_tvals)
+                for stage,vals in cascade_vals.items():
+                    data[stage] = vals
+
+                df = pd.DataFrame(data, index=new_tvals)
+                df = df.T
+                df.name = '%s - Population "%s"' % (name,pop)
+                cascade_df.append(df)
+
         writer = pd.ExcelWriter(filename + '.xlsx' if not filename.endswith('.xlsx') else filename,engine='xlsxwriter')
         formats = standard_formats(writer.book)
 
         # WRITE THE PLOTS
-        i = 0
-        for n, df in enumerate(plot_df):
-            df.to_excel(writer, 'Plots', startcol=0, startrow=i)
-            worksheet = writer.sheets['Plots']
-            worksheet.write_string(i,0, df.name,formats['center_bold'])
-            i += df.shape[0] + 2
-        worksheet = writer.sheets['Plots']
-        required_width = max(max([len(df.name) for df in plot_df]),max([max(df.index.str.len()) for df in plot_df]))
-        worksheet.set_column(0, 0, required_width * 1.1 + 1)
+        def write_df_list(df_list,sheet_name):
+            i = 0
+            for n, df in enumerate(df_list):
+                df.to_excel(writer, sheet_name, startcol=0, startrow=i)
+                worksheet = writer.sheets[sheet_name]
+                worksheet.write_string(i,0, df.name,formats['center_bold'])
+                i += df.shape[0] + 2
+            worksheet = writer.sheets[sheet_name]
+            required_width = max(max([len(df.name) for df in df_list]),max([max(df.index.str.len()) for df in df_list]))
+            worksheet.set_column(0, 0, required_width * 1.1 + 1)
+
+        if plot_df:
+            write_df_list(plot_df,'Plots')
+
+        if cascade_df:
+            write_df_list(cascade_df,'Cascades')
+
         writer.save()
         writer.close()
 
@@ -185,48 +203,37 @@ class Result(NamedItem):
         plt.title(this_plot['Display Name'])
         return h
 
-    def get_cascade_vals(self,cascade,pops='all',t_bins=None):
+    def get_cascade_vals(self,cascade,pops='all',year=None):
         '''
         Gets values for populating a cascade plot
-        See https://docs.google.com/presentation/d/1lEEyPFORH3UeFpmaxEAGTKyHAbJRnKTm5YIsfV1iJjc/edit?usp=sharing
-        Returns an odict with 4 keys:
-            vals: a flat odict where the keys are the (ordered) cascade stages and the values are the height of the bars by year
-            loss: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion lost by year
-            conv: a flat odict where the keys are the (ordered) cascade stages and the values are tuples consisting of the absolute # and proportion converted by year
-            t: list of the years
         '''
         # INPUTS
         # - cascade can be a list of cascade entries, or the name of a cascade in a Framework
-        # - framework should be a ProjectFramework and is only required if cascade is a string rather than a list
+        # - pops should map to a single population output (a single pop name, or a single aggregation)
+        # - year controls which time points appear in the output. Possible values are
+        #   - None : all time points in the Result
+        #   - scalar or np.array : one entry for each time specified e.g. `year=2020` or `year=[2020,2025,2030]`
+
         from .plotting import PlotData # Import here to avoid circular dependencies
 
         assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 
         if isinstance(cascade,string_types):
-            if isinstance(self.framework.sheets['Cascades'],list):
-                available_cascades = []
-                for df in self.framework.sheets['Cascades']:
-                    if df.columns[0].strip() == cascade.strip(): # If this cascade name matches the requested cascade
-                        break
-                    else:
-                        available_cascades.append(df.columns[0])
-                else:
-                    raise AtomicaException('Cascade name "%s" not found in framework - must be one of %s' % (cascade,available_cascades))
-            else:
-                df = self.framework.sheets['Cascades']
-                assert df.columns[0].strip() == cascade.strip()
-
-            cascade = sc.odict()
+            df = self.framework.cascades[cascade]
+            outputs = sc.odict()
             for _,stage in df.iterrows():
-                cascade[stage[0]] = stage[1] # Split the name of the stage and the constituents
+                outputs[stage[0]] = stage[1] # Split the name of the stage and the constituents
+        else:
+            outputs = cascade
 
-        if t_bins is not None:
-            t_bins = sc.promotetoarray(t_bins)
-            if len(t_bins) == 1:
-                t_bins = np.append(t_bins,t_bins[0]) # Default is to just select the one time point requested, if not aggregating over a range
+        if year is None:
+            d = PlotData(self, outputs=outputs, pops=pops)
+        else:
+            year = sc.promotetoarray(year)
+            d = PlotData(self, outputs=outputs, pops=pops)
+            d.interpolate(year)
 
-        d = PlotData(self,outputs=cascade,pops=pops,t_bins=t_bins)
-
+        assert len(d.pops) == 1, 'get_cascade_vals() cannot get results for multiple populations or population aggregations, only a single pop or single aggregation'
         cascade_output = sc.odict()
         for result in d.results:
             for pop in d.pops:
