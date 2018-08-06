@@ -62,11 +62,11 @@ Last update: 2018-07-31
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <button class="btn" @click="exportResults(activeProjectID)">Export</button>
         <button class="btn" @click="clearGraphs()">Clear</button>
-        <button class="btn" @click="toggleShowingPlots()">
-          <span v-if="areShowingPlots">Hide</span>
-          <span v-else>Show</span>
-          plot controls
-        </button>
+        <!--<button class="btn" @click="toggleShowingPlots()">-->
+          <!--<span v-if="areShowingPlots">Hide</span>-->
+          <!--<span v-else>Show</span>-->
+          <!--plot controls-->
+        <!--</button>-->
 
       </div>
     

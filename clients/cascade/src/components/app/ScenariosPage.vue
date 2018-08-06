@@ -40,11 +40,11 @@ Last update: 2018-07-31
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
         <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">
-          <span v-if="areShowingPlots">Hide</span>
-          <span v-else>Show</span>
-          plot controls
-        </button>
+        <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
+          <!--<span v-if="areShowingPlots">Hide</span>-->
+          <!--<span v-else>Show</span>-->
+          <!--plot controls-->
+        <!--</button>-->
       </div>
 
 
