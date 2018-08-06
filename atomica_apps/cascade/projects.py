@@ -112,7 +112,7 @@ class ProjectSO(sw.ScirisObject):
                 'updatedTime':   self.proj.modified,
                 'n_pops':        n_pops,
                 'sim_start':     self.proj.settings.sim_start,
-                'sim_end':       self.proj.settings.sim_end
+                'sim_end':       self.proj.settings.sim_end,
                 'framework':     framework_name,
             }
         }
