@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-29
+Last update: 2018-08-06
 -->
 
 <template>
@@ -157,7 +157,7 @@ Last update: 2018-07-29
           Create demo project
         </div>
         <div class="dialog-c-text">
-          <select v-model="currentProject">
+          <select v-model="createDemoModalProjName">
             <option v-for='project in projectOptions'>
               {{ project }}
             </option>
@@ -297,6 +297,7 @@ export default {
       proj_name: 'New project', // For creating a new project: number of populations
       num_pops: 5, // For creating a new project: number of populations
       projectOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
+      createDemoModalProjName: ''
     }
   },
 
@@ -414,8 +415,9 @@ export default {
 
     addDemoProject() {
       console.log('addDemoProject() called')
+      this.$modal.hide('demo-project')
       status.start(this)
-      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID, this.createDemoModalProjName]) // Have the server create a new project.
       .then(response => {
         this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
         status.succeed(this, 'Demo project added')
@@ -461,9 +463,9 @@ export default {
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-      status.start(this)
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj') // Have the server upload the project.
       .then(response => {
+        status.start(this)  // should go here so progress stuff doesn't start when user is working with dialog
         this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
         status.succeed(this, 'New project uploaded')
       })
@@ -676,9 +678,9 @@ export default {
     uploadDatabook(uid) {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
       console.log('uploadDatabook() called for ' + matchProject.project.name)
-      status.start(this, 'Uploading databook...')
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
       .then(response => {
+        status.start(this)  // should go here so progress stuff doesn't start when user is working with dialog
         this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
         status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
       })
@@ -691,9 +693,9 @@ export default {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
       console.log('uploadProgbook() called for ' + matchProject.project.name)
-      status.start(this) // Start indicating progress. (This is here because we don't want the
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
       .then(response => {
+        status.start(this, 'Uploading databook...')  // should go here so progress stuff doesn't start when user is working with dialog
         this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
         status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
       })
