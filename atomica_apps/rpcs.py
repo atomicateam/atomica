@@ -10,6 +10,7 @@ Last update: 2018jun04 by cliffk
 
 import time
 import os
+import shutil
 import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
@@ -485,25 +486,17 @@ def add_demo_framework(user_id, framework_name):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_framework(user_id, frame_name, num_comps):
+def create_new_framework():
     """
     Create a new framework.
     """
-    try:
-        num_comps = int(num_comps)
-    except Exception as E:
-        errormsg = 'You must enter an integer number of compartments, not %s (%s)' % (num_comps, repr(E))
-        raise Exception(errormsg)
-    new_frame_name = get_unique_name(frame_name, other_names=None) # Get a unique name for the framework to be added.
-    frame = au.ProjectFramework(name=new_frame_name) # Create the framework, loading in the desired spreadsheets.
-    print(">> create_new_framework %s" % (frame.name))    
-    save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
-    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s.xlsx' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    frame.create_template(path=full_file_name, num_comps=num_comps) # Return the databook
-    print(">> download_databook %s" % (full_file_name))
-    return full_file_name # Return the filename
+    filename = 'framework_template.xlsx'
+    dirname = fileio.downloads_dir.dir_path
+    orig_path = au.atomica_path(['atomica','core'])+filename
+    new_path = os.path.join(dirname, filename)
+    shutil.copyfile(orig_path, new_path)
+    print(">> download_framework %s" % (new_path))
+    return new_path # Return the filename
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')

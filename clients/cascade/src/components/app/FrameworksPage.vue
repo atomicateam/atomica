@@ -11,7 +11,7 @@ Last update: 2018-07-29
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
         &nbsp; &nbsp;
-        <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>
+        <button class="btn __blue" @click="createNewFramework">Create new framework</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadFrameworkFromFile">Upload framework from file</button>
         &nbsp; &nbsp;
@@ -158,41 +158,6 @@ Last update: 2018-07-29
       </div>
     </modal>
 
-    <modal name="create-framework"
-           height="auto"
-           :classes="['v--modal', 'vue-dialog']"
-           :width="width"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
-
-      <div class="dialog-content">
-        <div class="dialog-c-title">
-          Create new framework
-        </div>
-        <div class="dialog-c-text">
-          Name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="frame_name"/><br>
-          Number of compartments:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_comps"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
-
-          <button @click="$modal.hide('create-framework')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </modal>
-    
     <!-- Popup spinner -->
     <popup-spinner></popup-spinner>
     
@@ -339,62 +304,17 @@ Last update: 2018-07-29
         this.$modal.show('demo-framework');
       },
 
-      createNewFrameworkModal() {
-        // Open a model dialog for creating a new framework
-        console.log('createNewFrameworkModal() called');
-        this.$modal.show('create-framework');
-      },
-
-
       createNewFramework() {
         console.log('createNewFramework() called')
         this.$modal.hide('create-framework')
-        
-        // Bring up a spinner.
-        this.$modal.show('popup-spinner')
-        
-        // Start the loading bar.
-        this.$Progress.start()
-        
-        // Have the server create a new framework.
-        rpcservice.rpcDownloadCall('create_new_framework', [this.$store.state.currentUser.UID, this.frame_name, this.num_comps])
+        this.$modal.show('popup-spinner') // Bring up a spinner.
+        this.$Progress.start() // Start the loading bar.
+        rpcservice.rpcDownloadCall('create_new_framework') // Have the server create a new framework.
         .then(response => {
-          // Update the framework summaries so the new framework shows up on the list.
-          // Note: There's no easy way to get the new framework UID to tell the 
-          // framework update to choose the new framework because the RPC cannot pass 
-          // it back.            
-          this.updateFrameworkSummaries(null)
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-          
-          // Success popup.
-          this.$notifications.notify({
-            message: 'New framework "'+this.frame_name+'" created',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })
+          status.succeed(this, '')
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not create new framework',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.fail(this, 'Could not download framework: ' + error.message)
         })        
       },
 
