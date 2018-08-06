@@ -27,10 +27,14 @@
           </a>
         </router-link>
       </ul>
+      <moving-arrow :move-y="arrowMovePx">
+
+      </moving-arrow>
     </div>
   </div>
 </template>
 <script>
+  import MovingArrow from './MovingArrow.vue'
   export default {
     props: {
       type: {
@@ -61,6 +65,9 @@
         type: Array,
         default: () => []
       }
+    },
+    components: {
+      MovingArrow
     },
     computed: {
       sidebarClasses () {
@@ -117,3 +124,6 @@
   }
 
 </script>
+<style>
+
+</style>

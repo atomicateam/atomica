@@ -30,7 +30,7 @@ module.exports = {
     proxyTable: {
       // proxy all requests starting with /api to http://localhost:8094
       '/api': {
-        target: 'http://localhost:8094',
+        target: 'http://localhost:8094', // CK: Must match config.py SERVER_PORT
         changeOrigin: true,
         pathRewrite: {
           '^/api': '/api'

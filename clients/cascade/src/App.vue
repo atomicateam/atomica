@@ -15,14 +15,6 @@ Last update: 7/5/18 (gchadder3)
         <!-- Below requires a userService -->
         <li>
           <a href="#" class="btn-rotate">
-            <i class="ti-ruler-pencil"></i>
-            <p>
-              Framework: <span>{{ activeFrameworkName }}</span>
-            </p>
-          </a>
-        </li>
-        <li>
-          <a href="#" class="btn-rotate">
             <i class="ti-view-grid"></i>
             <p>
               Project: <span>{{ activeProjectName }}</span>
@@ -49,19 +41,6 @@ export default {
     // Health prior function
     currentUser: () => {
       return userService.currentUser()
-    },
-
-    activeFrameworkName() {
-      if (this.$store.state.activeProject.project === undefined) {
-        return 'none'
-      } else {
-        return this.$store.state.activeProject.project.name + "'s Framework"
-      }    
-/*      if (this.$store.state.activeFramework.framework === undefined) {
-        return 'none'
-      } else {
-        return this.$store.state.activeFramework.framework.name
-      } */
     },
 
     activeProjectName() {

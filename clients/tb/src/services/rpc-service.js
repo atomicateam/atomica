@@ -269,7 +269,7 @@ export default {
         })
       }
 
-      // Create an invisible file input element and set its change callback to 
+      // Create an invisible file input element and set its change callback to
       // our onFileChange function.
       var inElem = document.createElement('input')
       inElem.setAttribute('type', 'file')
