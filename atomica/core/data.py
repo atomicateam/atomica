@@ -305,9 +305,9 @@ class ProjectData(object):
 
         # Write the contents
         self._write_pops()
-        self._write_transfers()
-        self._write_interpops()
         self._write_tdve()
+        self._write_interpops()
+        self._write_transfers()
 
         # Close the workbook
         self._book.close()
@@ -398,6 +398,7 @@ class ProjectData(object):
     def _write_pops(self):
         # Writes the 'Population Definitions' sheet
         sheet = self._book.add_worksheet("Population Definitions")
+        sheet.set_tab_color('#FFC000') # this tab is orange
         widths = dict()
 
         current_row = 0
@@ -433,6 +434,8 @@ class ProjectData(object):
             return
 
         sheet = self._book.add_worksheet("Transfers")
+        sheet.set_tab_color('#808080')
+        sheet.hide()
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
@@ -454,6 +457,7 @@ class ProjectData(object):
         if not self.interpops:
             return
         sheet = self._book.add_worksheet("Interactions")
+        sheet.set_tab_color('#808080')
         widths = dict()
         next_row = 0
         for interpop in self.interpops:
@@ -463,14 +467,25 @@ class ProjectData(object):
     def _write_tdve(self):
         # Writes several sheets, one for each custom page specified in the Framework
         widths = dict()
+
         for sheet_name,code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)
             next_row = 0
+            has_editable_content = False
             for code_name in code_names:
+                has_editable_content = has_editable_content or (not self.tdve[code_name].has_data) # there is editable content if any TDVE is missing data, so blue cells are present
                 next_row = self.tdve[code_name].write(sheet,next_row,self._formats,self._references,widths)
+
+            if has_editable_content:
+                sheet.set_tab_color('#92D050')
+            else:
+                sheet.set_tab_color('#808080')
 
         for sheet_name in self.tdve_pages.keys():
             apply_widths(self._book.get_worksheet_by_name(sheet_name),widths)
+
+
+
 
 
 

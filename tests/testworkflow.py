@@ -10,6 +10,7 @@ import atomica.ui as au
 import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
+from atomica.core.optimization import optimize
 
 #test = "sir"
 #test = "tb"
@@ -36,9 +37,9 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
-#"parameterscenario",
+# "parameterscenario",
 # 'budgetscenarios',
-#'optimization',
+'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -464,9 +465,39 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are bud
     
 
 if "optimization" in torun:
-    P = au.demo(which='tb')
-    P.run_optimization(maxtime=30)
+    if test == 'tb':
+        P = au.demo(which='tb')
+        P.run_optimization(maxtime=30)
+    elif test == 'sir':
+        P = au.demo(which='sir')
+        P.load_progbook(progbook_path="databooks/progbook_" + test + ".xlsx", make_default_progset=True)
 
+        alloc = sc.odict([('Risk avoidance',0.),
+                         ('Harm reduction 1',0.),
+                         ('Harm reduction 2',0.),
+                         ('Treatment 1',50.),
+                         ('Treatment 2', 1.)])
+
+        instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
+        adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
+        constraints = au.TotalSpendConstraint() # Cap total spending in all years
+
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeFinalStage('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
+        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+
+        for adjustable in adjustments:
+            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
+
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2020)
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions
@@ -480,13 +511,3 @@ if "saveproject" in torun:
 if "loadproject" in torun:
     P = au.Project.load(tmpdir+test+".prj")
 
-#
-# flow_in = results.pops[0].get_variable(':acj')
-# flow_out = results.pops[0].get_variable('acj:')
-#
-# d = au.PlotData(results[-1], outputs=':acj', pops='0-4')
-# d.series[0].vals
-# d = au.PlotData(results[-1], outputs='acj:', pops='0-4')
-# d.series[0].vals
-#
-# figs = au.plot_series(d, axis="results")
