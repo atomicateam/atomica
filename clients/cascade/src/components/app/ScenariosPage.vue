@@ -482,7 +482,7 @@ Last update: 2018-07-31
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false})
+          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, plot_type: 'multi_cascade'})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length

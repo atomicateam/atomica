@@ -944,8 +944,8 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    if plot_type == 'cascade':
-        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year))
+    if plot_type in ['cascade', 'multi_cascade']:
+        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year), plot_type=plot_type)
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
@@ -1108,20 +1108,21 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None):
+def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
     graphs = []
-    results = sc.promotetolist(results)
-    for result in results:
-        figs = au.plot_cascade(result, cascade='main', pops=pops, year=year)
-        figs = sc.promotetolist(figs)
-        for fig in figs:
-            ax = fig.get_axes()[0]
-            ax.set_facecolor('none')
-            fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-            mpld3.plugins.connect(fig, TickFormat())
-            graph_dict = mpld3.fig_to_dict(fig)
-            graphs.append(graph_dict)
-        print('Cascade plot succeeded')
+    if plot_type == 'cascade':
+        fig = au.plot_cascade(result, cascade='main', pops=pops, year=year)
+    elif plot_type == 'multi_cascade':
+        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=[year])
+    figs = sc.promotetolist(figs)
+    for fig in figs:
+        ax = fig.get_axes()[0]
+        ax.set_facecolor('none')
+        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+        mpld3.plugins.connect(fig, TickFormat())
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+    print('Cascade plot succeeded')
     return {'graphs':graphs}
     
 
@@ -1400,11 +1401,14 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id, plot_options, saveresults=False):
+def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    output = get_plots(proj, results, plot_options=plot_options)
+    if plot_type == 'multi_cascade':
+        output = get_cascade_plot(proj, results, year=None, plot_type=plot_type)
+    else:
+        output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:
         print('Saving project...')
         save_project(proj)    
