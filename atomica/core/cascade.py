@@ -78,9 +78,11 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     # Add a table at the bottom of the axes
     plt.table(cellText=cell_text,rowLabels=list(cascade_data.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
 
-def plot_cascade(result, cascade, pops='all', year=None):
+def plot_cascade(result, cascade, pops=None, year=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
     # For inputs, see `Result.get_cascade_vals`
+
+    if pops is None: pops = 'all'
 
     fontsize=14
     if year is None:

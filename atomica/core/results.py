@@ -204,7 +204,7 @@ class Result(NamedItem):
         plt.title(this_plot['Display Name'])
         return h
 
-    def get_cascade_vals(self,cascade,pops='all',year=None):
+    def get_cascade_vals(self,cascade,pops=None,year=None):
         '''
         Gets values for populating a cascade plot
         '''
@@ -216,6 +216,8 @@ class Result(NamedItem):
         #   - scalar or np.array : one entry for each time specified e.g. `year=2020` or `year=[2020,2025,2030]`
 
         from .plotting import PlotData # Import here to avoid circular dependencies
+        
+        if pops is None: pops = 'all'
 
         assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 

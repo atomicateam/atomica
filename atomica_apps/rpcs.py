@@ -918,7 +918,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, plot_type=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -944,11 +944,13 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
-
-    # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-    unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
-    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+    if plot_type == 'cascade':
+        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year))
+    else:
+        output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
+        # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
+        unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
+        output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
 
 
@@ -1106,41 +1108,22 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-
 def get_cascade_plot(proj, results=None, pops=None, year=None):
     graphs = []
-    try:
-        figs = au.plot_cascade(results, cascade='main', pops=pops, year=year)
+    results = sc.promotetolist(results)
+    for result in results:
+        figs = au.plot_cascade(result, cascade='main', pops=pops, year=year)
         figs = sc.promotetolist(figs)
         for fig in figs:
             ax = fig.get_axes()[0]
             ax.set_facecolor('none')
-            legend = fig.findobj(Legend)[0]
-            if len(legend.get_texts())==1:
-                legend.remove() # Can remove the legend if it only has one entry
             fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
             mpld3.plugins.connect(fig, TickFormat())
             graph_dict = mpld3.fig_to_dict(fig)
             graphs.append(graph_dict)
         print('Cascade plot succeeded')
-    except Exception as E:
-        print('WARNING: cascade plot failed (%s)' % (repr(E)))
     return {'graphs':graphs}
     
-
-def get_cascade_plots(project_id, year=None, pop=None):
-    print('do_get_plots')
-    proj = load_project(project_id, raise_exception=True)
-    graphs = []
-    figs = au.plot_cascade(proj, year=year, pop=pop)
-    print('Number of figures: %s' % len(figs))
-    for f,fig in enumerate(figs):
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-        print(graph_dict)
-    
-    return {'graphs':graphs}
 
 @register_RPC(validation_type='nonanonymous user')    
 def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
