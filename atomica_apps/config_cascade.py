@@ -23,7 +23,7 @@ Last update: 2018jun04 (cliffk)
 SECRET_KEY = 'Pick something unique for your site here'
 
 # Directory containing the client code.
-CLIENT_DIR = '../../clients/cascade/dist'
+CLIENT_DIR = '../clients/cascade/dist'
 
 # Flag for setting whether we use the datastore functionality provided by 
 # Sciris in the webapp.
