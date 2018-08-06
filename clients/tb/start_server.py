@@ -2,4 +2,4 @@
 
 # Run the server
 import atomica_apps
-atomica_apps.tb.main.run()
+atomica_apps.main.run(which='tb')

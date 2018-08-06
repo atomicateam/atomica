@@ -1,30 +1,21 @@
-# user_interface
+# Introduction
 
-> Sciris Framework
+This explains how to set up the Optima TB client.
 
-## Build Setup
+# Setting up the client
 
-``` bash
-# install dependencies
-npm install
+1. Ensure you have the Atomica and Sciris (sold separately) Python packages installed.
 
-# serve with hot reload at localhost:8080
-npm run dev
+2. Change to this folder (you found it!).
 
-# build for production with minification
-npm run build
+3. Type `python install_client.py`. This will install the JavaScript node.js modules.
 
-# build for production and view the bundle analyzer report
-npm run build --report
+4. Type `python start_server.py`. This starts the Twisted/Flask server.
 
-# run unit tests
-npm run unit
+4a. If you want to run in "dev mode" (which auto-refreshes the webapp on changes), in a separate terminal, type `python dev_client.py`. This will serve the webapp on port 8080.
 
-# run e2e tests
-npm run e2e
+4b. If you want to run in "build mode" (which does not auto-refresh the webapp), in a separate terminal, type `python build_client.py`. This will serve the webapp on port 8093. Once the build is finished you can close the terminal.
 
-# run all tests
-npm test
-```
+# Troubleshooting
 
-For detailed explanation on how things work, checkout the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).
+If you get weird server errors, you might want to reset the database. Use `python reset_database.py` for this. This will delete all data in the Optima TB database.

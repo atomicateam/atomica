@@ -23,7 +23,7 @@ Last update: 2018jun04 (cliffk)
 SECRET_KEY = 'Pick something unique for your site here'
 
 # Directory containing the client code.
-CLIENT_DIR = '../../clients/cascade/dist'
+CLIENT_DIR = '../clients/cascade/dist'
 
 # Flag for setting whether we use the datastore functionality provided by 
 # Sciris in the webapp.
@@ -48,3 +48,17 @@ SERVER_PORT = 8094
 
 # Matplotlib backend
 MATPLOTLIB_BACKEND = 'Agg'
+
+# Flag for setting whether we use the tasks functionality provided by 
+# Sciris in the webapp.
+USE_TASKS = True
+
+# URL for the Redis database that Celery will use as the broker.
+# Note that the /N number at the end should match the 
+# database number you want to use.  (N=0 is the default Redis database.)
+BROKER_URL = REDIS_URL
+
+# URL for the Redis database that Celery will use to hold task results.
+# Note that the /N number at the end should match the 
+# database number you want to use.  (N=0 is the default Redis database.)
+CELERY_RESULT_BACKEND = REDIS_URL

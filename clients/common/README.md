@@ -1,1 +1,0 @@
-Store all the files that are common across webapp clients.

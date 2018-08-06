@@ -27,7 +27,7 @@ proj_collection = None
 
 class ProjectSO(sw.ScirisObject):
     """
-    A ScirisObject-wrapped Optima Nutrition Project object.
+    A ScirisObject-wrapped Project object.
     
     Methods:
         __init__(proj: Project, owner_uid: UUID, uid: UUID [None]): 
@@ -85,7 +85,7 @@ class ProjectSO(sw.ScirisObject):
         # Show superclass attributes.
         super(ProjectSO, self).show()  
         
-        # Show the Optima defined display text for the project.
+        # Show the defined display text for the project.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
         print 'Project Name: %s' % self.proj.name
@@ -93,6 +93,11 @@ class ProjectSO(sw.ScirisObject):
         print 'Update Time: %s' % self.proj.modified
             
     def get_user_front_end_repr(self):
+        try:    
+            framework_name = self.proj.framework.name
+        except: 
+            print('Could not load framework name for project')
+            framework_name = 'N/A'
         try:    
             n_pops = len(self.proj.parsets[0].pop_names)
         except: 
@@ -107,7 +112,8 @@ class ProjectSO(sw.ScirisObject):
                 'updatedTime':   self.proj.modified,
                 'n_pops':        n_pops,
                 'sim_start':     self.proj.settings.sim_start,
-                'sim_end':       self.proj.settings.sim_end
+                'sim_end':       self.proj.settings.sim_end,
+                'framework':     framework_name,
             }
         }
         return obj_info
@@ -157,7 +163,7 @@ class ProjectCollection(sw.ScirisCollection):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:  
+        if valid_uuid is not None: 
             # If we are storing things inside the obj_dict...
             if self.objs_within_coll:              
                 # Get dictionaries for each Project in the dictionary.

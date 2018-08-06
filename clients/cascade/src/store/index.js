@@ -1,6 +1,6 @@
 // index.js -- Vuex store configuration
 //
-// Last update: 7/5/18 (gchadder3)
+// Last update: 3/7/18 (gchadder3)
 
 import Vue from 'vue'
 import Vuex from 'vuex'
@@ -9,19 +9,17 @@ Vue.use(Vuex)
 
 const store = new Vuex.Store({
   state: {
-    currentUser: {},  // The currently logged in user
-    activeProject: {}, // The project currently chosen by the user
-//    activeFramework: {} // The framework currently chosen by the user
+    // The currently logged in user
+    currentUser: {}, 
+
+    // The project currently chosen by the user
+    activeProject: {}
   },
 
   mutations: {
     newUser(state, user) {
       state.currentUser = user
     }, 
-
-/*    newActiveFramework(state, framework) {
-      state.activeFramework = framework
-    }, */
 
     newActiveProject(state, project) {
       state.activeProject = project

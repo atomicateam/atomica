@@ -39,11 +39,11 @@ Last update: 2018-07-30
       <div>
         <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="toggleShowingPlots()">
-          <span v-if="areShowingPlots">Hide</span>
-          <span v-else>Show</span>
-          plot controls
-        </button>
+        <!--<button class="btn" @click="toggleShowingPlots()">-->
+          <!--<span v-if="areShowingPlots">Hide</span>-->
+          <!--<span v-else>Show</span>-->
+          <!--plot controls-->
+        <!--</button>-->
       </div>
 
 
