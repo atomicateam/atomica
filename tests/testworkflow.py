@@ -11,9 +11,9 @@ import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 
-test = "sir"
+#test = "sir"
 #test = "tb"
-#test = "udt"
+test = "udt"
 #test = "diabetes"
 # test = "service"
 
@@ -21,11 +21,11 @@ test = "sir"
 torun = [
 "makeframework",
 "saveframework",
-"loadframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
+#"loadframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
 #"runsim",
 #'plotcascade',
 # "makeprogramspreadsheet",
@@ -36,7 +36,7 @@ torun = [
 # "listspecs",
 # "manualcalibrate",
 #"autocalibrate",
-"parameterscenario",
+#"parameterscenario",
 # 'budgetscenarios',
 #'optimization',
 # "saveproject",
