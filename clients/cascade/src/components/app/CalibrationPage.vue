@@ -218,7 +218,7 @@ Last update: 2018-07-31
         sortColumn: 'index',
         sortReverse: false,
         parList: [],
-        areShowingParameters: true,
+        areShowingParameters: false,
         areShowingPlots: false,
         activeParset: -1,
         parsetOptions: [],
