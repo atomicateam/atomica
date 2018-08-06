@@ -42,7 +42,7 @@ celery_instance = make_celery_instance(config=config_cascade)
 @register_async_task
 def run_optimization(project_id, optim_name, plot_options=None, saveresults=False):
     # Load the projects from the DataStore.
-    prj.apptasks_load_projects(config_tb)
+    prj.apptasks_load_projects(config_cascade)
     
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
