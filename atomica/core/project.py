@@ -426,10 +426,10 @@ class Project(object):
         if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
-            adjustables = self.framework.specs[FS.KEY_PARAMETER].keys()
+            adjustables = list(self.framework.pars.index[self.framework.pars['Can Calibrate']=='y'])
         if measurables is None:
-            measurables = self.framework.specs[FS.KEY_COMPARTMENT].keys()
-            measurables += self.framework.specs[FS.KEY_CHARACTERISTIC].keys()
+            measurables = list(self.framework.comps.index)
+            measurables += list(self.framework.characs.index)
         for index, adjustable in enumerate(adjustables):
             if isinstance(adjustable, string_types):  # Assume that a parameter name was passed in if not a tuple.
                 adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
