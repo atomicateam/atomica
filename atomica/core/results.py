@@ -10,9 +10,12 @@ from .excel import standard_formats
 
 class Result(NamedItem):
     # A Result stores a single model run
-    def __init__(self, model, parset, name):
+    def __init__(self, model, parset=None, name=None):
         if name is None:
-            name = parset.name
+            if parset is None:
+                name = None
+            else:
+                name = parset.name
         NamedItem.__init__(self,name)
 
         self.uid = sc.uuid()
@@ -20,7 +23,7 @@ class Result(NamedItem):
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.
         self.model = model
-        self.parset_name = parset.name
+        self.parset_name = parset.name if parset is not None else None
         self.pop_names = [x.name for x in self.model.pops]  # This gets frequently used, so save it as an actual output
 
     # Property methods trade off storage space against computation time. The property methods below
