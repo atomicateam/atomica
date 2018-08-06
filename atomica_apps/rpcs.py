@@ -811,19 +811,25 @@ def load_zip_of_prj_files(project_ids):
 
 
 @register_RPC(validation_type='nonanonymous user')
-def add_demo_project(user_id, project_name):
+def add_demo_project(user_id, project_name='default'):
     """
     Add a demo project
     """
-    try:
-        which = label_mapping[project_name]
-        print('Adding demo project %s/%s...' % (project_name, which))
-    except Exception:
-        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
-        raise Exception(errormsg)
-    new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
-    proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
-    proj.name = new_proj_name
+    if project_name is 'default':
+		new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
+		proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+		proj.name = new_proj_name
+    else:
+		try:
+		    which = label_mapping[project_name]
+			new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
+			proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+			proj.name = new_proj_name
+		    print('Adding demo project %s/%s...' % (project_name, which))
+		except Exception:
+		    errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
+		    raise Exception(errormsg)
+
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> add_demo_project %s" % (proj.name))    
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
@@ -836,7 +842,7 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     """
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    F = au.ProjectFramework(name='WARNING UPDATE', inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+    F = au.ProjectFramework(name=new_proj_name , inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
     proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
@@ -944,28 +950,168 @@ def create_project_from_prj_file(prj_filename, user_id):
     return { 'projectId': str(proj.uid) }
 
 
-#%% Plotting
-def do_get_plots(project_id, year=None, pop=None):
-    print('do_get_plots')
-    proj = load_project(project_id, raise_exception=True)
+
+
+def supported_plots_func():
+
+    supported_plots = sc.odict() # Preserve order
+    supported_plots['Population size'] = 'alive'
+    supported_plots['Latent infections'] = 'lt_inf'
+    supported_plots['Active TB'] = 'ac_inf'
+    supported_plots['Active DS-TB'] = 'ds_inf'
+    supported_plots['Active MDR-TB'] = 'mdr_inf'
+    supported_plots['Active XDR-TB'] = 'xdr_inf'
+    supported_plots['New active DS-TB'] = ['pd_div:flow','nd_div:flow']
+    supported_plots['New active MDR-TB'] = ['pm_div:flow','nm_div:flow']
+    supported_plots['New active XDR-TB'] = ['px_div:flow','nx_div:flow']
+    supported_plots['Smear negative active TB'] = 'sn_inf'
+    supported_plots['Smear positive active TB'] = 'sp_inf'
+    supported_plots['Latent diagnoses'] = ['le_treat:flow','ll_treat:flow']
+    supported_plots['New active TB diagnoses'] = ['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']
+    supported_plots['New active DS-TB diagnoses'] = ['pd_diag:flow','nd_diag:flow']
+    supported_plots['New active MDR-TB diagnoses'] = ['pm_diag:flow','nm_diag:flow']
+    supported_plots['New active XDR-TB diagnoses'] = ['px_diag:flow','nx_diag:flow']
+    supported_plots['Latent treatment'] = 'ltt_inf'
+    supported_plots['Active treatment'] = 'num_treat'
+    supported_plots['TB-related deaths'] = ':ddis'
+
+    return supported_plots
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_supported_plots(only_keys=False):
+    supported_plots = supported_plots_func()
+    if only_keys:
+        plot_names = supported_plots.keys()
+        vals = np.ones(len(plot_names))
+        output = []
+        for plot_name,val in zip(plot_names,vals):
+            this = {'plot_name':plot_name, 'active':val}
+            output.append(this)
+        return output
+    else:
+        return supported_plots
+
+
+def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
+    # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
+    supported_plots = supported_plots_func()
+    if plot_names is None: 
+        if plot_options is not None:
+            plot_names = []
+            for item in plot_options:
+                if item['active']: plot_names.append(item['plot_name'])
+        else:
+            plot_names = supported_plots.keys()
+    plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     graphs = []
-    figs = au.plot_cascade(proj, year=year, pop=pop)
-    print('Number of figures: %s' % len(figs))
-    for f,fig in enumerate(figs):
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-        print(graph_dict)
-    
+    for output in outputs:
+        try:
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(result, outputs=output, project=proj, pops=pops)
+            else:
+                plotdata = au.PlotData(result, outputs=output.values()[0], project=proj, pops=pops) # Don't rename the plot, this will allow data to be retrieved
+
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+
+            if stacked:
+                figs = au.plot_series(plotdata, axis='pops', plot_type='stacked')
+            else:
+                figs = au.plot_series(plotdata, axis='pops', data=proj.data) # Only plot data if not stacked
+
+            for fig in figs:
+                ax = fig.get_axes()[0]
+                ax.set_facecolor('none')
+                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                if xlims is not None: ax.set_xlim(xlims)
+                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                mpld3.plugins.connect(fig, TickFormat())
+                graph_dict = mpld3.fig_to_dict(fig)
+                graphs.append(graph_dict)
+            pl.close('all')
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+
+
     return {'graphs':graphs}
 
 
-@register_RPC(validation_type='nonanonymous user')    
-def get_plots(project_id, year=None):
-    return do_get_plots(project_id, year=None)
+def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None):
+    results = sc.promotetolist(results)
+    supported_plots = supported_plots_func() 
+    if plot_names is None: 
+        if plot_options is not None:
+            plot_names = []
+            for item in plot_options:
+                if item['active']: plot_names.append(item['plot_name'])
+        else:
+            plot_names = supported_plots.keys()
+    plot_names = sc.promotetolist(plot_names)
+    if outputs is None:
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
+    graphs = []
+    data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
+    for output in outputs:
+        try:
+
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            else:
+                # Pass string in directly so that it is not treated as a function aggregation
+                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
+
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced:
+                print('Warning: %s nans were replaced' % nans_replaced)
+
+            if stacked:
+                figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
+            else:
+                figs = au.plot_series(plotdata, data=data, axis='results')
+
+            # Todo - customize plot formatting here
+            for fig in figs:
+                ax = fig.get_axes()[0]
+                ax.set_facecolor('none')
+                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+                if xlims is not None: ax.set_xlim(xlims)
+                legend = fig.findobj(Legend)[0]
+                if len(legend.get_texts())==1:
+                    legend.remove() # Can remove the legend if it only has one entry
+                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+                mpld3.plugins.connect(fig, TickFormat())
+                graph_dict = mpld3.fig_to_dict(fig)
+                graphs.append(graph_dict)
+            # pl.close('all')
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
 
 
-@register_RPC(validation_type='nonanonymous user')    
+    return {'graphs':graphs}
+
+
+@register_RPC(validation_type='nonanonymous user')
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
@@ -1034,6 +1180,20 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
 
+#%% Plotting
+def get_cascade_plots(project_id, year=None, pop=None):
+    print('do_get_plots')
+    proj = load_project(project_id, raise_exception=True)
+    graphs = []
+    figs = au.plot_cascade(proj, year=year, pop=pop)
+    print('Number of figures: %s' % len(figs))
+    for f,fig in enumerate(figs):
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+        print(graph_dict)
+    
+    return {'graphs':graphs}
 
 @register_RPC(validation_type='nonanonymous user')    
 def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
