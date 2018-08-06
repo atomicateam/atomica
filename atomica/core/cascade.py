@@ -27,18 +27,18 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     else:
         year = sc.promotetoarray(year)
 
-    assert not (len(results)>1 and len(year)>1), 'Can have multiple results, or multiple times, but not both' # Could change this to make multiple figures otherwise
-    if len(results) > 1:
-        bar_labels = [x.name for x in results]
+    if (len(results)>1 and len(year)>1):
+        label_fcn = lambda result,t: '%s-%s' % (result.name,t)
+    elif len(results) > 1:
+        label_fcn = lambda result,t: '%s' % (result.name)
     else:
-        bar_labels = [str(t) for t in year]
+        label_fcn = lambda result,t: '%s' % (t)
 
     # Gather all of the cascade outputs and years
-
-    cascade_data = []
+    cascade_data = sc.odict()
     for result in results:
-        for y in year:
-            cascade_data.append(result.get_cascade_vals(cascade,pops=pops,year=y)[0])
+        for t in year:
+            cascade_data[label_fcn(result,t)] = result.get_cascade_vals(cascade,pops=pops,year=t)[0]
 
     # Determine the number of bars, per stage - based either on result or time point
     n_bars = len(cascade_data)
@@ -53,7 +53,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     fig = plt.figure()
     fig.set_figwidth(fig.get_figwidth()*1.5)
 
-    for offset,(bar_label,data) in enumerate(zip(bar_labels,cascade_data)):
+    for offset,(bar_label,data) in enumerate(cascade_data.items()):
         legend_entries[bar_label] = colors[offset]
         for stage,vals in data.items():
             plt.bar(x+offset*(bar_width+bar_gap),vals,color=colors[offset],width=bar_width)
@@ -65,7 +65,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
 
     # Make the loss table
     cell_text = []
-    for data in cascade_data:
+    for data in cascade_data.values():
         cascade_array = np.hstack(data.values())
         loss = np.diff(cascade_array)
         loss_str = ['%s' % sc.sigfig(-val, sigfigs=3, sep=True) for val in loss]
@@ -79,7 +79,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
 
     # Add a table at the bottom of the axes
-    table = plt.table(cellText=cell_text,rowLabels=bar_labels,rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
+    table = plt.table(cellText=cell_text,rowLabels=list(cascade_data.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
 
 def plot_cascade(result,cascade,pops='all',year=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time

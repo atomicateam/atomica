@@ -50,3 +50,5 @@ au.plot_multi_cascade([par_results,scen_results],'main',year=2018)
 au.plot_multi_cascade([par_results],'main',year=[2018,2020])
 au.plot_multi_cascade([par_results],'secondary',year=[2018,2020])
 au.plot_multi_cascade([par_results,scen_results],cascade=cascade,pops='all',year=2030)
+
+au.plot_multi_cascade([par_results,scen_results],cascade='main',pops='all',year=[2018,2020])
