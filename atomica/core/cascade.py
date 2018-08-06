@@ -28,7 +28,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
         year = sc.promotetoarray(year)
 
     if (len(results)>1 and len(year)>1):
-        label_fcn = lambda result,t: '%s-%s' % (result.name,t)
+        label_fcn = lambda result,t: '%s (%s)' % (result.name,t)
     elif len(results) > 1:
         label_fcn = lambda result,t: '%s' % (result.name)
     else:
