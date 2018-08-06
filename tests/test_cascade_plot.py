@@ -24,27 +24,27 @@ par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
 
 # # Make some plots from plot names and groups in the Framework
-# result.plot(plot_name='plot5',project=P)
-# result.plot(plot_name='plot5',pops='all',project=P)
-# result.plot(plot_name='plot19',pops='all',project=P)
-# result.plot(plot_group='latency')
-#
-# # Export limited set of results based on 'Export' column in Framework, or export everything
-# result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
-# result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
-#
-# # Plot various cascades
-# au.plot_cascade(result,cascade='main',pops='all',year=2000)
-# au.plot_cascade(result,cascade='main',pops='all',year=2030)
-# au.plot_cascade(result,cascade='main',pops='0-4',year=2030)
-# au.plot_cascade(result,cascade='secondary',pops='0-4',year=2030)
-#
+result.plot(plot_name='plot5',project=P)
+result.plot(plot_name='plot5',pops='all',project=P)
+result.plot(plot_name='plot19',pops='all',project=P)
+result.plot(plot_group='latency')
+
+# Export limited set of results based on 'Export' column in Framework, or export everything
+result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
+result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
+
+# Plot various cascades
+au.plot_cascade(result,cascade='main',pops='all',year=2000)
+au.plot_cascade(result,cascade='main',pops='all',year=2030)
+au.plot_cascade(result,cascade='main',pops='0-4',year=2030)
+au.plot_cascade(result,cascade='secondary',pops='0-4',year=2030)
+
 # # Dynamically create a cascade
 cascade = sc.odict()
 cascade['Susceptible'] = 'sus'
 cascade['Vaccinated'] = 'vac'
 cascade['Infected'] = 'ac_inf'
-# au.plot_cascade(result,cascade=cascade,pops='all',year=2030)
+au.plot_cascade(result,cascade=cascade,pops='all',year=2030)
 
 au.plot_multi_cascade([par_results,scen_results],'main',year=2018)
 au.plot_multi_cascade([par_results],'main',year=[2018,2020])

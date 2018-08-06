@@ -85,9 +85,7 @@ def plot_cascade(result,cascade,pops='all',year=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
     # For inputs, see `Result.get_cascade_vals`
 
-    from matplotlib.pyplot import rc
-    rc('font', size=14)
-
+    fontsize=14
     if year is None:
         year = result.t[0] # Draw cascade for first year
     else:
@@ -112,7 +110,7 @@ def plot_cascade(result,cascade,pops='all',year=None):
     ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
     ax.set_yticks(yticks)
     for i,val in enumerate(cascade_array):
-        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center')
+        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center',size=fontsize)
 
     bars = h.get_children()
     conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost
@@ -134,13 +132,13 @@ def plot_cascade(result,cascade,pops='all',year=None):
 
         bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
 
-        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0,size=15,bbox=bbox_props)
+        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0,size=fontsize,bbox=bbox_props)
 
 
     loss = np.diff(cascade_array)
     for i,val in enumerate(loss):
 
-        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
+        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2),size=fontsize)
 
     pop_label = 'entire population' if pops=='all' else pops
     plt.ylabel('Number of people')

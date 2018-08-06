@@ -554,7 +554,7 @@ class Series(object):
         # time array t2. To ensure results are not misleading, extrapolation is disabled
         # and will return NaN if t2 contains values outside the original time range
         f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
-        out_of_bounds = (t2 < self.tvec[0]) or (t2 > self.tvec[-1])
+        out_of_bounds = (t2 < self.tvec[0]) | (t2 > self.tvec[-1])
         if np.any(out_of_bounds):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
