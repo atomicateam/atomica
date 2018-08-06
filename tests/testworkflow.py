@@ -28,16 +28,16 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-#"plotcascade",
-"makeprogramspreadsheet",
+"plotcascade",
+#"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
-#"runsim_programs",
-# "makeplots",
-# "export",
-# "listspecs",
+"runsim_programs",
+#"makeplots",
+#"export",
+#"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
 # "manualcalibrate",
-#"autocalibrate",
-# "parameterscenario",
+#"autocalibrate", # NOTE, DOES NOT WORK WITH TB -- ROMESH, CAN YOU PLEASE LOOK? REMOVE IF DEPRECATED
+#"parameterscenario",
 # 'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -82,7 +82,7 @@ if "makedatabook" in torun:
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -145,7 +145,7 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test=='tb' else True
+        blh_effects = False if test in ['tb','udt'] else True
         P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
 
         P.progsets[0].programs[0].get_spend(year=2015)
@@ -230,11 +230,26 @@ if "runsim_programs" in torun:
 #        P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
+    elif test == 'udt':
+        instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+
     elif test in ['diabetes','service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
 
     else:
         print('\n\n\nUnknown test.')
+
+if 'plotcascade' in torun:
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017)
+    if forceshow: pl.show()
+    
+    # Browser test
+    as_mpld3 = True
+    if as_mpld3:
+        import sciris.weblib.quickserver as sqs
+        fig = pl.gcf()
+        sqs.browser(fig)
 
 if "makeplots" in torun:
 
@@ -274,25 +289,25 @@ if "makeplots" in torun:
 
 
 if "export" in torun:
-    P.results["default"].export(tmpdir+test+"_results")
+    P.results[-1].export(tmpdir+test+"_results")
     
-if "listspecs" in torun:
-    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
-    FS = au.FrameworkSettings
-    DS = au.DataSettings
-    # Print list of characteristic names, i.e. state variables.
-    print("\nCharacteristics...")
-    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
-    # Print list of compartment names. Should be added to the characteristics list for typical processes.
-    print("Compartments...")
-    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
-    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
-    print("Parameters...")
-    print(P.framework.specs[FS.KEY_PARAMETER].keys())
-    # Print list of populations.
-    print("Populations...")
-    print(P.data.specs[DS.KEY_POPULATION].keys())
-    print()
+#if "listspecs" in torun:
+#    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
+#    FS = au.FrameworkSettings
+#    DS = au.DataSettings
+#    # Print list of characteristic names, i.e. state variables.
+#    print("\nCharacteristics...")
+#    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
+#    # Print list of compartment names. Should be added to the characteristics list for typical processes.
+#    print("Compartments...")
+#    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
+#    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
+#    print("Parameters...")
+#    print(P.framework.specs[FS.KEY_PARAMETER].keys())
+#    # Print list of populations.
+#    print("Populations...")
+#    print(P.data.specs[DS.KEY_POPULATION].keys())
+#    print()
     
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
@@ -341,29 +356,35 @@ if "parameterscenario" in torun:
         scen_pop = "15-64"
         scen_outputs = ["lt_inf", "ac_inf"]
 
+    if test == "udt":
+        scen_par = "test_pharm"
+        scen_pop = "adults"
+        scen_outputs = ["all_people","all_dx", "all_tx"]
+
     scvalues[scen_par] = dict()
     scvalues[scen_par][scen_pop] = dict()
 
-    # Insert (or possibly overwrite) one value.
-    scvalues[scen_par][scen_pop]["y"] = [0.125,0.15]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = 2
-
-    P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
-    P.run_scenario(scenario="Varying Infections", parset="default")
-
-    # Insert two values and eliminate everything between them.
-    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-
-    P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
-    P.run_scenario(scenario="Varying Infections 2", parset="default")
-
-    d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
-    au.plot_series(d, axis="results")
-    plt.title('Scenario comparison')
-    plt.ylabel('Number of people')
+    if test in ["tb","sir"]:
+        # Insert (or possibly overwrite) one value.
+        scvalues[scen_par][scen_pop]["y"] = [0.125,0.15]
+        scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+        scvalues[scen_par][scen_pop]["smooth_onset"] = 2
+    
+        P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
+        P.run_scenario(scenario="Varying Infections", parset="default")
+    
+        # Insert two values and eliminate everything between them.
+        scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+        scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+        scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+    
+        P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
+        P.run_scenario(scenario="Varying Infections 2", parset="default")
+    
+        d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
+        au.plot_series(d, axis="results")
+        plt.title('Scenario comparison')
+        plt.ylabel('Number of people')
 
 
 def supported_plots_func():
