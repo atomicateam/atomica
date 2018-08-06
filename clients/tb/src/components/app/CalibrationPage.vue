@@ -307,7 +307,6 @@ Last update: 2018-07-31
         return id
       },
 
-      // TO_PORT
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
@@ -498,14 +497,12 @@ Last update: 2018-07-31
         })         
       },
 
-      // TO_PORT
       renameParsetModal() {
         // Open a model dialog for creating a new project
         console.log('renameParsetModal() called');
         this.$modal.show('rename-parset');
       },
 
-      // TO_PORT
       renameParset() {
         // Find the project that matches the UID passed in.
         let uid = this.$store.state.activeProject.project.id
