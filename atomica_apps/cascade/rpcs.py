@@ -51,6 +51,10 @@ def timeit(method):
     return timed
 
 
+label_mapping = {'SIR model':'sir',
+                 'Tuberculosis':'tb',
+                 'Diabetes':'diabetes',
+                 'Service delivery':'service'}
 
 
 
