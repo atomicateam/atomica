@@ -22,14 +22,6 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     elif isinstance(results, NDict):
         results = list(results)
 
-    if isinstance(cascade, string_types):
-        df = results[0].framework.cascades[cascade] # Assume all Results have the same framework
-        outputs = sc.odict()
-        for _, stage in df.iterrows():
-            outputs[stage[0]] = stage[1]  # Split the name of the stage and the constituents
-    else:
-        outputs = cascade
-
     if year is None:
         year = results[0].t[0] # Draw cascade for first year
     else:
@@ -37,10 +29,8 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
 
     assert not (len(results)>1 and len(year)>1), 'Can have multiple results, or multiple times, but not both' # Could change this to make multiple figures otherwise
     if len(results) > 1:
-        compare_results = True # If True, different bars for results. Otherwise, different bars for times
         bar_labels = [x.name for x in results]
     else:
-        compare_results = False
         bar_labels = [str(t) for t in year]
 
     # Gather all of the cascade outputs and years
@@ -51,10 +41,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
             cascade_data.append(result.get_cascade_vals(cascade,pops=pops,year=y)[0])
 
     # Determine the number of bars, per stage - based either on result or time point
-    if compare_results:
-        n_bars = len(cascade_data)
-    else:
-        n_bars = len(cascade_data[0][0])
+    n_bars = len(cascade_data)
     bar_width = 1. # This is the width of the bars
     bar_gap = 0.15 # This is the width of the bars
     block_gap = 1. # This is the gap between blocks
@@ -87,12 +74,12 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
 
     # Clean up formatting
     yticks = ax.get_yticks()
+    ax.set_yticks(yticks[1:]) # Remove the first tick at 0 so it doesn't clash with table - TODO: improve table spacing so this isn't needed
     plt.ylabel('Number of people')
     plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
 
     # Add a table at the bottom of the axes
     table = plt.table(cellText=cell_text,rowLabels=bar_labels,rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
-
 
 def plot_cascade(result,cascade,pops='all',year=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
@@ -107,6 +94,7 @@ def plot_cascade(result,cascade,pops='all',year=None):
         year = sc.promotetoarray(year)
         assert len(year) == 1
 
+    assert isinstance(result,Result), 'Input must be a single Result object'
     cascade_vals,t = result.get_cascade_vals(cascade,pops,year)
     assert len(t) == 1, 'Plot cascade requires time aggregation'
     cascade_array = np.hstack(cascade_vals.values())
