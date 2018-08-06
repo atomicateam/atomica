@@ -64,7 +64,7 @@ class ProjectSO(sw.ScirisObject):
             super(ProjectSO, self).__init__(proj.uid, type_prefix='project', 
                  file_suffix='.prj', instance_label=proj.name)
                                    
-            # Set the project to the Project that is passed in.
+            # Set the project to the Optima Project that is passed in.
             self.proj = proj
             
             # Set the owner (User) UID.
@@ -105,15 +105,15 @@ class ProjectSO(sw.ScirisObject):
             n_pops = 'N/A'
         obj_info = {
             'project': {
-                'id': self.uid,
-                'name': self.proj.name,
-                'userId': self.owner_uid,
-                'creationTime': self.proj.created,
-                'updatedTime': self.proj.modified,
-                'framework': framework_name,
-                'n_pops': n_pops,
-                'sim_start': self.proj.settings.sim_start,
-                'sim_end': self.proj.settings.sim_end
+                'id':            self.uid,
+                'name':          self.proj.name,
+                'userId':        self.owner_uid,
+                'creationTime':  self.proj.created,
+                'updatedTime':   self.proj.modified,
+                'n_pops':        n_pops,
+                'sim_start':     self.proj.settings.sim_start,
+                'sim_end':       self.proj.settings.sim_end
+                'framework':     framework_name,
             }
         }
         return obj_info
@@ -191,7 +191,7 @@ class ProjectCollection(sw.ScirisCollection):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:  
+        if valid_uuid is not None:
             # If we are storing things inside the obj_dict...
             if self.objs_within_coll:             
                 # Get ProjectSO entries for each Project in the dictionary.
@@ -233,12 +233,11 @@ def init_projects(app):
     if proj_collection_uid is not None:
         if app.config['LOGGING_MODE'] == 'FULL':
             print '>> Loading ProjectCollection from the DataStore.'
-        proj_collection.load_from_data_store()
-
+        proj_collection.load_from_data_store() 
+    
     # Else (no match)...
     else:
         # Load the data path holding the Excel files.
-        #data_path = on.ONpath('data')
     
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Creating a new ProjectCollection.') 
@@ -253,3 +252,34 @@ def init_projects(app):
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ProjectCollection.    
         proj_collection.show()
+
+
+def apptasks_load_projects(config):
+    global proj_collection  # need this to allow modification within the module 
+    
+    # We need to load in the whole DataStore here because the Celery worker 
+    # (in which this function is running) will not know about the same context 
+    # from the datastore.py module that the server code will.
+    
+    # Create the DataStore object, setting up Redis.
+    ds.data_store = ds.DataStore(redis_db_URL=config.REDIS_URL)
+    
+    # Load the DataStore state from disk.
+    ds.data_store.load()
+    
+    # Look for an existing ProjectCollection.
+    proj_collection_uid = ds.data_store.get_uid_from_instance('projectscoll', 
+        'Projects Collection')
+    
+    # Create the projects collection object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    proj_collection = ProjectCollection(proj_collection_uid)
+    
+    # If there was a match...
+    if proj_collection_uid is not None:  
+        # Load the project collection from the DataStore.
+        proj_collection.load_from_data_store()        
+        
+#        proj_collection.show()      
+    
+    return None

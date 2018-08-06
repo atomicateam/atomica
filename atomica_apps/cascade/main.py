@@ -5,7 +5,7 @@ Last update: 2018jun04
 """
 
 import sciris.web as sw
-from . import config, frameworks, projects, rpcs
+from . import config, frameworks, projects, rpcs, apptasks
 
 def make_app():
     app = sw.ScirisApp(__file__, app_config=config) 	# Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.

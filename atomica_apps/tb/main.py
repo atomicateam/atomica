@@ -1,5 +1,5 @@
 """
-main.py -- main module for the Optima Nutrition webapp.
+main.py -- main module for the webapp.
     
 Last update: 2018jun04
 """

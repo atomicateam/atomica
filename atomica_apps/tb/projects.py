@@ -27,7 +27,7 @@ proj_collection = None
 
 class ProjectSO(sw.ScirisObject):
     """
-    A ScirisObject-wrapped Optima Nutrition Project object.
+    A ScirisObject-wrapped Project object.
     
     Methods:
         __init__(proj: Project, owner_uid: UUID, uid: UUID [None]): 
@@ -85,7 +85,7 @@ class ProjectSO(sw.ScirisObject):
         # Show superclass attributes.
         super(ProjectSO, self).show()  
         
-        # Show the Optima defined display text for the project.
+        # Show the defined display text for the project.
         print '---------------------'
         print 'Owner User UID: %s' % self.owner_uid.hex
         print 'Project Name: %s' % self.proj.name
@@ -157,7 +157,7 @@ class ProjectCollection(sw.ScirisCollection):
         valid_uuid = sc.uuid(owner_uid)
         
         # If we have a valid UUID...
-        if valid_uuid is not None:  
+        if valid_uuid is not None: 
             # If we are storing things inside the obj_dict...
             if self.objs_within_coll:              
                 # Get dictionaries for each Project in the dictionary.
