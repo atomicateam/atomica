@@ -131,12 +131,15 @@ class ProjectFramework(object):
         if 'Cascades' not in self.sheets:
             return d # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
         elif isinstance(self.sheets['Cascades'],pd.DataFrame):
-            cascade_list = self.sheets['Cascades'] = [self.sheets['Cascades']] # Turn it into a list
+            cascade_list = [self.sheets['Cascades']] # Turn it into a list
         else:
             cascade_list = self.sheets['Cascades']
 
         for df in cascade_list:
-            d[df.columns[0].strip()] = df
+            cascade_name = df.columns[0].strip()
+            if cascade_name in d:
+                raise NotAllowedError('A cascade with name "%s" was already read in' % (cascade_name))
+            d[cascade_name] = df
 
         return d
 
@@ -380,6 +383,11 @@ class ProjectFramework(object):
                 tmp.add(name)
             else:
                 raise NotAllowedError('Duplicate display name "%s"' % name)
+
+        cascade_names = self.cascades.keys()
+        for name in cascade_names:
+            assert name not in code_names, 'Cascade "%s" cannot have the same name as a compartment, characteristic, or parameter' % (name)
+            assert name not in display_names, 'Cascade "%s" cannot have the same display name as a compartment, characteristic, or parameter' % (name)
 
     def get_allowed_units(self,code_name):
         # Given a variable's code name, return the allowed units for that variable based on the spec provided in the Framework
