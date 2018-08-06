@@ -93,7 +93,11 @@ Last update: 2018-07-29
               {{ projectSummary.project.name }}
             </td>
             <td>
-              <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
+              <!-- TO_PORT 2018-08-06-->
+              <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">
+                <span v-if="projectLoaded(projectSummary.project.id)">Selected</span>
+                <span v-else>Open</span>
+              </button>
               <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
                 <i class="ti-files"></i>
               </button>
@@ -373,6 +377,20 @@ export default {
           horizontalAlign: 'center',
         })      
       })  
+    },
+
+    projectLoaded(uid) {
+      console.log('projectLoaded called')
+      if (this.$store.state.activeProject.project != undefined) {
+        if (this.$store.state.activeProject.project.id === uid) {
+          console.log('Project ' + uid + ' is loaded')
+          return true
+        } else {
+          return false
+        }
+      } else {
+        return false
+      }
     },
 
     updateProjectSummaries(setActiveID) {
