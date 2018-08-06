@@ -17,6 +17,7 @@ import atomica.ui as au
 import sciris.core as sc
 import numpy as np
 import matplotlib.pyplot as plt
+from atomica.core.optimization import optimize
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
@@ -30,13 +31,20 @@ torun = [
 'mixed',
 'parametric_paired',
 "money",
+'cascade_final_stage',
+'cascade-conversions'
 ]
-
 
 # Load the SIR demo and associated programs
 P = au.demo(which='sir',do_plot=0)
 filename = "databooks/progbook_"+test+".xlsx"
 P.load_progbook(progbook_path=filename, make_default_progset=True)
+
+def run_optimization(proj,optimization,instructions):
+    unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
+    optimized_instructions = optimize(P, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
+    optimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    return unoptimized_result,optimized_result
 
 ### STANDARD OUTCOME OPTIMIZATION
 # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
@@ -55,10 +63,9 @@ if 'standard' in torun:
     adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
     measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
     constraints = au.TotalSpendConstraint() # Cap total spending in all years
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
@@ -83,10 +90,9 @@ if 'standard_mindeaths' in torun:
     adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
     measurables = au.MinimizeMeasurable(':dead',2030)
     constraints = au.TotalSpendConstraint() # Cap total spending in all years
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
@@ -110,10 +116,9 @@ if 'delayed' in torun:
     adjustments.append(au.SpendingAdjustment('Treatment 2',2025,'abs',0.,100.))
     measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
     constraints = au.TotalSpendConstraint() # Cap total spending in all years
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
@@ -147,10 +152,9 @@ if 'gradual' in torun:
     adjustments.append(au.SpendingAdjustment('Treatment 2',2025,'abs',0.,100.))
     measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
     constraints = au.TotalSpendConstraint() # Cap total spending in all years
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
@@ -185,10 +189,9 @@ if 'mixed' in torun:
     adjustments.append(au.SpendingAdjustment('Treatment 2',[2023,2027],'abs',0.,100.))
     measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
     constraints = au.TotalSpendConstraint(t=2023) # Cap total spending in 2023 only
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
@@ -214,10 +217,9 @@ if 'parametric_paired' in torun:
     adjustments.append(au.PairedLinearSpendingAdjustment(['Treatment 1','Treatment 2'],[2020,2025]))
     measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
     constraints = None # Total spending constraint is automatically satisfied by the paired parametric adjustment
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
@@ -258,10 +260,9 @@ if 'money' in torun:
 
     constraints = None  # No extra constraints aside from individual bounds
 
-    P.make_optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
 
-    unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-    optimized_result = P.run_optimization(optimization='default',parset='default',progset='default',progset_instructions=instructions)
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
@@ -270,4 +271,65 @@ if 'money' in torun:
     au.plot_series(d, axis="results")
 
 
+if 'cascade_final_stage' in torun:
+    # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
+    # and want a total spending constraint
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',50.),
+                     ('Treatment 2', 1.)])
 
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
+    constraints = au.TotalSpendConstraint() # Cap total spending in all years
+
+    ## CASCADE MEASURABLE
+    # This measurable will maximize the number of people in the final cascade stage, whatever it is
+    measurables = au.MaximizeCascadeFinalStage('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+
+    # This is the same as the 'standard' example, just running the optimization and comparing the results
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
+    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
+    optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+
+    for adjustable in adjustments:
+        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
+
+    au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2020)
+
+if 'cascade-conversions' in torun:
+    # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
+    # and want a total spending constraint
+    alloc = sc.odict([('Risk avoidance', 0.),
+                      ('Harm reduction 1', 0.),
+                      ('Harm reduction 2', 0.),
+                      ('Treatment 1', 50.),
+                      ('Treatment 2', 1.)])
+
+    instructions = au.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
+    constraints = au.TotalSpendConstraint()  # Cap total spending in all years
+
+    ## CASCADE MEASURABLE
+    # This measurable will be
+    measurables = au.MaximizeCascadeConversionRate('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+
+    # This is the same as the 'standard' example, just running the optimization and comparing the results
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
+    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
+    optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+
+    for adjustable in adjustments:
+        print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
+
+    au.plot_cascade(unoptimized_result,'main',pops='all',year=2030)
+    plt.title('Unoptimized')
+    au.plot_cascade(optimized_result,'main',pops='all',year=2030)
+    plt.title('Optimized')

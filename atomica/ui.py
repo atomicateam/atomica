@@ -26,4 +26,6 @@ if _debug: print('Importing program instructions...')
 from .core.programs import ProgramInstructions, ProgramSet # Depends on...?
 if _debug: print('Importing optimization...')
 from .core.optimization import *
+if _debug: print('Importing cascade...')
+from .core.cascade import *
 if _debug: print('Done importing Atomica.')

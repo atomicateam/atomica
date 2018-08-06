@@ -459,7 +459,8 @@ class PlotData(object):
         t2 = sc.promotetoarray(t2)
         for series in self.series:
             series.vals = series.interpolate(t2)
-            series.tvec = t2
+            series.tvec = np.copy(t2)
+            series.t_labels = np.copy(t2)
 
     def __getitem__(self, key):
         # key is a tuple of (result,pop,output)
@@ -511,8 +512,7 @@ class PlotData(object):
         if colors is None:
             colors = grid_color_map(len(targets))  # Default colors
         elif isinstance(colors, list):
-            assert len(colors) == len(
-                targets), 'Number of colors must either be a string, or a list with as many elements as colors to set'
+            assert len(colors) == len(targets), 'Number of colors must either be a string, or a list with as many elements as colors to set'
             colors = colors
         elif colors.startswith('#') or colors not in [m for m in plt.cm.datad if not m.endswith("_r")]:
             colors = [colors for _ in range(len(targets))]  # Apply color to all requested outputs
@@ -554,6 +554,9 @@ class Series(object):
         # time array t2. To ensure results are not misleading, extrapolation is disabled
         # and will return NaN if t2 contains values outside the original time range
         f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
+        out_of_bounds = (t2 < self.tvec[0]) | (t2 > self.tvec[-1])
+        if np.any(out_of_bounds):
+            logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
@@ -754,8 +757,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
         pops = set([x[0] for x in items])
         outputs = set([x[1] for x in items])
 
-        if pops == set(plotdata.pops) and len(
-                outputs) == 1:  # If the same color is used for all pops and always the same output
+        if pops == set(plotdata.pops) and len(outputs) == 1:  # If the same color is used for all pops and always the same output
             label = plotdata.output_names[items[0][1]]  # Use the output name
         elif outputs == set(plotdata.outputs) and len(pops) == 1:  # Same color for all outputs and always same pop
             label = plotdata.pop_names[items[0][0]]  # Use the pop name
@@ -807,7 +809,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
             [x for _, x in inner_labels])) > 1:  # Inner group labels are only displayed if there is more than one label
         ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
         ax2.set_xticks([x[0] for x in inner_labels])
-        ax2.set_xticklabels(['\n\n' + x[1] for x in inner_labels])
+        ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
         ax2.xaxis.set_ticks_position('bottom')
         ax2.set_xlim(ax.get_xlim())
         ax2.spines['right'].set_visible(False)
@@ -950,73 +952,6 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
         figs.append(render_separate_legend(ax, plot_type))
 
     return figs
-
-
-
-
-def plot_cascade(result,cascade,pops='all',year=None):
-    # For inputs, see `Result.get_cascade_vals`
-
-    from matplotlib.pyplot import rc
-    rc('font', size=14)
-
-    if year is None:
-        year = result.t[0] # Draw cascade for first year
-
-    cascade_vals,t = result.get_cascade_vals(cascade,pops,[year,year])
-    assert len(t) == 1, 'Plot cascade requires time aggregation'
-    cascade_array = np.hstack(cascade_vals.values())
-
-    fig = plt.figure()
-    fig.set_figwidth(fig.get_figwidth()*1.5)
-    ax = plt.gca()
-    h= plt.bar(np.arange(len(cascade_vals)),cascade_array, width=0.5)
-    ax.set_xticks(np.arange(len(cascade_vals)))
-    ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
-
-    ylim = ax.get_ylim()
-    yticks = ax.get_yticks()
-    data_yrange = np.diff(ylim)
-    ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
-    ax.set_yticks(yticks)
-    for i,val in enumerate(cascade_array):
-        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center')
-
-    bars = h.get_children()
-    conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost
-    conversion_text_height = cascade_array[-1]/2
-
-    for i in range(len(bars)-1):
-        left_bar = bars[i]
-        right_bar = bars[i+1]
-
-        xy = np.array([
-        (left_bar.get_x() + left_bar.get_width(), 0), # Bottom left corner
-        (left_bar.get_x() + left_bar.get_width(), left_bar.get_y() + left_bar.get_height()), # Top left corner
-        (right_bar.get_x(), right_bar.get_y() + right_bar.get_height()),  # Top right corner
-        (right_bar.get_x(), 0),  # Bottom right corner
-        ])
-
-        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=(0.93,0.93,0.93))
-        ax.add_patch(p)
-
-        bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
-
-        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0,size=15,bbox=bbox_props)
-
-
-    loss = np.diff(cascade_array)
-    for i,val in enumerate(loss):
-
-        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
-
-    pop_label = 'entire population' if pops=='all' else pops
-    plt.ylabel('Number of people')
-    plt.title('Cascade for %s in %d' % (pop_label,year))
-    plt.tight_layout()
-
-    return fig
-
 
 def stack_data(ax,data,series):
     # Stack a list of series in order

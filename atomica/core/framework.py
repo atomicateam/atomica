@@ -130,6 +130,28 @@ class ProjectFramework(object):
         assert isinstance(value,pd.DataFrame)
         self.sheets['Interactions'] = value
 
+    @property
+    def cascades(self):
+        # If the Cascades sheet is present, return an odict where the key is the name of the cascade
+        # and the value is the corresponding dataframe
+
+        d = sc.odict()
+
+        if 'Cascades' not in self.sheets:
+            return d # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
+        elif isinstance(self.sheets['Cascades'],pd.DataFrame):
+            cascade_list = [self.sheets['Cascades']] # Turn it into a list
+        else:
+            cascade_list = self.sheets['Cascades']
+
+        for df in cascade_list:
+            cascade_name = df.columns[0].strip()
+            if cascade_name in d:
+                raise NotAllowedError('A cascade with name "%s" was already read in' % (cascade_name))
+            d[cascade_name] = df
+
+        return d
+
     def get_interaction(self,interaction_name):
         return self.interactions.loc[interaction_name]
 
@@ -256,6 +278,9 @@ class ProjectFramework(object):
         self.pars.set_index('Code Name',inplace=True)
         self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
 
+        # Make sure all units are lowercase
+        self.pars['Format'] = self.pars['Format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+
         # Parse the transitions matrix
         self._process_transitions()
 
@@ -342,6 +367,7 @@ class ProjectFramework(object):
         valid_content = {
             'Display Name': None,
         }
+
         self.interactions.set_index('Code Name',inplace=True)
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
@@ -370,6 +396,11 @@ class ProjectFramework(object):
                 tmp.add(name)
             else:
                 raise NotAllowedError('Duplicate display name "%s"' % name)
+
+        cascade_names = self.cascades.keys()
+        for name in cascade_names:
+            assert name not in code_names, 'Cascade "%s" cannot have the same name as a compartment, characteristic, or parameter' % (name)
+            assert name not in display_names, 'Cascade "%s" cannot have the same display name as a compartment, characteristic, or parameter' % (name)
 
     def get_allowed_units(self,code_name):
         # Given a variable's code name, return the allowed units for that variable based on the spec provided in the Framework
@@ -413,7 +444,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
 
     # First check required columns are present
     if any(df.index.isnull()):
-        raise AtomicaException('DataFrame index cannot be done (this probably means a "Code Name" was left empty')
+        raise AtomicaException('DataFrame index cannot be none (this probably means a "Code Name" was left empty')
 
     for col in required_columns:
         assert col in df, 'DataFrame did not contain the required column "%s"' % col
