@@ -386,6 +386,9 @@ class TimeDependentConnections(object):
                         ts.insert(t, v)
                 ts_entries[(from_pop,to_pop)] = ts
 
+        if not ts_entries:
+            logger.warning('TDC "%s" did not contain any data - is this intentional?' % (full_name))
+
         return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 
     def write(self,worksheet,start_row,formats,references=None, widths = None):
@@ -549,6 +552,11 @@ class TimeDependentValuesEntry(object):
 
     def __repr__(self):
         return '<TDVE "%s">' % (self.name)
+
+    @property
+    def has_data(self):
+        # Returns True if any of the time series
+        return any([x.has_data for x in self.ts.values()])
 
     @staticmethod
     def from_rows(rows):
