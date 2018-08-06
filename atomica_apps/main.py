@@ -5,14 +5,16 @@ Last update: 2018jun04
 """
 
 import sciris.web as sw
-from . import config_cascade, frameworks, projects, rpcs, apptasks_cascade
+from . import frameworks, projects, rpcs
 
 def make_app(which=None):
     if which is None: which = 'tb'
     if which == 'tb':
-        config = config_tb
+        import config_tb as config
+        import apptasks_tb as apptasks # analysis:ignore
     elif which == 'cascade':
-        config = config_cascade
+        import config_cascade as config
+        import apptasks_cascade as apptasks # analysis:ignore
     else:
         raise Exception('"%s" not understood; which must be "tb" or "cascade"' % which)
     app = sw.ScirisApp(__file__, app_config=config) 	# Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
