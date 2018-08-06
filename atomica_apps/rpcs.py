@@ -879,8 +879,83 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 
-def supported_plots_func():
 
+
+
+@register_RPC(validation_type='nonanonymous user')
+def get_y_factors(project_id, parsetname=-1):
+    print('Getting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
+    y_factors = []
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    count = 0
+    for par_type in ["cascade", "comps", "characs"]:
+        for parname in parset.par_ids[par_type].keys():
+            this_par = parset.get_par(parname)
+            this_spec = proj.framework.get_variable(parname)[0]
+            if 'Can Calibrate' in this_spec and this_spec['Can Calibrate'] == 'y':
+                for popname,y_factor in this_par.y_factor.items():
+                    count += 1
+                    parlabel = this_spec['Display Name']
+                    popindex = parset.pop_names.index(popname)
+                    poplabel = parset.pop_labels[popindex]
+                    try:    
+                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                        if not np.isfinite(interp_val):
+                            interp_val = 1
+                        if sc.approx(interp_val, 0):
+                            interp_val = 1
+                    except: 
+                        interp_val = 1
+                    dispvalue = interp_val*y_factor
+                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
+                    y_factors.append(thisdict)
+                    print(thisdict)
+    print('Returning %s y-factors' % len(y_factors))
+    return y_factors
+
+
+@timeit
+@register_RPC(validation_type='nonanonymous user')    
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None):
+    print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for pardict in y_factors:
+        parname   = pardict['parname']
+        dispvalue = float(pardict['dispvalue'])
+        popname   = pardict['popname']
+        thispar   = parset.get_par(parname)
+        try:    
+            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
+            if not np.isfinite(interp_val):
+                interp_val = 1
+            if sc.approx(interp_val, 0):
+                interp_val = 1
+        except: 
+            interp_val = 1
+        y_factor  = dispvalue/interp_val
+        parset.get_par(parname).y_factor[popname] = y_factor
+        if not sc.approx(y_factor, 1):
+            print('Modified: %s (%s)' % (parname, y_factor))
+    
+    proj.modified = sc.today()
+    result = proj.run_sim(parset=parsetname, store_results=False)
+    store_result_separately(proj, result)
+    output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
+
+    # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+    return output
+
+
+
+
+#%% Plotting
+def supported_plots_func():
     supported_plots = sc.odict() # Preserve order
     supported_plots['Population size'] = 'alive'
     supported_plots['Latent infections'] = 'lt_inf'
@@ -901,7 +976,6 @@ def supported_plots_func():
     supported_plots['Latent treatment'] = 'ltt_inf'
     supported_plots['Active treatment'] = 'num_treat'
     supported_plots['TB-related deaths'] = ':ddis'
-
     return supported_plots
 
 @register_RPC(validation_type='nonanonymous user')    
@@ -1007,13 +1081,9 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
                         if nan_ind>0: # Skip the first point
                             series.vals[nan_ind] = series.vals[nan_ind-1]
                             nans_replaced += 1
-            if nans_replaced:
-                print('Warning: %s nans were replaced' % nans_replaced)
-
-            if stacked:
-                figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
-            else:
-                figs = au.plot_series(plotdata, data=data, axis='results')
+            if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
+            if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
+            else:       figs = au.plot_series(plotdata, data=data, axis='results')
 
             # Todo - customize plot formatting here
             for fig in figs:
@@ -1033,81 +1103,31 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-
-
     return {'graphs':graphs}
 
 
-@register_RPC(validation_type='nonanonymous user')
-def get_y_factors(project_id, parsetname=-1):
-    print('Getting y factors for parset %s...' % parsetname)
-    TEMP_YEAR = 2018 # WARNING, hard-coded!
-    y_factors = []
-    proj = load_project(project_id, raise_exception=True)
-    parset = proj.parsets[parsetname]
-    count = 0
-    for par_type in ["cascade", "comps", "characs"]:
-        for parname in parset.par_ids[par_type].keys():
-            this_par = parset.get_par(parname)
-            this_spec = proj.framework.get_variable(parname)[0]
-            if 'Can Calibrate' in this_spec and this_spec['Can Calibrate'] == 'y':
-                for popname,y_factor in this_par.y_factor.items():
-                    count += 1
-                    parlabel = this_spec['Display Name']
-                    popindex = parset.pop_names.index(popname)
-                    poplabel = parset.pop_labels[popindex]
-                    try:    
-                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                        if not np.isfinite(interp_val):
-                            interp_val = 1
-                        if sc.approx(interp_val, 0):
-                            interp_val = 1
-                    except: 
-                        interp_val = 1
-                    dispvalue = interp_val*y_factor
-                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
-                    y_factors.append(thisdict)
-                    print(thisdict)
-    print('Returning %s y-factors' % len(y_factors))
-    return y_factors
 
-
-@timeit
-@register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None):
-    print('Setting y factors for parset %s...' % parsetname)
-    TEMP_YEAR = 2018 # WARNING, hard-coded!
-    proj = load_project(project_id, raise_exception=True)
-    parset = proj.parsets[parsetname]
-    for pardict in y_factors:
-        parname   = pardict['parname']
-        dispvalue = float(pardict['dispvalue'])
-        popname   = pardict['popname']
-        thispar   = parset.get_par(parname)
-        try:    
-            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
-            if not np.isfinite(interp_val):
-                interp_val = 1
-            if sc.approx(interp_val, 0):
-                interp_val = 1
-        except: 
-            interp_val = 1
-        y_factor  = dispvalue/interp_val
-        parset.get_par(parname).y_factor[popname] = y_factor
-        if not sc.approx(y_factor, 1):
-            print('Modified: %s (%s)' % (parname, y_factor))
+def get_cascade_plot(proj, results=None, pops=None, year=None):
+    graphs = []
+    try:
+        figs = au.plot_cascade(results, cascade='main', pops=pops, year=year)
+        figs = sc.promotetolist(figs)
+        for fig in figs:
+            ax = fig.get_axes()[0]
+            ax.set_facecolor('none')
+            legend = fig.findobj(Legend)[0]
+            if len(legend.get_texts())==1:
+                legend.remove() # Can remove the legend if it only has one entry
+            fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+            mpld3.plugins.connect(fig, TickFormat())
+            graph_dict = mpld3.fig_to_dict(fig)
+            graphs.append(graph_dict)
+        print('Cascade plot succeeded')
+    except Exception as E:
+        print('WARNING: cascade plot failed (%s)' % (repr(E)))
+    return {'graphs':graphs}
     
-    proj.modified = sc.today()
-    result = proj.run_sim(parset=parsetname, store_results=False)
-    store_result_separately(proj, result)
-    output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
 
-    # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-    unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
-    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-    return output
-
-#%% Plotting
 def get_cascade_plots(project_id, year=None, pop=None):
     print('do_get_plots')
     proj = load_project(project_id, raise_exception=True)
