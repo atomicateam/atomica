@@ -294,10 +294,10 @@ export default {
       data_end:   2035, // For creating a new project: number of populations
       activeuid:  [], // WARNING, kludgy to get create progbook working
       frameworkSummaries: [],
+      createDemoModalProjName: '',      
       proj_name: 'New project', // For creating a new project: number of populations
       num_pops: 5, // For creating a new project: number of populations
       projectOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
-      createDemoModalProjName: ''
     }
   },
 
@@ -315,6 +315,7 @@ export default {
       if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
         projectId = this.$store.state.activeProject.project.id
       }
+      this.updateFrameworkSummaries()        // Load the frmaeworks so the new project dialog is populated
       this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
     }
   },
@@ -366,14 +367,8 @@ export default {
         })
       })
       .catch(error => {
-        // Failure popup.
-        this.$notifications.notify({
-          message: 'Could not load frameworks',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        })      
+        // Failure popup.        
+        status.failurePopup(this, 'Could not load frameworks')     
       })  
     },
 
