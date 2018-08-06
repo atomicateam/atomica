@@ -10,7 +10,6 @@ Last update: 2018jun04 by cliffk
 
 import time
 import os
-import shutil
 import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
