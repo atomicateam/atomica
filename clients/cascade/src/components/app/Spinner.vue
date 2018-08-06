@@ -20,7 +20,11 @@
 <script>
   export default {
     name: 'PopupSpinner',
-
+    
+    created() {
+      window.addEventListener('keyup', this.onKey)
+    },
+    
     props: {
       loading: {
         type: Boolean,
@@ -77,6 +81,15 @@
       animationStyle3 () {
         return {
           border: this.moonSize + 'px solid ' + this.color
+        }
+      }
+    }, 
+    
+    methods: {
+      onKey(event) {
+        if (event.keyCode == 27) {
+          console.log('Exited through Esc key')
+          this.$modal.hide('popup-spinner') // Dispel the spinner.
         }
       }
     }

@@ -417,14 +417,14 @@ Last update: 2018-07-31
           }
           
           // Indicate success.
-//          status.succeed(this, 'Graphs created')
+          status.succeed(this, 'Graphs created')
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
           
           // Indicate failure.
-//          status.fail(this, 'Could not make graphs')
+          status.fail(this, 'Could not make graphs')
         }) 
       },
 
