@@ -119,7 +119,6 @@ Last update: 2018-07-29
 
       <div class="ControlsRow">
         <button class="btn" @click="deleteModal()">Delete selected</button>
-        &nbsp; &nbsp;
         <button class="btn" @click="downloadSelectedFrameworks">Download selected</button>
       </div>
     </div>
@@ -137,6 +136,9 @@ Last update: 2018-07-29
         <div class="dialog-c-title">
           Load framework from library
         </div>
+        <p>
+          <a href="https://docs.google.com/document/d/18zgBsP95ThjrDm2Uzzw9aS_jN1ykADAEkGKtif0qvPY/edit?usp=sharing" target="_blank">Framework details</a>
+        </p>
         <div class="dialog-c-text">
           <select v-model="currentFramework">
             <option v-for='framework in frameworkOptions'>
