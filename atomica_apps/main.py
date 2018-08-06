@@ -5,7 +5,7 @@ Last update: 2018jun04
 """
 
 import sciris.web as sw
-from . import config_tb, config_cascade, frameworks, projects, rpcs, apptasks_tb, apptasks_cascade
+from . import config_cascade, frameworks, projects, rpcs, apptasks_cascade
 
 def make_app(which=None):
     if which is None: which = 'tb'
