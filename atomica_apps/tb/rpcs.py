@@ -31,26 +31,6 @@ def TickFormat():
     plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
     return plugin
 
-#class TickFormat(mpld3.plugins.PluginBase):
-#    """Tick format plugin."""
-#
-#    JAVASCRIPT = """
-#    mpld3.register_plugin("tickformat", TickFormat);
-#    TickFormat.prototype = Object.create(mpld3.Plugin.prototype);
-#    TickFormat.prototype.constructor = TickFormat;
-#    function TickFormat(fig, props) {
-#        mpld3.Plugin.call(this, fig, props);
-#        console.log('hi');
-#        fig.setXTicks(null, function(d) {
-#            return 'hello' + d3.format('.2s')(d);
-#        });
-#        fig.setYTicks(null, function(d) {
-#            return d3.format('.2s')(d);
-#        });
-#    };
-#    """
-#    def __init__(self):
-#        self.dict_ = {"type": "tickformat"}
 
 
 def timeit(method):
@@ -106,9 +86,9 @@ RPC_dict = {}
 register_RPC = sw.make_register_RPC(RPC_dict)
 
         
-#
-# Other functions (mostly helpers for the RPCs)
-#
+##############################################################
+#%% Project functions
+##############################################################
     
 
 def load_project_record(project_id, raise_exception=True):
@@ -247,44 +227,7 @@ def save_project_as_new(proj, user_id):
     save_project(proj) # Save the changed Project object to the DataStore.
     return None
 
-@timeit
-def get_burden_set_fe_repr(burdenset):
-    obj_info = {
-        'burdenset': {
-            'name': burdenset.name,
-            'uid': burdenset.uid,
-            'creationTime': burdenset.created,
-            'updateTime': burdenset.modified
-        }
-    }
-    return obj_info
 
-@timeit
-def get_interv_set_fe_repr(interv_set):
-    obj_info = {
-        'intervset': {
-            'name': interv_set.name,
-            'uid': interv_set.uid,
-            'creationTime': interv_set.created,
-            'updateTime': interv_set.modified
-        }
-    }
-    return obj_info
-
-def get_package_set_fe_repr(packageset):
-    obj_info = {
-        'packageset': {
-            'name': packageset.name,
-            'uid': packageset.uid,
-            'creationTime': packageset.created,
-            'updateTime': packageset.modified
-        }
-    }
-    return obj_info
-
-#
-# RPC functions
-#
 
 # RPC definitions
 @register_RPC()
@@ -304,7 +247,7 @@ def get_version_info():
 ##################################################################################
 #%% Project RPCs
 ##################################################################################
-    
+
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
@@ -823,7 +766,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user')    
 def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
     
@@ -923,12 +866,10 @@ def delete_parset(project_id, parsetname=None):
     save_project(proj)
     return None
 
-
 ##################################################################################
 #%% Progset functions and RPCs
 ##################################################################################
 
-#TO_PORT
 @register_RPC(validation_type='nonanonymous user') 
 def get_progset_info(project_id):
     print('Returning progset info...')
@@ -936,7 +877,7 @@ def get_progset_info(project_id):
     progset_names = proj.progsets.keys()
     return progset_names
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user') 
 def rename_progset(project_id, progsetname=None, new_name=None):
     print('Renaming progset from %s to %s...' % (progsetname, new_name))
@@ -946,7 +887,7 @@ def rename_progset(project_id, progsetname=None, new_name=None):
     save_project(proj)
     return None
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user') 
 def copy_progset(project_id, progsetname=None):
     print('Copying progset %s...' % progsetname)
@@ -960,7 +901,7 @@ def copy_progset(project_id, progsetname=None):
     save_project(proj)
     return None
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user') 
 def delete_progset(project_id, progsetname=None):
     print('Deleting progset %s...' % progsetname)
@@ -1116,11 +1057,6 @@ def run_scenarios(project_id, plot_options, saveresults=False):
 #%% Optimization functions and RPCs
 ##################################################################################
 
-#def rpc_optimize(proj=None, json=None):
-#    proj.make_optimization(json=json) # Make optimization
-#    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
-#    return optimized_result
-
 
 def py_to_js_optim(py_optim, project=None):
     js_optim = sw.json_sanitize_result(py_optim.json)
@@ -1136,9 +1072,7 @@ def py_to_js_optim(py_optim, project=None):
 def get_optim_info(project_id):
     print('Getting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-    print(proj)
     optim_summaries = []
-    print(proj.optims.keys())
     for py_optim in proj.optims.values():
         js_optim = py_to_js_optim(py_optim, project=proj)
         optim_summaries.append(js_optim)

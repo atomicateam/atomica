@@ -8,21 +8,78 @@ Last update: 2018jun04 by cliffk
 # Imports
 #
 
+import time
 import os
+import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
-import uuid
-import time
-
 import sciris.corelib.fileio as fileio
 import sciris.weblib.user as user
 import sciris.core as sc
 import sciris.web as sw
-
+import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
 from . import frameworks as frw
+from matplotlib.legend import Legend
+import matplotlib.pyplot as pl
+from matplotlib.pyplot import rc
+rc('font', size=14)
+
+
+def TickFormat():
+    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
+    return plugin
+
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print '%r  %2.2f ms' % \
+                  (method.__name__, (te - ts) * 1000)
+        return result
+
+    return timed
+
+
+
+
+
+# Make a Result storable by Sciris
+class ResultSO(sw.ScirisObject):
+
+    def __init__(self,result):
+        super(ResultSO, self).__init__(result.uid)
+        self.result = result
+
+# A ResultPlaceholder can be stored in proj.results instead of a Result
+class ResultPlaceholder(au.NamedItem):
+
+    def __init__(self,result):
+        au.NamedItem.__init__(self,result.name)
+        self.uid = result.uid
+
+    def get(self):
+        result_so = ds.data_store.retrieve(self.uid)
+        return result_so.result
+
+@timeit
+def store_result_separately(proj,result):
+    # Given a result, add a ResultPlaceholder to the project
+    # Save both the updated project and the result to the datastore
+    result_so = ResultSO(result)
+    result_so.add_to_data_store()
+    proj.results.append(ResultPlaceholder(result))
+    save_project(proj)
 
 # Dictionary to hold all of the registered RPCs in this module.
 RPC_dict = {}
@@ -30,50 +87,7 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
-label_mapping = {'SIR model':'sir',
-                 'Tuberculosis':'tb',
-                 'Diabetes':'diabetes',
-                 'Service delivery':'service'}
 
-
-def get_unique_name(name, other_names=None):
-    """
-    Given a name and a list of other names, find a replacement to the name 
-    that doesn't conflict with the other names, and pass it back.
-    """
-    
-    # If no list of other_names is passed in, load up a list with all of the 
-    # names from the project summaries.
-    if other_names is None:
-        other_names = [p['project']['name'] for p in load_current_user_project_summaries2()['projects']]
-      
-    # Start with the passed in name.
-    i = 0
-    unique_name = name
-    
-    # Try adding an index (i) to the name until we find one that no longer 
-    # matches one of the other names in the list.
-    while unique_name in other_names:
-        i += 1
-        unique_name = "%s (%d)" % (name, i)
-        
-    # Return the found name.
-    return unique_name
-
-
-# Doesn't really belong
-@register_RPC()
-def get_version_info():
-	''' Return the information about the project. '''
-	gitinfo = sc.gitinfo(__file__)
-	version_info = {
-	       'version':   au.version,
-	       'date':      au.versiondate,
-	       'gitbranch': gitinfo['branch'],
-	       'githash':   gitinfo['hash'],
-	       'gitdate':   gitinfo['date'],
-	}
-	return version_info
 
 
 ###############################################################
@@ -186,7 +200,7 @@ def save_framework_as_new(frame, user_id):
 
 
         
-###############################################################
+##############################################################
 #%% Project functions
 ##############################################################
     
@@ -207,6 +221,7 @@ def load_project_record(project_id, raise_exception=True):
     # Return the Project object for the match (None if none found).
     return project_record
 
+@timeit
 def load_project(project_id, raise_exception=True):
     """
     Return the Nutrition Project object, given a project UID, or None if no 
@@ -214,9 +229,15 @@ def load_project(project_id, raise_exception=True):
     """ 
     
     # Load the project record matching the ID passed in.
-    project_record = load_project_record(project_id, 
+
+    ts = time.time()
+
+
+    project_record = load_project_record(project_id,
         raise_exception=raise_exception)
-    
+
+    print 'Loaded project record from Redis - elapsed time %.2f' % ((time.time()-ts)*1000)
+
     # If there is no match, raise an exception or return None.
     if project_record is None:
         if raise_exception:
@@ -225,8 +246,13 @@ def load_project(project_id, raise_exception=True):
             return None
         
     # Return the found project.
-    return project_record.proj
+    proj = project_record.proj
 
+    print 'Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000)
+
+    return proj
+
+@timeit
 def load_project_summary_from_project_record(project_record):
     """
     Return the project summary, given the DataStore record.
@@ -234,10 +260,11 @@ def load_project_summary_from_project_record(project_record):
     
     # Return the built project summary.
     return project_record.get_user_front_end_repr()
-  
+
+@timeit
 def load_current_user_project_summaries2():
     """
-    Return project summaries for all projects the user has to the client. -- WARNING, fix!
+    Return project summaries for all projects the user has to the client.
     """ 
     
     # Get the prj.ProjectSO entries matching the user UID.
@@ -247,8 +274,33 @@ def load_current_user_project_summaries2():
     # just got.
     return {'projects': map(load_project_summary_from_project_record, 
         project_entries)}
-                
 
+@timeit
+def get_unique_name(name, other_names=None):
+    """
+    Given a name and a list of other names, find a replacement to the name 
+    that doesn't conflict with the other names, and pass it back.
+    """
+    
+    # If no list of other_names is passed in, load up a list with all of the 
+    # names from the project summaries.
+    if other_names is None:
+        other_names = [p['project']['name'] for p in load_current_user_project_summaries2()['projects']]
+      
+    # Start with the passed in name.
+    i = 0
+    unique_name = name
+    
+    # Try adding an index (i) to the name until we find one that no longer 
+    # matches one of the other names in the list.
+    while unique_name in other_names:
+        i += 1
+        unique_name = "%s (%d)" % (name, i)
+        
+    # Return the found name.
+    return unique_name
+
+@timeit
 def save_project(proj):
     """
     Given a Project object, wrap it in a new prj.ProjectSO object and put this 
@@ -257,44 +309,53 @@ def save_project(proj):
     """ 
     
     # Load the project record matching the UID of the project passed in.
+
+    ts = time.time()
+
     project_record = load_project_record(proj.uid)
-    
-    # Copy the project, only save what we want...
-    new_project = sc.dcp(proj)
-    new_project.modified = sc.today()
-         
+
+    print 'Loaded project record - elapsed time %.2f' % ((time.time()-ts)*1000)
+
     # Create the new project entry and enter it into the ProjectCollection.
     # Note: We don't need to pass in project.uid as a 3rd argument because 
     # the constructor will automatically use the Project's UID.
-    projSO = prj.ProjectSO(new_project, project_record.owner_uid)
+    projSO = prj.ProjectSO(proj, project_record.owner_uid)
+
+    print 'ProjectSO constructor - elapsed time %.2f' % ((time.time()-ts)*1000)
+
     prj.proj_collection.update_object(projSO)
     
+    print 'Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000)
 
+@timeit
 def save_project_as_new(proj, user_id):
     """
     Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
     """ 
-    
-    # Set a new project UID, so we aren't replicating the UID passed in.
-    proj.uid = sc.uuid()
-    
-    # Create the new project entry and enter it into the ProjectCollection.
-    projSO = prj.ProjectSO(proj, user_id)
+    proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
+    projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
-
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> save_project_as_new '%s'" % proj.name)
-
-    # Save the changed Project object to the DataStore.
-    save_project(proj)
-    
+    print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
+    save_project(proj) # Save the changed Project object to the DataStore.
     return None
 
 
 
+# RPC definitions
+@register_RPC()
+def get_version_info():
+	''' Return the information about the project. '''
+	gitinfo = sc.gitinfo(__file__)
+	version_info = {
+	       'version':   au.version,
+	       'date':      au.versiondate,
+	       'gitbranch': gitinfo['branch'],
+	       'githash':   gitinfo['hash'],
+	       'gitdate':   gitinfo['date'],
+	}
+	return version_info
 
 
 ##################################################################################
@@ -585,7 +646,6 @@ def create_framework_from_frw_file(frw_filename, user_id):
 #%% Project RPCs
 ##################################################################################
 
-
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
@@ -676,36 +736,43 @@ def download_project(project_id):
     print(">> download_project %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
+
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_databook(project_id):
     """
     Download databook
     """
-    N_POPS = 5
-    print('WARNING, N_POPS HARDCODED')
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.create_databook(full_file_name, num_pops=N_POPS)
+    proj.databook.save(full_file_name)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_progbook(project_id):
-    """
-    Download program book
-    """
-    N_PROGS = 5
-    print("WARNING, PROGRAMS HARD_CODED")
+    """ Download program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.make_progbook(full_file_name, progs=N_PROGS)
-    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    proj.progbook.save(full_file_name)
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
+    
+    
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def create_progbook(project_id, num_progs):
+    """ Create program book """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.    
     
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
@@ -728,30 +795,16 @@ def load_zip_of_prj_files(project_ids):
     Given a list of project UIDs, make a .zip file containing all of these 
     projects as .prj files, and return the full path to this file.
     """
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-
-    # Build a list of prj.ProjectSO objects for each of the selected projects, 
-    # saving each of them in separate .prj files.
-    prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids]
-    
-    # Make the zip file name and the full server file path version of the same..
-    zip_fname = 'Projects %s.zip' % sc.getdate()
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids] # Build a list of prj.ProjectSO objects for each of the selected projects, saving each of them in separate .prj files.
+    zip_fname = 'Projects %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
-    
-    # Create the zip file, putting all of the .prj files in a projects 
-    # directory.
-    with ZipFile(server_zip_fname, 'w') as zipfile:
+    with ZipFile(server_zip_fname, 'w') as zipfile: # Create the zip file, putting all of the .prj files in a projects directory.
         for project in prjs:
             zipfile.write(os.path.join(dirname, project), 'projects/{}'.format(project))
-            
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
-    print(">> load_zip_of_prj_files %s" % (server_zip_fname))
+    print(">> load_zip_of_prj_files %s" % (server_zip_fname)) # Display the call information.
+    return server_zip_fname # Return the server file name.
 
-    # Return the server file name.
-    return server_zip_fname
 
 @register_RPC(validation_type='nonanonymous user')
 def add_demo_project(user_id, project_name):
@@ -765,52 +818,30 @@ def add_demo_project(user_id, project_name):
         errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), project_name)
         raise Exception(errormsg)
     new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
-    proj = au.demo(which=which,do_plot=0)  # Create the project, loading in the desired spreadsheets.
+    proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
     proj.name = new_proj_name
-    print(">> add_demo_project %s" % (proj.name))     
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
+    print(">> add_demo_project %s" % (proj.name))    
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_project(user_id, proj_name, num_pops, data_start, data_end):
+def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data_end):
     """
     Create a new project.
     """
-    
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
-    
-    # Get a unique name for the project to be added.
-    new_proj_name = get_unique_name(proj_name, other_names=None)
-    
-    # Create the project, loading in the desired spreadsheets.
-    F = au.ProjectFramework(name='TB', filepath=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
-    proj = au.Project(framework=F, name=new_proj_name)
-    
-    # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
+    new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
+    F = au.ProjectFramework(name='WARNING UPDATE', inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+    proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
-    
-    # Save the new project in the DataStore.
-    save_project_as_new(proj, user_id)
-    
-    # Use the downloads directory to put the file in.
-    dirname = fileio.downloads_dir.dir_path
-        
-    # Create a filename containing the project name followed by a .prj 
-    # suffix.
-    file_name = '%s.xlsx' % proj.name
-        
-    # Generate the full file name with path.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name)
-    
-    # Return the databook
-    proj.create_databook(databook_path=full_file_name, **args)
-    
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.create_databook(databook_path=full_file_name, **args) # Return the databook
     print(">> download_databook %s" % (full_file_name))
-    
-    # Return the new project UID in the return message.
-    return full_file_name
+    return full_file_name # Return the filename
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
@@ -820,7 +851,7 @@ def upload_databook(databook_filename, project_id):
     """
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
-    proj.load_databook(databook_path=databook_filename, overwrite=True) 
+    proj.load_databook(databook_path=databook_filename) 
     proj.modified = sc.today()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
@@ -845,29 +876,18 @@ def update_project_from_summary(project_summary):
     Given the passed in project summary, update the underlying project 
     accordingly.
     """ 
-    
-    # Load the project corresponding with this summary.
-    proj = load_project(project_summary['project']['id'])
-    
-    # Use the summary to set the actual project, checking to make sure that 
-    # the project name is unique.
-    proj_uid = uuid.UUID(project_summary['project']['id']).hex
-    other_names = [prj['project']['name'] for prj in load_current_user_project_summaries2()['projects'] if (prj['project']['id'].hex != proj_uid)]
-    proj.name = get_unique_name(project_summary['project']['name'], other_names=other_names)
-    
-    # Set the modified time to now.
-    proj.modified = sc.today()
-    
-    # Save the changed project to the DataStore.
-    save_project(proj)
-    
-@register_RPC(validation_type='nonanonymous user')    
+    proj = load_project(project_summary['project']['id']) # Load the project corresponding with this summary.
+    proj.name = project_summary['project']['name'] # Use the summary to set the actual project.
+    proj.modified = sc.today() # Set the modified time to now.
+    save_project(proj) # Save the changed project to the DataStore.
+    return
+
+@register_RPC(validation_type='nonanonymous user')
 def copy_project(project_id):
     """
     Given a project UID, creates a copy of the project with a new UID and 
     returns that UID.
     """
-    
     # Get the Project object for the project to be copied.
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
@@ -883,7 +903,6 @@ def copy_project(project_id):
     user_id = current_user.get_id() 
     
     # Display the call information.
-    # TODO: have this so that it doesn't show when logging is turned off
     print(">> copy_project %s" % (new_project.name)) 
     
     # Save a DataStore projects record for the copy project.
@@ -894,7 +913,6 @@ def copy_project(project_id):
 
     # Return the UID for the new projects record.
     return { 'projectId': copy_project_id }
-
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
 def create_project_from_prj_file(prj_filename, user_id):
@@ -945,121 +963,101 @@ def get_plots(project_id, year=None):
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_y_factors(project_id, parsetname=-1):
-    print('Getting y factors...')
+    print('Getting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
+    count = 0
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
-            thispar = parset.get_par(parname)
-            if proj.framework.get_spec_value(parname, "can_calibrate"):
-                for popname,y_factor in thispar.y_factor.items():
-                    parlabel = proj.framework.get_spec_value(parname,'label')
+            this_par = parset.get_par(parname)
+            this_spec = proj.framework.get_variable(parname)[0]
+            if 'Can Calibrate' in this_spec and this_spec['Can Calibrate'] == 'y':
+                for popname,y_factor in this_par.y_factor.items():
+                    count += 1
+                    parlabel = this_spec['Display Name']
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
-                    thisdict = {'parname':parname, 'popname':popname, 'value':y_factor, 'parlabel':parlabel, 'poplabel':poplabel}
+                    try:    
+                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                        if not np.isfinite(interp_val):
+                            interp_val = 1
+                        if sc.approx(interp_val, 0):
+                            interp_val = 1
+                    except: 
+                        interp_val = 1
+                    dispvalue = interp_val*y_factor
+                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
                     y_factors.append(thisdict)
                     print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
     return y_factors
 
 
+@timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, y_factors, year=None, parsetname=-1):
-    print('Setting y factors...')
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None):
+    print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
-    for par in y_factors:
-        value = float(par['value'])
-        parset.get_par(par['parname']).y_factor[par['popname']] = value
-        if value != 1:
-            print('Modified: %s' % par)
+    for pardict in y_factors:
+        parname   = pardict['parname']
+        dispvalue = float(pardict['dispvalue'])
+        popname   = pardict['popname']
+        thispar   = parset.get_par(parname)
+        try:    
+            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
+            if not np.isfinite(interp_val):
+                interp_val = 1
+            if sc.approx(interp_val, 0):
+                interp_val = 1
+        except: 
+            interp_val = 1
+        y_factor  = dispvalue/interp_val
+        parset.get_par(parname).y_factor[popname] = y_factor
+        if not sc.approx(y_factor, 1):
+            print('Modified: %s (%s)' % (parname, y_factor))
     
-    print('Rerunning model with updated y factors...')
     proj.modified = sc.today()
-    print('Resultsets before run: %s' % len(proj.results))
-    proj.run_sim(parset=parsetname, store_results=True)
-    print('Resultsets after run: %s' % len(proj.results))
-    save_project(proj)    
-    output = do_get_plots(proj.uid, year=year)
+    result = proj.run_sim(parset=parsetname, store_results=False)
+    store_result_separately(proj, result)
+    output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
+
+    # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
+    unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
 
 
 @register_RPC(validation_type='nonanonymous user')    
-def automatic_calibration(project_id, year=None, parsetname=-1):
+def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
     
-    print('Running automatic calibration...')
+    print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
+    proj.calibrate(max_time=max_time) # WARNING, add kwargs!
     
     print('Rerunning calibrated model...')
-    proj.modified = sc.today()
+    
     print('Resultsets before run: %s' % len(proj.results))
-    proj.run_sim(parset=parsetname, store_results=True)
+    if saveresults:
+        result = proj.run_sim(parset=parsetname, store_results=True)
+        save_project(proj)
+    else:
+        result = proj.run_sim(parset=parsetname, store_results=False) 
+        store_result_separately(proj, result)
     print('Resultsets after run: %s' % len(proj.results))
-    save_project(proj)    
-    output = do_get_plots(proj.uid, year=year)
+
+    output = get_calibration_plots(proj, result,pops=None,stacked=True)
+
+    # Commands below will render unstacked plots with data, and will interleave them
+    # so they appear next to each other in the FE
+    print('WARNING UPDATE')
+    unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
+    output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+
     return output
-
-
-@register_RPC(validation_type='nonanonymous user')    
-def run_default_scenario(project_id):
-    
-    import pylab as pl
-    
-    print('Running default scenario...')
-    proj = load_project(project_id, raise_exception=True)
-    
-    figs = []
-    graphs = []
-    
-    P = proj
-    P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
-    instructions = au.ProgramInstructions() 
-    instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
-    P.run_sim(parset="default", result_name="default-noprogs")
-    P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
-    d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
-    figs += au.plot_series(d, axis="results")
-        
-#    scvalues = dict()
-#
-#    scen_par = "spd_infxness"
-#    scen_pop = "15-64"
-#    scen_outputs = ["lt_inf", "ac_inf"]
-#
-#    scvalues[scen_par] = dict()
-#    scvalues[scen_par][scen_pop] = dict()
-#
-#    # Insert (or possibly overwrite) one value.
-#    scvalues[scen_par][scen_pop]["y"] = [0.125]
-#    scvalues[scen_par][scen_pop]["t"] = [2015.]
-#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2]
-#
-#    proj.make_scenario(name="varying_infections", instructions=scvalues)
-#    proj.run_scenario(scenario="varying_infections", parset="default", result_name="scen1")
-#
-#    # Insert two values and eliminate everything between them.
-#    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-#    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-#    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-#
-#    proj.make_scenario(name="varying_infections2", instructions=scvalues)
-#    proj.run_scenario(scenario="varying_infections2", parset="default", result_name="scen2")
-    
-    
-#    d = au.PlotData([proj.results["scen1"],proj.results["scen2"]], outputs=scen_outputs, pops=[scen_pop])
-#    figs += au.plot_series(d, axis="results")
-    pl.gca().set_facecolor('none')
-    
-    for f,fig in enumerate(figs):
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-    
-    print('Saving project...')
-    save_project(proj)    
-    return {'graphs':graphs}
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
@@ -1070,6 +1068,9 @@ def export_results(project_id, resultset=-1):
     print('Exporting results...')
     proj = load_project(project_id, raise_exception=True)
     result = proj.results[resultset]
+    if isinstance(result, ResultPlaceholder):
+        print('Getting actual result...')
+        result = result.get()
     
     dirname = fileio.downloads_dir.dir_path 
     file_name = '%s.xlsx' % result.name 
@@ -1079,139 +1080,324 @@ def export_results(project_id, resultset=-1):
     return full_file_name # Return the filename
 
 
+##################################################################################
+#%% Parset functions and RPCs
+##################################################################################
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def get_parset_info(project_id):
+    print('Returning parset info...')
+    proj = load_project(project_id, raise_exception=True)
+    parset_names = proj.parsets.keys()
+    return parset_names
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def rename_parset(project_id, parsetname=None, new_name=None):
+    print('Renaming parset from %s to %s...' % (parsetname, new_name))
+    proj = load_project(project_id, raise_exception=True)
+    proj.parsets.rename(parsetname, new_name)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def copy_parset(project_id, parsetname=None):
+    print('Copying parset %s...' % parsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of parsets before copy: %s' % len(proj.parsets))
+    new_name = get_unique_name(parsetname, other_names=proj.parsets.keys())
+    print('Old name: %s; new name: %s' % (parsetname, new_name))
+    proj.parsets[new_name] = sc.dcp(proj.parsets[parsetname])
+    print('Number of parsets after copy: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+#TO_PORT
+@register_RPC(validation_type='nonanonymous user') 
+def delete_parset(project_id, parsetname=None):
+    print('Deleting parset %s...' % parsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of parsets before delete: %s' % len(proj.parsets))
+    if len(proj.parsets)>1:
+        proj.parsets.pop(parsetname)
+    else:
+        raise Exception('Cannot delete last parameter set')
+    print('Number of parsets after delete: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+##################################################################################
+#%% Progset functions and RPCs
+##################################################################################
+
+@register_RPC(validation_type='nonanonymous user') 
+def get_progset_info(project_id):
+    print('Returning progset info...')
+    proj = load_project(project_id, raise_exception=True)
+    progset_names = proj.progsets.keys()
+    return progset_names
+
+
+@register_RPC(validation_type='nonanonymous user') 
+def rename_progset(project_id, progsetname=None, new_name=None):
+    print('Renaming progset from %s to %s...' % (progsetname, new_name))
+    proj = load_project(project_id, raise_exception=True)
+    proj.progsets.rename(progsetname, new_name)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@register_RPC(validation_type='nonanonymous user') 
+def copy_progset(project_id, progsetname=None):
+    print('Copying progset %s...' % progsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of progsets before copy: %s' % len(proj.progsets))
+    new_name = get_unique_name(progsetname, other_names=proj.progsets.keys())
+    print('Old name: %s; new name: %s' % (progsetname, new_name))
+    proj.progsets[new_name] = sc.dcp(proj.progsets[progsetname])
+    print('Number of progsets after copy: %s' % len(proj.progsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@register_RPC(validation_type='nonanonymous user') 
+def delete_progset(project_id, progsetname=None):
+    print('Deleting progset %s...' % progsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of progsets before delete: %s' % len(proj.progsets))
+    if len(proj.progsets)>1:
+        proj.progsets.pop(progsetname)
+    else:
+        raise Exception('Cannot delete last program set')
+    print('Number of progsets after delete: %s' % len(proj.progsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+##################################################################################
+#%% Scenario functions and RPCs
+##################################################################################
+
+def py_to_js_scen(py_scen, project=None):
+    ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
+    js_scen = {}
+    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    for attr in attrs:
+        if isinstance(py_scen, dict):
+            js_scen[attr] = py_scen[attr] # Copy the attributes directly
+            
+        else:
+            js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
+            
+    js_scen['alloc'] = []
+    if isinstance(py_scen, dict): alloc = py_scen['alloc']
+    else:                         alloc = py_scen.alloc
+    for prog_name,budget in alloc.items():
+        prog_label = project.progset().programs[prog_name].label
+        if sc.isiterable(budget):
+            if len(budget)>1:
+                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            else:
+                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+        js_scen['alloc'].append([prog_name,round(float(budget)), prog_label])
+    return js_scen
+
+def js_to_py_scen(js_scen):
+    ''' Convert a Python to JSON representation of a scenario '''
+    py_scen = sc.odict()
+    attrs = ['name', 'parsetname', 'progsetname'] 
+    for attr in attrs:
+        py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
+    py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+    py_scen['alloc'] = sc.odict()
+    for item in js_scen['alloc']:
+        prog_name = item[0]
+        budget = item[1]
+        if sc.isstring(budget):
+            try:
+                budget = to_number(budget)
+            except Exception as E:
+                raise Exception('Could not convert budget to number: %s' % repr(E))
+        if sc.isiterable(budget):
+            if len(budget)>1:
+                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            else:
+                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+        py_scen['alloc'][prog_name] = to_number(budget)
+    return py_scen
+    
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_scen_info(project_id):
+    print('Getting scenario info...')
+    proj = load_project(project_id, raise_exception=True)
+    scenario_summaries = []
+    for py_scen in proj.scens.values():
+        js_scen = py_to_js_scen(py_scen, project=proj)
+        scenario_summaries.append(js_scen)
+    print('JavaScript scenario info:')
+    print(scenario_summaries)
+    return scenario_summaries
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def set_scen_info(project_id, scenario_summaries):
+    print('Setting scenario info...')
+    proj = load_project(project_id, raise_exception=True)
+    proj.scens.clear()
+    for j,js_scen in enumerate(scenario_summaries):
+        print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
+        py_scen = js_to_py_scen(js_scen)
+        print('Python scenario info for scenario %s:' % (j+1))
+        print(py_scen)
+        proj.make_scenario(which='budget', json=py_scen)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@register_RPC(validation_type='nonanonymous user')    
+def get_default_budget_scen(project_id):
+    print('Creating default scenario...')
+    proj = load_project(project_id, raise_exception=True)
+    py_scen = proj.demo_scenarios(doadd=False)
+    js_scen = py_to_js_scen(py_scen, project=proj)
+    print('Created default JavaScript scenario:')
+    print(js_scen)
+    return js_scen
+
+
+def sanitize(vals, skip=False, forcefloat=False):
+    ''' Make sure values are numeric, and either return nans or skip vals that aren't '''
+    if sc.isiterable(vals):
+        as_array = False if forcefloat else True
+    else:
+        vals = [vals]
+        as_array = False
+    output = []
+    for val in vals:
+        if val=='':
+            sanival = np.nan
+        elif val==None:
+            sanival = np.nan
+        else:
+            try:
+                sanival = float(val)
+            except Exception as E:
+                print('Could not sanitize value "%s": %s; returning nan' % (val, repr(E)))
+                sanival = np.nan
+        if skip and not np.isnan(sanival):
+            output.append(sanival)
+        else:
+            output.append(sanival)
+    if as_array:
+        return output
+    else:
+        return output[0]
+    
+    
+
+@register_RPC(validation_type='nonanonymous user')    
+def run_scenarios(project_id, plot_options, saveresults=False):
+    print('Running scenarios...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.run_scenarios()
+    output = get_plots(proj, results, plot_options=plot_options)
+    if saveresults:
+        print('Saving project...')
+        save_project(proj)    
+    return output
+    
 
 
 ##################################################################################
 #%% Optimization functions and RPCs
 ##################################################################################
 
-def rpc_optimize(proj=None, json=None):
-    proj.make_optimization(json=json) # Make optimization
-    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
-    return optimized_result
 
-def py_to_js_optim(py_optim, prog_names):
-    ''' Convert a Python to JSON representation of an optimization '''
-    attrs = ['name', 'mults', 'add_funds']
-    js_optim = {}
-    for attr in attrs:
-        js_optim[attr] = getattr(py_optim, attr) # Copy the attributes into a dictionary
-    js_optim['obj'] = py_optim.obj[0]
-    js_optim['spec'] = []
-    for prog_name in prog_names:
-        this_spec = {}
-        this_spec['name'] = prog_name
-        this_spec['included'] = True if prog_name in py_optim.prog_set else False
-        this_spec['vals'] = []
-        js_optim['spec'].append(this_spec)
+def py_to_js_optim(py_optim, project=None):
+    js_optim = sw.json_sanitize_result(py_optim.json)
+    for prog_name in js_optim['prog_spending']:
+        prog_label = project.progset().programs[prog_name].label
+        this_prog = js_optim['prog_spending'][prog_name]
+        this_prog.append(prog_label)
+        js_optim['prog_spending'][prog_name] = {'min':this_prog[0], 'max':this_prog[1], 'label':prog_label}
     return js_optim
     
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_optim_info(project_id):
-
     print('Getting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-    
     optim_summaries = []
     for py_optim in proj.optims.values():
-        js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
+        js_optim = py_to_js_optim(py_optim, project=proj)
         optim_summaries.append(js_optim)
-    
     print('JavaScript optimization info:')
     print(optim_summaries)
-
     return optim_summaries
 
 
 @register_RPC(validation_type='nonanonymous user')    
 def get_default_optim(project_id):
-
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
-    
-    py_optim = proj.demo_optims(doadd=False)[0]
-    js_optim = py_to_js_optim(py_optim, proj.dataset().prog_names())
-    js_optim['objective_options'] = ['thrive', 'child_deaths', 'stunting_prev', 'wasting_prev', 'anaemia_prev'] # WARNING, stick allowable optimization options here
-    
-    print('Created default JavaScript optimization:')
+    py_optim = proj.demo_optimization()
+    js_optim = py_to_js_optim(py_optim, project=proj)
+    print('Created default optimization:')
     print(js_optim)
     return js_optim
 
 
+def to_number(raw):
+    ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
+    try:
+        output = float(raw)
+    except Exception as E:
+        if raw is None:
+            output = None
+        else:
+            raise E
+    return output
+
 
 @register_RPC(validation_type='nonanonymous user')    
 def set_optim_info(project_id, optim_summaries):
-
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-    proj.optims.clear()
-    
     for j,js_optim in enumerate(optim_summaries):
         print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
-        json = sc.odict()
-        json['name'] = js_optim['name']
-        json['obj'] = js_optim['obj']
-        jsm = js_optim['mults']
-        if isinstance(jsm, list):
-            vals = jsm
-        elif sc.isstring(jsm):
-            try:
-                vals = [float(jsm)]
-            except Exception as E:
-                print('Cannot figure out what to do with multipliers "%s"' % jsm)
-                raise E
-        else:
-            raise Exception('Cannot figure out multipliers type "%s" for "%s"' % (type(jsm), jsm))
-        json['mults'] = vals
-        json['add_funds'] = sc.sanitize(js_optim['add_funds'], forcefloat=True)
-        json['prog_set'] = [] # These require more TLC
-        for js_spec in js_optim['spec']:
-            if js_spec['included']:
-                json['prog_set'].append(js_spec['name'])
-        
+        json = js_optim
+        for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
+            json[key] = to_number(json[key]) # Convert to a number
+        for subkey in json['objective_weights'].keys():
+            json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+        for subkey in json['prog_spending'].keys():
+            this = json['prog_spending'][subkey]
+            json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
         print('Python optimization info for optimization %s:' % (j+1))
         print(json)
-        
-        proj.add_optim(json=json)
-    
+        proj.make_optimization(json=json)
     print('Saving project...')
     save_project(proj)   
-    
     return None
 
 
-@register_RPC(validation_type='nonanonymous user')    
-def run_optim(project_id, optim_name):
-    
-    print('Running optimization...')
-    proj = load_project(project_id, raise_exception=True)
-    
-    proj.run_optims(keys=[optim_name], parallel=False)
-    figs = proj.plot(toplot=['alloc']) # Only plot allocation
-    graphs = []
-    for f,fig in enumerate(figs.values()):
-        for ax in fig.get_axes():
-            ax.set_facecolor('none')
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        print('Converted figure %s of %s' % (f+1, len(figs)))
-    
-    print('Saving project...')
-    save_project(proj)    
-    return {'graphs':graphs}
-
-
-##################################################################################
-#%% Miscellaneous RPCs
-##################################################################################
-
-@register_RPC(validation_type='nonanonymous user')    
-def simulate_slow_rpc(sleep_secs, succeed=True):
-    time.sleep(sleep_secs)
-    
-    if succeed:
-        return 'success'
-    else:
-        return {'error': 'failure'}
-
+# Deprecated, see equivalent in apptasks.py
+#@register_RPC(validation_type='nonanonymous user')    
+#def run_optimization(project_id, optim_name):
+#    print('Running optimization...')
+#    proj = load_project(project_id, raise_exception=True)
+#    results = proj.run_optimization(optim_name)
+#    output = get_plots(proj, results) # outputs=['alive','ddis']
+#    print('Saving project...')
+#    save_project(proj)    
+#    return output
