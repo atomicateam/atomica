@@ -12,7 +12,7 @@ Last update: 7/16/18 (gchadder3)
 
 from . import config_cascade
 import matplotlib.pyplot as ppl
-ppl.switch_backend(config_tb.MATPLOTLIB_BACKEND)
+ppl.switch_backend(config_cascade.MATPLOTLIB_BACKEND)
 from sciris.weblib.tasks import make_celery_instance, add_task_funcs, make_register_async_task
 import projects as prj
 from rpcs import load_project, save_project, get_plots
@@ -29,7 +29,7 @@ task_func_dict = {}
 register_async_task = make_register_async_task(task_func_dict)
 
 # Create the Celery instance for this module.
-celery_instance = make_celery_instance(config=config_tb)
+celery_instance = make_celery_instance(config=config_cascade)
 
 # This is needed in Windows using celery Version 3.1.25 in order for the
 # add_task_funcs() function below to successfully add the asynchronous task 
