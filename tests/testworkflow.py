@@ -30,7 +30,7 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
+"loadprogramspreadsheet",
 "runsim_programs",
 #"makeplots",
 #"export",
@@ -38,7 +38,7 @@ torun = [
 # "manualcalibrate",
 #"autocalibrate", # NOTE, DOES NOT WORK WITH TB -- ROMESH, CAN YOU PLEASE LOOK? REMOVE IF DEPRECATED
 #"parameterscenario",
-# 'budgetscenarios',
+#'budgetscenarios',
 #'optimization',
 # "saveproject",
 # "loadproject",
@@ -233,6 +233,9 @@ if "runsim_programs" in torun:
     elif test == 'udt':
         instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+        if 'plotcascade' in torun:
+            au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017)
+            if forceshow: pl.show()
 
     elif test in ['diabetes','service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
@@ -240,12 +243,8 @@ if "runsim_programs" in torun:
     else:
         print('\n\n\nUnknown test.')
 
-if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017)
-    if forceshow: pl.show()
     
 if "makeplots" in torun:
-
     # Low level debug plots.
     for var in test_vars:
         P.results["parset_default"].get_variable(test_pop,var)[0].plot()
@@ -467,18 +466,19 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
     browser = False # Display as mpld3 plots in the browser
     plot_option = 2
-    scen_outputs = ["lt_inf", "ac_inf"]
-    scen_pop = "15-64"
-    P = au.demo(which='tb')
-    results = P.run_scenarios()
-    if plot_option == 1:
-        d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-        figs = au.plot_series(d, axis="results")
-    elif plot_option == 2:
-        figs = get_plots(P, results, axis="results")
-    if browser:
-        from sciris.weblib import quickserver as qs
-        qs.browser(figs)
+    if test=='tb':
+        scen_outputs = ["lt_inf", "ac_inf"]
+        scen_pop = "15-64"
+        P = au.demo(which='tb')
+        results = P.run_scenarios()
+        if plot_option == 1:
+            d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+            figs = au.plot_series(d, axis="results")
+        elif plot_option == 2:
+            figs = get_plots(P, results, axis="results")
+        if browser:
+            from sciris.weblib import quickserver as qs
+            qs.browser(figs)
     
 
 if "optimization" in torun:
