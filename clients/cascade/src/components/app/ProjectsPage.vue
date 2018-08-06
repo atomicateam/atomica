@@ -157,8 +157,8 @@ Last update: 2018-07-29
           Create demo project
         </div>
         <div class="dialog-c-text">
-          <select v-model="currentProject">
-            <option v-for='project in projectOptions'>
+          <select v-model="demoOption">
+            <option v-for='project in demoOptions'>
               {{ project }}
             </option>
           </select><br><br>
@@ -294,16 +294,15 @@ export default {
       data_end:   2035, // For creating a new project: number of populations
       activeuid:  [], // WARNING, kludgy to get create progbook working
       frameworkSummaries: [],
-      proj_name: 'New project', // For creating a new project: number of populations
-      num_pops: 5, // For creating a new project: number of populations
-      projectOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
+      demoOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
+      demoOption: 'SIR model',
     }
   },
 
   computed: {
     sortedFilteredProjectSummaries() {
       return this.applyNameFilter(this.applySorting(this.projectSummaries))
-    }
+    },
   },
 
   created() {
@@ -414,8 +413,9 @@ export default {
 
     addDemoProject() {
       console.log('addDemoProject() called')
+      this.$modal.hide('demo-project')
       status.start(this)
-      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
+      rpcservice.rpcCall('add_demo_project', [this.$store.state.currentUser.UID, this.demoOption]) // Have the server create a new project.
       .then(response => {
         this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
         status.succeed(this, 'Demo project added')
