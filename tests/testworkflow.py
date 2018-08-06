@@ -28,8 +28,8 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-'plotcascade',
-# "makeprogramspreadsheet",
+#"plotcascade",
+"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
 #"runsim_programs",
 # "makeplots",
@@ -131,6 +131,8 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=29)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
+    elif test == "udt":
+        P.make_progbook(filename, progs=4)
     else:
         P.make_progbook(filename, progs=5)
 
