@@ -24,16 +24,15 @@ from atomica.core.optimization import optimize
 test='sir'
 
 torun = [
-# "standard",
-# "standard_mindeaths",
-# "delayed",
-# "gradual",
-# 'mixed',
-# 'parametric_paired',
-# "money",
+"standard",
+"standard_mindeaths",
+"delayed",
+"gradual",
+'mixed',
+'parametric_paired',
+"money",
 'cascade_final_stage',
-# 'cascade-conversions'
-# 'cascade-money'
+'cascade-conversions'
 ]
 
 # Load the SIR demo and associated programs
@@ -319,7 +318,7 @@ if 'cascade-conversions' in torun:
 
     ## CASCADE MEASURABLE
     # This measurable will be
-    measurables = au.MaximizeMeasurable('ch_all', [2020, np.inf])
+    measurables = au.MaximizeCascadeConversionRate('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
 
     # This is the same as the 'standard' example, just running the optimization and comparing the results
     optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
@@ -330,36 +329,7 @@ if 'cascade-conversions' in torun:
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'], project=P)
-    au.plot_series(d, axis="results")
-#
-# if 'cascade-money' in torun:
-#     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
-#     # and want a total spending constraint
-#     alloc = sc.odict([('Risk avoidance', 0.),
-#                       ('Harm reduction 1', 0.),
-#                       ('Harm reduction 2', 0.),
-#                       ('Treatment 1', 50.),
-#                       ('Treatment 2', 1.)])
-#
-#     instructions = au.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
-#     adjustments = []
-#     adjustments.append(au.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
-#     adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
-#     constraints = au.TotalSpendConstraint()  # Cap total spending in all years
-#
-#     ## CASCADE MEASURABLE
-#     # This measurable will be
-#     measurables = au.MaximizeMeasurable('ch_all', [2020, np.inf])
-#
-#     # This is the same as the 'standard' example, just running the optimization and comparing the results
-#     optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
-#
-#     unoptimized_result = P.run_sim(parset="default", progset='default', progset_instructions=instructions, result_name="unoptimized")
-#     optimized_result = P.run_optimization(optimization='default', parset='default', progset='default', progset_instructions=instructions)
-#
-#     for adjustable in adjustments:
-#         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
-#
-#     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'], project=P)
-#     au.plot_series(d, axis="results")
+    au.plot_cascade(unoptimized_result,'main',pops='all',year=2030)
+    plt.title('Unoptimized')
+    au.plot_cascade(optimized_result,'main',pops='all',year=2030)
+    plt.title('Optimized')

@@ -248,18 +248,37 @@ class MaximizeCascadeFinalStage(Measurable):
         # aggregations are supported by setting pop_names to a dict e.g.
         # pop_names = {'foo':['0-4','5-14']}
         Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        if not isinstance(self.pop_names, list):
+            self.pop_names = [self.pop_names]
 
     def get_objective_val(self,model):
         result = Result(model=model)
-        if isinstance(self.pop_names,list):
-            val = 0
-            for pop_name in self.pop_names:
-                cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)
-                val += np.sum(cascade_vals[0][-1]) # The sum of final cascade stage values
-        else:
-            cascade_vals = result.get_cascade_vals(self.measurable_name,self.pop_names,self.t)
-            val = np.sum(cascade_vals[0][-1]) # The sum of final cascade stage values
+        val = 0
+        for pop_name in self.pop_names:
+            cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)
+            val += np.sum(cascade_vals[0][-1]) # The sum of final cascade stage values
         return val
+
+class MaximizeCascadeConversionRate(Measurable):
+    # This Measurable will maximize the conversion rate, summed over all cascade stages
+    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0):
+        # pop_names can be a single pop name (including all), or a list of pop names
+        # aggregations are supported by setting pop_names to a dict e.g.
+        # pop_names = {'foo':['0-4','5-14']}
+        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        if not isinstance(self.pop_names,list):
+            self.pop_names = [self.pop_names]
+
+    def get_objective_val(self,model):
+        result = Result(model=model)
+        val = 0
+        for pop_name in self.pop_names:
+            cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)[0]
+            cascade_array = np.hstack(cascade_vals.values())
+            conversion = cascade_array[1:] / cascade_array[0:-1]
+            val += np.sum(conversion)
+        return val
+
 
 class Constraint(object):
     # A Constraint represents a condition that must be satisfied by the Instructions
@@ -447,9 +466,16 @@ class Optimization(NamedItem):
         self.progsetname = progsetname
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
+
+        assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
+        assert measurables is not None, 'Must specify some measurables to carry out an optimization'
         self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
         self.measurables = [measurables] if not isinstance(measurables,list) else measurables
-        self.constraints = [constraints] if not isinstance(constraints,list) else constraints
+
+        if constraints:
+            self.constraints = [constraints] if not isinstance(constraints,list) else constraints
+        else:
+            self.constraints = None
         
         if adjustments is None or measurables is None:
             raise AtomicaException('Must supply either a json or an adjustments+measurables')
