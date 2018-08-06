@@ -218,7 +218,7 @@ if "runsim_programs" in torun:
     if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
-        instructions = au.ProgramInstructions() 
+#        instructions = au.ProgramInstructions() 
         instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
         P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
@@ -231,11 +231,23 @@ if "runsim_programs" in torun:
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
     elif test == 'udt':
-        instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
-        if 'plotcascade' in torun:
-            au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017)
-            if forceshow: pl.show()
+        scen1alloc = {'Testing - pharmacies': 70000}
+        scen2alloc = {'Testing - clinics': 120000}
+        scen3alloc = {'Testing - clinics': 50000}
+        scen4alloc = {'Testing - clinics': 40000}
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
+        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
+        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
+        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
+        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="scen2")
+        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="scen3")
+        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
+
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
 
     elif test in ['diabetes','service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
