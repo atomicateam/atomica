@@ -117,7 +117,7 @@ if 'plotcascade' in torun:
     if forceshow: pl.show()
     
     # Browser test
-    as_mpld3 = True
+    as_mpld3 = False
     if as_mpld3:
         import sciris.weblib.quickserver as sqs
         fig = pl.gcf()
@@ -244,13 +244,6 @@ if 'plotcascade' in torun:
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017)
     if forceshow: pl.show()
     
-    # Browser test
-    as_mpld3 = True
-    if as_mpld3:
-        import sciris.weblib.quickserver as sqs
-        fig = pl.gcf()
-        sqs.browser(fig)
-
 if "makeplots" in torun:
 
     # Low level debug plots.
