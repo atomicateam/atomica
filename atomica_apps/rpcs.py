@@ -491,12 +491,9 @@ def create_new_framework():
     Create a new framework.
     """
     filename = 'framework_template.xlsx'
-    dirname = fileio.downloads_dir.dir_path
-    orig_path = au.atomica_path(['atomica','core'])+filename
-    new_path = os.path.join(dirname, filename)
-    shutil.copyfile(orig_path, new_path)
-    print(">> download_framework %s" % (new_path))
-    return new_path # Return the filename
+    filepath = au.atomica_path(['atomica','core'])+filename
+    print(">> download_framework %s" % (filepath))
+    return filepath # Return the filename
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
@@ -671,6 +668,21 @@ def download_project(project_id):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
+def download_framework_from_project(project_id):
+    """
+    Download databook
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_framework.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.framework.save(full_file_name)
+    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_databook(project_id):
     """
     Download databook
@@ -694,7 +706,7 @@ def download_progbook(project_id):
     proj.progbook.save(full_file_name)
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
-    
+  
     
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def create_progbook(project_id, num_progs):
@@ -707,19 +719,6 @@ def create_progbook(project_id, num_progs):
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.    
     
-
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
-def download_defaults(project_id):
-    """
-    Download defaults
-    """
-    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s_defaults.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.dataset().default_params.spreadsheet.save(full_file_name)
-    print(">> download_defaults %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')

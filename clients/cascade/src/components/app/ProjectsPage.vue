@@ -93,7 +93,7 @@ Last update: 2018-07-29
               {{ projectSummary.project.name }}
             </td>
             <td>
-              <!-- TO_PORT 2018-08-06-->
+              <!-- TO_PORT TO TB 2018-08-06-->
               <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">
                 <span v-if="projectLoaded(projectSummary.project.id)">Selected</span>
                 <span v-else>Open</span>
@@ -112,7 +112,9 @@ Last update: 2018-07-29
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
             <td>
-              {{ projectSummary.project.framework }}
+              <button class="btn" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
+                <i class="ti-download"></i>
+              </button>
             </td>
             <td>
               {{ projectSummary.project.n_pops }}
@@ -642,6 +644,20 @@ export default {
         // Indicate failure.
         status.fail(this, 'Could not download project')      
       })
+    },
+
+    downloadFramework(uid) {
+      // Find the project that matches the UID passed in.
+      let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+      console.log('downloadFramework() called for ' + matchProject.project.name)
+      status.start(this, 'Downloading framework...') // Start indicating progress.
+      rpcservice.rpcDownloadCall('download_framework_from_project', [uid])
+        .then(response => {
+          status.succeed(this, '')  // No green popup message.
+        })
+        .catch(error => {
+          status.fail(this, 'Could not download framework: ' + error.message) // Indicate failure.
+        })
     },
 
     downloadDatabook(uid) {
