@@ -13,6 +13,7 @@ from .system import logger, AtomicaException, NotAllowedError, NotFoundError
 from .excel import read_tables, AtomicaSpreadsheet
 from .structure import FrameworkSettings as FS
 from .system import atomica_path
+from .version import version
 
 
 class ProjectFramework(object):
