@@ -151,7 +151,7 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test in ['tb','udt','hiv'] else True
+        blh_effects = False if test in ['tb','udt','usdt','hiv'] else True
         P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
 
         P.progsets[0].programs[0].get_spend(year=2015)
@@ -254,6 +254,17 @@ if "runsim_programs" in torun:
         scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
 
         au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
+
+    elif test == 'usdt':
+        scenalloc = {'Screening at pharmacies':  2400000 }
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
+
+        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
 
     elif test == 'hiv':
         scen1alloc = {'Testing - clinics': 1500000}
