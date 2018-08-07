@@ -21,7 +21,9 @@ from atomica.core.optimization import optimize
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
-test='sir'
+#test='sir'
+#test='udt'
+test='hiv'
 
 torun = [
 "standard",
@@ -32,11 +34,11 @@ torun = [
 'parametric_paired',
 "money",
 'cascade_final_stage',
-'cascade-conversions'
+#'cascade-conversions'
 ]
 
 # Load the SIR demo and associated programs
-P = au.demo(which='sir',do_plot=0)
+P = au.demo(which=test,do_plot=0)
 filename = "databooks/progbook_"+test+".xlsx"
 P.load_progbook(progbook_path=filename, make_default_progset=True)
 
@@ -50,7 +52,7 @@ def run_optimization(proj,optimization,instructions):
 # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
 # mostly allocated to Treatment 1, and the result of optimization should be that the budget gets
 # reallocated to Treatment 2
-if 'standard' in torun:
+if 'standard' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -77,7 +79,7 @@ if 'standard' in torun:
 # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
 # mostly allocated to Treatment 1, and the result of optimization should be that the budget gets
 # reallocated to Treatment 2
-if 'standard_mindeaths' in torun:
+if 'standard_mindeaths' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -103,7 +105,7 @@ if 'standard_mindeaths' in torun:
 ### DELAYED OUTCOME OPTIMIZATION
 # In this example, Treatment 2 is more effective than Treatment 1. However, we are given the budget in
 # 2020 and are only allowed to change it from 2025.
-if 'delayed' in torun:
+if 'delayed' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -139,7 +141,7 @@ if 'delayed' in torun:
 # In this case, we have specified spending in 2020 and want to meet spending targets in 2025
 # with the caveat that the rollout of the change will take 3 years. Therefore, we fix the spending
 # in 2022 and apply the adjustment in 2025, resulting in a smooth change in spending from 2022-2025
-if 'gradual' in torun:
+if 'gradual' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -176,7 +178,7 @@ if 'gradual' in torun:
 # adjustable program and there is no total spending constraint. Thus spending on this program should hit
 # the upper bound. Thus the optimal spending pattern will be spending $50 on Treatment 2 in 2023, and $100
 # on Treatment 2 in 2025, with $0 spend on Treatment 1 from 2023 onwards
-if 'mixed' in torun:
+if 'mixed' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -205,7 +207,7 @@ if 'mixed' in torun:
     plt.legend()
     plt.title('Multi-time optimization in 2023 and 2025 (constrained in 2023)')
 
-if 'parametric_paired' in torun:
+if 'parametric_paired' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -240,7 +242,7 @@ if 'parametric_paired' in torun:
 # spend only ~$50 on Treatment 2. So to do this optimization, we start by spending $100 on both
 # Treatment 1 and Treatment 2 and demonstrate that money optimization where we minimize total
 # spend subject to the constraint of the total people alive being at least 728.01
-if 'money' in torun:
+if 'money' in torun and test=='sir':
     alloc = sc.odict([('Risk avoidance',0.),
                      ('Harm reduction 1',0.),
                      ('Harm reduction 2',0.),
@@ -274,32 +276,82 @@ if 'money' in torun:
 if 'cascade_final_stage' in torun:
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
     # and want a total spending constraint
-    alloc = sc.odict([('Risk avoidance',0.),
-                     ('Harm reduction 1',0.),
-                     ('Harm reduction 2',0.),
-                     ('Treatment 1',50.),
-                     ('Treatment 2', 1.)])
+    if test=='sir':
+        alloc = sc.odict([('Risk avoidance',0.),
+                         ('Harm reduction 1',0.),
+                         ('Harm reduction 2',0.),
+                         ('Treatment 1',50.),
+                         ('Treatment 2', 1.)])
+    
+        instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
+        adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
+        constraints = au.TotalSpendConstraint() # Cap total spending in all years
+    
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeFinalStage('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+    
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
+        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    
+        for adjustable in adjustments:
+            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
+    
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2020)
 
-    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-    adjustments = []
-    adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
-    adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
-    constraints = au.TotalSpendConstraint() # Cap total spending in all years
+    elif test=='udt':
+        instructions = au.ProgramInstructions(start_year=2016) # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Testing - pharmacies',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Testing - clinics',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Testing - outreach',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Adherence',2016,'abs',0.))
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeFinalStage('main',[2017],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
+        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    
+#        for adjustable in adjustments:
+#            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2017))) # TODO - add time to alloc
+    
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2017)
+        
+    elif test=='hiv':
+        instructions = au.ProgramInstructions(start_year=2016) # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Testing - clinics',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Testing - outreach',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Same-day initiation counselling',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Classic initiation counselling',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Client tracing',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Advanced adherence support',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Whatsapp adherence support',2016,'abs',0.))
 
-    ## CASCADE MEASURABLE
-    # This measurable will maximize the number of people in the final cascade stage, whatever it is
-    measurables = au.MaximizeCascadeFinalStage('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeFinalStage('main',[2017],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
+        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    
+#        for adjustable in adjustments:
+#            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2017))) # TODO - add time to alloc
+    
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2017)
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='females',year=2017)
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='males',year=2017)
 
-    # This is the same as the 'standard' example, just running the optimization and comparing the results
-    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
-    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-    optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
-    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
-
-    for adjustable in adjustments:
-        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
-
-    au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2020)
 
 if 'cascade-conversions' in torun:
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
