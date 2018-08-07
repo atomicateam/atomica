@@ -371,7 +371,12 @@ Last update: 2018-07-29
       },
 
       applyNameFilter(frameworks) {
-        return frameworks.filter(theFramework => theFramework.framework.name.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+        try {
+          console.log('Filtering frameworks')
+          return frameworks.filter(theFramework => theFramework.framework.name.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+        } catch(err) {
+          console.log('Filtering failed')
+        }
       },
 
       applySorting(frameworks) {
