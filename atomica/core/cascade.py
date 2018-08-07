@@ -80,9 +80,9 @@ def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
     plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
 
     # Add a table at the bottom of the axes
-    table = plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
+    plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
 
-def plot_cascade(result, cascade, pops=None, year=None):
+def plot_cascade(result, cascade, pops=None, year=None, data=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
     # For inputs, see `Result.get_cascade_vals`
 
