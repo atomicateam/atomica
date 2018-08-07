@@ -31,8 +31,8 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+#"loadprogramspreadsheet",
+#"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -107,16 +107,16 @@ if "runsim" in torun:
     elif test=='diabetes':
         print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test=='udt':
+    elif test in ['udt','hiv']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     else:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
     P.run_sim(parset="default", result_name="default")    
-    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', t_bins=2020)
+    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2020)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017)
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
     if forceshow: pl.show()
     
     # Browser test
