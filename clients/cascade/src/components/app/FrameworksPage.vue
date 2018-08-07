@@ -333,7 +333,6 @@ Last update: 2018-07-29
       },
 
       frameworkIsActive(uid) {
-
         if (this.$store.state.activeFramework.framework === undefined) { // If the framework is undefined, it is not active.
           return false
         } else { // Otherwise, the framework is active if the UIDs match.
