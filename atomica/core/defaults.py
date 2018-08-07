@@ -58,6 +58,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
     
     options = sc.odict([
                     ('udt',      '1-population undiagnosed-diagnosed-treated cascade'),
+                    ('usdt',     '1-population undiagnosed-screened-diagnosed-treated cascade'),
                     ('sir',      '1-population SIR model'),       
                     ('diabetes', '1-population diabetes cascade'),        
                     ('service',  '1-population service delivery cascade'),
