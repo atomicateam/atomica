@@ -314,67 +314,29 @@ Last update: 2018-07-29
           status.succeed(this, '')
         })
         .catch(error => {
-          status.fail(this, 'Could not download framework: ' + error.message)
+          status.fail(this, 'Could not download the framework: ' + error.message)
         })        
       },
 
       uploadFrameworkFromFile() {
         console.log('uploadFrameworkFromFile() called')
-
-        // Have the server upload the framework.
-        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.xlsx')
+        rpcservice.rpcUploadCall('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
         .then(response => {
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')
-        
-           // Start the loading bar.  (This is here because we don't want the 
-          // progress bar running when the user is picking a file to upload.)
-          this.$Progress.start()
-        
-          // Update the framework summaries so the new framework shows up on the list.
-          this.updateFrameworkSummaries(response.data.frameworkId)
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-        
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Framework uploaded',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })          
+          this.$modal.show('popup-spinner') // Bring up a spinner.
+          this.$Progress.start() // Start the loading bar.
+          this.updateFrameworkSummaries(response.data.frameworkId) // Update the framework summaries so the new framework shows up on the list.
+          status.succeed(this, 'Framework uploaded')
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not upload file',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.fail(this, 'Could not upload the framework: ' + error.message)
         })        
       },
 
       frameworkIsActive(uid) {
-        // If the framework is undefined, it is not active.
-        if (this.$store.state.activeFramework.framework === undefined) {
-          return false
-        }
 
-        // Otherwise, the framework is active if the UIDs match.
-        else {
+        if (this.$store.state.activeFramework.framework === undefined) { // If the framework is undefined, it is not active.
+          return false
+        } else { // Otherwise, the framework is active if the UIDs match.
           return (this.$store.state.activeFramework.framework.id === uid)
         }
       },

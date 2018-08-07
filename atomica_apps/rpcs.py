@@ -503,20 +503,11 @@ def upload_frameworkbook(databook_filename, framework_id):
     """
     Upload a databook to a framework.
     """
-    
-    # Display the call information.
-    print(">> upload_databook '%s'" % databook_filename)
-    
+    print(">> upload_frameworkbook '%s'" % databook_filename)
     frame = load_framework(framework_id, raise_exception=True)
-    
-    # Reset the framework name to a new framework name that is unique.
-    frame.read_from_file(filepath=databook_filename, overwrite=True)
+    frame.read_from_file(filepath=databook_filename, overwrite=True) # Reset the framework name to a new framework name that is unique.
     frame.modified = sc.today()
-    
-    # Save the new framework in the DataStore.
-    save_framework(frame)
-    
-    # Return the new framework UID in the return message.
+    save_framework(frame) # Save the new framework in the DataStore.
     return { 'frameworkId': str(frame.uid) }
 
 
