@@ -82,6 +82,36 @@ def default_project(which=None, do_run=True, verbose=False, **kwargs):
         F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
         P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
 
+    elif which=='udt':
+        logger.info("Creating a generic 3-stage disease cascade project...")
+        
+        if verbose: print('Loading framework')
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
+        if verbose: print('Loading databook')
+        P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+        if verbose: print('Loading progbook')
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True)
+        if verbose: print('Creating scenarios')
+        P.demo_scenarios() # Add example scenarios
+        if verbose: print('Creating optimizations')
+        P.demo_optimization() # Add optimization example
+        if verbose: print('Done!')
+
+    elif which=='hiv':
+        logger.info("Creating an HIV cascade project...")
+        
+        if verbose: print('Loading framework')
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
+        if verbose: print('Loading databook')
+        P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+        if verbose: print('Loading progbook')
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True)
+        if verbose: print('Creating scenarios')
+        P.demo_scenarios() # Add example scenarios
+        if verbose: print('Creating optimizations')
+        P.demo_optimization() # Add optimization example
+        if verbose: print('Done!')
+
     else:
         raise AtomicaException("Default project type '{0}' not understood; choices are 'sir', 'tb'.".format(which))
     return P
