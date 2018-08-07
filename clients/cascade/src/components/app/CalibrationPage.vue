@@ -190,7 +190,7 @@ Last update: 2018-07-31
     </modal>
     
     <!-- Popup spinner -->
-    <popup-spinner></popup-spinner>
+    <popup-spinner @spinner-cancel="onSpinnerCancel"></popup-spinner>
     
   </div>
 </template>
@@ -291,6 +291,10 @@ Last update: 2018-07-31
     },
 
     methods: {
+      
+      onSpinnerCancel() {
+        console.log('The user has canceled a spinner!')
+      },
 
       sleep(time) {
         // Return a promise that resolves after _time_ milliseconds.
