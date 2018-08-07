@@ -12,33 +12,35 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-test = "sir"
-# test = "tb"
-# test = "diabetes"
-#test = "service"
+#test = "sir"
+#test = "tb"
+#test = "udt"
+test = "hiv"
+#test = "diabetes"
+# test = "service"
 
 
 torun = [
-# "makeframework",
-# "saveframework",
-# "loadframework",
-# "makedatabook",
-# "makeproject",
-# "loaddatabook",
-# "makeparset",
-# "runsim",
-# 'plotcascade',
-# "makeprogramspreadsheet",
+"makeframework",
+"saveframework",
+"loadframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"plotcascade",
+#"makeprogramspreadsheet",
 #"loadprogramspreadsheet",
 #"runsim_programs",
-# "makeplots",
-# "export",
-# "listspecs",
+#"makeplots",
+#"export",
+#"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
 # "manualcalibrate",
-#"autocalibrate",
-# "parameterscenario",
-# 'budgetscenarios',
-'optimization',
+#"autocalibrate", # NOTE, DOES NOT WORK WITH TB -- ROMESH, CAN YOU PLEASE LOOK? REMOVE IF DEPRECATED
+#"parameterscenario",
+#'budgetscenarios',
+#'optimization',
 # "saveproject",
 # "loadproject",
 ]
@@ -81,6 +83,8 @@ if "makedatabook" in torun:
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
+    elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -103,18 +107,20 @@ if "runsim" in torun:
     elif test=='diabetes':
         print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
+    elif test in ['udt','hiv']:
+        P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     else:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
     P.run_sim(parset="default", result_name="default")    
-    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', t_bins=2020)
+    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2020)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
     if forceshow: pl.show()
     
     # Browser test
-    as_mpld3 = True
+    as_mpld3 = False
     if as_mpld3:
         import sciris.weblib.quickserver as sqs
         fig = pl.gcf()
@@ -128,6 +134,10 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=29)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
+    elif test == "udt":
+        P.make_progbook(filename, progs=4)
+    elif test == "hiv":
+        P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
 
@@ -140,7 +150,7 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test=='tb' else True
+        blh_effects = False if test in ['tb','udt','hiv'] else True
         P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
 
         P.progsets[0].programs[0].get_spend(year=2015)
@@ -213,7 +223,7 @@ if "runsim_programs" in torun:
     if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
-        instructions = au.ProgramInstructions() 
+#        instructions = au.ProgramInstructions() 
         instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
         P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
@@ -225,14 +235,62 @@ if "runsim_programs" in torun:
 #        P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
+    elif test == 'udt':
+        scen1alloc = {'Testing - pharmacies': 70000}
+        scen2alloc = {'Testing - clinics': 120000}
+        scen3alloc = {'Testing - clinics': 50000}
+        scen4alloc = {'Testing - clinics': 40000}
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
+        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
+        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
+        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
+        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="scen2")
+        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="scen3")
+        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
+
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
+
+    elif test == 'hiv':
+        scen1alloc = {'Testing - clinics': 1500000}
+        scen2alloc = {'Testing - outreach': 600000}
+        scen3alloc = {'Same-day initiation counselling': 6000000}
+        scen4alloc = {'Classic initiation counselling': 4500000}
+        scen5alloc = {'Client tracing': 60000}
+        scen6alloc = {'Advanced adherence support': 60000}
+        scen7alloc = {'Whatsapp adherence support': 1000}
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
+        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
+        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
+        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
+        scen5_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen5alloc) 
+        scen6_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen6alloc) 
+        scen7_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen7alloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
+        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="scen2")
+        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="scen3")
+        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
+        scen5results = P.run_sim(parset="default", progset='default',progset_instructions=scen5_instructions,result_name="scen5")
+        scen6results = P.run_sim(parset="default", progset='default',progset_instructions=scen6_instructions,result_name="scen6")
+        scen7results = P.run_sim(parset="default", progset='default',progset_instructions=scen7_instructions,result_name="scen7")
+
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],'main',year=[2017])
+
     elif test in ['diabetes','service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
 
     else:
         print('\n\n\nUnknown test.')
 
+    
 if "makeplots" in torun:
-
     # Low level debug plots.
     for var in test_vars:
         P.results["parset_default"].get_variable(test_pop,var)[0].plot()
@@ -269,25 +327,25 @@ if "makeplots" in torun:
 
 
 if "export" in torun:
-    P.results["default"].export(tmpdir+test+"_results")
+    P.results[-1].export(tmpdir+test+"_results")
     
-if "listspecs" in torun:
-    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
-    FS = au.FrameworkSettings
-    DS = au.DataSettings
-    # Print list of characteristic names, i.e. state variables.
-    print("\nCharacteristics...")
-    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
-    # Print list of compartment names. Should be added to the characteristics list for typical processes.
-    print("Compartments...")
-    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
-    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
-    print("Parameters...")
-    print(P.framework.specs[FS.KEY_PARAMETER].keys())
-    # Print list of populations.
-    print("Populations...")
-    print(P.data.specs[DS.KEY_POPULATION].keys())
-    print()
+#if "listspecs" in torun:
+#    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
+#    FS = au.FrameworkSettings
+#    DS = au.DataSettings
+#    # Print list of characteristic names, i.e. state variables.
+#    print("\nCharacteristics...")
+#    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
+#    # Print list of compartment names. Should be added to the characteristics list for typical processes.
+#    print("Compartments...")
+#    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
+#    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
+#    print("Parameters...")
+#    print(P.framework.specs[FS.KEY_PARAMETER].keys())
+#    # Print list of populations.
+#    print("Populations...")
+#    print(P.data.specs[DS.KEY_POPULATION].keys())
+#    print()
     
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
@@ -336,29 +394,35 @@ if "parameterscenario" in torun:
         scen_pop = "15-64"
         scen_outputs = ["lt_inf", "ac_inf"]
 
+    if test == "udt":
+        scen_par = "test_pharm"
+        scen_pop = "adults"
+        scen_outputs = ["all_people","all_dx", "all_tx"]
+
     scvalues[scen_par] = dict()
     scvalues[scen_par][scen_pop] = dict()
 
-    # Insert (or possibly overwrite) one value.
-    scvalues[scen_par][scen_pop]["y"] = [0.125,0.15]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = 2
-
-    P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
-    P.run_scenario(scenario="Varying Infections", parset="default")
-
-    # Insert two values and eliminate everything between them.
-    scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
-    scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
-    scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
-
-    P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
-    P.run_scenario(scenario="Varying Infections 2", parset="default")
-
-    d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
-    au.plot_series(d, axis="results")
-    plt.title('Scenario comparison')
-    plt.ylabel('Number of people')
+    if test in ["tb","sir"]:
+        # Insert (or possibly overwrite) one value.
+        scvalues[scen_par][scen_pop]["y"] = [0.125,0.15]
+        scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+        scvalues[scen_par][scen_pop]["smooth_onset"] = 2
+    
+        P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
+        P.run_scenario(scenario="Varying Infections", parset="default")
+    
+        # Insert two values and eliminate everything between them.
+        scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
+        scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
+        scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
+    
+        P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
+        P.run_scenario(scenario="Varying Infections 2", parset="default")
+    
+        d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
+        au.plot_series(d, axis="results")
+        plt.title('Scenario comparison')
+        plt.ylabel('Number of people')
 
 
 def supported_plots_func():
@@ -448,18 +512,19 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
 if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are budget scenarios
     browser = False # Display as mpld3 plots in the browser
     plot_option = 2
-    scen_outputs = ["lt_inf", "ac_inf"]
-    scen_pop = "15-64"
-    P = au.demo(which='tb')
-    results = P.run_scenarios()
-    if plot_option == 1:
-        d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-        figs = au.plot_series(d, axis="results")
-    elif plot_option == 2:
-        figs = get_plots(P, results, axis="results")
-    if browser:
-        from sciris.weblib import quickserver as qs
-        qs.browser(figs)
+    if test=='tb':
+        scen_outputs = ["lt_inf", "ac_inf"]
+        scen_pop = "15-64"
+        P = au.demo(which='tb')
+        results = P.run_scenarios()
+        if plot_option == 1:
+            d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+            figs = au.plot_series(d, axis="results")
+        elif plot_option == 2:
+            figs = get_plots(P, results, axis="results")
+        if browser:
+            from sciris.weblib import quickserver as qs
+            qs.browser(figs)
     
 
 if "optimization" in torun:

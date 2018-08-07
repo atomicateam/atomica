@@ -84,12 +84,13 @@ class ProjectFramework(object):
     @property
     def comps(self):
         # Shortcut to Compartments sheet
-        return self.sheets['Compartments']
+        return self.sheets.get('Compartments')
 
     @comps.setter
     def comps(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Compartments'] = value
+        if 'Compartments' in self.sheets.keys(): self.sheets['Compartments'] = value
+        else: raise AtomicaException('Cannot set compartment value as Compartment sheet was not defined.')
 
     def get_comp(self,comp_name):
         return self.comps.loc[comp_name]
@@ -97,12 +98,13 @@ class ProjectFramework(object):
     @property
     def characs(self):
         # Shortcut to Characteristics sheet
-        return self.sheets['Characteristics']
+        return self.sheets.get('Characteristics')
 
     @characs.setter
     def characs(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Characteristics'] = value
+        if 'Characteristics' in self.sheets.keys(): self.sheets['Characteristics'] = value
+        else: raise AtomicaException('Cannot set value as Characteristics sheet was not defined.')
 
     def get_charac(self,charac_name):
         return self.characs.loc[charac_name]
@@ -110,25 +112,27 @@ class ProjectFramework(object):
     @property
     def pars(self):
         # Shortcut to Parameters sheet
-        return self.sheets['Parameters']
+        return self.sheets.get('Parameters')
 
     @pars.setter
     def pars(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Parameters'] = value
+        if 'Parameters' in self.sheets.keys(): self.sheets['Parameters'] = value
+        else: raise AtomicaException('Cannot set value as Parameters sheet was not defined.')
 
     def get_par(self,par_name):
         return self.pars.loc[par_name]
 
     @property
     def interactions(self):
-        # Shortcut to Characteristics sheet
-        return self.sheets['Interactions']
+        # Shortcut to Interactions sheet
+        return self.sheets.get('Interactions')
 
     @interactions.setter
     def interactions(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Interactions'] = value
+        if 'Interactions' in self.sheets.keys(): self.sheets['Interactions'] = value
+        else: raise AtomicaException('Cannot set value as Interactions sheet was not defined.')
 
     @property
     def cascades(self):
@@ -257,7 +261,6 @@ class ProjectFramework(object):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
         ### VALIDATE PARAMETERS
-
         required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
