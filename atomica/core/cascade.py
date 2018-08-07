@@ -10,9 +10,11 @@ from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
-def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
+def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
+
+    if pops is None: pops = 'all'
 
     # First, process the cascade into an odict of outputs for PlotData
     if isinstance(results, sc.odict):
@@ -181,7 +183,7 @@ def get_cascade_outputs(framework,cascade_name):
         outputs[stage[0]] = [x.strip() for x in stage[1].split(',')]  # Split the name of the stage and the constituents
     return outputs
 
-def get_cascade_vals(result,cascade,pops='all',year=None):
+def get_cascade_vals(result,cascade,pops=None,year=None):
     '''
     Gets values for populating a cascade plot
     '''
@@ -198,6 +200,8 @@ def get_cascade_vals(result,cascade,pops='all',year=None):
     # - t : ndarray of time values
 
     from .plotting import PlotData # Import here to avoid circular dependencies
+
+    if pops is None: pops = 'all'
 
     assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 
@@ -223,7 +227,7 @@ def get_cascade_vals(result,cascade,pops='all',year=None):
 
     return cascade_vals,t
 
-def get_cascade_data(data,framework,cascade,pops='all',year=None):
+def get_cascade_data(data,framework,cascade,pops=None,year=None):
     # This function is the counterpart to get_cascade_vals but it returns data
     # instead. Note that the inputs and outputs are slightly different
     # - If year is specified, the output is guaranteed to be the same size as the input year array, the same as get_cascade_vals
@@ -234,6 +238,8 @@ def get_cascade_data(data,framework,cascade,pops='all',year=None):
     #
     # NB - In general, data probably will NOT exist
     # Set the logging level to 'DEBUG' to have messages regarding this printed out
+
+    if pops is None: pops = 'all'
 
     if isinstance(cascade,string_types):
         outputs = get_cascade_outputs(framework,cascade)
