@@ -1,4 +1,4 @@
-from .plotting import grid_color_map, plot_legend
+from .plotting import plot_legend
 import matplotlib.pyplot as plt
 import numpy as np
 import textwrap
@@ -47,7 +47,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
     block_gap = 1. # This is the gap between blocks
     block_size = n_bars*(bar_width+bar_gap)
     x = np.arange(0,len(cascade_vals[0].keys()))*(block_size+block_gap) # One block for each cascade stage
-    colors = grid_color_map(n_bars)  # Default colors
+    colors = sc.gridcolors(n_bars)  # Default colors
     legend_entries = sc.odict()
 
     fig = plt.figure()

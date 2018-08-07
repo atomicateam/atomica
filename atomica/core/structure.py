@@ -89,6 +89,10 @@ class TimeSeries(object):
 
         for tx, vx in zip(t,vals):
             self.insert(tx, vx)
+    
+    def __repr__(self):
+        output = sc.desc(self)
+        return output
 
     @property
     def has_data(self):
