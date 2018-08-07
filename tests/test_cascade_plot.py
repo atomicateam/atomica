@@ -17,28 +17,6 @@ P = Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path="./databooks/databook_"+test+".xlsx", make_default_parset=True, do_run=True)
 result = P.results[0]
 
-<<<<<<< HEAD
-# # Do a scenario to get a second set of results
-par_results = P.results[-1]
-
-scvalues = dict()
-scen_par = "doth_rate"
-scen_pop = "0-4"
-scvalues[scen_par] = dict()
-scvalues[scen_par][scen_pop] = dict()
-scvalues[scen_par][scen_pop]["y"] = [0.5,0.5]
-scvalues[scen_par][scen_pop]["t"] = [1999., 2050.]
-P.make_scenario(which='parameter',name="Increased deaths", instructions=scvalues)
-scen_results = P.run_scenario(scenario="Increased deaths", parset="default")
-par_results.name = 'Baseline'
-scen_results.name = 'Scenario'
-
-# Make some plots from plot names and groups in the Framework
-result.plot(plot_name='plot5',project=P)
-result.plot(plot_name='plot5',pops='all',project=P)
-result.plot(plot_name='plot19',pops='all',project=P)
-result.plot(plot_group='latency')
-=======
 # # Make some plots from plot names and groups in the Framework
 if "basicplots" in torun:
     result.plot(plot_name='plot5',project=P)
@@ -53,11 +31,11 @@ if "basicplots" in torun:
     # Plot various cascades
     startyear = 2000 if test=='tb' else 2016
     endyear = 2030 if test=='tb' else 2017
-    au.plot_cascade(result,cascade='main',pops='all',year=startyear)
-    au.plot_cascade(result,cascade='main',pops='all',year=endyear)
+    au.plot_cascade(result,cascade='main',pops='all',year=startyear,data=P.data)
+    au.plot_cascade(result,cascade='main',pops='all',year=endyear,data=P.data)
     if test=='tb': 
-        au.plot_cascade(result,cascade='main',pops='0-4',year=endyear)
-        au.plot_cascade(result,cascade='secondary',pops='0-4',year=endyear)
+        au.plot_cascade(result,cascade='main',pops='0-4',year=endyear,data=P.data)
+        au.plot_cascade(result,cascade='secondary',pops='0-4',year=endyear,data=P.data)
     
 
 # Do a scenario to get a second set of results
@@ -96,17 +74,8 @@ if "scenplots" in torun:
     if test=='tb': au.plot_multi_cascade([par_results],'secondary',year=[startyear,endyear])
     au.plot_multi_cascade([par_results,scen_results],cascade='main',pops='all',year=[startyear,endyear])
     #au.plot_multi_cascade([par_results,scen_results],cascade=cascade,pops='all',year=2030)
->>>>>>> training-examples
 
 
-<<<<<<< HEAD
-# Plot various cascades
-au.plot_cascade(result,cascade='main',pops='0-4',year=2030,data=P.data)
-au.plot_cascade(result,cascade='main',pops='all',year=2000,data=P.data)
-au.plot_cascade(result,cascade='main',pops='all',year=2030,data=P.data)
-au.plot_cascade(result,cascade='secondary',pops='0-4',year=2030,data=P.data)
-=======
->>>>>>> training-examples
 
 # # Dynamically create a cascade
 if "cascadefromscratch" in torun:
