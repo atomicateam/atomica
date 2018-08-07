@@ -31,9 +31,9 @@ torun = [
 "makeparset",
 "runsim",
 "plotcascade",
-"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+#"makeprogramspreadsheet",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
