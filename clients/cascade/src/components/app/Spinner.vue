@@ -23,10 +23,6 @@
   export default {
     name: 'PopupSpinner',
     
-    created() {
-      console.log('created() run for PopupSpinner', this)
-    },
-    
     props: {
       loading: {
         type: Boolean,
@@ -102,6 +98,7 @@
       onKey(event) {
         if (event.keyCode == 27) {
           console.log('Exited spinner through Esc key')
+          this.$emit('spinner-cancel')
           this.$modal.hide('popup-spinner') // Dispel the spinner.
         }
       }
