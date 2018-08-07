@@ -25,6 +25,14 @@ body {
   }
 }
 
+
+@media screen and (min-width: 1500px) {
+  .container-fluid {
+    padding-left: 60px;
+    padding-right: 60px;
+  }
+}
+
 a {
   color: $color-skyblue;
 
@@ -197,11 +205,6 @@ hr {
 //
 // Other component stylings (should be elsewhere but put here for now)
 //
-
-// Set an inset for the content on a site page.
-.SitePage {
-  padding: 22px 30px;
-}
 
 // Add a space after a page section.
 div.PageSection {
