@@ -33,16 +33,28 @@ def default_framework(which=None, show_options=False):
     label = mapping[which]['label']
     if show_options:
         return mapping
-    F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
+    else:
+        F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
     return F
 
 
-def default_project(which=None, do_run=True, verbose=False, **kwargs):
+def default_project(which=None, do_run=True, verbose=False, show_options=False, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
     Version: 2018mar27
     """
+    
+    mapping = sc.odict([('sir',      'SIR model'),       
+                        ('tb',       'Tuberculosis model'),    
+                        ('diabetes', 'Diabetes model'),        
+                        ('service',  'Service delivery model'),
+                        ('udt',      'Generic 3-stage model'),
+                        ('hiv',      'HIV model'),
+                    ])
+    
+    if show_options:
+        return mapping
     
     if which is None: which = 'tb'
 
