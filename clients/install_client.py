@@ -4,5 +4,4 @@
 # Version: 2018jul16
 
 import os
-os.chdir(os.path.join(os.pardir, 'common'))
 os.system('npm install')

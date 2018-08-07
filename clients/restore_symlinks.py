@@ -7,7 +7,7 @@ import os
 
 dryrun = False
 folders = ['cascade', 'tb']
-links = ['node_modules', 'package.json', 'static']
+links = ['static']
 vueapp = 'src/components/app'
 
 for folder in folders:

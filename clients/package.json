@@ -1,17 +1,4 @@
 {
-  "name": "atomica",
-  "version": "0.17.0wip",
-  "description": "Atomica",
-  "author": "University of Copenhagen <info@cascade.tools>",
-  "private": true,
-  "scripts": {
-    "dev": "node build/dev-server.js",
-    "start": "node build/dev-server.js",
-    "build": "node build/build.js",
-    "unit": "cross-env BABEL_ENV=test karma start test/unit/karma.conf.js --single-run",
-    "e2e": "node test/e2e/runner.js",
-    "test": "npm run unit && npm run e2e"
-  },
   "dependencies": {
     "axios": "^0.16.2",
     "babel-preset-es2015": "^6.24.1",
@@ -93,14 +80,5 @@
     "webpack-dev-middleware": "^1.10.0",
     "webpack-hot-middleware": "^2.18.0",
     "webpack-merge": "^4.1.0"
-  },
-  "engines": {
-    "node": ">= 4.0.0",
-    "npm": ">= 3.0.0"
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not ie <= 8"
-  ]
+  }
 }

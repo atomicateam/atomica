@@ -46,13 +46,13 @@ Last update: 2018-07-31
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
-          <b>Start year: &nbsp;</b>
-          <input type="text"
-                 class="txbox"
-                 v-model="startYear"
-                 style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;
-          <b>End year: &nbsp;</b>
+          <!--<b>Start year: &nbsp;</b>-->
+          <!--<input type="text"-->
+                 <!--class="txbox"-->
+                 <!--v-model="startYear"-->
+                 <!--style="display: inline-block; width:70px"/>-->
+          <!--&nbsp;&nbsp;&nbsp;-->
+          <b>Year: &nbsp;</b>
           <input type="text"
                  class="txbox"
                  v-model="endYear"
@@ -395,7 +395,7 @@ Last update: 2018-07-31
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, 'cascade'])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length

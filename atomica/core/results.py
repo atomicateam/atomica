@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import sciris.core as sc
 from .utils import NamedItem
-from .system import AtomicaException
 import matplotlib.pyplot as plt
 import ast
 from six import string_types
@@ -95,7 +94,6 @@ class Result(NamedItem):
         from .plotting import PlotData
         from .cascade import get_cascade_vals
 
-        framework = self.framework
         new_tvals = np.arange(np.ceil(self.t[0]), np.floor(self.t[-1]) + 1)
 
         if 'Plots' not in self.framework.sheets:
