@@ -91,7 +91,10 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
-
+label_mapping = {'SIR model':'sir',
+                 'Tuberculosis':'tb',
+                 'Diabetes':'diabetes',
+                 'Service delivery':'service'}
 
 
 ###############################################################
