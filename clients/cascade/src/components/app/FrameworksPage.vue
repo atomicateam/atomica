@@ -190,16 +190,14 @@ Last update: 2018-07-29
         frameworkSummaries: [], // List of summary objects for frameworks the user has
         frame_name: 'New framework', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
-        frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
-        currentFramework: 'Service delivery'
-
+        frameworkOptions: [],
+        currentFramework: ''
       }
     },
 
     computed: {
       sortedFilteredFrameworkSummaries() {
         return this.applyNameFilter(this.applySorting(this.frameworkSummaries))
-//      return this.applyNameFilter(this.applySorting(this.applyCountryFilter(this.frameworkSummaries)))
       }
     },
 
@@ -213,6 +211,7 @@ Last update: 2018-07-29
       else {
         // Load the framework summaries of the current user.
         this.updateFrameworkSummaries()
+        this.getFrameworkOptions()
       }
     },
 
@@ -230,6 +229,19 @@ Last update: 2018-07-29
         if (this.TEMPtime + this.TEMPduration < Date.now()) {
           event.stop()
         }
+      },
+
+      getFrameworkOptions() {
+        console.log('getFrameworkOptions() called')
+        rpcservice.rpcCall('get_framework_options') // Get the current user's framework summaries from the server.
+          .then(response => {
+            this.frameworkOptions = response.data // Set the frameworks to what we received.
+            this.currentFramework = this.frameworkOptions[0]
+            console.log(this.frameworkOptions)
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not load framework options: ' + error.message)
+          })
       },
 
       updateFrameworkSummaries() {
