@@ -55,8 +55,9 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
 
     for offset,(bar_label,data) in enumerate(cascade_data.items()):
         legend_entries[bar_label] = colors[offset]
-        for stage,vals in data.items():
-            plt.bar(x+offset*(bar_width+bar_gap),vals,color=colors[offset],width=bar_width)
+        vals = np.hstack(data.values())
+        plt.bar(x+offset*(bar_width+bar_gap),vals,color=colors[offset],width=bar_width)
+
     plot_legend(legend_entries,fig=fig)
     ax = fig.axes[0]
     ax.set_xticks(x+(block_size-bar_gap-bar_width)/2)
