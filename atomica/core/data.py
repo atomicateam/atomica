@@ -38,6 +38,10 @@ class ProjectData(object):
         self._formats = None
         self._book = None
         self._references = None
+    
+    def __repr__(self):
+        output = sc.desc(self)
+        return output
 
     @property
     def start_year(self):
