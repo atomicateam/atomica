@@ -213,46 +213,59 @@ export default {
   // rpcUploadCall() -- uploadRPC() /api/upload calls in api.py.
   rpcUploadCall (funcname, args, kwargs, fileType) {
     // Log the upload RPC call.
-    console.log('TESTING')
     consoleLogCommand("upload", funcname, args, kwargs)
 
     // Do the RPC processing, returning results as a Promise.
-    return new Promise((resolve, reject) => { // Function for trapping the change event that has the user-selected file.
-        console.log('TESTING')
+    return new Promise((resolve, reject) => {
+      // Function for trapping the change event that has the user-selected 
+      // file.
       var onFileChange = (e) => {
-        console.log('TESTING2')
-        var files = e.target.files || e.dataTransfer.files // Pull out the files (should only be 1) that were selected.
-        if (!files.length) {
-          console.log('TESTING3')
-          reject(Error('No file selected')) // If no files were selected, reject the promise.
-        }
-      console.log('TESTING4')
-        const formData = new FormData() // Create a FormData object for holding the file.
-        formData.append('uploadfile', files[0]) // Put the selected file in the formData object with 'uploadfile' key.
-        formData.append('funcname', funcname) // Add the RPC function name to the form data.
-        formData.append('args', JSON.stringify(args)) // Add args and kwargs to the form data.
+        // Pull out the files (should only be 1) that were selected.
+        var files = e.target.files || e.dataTransfer.files
+
+        // If no files were selected, reject the promise.
+        if (!files.length)
+          reject(Error('No file selected'))
+
+        // Create a FormData object for holding the file.
+        const formData = new FormData()
+
+        // Put the selected file in the formData object with 'uploadfile' key.
+        formData.append('uploadfile', files[0])
+
+        // Add the RPC function name to the form data.
+        formData.append('funcname', funcname)
+
+        // Add args and kwargs to the form data.
+        formData.append('args', JSON.stringify(args))
         formData.append('kwargs', JSON.stringify(kwargs))
-      console.log('TESTING5')
-        axios.post('/api/rpcs', formData) // Use a POST request to pass along file to the server.
+
+        // Use a POST request to pass along file to the server.
+        axios.post('/api/rpcs', formData)
         .then(response => {
-          console.log('TESTING6')
-          if (typeof(response.data.error) != 'undefined') { // If there is an error in the POST response.
-            console.log('TESTING7')
+          // If there is an error in the POST response.
+          if (typeof(response.data.error) != 'undefined') {
             reject(Error(response.data.error))
           }
-      console.log('TESTING8')
-          resolve(response) // Signal success with the response.
+
+          // Signal success with the response.
+          resolve(response)
         })
         .catch(error => {
-        console.log('TESTING9')
-          if (error.response) { // If there was an actual response returned from the server...
-            console.log('TESTING10')
-            if (typeof(error.response.data.exception) != 'undefined') { // If we have exception information in the response (which indicates an exception on the server side)...
-              console.log('TESTING11')
-              reject(Error(error.response.data.exception)) // For now, reject with an error message matching the exception. In the future, we want to put the exception message in a pop-up dialog.
+          // If there was an actual response returned from the server...
+          if (error.response) {
+            // If we have exception information in the response (which indicates 
+            // an exception on the server side)...
+            if (typeof(error.response.data.exception) != 'undefined') {
+              // For now, reject with an error message matching the exception.
+              // In the future, we want to put the exception message in a 
+              // pop-up dialog.
+              reject(Error(error.response.data.exception))
             }
           }
-          reject(error) // Reject with the error axios got.
+
+          // Reject with the error axios got.
+          reject(error)
         })
       }
 

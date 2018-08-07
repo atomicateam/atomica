@@ -22,14 +22,18 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
 
 def default_framework(which=None, **kwargs):
     
+    mapping = {'sir':       {'label':'SIR model',        'args':{"num_comps":4, "num_characs":8, "num_pars":6}},
+               'tb':        {'label':'Tuberculosis',     'args':{"num_comps":40, "num_characs":70, "num_pars":140}},
+               'diabetes':  {'label':'Diabetes',         'args':{"num_comps":13, "num_characs":9, "num_pars":16}},
+               'service':   {'label':'Service delivery', 'args':{"num_comps":7, "num_characs":4, "num_pars":10}},
+               }
+                             
     if which is None: which = 'tb'
-
-    if   which == "sir":      args = {"num_comps":4, "num_characs":8, "num_pars":6}
-    elif which == "tb":       args = {"num_comps":40, "num_characs":70, "num_pars":140}
-    elif which == "diabetes": args = {"num_comps":13, "num_characs":9, "num_pars":16}
-    elif which == "service":  args = {"num_comps":7, "num_characs":4, "num_pars":10}
+    
+    label = mapping[which]['label']
+#    args  = mapping[which]['args']
 #    path = ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
-    F = ProjectFramework(name=which.upper(), filepath=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
+    F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
     return F
 
 

@@ -1,7 +1,7 @@
 <!--
 Definition of top navigation bar
 
-Last update: 2018-03-25
+Last update: 2018-07-27
 -->
 
 <template>
@@ -19,14 +19,6 @@ Last update: 2018-03-25
       <div class="collapse navbar-collapse">
         <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
         <ul class="nav navbar-nav navbar-right">
-          <li>
-            <router-link to="/frameworks">
-              <i class="ti-ruler-pencil"></i>
-              <p>
-                Framework: <span>{{ activeFrameworkName }}</span>
-              </p>
-            </router-link>
-          </li>
           <li>
             <router-link to="/projects">
               <i class="ti-view-grid"></i>
@@ -64,19 +56,6 @@ Last update: 2018-03-25
       // Health prior function
       currentUser(){
         return userService.currentUser()
-      },
-
-      activeFrameworkName() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return 'none'
-        } else {
-          return this.$store.state.activeProject.project.framework
-        }      
-/*        if (this.$store.state.activeFramework.framework === undefined) {
-          return 'none'
-        } else {
-          return this.$store.state.activeFramework.framework.name
-        } */
       },
 
       activeProjectName() {

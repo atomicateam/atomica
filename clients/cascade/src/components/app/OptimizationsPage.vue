@@ -39,11 +39,11 @@ Last update: 2018-07-30
       <div>
         <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="toggleShowingPlots()">
-          <span v-if="areShowingPlots">Hide</span>
-          <span v-else>Show</span>
-          plot controls
-        </button>
+        <!--<button class="btn" @click="toggleShowingPlots()">-->
+          <!--<span v-if="areShowingPlots">Hide</span>-->
+          <!--<span v-else>Show</span>-->
+          <!--plot controls-->
+        <!--</button>-->
       </div>
 
 
@@ -502,7 +502,7 @@ Last update: 2018-07-30
         .then(response => {          
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
-          taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optimization',
+          taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
             [this.projectID(), optimSummary.name, this.plotOptions])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.

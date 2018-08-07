@@ -26,7 +26,7 @@ Last update: 2018-07-27
                 Project: <span>{{ activeProjectName }}</span>
               </p>
             </router-link>
-          </li>          
+          </li>
           <drop-down v-bind:title="activeUserName" icon="ti-user">
             <li><a href="#/changeinfo"><i class="ti-pencil"></i>&nbsp;&nbsp;Edit account</a></li>
             <li><a href="#/changepassword"><i class="ti-key"></i>&nbsp;&nbsp;Change password</a></li>

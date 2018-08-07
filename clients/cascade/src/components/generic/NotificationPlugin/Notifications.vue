@@ -1,7 +1,7 @@
 <!--
 Definition of a Paper notification, used via this.$notifications.notify()
 
-Last updated: 2018-07-09
+Last updated: 2018-07-11
 -->
 
 <template>

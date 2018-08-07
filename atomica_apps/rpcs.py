@@ -21,6 +21,7 @@ import sciris.web as sw
 import sciris.weblib.datastore as ds
 import atomica.ui as au
 from . import projects as prj
+from . import frameworks as frw
 from matplotlib.legend import Legend
 import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
@@ -31,26 +32,6 @@ def TickFormat():
     plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
     return plugin
 
-#class TickFormat(mpld3.plugins.PluginBase):
-#    """Tick format plugin."""
-#
-#    JAVASCRIPT = """
-#    mpld3.register_plugin("tickformat", TickFormat);
-#    TickFormat.prototype = Object.create(mpld3.Plugin.prototype);
-#    TickFormat.prototype.constructor = TickFormat;
-#    function TickFormat(fig, props) {
-#        mpld3.Plugin.call(this, fig, props);
-#        console.log('hi');
-#        fig.setXTicks(null, function(d) {
-#            return 'hello' + d3.format('.2s')(d);
-#        });
-#        fig.setYTicks(null, function(d) {
-#            return d3.format('.2s')(d);
-#        });
-#    };
-#    """
-#    def __init__(self):
-#        self.dict_ = {"type": "tickformat"}
 
 
 def timeit(method):
@@ -69,6 +50,11 @@ def timeit(method):
 
     return timed
 
+
+label_mapping = {'SIR model':'sir',
+                 'Tuberculosis':'tb',
+                 'Diabetes':'diabetes',
+                 'Service delivery':'service'}
 
 
 
@@ -105,10 +91,112 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
+
+
+
+###############################################################
+#%% Framework functions
+##############################################################
+    
+
+def load_framework_record(framework_id, raise_exception=True):
+    """
+    Return the framework DataStore reocord, given a framework UID.
+    """ 
+    
+    # Load the matching frw.FrameworkSO object from the database.
+    framework_record = frw.frame_collection.get_object_by_uid(framework_id)
+
+    # If we have no match, we may want to throw an exception.
+    if framework_record is None:
+        if raise_exception:
+            raise Exception('FrameworkDoesNotExist(id=%s)' % framework_id)
+            
+    # Return the Framework object for the match (None if none found).
+    return framework_record
+
+def load_framework(framework_id, raise_exception=True):
+    """
+    Return the Nutrition Framework object, given a framework UID, or None if no 
+    ID match is found.
+    """ 
+    
+    # Load the framework record matching the ID passed in.
+    framework_record = load_framework_record(framework_id, 
+        raise_exception=raise_exception)
+    
+    # If there is no match, raise an exception or return None.
+    if framework_record is None:
+        if raise_exception:
+            raise Exception('FrameworkDoesNotExist(id=%s)' % framework_id)
+        else:
+            return None
         
-#
-# Other functions (mostly helpers for the RPCs)
-#
+    # Return the found framework.
+    return framework_record.frame
+
+def load_framework_summary_from_framework_record(framework_record):
+    """
+    Return the framework summary, given the DataStore record.
+    """ 
+    
+    # Return the built framework summary.
+    return framework_record.get_user_front_end_repr()
+  
+def load_current_user_framework_summaries2():
+    """
+    Return framework summaries for all frameworks the user has to the client. -- WARNING, fix!
+    """ 
+    
+    # Get the frw.FrameworkSO entries matching the user UID.
+    framework_entries = frw.frame_collection.get_framework_entries_by_user(current_user.get_id())
+    
+    # Grab a list of framework summaries from the list of frw.FrameworkSO objects we 
+    # just got.
+    return {'frameworks': map(load_framework_summary_from_framework_record, 
+        framework_entries)}
+                
+def save_framework(frame):
+    """
+    Given a Framework object, wrap it in a new frw.FrameworkSO object and put this 
+    in the framework collection (either adding a new object, or updating an 
+    existing one)  skip_result lets you null out saved results in the Framework.
+    """ 
+    
+    # Load the framework record matching the UID of the framework passed in.
+    framework_record = load_framework_record(frame.uid)
+    
+    # Copy the framework, only save what we want...
+    new_framework = sc.dcp(frame)
+    new_framework.modified = sc.today()
+         
+    # Create the new framework entry and enter it into the FrameworkCollection.
+    # Note: We don't need to pass in framework.uid as a 3rd argument because 
+    # the constructor will automatically use the Framework's UID.
+    frameSO = frw.FrameworkSO(new_framework, framework_record.owner_uid)
+    frw.frame_collection.update_object(frameSO)
+    
+
+def save_framework_as_new(frame, user_id):
+    """
+    Given a Framework object and a user UID, wrap the Framework in a new frw.FrameworkSO 
+    object and put this in the framework collection, after getting a fresh UID
+    for this Framework.  Then do the actual save.
+    """ 
+    frame.uid = sc.uuid() # Set a new framework UID, so we aren't replicating the UID passed in.
+    frameSO = frw.FrameworkSO(frame, user_id) # Create the new framework entry and enter it into the FrameworkCollection.
+    frw.frame_collection.add_object(frameSO)  
+    print(">> save_framework_as_new '%s'" % frame.name) # Display the call information.
+    save_framework(frame) # Save the changed Framework object to the DataStore.
+    return None
+
+
+
+
+        
+##############################################################
+#%% Project functions
+##############################################################
     
 
 def load_project_record(project_id, raise_exception=True):
@@ -247,64 +335,246 @@ def save_project_as_new(proj, user_id):
     save_project(proj) # Save the changed Project object to the DataStore.
     return None
 
-@timeit
-def get_burden_set_fe_repr(burdenset):
-    obj_info = {
-        'burdenset': {
-            'name': burdenset.name,
-            'uid': burdenset.uid,
-            'creationTime': burdenset.created,
-            'updateTime': burdenset.modified
-        }
-    }
-    return obj_info
 
-@timeit
-def get_interv_set_fe_repr(interv_set):
-    obj_info = {
-        'intervset': {
-            'name': interv_set.name,
-            'uid': interv_set.uid,
-            'creationTime': interv_set.created,
-            'updateTime': interv_set.modified
-        }
-    }
-    return obj_info
-
-def get_package_set_fe_repr(packageset):
-    obj_info = {
-        'packageset': {
-            'name': packageset.name,
-            'uid': packageset.uid,
-            'creationTime': packageset.created,
-            'updateTime': packageset.modified
-        }
-    }
-    return obj_info
-
-#
-# RPC functions
-#
 
 # RPC definitions
 @register_RPC()
 def get_version_info():
-	''' Return the information about the project. '''
-	gitinfo = sc.gitinfo(__file__)
-	version_info = {
-	       'version':   au.version,
-	       'date':      au.versiondate,
-	       'gitbranch': gitinfo['branch'],
-	       'githash':   gitinfo['hash'],
-	       'gitdate':   gitinfo['date'],
-	}
-	return version_info
+    ''' Return the information about the project. '''
+    gitinfo = sc.gitinfo(__file__)
+    version_info = {
+           'version':   au.version,
+           'date':      au.versiondate,
+           'gitbranch': gitinfo['branch'],
+           'githash':   gitinfo['hash'],
+           'gitdate':   gitinfo['date'],
+    }
+    return version_info
+
+
+##################################################################################
+#%% Framework RPCs
+##################################################################################
+
+    
+@register_RPC(validation_type='nonanonymous user')
+def get_scirisdemo_frameworks():
+    """
+    Return the frameworks associated with the Sciris Demo user.
+    """
+    
+    # Get the user UID for the _ScirisDemo user.
+    user_id = user.get_scirisdemo_user()
+   
+    # Get the frw.FrameworkSO entries matching the _ScirisDemo user UID.
+    framework_entries = frw.frame_collection.get_framework_entries_by_user(user_id)
+
+    # Collect the framework summaries for that user into a list.
+    framework_summary_list = map(load_framework_summary_from_framework_record, 
+        framework_entries)
+    
+    # Sort the frameworks by the framework name.
+    sorted_summary_list = sorted(framework_summary_list, 
+        key=lambda frame: frame['framework']['name']) # Sorts by framework name
+    
+    # Return a dictionary holding the framework summaries.
+    output = {'frameworks': sorted_summary_list}
+    return output
+
+@register_RPC(validation_type='nonanonymous user')
+def load_framework_summary(framework_id):
+    """
+    Return the framework summary, given the Framework UID.
+    """ 
+    
+    # Load the framework record matching the UID of the framework passed in.
+    framework_entry = load_framework_record(framework_id)
+    
+    # Return a framework summary from the accessed frw.FrameworkSO entry.
+    return load_framework_summary_from_framework_record(framework_entry)
+
+
+@register_RPC(validation_type='nonanonymous user')
+def load_current_user_framework_summaries():
+    """
+    Return framework summaries for all frameworks the user has to the client.
+    """ 
+    
+    return load_current_user_framework_summaries2()
+
+
+@register_RPC(validation_type='nonanonymous user')                
+def load_all_framework_summaries():
+    """
+    Return framework summaries for all frameworks to the client.
+    """ 
+    
+    # Get all of the frw.FrameworkSO entries.
+    framework_entries = frw.frame_collection.get_all_objects()
+    
+    # Grab a list of framework summaries from the list of frw.FrameworkSO objects we 
+    # just got.
+    return {'frameworks': map(load_framework_summary_from_framework_record, 
+        framework_entries)}
+            
+@register_RPC(validation_type='nonanonymous user')    
+def delete_frameworks(framework_ids):
+    """
+    Delete all of the frameworks with the passed in UIDs.
+    """ 
+    
+    # Loop over the framework UIDs of the frameworks to be deleted...
+    for framework_id in framework_ids:
+        # Load the framework record matching the UID of the framework passed in.
+        record = load_framework_record(framework_id, raise_exception=True)
+        
+        # If a matching record is found, delete the object from the 
+        # FrameworkCollection.
+        if record is not None:
+            frw.frame_collection.delete_object_by_uid(framework_id)
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
+def download_framework(framework_id):
+    """
+    For the passed in framework UID, get the Framework on the server, save it in a 
+    file, minus results, and pass the full path of this file back.
+    """
+    frame = load_framework(framework_id, raise_exception=True) # Load the framework with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s.frw' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    fileio.object_to_gzip_string_pickle_file(full_file_name, frame) # Write the object to a Gzip string pickle file.
+    print(">> download_framework %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
+def load_zip_of_frw_files(framework_ids):
+    """
+    Given a list of framework UIDs, make a .zip file containing all of these 
+    frameworks as .frw files, and return the full path to this file.
+    """
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    frws = [load_framework_record(id).save_as_file(dirname) for id in framework_ids] # Build a list of frw.FrameworkSO objects for each of the selected frameworks, saving each of them in separate .frw files.
+    zip_fname = 'Frameworks %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
+    server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
+    with ZipFile(server_zip_fname, 'w') as zipfile: # Create the zip file, putting all of the .frw files in a frameworks directory.
+        for framework in frws:
+            zipfile.write(os.path.join(dirname, framework), 'frameworks/{}'.format(framework))
+    print(">> load_zip_of_frw_files %s" % (server_zip_fname)) # Display the call information.
+    return server_zip_fname # Return the server file name.
+
+
+@register_RPC(validation_type='nonanonymous user')
+def add_demo_framework(user_id, framework_name):
+    """
+    Add a demo framework
+    """
+    try:
+        which = label_mapping[framework_name]
+    except Exception:
+        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), framework_name)
+        raise Exception(errormsg)
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    new_frame_name = get_unique_name(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
+    frame = au.demo(kind='framework', which=which)  # Create the framework, loading in the desired spreadsheets.
+    frame.name = new_frame_name
+    print(">> add_demo_framework %s" % (frame.name))    
+    save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
+    return { 'frameworkId': str(frame.uid) } # Return the new framework UID in the return message.
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')
+def create_new_framework():
+    """
+    Create a new framework.
+    """
+    filename = 'framework_template.xlsx'
+    filepath = au.atomica_path(['atomica','core'])+filename
+    print(">> download_framework %s" % (filepath))
+    return filepath # Return the filename
+
+
+@register_RPC(call_type='upload', validation_type='nonanonymous user')
+def upload_frameworkbook(databook_filename, framework_id):
+    """
+    Upload a databook to a framework.
+    """
+    
+    # Display the call information.
+    print(">> upload_databook '%s'" % databook_filename)
+    
+    frame = load_framework(framework_id, raise_exception=True)
+    
+    # Reset the framework name to a new framework name that is unique.
+    frame.read_from_file(filepath=databook_filename, overwrite=True)
+    frame.modified = sc.today()
+    
+    # Save the new framework in the DataStore.
+    save_framework(frame)
+    
+    # Return the new framework UID in the return message.
+    return { 'frameworkId': str(frame.uid) }
+
+
+@register_RPC(validation_type='nonanonymous user')
+def update_framework_from_summary(framework_summary):
+    """
+    Given the passed in framework summary, update the underlying framework accordingly.
+    """ 
+    frame = load_framework(framework_summary['framework']['id']) # Load the framework corresponding with this summary.
+    frame_uid = sc.uuid(framework_summary['framework']['id']).hex # Use the summary to set the actual framework, checking to make sure that the framework name is unique.
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
+    frame.name = get_unique_name(framework_summary['framework']['name'], other_names=other_names)
+    frame.modified = sc.today() # Set the modified time to now.
+    save_framework(frame) # Save the changed framework to the DataStore.
+    return None
+    
+@register_RPC(validation_type='nonanonymous user')    
+def copy_framework(framework_id):
+    """
+    Given a framework UID, creates a copy of the framework with a new UID and returns that UID.
+    """
+    framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
+    frame = framework_record.frame
+    new_framework = sc.dcp(frame) # Make a copy of the framework loaded in to work with.
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Just change the framework name, and we have the new version of the Framework object to be saved as a copy
+    new_framework.name = get_unique_name(frame.name, other_names=other_names)
+    user_id = current_user.get_id()  # Set the user UID for the new frameworks record to be the current user.
+    print(">> copy_framework %s" % (new_framework.name))  # Display the call information.
+    save_framework_as_new(new_framework, user_id) # Save a DataStore frameworks record for the copy framework.
+    copy_framework_id = new_framework.uid # Remember the new framework UID (created in save_framework_as_new()).
+    return { 'frameworkId': copy_framework_id } # Return the UID for the new frameworks record.
+
+
+@register_RPC(call_type='upload', validation_type='nonanonymous user')
+def create_framework_from_frw_file(frw_filename, user_id):
+    """
+    Given a .frw file name and a user UID, create a new framework from the file 
+    with a new UID and return the new UID.
+    """
+    print(">> create_framework_from_frw_file '%s'" % frw_filename)
+    print('Trying to open the file')
+    try: # Try to open the .frw file, and return an error message if this fails.
+        frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
+    except Exception as E:
+        print('ERROR, load failed: %s' % repr(E))
+        return { 'error': 'BadFileFormatError' }
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Reset the framework name to a new framework name that is unique.
+    frame.name = get_unique_name(frame.name, other_names=other_names)
+    save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
+    print('Created new framework %s, uid:%s' % (frame.name, frame.uid))
+    return { 'frameworkId': str(frame.uid) }
+
+
+
+
 
 
 ##################################################################################
 #%% Project RPCs
 ##################################################################################
-    
+
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
@@ -397,6 +667,21 @@ def download_project(project_id):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
+def download_framework_from_project(project_id):
+    """
+    Download databook
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s_framework.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    proj.framework.save(full_file_name)
+    print(">> download_databook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+
+
+@register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_databook(project_id):
     """
     Download databook
@@ -420,7 +705,7 @@ def download_progbook(project_id):
     proj.progbook.save(full_file_name)
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
-    
+  
     
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def create_progbook(project_id, num_progs):
@@ -433,19 +718,6 @@ def create_progbook(project_id, num_progs):
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.    
     
-
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
-def download_defaults(project_id):
-    """
-    Download defaults
-    """
-    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s_defaults.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.dataset().default_params.spreadsheet.save(full_file_name)
-    print(">> download_defaults %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
@@ -466,13 +738,25 @@ def load_zip_of_prj_files(project_ids):
 
 
 @register_RPC(validation_type='nonanonymous user')
-def add_demo_project(user_id):
+def add_demo_project(user_id, project_name='default'):
     """
-    Add a demo Optima TB project
+    Add a demo project
     """
-    new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-    proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
-    proj.name = new_proj_name
+    if project_name is 'default':
+        new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
+        proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj.name = new_proj_name
+    else:
+        try:
+            which = label_mapping[project_name]
+            new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
+            proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+            proj.name = new_proj_name
+            print('Adding demo project %s/%s...' % (project_name, which))
+        except Exception as E:
+            errormsg = 'Invalid demo framework name, must be one of "%s", not "%s": %s' % (label_mapping.keys(), project_name, repr(E))
+            raise Exception(errormsg)
+
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> add_demo_project %s" % (proj.name))    
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
@@ -485,7 +769,7 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     """
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    F = au.ProjectFramework(name='TB', inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
+    F = au.ProjectFramework(name=new_proj_name , inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
     proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
@@ -823,7 +1107,21 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
 
-#TO_PORT
+#%% Plotting
+def get_cascade_plots(project_id, year=None, pop=None):
+    print('do_get_plots')
+    proj = load_project(project_id, raise_exception=True)
+    graphs = []
+    figs = au.plot_cascade(proj, year=year, pop=pop)
+    print('Number of figures: %s' % len(figs))
+    for f,fig in enumerate(figs):
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+        print('Converted figure %s of %s' % (f+1, len(figs)))
+        print(graph_dict)
+    
+    return {'graphs':graphs}
+
 @register_RPC(validation_type='nonanonymous user')    
 def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
     
@@ -846,6 +1144,7 @@ def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=Fa
 
     # Commands below will render unstacked plots with data, and will interleave them
     # so they appear next to each other in the FE
+    print('WARNING UPDATE')
     unstacked_output = get_calibration_plots(proj, result,pops=None,stacked=False)
     output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
 
@@ -923,12 +1222,10 @@ def delete_parset(project_id, parsetname=None):
     save_project(proj)
     return None
 
-
 ##################################################################################
 #%% Progset functions and RPCs
 ##################################################################################
 
-#TO_PORT
 @register_RPC(validation_type='nonanonymous user') 
 def get_progset_info(project_id):
     print('Returning progset info...')
@@ -936,7 +1233,7 @@ def get_progset_info(project_id):
     progset_names = proj.progsets.keys()
     return progset_names
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user') 
 def rename_progset(project_id, progsetname=None, new_name=None):
     print('Renaming progset from %s to %s...' % (progsetname, new_name))
@@ -946,7 +1243,7 @@ def rename_progset(project_id, progsetname=None, new_name=None):
     save_project(proj)
     return None
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user') 
 def copy_progset(project_id, progsetname=None):
     print('Copying progset %s...' % progsetname)
@@ -960,7 +1257,7 @@ def copy_progset(project_id, progsetname=None):
     save_project(proj)
     return None
 
-#TO_PORT
+
 @register_RPC(validation_type='nonanonymous user') 
 def delete_progset(project_id, progsetname=None):
     print('Deleting progset %s...' % progsetname)
@@ -1116,11 +1413,6 @@ def run_scenarios(project_id, plot_options, saveresults=False):
 #%% Optimization functions and RPCs
 ##################################################################################
 
-#def rpc_optimize(proj=None, json=None):
-#    proj.make_optimization(json=json) # Make optimization
-#    optimized_result = proj.run_optimization(optimization=json['name']) # Run optimization
-#    return optimized_result
-
 
 def py_to_js_optim(py_optim, project=None):
     js_optim = sw.json_sanitize_result(py_optim.json)
@@ -1136,9 +1428,7 @@ def py_to_js_optim(py_optim, project=None):
 def get_optim_info(project_id):
     print('Getting optimization info...')
     proj = load_project(project_id, raise_exception=True)
-    print(proj)
     optim_summaries = []
-    print(proj.optims.keys())
     for py_optim in proj.optims.values():
         js_optim = py_to_js_optim(py_optim, project=proj)
         optim_summaries.append(js_optim)

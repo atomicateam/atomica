@@ -35,7 +35,7 @@
   }
 
   .nav {
-    li:not(.router-link-active) {
+    li:not(.active) {
       > a {
         color: $font-color;
       }
@@ -51,9 +51,9 @@
 @mixin sidebar-active-color($font-color) {
   .nav {
     li {
-      &.router-link-active > a {
+      &.active > a {
         // Overriding the theme system here. This is the logo colour.
-        color: #00267a;
+        color: #00267a; // $font-color;
         opacity: 1;
       }
     }
