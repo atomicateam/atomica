@@ -212,7 +212,7 @@ Last update: 2018-07-29
       // Otherwise...
       else {
         // Load the framework summaries of the current user.
-        this.updateFrameworkSummaries(null)
+        this.updateFrameworkSummaries()
       }
     },
 
@@ -232,47 +232,21 @@ Last update: 2018-07-29
         }
       },
 
-      updateFrameworkSummaries(setActiveID) {
+      updateFrameworkSummaries() {
         console.log('updateFrameworkSummaries() called')
-      
-        // Get the current user's framework summaries from the server.
-        rpcservice.rpcCall('load_current_user_framework_summaries')
+        rpcservice.rpcCall('load_current_user_framework_summaries') // Get the current user's framework summaries from the server.
         .then(response => {
-          // Set the frameworks to what we received.
-          this.frameworkSummaries = response.data.frameworks
-
-          // Preprocess all frameworks.
-          this.frameworkSummaries.forEach(theFrame => {
-            // Set to not selected.
-            theFrame.selected = false
-            
-            // Set to not being renamed.
-            theFrame.renaming = ''
-            
-            // Extract actual Date objects from the strings.
-            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
+          this.frameworkSummaries = response.data.frameworks // Set the frameworks to what we received.
+          this.frameworkSummaries.forEach(theFrame => { // Preprocess all frameworks.
+            theFrame.selected = false // Set to not selected.
+            theFrame.renaming = '' // Set to not being renamed.
+            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime) // Extract actual Date objects from the strings.
             theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
-          }) 
-          
-          // If we have a framework on the list...
-/*          if (this.frameworkSummaries.length > 0) {
-            // If no ID is passed in, set the active framework to the first one in 
-            // the list.
-            // TODO: We should write a function that extracts the last-created 
-            // framework and then uses the UID for that as the thing to set.
-            if (setActiveID == null) {
-              this.openFramework(this.frameworkSummaries[0].framework.id)
-            }
-          
-            // Otherwise, set the active framework to the one passed in.
-            else {
-              this.openFramework(setActiveID)
-            }
-          } */        
+          })
+          console.log(this.frameworkSummaries)
         })
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not load frameworks')           
+          status.failurePopup(this, 'Could not load frameworks: ' + error.message)
         })
       },
 
@@ -283,7 +257,7 @@ Last update: 2018-07-29
         rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
         .then(response => {         
           // Update the framework summaries so the new framework shows up on the list.
-          this.updateFrameworkSummaries(response.data.frameworkId)
+          this.updateFrameworkSummaries()
           
           // Indicate success.
           status.succeed(this, 'Library framework loaded')
@@ -320,7 +294,7 @@ Last update: 2018-07-29
         .then(response => {
           this.$modal.show('popup-spinner') // Bring up a spinner.
           this.$Progress.start() // Start the loading bar.
-          this.updateFrameworkSummaries(response.data.frameworkId) // Update the framework summaries so the new framework shows up on the list.
+          this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
           status.succeed(this, 'Framework uploaded')
         })
         .catch(error => {
@@ -412,7 +386,7 @@ Last update: 2018-07-29
         status.start(this)
         rpcservice.rpcCall('copy_framework', [uid]) // Have the server copy the framework, giving it a new name.
         .then(response => {
-          this.updateFrameworkSummaries(response.data.frameworkId) // Update the framework summaries so the copied program shows up on the list.
+          this.updateFrameworkSummaries() // Update the framework summaries so the copied program shows up on the list.
           status.succeed('Framework "'+matchFramework.framework.name+'" copied')
         })
         .catch(error => {
@@ -432,7 +406,7 @@ Last update: 2018-07-29
           this.$Progress.start() // Start the loading bar.
           rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
-            this.updateFrameworkSummaries(newFrameworkSummary.framework.id) // Update the framework summaries so the rename shows up on the list.
+            this.updateFrameworkSummaries() // Update the framework summaries so the rename shows up on the list.
             frameworkSummary.renaming = '' // Turn off the renaming mode.
             status.succeed(this, '')
           })
@@ -533,7 +507,7 @@ Last update: 2018-07-29
           this.$Progress.start()          
           
           // Update the framework summaries so the copied program shows up on the list.
-          this.updateFrameworkSummaries(uid)
+          this.updateFrameworkSummaries()
           
           // Dispel the spinner.
           this.$modal.hide('popup-spinner')
