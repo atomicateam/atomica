@@ -5,7 +5,9 @@
          height="85px"
          width="80px"
          style="opacity: 1.0" 
-         :click-to-close="false">
+         :click-to-close="false" 
+         @before-open="beforeOpen" 
+         @before-close="beforeClose">
     <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
       <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
         <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
@@ -20,7 +22,7 @@
 <script>
   export default {
     name: 'PopupSpinner',
-
+    
     props: {
       loading: {
         type: Boolean,
@@ -50,7 +52,8 @@
           height: this.size,
           width: this.size,
           borderRadius: this.radius
-        }
+        }, 
+        opened: false
       }
     },
     
@@ -77,6 +80,26 @@
       animationStyle3 () {
         return {
           border: this.moonSize + 'px solid ' + this.color
+        }
+      }
+    }, 
+    
+    methods: {
+      beforeOpen() {
+        window.addEventListener('keyup', this.onKey)
+        this.opened = true
+      }, 
+      
+      beforeClose() {
+        window.removeEventListener('keyup', this.onKey)
+        this.opened = false
+      }, 
+      
+      onKey(event) {
+        if (event.keyCode == 27) {
+          console.log('Exited spinner through Esc key')
+          this.$emit('spinner-cancel')
+          this.$modal.hide('popup-spinner') // Dispel the spinner.
         }
       }
     }
