@@ -14,6 +14,16 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
 
+    print('HELLO SUCKERS')
+    
+    print results
+    print 'cascade', cascade
+    print 'pops', pops
+    print 'year', year
+    print 'data', data
+    
+    print('END')
+
     if pops is None: pops = 'all'
 
     # First, process the cascade into an odict of outputs for PlotData
@@ -83,6 +93,8 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
 
     # Add a table at the bottom of the axes
     plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
+    return fig
+
 
 def plot_cascade(result, cascade, pops=None, year=None, data=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time

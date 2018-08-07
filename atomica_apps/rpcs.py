@@ -1100,10 +1100,11 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
     graphs = []
-    if plot_type == 'cascade':
-        fig = au.plot_cascade(results, cascade='main', pops=pops, year=year)
+    if plot_type == 'cascade' or len(results)==1:
+        fig = au.plot_cascade(results[0], cascade='main', pops=pops, year=year)
     elif plot_type == 'multi_cascade':
-        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=[year])
+#        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=year)
+        fig = au.plot_multi_cascade(results,'main',year=float(year))
     figs = sc.promotetolist(fig)
     for fig in figs:
         ax = fig.get_axes()[0]
@@ -1396,7 +1397,8 @@ def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     if plot_type == 'multi_cascade':
-        output = get_cascade_plot(proj, results, year=None, plot_type=plot_type)
+        print('WARNING, YEAR HARDCODED')
+        output = get_cascade_plot(proj, results, year=2018, plot_type=plot_type)
     else:
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:

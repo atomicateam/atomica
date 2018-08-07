@@ -7,9 +7,9 @@ test = 'udt'
 
 torun = [
 #"basicplots",
-#"scenplots",
+"scenplots",
 #"cascadefromscratch",
-'mpld3test'
+#'mpld3test'
 ]
 
 # Load a framework and project to get a Result
