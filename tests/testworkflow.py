@@ -14,10 +14,11 @@ from atomica.core.optimization import optimize
 
 #test = "sir"
 #test = "tb"
-test = "udt"
+#test = "udt"
+test = "usdt"
 #test = "hiv"
 #test = "diabetes"
-# test = "service"
+#test = "service"
 
 
 torun = [
@@ -30,9 +31,9 @@ torun = [
 "makeparset",
 "runsim",
 "plotcascade",
-#"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+"makeprogramspreadsheet",
+#"loadprogramspreadsheet",
+#"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -134,7 +135,7 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=29)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
-    elif test == "udt":
+    elif test in ["udt","usdt"]:
         P.make_progbook(filename, progs=4)
     elif test == "hiv":
         P.make_progbook(filename, progs=8)
