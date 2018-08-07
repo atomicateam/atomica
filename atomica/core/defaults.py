@@ -26,7 +26,7 @@ def default_framework(which=None, show_options=False):
     options = sc.odict([
                     ('udt',      'Undiagnosed-diagnosed-treated'),       
                     ('sir',      'SIR model'),       
-                    ('diabetes', 'Diabetes'),        
+                    # ('diabetes', 'Diabetes'),        
                     ('service',  'Service delivery'),
                     ('hiv',      'HIV care cascade'),  
                     ('tb',       'Tuberculosis'),  
@@ -58,7 +58,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
     options = sc.odict([
                     ('udt',      '1-population undiagnosed-diagnosed-treated cascade'),
                     ('sir',      '1-population SIR model'),       
-                    ('diabetes', '1-population diabetes cascade'),        
+                    # ('diabetes', '1-population diabetes cascade'),        
                     ('service',  '1-population service delivery cascade'),
                     ('hiv',      '2-population HIV care cascade'), 
                     ('tb',       '14-population tuberculosis model'), 
