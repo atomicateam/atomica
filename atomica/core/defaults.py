@@ -8,6 +8,7 @@ from .framework import ProjectFramework
 from .project import Project
 from .system import AtomicaException
 from .system import atomica_path
+import sciris.core as sc
 
 
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
@@ -20,19 +21,18 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     pass
 
 
-def default_framework(which=None, **kwargs):
+def default_framework(which=None, show_options=False):
     
-    mapping = {'sir':       {'label':'SIR model',        'args':{"num_comps":4, "num_characs":8, "num_pars":6}},
-               'tb':        {'label':'Tuberculosis',     'args':{"num_comps":40, "num_characs":70, "num_pars":140}},
-               'diabetes':  {'label':'Diabetes',         'args':{"num_comps":13, "num_characs":9, "num_pars":16}},
-               'service':   {'label':'Service delivery', 'args':{"num_comps":7, "num_characs":4, "num_pars":10}},
-               }
+    mapping = sc.odict([('sir',      'SIR model'),       
+                    ('tb',       'Tuberculosis'),    
+                    ('diabetes', 'Diabetes'),        
+                    ('service',  'Service delivery'),
+                    ])
                              
     if which is None: which = 'tb'
-    
     label = mapping[which]['label']
-#    args  = mapping[which]['args']
-#    path = ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
+    if show_options:
+        return mapping
     F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
     return F
 
