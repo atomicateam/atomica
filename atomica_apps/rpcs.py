@@ -542,24 +542,17 @@ def copy_framework(framework_id):
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
-def create_framework_from_frw_file(frw_filename, user_id):
+def create_framework_from_file(filename, user_id):
     """
-    Given a .frw file name and a user UID, create a new framework from the file 
-    with a new UID and return the new UID.
+    Given an .xlsx file name and a user UID, create a new framework from the file.
     """
-    print(">> create_framework_from_frw_file '%s'" % frw_filename)
-    print('Trying to open the file')
-    try: # Try to open the .frw file, and return an error message if this fails.
-        frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
-    except Exception as E:
-        print('ERROR, load failed: %s' % repr(E))
-        return { 'error': 'BadFileFormatError' }
+    print(">> create_framework_from_frw_file '%s'" % filename)
+    frame = au.ProjectFramework(filename)
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Reset the framework name to a new framework name that is unique.
     frame.name = get_unique_name(frame.name, other_names=other_names)
     save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
     print('Created new framework %s, uid:%s' % (frame.name, frame.uid))
     return { 'frameworkId': str(frame.uid) }
-
 
 
 
