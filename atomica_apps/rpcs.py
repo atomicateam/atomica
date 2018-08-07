@@ -775,11 +775,12 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     F = au.ProjectFramework(name=new_proj_name , inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
     proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
-    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.create_databook(databook_path=full_file_name, **args) # Return the databook
+    data = proj.create_databook(databook_path=full_file_name, **args) # Return the databook
+    proj.databook = data.to_spreadsheet()
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> download_databook %s" % (full_file_name))
     return full_file_name # Return the filename
 
