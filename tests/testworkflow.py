@@ -14,7 +14,8 @@ from atomica.core.optimization import optimize
 
 #test = "sir"
 #test = "tb"
-test = "udt"
+#test = "udt"
+test = "hiv"
 #test = "diabetes"
 # test = "service"
 
@@ -30,8 +31,8 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+#"loadprogramspreadsheet",
+#"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -83,6 +84,7 @@ if "makedatabook" in torun:
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
