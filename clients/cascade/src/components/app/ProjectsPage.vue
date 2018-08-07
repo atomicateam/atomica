@@ -300,8 +300,8 @@ export default {
       data_end:   2035, // For creating a new project: number of populations
       activeuid:  [], // WARNING, kludgy to get create progbook working
       frameworkSummaries: [],
-      demoOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
-      demoOption: 'SIR model',
+      demoOptions: [],
+      demoOption: '',
     }
   },
 
@@ -319,6 +319,7 @@ export default {
       if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
         projectId = this.$store.state.activeProject.project.id
       }
+      this.getDemoOptions()
       this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
       this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
     }
@@ -337,6 +338,21 @@ export default {
       if (this.TEMPtime + this.TEMPduration < Date.now()) {
         event.stop()
       }
+    },
+
+    getDemoOptions() {
+      console.log('getDemoOptions() called')
+      rpcservice.rpcCall('get_demo_project_options') // Get the current user's framework summaries from the server.
+        .then(response => {
+          this.demoOptions = response.data // Set the frameworks to what we received.
+          this.demoOption = this.demoOptions[0]
+          console.log('Loaded demo options:')
+          console.log(this.demoOptions)
+          console.log(this.demoOption)
+        })
+        .catch(error => {
+          status.failurePopup(this, 'Could not load demo project options: ' + error.message)
+        })
     },
 
     updateFrameworkSummaries() {

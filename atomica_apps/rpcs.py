@@ -51,11 +51,6 @@ def timeit(method):
     return timed
 
 
-label_mapping = {'SIR model':'sir',
-                 'Tuberculosis':'tb',
-                 'Diabetes':'diabetes',
-                 'Service delivery':'service'}
-
 
 
 # Make a Result storable by Sciris
@@ -91,10 +86,6 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
-label_mapping = {'SIR model':'sir',
-                 'Tuberculosis':'tb',
-                 'Diabetes':'diabetes',
-                 'Service delivery':'service'}
 
 
 ###############################################################
@@ -359,6 +350,14 @@ def get_version_info():
 #%% Framework RPCs
 ##################################################################################
 
+@register_RPC(validation_type='nonanonymous user')
+def get_framework_options():
+    """
+    Return the available demo frameworks
+    """
+    options = au.default_framework(show_options=True).values()
+    return options
+    
     
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_frameworks():
@@ -383,6 +382,7 @@ def get_scirisdemo_frameworks():
     # Return a dictionary holding the framework summaries.
     output = {'frameworks': sorted_summary_list}
     return output
+
 
 @register_RPC(validation_type='nonanonymous user')
 def load_framework_summary(framework_id):
@@ -473,14 +473,9 @@ def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
     """
-    try:
-        which = label_mapping[framework_name]
-    except Exception:
-        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), framework_name)
-        raise Exception(errormsg)
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
     new_frame_name = get_unique_name(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
-    frame = au.demo(kind='framework', which=which)  # Create the framework, loading in the desired spreadsheets.
+    frame = au.demo(kind='framework', which=framework_name)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
     print(">> add_demo_framework %s" % (frame.name))    
     save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
@@ -565,6 +560,15 @@ def create_framework_from_file(filename, user_id=None):
 #%% Project RPCs
 ##################################################################################
 
+@register_RPC(validation_type='nonanonymous user')
+def get_demo_project_options():
+    """
+    Return the available demo frameworks
+    """
+    options = au.default_project(show_options=True).values()
+    return options
+    
+    
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
@@ -737,15 +741,10 @@ def add_demo_project(user_id, project_name='default'):
         proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
-        try:
-            which = label_mapping[project_name]
-            new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
-            proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
-            proj.name = new_proj_name
-            print('Adding demo project %s/%s...' % (project_name, which))
-        except Exception as E:
-            errormsg = 'Invalid demo framework name, must be one of "%s", not "%s": %s' % (label_mapping.keys(), project_name, repr(E))
-            raise Exception(errormsg)
+        new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
+        proj = au.demo(which=project_name, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj.name = new_proj_name
+        print('Adding demo project %s/%s...' % (project_name, new_proj_name))
 
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> add_demo_project %s" % (proj.name))    
@@ -1101,10 +1100,11 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
     graphs = []
-    if plot_type == 'cascade':
-        fig = au.plot_cascade(results, cascade='main', pops=pops, year=year)
+    if plot_type == 'cascade' or len(results)==1:
+        fig = au.plot_cascade(results[0], cascade='main', pops=pops, year=year)
     elif plot_type == 'multi_cascade':
-        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=[year])
+#        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=year)
+        fig = au.plot_multi_cascade(results,'main',year=float(year))
     figs = sc.promotetolist(fig)
     for fig in figs:
         ax = fig.get_axes()[0]
@@ -1397,7 +1397,8 @@ def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     if plot_type == 'multi_cascade':
-        output = get_cascade_plot(proj, results, year=None, plot_type=plot_type)
+        print('WARNING, YEAR HARDCODED')
+        output = get_cascade_plot(proj, results, year=2018, plot_type=plot_type)
     else:
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:
