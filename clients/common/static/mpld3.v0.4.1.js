@@ -326,6 +326,9 @@
     mpld3.insert_css("div#" + this.ax.fig.figid + " ." + this.cssclass + " path", {
       "stroke-width": 0
     });
+    mpld3.insert_css("div#" + this.ax.fig.figid + " ." + this.cssclass + " .domain", {
+      "pointer-events": "none"
+    });
   };
   mpld3_Grid.prototype.zoomed = function(transform) {
     if (transform) {
@@ -390,6 +393,22 @@
     return new mpld3_Grid(this.ax, gridprop);
   };
   mpld3_Axis.prototype.draw = function() {
+    function wrap(text, width) {
+      text.each(function() {
+        var text = d3.select(this), words = text.text().split(/\s+/).reverse(), word, line = [], lineNumber = 0, lineHeight = 1.1, y = text.attr("y"), dy = parseFloat(text.attr("dy")), tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+        while (word = words.pop()) {
+          line.push(word);
+          tspan.text(line.join(" "));
+          if (tspan.node().getComputedTextLength() > width) {
+            line.pop();
+            tspan.text(line.join(" "));
+            line = [ word ];
+            tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+          }
+        }
+      });
+    }
+    var TEXT_WIDTH = 80;
     var scale = this.props.xy === "x" ? this.parent.props.xscale : this.parent.props.yscale;
     if (scale === "date" && this.props.tickvalues) {
       var domain = this.props.xy === "x" ? this.parent.x.domain() : this.parent.y.domain();
@@ -406,14 +425,23 @@
       bottom: "axisBottom"
     }[this.props.position];
     this.axis = d3[scaleMethod](this.scale);
-    if (this.tickNr) {
-      this.axis = this.axis.ticks(this.tickNr);
-    }
-    if (this.tickFormat) {
-      this.axis = this.axis.tickFormat(this.tickFormat);
+    if (this.props.tickformat && this.props.tickvalues) {
+      this.axis = this.axis.tickValues(this.props.tickvalues).tickFormat(function(d) {
+        return this.props.tickformat[d];
+      }.bind(this));
+    } else {
+      if (this.tickNr) {
+        this.axis = this.axis.ticks(this.tickNr);
+      }
+      if (this.tickFormat) {
+        this.axis = this.axis.tickFormat(this.tickFormat);
+      }
     }
     this.filter_ticks(this.axis.tickValues, this.axis.scale().domain());
     this.elem = this.ax.baseaxes.append("g").attr("transform", this.transform).attr("class", this.cssclass).call(this.axis);
+    if (this.props.xy == "x") {
+      this.elem.selectAll("text").call(wrap, TEXT_WIDTH);
+    }
     mpld3.insert_css("div#" + this.ax.fig.figid + " ." + this.cssclass + " line, " + " ." + this.cssclass + " path", {
       "shape-rendering": "crispEdges",
       stroke: this.props.axiscolor,
@@ -1548,6 +1576,9 @@
     this.pluginsByType[pluginInfo.type] = pluginInstance;
   };
   mpld3_Figure.prototype.draw = function() {
+    mpld3.insert_css("div#" + this.figid, {
+      "font-family": "Helvetica, sans-serif"
+    });
     this.canvas = this.root.append("svg:svg").attr("class", "mpld3-figure").attr("width", this.width).attr("height", this.height);
     for (var i = 0; i < this.axes.length; i++) {
       this.axes[i].draw();
