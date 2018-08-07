@@ -23,7 +23,10 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
 
 def default_framework(which=None, show_options=False):
     
-    mapping = sc.odict([('sir',      'SIR model'),       
+    mapping = sc.odict([
+                    ('hiv',      'HIV care cascade'),       
+                    ('udt',      'Undiagnosed-diagnosed-treated'),       
+                    ('sir',      'SIR model'),       
                     ('tb',       'Tuberculosis'),    
                     ('diabetes', 'Diabetes'),        
                     ('service',  'Service delivery'),
