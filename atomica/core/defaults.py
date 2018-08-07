@@ -23,37 +23,60 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
 
 def default_framework(which=None, show_options=False):
     
-    mapping = sc.odict([
-                    ('hiv',      'HIV care cascade'),       
+    options = sc.odict([
                     ('udt',      'Undiagnosed-diagnosed-treated'),       
                     ('usdt',     'Undiagnosed-screened-diagnosed-treated'),       
                     ('sir',      'SIR model'),       
-                    ('tb',       'Tuberculosis'),    
                     ('diabetes', 'Diabetes'),        
                     ('service',  'Service delivery'),
+                    ('hiv',      'HIV care cascade'),  
+                    ('tb',       'Tuberculosis'),  
                     ])
                              
-    if which is None: which = 'tb'
-    label = mapping[which]['label']
+    if which is None:
+        which = 'udt'
+    if which not in options.keys():
+        if which in options.values():
+            which = options.keys()[options.values().index(which)]
+        else:
+            errormsg = '"%s" not found; must be in %s or %s' % (which, options.keys(), options.values())
+            raise Exception(errormsg)
+    label = options[which]
     if show_options:
-        return mapping
-    F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
+        return options
+    else:
+        F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
     return F
 
 
-def default_project(which=None, do_run=True, verbose=False, **kwargs):
+def default_project(which=None, do_run=True, verbose=False, show_options=False, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
     Version: 2018mar27
     """
     
-    if which is None: which = 'tb'
-
-    #######################################################################################################
-    # Simple
-    #######################################################################################################
-
+    options = sc.odict([
+                    ('udt',      '1-population undiagnosed-diagnosed-treated cascade'),
+                    ('sir',      '1-population SIR model'),       
+                    ('diabetes', '1-population diabetes cascade'),        
+                    ('service',  '1-population service delivery cascade'),
+                    ('hiv',      '2-population HIV care cascade'), 
+                    ('tb',       '14-population tuberculosis model'), 
+                    ])
+    
+    if which is None:
+        which = 'udt'
+    if which not in options.keys():
+        if which in options.values():
+            which = options.keys()[options.values().index(which)]
+        else:
+            errormsg = '"%s" not found; must be in %s or %s' % (which, options.keys(), options.values())
+            raise Exception(errormsg)
+    
+    if show_options:
+        return options
+    
     if which == 'sir':
         logger.info("Creating an SIR epidemic project...")
 
