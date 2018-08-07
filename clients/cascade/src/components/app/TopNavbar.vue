@@ -6,63 +6,65 @@ Last update: 2018-07-27
 
 <template>
   <nav class="navbar navbar-default">
-    <div class="navbar-header">
-      <div class="logo">
-        <a href="http://cascade.tools">
-          <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
-        </a>
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <div class="logo">
+          <a href="http://cascade.tools">
+            <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
+          </a>
+        </div>
+        <button type="button" class="navbar-toggle" :class="{toggled: $sidebar.showSidebar}" @click="toggleSidebar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar bar1"></span>
+          <span class="icon-bar bar2"></span>
+          <span class="icon-bar bar3"></span>
+        </button>
       </div>
-      <button type="button" class="navbar-toggle" :class="{toggled: $sidebar.showSidebar}" @click="toggleSidebar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar bar1"></span>
-        <span class="icon-bar bar2"></span>
-        <span class="icon-bar bar3"></span>
-      </button>
-    </div>
-    <div class="collapse navbar-collapse">
-      <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
-      <ul class="nav navbar-nav navbar-main">
-        <li class="nav-item">
-          <router-link to="/frameworks">
-            <span>Frameworks</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/projects">
-            <span>Projects</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/calibration">
-            <span>Baseline</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/scenarios">
-            <span>Scenarios</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/optimizations">
-            <span>Optimizations</span>
-          </router-link>
-        </li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li class="nav-item">
-          <div class="nav-link">
-            <i class="ti-view-grid"></i>
-            <span>Project: {{ activeProjectName }}</span>
-          </div>
-        </li>
-        <drop-down v-bind:title="activeUserName" icon="ti-user">
-          <li><a href="#/changeinfo"><i class="ti-pencil"></i>&nbsp;&nbsp;Edit account</a></li>
-          <li><a href="#/changepassword"><i class="ti-key"></i>&nbsp;&nbsp;Change password</a></li>
-          <li><a href="#/help"><i class="ti-help"></i>&nbsp;&nbsp;Help</a></li>
-          <li><a href="#/about"><i class="ti-shine"></i>&nbsp;&nbsp;About</a></li>
-          <li><a href="#" v-on:click=logOut()><i class="ti-car"></i>&nbsp;&nbsp;Log out</a></li>
-        </drop-down>
-      </ul>
+      <div class="collapse navbar-collapse">
+        <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
+        <ul class="nav navbar-nav navbar-main">
+          <li class="nav-item">
+            <router-link to="/frameworks">
+              <span>Frameworks</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/projects">
+              <span>Projects</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/calibration">
+              <span>Baseline</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/scenarios">
+              <span>Scenarios</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/optimizations">
+              <span>Optimizations</span>
+            </router-link>
+          </li>
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+          <li class="nav-item">
+            <div class="nav-link">
+              <i class="ti-view-grid"></i>
+              <span>Project: {{ activeProjectName }}</span>
+            </div>
+          </li>
+          <drop-down v-bind:title="activeUserName" icon="ti-user">
+            <li><a href="#/changeinfo"><i class="ti-pencil"></i>&nbsp;&nbsp;Edit account</a></li>
+            <li><a href="#/changepassword"><i class="ti-key"></i>&nbsp;&nbsp;Change password</a></li>
+            <li><a href="#/help"><i class="ti-help"></i>&nbsp;&nbsp;Help</a></li>
+            <li><a href="#/about"><i class="ti-shine"></i>&nbsp;&nbsp;About</a></li>
+            <li><a href="#" v-on:click=logOut()><i class="ti-car"></i>&nbsp;&nbsp;Log out</a></li>
+          </drop-down>
+        </ul>
+      </div>
     </div>
   </nav>
 </template>
