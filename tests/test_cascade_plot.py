@@ -6,10 +6,11 @@ import sciris.core as sc
 test = 'udt'
 
 torun = [
-"basicplots",
-"scenplots",
+#"basicplots",
+#"scenplots",
 #"cascadefromscratch",
-        ]
+'mpld3test'
+]
 
 # Load a framework and project to get a Result
 F = ProjectFramework("./frameworks/framework_"+test+".xlsx")
@@ -85,3 +86,15 @@ if "cascadefromscratch" in torun:
     cascade['Infected'] = 'ac_inf'
     au.plot_cascade(result,cascade=cascade,pops='all',year=2030)
 
+
+
+if 'mpld3test' in torun:
+    P = au.demo()
+    au.plot_cascade(P.result(),cascade='main',pops='all',year=2030,data=P.data)
+    
+    as_mpld3 = True
+    if as_mpld3:
+        import sciris.weblib.quickserver as sqs
+        import pylab as pl
+        fig = pl.gcf()
+        sqs.browser(fig)
