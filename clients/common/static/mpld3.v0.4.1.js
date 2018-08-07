@@ -326,6 +326,9 @@
     mpld3.insert_css("div#" + this.ax.fig.figid + " ." + this.cssclass + " path", {
       "stroke-width": 0
     });
+    mpld3.insert_css("div#" + this.ax.fig.figid + " ." + this.cssclass + " .domain", {
+      "pointer-events": "none"
+    });
   };
   mpld3_Grid.prototype.zoomed = function(transform) {
     if (transform) {
@@ -406,11 +409,17 @@
       bottom: "axisBottom"
     }[this.props.position];
     this.axis = d3[scaleMethod](this.scale);
-    if (this.tickNr) {
-      this.axis = this.axis.ticks(this.tickNr);
-    }
-    if (this.tickFormat) {
-      this.axis = this.axis.tickFormat(this.tickFormat);
+    if (this.props.tickformat && this.props.tickvalues) {
+      this.axis = this.axis.tickValues(this.props.tickvalues).tickFormat(function(d) {
+        return this.props.tickformat[d];
+      }.bind(this));
+    } else {
+      if (this.tickNr) {
+        this.axis = this.axis.ticks(this.tickNr);
+      }
+      if (this.tickFormat) {
+        this.axis = this.axis.tickFormat(this.tickFormat);
+      }
     }
     this.filter_ticks(this.axis.tickValues, this.axis.scale().domain());
     this.elem = this.ax.baseaxes.append("g").attr("transform", this.transform).attr("class", this.cssclass).call(this.axis);
