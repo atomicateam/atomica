@@ -6,7 +6,7 @@ import sciris.core as sc
 test = 'udt'
 
 torun = [
-#"basicplots",
+"basicplots",
 "scenplots",
 #"cascadefromscratch",
         ]
@@ -18,15 +18,15 @@ P.load_databook(databook_path="./databooks/databook_"+test+".xlsx", make_default
 result = P.results[0]
 
 # # Make some plots from plot names and groups in the Framework
-if "basicplots" in torun:
+if "basicplots" in torun and test=='tb':
     result.plot(plot_name='plot5',project=P)
     result.plot(plot_name='plot5',pops='all',project=P)
     result.plot(plot_name='plot19',pops='all',project=P)
     result.plot(plot_group='latency')
 
-    # Export limited set of results based on 'Export' column in Framework, or export everything
-    result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
-    result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
+#    # Export limited set of results based on 'Export' column in Framework, or export everything
+#    result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
+#    result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
 
     # Plot various cascades
     startyear = 2000 if test=='tb' else 2016
