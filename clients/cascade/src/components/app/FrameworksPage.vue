@@ -279,12 +279,8 @@ Last update: 2018-07-29
       addDemoFramework() {
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
-        
-        // Start indicating progress.
-        status.start(this)
-        
-        // Have the server create a new framework.
-        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
+        status.start(this) // Start indicating progress.
+        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
         .then(response => {         
           // Update the framework summaries so the new framework shows up on the list.
           this.updateFrameworkSummaries(response.data.frameworkId)
@@ -398,136 +394,45 @@ Last update: 2018-07-29
         )
       },
 
-      /*    applyCountryFilter(frameworks) {
-       if (this.selectedCountry === 'Select country...')
-       return frameworks
-       else
-       return frameworks.filter(theFrame => theFrame.country === this.selectedCountry)
-       }, */
-
       openFramework(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
         console.log('openFramework() called for ' + matchFramework.framework.name)
-
-        // Set the active framework to the matched framework.
-        this.$store.commit('newActiveFramework', matchFramework)
-
-        this.$notifications.notify({
-          message: 'Framework "'+matchFramework.framework.name+'" loaded',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        this.$store.commit('newActiveFramework', matchFramework) // Set the active framework to the matched framework.
+        status.succeed(this, 'Framework "'+matchFramework.framework.name+'" loaded')
       },
 
       copyFramework(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
         console.log('copyFramework() called for ' + matchFramework.framework.name)
-        
-        // Bring up a spinner.
-        this.$modal.show('popup-spinner')
-        
-        // Start the loading bar.
-        this.$Progress.start()
-        
-        // Have the server copy the framework, giving it a new name.
-        rpcservice.rpcCall('copy_framework', [uid])
+        status.start(this)
+        rpcservice.rpcCall('copy_framework', [uid]) // Have the server copy the framework, giving it a new name.
         .then(response => {
-          // Update the framework summaries so the copied program shows up on the list.
-          this.updateFrameworkSummaries(response.data.frameworkId)
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-          
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Framework "'+matchFramework.framework.name+'" copied',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })         
+          this.updateFrameworkSummaries(response.data.frameworkId) // Update the framework summaries so the copied program shows up on the list.
+          status.succeed('Framework "'+matchFramework.framework.name+'" copied')
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not copy framework',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.fail('Could not copy framework:' + error.message)
         })       
       },
 
       renameFramework(frameworkSummary) {
         console.log('renameFramework() called for ' + frameworkSummary.framework.name)
-
-        // If the framework is not in a mode to be renamed, make it so.
-        if (frameworkSummary.renaming === '') {
+        if (frameworkSummary.renaming === '') { // If the framework is not in a mode to be renamed, make it so.
           frameworkSummary.renaming = frameworkSummary.framework.name
         }
-
-        // Otherwise (it is to be renamed)...
-        else {
-          // Make a deep copy of the frameworkSummary object by JSON-stringifying the old
-          // object, and then parsing the result back into a new object.
-          let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary))
-
-          // Rename the framework name in the client list from what's in the textbox.
-          newFrameworkSummary.framework.name = frameworkSummary.renaming
-          
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')
-        
-          // Start the loading bar.
-          this.$Progress.start()
-        
-          // Have the server change the name of the framework by passing in the new copy of the
-          // summary.
-          rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary])
+        else { // Otherwise (it is to be renamed)...
+          let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
+          newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
+          this.$modal.show('popup-spinner') // Bring up a spinner.
+          this.$Progress.start() // Start the loading bar.
+          rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
-            // Update the framework summaries so the rename shows up on the list.
-            this.updateFrameworkSummaries(newFrameworkSummary.framework.id)
-
-            // Turn off the renaming mode.
-            frameworkSummary.renaming = ''
-            
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')
-          
-            // Finish the loading bar.
-            this.$Progress.finish()              
+            this.updateFrameworkSummaries(newFrameworkSummary.framework.id) // Update the framework summaries so the rename shows up on the list.
+            frameworkSummary.renaming = '' // Turn off the renaming mode.
+            status.succeed(this, '')
           })
           .catch(error => {
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')  
-            
-            // Fail the loading bar.
-            this.$Progress.fail()
-        
-            // Failure popup.
-            this.$notifications.notify({
-              message: 'Could not rename framework',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })      
+            status.fail(this, 'Could not rename framework:' + error.message)
           })            
         }
 
@@ -562,6 +467,8 @@ Last update: 2018-07-29
           this.$Progress.finish()          
         })
         .catch(error => {
+
+          status.fail(this, 'Could not rename framework:' + error.message)
           // Dispel the spinner.
           this.$modal.hide('popup-spinner')
           
