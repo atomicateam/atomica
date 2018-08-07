@@ -14,6 +14,8 @@ from collections import defaultdict
 from .structure import TimeSeries
 import logging
 from .results import Result
+from .cascade import get_cascade_vals
+
 logger = logging.getLogger(__name__)
 
 class Adjustable(object):
@@ -255,7 +257,7 @@ class MaximizeCascadeFinalStage(Measurable):
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
-            cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)
+            cascade_vals = get_cascade_vals(result,self.measurable_name, pop_name, self.t)
             val += np.sum(cascade_vals[0][-1]) # The sum of final cascade stage values
         return val
 
@@ -273,7 +275,7 @@ class MaximizeCascadeConversionRate(Measurable):
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
-            cascade_vals = result.get_cascade_vals(self.measurable_name, pop_name, self.t)[0]
+            cascade_vals = get_cascade_vals(result,self.measurable_name, pop_name, self.t)[0]
             cascade_array = np.hstack(cascade_vals.values())
             conversion = cascade_array[1:] / cascade_array[0:-1]
             val += np.sum(conversion)

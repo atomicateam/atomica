@@ -961,14 +961,14 @@ def stack_data(ax,data,series):
         render_data(ax,data,s,baselines[i,:],True)
             
 def render_data(ax, data, series,baseline=None,filled=False):
-    # This function renders a scatter plot for a single variable (in a single population)
-    # The scatter plot is drawn in the current axis
+    # This function renders a scatter plot for a single variable in a single population
+    #
     # INPUTS
-    # proj - Project object
-    # pop - name of a population (str)
-    # output - name of an output (str)
-    # name - The name-formatting function to retrieve full names (currently unused)
-    # color - The color of the data points to use
+    # ax - axis object that data will be rendered in
+    # data - a ProjectData instance containing the data to render
+    # series - a Series object, the 'pop' and 'data_label' attributes are used to extract the TimeSeries from the data
+    # baseline - adds an offset to the data e.g. for stacked plots
+    # filled - fill the marker with a solid fill e.g. for stacked plots
 
     ts = data.get_ts(series.data_label,series.pop)
     if ts is None:

@@ -107,7 +107,7 @@ if "runsim" in torun:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
     P.run_sim(parset="default", result_name="default")    
-    cascade = P.results[-1].get_cascade_vals(cascade='main', pops='all', t_bins=2020)
+    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', t_bins=2020)
 
 if 'plotcascade' in torun:
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2020)
