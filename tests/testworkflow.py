@@ -14,8 +14,8 @@ from atomica.core.optimization import optimize
 
 #test = "sir"
 #test = "tb"
-#test = "udt"
-test = "hiv"
+test = "udt"
+#test = "hiv"
 #test = "diabetes"
 # test = "service"
 
@@ -31,8 +31,8 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -113,7 +113,7 @@ if "runsim" in torun:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
     P.run_sim(parset="default", result_name="default")    
-    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2020)
+#    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
