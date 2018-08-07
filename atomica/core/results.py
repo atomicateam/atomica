@@ -91,7 +91,10 @@ class Result(NamedItem):
         # data being exported will match up with whatever plots are generated from within Atomica
         #
         # First, make a dataframe for all the plot data, if plots are specified in the cascade
+        # Imports here to avoid circular references
         from .plotting import PlotData
+        from .cascade import get_cascade_vals
+
         framework = self.framework
         new_tvals = np.arange(np.ceil(self.t[0]), np.floor(self.t[-1]) + 1)
 
@@ -121,7 +124,7 @@ class Result(NamedItem):
         for name in self.framework.cascades.keys():
             for pop in ['all'] + self.pop_names:
                 data = sc.odict()
-                cascade_vals,_ = self.get_cascade_vals(name,pops=pop,year=new_tvals)
+                cascade_vals,_ = get_cascade_vals(self,name,pops=pop,year=new_tvals)
                 for stage,vals in cascade_vals.items():
                     data[stage] = vals
 
@@ -205,46 +208,6 @@ class Result(NamedItem):
         h = plot_series(d, axis='pops',data=(project.data if project is not None else None))
         plt.title(this_plot['Display Name'])
         return h
-
-    def get_cascade_vals(self,cascade,pops='all',year=None):
-        '''
-        Gets values for populating a cascade plot
-        '''
-        # INPUTS
-        # - cascade can be a list of cascade entries, or the name of a cascade in a Framework
-        # - pops should map to a single population output (a single pop name, or a single aggregation)
-        # - year controls which time points appear in the output. Possible values are
-        #   - None : all time points in the Result
-        #   - scalar or np.array : one entry for each time specified e.g. `year=2020` or `year=[2020,2025,2030]`
-
-        from .plotting import PlotData # Import here to avoid circular dependencies
-
-        assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
-
-        if isinstance(cascade,string_types):
-            df = self.framework.cascades[cascade]
-            outputs = sc.odict()
-            for _,stage in df.iterrows():
-                outputs[stage[0]] = stage[1] # Split the name of the stage and the constituents
-        else:
-            outputs = cascade
-
-        if year is None:
-            d = PlotData(self, outputs=outputs, pops=pops)
-        else:
-            year = sc.promotetoarray(year)
-            d = PlotData(self, outputs=outputs, pops=pops)
-            d.interpolate(year)
-
-        assert len(d.pops) == 1, 'get_cascade_vals() cannot get results for multiple populations or population aggregations, only a single pop or single aggregation'
-        cascade_output = sc.odict()
-        for result in d.results:
-            for pop in d.pops:
-                for output in d.outputs:
-                    cascade_output[output] = d[(result,pop,output)].vals # NB. Might want to return the Series here to retain formatting, units etc.
-        t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
-
-        return cascade_output,t
 
 def evaluate_plot_string(plot_string):
     # The plots in the framework are specified as strings - for example,

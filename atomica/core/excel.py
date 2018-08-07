@@ -105,13 +105,11 @@ class AtomicaSpreadsheet(object):
     # that can be stored in the FE database. Basic usage is as follows:
     #
     # ss = AtomicaSpreadsheet('input.xlsx') # Load a file into this object
-    # ss.add_to_datastore() # Can use database methods inherited from ScirisObject
     # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
     # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
     # book.create_sheet(...)
     # book.save(f) # The workbook can be saved back to this stream
     # ss.insert(f) # We can update the contents of the AtomicaSpreadsheet with the newly written workbook
-    # ss.add_to_datastore() # Presumably would want to store the changes in the database too
     # ss.save('output.xlsx') # Can also write the contents back to disk
     #
     # As shown above, no disk IO needs to happen to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)

@@ -84,12 +84,13 @@ class ProjectFramework(object):
     @property
     def comps(self):
         # Shortcut to Compartments sheet
-        return self.sheets['Compartments']
+        return self.sheets.get('Compartments')
 
     @comps.setter
     def comps(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Compartments'] = value
+        if 'Compartments' in self.sheets.keys(): self.sheets['Compartments'] = value
+        else: raise AtomicaException('Cannot set compartment value as Compartment sheet was not defined.')
 
     def get_comp(self,comp_name):
         return self.comps.loc[comp_name]
@@ -97,12 +98,13 @@ class ProjectFramework(object):
     @property
     def characs(self):
         # Shortcut to Characteristics sheet
-        return self.sheets['Characteristics']
+        return self.sheets.get('Characteristics')
 
     @characs.setter
     def characs(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Characteristics'] = value
+        if 'Characteristics' in self.sheets.keys(): self.sheets['Characteristics'] = value
+        else: raise AtomicaException('Cannot set value as Characteristics sheet was not defined.')
 
     def get_charac(self,charac_name):
         return self.characs.loc[charac_name]
@@ -110,25 +112,27 @@ class ProjectFramework(object):
     @property
     def pars(self):
         # Shortcut to Parameters sheet
-        return self.sheets['Parameters']
+        return self.sheets.get('Parameters')
 
     @pars.setter
     def pars(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Parameters'] = value
+        if 'Parameters' in self.sheets.keys(): self.sheets['Parameters'] = value
+        else: raise AtomicaException('Cannot set value as Parameters sheet was not defined.')
 
     def get_par(self,par_name):
         return self.pars.loc[par_name]
 
     @property
     def interactions(self):
-        # Shortcut to Characteristics sheet
-        return self.sheets['Interactions']
+        # Shortcut to Interactions sheet
+        return self.sheets.get('Interactions')
 
     @interactions.setter
     def interactions(self, value):
         assert isinstance(value,pd.DataFrame)
-        self.sheets['Interactions'] = value
+        if 'Interactions' in self.sheets.keys(): self.sheets['Interactions'] = value
+        else: raise AtomicaException('Cannot set value as Interactions sheet was not defined.')
 
     @property
     def cascades(self):
@@ -257,7 +261,6 @@ class ProjectFramework(object):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
         ### VALIDATE PARAMETERS
-
         required_columns = ['Display Name','Format']
         defaults = {
             'Default Value':None,
@@ -322,6 +325,7 @@ class ProjectFramework(object):
                         raise AtomicaException('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
 
         ### VALIDATE CHARACTERISTICS
+
         required_columns = ['Display Name']
         defaults = {
             'Components':None,
@@ -356,7 +360,8 @@ class ProjectFramework(object):
                 if spec['Denominator'] is not None:
                     assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
 
-        # VALIDATE INTERACTIONS
+        ### VALIDATE INTERACTIONS
+
         if 'Interactions' not in self.sheets:
             self.sheets['Interactions'] = pd.DataFrame(columns=['Code Name','Display Name'])
 
@@ -371,7 +376,8 @@ class ProjectFramework(object):
         self.interactions.set_index('Code Name',inplace=True)
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
-        # VALIDATE NAMES - No collisions, no keywords
+        ### VALIDATE NAMES - No collisions, no keywords
+
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
         tmp = set()
         for name in code_names:
@@ -401,6 +407,15 @@ class ProjectFramework(object):
         for name in cascade_names:
             assert name not in code_names, 'Cascade "%s" cannot have the same name as a compartment, characteristic, or parameter' % (name)
             assert name not in display_names, 'Cascade "%s" cannot have the same display name as a compartment, characteristic, or parameter' % (name)
+
+        ### VALIDATE CASCADES
+
+        # Check that all cascade constituents match a characteristic or compartment
+        for df in self.cascades.values():
+            for _,spec in df.iterrows():
+                for component in spec['Constituents'].split(','):
+                    assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (spec.name,component)
+
 
     def get_allowed_units(self,code_name):
         # Given a variable's code name, return the allowed units for that variable based on the spec provided in the Framework

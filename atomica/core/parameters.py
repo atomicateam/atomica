@@ -91,7 +91,7 @@ class Parameter(NamedItem):
         tvec = sc.promotetoarray(tvec)
         if not len(self.t[pop_name]) > 0:
             raise AtomicaException("There are no timepoint values for parameter '{0}', "
-                                   "population '{1}'.".format(self.name, pop_name))
+                               "population '{1}'.".format(self.name, pop_name))
         if not len(self.t[pop_name]) == len(self.y[pop_name]):
             raise AtomicaException("Parameter '{0}', population '{1}', does not have corresponding values "
                                    "and timepoints.".format(self.name, pop_name))
