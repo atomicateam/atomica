@@ -156,6 +156,7 @@ class Project(object):
             databook_path = "./databook_" + self.name + ".xlsx"
         data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
+        return data
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """
