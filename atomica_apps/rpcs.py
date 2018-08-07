@@ -1101,11 +1101,11 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
     graphs = []
     if plot_type == 'cascade' or len(results)==1:
-        fig = au.plot_cascade(results[0], cascade='main', pops=pops, year=year)
+        figs = au.plot_cascade(results, cascade='main', pops=pops, year=year)
     elif plot_type == 'multi_cascade':
 #        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=year)
-        fig = au.plot_multi_cascade(results,'main',year=float(year))
-    figs = sc.promotetolist(fig)
+        figs = au.plot_multi_cascade(results,'main',year=float(year))
+
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
@@ -1113,6 +1113,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
         mpld3.plugins.connect(fig, TickFormat())
         graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
+        pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs}
     
