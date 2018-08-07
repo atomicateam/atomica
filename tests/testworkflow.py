@@ -31,8 +31,8 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -135,6 +135,8 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=14)
     elif test == "udt":
         P.make_progbook(filename, progs=4)
+    elif test == "hiv":
+        P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
 
@@ -147,7 +149,7 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test in ['tb','udt'] else True
+        blh_effects = False if test in ['tb','udt','hiv'] else True
         P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
 
         P.progsets[0].programs[0].get_spend(year=2015)
@@ -250,6 +252,35 @@ if "runsim_programs" in torun:
         scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
 
         au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
+
+    elif test == 'hiv':
+        scen1alloc = {'Testing - clinics': 1500000}
+        scen2alloc = {'Testing - outreach': 600000}
+        scen3alloc = {'Same-day initiation counselling': 6000000}
+        scen4alloc = {'Classic initiation counselling': 4500000}
+        scen5alloc = {'Client tracing': 60000}
+        scen6alloc = {'Advanced adherence support': 60000}
+        scen7alloc = {'Whatsapp adherence support': 1000}
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
+        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
+        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
+        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
+        scen5_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen5alloc) 
+        scen6_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen6alloc) 
+        scen7_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen7alloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
+        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="scen2")
+        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="scen3")
+        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
+        scen5results = P.run_sim(parset="default", progset='default',progset_instructions=scen5_instructions,result_name="scen5")
+        scen6results = P.run_sim(parset="default", progset='default',progset_instructions=scen6_instructions,result_name="scen6")
+        scen7results = P.run_sim(parset="default", progset='default',progset_instructions=scen7_instructions,result_name="scen7")
+
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],'main',year=[2017])
 
     elif test in ['diabetes','service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')

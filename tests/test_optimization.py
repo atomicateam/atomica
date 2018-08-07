@@ -22,7 +22,8 @@ from atomica.core.optimization import optimize
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 #test='sir'
-test='udt'
+#test='udt'
+test='hiv'
 
 torun = [
 "standard",
@@ -324,6 +325,32 @@ if 'cascade_final_stage' in torun:
     
         au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2017)
         
+    elif test=='hiv':
+        instructions = au.ProgramInstructions(start_year=2016) # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Testing - clinics',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Testing - outreach',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Same-day initiation counselling',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Classic initiation counselling',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Client tracing',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Advanced adherence support',2016,'abs',0.))
+        adjustments.append(au.SpendingAdjustment('Whatsapp adherence support',2016,'abs',0.))
+
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeFinalStage('main',[2017],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
+        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    
+#        for adjustable in adjustments:
+#            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2017))) # TODO - add time to alloc
+    
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2017)
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='females',year=2017)
+        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='males',year=2017)
 
 
 if 'cascade-conversions' in torun:
