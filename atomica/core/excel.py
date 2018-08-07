@@ -659,6 +659,7 @@ class TimeDependentValuesEntry(object):
                 if v is None:
                     worksheet.write_blank(current_row, offset+idx, v, format)
                 else:
+                    if np.isnan(v): raise Exception('is nan')
                     worksheet.write(current_row, offset+idx, v, format)
 
             # Conditional formatting for the assumption
