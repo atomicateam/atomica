@@ -10,7 +10,7 @@ from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
-def plot_multi_cascade(results,cascade,pops='all',year=None):
+def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
 
@@ -35,25 +35,25 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
         label_fcn = lambda result,t: '%s' % (t)
 
     # Gather all of the cascade outputs and years
-    cascade_data = sc.odict()
+    cascade_vals = sc.odict()
     for result in results:
         for t in year:
-            cascade_data[label_fcn(result,t)] = get_cascade_vals(result,cascade,pops=pops,year=t)[0]
+            cascade_vals[label_fcn(result,t)] = get_cascade_vals(result,cascade,pops=pops,year=t)[0]
 
     # Determine the number of bars, per stage - based either on result or time point
-    n_bars = len(cascade_data)
+    n_bars = len(cascade_vals)
     bar_width = 1. # This is the width of the bars
     bar_gap = 0.15 # This is the width of the bars
     block_gap = 1. # This is the gap between blocks
     block_size = n_bars*(bar_width+bar_gap)
-    x = np.arange(0,len(cascade_data[0].keys()))*(block_size+block_gap) # One block for each cascade stage
+    x = np.arange(0,len(cascade_vals[0].keys()))*(block_size+block_gap) # One block for each cascade stage
     colors = grid_color_map(n_bars)  # Default colors
     legend_entries = sc.odict()
 
     fig = plt.figure()
     fig.set_figwidth(fig.get_figwidth()*1.5)
 
-    for offset,(bar_label,data) in enumerate(cascade_data.items()):
+    for offset,(bar_label,data) in enumerate(cascade_vals.items()):
         legend_entries[bar_label] = colors[offset]
         vals = np.hstack(data.values())
         plt.bar(x+offset*(bar_width+bar_gap),vals,color=colors[offset],width=bar_width)
@@ -61,12 +61,12 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     plot_legend(legend_entries,fig=fig)
     ax = fig.axes[0]
     ax.set_xticks(x+(block_size-bar_gap-bar_width)/2)
-    ax.set_xticklabels(['\n'.join(textwrap.wrap(k, 15)) for k in cascade_data[0].keys()])
+    ax.set_xticklabels(['\n'.join(textwrap.wrap(k, 15)) for k in cascade_vals[0].keys()])
     ax.get_xaxis().set_ticks_position('top')
 
     # Make the loss table
     cell_text = []
-    for data in cascade_data.values():
+    for data in cascade_vals.values():
         cascade_array = np.hstack(data.values())
         loss = np.diff(cascade_array)
         loss_str = ['%s' % sc.sigfig(-val, sigfigs=3, sep=True) for val in loss]
@@ -80,7 +80,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None):
     plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
 
     # Add a table at the bottom of the axes
-    table = plt.table(cellText=cell_text,rowLabels=list(cascade_data.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
+    table = plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
 
 def plot_cascade(result,cascade,pops='all',year=None,data=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
@@ -107,7 +107,7 @@ def plot_cascade(result,cascade,pops='all',year=None,data=None):
     ax = plt.gca()
     h = plt.bar(np.arange(len(cascade_vals)),cascade_array, width=0.5)
     if data is not None:
-        h = plt.bar(np.arange(len(cascade_vals)), cascade_array, width=0.5)
+        h_scatter = plt.scatter(np.arange(len(cascade_vals)), cascade_data_array,s=40,c='#ff9900',marker='s',zorder=100)
 
     ax.set_xticks(np.arange(len(cascade_vals)))
     ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
@@ -118,7 +118,7 @@ def plot_cascade(result,cascade,pops='all',year=None,data=None):
     ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
     ax.set_yticks(yticks)
     for i,val in enumerate(cascade_array):
-        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center',size=fontsize)
+        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center',size=fontsize,zorder=200)
 
     bars = h.get_children()
     conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost

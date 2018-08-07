@@ -667,8 +667,8 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c in self.characs if framework.get_charac(c.name)['Databook Page'] is not None]
-        characs += [c for c in self.comps if framework.get_comp(c.name)['Databook Page'] is not None]
+        characs = [c for c in self.characs if framework.get_charac(c.name)['Databook Page'] is not None and framework.get_charac(c.name)['Setup Weight']]
+        characs += [c for c in self.comps if framework.get_comp(c.name)['Databook Page'] is not None and framework.get_comp(c.name)['Setup Weight']]
 
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name: i for i, c in enumerate(characs)}  # Make lookup dict for characteristic indices
