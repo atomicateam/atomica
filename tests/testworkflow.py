@@ -12,7 +12,7 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-#test = "sir"
+# test = "sir"
 test = "tb"
 #test = "udt"
 # test = "usdt"
@@ -32,13 +32,12 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+# "loadprogramspreadsheet",
+# "runsim_programs",
 #"makeplots",
 #"export",
-#"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
 # "manualcalibrate",
-#"autocalibrate", # NOTE, DOES NOT WORK WITH TB -- ROMESH, CAN YOU PLEASE LOOK? REMOVE IF DEPRECATED
+"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -110,6 +109,8 @@ if "runsim" in torun:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     elif test in ['udt','hiv']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
+    elif test in ['sir']:
+        P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
     else:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
@@ -151,7 +152,7 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test in ['tb','udt','usdt','hiv'] else True
+        blh_effects = False if test in ['sir','tb','udt','usdt','hiv'] else True
         P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
 
         P.progsets[0].programs[0].get_spend(year=2015)
@@ -340,25 +341,7 @@ if "makeplots" in torun:
 
 if "export" in torun:
     P.results[-1].export(tmpdir+test+"_results")
-    
-#if "listspecs" in torun:
-#    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
-#    FS = au.FrameworkSettings
-#    DS = au.DataSettings
-#    # Print list of characteristic names, i.e. state variables.
-#    print("\nCharacteristics...")
-#    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
-#    # Print list of compartment names. Should be added to the characteristics list for typical processes.
-#    print("Compartments...")
-#    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
-#    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
-#    print("Parameters...")
-#    print(P.framework.specs[FS.KEY_PARAMETER].keys())
-#    # Print list of populations.
-#    print("Populations...")
-#    print(P.data.specs[DS.KEY_POPULATION].keys())
-#    print()
-    
+
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
     P.parsets.copy("default", "manual")
@@ -373,17 +356,18 @@ if "manualcalibrate" in torun:
     au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
-#    if test == "sir":
-#        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
-#        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-#        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
-#        # New name argument set to old name to do in-place calibration.
-#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
-#    if test == "tb":
-#        # Shortcut for calibration measurables.
-#        adjustables = [("foi", "15-64", 0.0, 3.0)]
-#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
-    P.calibrate(max_time=10, new_name="auto")
+    if test == "sir":
+        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
+        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
+        # New name argument set to old name to do in-place calibration.
+        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+    elif test == "tb":
+        # Shortcut for calibration measurables.
+        adjustables = [("foi_in", "15-64", 0.0, 3.0)]
+        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+    else:
+        P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
     if test == "sir":
         outputs = ["ch_prev"]
