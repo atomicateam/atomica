@@ -437,7 +437,7 @@ Last update: 2018-08-08
         }
         // Else (we are adding a new optimization)...
         else {
-          // TODO: need to extract unique names.
+          newOptim.name = this.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
         }       
         
