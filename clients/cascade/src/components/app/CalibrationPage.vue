@@ -282,12 +282,14 @@ Last update: 2018-08-08
         this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
         this.viewTable()
         this.getPlotOptions()
-        this.updateParset()
+        this.sleep(1)  // used so that spinners will come up by callback func
+        .then(response => {
+          this.updateParset()
+        })
         this.sleep(1000)
-          .then(response => {
-            this.makeGraphs(this.activeProjectID)
-            }
-          );
+        .then(response => {
+          this.makeGraphs(this.activeProjectID)
+        })
       }
     },
 
@@ -323,7 +325,7 @@ Last update: 2018-08-08
 
       updateParset() {
         console.log('updateParset() called')
-        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
+        status.start(this)       
         // Get the current user's parsets from the server.
         rpcservice.rpcCall('get_parset_info', [this.projectID()])
         .then(response => {
