@@ -669,11 +669,7 @@ def download_framework_from_project(project_id):
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_framework.xlsx' % proj.name
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-
-    if proj.framebook is None:
-        raise Exception('Framework Excel file has not been saved to the project')
-
-    proj.framebook.save(full_file_name)
+    proj.framework.save(full_file_name)
     print(">> download_framework %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
