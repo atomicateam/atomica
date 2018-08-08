@@ -28,6 +28,7 @@ def default_framework(which=None, show_options=False):
                     ('usdt',     'Undiagnosed-screened-diagnosed-treated'),       
                     ('sir',      'SIR model'),       
                     # ('diabetes', 'Diabetes'),        
+                    ('hypertension',  'Hypertension'),
                     ('service',  'Service delivery'),
                     ('hiv',      'HIV care cascade'),  
                     ('tb',       'Tuberculosis'),  
@@ -62,6 +63,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
                     ('sir',      '1-population SIR model'),       
                     # ('diabetes', '1-population diabetes cascade'),        
                     ('service',  '1-population service delivery cascade'),
+                    ('hypertension',  '4-population hypertension cascade (Malawi)'),
                     ('hiv',      '2-population HIV care cascade'), 
                     ('tb',       '12-population tuberculosis model'), 
                     ])
@@ -83,7 +85,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
 
         framework_file = atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", make_default_progset=True)
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", make_default_progset=True, blh_effects=True)
 
     elif which=='tb':
         logger.info("Creating a TB epidemic project with programs...")
@@ -92,7 +94,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True)
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True, blh_effects=False)
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')
@@ -119,7 +121,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True)
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')
@@ -134,7 +136,22 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True)
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
+        if verbose: print('Creating scenarios')
+        P.demo_scenarios() # Add example scenarios
+        if verbose: print('Creating optimizations')
+        P.demo_optimization() # Add optimization example
+        if verbose: print('Done!')
+
+    elif which=='hypertension':
+        logger.info("Creating a hypertension cascade project based on Malawi...")
+        
+        if verbose: print('Loading framework')
+        framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
+        if verbose: print('Loading databook')
+        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+        if verbose: print('Loading progbook')
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')
@@ -149,7 +166,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True)
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')

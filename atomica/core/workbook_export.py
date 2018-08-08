@@ -357,8 +357,8 @@ class ProgramSpreadsheet(object):
         content = AtomicaContent(name='',
                                  row_names=self.ref_prog_range.param_refs(),
                                  column_names=range(int(self.data_start), int(self.data_end + 1)))
-        content.row_formats = [AtomicaFormats.SCIENTIFIC, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
-                               AtomicaFormats.GENERAL]
+        content.row_formats = [AtomicaFormats.GENERAL, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
+                               AtomicaFormats.GENERAL, AtomicaFormats.GENERAL]
         content.assumption = True
         content.row_levels = row_levels
         the_range = TitledRange(sheet, current_row, content)
