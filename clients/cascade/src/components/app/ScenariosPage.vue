@@ -38,14 +38,35 @@ Last update: 2018-08-08
       <div>
         <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
+        &nbsp;&nbsp;&nbsp;
         <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+        &nbsp;&nbsp;&nbsp;
         <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        &nbsp;&nbsp;&nbsp;
+        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
         <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
           <!--<span v-if="areShowingPlots">Hide</span>-->
           <!--<span v-else>Show</span>-->
           <!--plot controls-->
         <!--</button>-->
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <!--<b>Start year: &nbsp;</b>-->
+          <!--<input type="text"-->
+          <!--class="txbox"-->
+          <!--v-model="startYear"-->
+          <!--style="display: inline-block; width:70px"/>-->
+          <!--&nbsp;&nbsp;&nbsp;-->
+          <b>Year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:70px"/>
+        </div>
+
       </div>
+
+
 
 
 
@@ -199,6 +220,7 @@ Last update: 2018-08-08
         plotOptions: [],
         scenariosLoaded: false,
         table: null,
+        endYear: 2018, // TEMP FOR DEMO
       }
     },
 
@@ -503,7 +525,7 @@ Last update: 2018-08-08
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool: 'cascade'})
+          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -527,28 +549,57 @@ Last update: 2018-08-08
                 console.log('Graph failed:' + err.message);
               }
             }
-            
-            // Indicate success.
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            
-            // Indicate failure.
-            status.fail(this, 'Could not make graphs')
+            status.fail(this, 'Could not make graphs') // Indicate failure.
           })
         })
         .catch(error => {
-          // Pull out the error message.
           this.serverresponse = 'There was an error: ' + error.message
-
-          // Set the server error.
           this.servererror = error.message
-          
-          // Put up a failure notification.
-          status.fail(this, 'Could not make graphs')      
+          status.fail(this, 'Could not make graphs')
         })        
+      },
+
+      plotScenarios() {
+        console.log('plotScens() called')
+        status.start(this)
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        // Make sure they're saved first
+        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear})
+          .then(response => {
+            this.serverresponse = response.data // Pull out the response data.
+            this.table = response.data.table
+            var n_plots = response.data.graphs.length
+            console.log('Rendering ' + n_plots + ' graphs')
+            for (var index = 0; index <= n_plots; index++) {
+              console.log('Rendering plot ' + index)
+              var divlabel = 'fig' + index
+              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+              while (div.firstChild) {
+                div.removeChild(div.firstChild);
+              }
+              try {
+                console.log(response.data.graphs[index]);
+                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+                });
+                this.haveDrawnGraphs = true
+              }
+              catch (err) {
+                console.log('Graph failed:' + err.message);
+              }
+            }
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            status.fail(this, 'Could not make graphs') // Indicate failure.
+          })
       },
 
       reloadGraphs() {

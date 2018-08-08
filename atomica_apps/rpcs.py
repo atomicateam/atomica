@@ -1390,20 +1390,30 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id, plot_options, saveresults=False, tool=None):
+def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
+    proj.results['scenarios'] = results # WARNING, will want to save separately!
     if tool == 'cascade': # For Cascade Tool
-        print('WARNING, YEAR HARDCODED')
-        output = get_cascade_plot(proj, results, year=2021)
+        output = get_cascade_plot(proj, results, year=plotyear)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
-    if saveresults:
-        print('Saving project...')
-        save_project(proj)    
+#    if saveresults:
+    print('Saving project...')
+    save_project(proj)    
     return output
     
+@register_RPC(validation_type='nonanonymous user') 
+def plot_scenarios(project_id, plot_options, tool=None, plotyear=None):
+    print('Plotting scenarios...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.results['scenarios']
+    if tool == 'cascade': # For Cascade Tool
+        output = get_cascade_plot(proj, results, year=plotyear)
+    else: # For Optima TB
+        output = get_plots(proj, results, plot_options=plot_options)
+    return output
 
 
 ##################################################################################
@@ -1477,6 +1487,18 @@ def set_optim_info(project_id, optim_summaries):
     print('Saving project...')
     save_project(proj)   
     return None
+
+
+@register_RPC(validation_type='nonanonymous user') 
+def plot_optimization(project_id, plot_options, tool=None, plotyear=None):
+    print('Plotting optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.results['optimization']
+    if tool == 'cascade': # For Cascade Tool
+        output = get_cascade_plot(proj, results, year=plotyear)
+    else: # For Optima TB
+        output = get_plots(proj, results, plot_options=plot_options)
+    return output
 
 
 # Deprecated, see equivalent in apptasks.py

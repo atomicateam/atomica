@@ -38,12 +38,34 @@ Last update: 2018-08-08
 
       <div>
         <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
+        &nbsp;&nbsp;&nbsp;
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
         <!--<button class="btn" @click="toggleShowingPlots()">-->
           <!--<span v-if="areShowingPlots">Hide</span>-->
           <!--<span v-else>Show</span>-->
           <!--plot controls-->
         <!--</button>-->
+        &nbsp;&nbsp;&nbsp;
+        <button class="btn" @click="plotOptimization()">Refresh</button>
+        <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
+        <!--<span v-if="areShowingPlots">Hide</span>-->
+        <!--<span v-else>Show</span>-->
+        <!--plot controls-->
+        <!--</button>-->
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <!--<b>Start year: &nbsp;</b>-->
+          <!--<input type="text"-->
+          <!--class="txbox"-->
+          <!--v-model="startYear"-->
+          <!--style="display: inline-block; width:70px"/>-->
+          <!--&nbsp;&nbsp;&nbsp;-->
+          <b>Year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:70px"/>
+        </div>
       </div>
 
 
@@ -122,10 +144,10 @@ Last update: 2018-08-08
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.budget_factor"/><br>
+            <!--Budget factor:<br>-->
+            <!--<input type="text"-->
+                   <!--class="txbox"-->
+                   <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
             <b>Objective</b><br>
             <input type="radio" v-model="finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
@@ -212,6 +234,7 @@ Last update: 2018-08-08
         areShowingPlots: false,
         plotOptions: [],
         finalstage: 1,
+        endYear: 2018,
       }
     },
 
@@ -521,7 +544,7 @@ Last update: 2018-08-08
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
           taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
-            [this.projectID(), optimSummary.name, this.plotOptions])
+            [this.projectID(), optimSummary.name, this.plotOptions, true, this.endYear])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
 //                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
@@ -567,6 +590,44 @@ Last update: 2018-08-08
           // Indicate failure.
           status.fail(this, 'Could not make graphs: ' + error.message)
         })        
+      },
+
+      plotOptimization() {
+        console.log('plotOptimization() called')
+        status.start(this)
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        // Make sure they're saved first
+        rpcservice.rpcCall('plot_optimization', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear})
+          .then(response => {
+            this.serverresponse = response.data // Pull out the response data.
+            this.table = response.data.table
+            var n_plots = response.data.graphs.length
+            console.log('Rendering ' + n_plots + ' graphs')
+            for (var index = 0; index <= n_plots; index++) {
+              console.log('Rendering plot ' + index)
+              var divlabel = 'fig' + index
+              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+              while (div.firstChild) {
+                div.removeChild(div.firstChild);
+              }
+              try {
+                console.log(response.data.graphs[index]);
+                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
+                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+                });
+                this.haveDrawnGraphs = true
+              }
+              catch (err) {
+                console.log('Graph failed:' + err.message);
+              }
+            }
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            status.fail(this, 'Could not make graphs') // Indicate failure.
+          })
       },
 
       reloadGraphs() {
