@@ -755,13 +755,15 @@ def add_demo_project(user_id, project_name='default'):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data_end):
+def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, data_start, data_end):
     """
     Create a new project.
     """
+    framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
+    frame = framework_record.frame
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    proj = au.Project(framework=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx', name=new_proj_name) # Create the project, loading in the desired spreadsheets.
+    proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
