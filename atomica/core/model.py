@@ -1237,7 +1237,7 @@ class Model(object):
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    par.vals[ti] = val
+                    par.vals[ti] = par.scale_factor*val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
