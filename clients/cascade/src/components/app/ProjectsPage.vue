@@ -1,11 +1,11 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-06
+Last update: 2018-08-07
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
     <div class="PageSection">
 
       <div class="ControlsRow">
@@ -492,9 +492,9 @@ export default {
 
     uploadProjectFromFile() {
       console.log('uploadProjectFromFile() called')
-      status.start(this)
       rpcservice.rpcUploadCall('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj') // Have the server upload the project.
       .then(response => {
+        status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.      
         this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
         status.succeed(this, 'New project uploaded')
       })
@@ -721,9 +721,9 @@ export default {
     uploadDatabook(uid) {
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
       console.log('uploadDatabook() called for ' + matchProject.project.name)
-      status.start(this, 'Uploading databook...')
       rpcservice.rpcUploadCall('upload_databook', [uid], {})
       .then(response => {
+        status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
         this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
         status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
       })
@@ -736,9 +736,9 @@ export default {
       // Find the project that matches the UID passed in.
       let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
       console.log('uploadProgbook() called for ' + matchProject.project.name)
-      status.start(this) // Start indicating progress. (This is here because we don't want the
       rpcservice.rpcUploadCall('upload_progbook', [uid], {})
       .then(response => {
+        status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
         this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
         status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
       })

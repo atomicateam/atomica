@@ -425,7 +425,7 @@ class TimeDependentConnections(object):
         headings.append('Units')
         headings.append('Constant')
         headings.append('') # OR
-        headings += [str(x) for x in self.tvec] # Times
+        headings += [float(x) for x in self.tvec] # Times
         for i, entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths,i,entry)

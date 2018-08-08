@@ -13,16 +13,18 @@ logger = logging.getLogger(__name__)
 def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
-
-    print('HELLO SUCKERS')
-    
-    print results
-    print 'cascade', cascade
-    print 'pops', pops
-    print 'year', year
-    print 'data', data
-    
-    print('END')
+    #
+    # INPUTS
+    # results - A single result, or list of results. A single figure will be generated
+    # cascade - A string naming a cascade, or an odict specifying cascade stages and constituents
+    #           e.g. {'stage 1':['sus','vac'],'stage 2':['vac']}
+    # pops - The name of a population, or a population aggregation that maps to a single population. For example
+    #        '0-4', 'all', or {'HIV':['15-64 HIV','65+ HIV']}
+    # year - A scalar, or array of time points. Bars will be plotted for every time point
+    # data - A ProjectData instance
+    #
+    # OUTPUTS
+    # figs - a list of Figure handles
 
     if pops is None: pops = 'all'
 
@@ -93,14 +95,30 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
 
     # Add a table at the bottom of the axes
     plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
-    return fig
+
+    return [fig]
 
 
 def plot_cascade(result, cascade, pops=None, year=None, data=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
-    # For inputs, see `Result.get_cascade_vals`
+    # INPUTS
+    # result - A single result, or list of results. One figure will be generated for each result
+    # cascade - A string naming a cascade, or an odict specifying cascade stages and constituents
+    #           e.g. {'stage 1':['sus','vac'],'stage 2':['vac']}
+    # pops - The name of a population, or a population aggregation that maps to a single population. For example
+    #        '0-4', 'all', or {'HIV':['15-64 HIV','65+ HIV']}
+    # year - A single year, could be a length 1 ndarray or a scalar
+    # data - A ProjectData instance
+    #
+    # OUTPUTS
+    # figs - a list of Figure handles
 
     if pops is None: pops = 'all'
+    if isinstance(result,list):
+        figs = []
+        for r in result:
+            figs += plot_cascade(r,cascade,pops,year,data)
+        return figs
 
     fontsize=14
     if year is None:
@@ -121,9 +139,12 @@ def plot_cascade(result, cascade, pops=None, year=None, data=None):
     fig = plt.figure()
     fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
-    h = plt.bar(np.arange(len(cascade_vals)),cascade_array, width=0.5)
+    bar_x = np.arange(len(cascade_vals))
+    h = plt.bar(bar_x,cascade_array, width=0.5)
     if data is not None:
-        h_scatter = plt.scatter(np.arange(len(cascade_vals)), cascade_data_array,s=40,c='#ff9900',marker='s',zorder=100)
+        non_nan = np.isfinite(cascade_data_array)
+        if np.any(non_nan):
+            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan],s=40,c='#ff9900',marker='s',zorder=100)
 
     ax.set_xticks(np.arange(len(cascade_vals)))
     ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
@@ -169,7 +190,7 @@ def plot_cascade(result, cascade, pops=None, year=None, data=None):
     plt.title('Cascade for %s in %d' % (pop_label,year))
     plt.tight_layout()
 
-    return fig
+    return [fig]
 
 def get_cascade_outputs(framework,cascade_name):
     # Given a cascade name, return an outputs dicts corresponding to the cascade stages

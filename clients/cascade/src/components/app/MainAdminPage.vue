@@ -5,7 +5,7 @@ Last update: 2018-05-28
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
     <h2>Users</h2>
     <table v-if="usersList[0] != undefined">
       <tr>

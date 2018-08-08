@@ -137,7 +137,7 @@ class FrameworkCollection(sw.ScirisCollection):
         >>> frame_collection = FrameworkCollection(uuid.UUID('12345678123456781234567812345678'))                      
     """
     
-    def __init__(self, uid, type_prefix='frameworkscoll', file_suffix='.pc', 
+    def __init__(self, uid, type_prefix='frameworkscoll', file_suffix='.fc', 
         instance_label='Frameworks Collection'):
         # Set superclass parameters.
         super(FrameworkCollection, self).__init__(uid, type_prefix, file_suffix, 

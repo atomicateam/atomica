@@ -22,7 +22,7 @@ class ProjectFramework(object):
     def __init__(self,inputs=None,name=None):
         # Instantiate a Framework
         # INPUTS
-        # - inputs: A string (which will load an Excel file from disk
+        # - inputs: A string (which will load an Excel file from disk) or an AtomicaSpreadsheet
         # - A dict of sheets, which will just set the sheets attribute
         # - None, which will set the sheets to an empty dict ready for content
 
@@ -33,37 +33,38 @@ class ProjectFramework(object):
         self.created = sc.today()
         self.modified = sc.today()
 
+        self.name = name
+        self.sheets = sc.odict()
+
         # Load Framework from disk
         if isinstance(inputs,string_types):
             spreadsheet = AtomicaSpreadsheet(inputs)
-            workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
-            self.sheets = sc.odict()
-
-            for worksheet in workbook.worksheets:
-                tables = read_tables(worksheet)  # Read the tables
-                self.sheets[worksheet.title] = list()
-                for table in tables:
-                    # Get a dataframe
-                    df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
-                    df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-                    df.columns = df.iloc[0]
-                    df = df[1:]
-                    self.sheets[worksheet.title].append(df)
-
-                # For convenience, if there is only one table (which is the case for most of the sheets) then
-                # don't store it as a list. So there will only be a list of DataFrames if there was more than
-                # one table on the page (e.g. for cascades)
-                if len(self.sheets[worksheet.title]) == 1:
-                    self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
-
-            self._validate()
-
-        elif isinstance(inputs,dict):
-            self.sheets = inputs
+        elif isinstance(inputs,AtomicaSpreadsheet):
+            spreadsheet = inputs
         else:
-            self.sheets = sc.odict()
+            return
 
-        self.name = name
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        self.sheets = sc.odict()
+
+        for worksheet in workbook.worksheets:
+            tables = read_tables(worksheet)  # Read the tables
+            self.sheets[worksheet.title] = list()
+            for table in tables:
+                # Get a dataframe
+                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
+                df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
+                df.columns = df.iloc[0]
+                df = df[1:]
+                self.sheets[worksheet.title].append(df)
+
+            # For convenience, if there is only one table (which is the case for most of the sheets) then
+            # don't store it as a list. So there will only be a list of DataFrames if there was more than
+            # one table on the page (e.g. for cascades)
+            if len(self.sheets[worksheet.title]) == 1:
+                self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
+
+        self._validate()
 
     def to_spreadsheet(self):
         raise NotImplementedError()
@@ -257,6 +258,11 @@ class ProjectFramework(object):
             if (row['Databook Page'] is not None) & (row['Is Source']=='y' or row['Is Sink']=='y'):
                 raise AtomicaException('Compartment "%s" is a source or a sink, but has a Databook Page' % row.name)
 
+            # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
+            # will appear in the parset
+            if (row['Databook Page'] is None) & (row['Can Calibrate']=='y'):
+                raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
+
             if (row['Databook Page'] is None) and (row['Databook Order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
@@ -269,13 +275,13 @@ class ProjectFramework(object):
             'Function':None,
             'Databook Page':None,
             'Databook Order':None,
+            'Can Calibrate':None,
             'Is Impact':'n',
-            'Can Calibrate':'n',
         }
         valid_content = {
             'Display Name': None,
             'Is Impact':{'y','n'},
-            'Can Calibrate':{'y','n'},
+            'Can Calibrate':{'y','n',None},
         }
 
         self.pars.set_index('Code Name',inplace=True)
@@ -283,6 +289,13 @@ class ProjectFramework(object):
 
         # Make sure all units are lowercase
         self.pars['Format'] = self.pars['Format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+
+        # Set 'Can Calibrate' defaults
+        # By default, it can be calibrated if it is an impact parameter
+        default_calibrate = (self.pars['Can Calibrate'].isnull()) & (self.pars['Is Impact'] == 'y')
+        self.pars['Can Calibrate'][default_calibrate] = 'y'
+        self.pars['Can Calibrate'] = self.pars['Can Calibrate'].fillna('n')
+
 
         # Parse the transitions matrix
         self._process_transitions()
@@ -352,13 +365,16 @@ class ProjectFramework(object):
             self.characs['Setup Weight'][fill_ones] = 1
             self.characs['Setup Weight'] = self.characs['Setup Weight'].fillna(0)
 
-        for i,spec in self.characs.iterrows():
+        for i,row in self.characs.iterrows():
 
-            for component in spec['Components'].split(','):
-                assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (spec.name,component)
+            for component in row['Components'].split(','):
+                assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name,component)
 
-                if spec['Denominator'] is not None:
-                    assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
+                if row['Denominator'] is not None:
+                    assert row['Denominator'] in self.comps.index or row['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component)
+
+                if (row['Databook Page'] is None) & (row['Can Calibrate']=='y'):
+                    raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
         ### VALIDATE INTERACTIONS
 
