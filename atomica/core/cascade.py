@@ -10,16 +10,20 @@ from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
+default_figsize = (9,5)
 
-def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None):
+
+def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
     
     year    = sc.promotetolist(year)
     results = sc.promotetolist(results)
     if len(year)>1 or len(results)>1:
-        fig = plot_multi_cascade(results=results, cascade=cascade, pops=pops, year=year, data=data)
+        output = plot_multi_cascade(results=results, cascade=cascade, pops=pops, year=year, data=data, show_table=show_table)
     else:
         fig = plot_single_cascade(result=results[0], cascade=cascade, pops=pops, year=year, data=data)
-    return fig
+        table = None
+        output = (fig,table)
+    return output # Either fig or (fig,table)
 
 def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     
@@ -72,7 +76,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     assert len(t) == 1, 'Plot cascade requires time aggregation'
     cascade_array = np.hstack(cascade_vals.values())
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=default_figsize)
     fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
     bar_x = np.arange(len(cascade_vals))
@@ -129,7 +133,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     return fig
     
     
-def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=None):
+def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
     #
@@ -144,6 +148,8 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     #
     # OUTPUTS
     # fig - a figure handle
+
+    if show_table is None: show_table = True
 
     # First, process the cascade into an odict of outputs for PlotData
     if isinstance(results, sc.odict):
@@ -178,7 +184,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     colors = sc.gridcolors(n_bars)  # Default colors
     legend_entries = sc.odict()
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=default_figsize)
     fig.set_figwidth(fig.get_figwidth()*1.5)
 
     for offset,(bar_label,data) in enumerate(cascade_vals.items()):
@@ -190,7 +196,8 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     ax = fig.axes[0]
     ax.set_xticks(x+(block_size-bar_gap-bar_width)/2)
     ax.set_xticklabels(['\n'.join(textwrap.wrap(k, 15)) for k in cascade_vals[0].keys()])
-    ax.get_xaxis().set_ticks_position('top')
+    if show_table:
+        ax.get_xaxis().set_ticks_position('top')
 
     # Make the loss table
     cell_text = []
@@ -205,13 +212,20 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     yticks = ax.get_yticks()
     ax.set_yticks(yticks[1:]) # Remove the first tick at 0 so it doesn't clash with table - TODO: improve table spacing so this isn't needed
     plt.ylabel('Number of people')
-    plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
+    if show_table:
+        plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
+    else:
+        plt.subplots_adjust(top=0.95, right=0.75, left=0.2, bottom=0.25)
 
     # Add a table at the bottom of the axes
-    plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
-
-    return fig
-
+    row_labels = list(cascade_vals.keys())
+    if show_table:
+        plt.table(cellText=cell_text,rowLabels=row_labels,rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
+        return fig
+    else:
+        table = {'text':cell_text, 'labels':row_labels}
+        return fig,table
+        
 
 
 

@@ -1102,7 +1102,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     years = sc.promotetolist(year)
     for y in range(len(years)):
         years[y] = float(years[y]) # Ensure it's a float
-    fig = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data)
+    fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
 
     ax = fig.get_axes()[0]
     ax.set_facecolor('none')
@@ -1112,7 +1112,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     graphs.append(graph_dict)
     pl.close(fig)
     print('Cascade plot succeeded')
-    return {'graphs':graphs}
+    return {'graphs':graphs, 'table':table}
     
 
 @register_RPC(validation_type='nonanonymous user')    
