@@ -38,13 +38,15 @@ class ProjectFramework(object):
 
         # Load Framework from disk
         if isinstance(inputs,string_types):
-            spreadsheet = AtomicaSpreadsheet(inputs)
+            self.spreadsheet = AtomicaSpreadsheet(inputs)
         elif isinstance(inputs,AtomicaSpreadsheet):
-            spreadsheet = inputs
+            self.spreadsheet = inputs
         else:
+            self.spreadsheet = None
             return
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        workbook = openpyxl.load_workbook(self.spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+
         self.sheets = sc.odict()
 
         for worksheet in workbook.worksheets:
@@ -66,11 +68,8 @@ class ProjectFramework(object):
 
         self._validate()
 
-    def to_spreadsheet(self):
-        raise NotImplementedError()
-
     def save(self,fname):
-        sc.saveobj(fname,self)
+        self.spreadsheet.save(fname)
 
     @staticmethod
     def load(fname):

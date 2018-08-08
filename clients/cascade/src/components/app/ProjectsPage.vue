@@ -373,19 +373,6 @@ export default {
         } else {
           console.log('No framework summaries found')
         }
-
-        // Preprocess all frameworks.
-        this.frameworkSummaries.forEach(theFrame => {
-          // Set to not selected.
-          theFrame.selected = false
-            
-          // Set to not being renamed.
-          theFrame.renaming = ''
-            
-          // Extract actual Date objects from the strings.
-          theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
-          theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
-        })
       })
       .catch(error => {
         // Failure popup.        
@@ -481,8 +468,10 @@ export default {
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
       let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.frame.name === this.currentFramework) // Find the project that matches the UID passed in.
+      console.log('Loading framework ' + this.currentFramework)
+      console.log(matchFramework)
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
-        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
+        [this.$store.state.currentUser.UID, matchFramework.uid, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
       .then(response => {
         this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
         status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
