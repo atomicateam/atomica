@@ -622,6 +622,7 @@ Last update: 2018-08-08
   .calib-tables span {
     display: block;
     margin-bottom: 1rem;
+    font-weight: bold;
   }
   .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
     color: black; /* To match graph */
