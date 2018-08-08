@@ -491,9 +491,11 @@ Last update: 2018-08-08
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, plot_type: 'multi_cascade'})
+          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool: 'cascade'})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
+            console.log('Data table:')
+            console.log(response.data.table)
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
             for (var index = 0; index <= n_plots; index++) {
@@ -506,7 +508,6 @@ Last update: 2018-08-08
               try {
                 console.log(response.data.graphs[index]);
                 mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                  fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
                   fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
                 });
                 this.haveDrawnGraphs = true
@@ -548,7 +549,6 @@ Last update: 2018-08-08
           var divlabel = 'fig' + index
           try {
             mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-              fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
               fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
             });
           }
