@@ -146,6 +146,9 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             o2.append(output_tuple)
     output_quantities = o2
 
+    original_sim_end = project.settings.sim_end
+    project.settings.sim_end = project.data.tvec[-1]
+
     args = {
         'project': project,
         'parset': parset.copy(),
@@ -211,4 +214,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             raise NotImplemented  # Transfers might be handled differently in Atomica
 
     args['parset'].name = 'calibrated_' + args['parset'].name
+
+    project.settings.sim_end = original_sim_end # Restore the simulation end year
+
     return args['parset']
