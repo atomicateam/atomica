@@ -524,7 +524,7 @@ Last update: 2018-08-08
                 this.haveDrawnGraphs = true
               }
               catch (err) {
-                console.log('failled:' + err.message);
+                console.log('Graph failed:' + err.message);
               }
             }
             

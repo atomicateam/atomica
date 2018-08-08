@@ -445,8 +445,13 @@ class OptimInstructions(NamedItem):
         # Add all of the terms in the objective
         measurables = []
         for mname,mweight in objective_weights.items():
-            measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
-    
+            if mname == 'finalstage' and mweight:
+                measurables += MaximizeCascadeFinalStage('main',[end_year],pop_names='all')
+            elif mname == 'conversion' and mweight:
+                measurables += MaximizeCascadeConversionRate('main',[end_year],pop_names='all')
+            else:
+                measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
+                
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
         
