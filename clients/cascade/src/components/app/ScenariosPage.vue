@@ -600,7 +600,7 @@ Last update: 2018-08-08
     display: flex;
     flex-wrap: wrap;
     & > div {
-      flex: 0 0 650px;
+      flex: 0 0 900px;
     }
   }
 
