@@ -76,8 +76,9 @@ Last update: 2018-08-08
               <!--mpld3 content goes here-->
             </div>
           </div>
-          <div class="calib-tables">
-            <table v-if="table">
+          <div class="calib-tables" v-if="table">
+            <span>Losses</span>
+            <table>
               <tr v-for="(label, index) in table.labels">
                 <td>{{label}}</td>
                 <td v-for="text in table.text[index]">{{text}}</td>
@@ -618,18 +619,24 @@ Last update: 2018-08-08
   we have a proper layout. Using fixed pixel widths is terrible and we
   shouldn't do it in other places.
   */
-  .calib-tables table, .calib-tables tr, .calib-tables td {
-    // width: 960px; /* To match graph */
+  .calib-tables span {
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
     color: black; /* To match graph */
     font-family: Helvetica, sans-serif; /* To match graph */
   }
+  .calib-tables table, .calib-tables tr, .calib-tables td {
+    border: 2px solid #ddd;
+  }
   .calib-tables table td {
-    width: 97px;
-    text-align: center;
+    width: 96px;
+    padding: 0.5rem;
+    text-align: right;
   }
   .calib-tables table td:nth-child(1) {
     width: 192px; /* Header column */
-    text-align: right;
     padding-right: 11px;
   }
 
