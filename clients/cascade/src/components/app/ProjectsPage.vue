@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-07
+Last update: 2018-08-08
 -->
 
 <template>
@@ -201,7 +201,7 @@ Last update: 2018-08-07
                  class="txbox"
                  v-model="proj_name"/><br>
           Framework:<br>
-          <select v-model="currentFramework">
+          <select v-model="modalSelectedFramework">
             <option v-for='frameworkSummary in frameworkSummaries'>
               {{ frameworkSummary.framework.name }}
             </option>
@@ -295,6 +295,7 @@ export default {
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
       proj_name:  'New project', // For creating a new project: number of populations
+      modalSelectedFramework: '', // For creating a new project: selected framework
       num_pops:   5, // For creating a new project: number of populations
       num_progs:  5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
@@ -464,8 +465,9 @@ export default {
     },
 
     createNewProjectModal() {
-      console.log('createNewProjectModal() called');
-      this.$modal.show('create-project');
+      console.log('createNewProjectModal() called')
+      this.modalSelectedFramework = ''  // clear the framework dropdown
+      this.$modal.show('create-project')
     },
 
     // Open a model dialog for creating a progbook
