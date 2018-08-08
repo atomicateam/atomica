@@ -170,7 +170,7 @@ Last update: 2018-08-08
             </table>
           </div>
           <div style="text-align:justify">
-            <button @click="addOptim()" class='btn __green' style="display:inline-block">
+            <button @click="saveOptim()" class='btn __green' style="display:inline-block">
               Save optimization
             </button>
             <button @click="$modal.hide('add-optim')" class='btn __red' style="display:inline-block">
@@ -399,8 +399,8 @@ Last update: 2018-08-08
         })
       },
 
-      addOptim() {
-        console.log('addOptim() called')
+      saveOptim() {
+        console.log('saveOptim() called')
         this.$modal.hide('add-optim')
         
         // Start indicating progress.
