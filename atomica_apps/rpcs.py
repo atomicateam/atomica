@@ -1399,9 +1399,9 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
         output = get_cascade_plot(proj, results, year=plotyear)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
-    if saveresults:
-        print('Saving project...')
-        save_project(proj)    
+#    if saveresults:
+    print('Saving project...')
+    save_project(proj)    
     return output
     
 @register_RPC(validation_type='nonanonymous user') 

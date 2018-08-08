@@ -122,10 +122,10 @@ Last update: 2018-08-08
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.budget_factor"/><br>
+            <!--Budget factor:<br>-->
+            <!--<input type="text"-->
+                   <!--class="txbox"-->
+                   <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
             <b>Objective</b><br>
             <input type="radio" v-model="finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>

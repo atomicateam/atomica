@@ -27,10 +27,14 @@ class NDict(sc.odict):
 
     def __setitem__(self, key, item):
         if not isinstance(item,NamedItem):
-            raise NotAllowedError("Only NamedItems can be stored in NDicts")
+#            raise NotAllowedError("Only NamedItems can be stored in NDicts")
+            print("Only NamedItems can be stored in NDicts")
         sc.odict.__setitem__(self, key, item)
-        item.name = key
-        item.modified = sc.today()
+        try:
+            item.name = key
+            item.modified = sc.today()
+        except:
+            print("Only NamedItems can be stored in NDicts")
         return None
     
     def append(self, value):
