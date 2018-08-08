@@ -97,7 +97,7 @@ Last update: 2018-08-08
             Optimization name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.name"/><br>
+                   v-model="modalOptim.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -113,33 +113,33 @@ Last update: 2018-08-08
             Maximum time to run optimization (s):<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.maxtime"/><br>
+                   v-model="modalOptim.maxtime"/><br>
             Start year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.start_year"/><br>
+                   v-model="modalOptim.start_year"/><br>
             End year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.end_year"/><br>
+                   v-model="modalOptim.end_year"/><br>
             Budget factor:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.budget_factor"/><br>
+                   v-model="modalOptim.budget_factor"/><br>
             <br>
             <b>Relative objective weights</b><br>
             People alive:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.alive"/><br>
+                   v-model="modalOptim.objective_weights.alive"/><br>
             TB-related deaths:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.ddis"/><br>
+                   v-model="modalOptim.objective_weights.ddis"/><br>
             New TB infections:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.acj"/><br>
+                   v-model="modalOptim.objective_weights.acj"/><br>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -151,19 +151,19 @@ Last update: 2018-08-08
               </tr>
               </thead>
               <tbody>
-              <tr v-for="(val,key) in defaultOptim.prog_spending">
+              <tr v-for="(val,key) in modalOptim.prog_spending">
                 <td>
-                  {{ defaultOptim.prog_spending[key].label }}
+                  {{ modalOptim.prog_spending[key].label }}
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key].min"/>
+                         v-model="modalOptim.prog_spending[key].min"/>
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key].max"/>
+                         v-model="modalOptim.prog_spending[key].max"/>
                 </td>
               </tr>
               </tbody>
@@ -210,6 +210,7 @@ Last update: 2018-08-08
         serverresponse: 'no response',
         optimSummaries: [],
         defaultOptim: [],
+        modalOptim: [],
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
