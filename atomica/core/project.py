@@ -33,8 +33,7 @@ from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
-from .optimization import Optimization, optimize, OptimInstructions
-from .structure import FrameworkSettings as FS
+from .optimization import optimize, OptimInstructions
 from .system import SystemSettings as SS, AtomicaException, logger
 from .workbook_export import make_progbook
 from .workbook_import import load_progbook
@@ -135,14 +134,16 @@ class Project(object):
     @property
     def pop_names(self):
         if self.data is None:
-            raise AtomicaException('Data with population definitions has not yet been loaded')
+            print('Data with population definitions has not yet been loaded')
+            return []
         else:
             return list(self.data.pops.keys())
 
     @property
     def pop_labels(self):
         if self.data is None:
-            raise AtomicaException('Data with population definitions has not yet been loaded')
+            print('Data with population definitions has not yet been loaded')
+            return []
         else:
             return list([x['label'] for x in self.data.pops.values()])
 
@@ -155,6 +156,7 @@ class Project(object):
             databook_path = "./databook_" + self.name + ".xlsx"
         data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
+        return data
 
     def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
         """

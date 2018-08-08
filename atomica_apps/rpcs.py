@@ -51,11 +51,6 @@ def timeit(method):
     return timed
 
 
-label_mapping = {'SIR model':'sir',
-                 'Tuberculosis':'tb',
-                 'Diabetes':'diabetes',
-                 'Service delivery':'service'}
-
 
 
 # Make a Result storable by Sciris
@@ -91,10 +86,6 @@ RPC_dict = {}
 # RPC registration decorator factory created using call to make_register_RPC().
 register_RPC = sw.make_register_RPC(RPC_dict)
 
-label_mapping = {'SIR model':'sir',
-                 'Tuberculosis':'tb',
-                 'Diabetes':'diabetes',
-                 'Service delivery':'service'}
 
 
 ###############################################################
@@ -359,6 +350,14 @@ def get_version_info():
 #%% Framework RPCs
 ##################################################################################
 
+@register_RPC(validation_type='nonanonymous user')
+def get_framework_options():
+    """
+    Return the available demo frameworks
+    """
+    options = au.default_framework(show_options=True).values()
+    return options
+    
     
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_frameworks():
@@ -383,6 +382,7 @@ def get_scirisdemo_frameworks():
     # Return a dictionary holding the framework summaries.
     output = {'frameworks': sorted_summary_list}
     return output
+
 
 @register_RPC(validation_type='nonanonymous user')
 def load_framework_summary(framework_id):
@@ -473,14 +473,9 @@ def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
     """
-    try:
-        which = label_mapping[framework_name]
-    except Exception:
-        errormsg = 'Invalid demo framework name, must be one of "%s", not "%s"' % (label_mapping.keys(), framework_name)
-        raise Exception(errormsg)
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
     new_frame_name = get_unique_name(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
-    frame = au.demo(kind='framework', which=which)  # Create the framework, loading in the desired spreadsheets.
+    frame = au.demo(kind='framework', which=framework_name)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
     print(">> add_demo_framework %s" % (frame.name))    
     save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
@@ -503,20 +498,11 @@ def upload_frameworkbook(databook_filename, framework_id):
     """
     Upload a databook to a framework.
     """
-    
-    # Display the call information.
-    print(">> upload_databook '%s'" % databook_filename)
-    
+    print(">> upload_frameworkbook '%s'" % databook_filename)
     frame = load_framework(framework_id, raise_exception=True)
-    
-    # Reset the framework name to a new framework name that is unique.
-    frame.read_from_file(filepath=databook_filename, overwrite=True)
+    frame.read_from_file(filepath=databook_filename, overwrite=True) # Reset the framework name to a new framework name that is unique.
     frame.modified = sc.today()
-    
-    # Save the new framework in the DataStore.
-    save_framework(frame)
-    
-    # Return the new framework UID in the return message.
+    save_framework(frame) # Save the new framework in the DataStore.
     return { 'frameworkId': str(frame.uid) }
 
 
@@ -551,26 +537,22 @@ def copy_framework(framework_id):
 
 
 @register_RPC(call_type='upload', validation_type='nonanonymous user')
-def create_framework_from_frw_file(frw_filename, user_id):
+def create_framework_from_file(filename, user_id=None):
     """
-    Given a .frw file name and a user UID, create a new framework from the file 
-    with a new UID and return the new UID.
+    Given an .xlsx file name and a user UID, create a new framework from the file.
     """
-    print(">> create_framework_from_frw_file '%s'" % frw_filename)
-    print('Trying to open the file')
-    try: # Try to open the .frw file, and return an error message if this fails.
-        frame = fileio.gzip_string_pickle_file_to_object(frw_filename)
-    except Exception as E:
-        print('ERROR, load failed: %s' % repr(E))
-        return { 'error': 'BadFileFormatError' }
+    print(">> create_framework_from_frw_file '%s'" % filename)
+    frame = au.ProjectFramework(filename)
+    if frame.name is None: 
+        frame.name = os.path.basename(filename) # Ensure that it's not None
+        if frame.name.endswith('.xlsx'):
+            frame.name = frame.name[:-5]
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Reset the framework name to a new framework name that is unique.
     frame.name = get_unique_name(frame.name, other_names=other_names)
     save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
-    print('Created new framework %s, uid:%s' % (frame.name, frame.uid))
+    print('Created new framework:')
+    print(frame)
     return { 'frameworkId': str(frame.uid) }
-
-
-
 
 
 
@@ -578,6 +560,15 @@ def create_framework_from_frw_file(frw_filename, user_id):
 #%% Project RPCs
 ##################################################################################
 
+@register_RPC(validation_type='nonanonymous user')
+def get_demo_project_options():
+    """
+    Return the available demo frameworks
+    """
+    options = au.default_project(show_options=True).values()
+    return options
+    
+    
 @register_RPC(validation_type='nonanonymous user')
 def get_scirisdemo_projects():
     """
@@ -750,15 +741,10 @@ def add_demo_project(user_id, project_name='default'):
         proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
-        try:
-            which = label_mapping[project_name]
-            new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
-            proj = au.demo(which=which, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
-            proj.name = new_proj_name
-            print('Adding demo project %s/%s...' % (project_name, which))
-        except Exception as E:
-            errormsg = 'Invalid demo framework name, must be one of "%s", not "%s": %s' % (label_mapping.keys(), project_name, repr(E))
-            raise Exception(errormsg)
+        new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
+        proj = au.demo(which=project_name, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj.name = new_proj_name
+        print('Adding demo project %s/%s...' % (project_name, new_proj_name))
 
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> add_demo_project %s" % (proj.name))    
@@ -775,11 +761,12 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     F = au.ProjectFramework(name=new_proj_name , inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
     proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))    
-    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.create_databook(databook_path=full_file_name, **args) # Return the databook
+    data = proj.create_databook(databook_path=full_file_name, **args) # Return the databook
+    proj.databook = data.to_spreadsheet()
+    save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     print(">> download_databook %s" % (full_file_name))
     return full_file_name # Return the filename
 
@@ -1113,11 +1100,12 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
     graphs = []
-    if plot_type == 'cascade':
-        fig = au.plot_cascade(results, cascade='main', pops=pops, year=year)
+    if plot_type == 'cascade' or len(results)==1:
+        figs = au.plot_cascade(results, cascade='main', pops=pops, year=year,data=proj.data)
     elif plot_type == 'multi_cascade':
-        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=[year])
-    figs = sc.promotetolist(fig)
+#        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=year)
+        figs = au.plot_multi_cascade(results,'main',year=float(year))
+
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
@@ -1125,6 +1113,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
         mpld3.plugins.connect(fig, TickFormat())
         graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
+        pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs}
     
@@ -1409,7 +1398,8 @@ def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     if plot_type == 'multi_cascade':
-        output = get_cascade_plot(proj, results, year=None, plot_type=plot_type)
+        print('WARNING, YEAR HARDCODED')
+        output = get_cascade_plot(proj, results, year=2021, plot_type=plot_type)
     else:
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:

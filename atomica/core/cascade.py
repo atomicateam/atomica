@@ -1,4 +1,4 @@
-from .plotting import grid_color_map, plot_legend
+from .plotting import plot_legend
 import matplotlib.pyplot as plt
 import numpy as np
 import textwrap
@@ -10,9 +10,33 @@ from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
-def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
+def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
+    #
+    # INPUTS
+    # results - A single result, or list of results. A single figure will be generated
+    # cascade - A string naming a cascade, or an odict specifying cascade stages and constituents
+    #           e.g. {'stage 1':['sus','vac'],'stage 2':['vac']}
+    # pops - The name of a population, or a population aggregation that maps to a single population. For example
+    #        '0-4', 'all', or {'HIV':['15-64 HIV','65+ HIV']}
+    # year - A scalar, or array of time points. Bars will be plotted for every time point
+    # data - A ProjectData instance
+    #
+    # OUTPUTS
+    # figs - a list of Figure handles
+
+    print('HELLO SUCKERS')
+    
+    print results
+    print 'cascade', cascade
+    print 'pops', pops
+    print 'year', year
+    print 'data', data
+    
+    print('END')
+
+    if pops is None: pops = 'all'
 
     # First, process the cascade into an odict of outputs for PlotData
     if isinstance(results, sc.odict):
@@ -47,7 +71,7 @@ def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
     block_gap = 1. # This is the gap between blocks
     block_size = n_bars*(bar_width+bar_gap)
     x = np.arange(0,len(cascade_vals[0].keys()))*(block_size+block_gap) # One block for each cascade stage
-    colors = grid_color_map(n_bars)  # Default colors
+    colors = sc.gridcolors(n_bars)  # Default colors
     legend_entries = sc.odict()
 
     fig = plt.figure()
@@ -82,11 +106,29 @@ def plot_multi_cascade(results,cascade,pops='all',year=None,data=None):
     # Add a table at the bottom of the axes
     plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
 
+    return [fig]
+
+
 def plot_cascade(result, cascade, pops=None, year=None, data=None):
     # This is the fancy cascade plot, which only applies to a single result at a single time
-    # For inputs, see `Result.get_cascade_vals`
+    # INPUTS
+    # result - A single result, or list of results. One figure will be generated for each result
+    # cascade - A string naming a cascade, or an odict specifying cascade stages and constituents
+    #           e.g. {'stage 1':['sus','vac'],'stage 2':['vac']}
+    # pops - The name of a population, or a population aggregation that maps to a single population. For example
+    #        '0-4', 'all', or {'HIV':['15-64 HIV','65+ HIV']}
+    # year - A single year, could be a length 1 ndarray or a scalar
+    # data - A ProjectData instance
+    #
+    # OUTPUTS
+    # figs - a list of Figure handles
 
     if pops is None: pops = 'all'
+    if isinstance(result,list):
+        figs = []
+        for r in result:
+            figs += plot_cascade(r,cascade,pops,year,data)
+        return figs
 
     fontsize=14
     if year is None:
@@ -107,9 +149,12 @@ def plot_cascade(result, cascade, pops=None, year=None, data=None):
     fig = plt.figure()
     fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
-    h = plt.bar(np.arange(len(cascade_vals)),cascade_array, width=0.5)
+    bar_x = np.arange(len(cascade_vals))
+    h = plt.bar(bar_x,cascade_array, width=0.5)
     if data is not None:
-        h_scatter = plt.scatter(np.arange(len(cascade_vals)), cascade_data_array,s=40,c='#ff9900',marker='s',zorder=100)
+        non_nan = np.isfinite(cascade_data_array)
+        if np.any(non_nan):
+            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan],s=40,c='#ff9900',marker='s',zorder=100)
 
     ax.set_xticks(np.arange(len(cascade_vals)))
     ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
@@ -155,7 +200,7 @@ def plot_cascade(result, cascade, pops=None, year=None, data=None):
     plt.title('Cascade for %s in %d' % (pop_label,year))
     plt.tight_layout()
 
-    return fig
+    return [fig]
 
 def get_cascade_outputs(framework,cascade_name):
     # Given a cascade name, return an outputs dicts corresponding to the cascade stages
@@ -181,7 +226,7 @@ def get_cascade_outputs(framework,cascade_name):
         outputs[stage[0]] = [x.strip() for x in stage[1].split(',')]  # Split the name of the stage and the constituents
     return outputs
 
-def get_cascade_vals(result,cascade,pops='all',year=None):
+def get_cascade_vals(result,cascade,pops=None,year=None):
     '''
     Gets values for populating a cascade plot
     '''
@@ -198,6 +243,8 @@ def get_cascade_vals(result,cascade,pops='all',year=None):
     # - t : ndarray of time values
 
     from .plotting import PlotData # Import here to avoid circular dependencies
+
+    if pops is None: pops = 'all'
 
     assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
 
@@ -223,7 +270,7 @@ def get_cascade_vals(result,cascade,pops='all',year=None):
 
     return cascade_vals,t
 
-def get_cascade_data(data,framework,cascade,pops='all',year=None):
+def get_cascade_data(data,framework,cascade,pops=None,year=None):
     # This function is the counterpart to get_cascade_vals but it returns data
     # instead. Note that the inputs and outputs are slightly different
     # - If year is specified, the output is guaranteed to be the same size as the input year array, the same as get_cascade_vals
@@ -234,6 +281,8 @@ def get_cascade_data(data,framework,cascade,pops='all',year=None):
     #
     # NB - In general, data probably will NOT exist
     # Set the logging level to 'DEBUG' to have messages regarding this printed out
+
+    if pops is None: pops = 'all'
 
     if isinstance(cascade,string_types):
         outputs = get_cascade_outputs(framework,cascade)

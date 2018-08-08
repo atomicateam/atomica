@@ -485,7 +485,7 @@ class TimeDependentConnections(object):
                     worksheet.write_url(entry_cell, 'internal:%s!%s' % (worksheet.name, xlrc(current_row, 2)),cell_format=formats['center_unlocked'],string=values_written[entry_cell])
 
                 offset = 6  # The time values start in this column (zero based index)
-                content = np.full(self.tvec.shape, None)
+                content = [None]*len(self.tvec)
 
                 if ts:
                     for t, v in zip(ts.t, ts.vals):
@@ -549,7 +549,8 @@ class TimeDependentValuesEntry(object):
         self.self_connections = self_connections # This is probably only relevant for link tables
 
     def __repr__(self):
-        return '<TDVE "%s">' % (self.name)
+        output= sc.desc(self)
+        return output
 
     @property
     def has_data(self):
@@ -649,7 +650,7 @@ class TimeDependentValuesEntry(object):
 
             # Write the time values
             offset = 4 # This is the column where the time values begin
-            content = np.full(self.tvec.shape,None)
+            content = [None]*len(self.tvec)
 
             for t,v in zip(pop_ts.t,pop_ts.vals):
                 idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec

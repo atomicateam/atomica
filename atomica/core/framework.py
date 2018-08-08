@@ -270,12 +270,11 @@ class ProjectFramework(object):
             'Databook Page':None,
             'Databook Order':None,
             'Is Impact':'n',
-            'Can Calibrate':'n',
         }
         valid_content = {
             'Display Name': None,
             'Is Impact':{'y','n'},
-            'Can Calibrate':{'y','n'},
+            'Can Calibrate':{'y','n',None},
         }
 
         self.pars.set_index('Code Name',inplace=True)
@@ -283,6 +282,16 @@ class ProjectFramework(object):
 
         # Make sure all units are lowercase
         self.pars['Format'] = self.pars['Format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+
+        # Set 'Can Calibrate' defaults
+        # By default, it can be calibrated if it is an impact parameter
+        if 'Can Calibrate' not in self.pars:
+            self.pars['Can Calibrate'] = None # By default, nothing can be calibrated
+
+        default_calibrate = self.pars['Can Calibrate'].isnull() & self.pars['Is Impact']
+        self.pars['Can Calibrate'][default_calibrate] = 'y'
+        self.pars['Can Calibrate'] = self.pars['Can Calibrate'].fillna('n')
+
 
         # Parse the transitions matrix
         self._process_transitions()

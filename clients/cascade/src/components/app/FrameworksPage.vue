@@ -190,16 +190,14 @@ Last update: 2018-07-29
         frameworkSummaries: [], // List of summary objects for frameworks the user has
         frame_name: 'New framework', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
-        frameworkOptions: ['SIR model', 'Tuberculosis', 'Diabetes', 'Service delivery'],
-        currentFramework: 'Service delivery'
-
+        frameworkOptions: [],
+        currentFramework: ''
       }
     },
 
     computed: {
       sortedFilteredFrameworkSummaries() {
         return this.applyNameFilter(this.applySorting(this.frameworkSummaries))
-//      return this.applyNameFilter(this.applySorting(this.applyCountryFilter(this.frameworkSummaries)))
       }
     },
 
@@ -212,7 +210,8 @@ Last update: 2018-07-29
       // Otherwise...
       else {
         // Load the framework summaries of the current user.
-        this.updateFrameworkSummaries(null)
+        this.updateFrameworkSummaries()
+        this.getFrameworkOptions()
       }
     },
 
@@ -232,62 +231,45 @@ Last update: 2018-07-29
         }
       },
 
-      updateFrameworkSummaries(setActiveID) {
-        console.log('updateFrameworkSummaries() called')
-      
-        // Get the current user's framework summaries from the server.
-        rpcservice.rpcCall('load_current_user_framework_summaries')
-        .then(response => {
-          // Set the frameworks to what we received.
-          this.frameworkSummaries = response.data.frameworks
+      getFrameworkOptions() {
+        console.log('getFrameworkOptions() called')
+        rpcservice.rpcCall('get_framework_options') // Get the current user's framework summaries from the server.
+          .then(response => {
+            this.frameworkOptions = response.data // Set the frameworks to what we received.
+            this.currentFramework = this.frameworkOptions[0]
+            console.log(this.frameworkOptions)
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not load framework options: ' + error.message)
+          })
+      },
 
-          // Preprocess all frameworks.
-          this.frameworkSummaries.forEach(theFrame => {
-            // Set to not selected.
-            theFrame.selected = false
-            
-            // Set to not being renamed.
-            theFrame.renaming = ''
-            
-            // Extract actual Date objects from the strings.
-            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
+      updateFrameworkSummaries() {
+        console.log('updateFrameworkSummaries() called')
+        rpcservice.rpcCall('load_current_user_framework_summaries') // Get the current user's framework summaries from the server.
+        .then(response => {
+          this.frameworkSummaries = response.data.frameworks // Set the frameworks to what we received.
+          this.frameworkSummaries.forEach(theFrame => { // Preprocess all frameworks.
+            theFrame.selected = false // Set to not selected.
+            theFrame.renaming = '' // Set to not being renamed.
+            theFrame.framework.creationTime = new Date(theFrame.framework.creationTime) // Extract actual Date objects from the strings.
             theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
-          }) 
-          
-          // If we have a framework on the list...
-/*          if (this.frameworkSummaries.length > 0) {
-            // If no ID is passed in, set the active framework to the first one in 
-            // the list.
-            // TODO: We should write a function that extracts the last-created 
-            // framework and then uses the UID for that as the thing to set.
-            if (setActiveID == null) {
-              this.openFramework(this.frameworkSummaries[0].framework.id)
-            }
-          
-            // Otherwise, set the active framework to the one passed in.
-            else {
-              this.openFramework(setActiveID)
-            }
-          } */        
+          })
+          console.log(this.frameworkSummaries)
         })
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not load frameworks')           
+          status.failurePopup(this, 'Could not load frameworks: ' + error.message)
         })
       },
 
       addDemoFramework() {
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
-        
-        // Start indicating progress.
-        status.start(this)
-        
-        // Have the server create a new framework.
-        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework])
+        status.start(this) // Start indicating progress.
+        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
         .then(response => {         
           // Update the framework summaries so the new framework shows up on the list.
-          this.updateFrameworkSummaries(response.data.frameworkId)
+          this.updateFrameworkSummaries()
           
           // Indicate success.
           status.succeed(this, 'Library framework loaded')
@@ -314,67 +296,28 @@ Last update: 2018-07-29
           status.succeed(this, '')
         })
         .catch(error => {
-          status.fail(this, 'Could not download framework: ' + error.message)
+          status.fail(this, 'Could not download the framework: ' + error.message)
         })        
       },
 
       uploadFrameworkFromFile() {
         console.log('uploadFrameworkFromFile() called')
-
-        // Have the server upload the framework.
-        rpcservice.rpcUploadCall('create_framework_from_frw_file', [this.$store.state.currentUser.UID], {}, '.xlsx')
+        rpcservice.rpcUploadCall('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
         .then(response => {
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')
-        
-           // Start the loading bar.  (This is here because we don't want the 
-          // progress bar running when the user is picking a file to upload.)
-          this.$Progress.start()
-        
-          // Update the framework summaries so the new framework shows up on the list.
-          this.updateFrameworkSummaries(response.data.frameworkId)
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-        
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Framework uploaded',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })          
+          this.$modal.show('popup-spinner') // Bring up a spinner.
+          this.$Progress.start() // Start the loading bar.
+          this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
+          status.succeed(this, 'Framework uploaded')
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not upload file',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.fail(this, 'Could not upload the framework: ' + error.message)
         })        
       },
 
       frameworkIsActive(uid) {
-        // If the framework is undefined, it is not active.
-        if (this.$store.state.activeFramework.framework === undefined) {
+        if (this.$store.state.activeFramework.framework === undefined) { // If the framework is undefined, it is not active.
           return false
-        }
-
-        // Otherwise, the framework is active if the UIDs match.
-        else {
+        } else { // Otherwise, the framework is active if the UIDs match.
           return (this.$store.state.activeFramework.framework.id === uid)
         }
       },
@@ -414,7 +357,12 @@ Last update: 2018-07-29
       },
 
       applyNameFilter(frameworks) {
-        return frameworks.filter(theFramework => theFramework.framework.name.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+        try {
+          console.log('Filtering frameworks')
+          return frameworks.filter(theFramework => theFramework.framework.name.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+        } catch(err) {
+          console.log('Filtering failed: ' + err.message)
+        }
       },
 
       applySorting(frameworks) {
@@ -437,136 +385,45 @@ Last update: 2018-07-29
         )
       },
 
-      /*    applyCountryFilter(frameworks) {
-       if (this.selectedCountry === 'Select country...')
-       return frameworks
-       else
-       return frameworks.filter(theFrame => theFrame.country === this.selectedCountry)
-       }, */
-
       openFramework(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
         console.log('openFramework() called for ' + matchFramework.framework.name)
-
-        // Set the active framework to the matched framework.
-        this.$store.commit('newActiveFramework', matchFramework)
-
-        this.$notifications.notify({
-          message: 'Framework "'+matchFramework.framework.name+'" loaded',
-          icon: 'ti-check',
-          type: 'success',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
+        this.$store.commit('newActiveFramework', matchFramework) // Set the active framework to the matched framework.
+        status.succeed(this, 'Framework "'+matchFramework.framework.name+'" loaded')
       },
 
       copyFramework(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
+        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
         console.log('copyFramework() called for ' + matchFramework.framework.name)
-        
-        // Bring up a spinner.
-        this.$modal.show('popup-spinner')
-        
-        // Start the loading bar.
-        this.$Progress.start()
-        
-        // Have the server copy the framework, giving it a new name.
-        rpcservice.rpcCall('copy_framework', [uid])
+        status.start(this)
+        rpcservice.rpcCall('copy_framework', [uid]) // Have the server copy the framework, giving it a new name.
         .then(response => {
-          // Update the framework summaries so the copied program shows up on the list.
-          this.updateFrameworkSummaries(response.data.frameworkId)
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-          
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Framework "'+matchFramework.framework.name+'" copied',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })         
+          this.updateFrameworkSummaries() // Update the framework summaries so the copied program shows up on the list.
+          status.succeed('Framework "'+matchFramework.framework.name+'" copied')
         })
         .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not copy framework',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.fail('Could not copy framework:' + error.message)
         })       
       },
 
       renameFramework(frameworkSummary) {
         console.log('renameFramework() called for ' + frameworkSummary.framework.name)
-
-        // If the framework is not in a mode to be renamed, make it so.
-        if (frameworkSummary.renaming === '') {
+        if (frameworkSummary.renaming === '') { // If the framework is not in a mode to be renamed, make it so.
           frameworkSummary.renaming = frameworkSummary.framework.name
         }
-
-        // Otherwise (it is to be renamed)...
-        else {
-          // Make a deep copy of the frameworkSummary object by JSON-stringifying the old
-          // object, and then parsing the result back into a new object.
-          let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary))
-
-          // Rename the framework name in the client list from what's in the textbox.
-          newFrameworkSummary.framework.name = frameworkSummary.renaming
-          
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')
-        
-          // Start the loading bar.
-          this.$Progress.start()
-        
-          // Have the server change the name of the framework by passing in the new copy of the
-          // summary.
-          rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary])
+        else { // Otherwise (it is to be renamed)...
+          let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
+          newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
+          this.$modal.show('popup-spinner') // Bring up a spinner.
+          this.$Progress.start() // Start the loading bar.
+          rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
-            // Update the framework summaries so the rename shows up on the list.
-            this.updateFrameworkSummaries(newFrameworkSummary.framework.id)
-
-            // Turn off the renaming mode.
-            frameworkSummary.renaming = ''
-            
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')
-          
-            // Finish the loading bar.
-            this.$Progress.finish()              
+            this.updateFrameworkSummaries() // Update the framework summaries so the rename shows up on the list.
+            frameworkSummary.renaming = '' // Turn off the renaming mode.
+            status.succeed(this, '')
           })
           .catch(error => {
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')  
-            
-            // Fail the loading bar.
-            this.$Progress.fail()
-        
-            // Failure popup.
-            this.$notifications.notify({
-              message: 'Could not rename framework',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })      
+            status.fail(this, 'Could not rename framework:' + error.message)
           })            
         }
 
@@ -601,6 +458,8 @@ Last update: 2018-07-29
           this.$Progress.finish()          
         })
         .catch(error => {
+
+          status.fail(this, 'Could not rename framework:' + error.message)
           // Dispel the spinner.
           this.$modal.hide('popup-spinner')
           
@@ -660,7 +519,7 @@ Last update: 2018-07-29
           this.$Progress.start()          
           
           // Update the framework summaries so the copied program shows up on the list.
-          this.updateFrameworkSummaries(uid)
+          this.updateFrameworkSummaries()
           
           // Dispel the spinner.
           this.$modal.hide('popup-spinner')

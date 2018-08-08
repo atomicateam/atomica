@@ -8,6 +8,7 @@ from .framework import ProjectFramework
 from .project import Project
 from .system import AtomicaException
 from .system import atomica_path
+import sciris.core as sc
 
 
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
@@ -20,36 +21,63 @@ def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterp
     pass
 
 
-def default_framework(which=None, **kwargs):
+def default_framework(which=None, show_options=False):
     
-    mapping = {'sir':       {'label':'SIR model',        'args':{"num_comps":4, "num_characs":8, "num_pars":6}},
-               'tb':        {'label':'Tuberculosis',     'args':{"num_comps":40, "num_characs":70, "num_pars":140}},
-               'diabetes':  {'label':'Diabetes',         'args':{"num_comps":13, "num_characs":9, "num_pars":16}},
-               'service':   {'label':'Service delivery', 'args':{"num_comps":7, "num_characs":4, "num_pars":10}},
-               }
+    options = sc.odict([
+                    ('udt',      'Undiagnosed-diagnosed-treated'),       
+                    ('usdt',     'Undiagnosed-screened-diagnosed-treated'),       
+                    ('sir',      'SIR model'),       
+                    # ('diabetes', 'Diabetes'),        
+                    ('service',  'Service delivery'),
+                    ('hiv',      'HIV care cascade'),  
+                    ('tb',       'Tuberculosis'),  
+                    ])
                              
-    if which is None: which = 'tb'
-    
-    label = mapping[which]['label']
-#    args  = mapping[which]['args']
-#    path = ProjectFramework.create_template(path=tmpdir + "framework_" + test + "_blank.xlsx", **args)
-    F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
+    if which is None:
+        which = 'udt'
+    if which not in options.keys():
+        if which in options.values():
+            which = options.keys()[options.values().index(which)]
+        else:
+            errormsg = '"%s" not found; must be in %s or %s' % (which, options.keys(), options.values())
+            raise Exception(errormsg)
+    label = options[which]
+    if show_options:
+        return options
+    else:
+        F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
     return F
 
 
-def default_project(which=None, do_run=True, verbose=False, **kwargs):
+def default_project(which=None, do_run=True, verbose=False, show_options=False, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
     Version: 2018mar27
     """
     
-    if which is None: which = 'tb'
-
-    #######################################################################################################
-    # Simple
-    #######################################################################################################
-
+    options = sc.odict([
+                    ('udt',      '1-population undiagnosed-diagnosed-treated cascade'),
+                    ('usdt',     '1-population undiagnosed-screened-diagnosed-treated cascade'),
+                    ('sir',      '1-population SIR model'),       
+                    # ('diabetes', '1-population diabetes cascade'),        
+                    ('service',  '1-population service delivery cascade'),
+                    ('hiv',      '2-population HIV care cascade'), 
+                    ('tb',       '14-population tuberculosis model'), 
+                    ])
+    
+    if which is None:
+        which = 'udt'
+    if which not in options.keys():
+        if which in options.values():
+            which = options.keys()[options.values().index(which)]
+        else:
+            errormsg = '"%s" not found; must be in %s or %s' % (which, options.keys(), options.values())
+            raise Exception(errormsg)
+    
+    if show_options:
+        return options
+    
     if which == 'sir':
         logger.info("Creating an SIR epidemic project...")
 
@@ -84,6 +112,21 @@ def default_project(which=None, do_run=True, verbose=False, **kwargs):
 
     elif which=='udt':
         logger.info("Creating a generic 3-stage disease cascade project...")
+        
+        if verbose: print('Loading framework')
+        F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')
+        if verbose: print('Loading databook')
+        P = Project(framework=F, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+        if verbose: print('Loading progbook')
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True)
+        if verbose: print('Creating scenarios')
+        P.demo_scenarios() # Add example scenarios
+        if verbose: print('Creating optimizations')
+        P.demo_optimization() # Add optimization example
+        if verbose: print('Done!')
+
+    elif which=='usdt':
+        logger.info("Creating a generic 4-stage disease cascade project...")
         
         if verbose: print('Loading framework')
         F = ProjectFramework(name=which, inputs=atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx')

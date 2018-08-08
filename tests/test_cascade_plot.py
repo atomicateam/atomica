@@ -7,9 +7,9 @@ test = 'udt'
 
 torun = [
 #"basicplots",
-#"scenplots",
+"scenplots",
 #"cascadefromscratch",
-'mpld3test'
+#'mpld3test'
 ]
 
 # Load a framework and project to get a Result
@@ -97,4 +97,4 @@ if 'mpld3test' in torun:
         import sciris.weblib.quickserver as sqs
         import pylab as pl
         fig = pl.gcf()
-        sqs.browser(fig)
+        sqs.browser(fig, mpld3_url='http://localhost:8080/static/mpld3.v0.4.1.js')

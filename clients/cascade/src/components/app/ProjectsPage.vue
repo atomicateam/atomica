@@ -71,10 +71,10 @@ Last update: 2018-08-06
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Framework</th>
-            <th>Populations</th>
-            <th>Databook</th>
-            <th>Program book</th>
+            <th style="text-align:center">Framework</th>
+            <th style="text-align:center">Populations</th>
+            <th style="text-align:center">Databook</th>
+            <th style="text-align:center">Program book</th>
           </tr>
         </thead>
         <tbody>
@@ -111,15 +111,15 @@ Last update: 2018-08-06
             <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
-            <td>
+            <td style="text-align:center">
               <button class="btn" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td>
+            <td style="text-align:center">
               {{ projectSummary.project.n_pops }}
             </td>
-            <td>
+            <td style="text-align:center">
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
@@ -127,7 +127,7 @@ Last update: 2018-08-06
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td style="white-space: nowrap">
+            <td style="white-space: nowrap; text-align:center">
               <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
                 <i class="ti-plus"></i>
               </button>
@@ -300,8 +300,8 @@ export default {
       data_end:   2035, // For creating a new project: number of populations
       activeuid:  [], // WARNING, kludgy to get create progbook working
       frameworkSummaries: [],
-      demoOptions: ['SIR model', 'Tuberculosis', 'Service delivery'],
-      demoOption: 'SIR model',
+      demoOptions: [],
+      demoOption: '',
     }
   },
 
@@ -319,6 +319,7 @@ export default {
       if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
         projectId = this.$store.state.activeProject.project.id
       }
+      this.getDemoOptions()
       this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
       this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
     }
@@ -337,6 +338,21 @@ export default {
       if (this.TEMPtime + this.TEMPduration < Date.now()) {
         event.stop()
       }
+    },
+
+    getDemoOptions() {
+      console.log('getDemoOptions() called')
+      rpcservice.rpcCall('get_demo_project_options') // Get the current user's framework summaries from the server.
+        .then(response => {
+          this.demoOptions = response.data // Set the frameworks to what we received.
+          this.demoOption = this.demoOptions[0]
+          console.log('Loaded demo options:')
+          console.log(this.demoOptions)
+          console.log(this.demoOption)
+        })
+        .catch(error => {
+          status.failurePopup(this, 'Could not load demo project options: ' + error.message)
+        })
     },
 
     updateFrameworkSummaries() {
