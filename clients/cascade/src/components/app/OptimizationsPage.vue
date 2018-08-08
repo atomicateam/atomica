@@ -443,13 +443,13 @@ Last update: 2018-08-08
       },
 
       resetModal() {
-        this.modalOptim = this.defaultOptim
+        this.modalOptim = this.dcp(this.defaultOptim)
       },
 
       editOptim(optimSummary) {
         // Open a model dialog for creating a new project
         console.log('editOptim() called');
-        this.modalOptim = optimSummary
+        this.modalOptim = this.dcp(optimSummary)
         console.log('defaultOptim', this.defaultOptim.obj)
         this.$modal.show('add-optim');
       },
