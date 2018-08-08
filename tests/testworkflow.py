@@ -14,9 +14,9 @@ from atomica.core.optimization import optimize
 
 #test = "sir"
 #test = "tb"
-test = "hypertension"
+#test = "hypertension"
 #test = "udt"
-#test = "usdt"
+test = "usdt"
 #test = "hiv"
 #test = "diabetes"
 #test = "service"
@@ -33,12 +33,12 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-"testprograms",
+#"testprograms",
 "runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
-"autocalibrate",
+#"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -139,8 +139,10 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=29)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
-    elif test in ["udt","usdt"]:
+    elif test == "udt":
         P.make_progbook(filename, progs=4)
+    elif test == "usdt":
+        P.make_progbook(filename, progs=9)
     elif test == "hiv":
         P.make_progbook(filename, progs=8)
     else:
