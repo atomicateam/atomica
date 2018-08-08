@@ -340,6 +340,7 @@ Last update: 2018-08-08
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
+          this.resetModal()
           console.log('This is the default:')
           console.log(this.defaultOptim);
         })
@@ -391,6 +392,7 @@ Last update: 2018-08-08
       addOptimModal() {
         // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
+        this.resetModal()
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
@@ -406,7 +408,7 @@ Last update: 2018-08-08
         // Start indicating progress.
         status.start(this)
         
-        let newOptim = this.dcp(this.defaultOptim); // You've got to be kidding me, buster
+        let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
         let otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
@@ -425,6 +427,7 @@ Last update: 2018-08-08
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimization added')
+          this.resetModal()
         })
         .catch(error => {
           // Indicate failure.
@@ -435,14 +438,18 @@ Last update: 2018-08-08
       },
 
       cancelOptim() {
-        $modal.hide('add-optim');
-        this.modalOptim = [];
+        this.$modal.hide('add-optim')
+        this.resetModal()
+      },
+
+      resetModal() {
+        this.modalOptim = this.defaultOptim
       },
 
       editOptim(optimSummary) {
         // Open a model dialog for creating a new project
         console.log('editOptim() called');
-        this.defaultOptim = optimSummary
+        this.modalOptim = optimSummary
         console.log('defaultOptim', this.defaultOptim.obj)
         this.$modal.show('add-optim');
       },
