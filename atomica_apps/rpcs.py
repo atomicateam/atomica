@@ -1399,7 +1399,7 @@ def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
     results = proj.run_scenarios()
     if plot_type == 'multi_cascade':
         print('WARNING, YEAR HARDCODED')
-        output = get_cascade_plot(proj, results, year=2018, plot_type=plot_type)
+        output = get_cascade_plot(proj, results, year=2021, plot_type=plot_type)
     else:
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:
