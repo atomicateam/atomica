@@ -84,28 +84,20 @@ class Project(object):
         # - framework : a Framework to use. This could be
         #               - A filename to an Excel file on disk
         #               - An AtomicaSpreadsheet instance
-        #               - A ProjectFramework instance (this will result in Project.framebook being none, so downloading a framework file from the project won't work)
+        #               - A ProjectFramework instance
         #               - None (this should generally not be used though!)
-        #
-        # a ProjectFramework object, or a filename. If a filename is passed in, the spreadsheet will also be stored in Project.framebook
         # - databook_path : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
         # - do_run : If True, a simulation will be run upon project construction
 
         self.name = name
 
-        if isinstance(framework,string_types):
-            self.framebook = AtomicaSpreadsheet(framework)
-            self.framework = ProjectFramework(name=name , inputs=self.framebook)
+        if isinstance(framework,string_types) or isinstance(framework,AtomicaSpreadsheet):
+            self.framework = ProjectFramework(name=name , inputs=framework)
         elif isinstance(framework,ProjectFramework):
             self.framework = framework
-            self.framebook = None
-        elif isinstance(framework,AtomicaSpreadsheet):
-            self.framebook = framework
-            self.framework = ProjectFramework(name=name , inputs=framework)
         else:
             logger.warning('Project was constructed without a Framework - a framework should be provided')
             self.framework = None
-            self.framebook = None
 
         # Define the structure sets
         self.parsets  = NDict()
@@ -242,10 +234,11 @@ class Project(object):
                 comps.append(spec.name)
 
         # TODO: Think about whether the following makes sense.
-        pars = []
+        parlist = [] 
         for _,spec in F.pars.iterrows():
             if spec['Is Impact']=='y':
-                pars.append(spec.name)
+                parlist.append((spec.name,spec['Display Name']))
+        pars = sc.odict(parlist)
 
 
         make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)

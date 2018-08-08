@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
 #test = "sir"
-test = "tb"
+#test = "tb"
+#test = "hypertension"
 #test = "udt"
-# test = "usdt"
+test = "usdt"
 #test = "hiv"
 #test = "diabetes"
 #test = "service"
@@ -29,16 +30,15 @@ torun = [
 "makeproject",
 "loaddatabook",
 "makeparset",
-"runsim",
-"plotcascade",
+#"runsim",
+#"plotcascade",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
+#"testprograms",
 "runsim_programs",
 #"makeplots",
 #"export",
-#"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
 # "manualcalibrate",
-#"autocalibrate", # NOTE, DOES NOT WORK WITH TB -- ROMESH, CAN YOU PLEASE LOOK? REMOVE IF DEPRECATED
+#"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -86,6 +86,7 @@ if "makedatabook" in torun:
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test == "hypertension": args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -108,8 +109,10 @@ if "runsim" in torun:
     elif test=='diabetes':
         print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv']:
+    elif test in ['udt','hiv','usdt','hypertension']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
+    elif test in ['sir']:
+        P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
     else:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
@@ -118,6 +121,7 @@ if "runsim" in torun:
 
 if 'plotcascade' in torun:
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
     if forceshow: pl.show()
     
     # Browser test
@@ -135,27 +139,25 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=29)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
-    elif test in ["udt","usdt"]:
+    elif test == "udt":
         P.make_progbook(filename, progs=4)
+    elif test == "usdt":
+        P.make_progbook(filename, progs=9)
     elif test == "hiv":
         P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
 
 
-if "loadprogramspreadsheet" in torun:
+if "testprograms" in torun:
     if test in ['diabetes','service']:
         print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
-        P = au.demo(which=test,do_plot=0)
-        filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test in ['tb','udt','usdt','hiv'] else True
-        P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
+        P = au.demo(which=test,do_plot=0) # Note, the demo automatically load the program book
 
-        P.progsets[0].programs[0].get_spend(year=2015)
-
+        # Simple tests for TB and SIR to see if programs are working as expected
         if test =="sir":      
 
             # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
@@ -266,6 +268,17 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
 
+    elif test == 'hypertension':
+        scenalloc = {'Screening - urban':  30000 }
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
+
+        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+
     elif test == 'hiv':
         scen1alloc = {'Testing - clinics': 1500000}
         scen2alloc = {'Testing - outreach': 600000}
@@ -340,25 +353,7 @@ if "makeplots" in torun:
 
 if "export" in torun:
     P.results[-1].export(tmpdir+test+"_results")
-    
-#if "listspecs" in torun:
-#    # For the benefit of FE devs, to work out how to list framework-related items in calibration and scenarios.
-#    FS = au.FrameworkSettings
-#    DS = au.DataSettings
-#    # Print list of characteristic names, i.e. state variables.
-#    print("\nCharacteristics...")
-#    print(P.framework.specs[FS.KEY_CHARACTERISTIC].keys())
-#    # Print list of compartment names. Should be added to the characteristics list for typical processes.
-#    print("Compartments...")
-#    print(P.framework.specs[FS.KEY_COMPARTMENT].keys())
-#    # Print list of parameters. Some of these relate to actual transitions, some are just dependencies.
-#    print("Parameters...")
-#    print(P.framework.specs[FS.KEY_PARAMETER].keys())
-#    # Print list of populations.
-#    print("Populations...")
-#    print(P.data.specs[DS.KEY_POPULATION].keys())
-#    print()
-    
+
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
     P.parsets.copy("default", "manual")
@@ -373,24 +368,25 @@ if "manualcalibrate" in torun:
     au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
-#    if test == "sir":
-#        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
-#        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
-#        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
-#        # New name argument set to old name to do in-place calibration.
-#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
-#    if test == "tb":
-#        # Shortcut for calibration measurables.
-#        adjustables = [("foi", "15-64", 0.0, 3.0)]
-#        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
-    P.calibrate(max_time=10, new_name="auto")
+    if test == "sir":
+        # Explicitly specify full tuples for inputs and outputs, with 'None' for pop denoting all populations
+        adjustables = [("transpercontact", None, 0.1, 1.9)]         # Absolute scaling factor limits.
+        measurables = [("ch_prev", "adults", 1.0, "fractional")]        # Weight and type of metric.
+        # New name argument set to old name to do in-place calibration.
+        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=measurables, max_time=30)
+    elif test == "tb":
+        # Shortcut for calibration measurables.
+        adjustables = [("foi_in", "15-64", 0.0, 3.0)]
+        P.calibrate(parset="default", new_name="auto", adjustables=adjustables, measurables=["ac_inf"], max_time=30)
+    else:
+        P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
     if test == "sir":
         outputs = ["ch_prev"]
     if test == "tb":
         outputs = ["ac_inf"]
-    d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-    au.plot_series(d, axis='results', data=P.data)
+        d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
+        au.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     
