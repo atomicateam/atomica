@@ -83,6 +83,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
 
         framework_file = atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", make_default_progset=True)
 
     elif which=='tb':
         logger.info("Creating a TB epidemic project with programs...")
