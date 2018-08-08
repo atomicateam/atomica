@@ -22,7 +22,7 @@ function succeed(vueInstance, successMessage) {
       icon: 'ti-check',
       type: 'success',
       verticalAlign: 'top',
-      horizontalAlign: 'right'
+      horizontalAlign: 'left'
     })
   }  
 }
@@ -37,7 +37,7 @@ function fail(vueInstance, failMessage) {
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
-      horizontalAlign: 'right'
+      horizontalAlign: 'left'
     })
   }  
 }
@@ -49,7 +49,7 @@ function successPopup(vueInstance, successMessage) {
     icon: 'ti-check',
     type: 'success',
     verticalAlign: 'top',
-    horizontalAlign: 'right'
+    horizontalAlign: 'left'
   })        
 }
 
@@ -60,7 +60,7 @@ function failurePopup(vueInstance, failMessage) {
     icon: 'ti-face-sad',
     type: 'warning',
     verticalAlign: 'top',
-    horizontalAlign: 'right'
+    horizontalAlign: 'left'
   })         
 }
 
