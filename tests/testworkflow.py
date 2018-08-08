@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
 # test = "sir"
-test = "tb"
+#test = "tb"
 #test = "udt"
-# test = "usdt"
+test = "usdt"
 #test = "hiv"
 #test = "diabetes"
 #test = "service"
@@ -373,8 +373,8 @@ if "autocalibrate" in torun:
         outputs = ["ch_prev"]
     if test == "tb":
         outputs = ["ac_inf"]
-    d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-    au.plot_series(d, axis='results', data=P.data)
+        d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
+        au.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     
