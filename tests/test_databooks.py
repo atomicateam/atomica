@@ -7,6 +7,7 @@ from atomica.ui import ProjectFramework, Project, ProjectData
 import sciris.core as sc
 
 F = ProjectFramework("./frameworks/framework_tb.xlsx")
+F.save('./temp/d_blug.xlsx')
 #
 # Copy a databook by loading and saving it
 data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
