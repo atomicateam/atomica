@@ -5,7 +5,7 @@ Last update: 2018-07-31
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
   
     <div v-if="activeProjectID ==''">
       <div style="font-style:italic">

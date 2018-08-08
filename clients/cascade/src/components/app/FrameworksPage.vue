@@ -5,7 +5,7 @@ Last update: 2018-07-29
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
     <div class="PageSection">
 
       <div class="ControlsRow">
