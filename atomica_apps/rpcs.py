@@ -1100,13 +1100,13 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
+def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None, cascade='main'):
     graphs = []
     if plot_type == 'cascade' or len(results)==1:
-        figs = au.plot_cascade(results, cascade='main', pops=pops, year=year,data=proj.data)
+        figs = au.plot_cascade(results, cascade=cascade, pops=pops, year=year,data=proj.data)
     elif plot_type == 'multi_cascade':
-#        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=year)
-        figs = au.plot_multi_cascade(results,'main',year=float(year))
+#        fig = au.plot_multi_cascade(results, cascade=cascade, pops=pops, year=year)
+        figs = au.plot_multi_cascade(results,cascade,year=float(year))
 
     for fig in figs:
         ax = fig.get_axes()[0]
