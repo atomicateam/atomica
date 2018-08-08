@@ -663,16 +663,19 @@ def download_project(project_id):
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
 def download_framework_from_project(project_id):
     """
-    Download databook
+    Download the framework Excel file from a project
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s_framework.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    file_name = '%s_framework.xlsx' % proj.name
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    proj.framework.save(full_file_name)
-    print(">> download_databook %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
 
+    if proj.framebook is None:
+        raise Exception('Framework Excel file has not been saved to the project')
+
+    proj.framebook.save(full_file_name)
+    print(">> download_framework %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')   
@@ -758,9 +761,8 @@ def create_new_project(user_id, proj_name, num_pops, num_progs, data_start, data
     """
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    F = au.ProjectFramework(name=new_proj_name , inputs=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx')
-    proj = au.Project(framework=F, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
-    print(">> create_new_project %s" % (proj.name))    
+    proj = au.Project(framework=au.atomica_path(['tests','frameworks'])+'framework_tb.xlsx', name=new_proj_name) # Create the project, loading in the desired spreadsheets.
+    print(">> create_new_project %s" % (proj.name))
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
@@ -1098,14 +1100,14 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
+def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None, cascade='main'):
     graphs = []
     if plot_type == 'cascade' or len(results)==1:
-        fig = au.plot_cascade(results[0], cascade='main', pops=pops, year=year)
+        figs = au.plot_cascade(results, cascade=cascade, pops=pops, year=year,data=proj.data)
     elif plot_type == 'multi_cascade':
-#        fig = au.plot_multi_cascade(results, cascade='main', pops=pops, year=year)
-        fig = au.plot_multi_cascade(results,'main',year=float(year))
-    figs = sc.promotetolist(fig)
+#        fig = au.plot_multi_cascade(results, cascade=cascade, pops=pops, year=year)
+        figs = au.plot_multi_cascade(results,cascade,year=float(year))
+
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
@@ -1113,6 +1115,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None):
         mpld3.plugins.connect(fig, TickFormat())
         graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
+        pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs}
     
@@ -1398,7 +1401,7 @@ def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
     results = proj.run_scenarios()
     if plot_type == 'multi_cascade':
         print('WARNING, YEAR HARDCODED')
-        output = get_cascade_plot(proj, results, year=2018, plot_type=plot_type)
+        output = get_cascade_plot(proj, results, year=2021, plot_type=plot_type)
     else:
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:

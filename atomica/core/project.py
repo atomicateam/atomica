@@ -80,11 +80,32 @@ class ProjectSettings(object):
 class Project(object):
     def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
         """ Initialize the project. """
+        # INPUTS
+        # - framework : a Framework to use. This could be
+        #               - A filename to an Excel file on disk
+        #               - An AtomicaSpreadsheet instance
+        #               - A ProjectFramework instance (this will result in Project.framebook being none, so downloading a framework file from the project won't work)
+        #               - None (this should generally not be used though!)
+        #
+        # a ProjectFramework object, or a filename. If a filename is passed in, the spreadsheet will also be stored in Project.framebook
+        # - databook_path : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+        # - do_run : If True, a simulation will be run upon project construction
 
         self.name = name
-        # self.filename = None # Never saved to file
-        self.framework = framework if framework else ProjectFramework()
-        self.data = None
+
+        if isinstance(framework,string_types):
+            self.framebook = AtomicaSpreadsheet(framework)
+            self.framework = ProjectFramework(name=name , inputs=self.framebook)
+        elif isinstance(framework,ProjectFramework):
+            self.framework = framework
+            self.framebook = None
+        elif isinstance(framework,AtomicaSpreadsheet):
+            self.framebook = framework
+            self.framework = ProjectFramework(name=name , inputs=framework)
+        else:
+            logger.warning('Project was constructed without a Framework - a framework should be provided')
+            self.framework = None
+            self.framebook = None
 
         # Define the structure sets
         self.parsets  = NDict()
@@ -100,14 +121,20 @@ class Project(object):
         self.created = sc.today()
         self.modified = sc.today()
 
-        self.databook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings() # Global settings
 
-        # Load spreadsheet, if available
+        # Load project data, if available
         if framework and databook_path:
             # TODO: Consider compatibility checks for framework/databook.
             self.load_databook(databook_path=databook_path, do_run=do_run)
+        elif databook_path:
+            logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
+            self.databook = AtomicaSpreadsheet(databook_path) # Just load the spreadsheet in so that it isn't lost
+            self.data = None
+        else:
+            self.databook = None  # This will contain an AtomicaSpreadsheet when the user loads one
+            self.data = None
 
     def __repr__(self):
         """ Print out useful information when called """
@@ -134,7 +161,6 @@ class Project(object):
     @property
     def pop_names(self):
         if self.data is None:
-            print('Data with population definitions has not yet been loaded')
             return []
         else:
             return list(self.data.pops.keys())
@@ -142,7 +168,6 @@ class Project(object):
     @property
     def pop_labels(self):
         if self.data is None:
-            print('Data with population definitions has not yet been loaded')
             return []
         else:
             return list([x['label'] for x in self.data.pops.values()])
@@ -154,6 +179,7 @@ class Project(object):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
+        print(self.framework)
         data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
         return data
@@ -429,6 +455,8 @@ class Project(object):
         parset = self.parsets[parset]
         if adjustables is None:
             adjustables = list(self.framework.pars.index[self.framework.pars['Can Calibrate']=='y'])
+            adjustables += list(self.framework.comps.index[self.framework.comps['Can Calibrate']=='y'])
+            adjustables += list(self.framework.characs.index[self.framework.characs['Can Calibrate']=='y'])
         if measurables is None:
             measurables = list(self.framework.comps.index)
             measurables += list(self.framework.characs.index)

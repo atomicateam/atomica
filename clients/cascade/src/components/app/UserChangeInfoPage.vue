@@ -5,7 +5,7 @@ Last update: 2018-05-28
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <form name="ChangeUserInfo" @submit.prevent="tryChangeInfo" style="max-width: 500px; min-width: 100px; margin: 0 0">
 

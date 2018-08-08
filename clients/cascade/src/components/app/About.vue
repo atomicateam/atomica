@@ -5,7 +5,7 @@ Last update: 2018jun17
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
     <div style="max-width:800px; margin:auto" v-model="getVersionInfo">
       <div style="text-align:center;">
         <img src="static/img/cascade-logo-black.png" width="250px">
