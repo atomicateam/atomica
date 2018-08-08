@@ -173,7 +173,7 @@ Last update: 2018-08-08
             <button @click="saveOptim()" class='btn __green' style="display:inline-block">
               Save optimization
             </button>
-            <button @click="$modal.hide('add-optim')" class='btn __red' style="display:inline-block">
+            <button @click="cancelOptim()" class='btn __red' style="display:inline-block">
               Cancel
             </button>
           </div>
@@ -432,6 +432,11 @@ Last update: 2018-08-08
           
           // TODO: Should probably fix the corrupted this.optimSummaries.
         })        
+      },
+
+      cancelOptim() {
+        $modal.hide('add-optim');
+        this.modalOptim = [];
       },
 
       editOptim(optimSummary) {
