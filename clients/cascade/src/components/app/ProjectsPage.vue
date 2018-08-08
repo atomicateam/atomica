@@ -72,7 +72,7 @@ Last update: 2018-08-08
               </span>
             </th>
             <th style="text-align:center">Framework</th>
-            <th style="text-align:center">Populations</th>
+            <!--<th style="text-align:center">Populations</th>-->
             <th style="text-align:center">Databook</th>
             <th style="text-align:center">Program book</th>
           </tr>
@@ -111,15 +111,15 @@ Last update: 2018-08-08
             <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
-            <td style="text-align:center">
+            <td style="text-align:right">
               {{ projectSummary.project.framework }}
               <button class="btn" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td style="text-align:center">
-              {{ projectSummary.project.n_pops }}
-            </td>
+            <!--<td style="text-align:center">-->
+              <!--{{ projectSummary.project.n_pops }}-->
+            <!--</td>-->
             <td style="text-align:center">
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
@@ -193,41 +193,57 @@ Last update: 2018-08-08
 
       <div class="dialog-content">
         <div class="dialog-c-title">
-          Create blank project
+          Create new project
         </div>
-        <div class="dialog-c-text">
-          Project name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="proj_name"/><br>
-          Framework:<br>
-          <select v-model="modalSelectedFramework">
-            <option v-for='frameworkSummary in frameworkSummaries'>
-              {{ frameworkSummary.framework.name }}
-            </option>
-          </select><br><br>
-          Number of populations:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_pops"/><br>
-          First year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_start"/><br>
-          Final year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_end"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
+        
+        <div v-if="frameworkSummaries.length>0">     
+          <div class="dialog-c-text">
+            Project name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="proj_name"/><br>
+            Framework:<br>
+            <select v-model="currentFramework">
+              <option v-for='frameworkSummary in frameworkSummaries'>
+                {{ frameworkSummary.framework.name }}
+              </option>
+            </select><br><br>
+            Number of populations:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_pops"/><br>
+            First year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_start"/><br>
+            Final year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_end"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createNewProject()" class='btn __green' style="display:inline-block">
+              Create
+            </button>
 
-          <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
+            <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
         </div>
+        
+        <div v-else>
+          <div class="dialog-c-text">        
+            Before creating a new project, please create or upload at least one framework.
+          </div>
+          <br>
+          <div style="text-align:justify">
+            <button @click="$modal.hide('create-project')" class='btn' style="display:inline-block">
+              Ok
+            </button>
+          </div>          
+        </div>
+        
       </div>
     </modal>
 
@@ -295,7 +311,6 @@ export default {
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
       proj_name:  'New project', // For creating a new project: number of populations
-      modalSelectedFramework: '', // For creating a new project: selected framework
       num_pops:   5, // For creating a new project: number of populations
       num_progs:  5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
@@ -454,7 +469,6 @@ export default {
 
     createNewProjectModal() {
       console.log('createNewProjectModal() called')
-      this.modalSelectedFramework = ''  // clear the framework dropdown
       this.$modal.show('create-project')
     },
 
@@ -470,7 +484,7 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
-      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.modalSelectedFramework) // Find the project that matches the UID passed in.
+      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the project that matches the UID passed in.
       console.log('Loading framework ' + this.currentFramework)
       console.log(matchFramework)
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.

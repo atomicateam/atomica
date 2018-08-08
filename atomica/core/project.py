@@ -92,7 +92,7 @@ class Project(object):
         self.name = name
 
         if isinstance(framework,string_types) or isinstance(framework,AtomicaSpreadsheet):
-            self.framework = ProjectFramework(name=name , inputs=framework)
+            self.framework = ProjectFramework(inputs=framework)
         elif isinstance(framework,ProjectFramework):
             self.framework = framework
         else:
