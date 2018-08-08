@@ -1489,6 +1489,18 @@ def set_optim_info(project_id, optim_summaries):
     return None
 
 
+@register_RPC(validation_type='nonanonymous user') 
+def plot_optimization(project_id, plot_options, tool=None, plotyear=None):
+    print('Plotting optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.results['optimization']
+    if tool == 'cascade': # For Cascade Tool
+        output = get_cascade_plot(proj, results, year=plotyear)
+    else: # For Optima TB
+        output = get_plots(proj, results, plot_options=plot_options)
+    return output
+
+
 # Deprecated, see equivalent in apptasks.py
 #@register_RPC(validation_type='nonanonymous user')    
 #def run_optimization(project_id, optim_name):

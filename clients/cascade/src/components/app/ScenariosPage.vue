@@ -62,8 +62,6 @@ Last update: 2018-08-08
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;
-
         </div>
 
       </div>
