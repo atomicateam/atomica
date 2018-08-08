@@ -22,14 +22,10 @@ from atomica.core.optimization import optimize
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
 #test='sir'
-<<<<<<< HEAD
 #test='udt'
 #test='hiv'
 test='hypertension'
-=======
-test='usdt'
-#test='hiv'
->>>>>>> develop
+#test='usdt'
 
 torun = [
 "standard",
