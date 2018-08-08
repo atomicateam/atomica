@@ -258,6 +258,11 @@ class ProjectFramework(object):
             if (row['Databook Page'] is not None) & (row['Is Source']=='y' or row['Is Sink']=='y'):
                 raise AtomicaException('Compartment "%s" is a source or a sink, but has a Databook Page' % row.name)
 
+            # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
+            # will appear in the parset
+            if (row['Databook Page'] is None) & (row['Can Calibrate']=='y'):
+                raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
+
             if (row['Databook Page'] is None) and (row['Databook Order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
@@ -287,10 +292,7 @@ class ProjectFramework(object):
 
         # Set 'Can Calibrate' defaults
         # By default, it can be calibrated if it is an impact parameter
-        if 'Can Calibrate' not in self.pars:
-            self.pars['Can Calibrate'] = None # By default, nothing can be calibrated
-
-        default_calibrate = self.pars['Can Calibrate'].isnull() & self.pars['Is Impact']
+        default_calibrate = (self.pars['Can Calibrate'].isnull()) & (self.pars['Is Impact'] == 'y')
         self.pars['Can Calibrate'][default_calibrate] = 'y'
         self.pars['Can Calibrate'] = self.pars['Can Calibrate'].fillna('n')
 
@@ -363,13 +365,16 @@ class ProjectFramework(object):
             self.characs['Setup Weight'][fill_ones] = 1
             self.characs['Setup Weight'] = self.characs['Setup Weight'].fillna(0)
 
-        for i,spec in self.characs.iterrows():
+        for i,row in self.characs.iterrows():
 
-            for component in spec['Components'].split(','):
-                assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (spec.name,component)
+            for component in row['Components'].split(','):
+                assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name,component)
 
-                if spec['Denominator'] is not None:
-                    assert spec['Denominator'] in self.comps.index or spec['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (spec.name, component)
+                if row['Denominator'] is not None:
+                    assert row['Denominator'] in self.comps.index or row['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component)
+
+                if (row['Databook Page'] is None) & (row['Can Calibrate']=='y'):
+                    raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
         ### VALIDATE INTERACTIONS
 
