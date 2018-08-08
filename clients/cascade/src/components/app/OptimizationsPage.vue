@@ -127,19 +127,9 @@ Last update: 2018-08-08
                    class="txbox"
                    v-model="modalOptim.budget_factor"/><br>
             <br>
-            <b>Relative objective weights</b><br>
-            People alive:
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.objective_weights.alive"/><br>
-            TB-related deaths:
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.objective_weights.ddis"/><br>
-            New TB infections:
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.objective_weights.acj"/><br>
+            <b>Objective</b><br>
+            <input type="radio" v-model="finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
+            <input type="radio" v-model="finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -221,6 +211,7 @@ Last update: 2018-08-08
         graphData: [],
         areShowingPlots: false,
         plotOptions: [],
+        finalstage: 1,
       }
     },
 
