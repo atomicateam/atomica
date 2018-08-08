@@ -33,15 +33,14 @@ class ProjectFramework(object):
         self.created = sc.today()
         self.modified = sc.today()
 
-        self.name = name
-        self.sheets = sc.odict()
-
         # Load Framework from disk
         if isinstance(inputs,string_types):
             self.spreadsheet = AtomicaSpreadsheet(inputs)
         elif isinstance(inputs,AtomicaSpreadsheet):
             self.spreadsheet = inputs
         else:
+            self.name = name
+            self.sheets = sc.odict()
             self.spreadsheet = None
             return
 
@@ -67,6 +66,8 @@ class ProjectFramework(object):
                 self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
 
         self._validate()
+        if name is not None:
+            self.name = name
 
     def save(self,fname):
         self.spreadsheet.save(fname)
@@ -208,6 +209,25 @@ class ProjectFramework(object):
         # Check for required sheets
         for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
+
+        ### VALIDATE METADATA
+
+        # Validate 'About' sheet - it must have a name
+        if 'About' not in self.sheets:
+            self.sheets['About'] = pd.DataFrame.from_records([('Unnamed','No description available')],columns=['Name','Description'])
+
+        required_columns = ['Name']
+        defaults = dict()
+        valid_content = {
+            'Name': None,  # Valid content being `None` means that it just cannot be empty
+        }
+        self.sheets['About'] = sanitize_dataframe(self.sheets['About'], required_columns, defaults, valid_content)
+        self.sheets['About']['Name'] = self.sheets['About']['Name'].astype(str)
+
+        if isinstance(self.sheets['About'],list):
+            self.name = self.sheets['About'][0]['Name'].iloc[0]
+        else:
+            self.name = self.sheets['About']['Name'].iloc[0]
 
         if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
             logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
