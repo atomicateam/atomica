@@ -282,7 +282,7 @@ class ProgramSpreadsheet(object):
         self.pops = pops
         self.comps = comps
         self.progs = progs
-        self.pars = pars
+        self.pars = pars.values()
         self.blh_effects = blh_effects
 
         self.data_start = data_start if data_start is not None else 2015.0 # WARNING, remove
