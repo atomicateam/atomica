@@ -22,9 +22,6 @@ class Scenario(NamedItem):
     def get_progset(self, progset, settings, options):
         return progset, options
 
-    def __repr__(self):
-        return '%s "%s"' % (self.__class__.__name__, self.name)
-
 
 class ParameterScenario(Scenario):
     def __init__(self, name, scenario_values=None):

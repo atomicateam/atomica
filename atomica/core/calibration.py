@@ -1,6 +1,7 @@
 import numpy as np
 import sciris.core as sc
 from .interpolation import interpolate_func
+from .model import BadInitialization
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()
@@ -41,7 +42,10 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
     update_parset(parset, y_factors, pars_to_adjust)
 
-    result = project.run_sim(parset=parset, store_results=False)
+    try:
+        result = project.run_sim(parset=parset, store_results=False)
+    except BadInitialization: # If the proposed parameters lead to invalid initial compartment sizes
+        return np.inf
 
     objective = 0.0
 
@@ -146,6 +150,9 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             o2.append(output_tuple)
     output_quantities = o2
 
+    original_sim_end = project.settings.sim_end
+    project.settings.sim_end = min(project.data.tvec[-1],original_sim_end)
+
     args = {
         'project': project,
         'parset': parset.copy(),
@@ -211,4 +218,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             raise NotImplemented  # Transfers might be handled differently in Atomica
 
     args['parset'].name = 'calibrated_' + args['parset'].name
+
+    project.settings.sim_end = original_sim_end # Restore the simulation end year
+
     return args['parset']

@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-07-31
+Last update: 2018-08-08
 -->
 
 <template>
@@ -218,10 +218,13 @@ Last update: 2018-07-31
       else { // Otherwise...
         // Load the scenario summaries of the current project.
         console.log('created() called')
-        this.getScenSummaries()
-        this.getDefaultBudgetScen()
-        this.updateSets()
-        this.getPlotOptions()
+        this.sleep(1)  // used so that spinners will come up by callback func
+        .then(response => {
+          this.getScenSummaries()
+          this.getDefaultBudgetScen()
+          this.updateSets()
+          this.getPlotOptions()
+        })
       }
     },
 
@@ -231,7 +234,13 @@ Last update: 2018-07-31
         var output = JSON.parse(JSON.stringify(input))
         return output
       },
-
+      
+      sleep(time) {
+        // Return a promise that resolves after _time_ milliseconds.
+        console.log('Sleeping for ' + time)
+        return new Promise((resolve) => setTimeout(resolve, time));
+      },
+      
       getUniqueName(fileName, otherNames) {
         let tryName = fileName
         let numAdded = 0

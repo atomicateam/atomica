@@ -14,6 +14,13 @@ model_settings = dict()
 model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
+class BadInitialization(AtomicaException):
+    # Throw this error if the simulation exited due to a bad initialization, specifically
+    # due to negative initial popsizes or an excessive residual.
+    # This can then be dealt with appropriately - e.g. calibration will catch this
+    # error and instruct ASD to reject the proposed parameters
+    pass
+
 class Variable(object):
     """
     Lightweight abstract class to store variable array of values (presumably corresponding to an external time vector).
@@ -740,13 +747,13 @@ class Population(object):
         # Halt for an unsatisfactory overall solution (could relax this check later)
         if residual > model_settings["tolerance"]:
             print(x)
-            raise AtomicaException("Residual was {0} which is unacceptably large (should be < {1}). "
+            raise BadInitialization("Residual was {0} which is unacceptably large (should be < {1}). "
                                    "This points to a probable inconsistency in the initial "
                                    "values.".format(residual, model_settings["tolerance"]))
 
         # Halt for any negative popsizes
         if np.any(np.less(x, -model_settings['tolerance'])):
-            raise AtomicaException('Negative initial popsizes')
+            raise BadInitialization('Negative initial popsizes')
 
         # Otherwise, insert the values
         for i, c in enumerate(comps):
@@ -1237,7 +1244,7 @@ class Model(object):
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    par.vals[ti] = val
+                    par.vals[ti] = par.scale_factor*val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
