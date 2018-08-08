@@ -147,7 +147,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     output_quantities = o2
 
     original_sim_end = project.settings.sim_end
-    project.settings.sim_end = project.data.tvec[-1]
+    project.settings.sim_end = min(project.data.tvec[-1],original_sim_end)
 
     args = {
         'project': project,
