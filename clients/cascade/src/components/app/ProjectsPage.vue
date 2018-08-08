@@ -302,6 +302,7 @@ export default {
       data_end:   2035, // For creating a new project: number of populations
       activeuid:  [], // WARNING, kludgy to get create progbook working
       frameworkSummaries: [],
+      currentFramework: '',
       demoOptions: [],
       demoOption: '',
     }
@@ -366,31 +367,18 @@ export default {
         // Set the frameworks to what we received.
         this.frameworkSummaries = response.data.frameworks
 
-/*        if (this.frameworkSummaries.length) {
+        if (this.frameworkSummaries.length) {
           console.log('Framework summaries found')
           console.log(this.frameworkSummaries)
           this.currentFramework = this.frameworkSummaries[0].framework.name
           console.log('Current framework: '+this.currentFramework)
         } else {
           console.log('No framework summaries found')
-        } */
-
-        // Preprocess all frameworks.
-        this.frameworkSummaries.forEach(theFrame => {
-          // Set to not selected.
-          theFrame.selected = false
-            
-          // Set to not being renamed.
-          theFrame.renaming = ''
-            
-          // Extract actual Date objects from the strings.
-          theFrame.framework.creationTime = new Date(theFrame.framework.creationTime)
-          theFrame.framework.updatedTime = new Date(theFrame.framework.updatedTime)
-        })
+        }
       })
       .catch(error => {
         // Failure popup.        
-        status.failurePopup(this, 'Could not load frameworks')     
+        status.failurePopup(this, 'Could not load frameworks: ' + error.message)
       })  
     },
 
@@ -482,8 +470,11 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
+      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the project that matches the UID passed in.
+      console.log('Loading framework ' + this.currentFramework)
+      console.log(matchFramework)
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
-        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
+        [this.$store.state.currentUser.UID, matchFramework.framework.id, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
       .then(response => {
         this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
         status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
