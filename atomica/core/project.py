@@ -242,10 +242,11 @@ class Project(object):
                 comps.append(spec.name)
 
         # TODO: Think about whether the following makes sense.
-        pars = []
+        parlist = [] 
         for _,spec in F.pars.iterrows():
             if spec['Is Impact']=='y':
-                pars.append(spec.name)
+                parlist.append((spec.name,spec['Display Name']))
+        pars = sc.odict(parlist)
 
 
         make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
