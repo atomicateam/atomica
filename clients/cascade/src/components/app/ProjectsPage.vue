@@ -193,7 +193,7 @@ Last update: 2018-08-08
 
       <div class="dialog-content">
         <div class="dialog-c-title">
-          Create blank project
+          Create new project
         </div>
         
         <div v-if="frameworkSummaries.length>0">     
