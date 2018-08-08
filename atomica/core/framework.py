@@ -210,6 +210,25 @@ class ProjectFramework(object):
         for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
 
+        ### VALIDATE METADATA
+
+        # Validate 'About' sheet - it must have a name
+        if 'About' not in self.sheets:
+            self.sheets['About'] = pd.DataFrame.from_records([('Unnamed','No description available')],columns=['Name','Description'])
+
+        required_columns = ['Name']
+        defaults = dict()
+        valid_content = {
+            'Name': None,  # Valid content being `None` means that it just cannot be empty
+        }
+        self.sheets['About'] = sanitize_dataframe(self.sheets['About'], required_columns, defaults, valid_content)
+        self.sheets['About']['Name'] = self.sheets['About']['Name'].astype(str)
+
+        if isinstance(self.sheets['About'],list):
+            self.name = self.sheets['About'][0]['Name'].iloc[0]
+        else:
+            self.name = self.sheets['About']['Name'].iloc[0]
+
         if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
             logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
 
