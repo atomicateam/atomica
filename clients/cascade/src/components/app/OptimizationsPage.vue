@@ -69,9 +69,20 @@ Last update: 2018-08-08
       </div>
 
 
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
+      <div class="calib-figures">
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index">
+            <!--mpld3 content goes here-->
+          </div>
+        </div>
+        <div class="calib-tables" v-if="table">
+          <span>Losses</span>
+          <table>
+            <tr v-for="(label, index) in table.labels">
+              <td>{{label}}</td>
+              <td v-for="text in table.text[index]">{{text}}</td>
+            </tr>
+          </table>
         </div>
       </div>
 
@@ -112,9 +123,12 @@ Last update: 2018-08-08
              :transition="transition">
 
         <div class="dialog-content">
-          <div class="dialog-c-title">
-            Add/edit optimization
+          <div class="dialog-c-title" v-if="addEditDialogMode=='add'">
+            Add optimization
           </div>
+          <div class="dialog-c-title" v-else>
+            Edit optimization
+          </div>          
           <div class="dialog-c-text">
             Optimization name:<br>
             <input type="text"
@@ -233,8 +247,11 @@ Last update: 2018-08-08
         graphData: [],
         areShowingPlots: false,
         plotOptions: [],
+        table: null,
         finalstage: 1,
         endYear: 2018,
+        addEditDialogMode: 'add',  // or 'edit'
+        addEditDialogOldName: '',
       }
     },
 
@@ -410,6 +427,8 @@ Last update: 2018-08-08
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
+          this.addEditDialogMode = 'add'
+          this.addEditDialogOldName = this.modalOptim.name
           this.$modal.show('add-optim');
           console.log(this.defaultOptim)
         })
@@ -422,21 +441,32 @@ Last update: 2018-08-08
         // Start indicating progress.
         status.start(this)
         
+        // Get the optimization summary from the modal.
         let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
-        let otherNames = []
+        
+        // Get the list of all of the current optimization names.
+        let optimNames = []
         this.optimSummaries.forEach(optimSum => {
-          otherNames.push(optimSum.name)
-        });
-        let index = otherNames.indexOf(newOptim.name);
-        if (index > -1) {
-          console.log('Optimization named '+newOptim.name+' exists, overwriting...')
-          this.optimSummaries[index] = newOptim
+          optimNames.push(optimSum.name)
+        })
+        
+        // If we are editing an existing optimization...
+        if (this.addEditDialogMode == 'edit') {
+          // Get the index of the _old_ name
+          let index = optimNames.indexOf(this.addEditDialogOldName)
+          if (index > -1) {
+            this.optimSummaries[index] = newOptim
+          }
+          else {
+            console.log('Error: a mismatch in editing keys')
+          }            
         }
+        // Else (we are adding a new optimization)...
         else {
-          console.log('Optimization named '+newOptim.name+' does not exist, creating new...')
+          newOptim.name = this.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
-        }
-        console.log(newOptim)
+        }       
+        
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
@@ -465,6 +495,8 @@ Last update: 2018-08-08
         console.log('editOptim() called');
         this.modalOptim = this.dcp(optimSummary)
         console.log('defaultOptim', this.defaultOptim.obj)
+        this.addEditDialogMode = 'edit'
+        this.addEditDialogOldName = this.modalOptim.name
         this.$modal.show('add-optim');
       },
 
@@ -548,6 +580,7 @@ Last update: 2018-08-08
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
 //                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+            this.table = response.data.result.table
             this.graphData = response.data.result.graphs // Pull out the response data (use with task).
             var n_plots = this.graphData.length
             console.log('Rendering ' + n_plots + ' graphs')
@@ -669,4 +702,38 @@ Last update: 2018-08-08
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+  .calib-graphs {
+    display: flex;
+    flex-wrap: wrap;
+    & > * {
+      flex: 0 0 650px;
+    }
+  }
+
+  /*
+  HACK: The purpose of this code is to get things to line up a bit until
+  we have a proper layout. Using fixed pixel widths is terrible and we
+  shouldn't do it in other places.
+  */
+  .calib-tables span {
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
+    color: black; /* To match graph */
+    font-family: Helvetica, sans-serif; /* To match graph */
+  }
+  .calib-tables table, .calib-tables tr, .calib-tables td {
+    border: 2px solid #ddd;
+  }
+  .calib-tables table td {
+    width: 96px;
+    padding: 0.5rem;
+    text-align: right;
+  }
+  .calib-tables table td:nth-child(1) {
+    width: 192px; /* Header column */
+    padding-right: 11px;
+  }
 </style>
