@@ -470,7 +470,7 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
-      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the project that matches the UID passed in.
+      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.modalSelectedFramework) // Find the project that matches the UID passed in.
       console.log('Loading framework ' + this.currentFramework)
       console.log(matchFramework)
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
