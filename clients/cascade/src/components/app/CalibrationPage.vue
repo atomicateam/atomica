@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-07-31
+Last update: 2018-08-07
 -->
 
 <template>
@@ -279,6 +279,7 @@ Last update: 2018-07-31
       } else if (this.$store.state.activeProject.project != undefined) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
+        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
         this.viewTable()
         this.getPlotOptions()
         this.updateParset()
