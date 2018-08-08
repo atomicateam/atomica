@@ -402,7 +402,7 @@ Last update: 2018-08-08
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           this.addEditDialogMode = 'add'
-          this.addEditDialogOldName = this.defaultOptim.name
+          this.addEditDialogOldName = this.modalOptim.name
           this.$modal.show('add-optim');
           console.log(this.defaultOptim)
         })
@@ -470,7 +470,7 @@ Last update: 2018-08-08
         this.modalOptim = this.dcp(optimSummary)
         console.log('defaultOptim', this.defaultOptim.obj)
         this.addEditDialogMode = 'edit'
-        this.addEditDialogOldName = this.defaultOptim.name
+        this.addEditDialogOldName = this.modalOptim.name
         this.$modal.show('add-optim');
       },
 
