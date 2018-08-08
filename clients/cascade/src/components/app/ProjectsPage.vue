@@ -195,39 +195,55 @@ Last update: 2018-08-08
         <div class="dialog-c-title">
           Create blank project
         </div>
-        <div class="dialog-c-text">
-          Project name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="proj_name"/><br>
-          Framework:<br>
-          <select v-model="currentFramework">
-            <option v-for='frameworkSummary in frameworkSummaries'>
-              {{ frameworkSummary.framework.name }}
-            </option>
-          </select><br><br>
-          Number of populations:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_pops"/><br>
-          First year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_start"/><br>
-          Final year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_end"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
+        
+        <div v-if="frameworkSummaries.length>0">     
+          <div class="dialog-c-text">
+            Project name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="proj_name"/><br>
+            Framework:<br>
+            <select v-model="currentFramework">
+              <option v-for='frameworkSummary in frameworkSummaries'>
+                {{ frameworkSummary.framework.name }}
+              </option>
+            </select><br><br>
+            Number of populations:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_pops"/><br>
+            First year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_start"/><br>
+            Final year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_end"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createNewProject()" class='btn __green' style="display:inline-block">
+              Create
+            </button>
 
-          <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
+            <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
         </div>
+        
+        <div v-else>
+          <div class="dialog-c-text">        
+            Before creating a new project, please create or upload at least one framework.
+          </div>
+          <br>
+          <div style="text-align:justify">
+            <button @click="$modal.hide('create-project')" class='btn' style="display:inline-block">
+              Ok
+            </button>
+          </div>          
+        </div>
+        
       </div>
     </modal>
 
