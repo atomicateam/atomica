@@ -90,9 +90,12 @@ Last update: 2018-08-08
              :transition="transition">
 
         <div class="dialog-content">
-          <div class="dialog-c-title">
-            Add/edit optimization
+          <div class="dialog-c-title" v-if="addEditDialogMode=='add'">
+            Add optimization
           </div>
+          <div class="dialog-c-title" v-else>
+            Edit optimization
+          </div>          
           <div class="dialog-c-text">
             Optimization name:<br>
             <input type="text"
@@ -221,6 +224,8 @@ Last update: 2018-08-08
         graphData: [],
         areShowingPlots: false,
         plotOptions: [],
+        addEditDialogMode: 'add',  // or 'edit'
+        addEditDialogOldName: '',
       }
     },
 
@@ -396,6 +401,8 @@ Last update: 2018-08-08
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
+          this.addEditDialogMode = 'add'
+          this.addEditDialogOldName = this.defaultOptim.name
           this.$modal.show('add-optim');
           console.log(this.defaultOptim)
         })
@@ -408,21 +415,32 @@ Last update: 2018-08-08
         // Start indicating progress.
         status.start(this)
         
+        // Get the optimization summary from the modal.
         let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
-        let otherNames = []
+        
+        // Get the list of all of the current optimization names.
+        let optimNames = []
         this.optimSummaries.forEach(optimSum => {
-          otherNames.push(optimSum.name)
-        });
-        let index = otherNames.indexOf(newOptim.name);
-        if (index > -1) {
-          console.log('Optimization named '+newOptim.name+' exists, overwriting...')
-          this.optimSummaries[index] = newOptim
+          optimNames.push(optimSum.name)
+        })
+        
+        // If we are editing an existing optimization...
+        if (this.addEditDialogMode == 'edit') {
+          // Get the index of the _old_ name
+          let index = optimNames.indexOf(this.addEditDialogOldName)
+          if (index > -1) {
+            this.optimSummaries[index] = newOptim
+          }
+          else {
+            console.log('Error: a mismatch in editing keys')
+          }            
         }
+        // Else (we are adding a new optimization)...
         else {
-          console.log('Optimization named '+newOptim.name+' does not exist, creating new...')
+          // TODO: need to extract unique names.
           this.optimSummaries.push(newOptim)
-        }
-        console.log(newOptim)
+        }       
+        
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
@@ -451,6 +469,8 @@ Last update: 2018-08-08
         console.log('editOptim() called');
         this.modalOptim = this.dcp(optimSummary)
         console.log('defaultOptim', this.defaultOptim.obj)
+        this.addEditDialogMode = 'edit'
+        this.addEditDialogOldName = this.defaultOptim.name
         this.$modal.show('add-optim');
       },
 
