@@ -15,7 +15,7 @@ import matplotlib.pyplot as ppl
 ppl.switch_backend(config_cascade.MATPLOTLIB_BACKEND)
 from sciris.weblib.tasks import make_celery_instance, add_task_funcs, make_register_async_task
 import projects as prj
-from rpcs import load_project, save_project, get_plots
+from rpcs import load_project, save_project, get_plots, get_cascade_plot
 
 #
 # Globals
@@ -47,7 +47,8 @@ def run_cascade_optimization(project_id, optim_name, plot_options=None, saveresu
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name)
-    output = get_plots(proj, results, plot_options=plot_options) # outputs=['alive','ddis']
+    print('WARNING, YEAR HARDCODED')
+    output = get_cascade_plot(proj, results, year=2021)
     if saveresults:
         print('Saving project...')
         save_project(proj)    

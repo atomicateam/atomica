@@ -28,7 +28,7 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
-def TickFormat():
+def CursorPosition():
     plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
     return plugin
 
@@ -908,7 +908,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, plot_type=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, tool=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -934,8 +934,8 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    if plot_type in ['cascade', 'multi_cascade']:
-        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year), plot_type=plot_type)
+    if tool == 'cascade':
+        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year))
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
@@ -1029,7 +1029,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                mpld3.plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, CursorPosition())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -1058,7 +1058,6 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
-
             if isinstance(output.values()[0],list):
                 plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
             else:
@@ -1088,7 +1087,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                mpld3.plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, CursorPosition())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             # pl.close('all')
@@ -1098,22 +1097,20 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None, cascade='main'):
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     graphs = []
-    if plot_type == 'cascade' or len(results)==1:
-        figs = au.plot_cascade(results, cascade=cascade, pops=pops, year=year,data=proj.data)
-    elif plot_type == 'multi_cascade':
-#        fig = au.plot_multi_cascade(results, cascade=cascade, pops=pops, year=year)
-        figs = au.plot_multi_cascade(results,cascade,year=float(year))
+    years = sc.promotetolist(year)
+    for y in range(len(years)):
+        years[y] = float(years[y]) # Ensure it's a float
+    fig = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data)
 
-    for fig in figs:
-        ax = fig.get_axes()[0]
-        ax.set_facecolor('none')
-        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-        mpld3.plugins.connect(fig, TickFormat())
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        pl.close(fig)
+    ax = fig.get_axes()[0]
+    ax.set_facecolor('none')
+    fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+    mpld3.plugins.connect(fig, CursorPosition())
+    graph_dict = mpld3.fig_to_dict(fig)
+    graphs.append(graph_dict)
+    pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs}
     
@@ -1393,14 +1390,14 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
+def run_scenarios(project_id, plot_options, saveresults=False, tool=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    if plot_type == 'multi_cascade':
+    if tool == 'cascade': # For Cascade Tool
         print('WARNING, YEAR HARDCODED')
-        output = get_cascade_plot(proj, results, year=2021, plot_type=plot_type)
-    else:
+        output = get_cascade_plot(proj, results, year=2021)
+    else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:
         print('Saving project...')
