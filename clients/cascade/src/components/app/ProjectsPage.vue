@@ -201,7 +201,7 @@ Last update: 2018-08-08
                  class="txbox"
                  v-model="proj_name"/><br>
           Framework:<br>
-          <select v-model="modalSelectedFramework">
+          <select v-model="currentFramework">
             <option v-for='frameworkSummary in frameworkSummaries'>
               {{ frameworkSummary.framework.name }}
             </option>
@@ -295,7 +295,6 @@ export default {
       sortReverse: false, // Sort in reverse order?
       projectSummaries: [], // List of summary objects for projects the user has
       proj_name:  'New project', // For creating a new project: number of populations
-      modalSelectedFramework: '', // For creating a new project: selected framework
       num_pops:   5, // For creating a new project: number of populations
       num_progs:  5, // For creating a new project: number of populations
       data_start: 2000, // For creating a new project: number of populations
@@ -454,7 +453,6 @@ export default {
 
     createNewProjectModal() {
       console.log('createNewProjectModal() called')
-      this.modalSelectedFramework = ''  // clear the framework dropdown
       this.$modal.show('create-project')
     },
 
@@ -470,7 +468,7 @@ export default {
       console.log('createNewProject() called')
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
-      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.modalSelectedFramework) // Find the project that matches the UID passed in.
+      let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the project that matches the UID passed in.
       console.log('Loading framework ' + this.currentFramework)
       console.log(matchFramework)
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
