@@ -609,7 +609,7 @@ Last update: 2018-08-08
     display: flex;
     flex-wrap: wrap;
     & > * {
-      flex: 1;
+      flex: 0 0 650px;
     }
   }
 

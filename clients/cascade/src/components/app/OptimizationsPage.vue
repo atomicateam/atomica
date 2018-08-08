@@ -97,7 +97,7 @@ Last update: 2018-08-08
             Optimization name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.name"/><br>
+                   v-model="modalOptim.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -113,33 +113,33 @@ Last update: 2018-08-08
             Maximum time to run optimization (s):<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.maxtime"/><br>
+                   v-model="modalOptim.maxtime"/><br>
             Start year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.start_year"/><br>
+                   v-model="modalOptim.start_year"/><br>
             End year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.end_year"/><br>
+                   v-model="modalOptim.end_year"/><br>
             Budget factor:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.budget_factor"/><br>
+                   v-model="modalOptim.budget_factor"/><br>
             <br>
             <b>Relative objective weights</b><br>
             People alive:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.alive"/><br>
+                   v-model="modalOptim.objective_weights.alive"/><br>
             TB-related deaths:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.ddis"/><br>
+                   v-model="modalOptim.objective_weights.ddis"/><br>
             New TB infections:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.acj"/><br>
+                   v-model="modalOptim.objective_weights.acj"/><br>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -151,29 +151,29 @@ Last update: 2018-08-08
               </tr>
               </thead>
               <tbody>
-              <tr v-for="(val,key) in defaultOptim.prog_spending">
+              <tr v-for="(val,key) in modalOptim.prog_spending">
                 <td>
-                  {{ defaultOptim.prog_spending[key].label }}
+                  {{ modalOptim.prog_spending[key].label }}
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key].min"/>
+                         v-model="modalOptim.prog_spending[key].min"/>
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key].max"/>
+                         v-model="modalOptim.prog_spending[key].max"/>
                 </td>
               </tr>
               </tbody>
             </table>
           </div>
           <div style="text-align:justify">
-            <button @click="addOptim()" class='btn __green' style="display:inline-block">
+            <button @click="saveOptim()" class='btn __green' style="display:inline-block">
               Save optimization
             </button>
-            <button @click="$modal.hide('add-optim')" class='btn __red' style="display:inline-block">
+            <button @click="cancelOptim()" class='btn __red' style="display:inline-block">
               Cancel
             </button>
           </div>
@@ -210,6 +210,7 @@ Last update: 2018-08-08
         serverresponse: 'no response',
         optimSummaries: [],
         defaultOptim: [],
+        modalOptim: [],
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -339,6 +340,7 @@ Last update: 2018-08-08
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
+          this.resetModal()
           console.log('This is the default:')
           console.log(this.defaultOptim);
         })
@@ -390,6 +392,7 @@ Last update: 2018-08-08
       addOptimModal() {
         // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
+        this.resetModal()
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
@@ -398,14 +401,14 @@ Last update: 2018-08-08
         })
       },
 
-      addOptim() {
-        console.log('addOptim() called')
+      saveOptim() {
+        console.log('saveOptim() called')
         this.$modal.hide('add-optim')
         
         // Start indicating progress.
         status.start(this)
         
-        let newOptim = this.dcp(this.defaultOptim); // You've got to be kidding me, buster
+        let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
         let otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
@@ -424,6 +427,7 @@ Last update: 2018-08-08
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimization added')
+          this.resetModal()
         })
         .catch(error => {
           // Indicate failure.
@@ -433,10 +437,19 @@ Last update: 2018-08-08
         })        
       },
 
+      cancelOptim() {
+        this.$modal.hide('add-optim')
+        this.resetModal()
+      },
+
+      resetModal() {
+        this.modalOptim = this.defaultOptim
+      },
+
       editOptim(optimSummary) {
         // Open a model dialog for creating a new project
         console.log('editOptim() called');
-        this.defaultOptim = optimSummary
+        this.modalOptim = optimSummary
         console.log('defaultOptim', this.defaultOptim.obj)
         this.$modal.show('add-optim');
       },
