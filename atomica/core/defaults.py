@@ -65,7 +65,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
                     ('service',  '1-population service delivery cascade'),
                     ('hypertension',  '4-population hypertension cascade (Malawi)'),
                     ('hiv',      '2-population HIV care cascade'), 
-                    ('tb',       '14-population tuberculosis model'), 
+                    ('tb',       '12-population tuberculosis model'), 
                     ])
     
     if which is None:

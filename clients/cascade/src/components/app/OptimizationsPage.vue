@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-07-30
+Last update: 2018-08-08
 -->
 
 <template>
@@ -248,11 +248,19 @@ Last update: 2018-07-30
         router.push('/login')
       }
       else { // Otherwise...
+        this.sleep(1)  // used so that spinners will come up by callback func
+        .then(response => {
+          // Load the optimization summaries of the current project.
+          this.getOptimSummaries()
+          this.getDefaultOptim()
+          this.updateSets()
+          this.getPlotOptions()          
+        })
         // Load the optimization summaries of the current project.
-        this.getOptimSummaries()
+/*        this.getOptimSummaries()
         this.getDefaultOptim()
         this.updateSets()
-        this.getPlotOptions()
+        this.getPlotOptions()  */      
       }
     },
 
@@ -262,7 +270,13 @@ Last update: 2018-07-30
         var output = JSON.parse(JSON.stringify(input))
         return output
       },
-
+      
+      sleep(time) {
+        // Return a promise that resolves after _time_ milliseconds.
+        console.log('Sleeping for ' + time)
+        return new Promise((resolve) => setTimeout(resolve, time));
+      },
+      
       getUniqueName(fileName, otherNames) {
         let tryName = fileName
         let numAdded = 0
