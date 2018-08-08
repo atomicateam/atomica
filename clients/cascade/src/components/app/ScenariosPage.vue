@@ -70,12 +70,20 @@ Last update: 2018-08-08
             </tbody>
           </table>
         </div>
-        <div class="calib-graphs">
-          heya
-          <div v-for="index in placeholders" :id="'fig'+index">
-            <!--mpld3 content goes here-->
+        <div class="calib-figures">
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index">
+              <!--mpld3 content goes here-->
+            </div>
           </div>
-          hoya
+          <div class="calib-tables">
+            <table v-if="table">
+              <tr v-for="(label, index) in table.labels">
+                <td>{{label}}</td>
+                <td v-for="text in table.text[index]">{{text}}</td>
+              </tr>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -188,7 +196,8 @@ Last update: 2018-08-08
         newProgsetName: [],
         areShowingPlots: false,
         plotOptions: [],
-        scenariosLoaded: false
+        scenariosLoaded: false,
+        table: null,
       }
     },
 
@@ -496,8 +505,7 @@ Last update: 2018-08-08
           rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool: 'cascade'})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
-            console.log('Data table:')
-            console.log(response.data.table)
+            this.table = response.data.table
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
             for (var index = 0; index <= n_plots; index++) {
@@ -591,7 +599,6 @@ Last update: 2018-08-08
   }
 
   .calib-main {
-    display: flex;
     margin-top: 4rem;
   }
   .calib-params {
@@ -600,11 +607,30 @@ Last update: 2018-08-08
   .calib-graphs {
     flex: 1;
     display: flex;
-    width: 1000px;
     flex-wrap: wrap;
-    /*& > div {*/
-      /*flex: 0 0 1000px;*/
-    /*}*/
+    & > * {
+      flex: 1;
+    }
+  }
+
+  /*
+  HACK: The purpose of this code is to get things to line up a bit until
+  we have a proper layout. Using fixed pixel widths is terrible and we
+  shouldn't do it in other places.
+  */
+  .calib-tables table, .calib-tables tr, .calib-tables td {
+    // width: 960px; /* To match graph */
+    color: black; /* To match graph */
+    font-family: Helvetica, sans-serif; /* To match graph */
+  }
+  .calib-tables table td {
+    width: 97px;
+    text-align: center;
+  }
+  .calib-tables table td:nth-child(1) {
+    width: 192px; /* Header column */
+    text-align: right;
+    padding-right: 11px;
   }
 
   .plotopts-main {
