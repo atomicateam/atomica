@@ -33,15 +33,14 @@ class ProjectFramework(object):
         self.created = sc.today()
         self.modified = sc.today()
 
-        self.name = name
-        self.sheets = sc.odict()
-
         # Load Framework from disk
         if isinstance(inputs,string_types):
             spreadsheet = AtomicaSpreadsheet(inputs)
         elif isinstance(inputs,AtomicaSpreadsheet):
             spreadsheet = inputs
         else:
+            self.name = name
+            self.sheets = sc.odict()
             return
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
@@ -65,6 +64,9 @@ class ProjectFramework(object):
                 self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
 
         self._validate()
+
+        if name is not None:
+            self.name = name
 
     def to_spreadsheet(self):
         raise NotImplementedError()
