@@ -71,11 +71,9 @@ Last update: 2018-08-08
           </table>
         </div>
         <div class="calib-graphs">
-          heya
           <div v-for="index in placeholders" :id="'fig'+index">
             <!--mpld3 content goes here-->
           </div>
-          hoya
         </div>
       </div>
 
@@ -600,11 +598,10 @@ Last update: 2018-08-08
   .calib-graphs {
     flex: 1;
     display: flex;
-    width: 1000px;
     flex-wrap: wrap;
-    /*& > div {*/
-      /*flex: 0 0 1000px;*/
-    /*}*/
+    & > div {
+      flex: 0 0 650px;
+    }
   }
 
   .plotopts-main {

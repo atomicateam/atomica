@@ -10,6 +10,8 @@ from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
+default_figsize = (9,5)
+
 
 def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
     
@@ -74,7 +76,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     assert len(t) == 1, 'Plot cascade requires time aggregation'
     cascade_array = np.hstack(cascade_vals.values())
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=default_figsize)
     fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
     bar_x = np.arange(len(cascade_vals))
@@ -182,7 +184,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     colors = sc.gridcolors(n_bars)  # Default colors
     legend_entries = sc.odict()
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=default_figsize)
     fig.set_figwidth(fig.get_figwidth()*1.5)
 
     for offset,(bar_label,data) in enumerate(cascade_vals.items()):
