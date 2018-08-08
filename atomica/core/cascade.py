@@ -10,7 +10,126 @@ from six import string_types
 import logging
 logger = logging.getLogger(__name__)
 
-def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
+
+def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None):
+    
+    year    = sc.promotetolist(year)
+    results = sc.promotetolist(results)
+    if len(year)>1 or len(results)>1:
+        fig = plot_multi_cascade(result=results, cascade=cascade, pops=pops, year=year, data=data)
+    else:
+        fig = plot_single_cascade(result=results[0], cascade=cascade, pops=pops, year=year, data=data)
+    return fig
+
+def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
+    
+    # Sanitize input
+    if isinstance(result, list): result = result[0]
+    
+    # Sanitize cascade input
+    if cascade is None: cascade = result.framework.cascades.keys()[0]
+    
+    # Sanitize populations
+    if pops is None: pops = 'all'
+    
+    # Sanitize year
+    if year is None: year = result.t[0] # Draw cascade for first year
+    else:            year = sc.promotetoarray(year)
+    
+    return cascade, pops, year
+
+
+def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=None):
+    # This is the fancy cascade plot, which only applies to a single result at a single time
+    # INPUTS
+    # result - A single result, or list of results. One figure will be generated for each result
+    # cascade - A string naming a cascade, or an odict specifying cascade stages and constituents
+    #           e.g. {'stage 1':['sus','vac'],'stage 2':['vac']}
+    # pops - The name of a population, or a population aggregation that maps to a single population. For example
+    #        '0-4', 'all', or {'HIV':['15-64 HIV','65+ HIV']}
+    # year - A single year, could be a length 1 ndarray or a scalar
+    # data - A ProjectData instance
+    #
+    # OUTPUTS
+    # figs - a Figure handle
+
+    cascade, pops, year = sanitize_cascade_inputs(result=result, cascade=cascade, pops=pops, year=year)
+
+    if isinstance(result,list):
+        figs = []
+        for r in result:
+            figs.append(plot_single_cascade(r,cascade,pops,year,data))
+        return figs
+
+#    fontsize=14
+    assert len(year) == 1
+    assert isinstance(result,Result), 'Input must be a single Result object'
+    cascade_vals,t = get_cascade_vals(result,cascade,pops,year)
+    if data is not None:
+        cascade_data,_ = get_cascade_data(data,result.framework,cascade,pops,year)
+        cascade_data_array = np.hstack(cascade_data.values())
+
+    assert len(t) == 1, 'Plot cascade requires time aggregation'
+    cascade_array = np.hstack(cascade_vals.values())
+
+    fig = plt.figure()
+    fig.set_figwidth(fig.get_figwidth()*1.5)
+    ax = plt.gca()
+    bar_x = np.arange(len(cascade_vals))
+    h = plt.bar(bar_x,cascade_array, width=0.5)
+    if data is not None:
+        non_nan = np.isfinite(cascade_data_array)
+        if np.any(non_nan):
+            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan],s=40,c='#ff9900',marker='s',zorder=100)
+
+    ax.set_xticks(np.arange(len(cascade_vals)))
+    ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
+
+    ylim = ax.get_ylim()
+    yticks = ax.get_yticks()
+    data_yrange = np.diff(ylim)
+    ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
+    ax.set_yticks(yticks)
+    for i,val in enumerate(cascade_array):
+        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom', horizontalalignment='center', zorder=200)
+
+    bars = h.get_children()
+    conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost
+    conversion_text_height = cascade_array[-1]/2
+
+    for i in range(len(bars)-1):
+        left_bar = bars[i]
+        right_bar = bars[i+1]
+
+        xy = np.array([
+        (left_bar.get_x() + left_bar.get_width(), 0), # Bottom left corner
+        (left_bar.get_x() + left_bar.get_width(), left_bar.get_y() + left_bar.get_height()), # Top left corner
+        (right_bar.get_x(), right_bar.get_y() + right_bar.get_height()),  # Top right corner
+        (right_bar.get_x(), 0),  # Bottom right corner
+        ])
+
+        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=(0.93,0.93,0.93))
+        ax.add_patch(p)
+
+        bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
+
+        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0, bbox=bbox_props)
+
+
+    loss = np.diff(cascade_array)
+    for i,val in enumerate(loss):
+
+        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
+
+    pop_label = 'entire population' if pops=='all' else pops
+    plt.ylabel('Number of people')
+    plt.title('Cascade for %s in %d' % (pop_label,year))
+    plt.tight_layout()
+
+    return fig
+    
+    
+def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
     #
@@ -24,9 +143,7 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # data - A ProjectData instance
     #
     # OUTPUTS
-    # figs - a list of Figure handles
-
-    if pops is None: pops = 'all'
+    # fig - a figure handle
 
     # First, process the cascade into an odict of outputs for PlotData
     if isinstance(results, sc.odict):
@@ -35,12 +152,9 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
         results = [results]
     elif isinstance(results, NDict):
         results = list(results)
-
-    if year is None:
-        year = results[0].t[0] # Draw cascade for first year
-    else:
-        year = sc.promotetoarray(year)
-
+        
+    cascade, pops, year = sanitize_cascade_inputs(result=results[0], cascade=cascade, pops=pops, year=year)
+    
     if (len(results)>1 and len(year)>1):
         label_fcn = lambda result,t: '%s (%s)' % (result.name,t)
     elif len(results) > 1:
@@ -96,101 +210,11 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # Add a table at the bottom of the axes
     plt.table(cellText=cell_text,rowLabels=list(cascade_vals.keys()),rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
 
-    return [fig]
+    return fig
 
 
-def plot_cascade(result, cascade, pops=None, year=None, data=None):
-    # This is the fancy cascade plot, which only applies to a single result at a single time
-    # INPUTS
-    # result - A single result, or list of results. One figure will be generated for each result
-    # cascade - A string naming a cascade, or an odict specifying cascade stages and constituents
-    #           e.g. {'stage 1':['sus','vac'],'stage 2':['vac']}
-    # pops - The name of a population, or a population aggregation that maps to a single population. For example
-    #        '0-4', 'all', or {'HIV':['15-64 HIV','65+ HIV']}
-    # year - A single year, could be a length 1 ndarray or a scalar
-    # data - A ProjectData instance
-    #
-    # OUTPUTS
-    # figs - a list of Figure handles
-
-    if pops is None: pops = 'all'
-    if isinstance(result,list):
-        figs = []
-        for r in result:
-            figs += plot_cascade(r,cascade,pops,year,data)
-        return figs
-
-    fontsize=14
-    if year is None:
-        year = result.t[0] # Draw cascade for first year
-    else:
-        year = sc.promotetoarray(year)
-        assert len(year) == 1
-
-    assert isinstance(result,Result), 'Input must be a single Result object'
-    cascade_vals,t = get_cascade_vals(result,cascade,pops,year)
-    if data is not None:
-        cascade_data,_ = get_cascade_data(data,result.framework,cascade,pops,year)
-        cascade_data_array = np.hstack(cascade_data.values())
-
-    assert len(t) == 1, 'Plot cascade requires time aggregation'
-    cascade_array = np.hstack(cascade_vals.values())
-
-    fig = plt.figure()
-    fig.set_figwidth(fig.get_figwidth()*1.5)
-    ax = plt.gca()
-    bar_x = np.arange(len(cascade_vals))
-    h = plt.bar(bar_x,cascade_array, width=0.5)
-    if data is not None:
-        non_nan = np.isfinite(cascade_data_array)
-        if np.any(non_nan):
-            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan],s=40,c='#ff9900',marker='s',zorder=100)
-
-    ax.set_xticks(np.arange(len(cascade_vals)))
-    ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
-
-    ylim = ax.get_ylim()
-    yticks = ax.get_yticks()
-    data_yrange = np.diff(ylim)
-    ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
-    ax.set_yticks(yticks)
-    for i,val in enumerate(cascade_array):
-        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom',horizontalalignment='center',size=fontsize,zorder=200)
-
-    bars = h.get_children()
-    conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost
-    conversion_text_height = cascade_array[-1]/2
-
-    for i in range(len(bars)-1):
-        left_bar = bars[i]
-        right_bar = bars[i+1]
-
-        xy = np.array([
-        (left_bar.get_x() + left_bar.get_width(), 0), # Bottom left corner
-        (left_bar.get_x() + left_bar.get_width(), left_bar.get_y() + left_bar.get_height()), # Top left corner
-        (right_bar.get_x(), right_bar.get_y() + right_bar.get_height()),  # Top right corner
-        (right_bar.get_x(), 0),  # Bottom right corner
-        ])
-
-        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=(0.93,0.93,0.93))
-        ax.add_patch(p)
-
-        bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
-
-        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0,size=fontsize,bbox=bbox_props)
 
 
-    loss = np.diff(cascade_array)
-    for i,val in enumerate(loss):
-
-        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2),size=fontsize)
-
-    pop_label = 'entire population' if pops=='all' else pops
-    plt.ylabel('Number of people')
-    plt.title('Cascade for %s in %d' % (pop_label,year))
-    plt.tight_layout()
-
-    return [fig]
 
 def get_cascade_outputs(framework,cascade_name):
     # Given a cascade name, return an outputs dicts corresponding to the cascade stages

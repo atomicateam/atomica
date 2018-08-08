@@ -28,7 +28,7 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
-def TickFormat():
+def CursorPosition():
     plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
     return plugin
 
@@ -1031,7 +1031,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
                 ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
                 if xlims is not None: ax.set_xlim(xlims)
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                mpld3.plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, CursorPosition())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             pl.close('all')
@@ -1090,7 +1090,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
                 if len(legend.get_texts())==1:
                     legend.remove() # Can remove the legend if it only has one entry
                 fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                mpld3.plugins.connect(fig, TickFormat())
+                mpld3.plugins.connect(fig, CursorPosition())
                 graph_dict = mpld3.fig_to_dict(fig)
                 graphs.append(graph_dict)
             # pl.close('all')
@@ -1102,20 +1102,18 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None, cascade='main'):
     graphs = []
-    if plot_type == 'cascade' or len(results)==1:
-        figs = au.plot_cascade(results, cascade=cascade, pops=pops, year=year,data=proj.data)
-    elif plot_type == 'multi_cascade':
-#        fig = au.plot_multi_cascade(results, cascade=cascade, pops=pops, year=year)
-        figs = au.plot_multi_cascade(results,cascade,year=float(year))
+    years = sc.promotetolist(year)
+    for y in range(len(years)):
+        years[y] = float(years[y]) # Ensure it's a float
+    fig = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data)
 
-    for fig in figs:
-        ax = fig.get_axes()[0]
-        ax.set_facecolor('none')
-        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-        mpld3.plugins.connect(fig, TickFormat())
-        graph_dict = mpld3.fig_to_dict(fig)
-        graphs.append(graph_dict)
-        pl.close(fig)
+    ax = fig.get_axes()[0]
+    ax.set_facecolor('none')
+    fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+    mpld3.plugins.connect(fig, CursorPosition())
+    graph_dict = mpld3.fig_to_dict(fig)
+    graphs.append(graph_dict)
+    pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs}
     
