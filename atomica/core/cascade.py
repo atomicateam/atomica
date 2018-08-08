@@ -149,9 +149,12 @@ def plot_cascade(result, cascade, pops=None, year=None, data=None):
     fig = plt.figure()
     fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
-    h = plt.bar(np.arange(len(cascade_vals)),cascade_array, width=0.5)
+    bar_x = np.arange(len(cascade_vals))
+    h = plt.bar(bar_x,cascade_array, width=0.5)
     if data is not None:
-        h_scatter = plt.scatter(np.arange(len(cascade_vals)), cascade_data_array,s=40,c='#ff9900',marker='s',zorder=100)
+        non_nan = np.isfinite(cascade_data_array)
+        if np.any(non_nan):
+            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan],s=40,c='#ff9900',marker='s',zorder=100)
 
     ax.set_xticks(np.arange(len(cascade_vals)))
     ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
