@@ -280,8 +280,7 @@ Last update: 2018-08-07
       createNewFramework() {
         console.log('createNewFramework() called')
         this.$modal.hide('create-framework')
-        this.$modal.show('popup-spinner') // Bring up a spinner.
-        this.$Progress.start() // Start the loading bar.
+        status.start(this) // Start indicating progress.
         rpcservice.rpcDownloadCall('create_new_framework') // Have the server create a new framework.
         .then(response => {
           status.succeed(this, '')
@@ -295,8 +294,7 @@ Last update: 2018-08-07
         console.log('uploadFrameworkFromFile() called')
         rpcservice.rpcUploadCall('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
         .then(response => {
-          this.$modal.show('popup-spinner') // Bring up a spinner.
-          this.$Progress.start() // Start the loading bar.
+          status.start(this) // Start indicating progress.
           this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
           status.succeed(this, 'Framework uploaded')
         })
@@ -376,13 +374,6 @@ Last update: 2018-08-07
         )
       },
 
-      openFramework(uid) {
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
-        console.log('openFramework() called for ' + matchFramework.framework.name)
-        this.$store.commit('newActiveFramework', matchFramework) // Set the active framework to the matched framework.
-        status.succeed(this, 'Framework "'+matchFramework.framework.name+'" loaded')
-      },
-
       copyFramework(uid) {
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
         console.log('copyFramework() called for ' + matchFramework.framework.name)
@@ -405,8 +396,7 @@ Last update: 2018-08-07
         else { // Otherwise (it is to be renamed)...
           let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
-          this.$modal.show('popup-spinner') // Bring up a spinner.
-          this.$Progress.start() // Start the loading bar.
+          status.start(this) // Start indicating progress.
           rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
             this.updateFrameworkSummaries() // Update the framework summaries so the rename shows up on the list.
@@ -432,39 +422,16 @@ Last update: 2018-08-07
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
 
         console.log('downloadFrameworkFile() called for ' + matchFramework.framework.name)
-        
-        // Bring up a spinner.
-        this.$modal.show('popup-spinner')
-        
-        // Start the loading bar.
-        this.$Progress.start()
+                
+        status.start(this) // Start indicating progress.
       
         // Make the server call to download the framework to a .prj file.
         rpcservice.rpcDownloadCall('download_framework', [uid])
         .then(response => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()          
+          status.succeed(this, '')        
         })
         .catch(error => {
-
-          status.fail(this, 'Could not rename framework:' + error.message)
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not download framework',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
+          status.fail(this, 'Could not rename framework:' + error.message)     
         })             
       },
 
@@ -476,6 +443,9 @@ Last update: 2018-08-07
 
         // Make the server call to download the framework to a .prj file.
         rpcservice.rpcDownloadCall('download_defaults', [uid])
+        .catch(error => {
+          status.failurePopup(this, 'Could not download defaults:' + error.message)     
+        })        
       },
 
       // Confirmation alert
@@ -507,11 +477,7 @@ Last update: 2018-08-07
               
         // Have the server delete the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')   
-          
-          // Start the loading bar.
-          this.$Progress.start()          
+          status.start(this) // Start indicating progress.         
           
           rpcservice.rpcCall('delete_frameworks', [selectFrameworksUIDs])
           .then(response => {
@@ -530,27 +496,10 @@ Last update: 2018-08-07
               
             this.updateFrameworkSummaries(null)
             
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')
-          
-            // Finish the loading bar.
-            this.$Progress.finish()              
+            status.succeed(this, '')              
           })
           .catch(error => {
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')
-          
-            // Fail the loading bar.
-            this.$Progress.fail()
-        
-            // Failure popup.
-            this.$notifications.notify({
-              message: 'Could not delete framework/s',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })      
+            status.fail(this, 'Could not delete framework/s:' + error.message)      
           })                    
         }
       },
@@ -564,35 +513,14 @@ Last update: 2018-08-07
                  
         // Have the server download the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')
-        
-          // Start the loading bar.
-          this.$Progress.start()   
+          status.start(this) // Start indicating progress.
           
           rpcservice.rpcDownloadCall('load_zip_of_frw_files', [selectFrameworksUIDs])
           .then(response => {
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')
-          
-            // Finish the loading bar.
-            this.$Progress.finish()          
+            status.succeed(this, '')         
           })
           .catch(error => {
-            // Dispel the spinner.
-            this.$modal.hide('popup-spinner')
-          
-            // Fail the loading bar.
-            this.$Progress.fail()
-        
-            // Failure popup.
-            this.$notifications.notify({
-              message: 'Could not download framework/s',
-              icon: 'ti-face-sad',
-              type: 'warning',
-              verticalAlign: 'top',
-              horizontalAlign: 'center',
-            })  
+            status.fail(this, 'Could not download framework/s:' + error.message) 
           })        
         }           
       }
@@ -604,7 +532,7 @@ Last update: 2018-08-07
 <!--<style lang="scss" scoped>-->
 <!--</style>-->
 <style>
-  .vue-dialog div {
+/*  .vue-dialog div {
     box-sizing: border-box;
   }
   .vue-dialog .dialog-flex {
@@ -655,5 +583,5 @@ Last update: 2018-08-07
   }
   .vue-dialog-button:not(:first-of-type) {
     border-left: 1px solid #eee;
-  }
+  } */
 </style>
