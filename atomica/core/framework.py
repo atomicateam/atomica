@@ -269,6 +269,7 @@ class ProjectFramework(object):
             'Function':None,
             'Databook Page':None,
             'Databook Order':None,
+            'Can Calibrate':None,
             'Is Impact':'n',
         }
         valid_content = {
