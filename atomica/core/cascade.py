@@ -26,16 +26,6 @@ def plot_multi_cascade(results,cascade,pops=None,year=None,data=None):
     # OUTPUTS
     # figs - a list of Figure handles
 
-    print('HELLO SUCKERS')
-    
-    print results
-    print 'cascade', cascade
-    print 'pops', pops
-    print 'year', year
-    print 'data', data
-    
-    print('END')
-
     if pops is None: pops = 'all'
 
     # First, process the cascade into an odict of outputs for PlotData

@@ -22,7 +22,7 @@ class ProjectFramework(object):
     def __init__(self,inputs=None,name=None):
         # Instantiate a Framework
         # INPUTS
-        # - inputs: A string (which will load an Excel file from disk
+        # - inputs: A string (which will load an Excel file from disk) or an AtomicaSpreadsheet
         # - A dict of sheets, which will just set the sheets attribute
         # - None, which will set the sheets to an empty dict ready for content
 
@@ -33,37 +33,38 @@ class ProjectFramework(object):
         self.created = sc.today()
         self.modified = sc.today()
 
+        self.name = name
+        self.sheets = sc.odict()
+
         # Load Framework from disk
         if isinstance(inputs,string_types):
             spreadsheet = AtomicaSpreadsheet(inputs)
-            workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
-            self.sheets = sc.odict()
-
-            for worksheet in workbook.worksheets:
-                tables = read_tables(worksheet)  # Read the tables
-                self.sheets[worksheet.title] = list()
-                for table in tables:
-                    # Get a dataframe
-                    df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
-                    df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-                    df.columns = df.iloc[0]
-                    df = df[1:]
-                    self.sheets[worksheet.title].append(df)
-
-                # For convenience, if there is only one table (which is the case for most of the sheets) then
-                # don't store it as a list. So there will only be a list of DataFrames if there was more than
-                # one table on the page (e.g. for cascades)
-                if len(self.sheets[worksheet.title]) == 1:
-                    self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
-
-            self._validate()
-
-        elif isinstance(inputs,dict):
-            self.sheets = inputs
+        elif isinstance(inputs,AtomicaSpreadsheet):
+            spreadsheet = inputs
         else:
-            self.sheets = sc.odict()
+            return
 
-        self.name = name
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        self.sheets = sc.odict()
+
+        for worksheet in workbook.worksheets:
+            tables = read_tables(worksheet)  # Read the tables
+            self.sheets[worksheet.title] = list()
+            for table in tables:
+                # Get a dataframe
+                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
+                df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
+                df.columns = df.iloc[0]
+                df = df[1:]
+                self.sheets[worksheet.title].append(df)
+
+            # For convenience, if there is only one table (which is the case for most of the sheets) then
+            # don't store it as a list. So there will only be a list of DataFrames if there was more than
+            # one table on the page (e.g. for cascades)
+            if len(self.sheets[worksheet.title]) == 1:
+                self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
+
+        self._validate()
 
     def to_spreadsheet(self):
         raise NotImplementedError()
