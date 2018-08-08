@@ -292,15 +292,17 @@ Last update: 2018-08-07
 
       uploadFrameworkFromFile() {
         console.log('uploadFrameworkFromFile() called')
-        rpcservice.rpcUploadCall('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
-        .then(response => {
-          status.start(this) // Start indicating progress.
-          this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
-          status.succeed(this, 'Framework uploaded')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not upload the framework: ' + error.message)
-        })        
+          rpcservice.rpcUploadCall('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
+          .then(response => {
+            status.start(this) // Start indicating progress.
+            this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
+            status.succeed(this, 'Framework uploaded')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not upload the framework: ' + error.message)
+          })
+          .finally(response => {
+          })
       },
 
       frameworkIsActive(uid) {
