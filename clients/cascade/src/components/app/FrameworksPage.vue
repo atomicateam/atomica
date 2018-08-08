@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-07-29
+Last update: 2018-08-07
 -->
 
 <template>
@@ -71,7 +71,6 @@ Last update: 2018-07-29
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
           </th>
-          <th>Framework book</th>
         </tr>
         </thead>
         <tbody>
@@ -105,14 +104,6 @@ Last update: 2018-07-29
           <td>{{ frameworkSummary.framework.creationTime.toUTCString() }}</td>
           <td>{{ frameworkSummary.framework.updatedTime ? frameworkSummary.framework.updatedTime.toUTCString():
             'No modification' }}</td>
-          <td>
-            <button class="btn __blue" @click="uploadFrameworkbook(frameworkSummary.framework.id)" data-tooltip="Upload">
-              <i class="ti-upload"></i>
-            </button>
-            <button class="btn" @click="downloadFrameworkbook(frameworkSummary.framework.id)" data-tooltip="Download">
-              <i class="ti-download"></i>
-            </button>
-          </td>
         </tr>
         </tbody>
       </table>
@@ -477,21 +468,6 @@ Last update: 2018-07-29
         })             
       },
 
-      downloadFrameworkbook(uid) {
-        this.$notifications.notify({
-          message: 'This is not yet implemented, please check back soon.',
-          icon: 'ti-face-sad',
-          type: 'warning',
-          verticalAlign: 'top',
-          horizontalAlign: 'center',
-        });
-
-//        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
-//        console.log('downloadDatabook() called for ' + matchFramework.framework.name)
-//        rpcservice.rpcDownloadCall('download_databook', [uid]) // Make the server call to download the framework to a .prj file.
-      },
-
-
       downloadDefaults(uid) {
         // Find the framework that matches the UID passed in.
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
@@ -500,58 +476,6 @@ Last update: 2018-07-29
 
         // Make the server call to download the framework to a .prj file.
         rpcservice.rpcDownloadCall('download_defaults', [uid])
-      },
-
-      uploadFrameworkbook(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
-        console.log('uploadFrameworkbook() called for ' + matchFramework.framework.name)
-
-        // Have the server copy the framework, giving it a new name.
-        rpcservice.rpcUploadCall('upload_frameworkbook', [uid], {})
-        .then(response => {
-          // Bring up a spinner.
-          this.$modal.show('popup-spinner')
-        
-          // Start the loading bar.  (This is here because we don't want the 
-          // progress bar running when the user is picking a file to upload.)
-          this.$Progress.start()          
-          
-          // Update the framework summaries so the copied program shows up on the list.
-          this.updateFrameworkSummaries()
-          
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Finish the loading bar.
-          this.$Progress.finish()
-          
-          // Success popup.
-          this.$notifications.notify({
-            message: 'Data uploaded to framework "'+matchFramework.framework.name+'"',
-            icon: 'ti-check',
-            type: 'success',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })          
-        })
-        .catch(error => {
-          // Dispel the spinner.
-          this.$modal.hide('popup-spinner')
-          
-          // Fail the loading bar.
-          this.$Progress.fail()
-        
-          // Failure popup.
-          this.$notifications.notify({
-            message: 'Could not upload framework data',
-            icon: 'ti-face-sad',
-            type: 'warning',
-            verticalAlign: 'top',
-            horizontalAlign: 'center',
-          })      
-        })
       },
 
       // Confirmation alert
