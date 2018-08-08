@@ -512,10 +512,15 @@ Last update: 2018-08-08
 
       exportResults(project_id) {
         console.log('exportResults() called')
+        status.start(this)
         rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        .then(response => {
+          // Indicate success.
+          status.succeed(this, '')  // No green popup message.        
+        })      
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not export results')    
+          // Failure.
+          status.fail(this, 'Could not export results')    
         })         
       },
 
