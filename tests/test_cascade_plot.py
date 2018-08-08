@@ -7,9 +7,9 @@ test = 'udt'
 
 torun = [
 #"basicplots",
-"scenplots",
+#"scenplots",
 #"cascadefromscratch",
-#'mpld3test'
+'mpld3test'
 ]
 
 # Load a framework and project to get a Result
@@ -90,7 +90,10 @@ if "cascadefromscratch" in torun:
 
 if 'mpld3test' in torun:
     P = au.demo()
-    au.plot_cascade(P.result(),cascade='main',pops='all',year=2030,data=P.data)
+    Q = au.demo()
+    P.result().name = 'Example result 1'
+    Q.result().name = 'Example result 2'
+    au.plot_multi_cascade([P.result(), Q.result()],cascade='main',pops='all',year=2030,data=P.data)
     
     as_mpld3 = True
     if as_mpld3:
