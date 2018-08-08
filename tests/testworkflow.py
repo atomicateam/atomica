@@ -12,10 +12,11 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-# test = "sir"
+#test = "sir"
 #test = "tb"
+test = "hypertension"
 #test = "udt"
-test = "usdt"
+#test = "usdt"
 #test = "hiv"
 #test = "diabetes"
 #test = "service"
@@ -32,8 +33,8 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-# "loadprogramspreadsheet",
-# "runsim_programs",
+"testprograms",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -85,6 +86,7 @@ if "makedatabook" in torun:
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test == "hypertension": args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -107,7 +109,7 @@ if "runsim" in torun:
     elif test=='diabetes':
         print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv']:
+    elif test in ['udt','hiv','usdt','hypertension']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     elif test in ['sir']:
         P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
@@ -119,6 +121,7 @@ if "runsim" in torun:
 
 if 'plotcascade' in torun:
     au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
     if forceshow: pl.show()
     
     # Browser test
@@ -144,19 +147,15 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=5)
 
 
-if "loadprogramspreadsheet" in torun:
+if "testprograms" in torun:
     if test in ['diabetes','service']:
         print('\n\n\nLoading program spreadsheet not yet implemented for TB, diabetes or service examples.')
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
-        P = au.demo(which=test,do_plot=0)
-        filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test in ['sir','tb','udt','usdt','hiv'] else True
-        P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
+        P = au.demo(which=test,do_plot=0) # Note, the demo automatically load the program book
 
-        P.progsets[0].programs[0].get_spend(year=2015)
-
+        # Simple tests for TB and SIR to see if programs are working as expected
         if test =="sir":      
 
             # Create a sample dictionary of dummry coverage (%) values to demonstrate how get_outcomes works
@@ -258,6 +257,17 @@ if "runsim_programs" in torun:
 
     elif test == 'usdt':
         scenalloc = {'Screening at pharmacies':  2400000 }
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
+
+        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+
+    elif test == 'hypertension':
+        scenalloc = {'Screening - urban':  30000 }
     
         bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
