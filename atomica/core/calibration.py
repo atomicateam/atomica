@@ -1,6 +1,7 @@
 import numpy as np
 import sciris.core as sc
 from .interpolation import interpolate_func
+from .model import BadInitialization
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()
@@ -41,7 +42,10 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
     update_parset(parset, y_factors, pars_to_adjust)
 
-    result = project.run_sim(parset=parset, store_results=False)
+    try:
+        result = project.run_sim(parset=parset, store_results=False)
+    except BadInitialization: # If the proposed parameters lead to invalid initial compartment sizes
+        return np.inf
 
     objective = 0.0
 
