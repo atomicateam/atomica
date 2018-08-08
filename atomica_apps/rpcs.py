@@ -446,7 +446,7 @@ def download_framework(framework_id):
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.frw' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    fileio.object_to_gzip_string_pickle_file(full_file_name, frame) # Write the object to a Gzip string pickle file.
+    frame.save(full_file_name) # Write the object to a Gzip string pickle file.
     print(">> download_framework %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
