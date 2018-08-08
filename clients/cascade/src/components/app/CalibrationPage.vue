@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-07
+Last update: 2018-08-08
 -->
 
 <template>
@@ -296,6 +296,15 @@ Last update: 2018-08-07
       onSpinnerCancel() {
         console.log('The user has canceled a spinner!')
       },
+      
+      clipValidateYearInput() {
+        if (this.endYear > this.active_sim_end) {
+          this.endYear = this.active_sim_end
+        }
+        else if (this.endYear < this.active_sim_start) {
+          this.endYear = this.active_sim_start
+        }
+      },
 
       sleep(time) {
         // Return a promise that resolves after _time_ milliseconds.
@@ -392,6 +401,9 @@ Last update: 2018-08-07
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         
+        // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()
+        
         // Start indicating progress.
         status.start(this)
         
@@ -435,6 +447,9 @@ Last update: 2018-08-07
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
+        
+        // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()
         
         // Start indicating progress.
         status.start(this)
