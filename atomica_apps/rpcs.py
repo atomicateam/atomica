@@ -444,7 +444,7 @@ def download_framework(framework_id):
     """
     frame = load_framework(framework_id, raise_exception=True) # Load the framework with the matching UID.
     dirname = fileio.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s.frw' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
+    file_name = '%s.xlsx' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     frame.save(full_file_name) # Write the object to a Gzip string pickle file.
     print(">> download_framework %s" % (full_file_name)) # Display the call information.
