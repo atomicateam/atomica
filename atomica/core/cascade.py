@@ -16,15 +16,12 @@ def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None):
     year    = sc.promotetolist(year)
     results = sc.promotetolist(results)
     if len(year)>1 or len(results)>1:
-        fig = plot_multi_cascade(result=results, cascade=cascade, pops=pops, year=year, data=data)
+        fig = plot_multi_cascade(results=results, cascade=cascade, pops=pops, year=year, data=data)
     else:
         fig = plot_single_cascade(result=results[0], cascade=cascade, pops=pops, year=year, data=data)
     return fig
 
 def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
-    
-    # Sanitize input
-    if isinstance(result, list): result = result[0]
     
     # Sanitize cascade input
     if cascade is None: cascade = result.framework.cascades.keys()[0]
@@ -33,8 +30,11 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     if pops is None: pops = 'all'
     
     # Sanitize year
-    if year is None: year = result.t[0] # Draw cascade for first year
-    else:            year = sc.promotetoarray(year)
+    if year is None:
+        if isinstance(result, list): result = result[0]# Sanitize input -- if needed
+        year = result.t[0] # Draw cascade for first year
+    else:
+        year = sc.promotetoarray(year)
     
     return cascade, pops, year
 

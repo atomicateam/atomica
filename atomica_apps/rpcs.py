@@ -908,7 +908,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, plot_type=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, tool=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -934,8 +934,8 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    if plot_type in ['cascade', 'multi_cascade']:
-        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year), plot_type=plot_type)
+    if tool == 'cascade':
+        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year))
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
@@ -1058,7 +1058,6 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
-
             if isinstance(output.values()[0],list):
                 plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
             else:
@@ -1098,7 +1097,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, plot_type=None, cascade='main'):
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     graphs = []
     years = sc.promotetolist(year)
     for y in range(len(years)):
@@ -1391,14 +1390,14 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id, plot_options, saveresults=False, plot_type=None):
+def run_scenarios(project_id, plot_options, saveresults=False, tool=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
-    if plot_type == 'multi_cascade':
+    if tool == 'cascade': # For Cascade Tool
         print('WARNING, YEAR HARDCODED')
-        output = get_cascade_plot(proj, results, year=2021, plot_type=plot_type)
-    else:
+        output = get_cascade_plot(proj, results, year=2021)
+    else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     if saveresults:
         print('Saving project...')
