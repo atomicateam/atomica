@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-07-31
+Last update: 2018-08-08
 -->
 
 <template>
@@ -279,6 +279,7 @@ Last update: 2018-07-31
       } else if (this.$store.state.activeProject.project != undefined) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
+        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
         this.viewTable()
         this.getPlotOptions()
         this.updateParset()
@@ -294,6 +295,15 @@ Last update: 2018-07-31
       
       onSpinnerCancel() {
         console.log('The user has canceled a spinner!')
+      },
+      
+      clipValidateYearInput() {
+        if (this.endYear > this.active_sim_end) {
+          this.endYear = this.active_sim_end
+        }
+        else if (this.endYear < this.active_sim_start) {
+          this.endYear = this.active_sim_start
+        }
       },
 
       sleep(time) {
@@ -391,6 +401,9 @@ Last update: 2018-07-31
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         
+        // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()
+        
         // Start indicating progress.
         status.start(this)
         
@@ -434,6 +447,9 @@ Last update: 2018-07-31
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
+        
+        // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()
         
         // Start indicating progress.
         status.start(this)
