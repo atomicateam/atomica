@@ -72,7 +72,7 @@ Last update: 2018-08-08
               </span>
             </th>
             <th style="text-align:center">Framework</th>
-            <th style="text-align:center">Populations</th>
+            <!--<th style="text-align:center">Populations</th>-->
             <th style="text-align:center">Databook</th>
             <th style="text-align:center">Program book</th>
           </tr>
@@ -111,15 +111,15 @@ Last update: 2018-08-08
             <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
-            <td style="text-align:center">
+            <td style="text-align:right">
               {{ projectSummary.project.framework }}
               <button class="btn" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td style="text-align:center">
-              {{ projectSummary.project.n_pops }}
-            </td>
+            <!--<td style="text-align:center">-->
+              <!--{{ projectSummary.project.n_pops }}-->
+            <!--</td>-->
             <td style="text-align:center">
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
