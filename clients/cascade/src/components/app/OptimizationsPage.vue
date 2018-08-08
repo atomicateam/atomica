@@ -47,9 +47,20 @@ Last update: 2018-08-08
       </div>
 
 
-      <div>
-        <div v-for="index in placeholders" :id="'fig'+index" style="width:650px; float:left;">
-          <!--mpld3 content goes here-->
+      <div class="calib-figures">
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index">
+            <!--mpld3 content goes here-->
+          </div>
+        </div>
+        <div class="calib-tables" v-if="table">
+          <span>Losses</span>
+          <table>
+            <tr v-for="(label, index) in table.labels">
+              <td>{{label}}</td>
+              <td v-for="text in table.text[index]">{{text}}</td>
+            </tr>
+          </table>
         </div>
       </div>
 
@@ -221,6 +232,7 @@ Last update: 2018-08-08
         graphData: [],
         areShowingPlots: false,
         plotOptions: [],
+        table: null,
       }
     },
 
@@ -534,6 +546,7 @@ Last update: 2018-08-08
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
 //                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+            this.table = response.data.result.table
             this.graphData = response.data.result.graphs // Pull out the response data (use with task).
             var n_plots = this.graphData.length
             console.log('Rendering ' + n_plots + ' graphs')
@@ -617,4 +630,38 @@ Last update: 2018-08-08
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+  .calib-graphs {
+    display: flex;
+    flex-wrap: wrap;
+    & > * {
+      flex: 0 0 650px;
+    }
+  }
+
+  /*
+  HACK: The purpose of this code is to get things to line up a bit until
+  we have a proper layout. Using fixed pixel widths is terrible and we
+  shouldn't do it in other places.
+  */
+  .calib-tables span {
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
+    color: black; /* To match graph */
+    font-family: Helvetica, sans-serif; /* To match graph */
+  }
+  .calib-tables table, .calib-tables tr, .calib-tables td {
+    border: 2px solid #ddd;
+  }
+  .calib-tables table td {
+    width: 96px;
+    padding: 0.5rem;
+    text-align: right;
+  }
+  .calib-tables table td:nth-child(1) {
+    width: 192px; /* Header column */
+    padding-right: 11px;
+  }
 </style>
