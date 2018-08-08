@@ -33,8 +33,8 @@ torun = [
 "runsim",
 "plotcascade",
 #"makeprogramspreadsheet",
-"loadprogramspreadsheet",
-"runsim_programs",
+#"loadprogramspreadsheet",
+#"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -119,7 +119,8 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017, data=P.data)
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
     if forceshow: pl.show()
     
     # Browser test
