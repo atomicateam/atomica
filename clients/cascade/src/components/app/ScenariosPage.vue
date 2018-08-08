@@ -38,14 +38,37 @@ Last update: 2018-08-08
       <div>
         <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
+        &nbsp;&nbsp;&nbsp;
         <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+        &nbsp;&nbsp;&nbsp;
         <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        &nbsp;&nbsp;&nbsp;
+        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
         <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
           <!--<span v-if="areShowingPlots">Hide</span>-->
           <!--<span v-else>Show</span>-->
           <!--plot controls-->
         <!--</button>-->
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <!--<b>Start year: &nbsp;</b>-->
+          <!--<input type="text"-->
+          <!--class="txbox"-->
+          <!--v-model="startYear"-->
+          <!--style="display: inline-block; width:70px"/>-->
+          <!--&nbsp;&nbsp;&nbsp;-->
+          <b>Year: &nbsp;</b>
+          <input type="text"
+                 class="txbox"
+                 v-model="endYear"
+                 style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+
+        </div>
+
       </div>
+
+
 
 
 
@@ -199,6 +222,7 @@ Last update: 2018-08-08
         plotOptions: [],
         scenariosLoaded: false,
         table: null,
+        endYear: 2018, // TEMP FOR DEMO
       }
     },
 
