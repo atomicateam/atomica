@@ -103,7 +103,6 @@ def load_progbook(spreadsheet, blh_effects=False, verbose=False):
                 if cell_val!='': colindices.append(col-1)
 
         if row==1:
-#            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             data['pops'] = thesedata[3:colindices[1]-2]
             data['comps'] = thesedata[colindices[1]-1:]
 
