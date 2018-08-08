@@ -112,6 +112,7 @@ Last update: 2018-08-07
             <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
               'No modification' }}</td>
             <td style="text-align:center">
+              {{ projectSummary.project.framework }}
               <button class="btn" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
