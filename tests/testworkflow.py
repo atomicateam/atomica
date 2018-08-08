@@ -28,13 +28,13 @@ torun = [
 "loadframework",
 "makedatabook",
 "makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"plotcascade",
+"loaddatabook",
+"makeparset",
+"runsim",
+"plotcascade",
 #"makeprogramspreadsheet",
-#"loadprogramspreadsheet",
-#"runsim_programs",
+"loadprogramspreadsheet",
+"runsim_programs",
 #"makeplots",
 #"export",
 #"listspecs", # NOTE, THIS TEST SEEMS TO BE DEPRECATED - ROMESH, PLEASE CHECK?
@@ -110,7 +110,7 @@ if "runsim" in torun:
     elif test=='diabetes':
         print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv']:
+    elif test in ['udt','hiv','usdt','hypertension']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     else:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
@@ -119,7 +119,7 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2017, data=P.data)
     if forceshow: pl.show()
     
     # Browser test
@@ -153,9 +153,6 @@ if "loadprogramspreadsheet" in torun:
     
         P = au.demo(which=test,do_plot=0)
         filename = "databooks/progbook_"+test+".xlsx"
-        blh_effects = False if test in ['tb','udt','usdt','hiv'] else True
-        P.load_progbook(progbook_path=filename, make_default_progset=True, blh_effects=blh_effects)
-
         P.progsets[0].programs[0].get_spend(year=2015)
 
         if test =="sir":      
@@ -259,6 +256,17 @@ if "runsim_programs" in torun:
 
     elif test == 'usdt':
         scenalloc = {'Screening at pharmacies':  2400000 }
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
+
+        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+
+    elif test == 'hypertension':
+        scenalloc = {'Screening - urban':  30000 }
     
         bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
