@@ -383,10 +383,10 @@ Last update: 2018-08-07
         rpcservice.rpcCall('copy_framework', [uid]) // Have the server copy the framework, giving it a new name.
         .then(response => {
           this.updateFrameworkSummaries() // Update the framework summaries so the copied program shows up on the list.
-          status.succeed('Framework "'+matchFramework.framework.name+'" copied')
+          status.succeed(this, 'Framework "'+matchFramework.framework.name+'" copied')
         })
         .catch(error => {
-          status.fail('Could not copy framework:' + error.message)
+          status.fail(this, 'Could not copy framework:' + error.message)
         })       
       },
 

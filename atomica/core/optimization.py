@@ -445,8 +445,17 @@ class OptimInstructions(NamedItem):
         # Add all of the terms in the objective
         measurables = []
         for mname,mweight in objective_weights.items():
-            measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
-    
+            print('HIIIII')
+            print mname,mweight
+            if mname == 'finalstage' and mweight:
+                measurables = MaximizeCascadeFinalStage('main',[end_year],pop_names='all')
+                break
+            elif mname == 'conversion' and mweight:
+                measurables = MaximizeCascadeConversionRate('main',[end_year],pop_names='all')
+                break
+            else:
+                measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
+                
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
         
@@ -471,6 +480,7 @@ class Optimization(NamedItem):
 
         assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
         assert measurables is not None, 'Must specify some measurables to carry out an optimization'
+        print('warning, replace with promotetolist()')
         self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
         self.measurables = [measurables] if not isinstance(measurables,list) else measurables
 
