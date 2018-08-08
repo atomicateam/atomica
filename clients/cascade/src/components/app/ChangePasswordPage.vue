@@ -5,7 +5,7 @@ Last update: 2018-03-25
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <form name="ChangePasswordForm" @submit.prevent="tryChangePassword" style="max-width: 300px; min-width: 100px; margin: 0 0">
 
