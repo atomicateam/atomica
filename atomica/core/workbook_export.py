@@ -21,8 +21,8 @@ class AtomicaFormats:
     GENERAL = 'general'
     OPTIONAL = 'optional'
 
-    def write_block_name(self, sheet, name, row):
-        sheet.write(row, 0, name, self.formats['bold'])
+#    def write_block_name(self, sheet, name, row):
+#        sheet.write(row, 0, name, self.formats['bold'])
 
     def write_rowcol_name(self, sheet, row, col, name, align='right', wrap='T'):
         sheet.write(row, col, name, self.formats['rc_title'][align][wrap])
@@ -103,23 +103,29 @@ class TitledRange(object):
     def num_rows(self):
         return self.data_range.num_rows + 2
 
-    def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+    def emit(self, content_rules, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
         """ Emits the range and returns the new current row in the given sheet """
         # top-top headers
-        formats.write_block_name(self.sheet, self.content.name, self.first_row)
+        
+#        def write_block_name(self, sheet, name, row):
+#            sheet.write(row, 0, name, self.formats['bold'])
+
+        self.sheet.write(self.first_row, 0, self.content.name, formats['bold'])
+        
+#        formats.write_block_name(self.sheet, self.content.name, self.first_row)
 
         if self.content.assumption and self.first_row == 0 and self.content.assumption_properties['title'] is not None:
-            formats.write_rowcol_name(sheet=self.sheet, row=self.first_row, col=self.data_range.last_col + 2,
+            content_rules.write_rowcol_name(sheet=self.sheet, row=self.first_row, col=self.data_range.last_col + 2,
                                       name=self.content.assumption_properties['title'], align='left', wrap='F')
 
         # headers
         for i, name in enumerate(self.content.column_names):
-            formats.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
+            content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
                                       rc_title_align, )
 
         if self.content.assumption:
             for index, col_name in enumerate(self.content.assumption_properties['columns']):
-                formats.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.last_col + 2 + index,
+                content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.last_col + 2 + index,
                                           col_name)
 
         current_row = self.data_range.first_row
@@ -131,13 +137,13 @@ class TitledRange(object):
             start_col = self.data_range.first_col - len(names)
             # emit row name(s)
             for n, name in enumerate(names):
-                formats.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align, wrap='F')
+                content_rules.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align, wrap='F')
             # emit data if present
             savedata = False
             if self.content.data is not None:
                 try:
                     for j, item in enumerate(self.content.data[i]):
-                        formats.write_unlocked(self.sheet, current_row, self.data_range.first_col + j, item, row_format)
+                        content_rules.write_unlocked(self.sheet, current_row, self.data_range.first_col + j, item, row_format)
                     savedata = True  # It saved successfully
                 except:
                     errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content.name, self.content.data)
@@ -145,10 +151,10 @@ class TitledRange(object):
                     savedata = False
             if not savedata:
                 for j in range(self.data_range.num_cols):
-                    formats.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
+                    content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
             # emit assumption
             if self.content.assumption:
-                formats.write_option(self.sheet, current_row, self.data_range.last_col + 1,
+                content_rules.write_option(self.sheet, current_row, self.data_range.last_col + 1,
                                      name=self.content.assumption_properties['connector'])
                 for index, col_name in enumerate(self.content.assumption_properties['columns']):
                     saveassumptiondata = False
@@ -163,7 +169,7 @@ class TitledRange(object):
                                     saveassumptiondata = False
                                 else:  # It has length 1, it's good to go
                                     assumptiondata = assumptiondata[0]  # Just pull out the only element
-                            formats.write_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
+                            content_rules.write_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
                                                    assumptiondata, row_format)
                             saveassumptiondata = True
                         except Exception as E:
@@ -173,7 +179,7 @@ class TitledRange(object):
                             saveassumptiondata = False
                             raise E
                     if not saveassumptiondata:
-                        formats.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
+                        content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
                                                      row_format)
             current_row += 1
             if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
@@ -292,7 +298,7 @@ class ProgramSpreadsheet(object):
                                  data=coded_params,
                                  assumption=False)
         self.prog_range = TitledRange(sheet=sheet, first_row=current_row, content=content)
-        current_row = self.prog_range.emit(self.content_rules, rc_title_align='left')
+        current_row = self.prog_range.emit(self.content_rules, self.formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range
 
     def generate_costcovdata(self):
@@ -312,7 +318,7 @@ class ProgramSpreadsheet(object):
         content.row_levels = row_levels
         the_range = TitledRange(sheet, current_row, content)
         content.get_row_formats()
-        current_row = the_range.emit(self.content_rules)
+        current_row = the_range.emit(self.content_rules, self.formats)
 
     def generate_covoutdata(self):
 
@@ -323,8 +329,8 @@ class ProgramSpreadsheet(object):
         sheet.set_column(2, 2, 12)
         sheet.set_column(3, 3, 12)
         sheet.set_column(4, 4, 12)
-#        sheet.set_column(5, 5, 2)
-        sheet.set_column(4, 4, 2)
+        sheet.set_column(5, 5, 12)
+        sheet.set_column(6, 6, 2)
 
         row_levels = []
         for p in self.pops:
@@ -342,7 +348,7 @@ class ProgramSpreadsheet(object):
 
         content.assumption_properties = assumption_properties
         the_range = TitledRange(sheet, current_row, content)
-        current_row = the_range.emit(self.content_rules, rc_title_align='left')
+        current_row = the_range.emit(self.content_rules, self.formats, rc_title_align='left')
 
 
 def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
