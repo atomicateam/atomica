@@ -70,8 +70,11 @@ class ProjectFramework(object):
             self.name = name
 
     def save(self,fname):
-        # This function saves an Excel file with the spreadsheet
-        self.spreadsheet.save(fname)
+        # This function saves an Excel file with the original spreadsheet
+        if self.spreadsheet is None:
+            raise AtomicaException('Spreadsheet is not present, cannot save Framework as xlsx')
+        else:
+            self.spreadsheet.save(fname)
 
     # The primary data storage in the Framework are DataFrames with the contents of the Excel file
     # The convenience methods below enable easy access of frequency used contents without having

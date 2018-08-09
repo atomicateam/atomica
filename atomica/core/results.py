@@ -48,6 +48,10 @@ class Result(NamedItem):
     def t_observed_data(self):
         return self.t[self.indices_observed_data]
 
+    @property
+    def pop_labels(self):
+        return [x.label for x in self.model.pops]
+
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have
     # different contents
@@ -94,6 +98,11 @@ class Result(NamedItem):
         from .plotting import PlotData
         from .cascade import get_cascade_vals
 
+        pop_names = sc.odict()
+        pop_names['all'] = 'Entire population'
+        for pop_name,pop_label in zip(self.pop_names,self.pop_labels):
+            pop_names[pop_name] = pop_label
+
         new_tvals = np.arange(np.ceil(self.t[0]), np.floor(self.t[-1]) + 1)
 
         if 'Plots' not in self.framework.sheets:
@@ -112,23 +121,23 @@ class Result(NamedItem):
                 assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
                 popdata.interpolate(new_tvals)
                 for pop in popdata.pops:
-                    data[pop] = popdata[self.name,pop,popdata.outputs[0]].vals
+                    data[pop_names[pop]] = popdata[self.name,pop,popdata.outputs[0]].vals
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
                 df.name = spec['Display Name']
                 plot_df.append(df)
 
         cascade_df = list()
+
         for name in self.framework.cascades.keys():
-            for pop in ['all'] + self.pop_names:
+            for pop,label in pop_names.items():
                 data = sc.odict()
                 cascade_vals,_ = get_cascade_vals(self,name,pops=pop,year=new_tvals)
                 for stage,vals in cascade_vals.items():
                     data[stage] = vals
-
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
-                df.name = '%s - Population "%s"' % (name,pop)
+                df.name = '%s - %s' % (name,label)
                 cascade_df.append(df)
 
         writer = pd.ExcelWriter(filename + '.xlsx' if not filename.endswith('.xlsx') else filename,engine='xlsxwriter')

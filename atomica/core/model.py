@@ -455,9 +455,11 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name='default'):
+    def __init__(self, framework, name, label):
 
-        self.name = name
+        self.name = name # This is the code name
+        self.label = label # This is the full name
+
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
         # List of characteristics and output parameters.
         # Dependencies computed during integration, pure outputs added after.
@@ -784,6 +786,7 @@ class Model(object):
         self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
 
         self.framework = sc.dcp(framework) # Store a copy of the Framework used to generate this model
+        self.framework.spreadsheet = None # No need to keep the spreadsheet
         self.build(settings, parset)
 
     def unlink(self):
@@ -888,9 +891,8 @@ class Model(object):
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
-        for k, pop_name in enumerate(parset.pop_names):
-            self.pops.append(Population(framework=self.framework, name=pop_name))
-            # TODO: Update preallocate case.
+        for k, (pop_name,pop_label) in enumerate(zip(parset.pop_names,parset.pop_labels)):
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label))
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
             self.pop_ids[pop_name] = k
