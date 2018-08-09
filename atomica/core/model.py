@@ -115,35 +115,37 @@ class Compartment(Variable):
         if ti is None:
             ti = np.arange(0, len(self.t))
 
-        outflow_probability = 0
+        outflow_probability = 0 # Outflow probability at this timestep
         for link in self.outlinks:
-            if link.parameter.units == 'fraction':
+
+            if link.parameter.units == FS.QUANTITY_TYPE_DURATION:
+                x = 1.0 - np.exp(-1.0 / link.parameter.vals[ti])
                 outflow_probability += 1 - (1 - link.parameter.vals[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
-            elif link.parameter.units == 'number':
+            elif link.parameter.units == FS.QUANTITY_TYPE_PROBABILITY:
+                outflow_probability += 1 - (1 - link.parameter.vals[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
+            elif link.parameter.units == FS.QUANTITY_TYPE_NUMBER:
                 outflow_probability += link.parameter.vals[ti] * self.dt / self.vals[ti]
+            elif link.parameter.units == FS.QUANTITY_TYPE_PROPORTION:
+                outflow_probability += link.parameter.vals[ti]
             else:
                 raise AtomicaInputError('Unknown parameter units')
 
-        # remain_probability = 1 - outflow_probability
+        remain_probability = 1 - outflow_probability
 
-        dur = np.zeros(outflow_probability.shape)
-        # From OSL/HMM-MAR:
-        # Given a transition probability, what is the expected lifetime in units of steps?
-        # This can be determined using a symbolic integration, below
-        # syms k_step p;
-        # assume(p>0);
-        # f =(k_step)*p^k_step*(1-p); # (probability that state lasts k *more* steps, multiplied by lifetime which is k)
-        # fa = 1+int(f,k_step,0,inf); # Add 1 to the lifetime because all states last at least 1 sample
-        # f = @(x) double(subs(fa,p,x));
-        #
-        # However, the result of the symbolic integration contains a limit which is
-        # zero unless p=1, but p=1 is not needed because we know it means the compartment immediately empties.
-        # So instead of the function above, can instead drop the limit term and write the rest of the
-        # expression out which gives identical results from p=0.00001 to p=0.99 (note that if dirichletdiag>=1)
-        # then the upper bound on the transition probability is p=0.5 anyway for K=2
-        dur[dur < 1] = (1 - (1. / np.log(remain_probability[dur < 1]) ** 2) *
-                        (remain_probability[dur < 1] - 1)) * self.dt
+        # This is the algorithm - we calculate the probability of leaving after a specific number of time steps, and then
+        # take the expectation value. The example below shows a discrete numerical calculation as well as a closed-form
+        # approximation which is what actually gets used
+        # remain_probability = 0.99
+        # x = np.arange(0,1000)
+        # y = (remain_probability**x)*(1-remain_probability)
+        # numerical = np.sum((x+1) * y) * self.dt # x+1 because if we leave at the first timestep, we are considered to have stayed for dt units of time
+        # analytic = (1 - (1. / np.log(remain_probability) ** 2) * (remain_probability - 1)) * self.dt
+        # print('numerical=%.2f, analytic=%.2f' % (numerical,analytic))
+
+        dur = (1 - (1. / np.log(remain_probability) ** 2) * (remain_probability - 1)) * self.dt
         return dur
+
+
 
     def expected_outflow(self, ti):
         # After 1 year, where are people expected to be? If people would leave in less than a year,
