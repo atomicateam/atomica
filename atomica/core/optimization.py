@@ -445,8 +445,7 @@ class OptimInstructions(NamedItem):
         # Add all of the terms in the objective
         measurables = []
         for mname,mweight in objective_weights.items():
-            print('HIIIII')
-            print mname,mweight
+
             if mname == 'finalstage' and mweight:
                 measurables = MaximizeCascadeFinalStage('main',[end_year],pop_names='all')
                 break
