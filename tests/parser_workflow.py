@@ -11,7 +11,7 @@ if ipython is not None:
 from atomica.plotting import PlotData,plot_series,plot_bars
 from copy import deepcopy as dcp
 
-import atomica.ui as aui
+import atomica.ui as au
 import os
 from atomica.scenarios import ParameterScenario
 from atomica.calibration import perform_autofit
@@ -21,8 +21,8 @@ plot_initial = True
 test = "sir"
 tmpdir = "." + os.sep + "temp" + os.sep
 
-F = aui.ProjectFramework.load(tmpdir+test+".frw")
-P = aui.Project(name=test.upper()+" project", framework=F,do_run=False)
+F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
+P = au.Project(name=test.upper()+" project", framework=F,do_run=False)
 P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=True, do_run=False)
 
 P.copy_parset('default','increased_foi_yfactor')

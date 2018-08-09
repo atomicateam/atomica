@@ -463,7 +463,9 @@ class ProgramSet(NamedItem):
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
-        
+        if self._covout_valid_cache is None:
+            self.prepare_cache()
+
         # Initialise output
         outcomes = odict()
 

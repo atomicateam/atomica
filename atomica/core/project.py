@@ -34,7 +34,7 @@ from .parameters import ParameterSet
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
 from .optimization import optimize, OptimInstructions
-from .system import SystemSettings as SS, AtomicaException, logger
+from .system import AtomicaException, logger
 from .workbook_export import make_progbook
 from .workbook_import import load_progbook
 from .scenarios import BudgetScenario
@@ -511,15 +511,16 @@ class Project(object):
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
-        filepath = sc.makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT,
-                                sanitize=True)  # Enforce file extension.
+        filepath = sc.makefilepath(filename=filepath, ext='prj',sanitize=True)  # Enforce file extension.
         sc.saveobj(filepath, self)
         return None
 
-    @classmethod
-    def load(cls, filepath):
+    @staticmethod
+    def load(filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
-        return sc.loadobj(filepath)
+        P = sc.loadobj(filepath)
+        assert isinstance(P,Project)
+        return P
 
     def demo_scenarios(self, dorun=False, doadd=True):
         json1 = sc.odict()
