@@ -6,72 +6,7 @@ from .excel import AtomicaSpreadsheet, standard_formats
 import io
 
 
-# %% COMPLETELY INDEPENDENT CODE TO MAKE A SPREADSHEET FOR PROGRAMS.
-# TODO: reconcile these!!!
-
 class AtomicaFormats:
-    """ the formats used in the spreadsheet """
-    darkgray = '#413839'
-    originalblue = '#18C1FF'
-    optionalorange = '#FFA500'
-    BG_COLOR = originalblue
-    OPT_COLOR = optionalorange
-    BORDER_COLOR = 'white'
-
-    PERCENTAGE = 'percentage'
-    RATE = 'rate'
-    DECIMAL = 'decimal'
-    SCIENTIFIC = 'scientific'
-    NUMBER = 'number'
-    GENERAL = 'general'
-    OPTIONAL = 'optional'
-
-    def __init__(self, book):
-        self.formats = {}
-        self.book = book
-        # locked formats
-        self.formats['bold'] = self.book.add_format({'bold': 1})
-        self.formats['center'] = self.book.add_format({'align': 'center'})
-        self.formats['center_bold'] = self.book.add_format({'bold': 1, 'align': 'center'})
-        self.formats['rc_title'] = {}
-        self.formats['rc_title']['right'] = {}
-        self.formats['rc_title']['right']['T'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap': True})
-        self.formats['rc_title']['right']['F'] = self.book.add_format({'bold': 1, 'align': 'right', 'text_wrap': False})
-        self.formats['rc_title']['left'] = {}
-        self.formats['rc_title']['left']['T'] = self.book.add_format({'bold': 1, 'align': 'left', 'text_wrap': True})
-        self.formats['rc_title']['left']['F'] = self.book.add_format({'bold': 1, 'align': 'left', 'text_wrap': False})
-        # unlocked formats
-        self.formats['unlocked'] = self.book.add_format({'locked': 0, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-                                                         'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['percentage'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x09, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['rate'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x09, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['decimal'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x0a, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['scientific'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x0b, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['number'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x04, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['general'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x00, 'bg_color': AtomicaFormats.BG_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['optional'] = self.book.add_format(
-            {'locked': 0, 'num_format': 0x00, 'bg_color': AtomicaFormats.OPT_COLOR, 'border': 1,
-             'border_color': AtomicaFormats.BORDER_COLOR})
-        self.formats['info_header'] = self.book.add_format(
-            {'align': 'center', 'valign': 'vcenter', 'color': '#D5AA1D', 'fg_color': '#0E0655', 'font_size': 20})
-        self.formats['grey'] = self.book.add_format({'fg_color': '#EEEEEE', 'text_wrap': True})
-        self.formats['orange'] = self.book.add_format({'fg_color': '#FFC65E', 'text_wrap': True})
-        self.formats['info_url'] = self.book.add_format(
-            {'fg_color': '#EEEEEE', 'text_wrap': True, 'color': 'blue', 'align': 'center'})
-        self.formats['grey_bold'] = self.book.add_format({'fg_color': '#EEEEEE', 'bold': True})
-        self.formats['merge_format'] = self.book.add_format({'bold': 1, 'align': 'center', 'text_wrap': True})
 
     def write_block_name(self, sheet, name, row):
         sheet.write(row, 0, name, self.formats['bold'])
@@ -373,7 +308,7 @@ class ProgramSpreadsheet(object):
         sheet.set_column(1, 1, 30)
         sheet.set_column(2, 2, 12)
         sheet.set_column(3, 3, 12)
-#        sheet.set_column(4, 4, 12)
+        sheet.set_column(4, 4, 12)
 #        sheet.set_column(5, 5, 2)
         sheet.set_column(4, 4, 2)
 
@@ -383,7 +318,7 @@ class ProgramSpreadsheet(object):
                 row_levels.extend([p + ': best', p + ': low', p + ': high'])
             else: row_levels.extend([p])
         content = AtomicaContent(row_names=self.pars,
-                                 column_names=['Value if none of the programs listed here are targeting this parameter'])
+                                 column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'])
         content.row_format = AtomicaFormats.GENERAL
         content.row_levels = row_levels
 
