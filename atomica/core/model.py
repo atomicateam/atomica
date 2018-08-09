@@ -774,7 +774,6 @@ class Model(object):
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()
-        self.par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
         self.program_instructions = sc.dcp(program_instructions) # program instructions
@@ -785,6 +784,7 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None
+        self._par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
 
         self.framework = sc.dcp(framework) # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None # No need to keep the spreadsheet
@@ -1203,7 +1203,7 @@ class Model(object):
             # Compute the updated program values
             prog_vals = self.progset.get_outcomes(prop_covered)
 
-        for par_name in self.par_list:
+        for par_name in self._par_list:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self._vars_by_pop[par_name]

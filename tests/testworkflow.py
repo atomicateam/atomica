@@ -12,8 +12,8 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-test = "sir"
-# test = "tb"
+# test = "sir"
+test = "tb"
 # test = "hypertension"
 #test = "udt"
 #test = "usdt"
