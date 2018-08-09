@@ -23,7 +23,7 @@ def standard_formats(workbook):
     # for use when writing within the workbook
 
     """ the formats used in the spreadsheet """
-    darkgray = '#413839'
+#    darkgray = '#413839'
     originalblue = '#18C1FF'
     optionalorange = '#FFA500'
     BG_COLOR = originalblue
@@ -257,7 +257,6 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
     values_written = {}
 
     # Write the headers
-    max_length = max([len(x) for x in nodes])
     for i,node in enumerate(nodes):
         worksheet.write_formula(start_row+i+1, 0  , references[node], formats['center_bold'],value=node)
         update_widths(widths,0,node)

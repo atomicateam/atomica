@@ -6,20 +6,12 @@ from .excel import AtomicaSpreadsheet, standard_formats
 import io
 
 
+# %% Classes
 
-
-class AtomicaFormats:
+class ContentRules:
 
     def __init__(self, formats):
         self.formats = formats
-
-    PERCENTAGE = 'percentage'
-    RATE = 'rate'
-    DECIMAL = 'decimal'
-    SCIENTIFIC = 'scientific'
-    NUMBER = 'number'
-    GENERAL = 'general'
-    OPTIONAL = 'optional'
 
     def write_rowcol_name(self, sheet, row, col, name, align='right', wrap='T'):
         sheet.write(row, col, name, self.formats['rc_title'][align][wrap])
@@ -36,7 +28,6 @@ class AtomicaFormats:
         sheet.write_blank(row, col, None, self.formats[row_format])
 
 
-
 class SheetRange:
     def __init__(self, first_row, first_col, num_rows, num_cols):
         self.first_row = first_row
@@ -48,8 +39,8 @@ class SheetRange:
         self.last_row = self.first_row + self.num_rows - 1
         self.last_col = self.first_col + self.num_cols - 1
 
-        self.start = self.get_cell_address(self.first_row, self.first_col)
-        self.end = self.get_cell_address(self.last_row, self.last_col)
+        self.start = xw.utility.xl_rowcol_to_cell(self.first_row, self.first_col)
+        self.end = xw.utility.xl_rowcol_to_cell(self.last_row, self.last_col) 
 
     def param_refs(self, sheet_name, column_number=1):
         """ gives the list of references to the entries in the row names (which are parameters) """
@@ -70,14 +61,14 @@ class TitledRange(object):
         self.sheet = sheet
         self.content = content
         first_data_col = TitledRange.FIRST_COL
-        num_data_rows = len(self.content.row_names)
+        num_data_rows = len(self.content["row_names"])
 
-        if self.content.row_levels is not None:
+        if self.content["row_levels"] is not None:
             first_data_col += 1
-            num_data_rows *= len(self.content.row_levels)
-            num_data_rows += len(self.content.row_names) - 1
+            num_data_rows *= len(self.content["row_levels"])
+            num_data_rows += len(self.content["row_names"]) - 1
 
-        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content.column_names))
+        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content["column_names"]))
         self.first_row = first_row
 
     def num_rows(self):
@@ -87,62 +78,75 @@ class TitledRange(object):
         """ Emits the range and returns the new current row in the given sheet """
         # top-top headers
         
-        self.sheet.write(self.first_row, 0, self.content.name, formats['bold'])
+        self.sheet.write(self.first_row, 0, self.content["name"], formats['bold'])
         
-        if self.content.assumption and self.first_row == 0 and self.content.assumption_properties['title'] is not None:
+        if self.content["assumption"] and self.first_row == 0 and self.content["assumption_properties"]['title'] is not None:
             content_rules.write_rowcol_name(sheet=self.sheet, row=self.first_row, col=self.data_range.last_col + 2,
-                                      name=self.content.assumption_properties['title'], align='left', wrap='F')
+                                      name=self.content["assumption_properties"]['title'], align='left', wrap='F')
 
         # headers
-        for i, name in enumerate(self.content.column_names):
+        for i, name in enumerate(self.content["column_names"]):
             content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
                                       rc_title_align, )
 
-        if self.content.assumption:
-            for index, col_name in enumerate(self.content.assumption_properties['columns']):
+        if self.content["assumption"]:
+            for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
                 content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.last_col + 2 + index,
                                           col_name)
 
         current_row = self.data_range.first_row
-        num_levels = len(self.content.row_levels) if self.content.row_levels is not None else 1
+        num_levels = len(self.content["row_levels"]) if self.content["row_levels"] is not None else 1
+        
+        # Get row names and formats
+        if self.content["row_levels"] is None:
+            row_names = [[name] for name in self.content["row_names"]]
+            row_formats = [self.content["row_format"] for name in self.content["row_names"]]
+        else:
+            row_names = [[name, level] for name in self.content["row_names"] for level in self.content["row_levels"]]
+            if self.content["row_formats"] is not None:
+                row_formats = [row_format for name in self.content["row_names"] for row_format in self.content["row_formats"]]
+            else:
+                row_formats = [self.content["row_format"] for name in self.content["row_names"] for level in self.content["row_levels"]]
 
         # iterate over rows, incrementing current_row as we go
-        for i, names_format in enumerate(zip(self.content.get_row_names(), self.content.get_row_formats())):
+        for i, names_format in enumerate(zip(row_names, row_formats)):
             names, row_format = names_format
+            if row_format=='g':
+                import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
             start_col = self.data_range.first_col - len(names)
             # emit row name(s)
             for n, name in enumerate(names):
                 content_rules.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align, wrap='F')
             # emit data if present
             savedata = False
-            if self.content.data is not None:
+            if self.content["data"] is not None:
                 try:
-                    for j, item in enumerate(self.content.data[i]):
+                    for j, item in enumerate(self.content["data"][i]):
                         content_rules.write_unlocked(self.sheet, current_row, self.data_range.first_col + j, item, row_format)
                     savedata = True  # It saved successfully
                 except:
-                    errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content.name, self.content.data)
+                    errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content["name"], self.content["data"])
                     print(errormsg)
                     savedata = False
             if not savedata:
                 for j in range(self.data_range.num_cols):
                     content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
             # emit assumption
-            if self.content.assumption:
+            if self.content["assumption"]:
 
                 self.sheet.write(current_row, self.data_range.last_col + 1,
-                                     self.content.assumption_properties['connector'],
+                                     self.content["assumption_properties"]['connector'],
                                      formats['center_bold'])
 
-                for index, col_name in enumerate(self.content.assumption_properties['columns']):
+                for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
                     saveassumptiondata = False
-                    if self.content.assumption_data is not None:
+                    if self.content["assumption_data"] is not None:
                         try:
-                            assumptiondata = self.content.assumption_data[i]
+                            assumptiondata = self.content["assumption_data"][i]
                             if isinstance(assumptiondata, list):  # Check to see if it's a list
                                 if len(assumptiondata) != 1:  # Check to see if it has the right length
                                     errormsg = 'WARNING, assumption "%s" appears to have the wrong length:\n%s' % (
-                                        self.content.name, assumptiondata)
+                                        self.content["name"], assumptiondata)
                                     print(errormsg)
                                     saveassumptiondata = False
                                 else:  # It has length 1, it's good to go
@@ -152,7 +156,7 @@ class TitledRange(object):
                             saveassumptiondata = True
                         except Exception as E:
                             errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (
-                                self.content.name, self.content.assumption_data, repr(E))
+                                self.content["name"], assumptiondata, repr(E))
                             print(errormsg)
                             saveassumptiondata = False
                             raise E
@@ -169,39 +173,6 @@ class TitledRange(object):
         return self.data_range.param_refs(self.sheet.get_name(), column_number)
 
 
-class AtomicaContent(object):
-    """ the content of the data ranges (row names, column names, optional data and assumptions) """
-
-    def __init__(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
-                 assumption_properties=None, assumption_data=None, assumption=True):
-        self.name = name
-        self.row_names = row_names
-        self.column_names = column_names
-        self.data = data
-        self.assumption = assumption
-        self.row_levels = row_levels
-        self.row_format = AtomicaFormats.GENERAL
-        self.row_formats = None
-        if assumption_properties is None:
-            self.assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
-        else:
-            self.assumption_properties = assumption_properties
-        self.assumption_data = assumption_data
-
-    def get_row_names(self):
-        if not self.row_levels is not None:
-            return [[name] for name in self.row_names]
-        else:
-            return [[name, level] for name in self.row_names for level in self.row_levels]
-
-    def get_row_formats(self):  # assume that the number of row_formats is same as the number of row_levels
-        if not self.row_levels is not None:
-            return [self.row_format for name in self.row_names]
-        else:
-            if self.row_formats is not None:
-                return [row_format for name in self.row_names for row_format in self.row_formats]
-            else:
-                return [self.row_format for name in self.row_names for level in self.row_levels]
 
 # %% Program spreadsheet exports.
 
@@ -232,7 +203,7 @@ class ProgramSpreadsheet(object):
 
         self.book = xw.Workbook(f)
         self.formats = standard_formats(self.book)
-        self.content_rules = AtomicaFormats(self.formats) # TODO - move some of the AtomicaFormats methods to excel.py
+        self.content_rules = ContentRules(self.formats) # TODO - move some of the AtomicaFormats methods to excel.py
 
         self.generate_targeting()
         self.generate_costcovdata()
@@ -243,10 +214,30 @@ class ProgramSpreadsheet(object):
         # Dump the file content into a AtomicaSpreadsheet
         return AtomicaSpreadsheet(f)
 
-    def generate_targeting(self):
 
+    def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
+                    row_format='general', row_formats=None, assumption_properties=None, assumption_data=None, assumption=True):
+        # Set the content
+        if assumption_properties is None:
+            assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
+        self.assumption_data = assumption_data
+        return sc.odict([("name",            name),
+                         ("row_names",       row_names),
+                         ("column_names",    column_names),
+                         ("row_levels",      row_levels),
+                         ("row_format",      row_format),
+                         ("row_formats",     row_formats),
+                         ("data",            data),
+                         ("assumption_properties", assumption_properties),
+                         ("assumption_data", assumption_data),
+                         ("assumption",      assumption)])
+        
+
+    def generate_targeting(self):
+        # Generate targeting sheet
         sheet = self.book.add_worksheet('Program targeting')
 
+        # Set column width
         sheet.set_column(2, 2, 15)
         sheet.set_column(3, 3, 40)
         sheet.set_column(6, 6, 12)
@@ -255,6 +246,11 @@ class ProgramSpreadsheet(object):
         sheet.set_column(9, 9, 12)
         current_row = 0
 
+        # Write descriptions of targeting
+        sheet.write(0, 5, "Targeted to (populations)", self.formats["bold"])
+        sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)", self.formats["bold"])
+
+        # Write populations and compartments for targeting
         coded_params = []
         for item in self.progs:
             if type(item) is dict:
@@ -264,42 +260,36 @@ class ProgramSpreadsheet(object):
                 target_comps = [''] + ['' for comp in self.comps]
             coded_params.append([short, name] + target_pops + target_comps)
 
-        # Hard-coded writing of target descriptions in sheet.
-        sheet.write(0, 5, "Targeted to (populations)", self.formats["bold"])
-        sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)",
-                                 self.formats["bold"])
-
+        # Make column names
         column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
-        content = AtomicaContent(name='',
-                                 row_names=range(1, len(self.progs) + 1),
-                                 column_names=column_names,
-                                 data=coded_params,
-                                 assumption=False)
+        content = self.set_content(row_names=range(1,len(self.progs)+1),
+                                   column_names=column_names,
+                                   data=coded_params,
+                                   assumption=False)
+        
         self.prog_range = TitledRange(sheet=sheet, first_row=current_row, content=content)
         current_row = self.prog_range.emit(self.content_rules, self.formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range
 
-    def generate_costcovdata(self):
 
+    def generate_costcovdata(self):
+        # Generate cost-coverage sheet
         sheet = self.book.add_worksheet('Spending data')
 
         current_row = 0
         sheet.set_column('C:C', 20)
         row_levels = ['Total spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
                       'Unit cost: high']
-        content = AtomicaContent(name='',
-                                 row_names=self.ref_prog_range.param_refs(),
-                                 column_names=range(int(self.data_start), int(self.data_end + 1)))
-        content.row_formats = [AtomicaFormats.GENERAL, AtomicaFormats.GENERAL, AtomicaFormats.GENERAL,
-                               AtomicaFormats.GENERAL, AtomicaFormats.GENERAL]
-        content.assumption = True
-        content.row_levels = row_levels
+        content = self.set_content(row_names=self.ref_prog_range.param_refs(),
+                                   column_names=range(int(self.data_start), int(self.data_end + 1)),
+                                   row_formats=['general']*5,
+                                   row_levels=row_levels)
+
         the_range = TitledRange(sheet, current_row, content)
-        content.get_row_formats()
         current_row = the_range.emit(self.content_rules, self.formats)
 
     def generate_covoutdata(self):
-
+        # Generate coverage-outcome sheet
         sheet = self.book.add_worksheet('Program effects')
 
         current_row = 0
@@ -315,16 +305,17 @@ class ProgramSpreadsheet(object):
             if self.blh_effects:
                 row_levels.extend([p + ': best', p + ': low', p + ': high'])
             else: row_levels.extend([p])
-        content = AtomicaContent(row_names=self.pars,
-                                 column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'])
-        content.row_format = AtomicaFormats.GENERAL
-        content.row_levels = row_levels
 
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
                                  'columns': self.ref_prog_range.param_refs()}
 
-        content.assumption_properties = assumption_properties
+        content = self.set_content(row_names=self.pars,
+                                   column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
+                                   row_format='general',
+                                   assumption_properties=assumption_properties,
+                                   row_levels=row_levels)
+
         the_range = TitledRange(sheet, current_row, content)
         current_row = the_range.emit(self.content_rules, self.formats, rc_title_align='left')
 
