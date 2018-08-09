@@ -6,7 +6,20 @@ from .excel import AtomicaSpreadsheet, standard_formats
 import io
 
 
+
+
 class AtomicaFormats:
+
+    def __init__(self, formats):
+        self.formats = formats
+
+    PERCENTAGE = 'percentage'
+    RATE = 'rate'
+    DECIMAL = 'decimal'
+    SCIENTIFIC = 'scientific'
+    NUMBER = 'number'
+    GENERAL = 'general'
+    OPTIONAL = 'optional'
 
     def write_block_name(self, sheet, name, row):
         sheet.write(row, 0, name, self.formats['bold'])
@@ -234,7 +247,8 @@ class ProgramSpreadsheet(object):
         f = io.BytesIO() # Write to this binary stream in memory
 
         self.book = xw.Workbook(f)
-        self.formats = AtomicaFormats(self.book) # TODO - move some of the AtomicaFormats methods to excel.py
+        self.formats = standard_formats(self.book)
+        self.content_rules = AtomicaFormats(self.formats) # TODO - move some of the AtomicaFormats methods to excel.py
 
         self.generate_targeting()
         self.generate_costcovdata()
@@ -267,9 +281,9 @@ class ProgramSpreadsheet(object):
             coded_params.append([short, name] + target_pops + target_comps)
 
         # Hard-coded writing of target descriptions in sheet.
-        sheet.write(0, 5, "Targeted to (populations)", self.formats.formats["center_bold"])
+        sheet.write(0, 5, "Targeted to (populations)", self.formats["bold"])
         sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)",
-                                 self.formats.formats["center_bold"])
+                                 self.formats["bold"])
 
         column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
         content = AtomicaContent(name='',
@@ -278,7 +292,7 @@ class ProgramSpreadsheet(object):
                                  data=coded_params,
                                  assumption=False)
         self.prog_range = TitledRange(sheet=sheet, first_row=current_row, content=content)
-        current_row = self.prog_range.emit(self.formats, rc_title_align='left')
+        current_row = self.prog_range.emit(self.content_rules, rc_title_align='left')
         self.ref_prog_range = self.prog_range
 
     def generate_costcovdata(self):
@@ -298,7 +312,7 @@ class ProgramSpreadsheet(object):
         content.row_levels = row_levels
         the_range = TitledRange(sheet, current_row, content)
         content.get_row_formats()
-        current_row = the_range.emit(self.formats)
+        current_row = the_range.emit(self.content_rules)
 
     def generate_covoutdata(self):
 
@@ -328,7 +342,7 @@ class ProgramSpreadsheet(object):
 
         content.assumption_properties = assumption_properties
         the_range = TitledRange(sheet, current_row, content)
-        current_row = the_range.emit(self.formats, rc_title_align='left')
+        current_row = the_range.emit(self.content_rules, rc_title_align='left')
 
 
 def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):

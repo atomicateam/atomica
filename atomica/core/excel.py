@@ -30,14 +30,6 @@ def standard_formats(workbook):
     OPT_COLOR = optionalorange
     BORDER_COLOR = 'white'
 
-    PERCENTAGE = 'percentage'
-    RATE = 'rate'
-    DECIMAL = 'decimal'
-    SCIENTIFIC = 'scientific'
-    NUMBER = 'number'
-    GENERAL = 'general'
-    OPTIONAL = 'optional'
-
     formats = {}
 
     # Locked formats
