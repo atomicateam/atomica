@@ -21,14 +21,8 @@ class AtomicaFormats:
     GENERAL = 'general'
     OPTIONAL = 'optional'
 
-#    def write_block_name(self, sheet, name, row):
-#        sheet.write(row, 0, name, self.formats['bold'])
-
     def write_rowcol_name(self, sheet, row, col, name, align='right', wrap='T'):
         sheet.write(row, col, name, self.formats['rc_title'][align][wrap])
-
-    def write_option(self, sheet, row, col, name='OR'):
-        sheet.write(row, col, name, self.formats['center_bold'])
 
     # special processing for bool values (to keep the content separate from representation)
     def write_unlocked(self, sheet, row, col, data, row_format='unlocked'):
@@ -41,18 +35,6 @@ class AtomicaFormats:
     def write_empty_unlocked(self, sheet, row, col, row_format='unlocked'):
         sheet.write_blank(row, col, None, self.formats[row_format])
 
-    def writeline(self, sheet, row, row_format='grey'):
-        sheet.write_blank(row, 0, None, self.formats[row_format])
-        return row + 1
-
-    def writeblock(self, sheet, row, text, row_format='grey', row_height=None, add_line=True):
-        if row_height:
-            sheet.set_row(row, row_height)
-        sheet.write(row, 0, text, self.formats[row_format])
-        if add_line:
-            return self.writeline(sheet, row + 1)
-        else:
-            return row + 1
 
 
 class SheetRange:
@@ -69,17 +51,15 @@ class SheetRange:
         self.start = self.get_cell_address(self.first_row, self.first_col)
         self.end = self.get_cell_address(self.last_row, self.last_col)
 
-    def get_address(self):
-        return '%s:%s' % (self.start, self.end)
-
-    def get_cell_address(self, row, col):
-        return xw.utility.xl_rowcol_to_cell(row, col, row_abs=True, col_abs=True)
-
     def param_refs(self, sheet_name, column_number=1):
         """ gives the list of references to the entries in the row names (which are parameters) """
         par_range = range(self.first_row, self.last_row + 1)
-        return ["='%s'!%s" % (sheet_name, self.get_cell_address(row, self.first_col + column_number)) for row in
-                par_range]
+        
+        range_vals = []
+        for row in par_range: 
+            cell_address = xw.utility.xl_rowcol_to_cell(row, self.first_col + column_number, row_abs=True, col_abs=True)
+            range_vals.append("='%s'!%s" % (sheet_name, cell_address))
+        return range_vals
 
 
 class TitledRange(object):
@@ -107,13 +87,8 @@ class TitledRange(object):
         """ Emits the range and returns the new current row in the given sheet """
         # top-top headers
         
-#        def write_block_name(self, sheet, name, row):
-#            sheet.write(row, 0, name, self.formats['bold'])
-
         self.sheet.write(self.first_row, 0, self.content.name, formats['bold'])
         
-#        formats.write_block_name(self.sheet, self.content.name, self.first_row)
-
         if self.content.assumption and self.first_row == 0 and self.content.assumption_properties['title'] is not None:
             content_rules.write_rowcol_name(sheet=self.sheet, row=self.first_row, col=self.data_range.last_col + 2,
                                       name=self.content.assumption_properties['title'], align='left', wrap='F')
@@ -154,8 +129,11 @@ class TitledRange(object):
                     content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
             # emit assumption
             if self.content.assumption:
-                content_rules.write_option(self.sheet, current_row, self.data_range.last_col + 1,
-                                     name=self.content.assumption_properties['connector'])
+
+                self.sheet.write(current_row, self.data_range.last_col + 1,
+                                     self.content.assumption_properties['connector'],
+                                     formats['center_bold'])
+
                 for index, col_name in enumerate(self.content.assumption_properties['columns']):
                     saveassumptiondata = False
                     if self.content.assumption_data is not None:
