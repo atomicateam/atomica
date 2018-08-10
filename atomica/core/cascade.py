@@ -25,16 +25,42 @@ def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, sh
     return output # Either fig or (fig,table)
 
 def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
-    
+    # INPUTS
+    # - result : A single Result or a list of Results
+    # - cascade : the name of a cascade, or a cascade dict. If none, will be the framework's first cascade
+    # - pops : A single code name or full name, or a list of code nmes or full names
+    # - year : A single year, or array of years
+
+    # Sanitize based on the first result provided, if it's a list
+    if isinstance(result, list): result = result[0]  # Sanitize input -- if needed
+
     # Sanitize cascade input
     if cascade is None: cascade = result.framework.cascades.keys()[0]
-    
-    # Sanitize populations
-    if pops is None: pops = 'all'
-    
+
+    # Convert input pops to code names, if they were provided as full names e.g. from the FE
+    if pops is None or pops == 'all':
+        pops = {'Entire population':result.pop_names} # Use all populations
+    else:
+        code_names = []
+
+        if isinstance(pops,string_types):
+            pops = [pops]
+
+        for pop in pops:
+            if pop not in result.pop_names:
+                idx = result.pop_labels.index(pop)
+                code_names.append(result.pop_names[idx])
+            else:
+                code_names.append(pop)
+
+        if len(code_names) > 1:
+            pops = {'Selected populations':code_names}
+        else:
+            idx = result.pop_names.index(code_names[0])
+            pops = {result.pop_labels[idx]:code_names}
+
     # Sanitize year
     if year is None:
-        if isinstance(result, list): result = result[0]# Sanitize input -- if needed
         year = result.t[0] # Draw cascade for first year
     else:
         year = sc.promotetoarray(year)
@@ -164,7 +190,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
 
         plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
 
-    pop_label = 'entire population' if pops=='all' else pops
+    pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')
     plt.title('Cascade for %s in %d' % (pop_label,year))
     plt.tight_layout()
@@ -313,8 +339,6 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
 
     if pops is None: pops = 'all'
 
-    assert isinstance(pops,string_types), 'At this stage, get_cascade_vals only intended to retrieve one population at a time, or to aggregate over all pops'
-
     if isinstance(cascade,string_types):
         outputs = get_cascade_outputs(result.framework,cascade)
     else:
@@ -360,6 +384,9 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
         pops = list(data.pops.keys())
     elif isinstance(pops,string_types):
         pops = [pops]
+    elif isinstance(pops,dict):
+        assert len(pops) == 1, 'Aggregation should have only one output population'
+        pops = list(pops.values())[0]
 
     if year is not None:
         t = sc.promotetoarray(year) # Output times are guaranteed to be
