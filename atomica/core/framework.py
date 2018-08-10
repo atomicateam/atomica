@@ -213,18 +213,20 @@ class ProjectFramework(object):
         if 'about' not in self.sheets:
             self.sheets['about'] = pd.DataFrame.from_records([('Unnamed','No description available')],columns=['name','description'])
 
+        # Get the dataframe which has the name in it - the first one on the page, if there were multiple pages
+        if isinstance(self.sheets['about'],list):
+            name_df = self.sheets['about'][0]
+        else:
+            name_df = self.sheets['about']
+
         required_columns = ['name']
         defaults = dict()
         valid_content = {
             'name': None,  # Valid content being `None` means that it just cannot be empty
         }
-        self.sheets['about'] = sanitize_dataframe(self.sheets['about'], required_columns, defaults, valid_content)
-        self.sheets['about']['name'] = self.sheets['about']['name'].astype(str)
-
-        if isinstance(self.sheets['about'],list):
-            self.name = self.sheets['about'][0]['name'].iloc[0]
-        else:
-            self.name = self.sheets['about']['name'].iloc[0]
+        name_df = sanitize_dataframe(name_df, required_columns, defaults, valid_content)
+        name_df['name'] = name_df['name'].astype(str)
+        self.name = name_df['name'].iloc[0]
 
         if 'cascade' in self.sheets and 'cascades' not in self.sheets:
             logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
