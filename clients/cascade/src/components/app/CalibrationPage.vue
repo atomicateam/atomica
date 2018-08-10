@@ -225,7 +225,10 @@ Last update: 2018-08-08
         newParsetName: [],
         startYear: 0,
         endYear: 0,
+        thisPop: '',
         plotOptions: [],
+        yearOptions: [],
+        popOptions: []
       }
     },
 
@@ -255,6 +258,14 @@ Last update: 2018-08-08
         }
       },
 
+      active_pops() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.pops
+        }
+      },
+
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -279,7 +290,8 @@ Last update: 2018-08-08
       } else if (this.$store.state.activeProject.project != undefined) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
-        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
+        this.popOptions = this.active_pops
+//        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
         this.viewTable()
         this.getPlotOptions()
         this.sleep(1)  // used so that spinners will come up by callback func
