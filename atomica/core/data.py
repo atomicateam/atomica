@@ -147,7 +147,7 @@ class ProjectData(object):
                     data.tdve[full_name] = TimeDependentValuesEntry(name=full_name,tvec=tvec,allowed_units=framework.get_allowed_units(full_name))
 
         # Now convert pages to full names and sort them into the correct order
-        for _,spec in framework.sheets['databook pages'].iterrows():
+        for _,spec in framework.sheets['databook pages'][0].iterrows():
 
             if spec['datasheet code name'] in pages:
                 pages[spec['datasheet code name']].sort(key=lambda x: x[1])

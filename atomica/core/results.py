@@ -108,7 +108,7 @@ class Result(NamedItem):
         if 'plots' not in self.framework.sheets:
             plot_df = None
         else:
-            plots_required = self.framework.sheets['plots']
+            plots_required = self.framework.sheets['plots'][0]
             plot_df = []
 
             # Now for each plot, we have one output and several populations
@@ -200,7 +200,7 @@ class Result(NamedItem):
     def plot(self,plot_name=None,plot_group=None,pops=None,project=None):
         from .plotting import PlotData, plot_series
 
-        df = self.framework.sheets['plots']
+        df = self.framework.sheets['plots'][0]
 
         if plot_group is not None:
             for plot_name in df.loc[df['plot group']==plot_group,'code name']:

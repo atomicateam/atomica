@@ -66,12 +66,6 @@ class ProjectFramework(object):
                 df = df[1:]
                 self.sheets[sheet_title].append(df)
 
-            # For convenience, if there is only one table (which is the case for most of the sheets) then
-            # don't store it as a list. So there will only be a list of DataFrames if there was more than
-            # one table on the page (e.g. for cascades)
-            if len(self.sheets[sheet_title]) == 1:
-                self.sheets[sheet_title] = self.sheets[sheet_title][0]
-
         self._validate()
         if name is not None:
             self.name = name
@@ -89,13 +83,12 @@ class ProjectFramework(object):
     @property
     def comps(self):
         # Shortcut to compartments sheet
-        return self.sheets.get('compartments')
+        return self.sheets['compartments'][0]
 
     @comps.setter
     def comps(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'compartments' in self.sheets.keys(): self.sheets['compartments'] = value
-        else: raise AtomicaException('Cannot set compartment value as Compartment sheet was not defined.')
+        self.sheets['compartments'] = [value]
 
     def get_comp(self,comp_name):
         return self.comps.loc[comp_name]
@@ -103,13 +96,12 @@ class ProjectFramework(object):
     @property
     def characs(self):
         # Shortcut to Characteristics sheet
-        return self.sheets.get('characteristics')
+        return self.sheets['characteristics'][0]
 
     @characs.setter
     def characs(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'characteristics' in self.sheets.keys(): self.sheets['characteristics'] = value
-        else: raise AtomicaException('Cannot set value as Characteristics sheet was not defined.')
+        self.sheets['characteristics'] = [value]
 
     def get_charac(self,charac_name):
         return self.characs.loc[charac_name]
@@ -117,13 +109,12 @@ class ProjectFramework(object):
     @property
     def pars(self):
         # Shortcut to Parameters sheet
-        return self.sheets.get('parameters')
+        return self.sheets['parameters'][0]
 
     @pars.setter
     def pars(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'parameters' in self.sheets.keys(): self.sheets['parameters'] = value
-        else: raise AtomicaException('Cannot set value as Parameters sheet was not defined.')
+        self.sheets['parameters'] = [value]
 
     def get_par(self,par_name):
         return self.pars.loc[par_name]
@@ -131,13 +122,12 @@ class ProjectFramework(object):
     @property
     def interactions(self):
         # Shortcut to Interactions sheet
-        return self.sheets.get('interactions')
+        return self.sheets['interactions'][0]
 
     @interactions.setter
     def interactions(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'interactions' in self.sheets.keys(): self.sheets['interactions'] = value
-        else: raise AtomicaException('Cannot set value as Interactions sheet was not defined.')
+        self.sheets['interactions'] = [value]
 
     @property
     def cascades(self):
@@ -148,10 +138,8 @@ class ProjectFramework(object):
 
         if 'cascades' not in self.sheets:
             return d # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
-        elif isinstance(self.sheets['cascades'],pd.DataFrame):
-            cascade_list = [self.sheets['cascades']] # Turn it into a list
-        else:
-            cascade_list = self.sheets['cascades']
+
+        cascade_list = self.sheets['cascades']
 
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
@@ -187,7 +175,7 @@ class ProjectFramework(object):
         # with a dict where the key is a parameter name and the value is a list of (from,to) tuples
         #
         # Expects a sheet called 'Transitions' to be present and correctly filled out
-        t = self.sheets['transitions'].copy() # Copy the dataframe on this sheet
+        t = self.sheets['transitions'][0].copy() # Copy the dataframe on this sheet
         assert isinstance(t,pd.DataFrame) # This will be a list if there was more than one item present
 
         self.transitions = {x:list() for x in list(self.pars.index)}
@@ -218,14 +206,10 @@ class ProjectFramework(object):
 
         # Validate 'About' sheet - it must have a name
         if 'about' not in self.sheets:
-            self.sheets['about'] = pd.DataFrame.from_records([('Unnamed','No description available')],columns=['name','description'])
+            self.sheets['about'] = [pd.DataFrame.from_records([('Unnamed','No description available')],columns=['name','description'])]
 
         # Get the dataframe which has the name in it - the first one on the page, if there were multiple pages
-        if isinstance(self.sheets['about'],list):
-            name_df = self.sheets['about'][0]
-        else:
-            name_df = self.sheets['about']
-
+        name_df = self.sheets['about'][0]
         required_columns = ['name']
         defaults = dict()
         valid_content = {
@@ -404,7 +388,7 @@ class ProjectFramework(object):
         ### VALIDATE INTERACTIONS
 
         if 'interactions' not in self.sheets:
-            self.sheets['interactions'] = pd.DataFrame(columns=['code name','display name'])
+            self.sheets['interactions'] = [pd.DataFrame(columns=['code name','display name'])]
 
         required_columns = ['display name']
         defaults = {
