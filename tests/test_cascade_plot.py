@@ -2,14 +2,14 @@ import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
 import sciris.core as sc
 
-#test = 'tb'
-test = 'udt'
+test = 'tb'
+# test = 'udt'
 
 torun = [
-#"basicplots",
+"basicplots",
 #"scenplots",
 #"cascadefromscratch",
-'mpld3test'
+# 'mpld3test'
 ]
 
 # Load a framework and project to get a Result
@@ -26,8 +26,8 @@ if "basicplots" in torun and test=='tb':
     result.plot(plot_group='latency')
 
 #    # Export limited set of results based on 'Export' column in Framework, or export everything
-#    result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
-#    result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
+    result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
+    result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
 
     # Plot various cascades
     startyear = 2000 if test=='tb' else 2016

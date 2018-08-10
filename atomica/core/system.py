@@ -17,41 +17,6 @@ if six.PY2:
 else:
     from inspect import getfullargspec as argspec  # Python 3 arg inspection.
 
-
-# Code for setting up a system settings class containing module-wide variables.
-
-class SystemSettings(object):
-    """ Stores all 'system' variables used by the Atomica module. """
-
-    CODEBASE_DIRNAME = ["atomica", "core"]
-    CONFIG_FRAMEWORK_FILENAME = "format_framework.ini"
-    CONFIG_DATABOOK_FILENAME = "format_databook.ini"
-    CONFIG_LIST_SEPARATOR = ","
-
-    STRUCTURE_KEY_DATA = "databook"
-    STRUCTURE_KEY_FRAMEWORK = "framework_file"
-
-    OBJECT_EXTENSION_PROJECT = ".prj"
-    OBJECT_EXTENSION_FRAMEWORK = ".frw"
-    OBJECT_EXTENSION_DATA = ".dat"
-
-    QUANTITY_TYPE_ABSOLUTE = "absolute"
-    QUANTITY_TYPE_RELATIVE = "relative"
-
-
-    # DEFAULT_SPACE_LABEL = " "
-    # DEFAULT_SPACE_NAME = "_"
-    # DEFAULT_SEPARATOR_LABEL = " - "
-    # DEFAULT_SEPARATOR_NAME = "_"
-    # DEFAULT_SYMBOL_YES = "y"
-    # DEFAULT_SYMBOL_NO = "n"
-    # DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
-    # DEFAULT_SYMBOL_OR = "OR"
-    # DEFAULT_SYMBOL_TO = "--->"
-    # DEFAULT_SYMBOL_IGNORE = "..."
-    # DEFAULT_SUFFIX_PLURAL = "s"
-
-
 # Code for determining module installation directory.
 
 def atomica_path(subdir=None, trailingsep=True):

@@ -70,14 +70,11 @@ class ProjectFramework(object):
             self.name = name
 
     def save(self,fname):
-        self.spreadsheet.save(fname)
-
-    @staticmethod
-    def load(fname):
-        # Load a binary Framework file
-        framework = sc.loadobj(fname)
-        assert isinstance(framework,ProjectFramework)
-        return framework
+        # This function saves an Excel file with the original spreadsheet
+        if self.spreadsheet is None:
+            raise AtomicaException('Spreadsheet is not present, cannot save Framework as xlsx')
+        else:
+            self.spreadsheet.save(fname)
 
     # The primary data storage in the Framework are DataFrames with the contents of the Excel file
     # The convenience methods below enable easy access of frequency used contents without having
