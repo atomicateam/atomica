@@ -9,12 +9,12 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-# test = "sir"
-# test = "tb"
-# test = "hypertension"
-test = "udt"
+#test = "sir"
+#test = "tb"
+#test = "hypertension"
+#test = "udt"
 #test = "usdt"
-# test = "hiv"
+test = "hiv"
 #test = "diabetes"
 #test = "service"
 
@@ -52,6 +52,8 @@ if test == "sir":
     deaths = ["sus:dead", "inf:dead", "rec:dead"]
     grouped_deaths = {'inf': ['inf:dead'], 'sus': ['sus:dead'], 'rec': ['rec:dead']}  # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
     plot_pop = [test_pop]
+if test == "hypertension":
+    plot_pop = ["m_rural"]
 if test == "tb":
     test_vars = ["sus", "vac", "spdu", "alive", "b_rate"]
     test_pop = "0-4"
@@ -310,12 +312,13 @@ if "runsim_programs" in torun:
     
 if "makeplots" in torun:
     # Low level debug plots.
-    for var in test_vars:
-        P.results["parset_default"].get_variable(test_pop,var)[0].plot()
+    if test in ['tb','sir']:
+        for var in test_vars:
+            P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
-    # Plot population decomposition.
-    d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
-    au.plot_series(d, plot_type="stacked")
+        # Plot population decomposition.
+        d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
+        au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # Plot bars for deaths, aggregated by strain, stacked by pop
@@ -339,9 +342,9 @@ if "makeplots" in torun:
         d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
 
-    # Plot aggregate flows
-    d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
-    au.plot_series(d, axis="pops")
+        # Plot aggregate flows
+        d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
+        au.plot_series(d, axis="pops")
 
 
 if "export" in torun:
