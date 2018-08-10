@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-08
+Last update: 2018-08-09
 -->
 
 <template>
@@ -279,7 +279,7 @@ Last update: 2018-08-08
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else { // Otherwise...
+      else if (this.$store.state.activeProject.project != undefined) { // Otherwise...
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
