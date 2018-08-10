@@ -166,7 +166,7 @@ class Project(object):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
-        data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
+        data = ProjectData.new(self.framework, np.arange(data_start,data_end+data_dt,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
         return data
 
