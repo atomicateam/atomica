@@ -130,29 +130,6 @@ class Compartment(Variable):
             else:
                 raise AtomicaInputError('Unknown parameter units')
 
-<<<<<<< HEAD
-        # remain_probability = 1 - outflow_probability
-
-        dur = np.zeros(outflow_probability.shape)
-        # From OSL/HMM-MAR:
-        # Given a transition probability, what is the expected lifetime in units of steps?
-        # This can be determined using a symbolic integration, below
-        # syms k_step p;
-        # assume(p>0);
-        # f =(k_step)*p^k_step*(1-p); # (probability that state lasts k *more* steps, multiplied by lifetime which is k)
-        # fa = 1+int(f,k_step,0,inf); # Add 1 to the lifetime because all states last at least 1 sample
-        # f = @(x) double(subs(fa,p,x));
-        #
-        # However, the result of the symbolic integration contains a limit which is
-        # zero unless p=1, but p=1 is not needed because we know it means the compartment immediately empties.
-        # So instead of the function above, can instead drop the limit term and write the rest of the
-        # expression out which gives identical results from p=0.00001 to p=0.99 (note that if dirichletdiag>=1)
-        # then the upper bound on the transition probability is p=0.5 anyway for K=2
-
-        # TODO: QUESTION, IS THIS DEPRECATED??
-#        dur[dur < 1] = (1 - (1. / np.log(remain_probability[dur < 1]) ** 2) *
-#                        (remain_probability[dur < 1] - 1)) * self.dt
-=======
         remain_probability = 1 - outflow_probability
 
         # This is the algorithm - we calculate the probability of leaving after a specific number of time steps, and then
@@ -166,7 +143,6 @@ class Compartment(Variable):
         # print('numerical=%.2f, analytic=%.2f' % (numerical,analytic))
 
         dur = (1 - (1. / np.log(remain_probability) ** 2) * (remain_probability - 1)) * self.dt
->>>>>>> develop
         return dur
 
 
@@ -481,18 +457,11 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
-<<<<<<< HEAD
-    def __init__(self, framework, name='default', label='Population 1'):
-
-        self.name = name
-        self.label = label
-=======
     def __init__(self, framework, name, label):
 
         self.name = name # This is the code name
         self.label = label # This is the full name
 
->>>>>>> develop
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
         # List of characteristics and output parameters.
         # Dependencies computed during integration, pure outputs added after.
@@ -923,14 +892,8 @@ class Model(object):
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
-<<<<<<< HEAD
-        for k, pop_name in enumerate(parset.pop_names):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=parset.pop_labels[k]))
-            # TODO: Update preallocate case.
-=======
         for k, (pop_name,pop_label) in enumerate(zip(parset.pop_names,parset.pop_labels)):
             self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label))
->>>>>>> develop
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
             self._pop_ids[pop_name] = k
