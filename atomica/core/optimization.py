@@ -4,7 +4,7 @@ Version: 2018mar26
 """
 
 import sciris.core as sc
-from .system import AtomicaException, NotAllowedError
+from .system import AtomicaException, NotAllowedError, logger
 from .utils import NamedItem
 import numpy as np
 from .model import Model, Link
@@ -15,8 +15,6 @@ from .structure import TimeSeries
 import logging
 from .results import Result
 from .cascade import get_cascade_vals
-
-logger = logging.getLogger(__name__)
 
 class Adjustable(object):
 

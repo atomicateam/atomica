@@ -7,8 +7,7 @@ import matplotlib
 from .utils import NDict
 from .results import Result
 from six import string_types
-import logging
-logger = logging.getLogger(__name__)
+from .system import logger
 
 default_figsize = (9,5)
 
