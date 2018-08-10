@@ -15,9 +15,9 @@ from atomica.core.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-#test = "udt"
+test = "udt"
 #test = "usdt"
-test = "hiv"
+#test = "hiv"
 #test = "diabetes"
 #test = "service"
 
@@ -32,9 +32,9 @@ torun = [
 #"makeparset",
 #"runsim",
 #"plotcascade",
-"makeprogramspreadsheet",
+#"makeprogramspreadsheet",
 #"testprograms",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -120,8 +120,13 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
-    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
+#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='m_urban', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='f_urban', year=2016)
+#    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
     if forceshow: pl.show()
     
     # Browser test
@@ -241,19 +246,19 @@ if "runsim_programs" in torun:
     elif test == 'udt':
         scen1alloc = {'Testing - pharmacies': 70000}
         scen2alloc = {'Testing - clinics': 120000}
-        scen3alloc = {'Testing - clinics': 50000}
-        scen4alloc = {'Testing - clinics': 40000}
+        scen3alloc = {'Testing - outreach': 50000}
+        scen4alloc = {'Adherence': 40000}
         bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
         scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
         scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
         scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
 
-        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
-        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
-        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="scen2")
-        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="scen3")
-        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="Baseline")
+        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="Scale up pharmacies")
+        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="Scale up clinics")
+        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="Scale up outreach")
+        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="Scale up adherence")
 
         au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
 

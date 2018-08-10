@@ -23,8 +23,8 @@ from atomica.core.optimization import optimize
 # logger.setLevel('DEBUG')
 #test='sir'
 #test='udt'
-#test='hiv'
-test='hypertension'
+test='hiv'
+#test='hypertension'
 #test='usdt'
 
 torun = [
@@ -35,8 +35,8 @@ torun = [
 'mixed',
 'parametric_paired',
 "money",
-#'cascade_final_stage',
-'cascade-conversions'
+'cascade_final_stage',
+#'cascade-conversions'
 ]
 
 # Load the SIR demo and associated programs

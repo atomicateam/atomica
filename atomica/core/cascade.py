@@ -125,7 +125,10 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
 
         plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
 
-    pop_label = 'entire population' if pops=='all' else pops
+    if pops=='all': 
+        pop_label = 'entire population'
+    else:
+        pop_label = [pop.label for pop in result.model.pops if pop.name == pops][0] # This is very much not ideal
     plt.ylabel('Number of people')
     plt.title('Cascade for %s in %d' % (pop_label,year))
     plt.tight_layout()
@@ -213,7 +216,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     ax.set_yticks(yticks[1:]) # Remove the first tick at 0 so it doesn't clash with table - TODO: improve table spacing so this isn't needed
     plt.ylabel('Number of people')
     if show_table:
-        plt.subplots_adjust(top=0.8,right=0.75,left=0.2)
+        plt.subplots_adjust(top=0.8,right=0.75,left=0.2, bottom=0.25)
     else:
         plt.subplots_adjust(top=0.95, right=0.75, left=0.2, bottom=0.25)
 

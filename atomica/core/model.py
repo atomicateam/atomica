@@ -141,8 +141,10 @@ class Compartment(Variable):
         # So instead of the function above, can instead drop the limit term and write the rest of the
         # expression out which gives identical results from p=0.00001 to p=0.99 (note that if dirichletdiag>=1)
         # then the upper bound on the transition probability is p=0.5 anyway for K=2
-        dur[dur < 1] = (1 - (1. / np.log(remain_probability[dur < 1]) ** 2) *
-                        (remain_probability[dur < 1] - 1)) * self.dt
+
+        # TODO: QUESTION, IS THIS DEPRECATED??
+#        dur[dur < 1] = (1 - (1. / np.log(remain_probability[dur < 1]) ** 2) *
+#                        (remain_probability[dur < 1] - 1)) * self.dt
         return dur
 
     def expected_outflow(self, ti):
@@ -455,9 +457,10 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name='default'):
+    def __init__(self, framework, name='default', label='Population 1'):
 
         self.name = name
+        self.label = label
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
         # List of characteristics and output parameters.
         # Dependencies computed during integration, pure outputs added after.
@@ -889,7 +892,7 @@ class Model(object):
         self.dt = settings.sim_dt
 
         for k, pop_name in enumerate(parset.pop_names):
-            self.pops.append(Population(framework=self.framework, name=pop_name))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=parset.pop_labels[k]))
             # TODO: Update preallocate case.
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
