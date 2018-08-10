@@ -12,12 +12,10 @@ logger = logging.getLogger()
 ## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
 # logger.setLevel('DEBUG')
 
-import os
 import atomica.ui as au
 import sciris.core as sc
 import numpy as np
 import matplotlib.pyplot as plt
-from atomica.core.optimization import optimize
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
@@ -46,7 +44,7 @@ P.load_progbook(progbook_path=filename, make_default_progset=True)
 
 def run_optimization(proj,optimization,instructions):
     unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-    optimized_instructions = optimize(P, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
+    optimized_instructions = au.optimize(P, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
     optimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     return unoptimized_result,optimized_result
 
@@ -298,7 +296,7 @@ if 'cascade_final_stage' in torun:
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     
         for adjustable in adjustments:
@@ -319,7 +317,7 @@ if 'cascade_final_stage' in torun:
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
-        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     
 #        for adjustable in adjustments:
@@ -341,7 +339,7 @@ if 'cascade_final_stage' in torun:
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
-        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     
 #        for adjustable in adjustments:
@@ -366,7 +364,7 @@ if 'cascade_final_stage' in torun:
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
-        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     
 #        for adjustable in adjustments:
@@ -401,7 +399,7 @@ if 'cascade-conversions' in torun:
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     
         for adjustable in adjustments:
@@ -421,7 +419,7 @@ if 'cascade-conversions' in torun:
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
-        optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
     
         au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2017)
