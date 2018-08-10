@@ -47,9 +47,16 @@ class ProjectFramework(object):
 
         self.sheets = sc.odict()
 
+        # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
+        # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
+        # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table
+        merge_tables = {'databook pages','compartments','parameters','characteristics','transitions','interactions','plots'}
+
         for worksheet in workbook.worksheets:
-            tables = read_tables(worksheet)  # Read the tables
             sheet_title = worksheet.title.lower()
+            tables = read_tables(worksheet)  # Read the tables
+            if sheet_title in merge_tables:
+                tables = [[row for table in tables for row in table]] # Flatten the tables into one big table
             self.sheets[sheet_title] = list()
             for table in tables:
                 # Get a dataframe
