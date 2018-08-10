@@ -157,6 +157,12 @@ class TimeSeries(object):
     def interpolate(self,t2):
         # Output is guaranteed to be of type np.array
         t2 = sc.promotetoarray(t2) # Deal with case where user prompts for single time point
+
+        if not self.has_data:
+            return np.full(t2.shape, np.nan)
+        elif not self.has_time_data:
+            return np.full(t2.shape, self.assumption)
+
         t1,v1 = self.get_arrays()
 
         # Remove NaNs
