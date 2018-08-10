@@ -22,6 +22,7 @@ scen_results = P.run_scenario(scenario="Increased mortality", parset="default")
 par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
 
+
 # Single cascades with data
 au.plot_cascade(par_results,cascade='main',pops='adults',year=2017,data=P.data)
 au.plot_cascade(scen_results,cascade='main',pops='adults',year=2017,data=P.data)
@@ -38,3 +39,5 @@ au.plot_series(d,plot_type='stacked')
 d = au.PlotData(scen_results,outputs=['sus','inf','rec','dead'])
 au.plot_series(d,plot_type='stacked')
 
+# Single cascade series
+au.plot_single_cascade_series(par_results,cascade='main',pops='adults',data=P.data)

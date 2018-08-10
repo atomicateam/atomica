@@ -3,13 +3,10 @@ Defines some defaults for Atomica projects
 Version: 2018mar27
 """
 
-from .system import logger
 from .framework import ProjectFramework
 from .project import Project
-from .system import AtomicaException
-from .system import atomica_path
+from .system import AtomicaException, atomica_path, logger
 import sciris.core as sc
-
 
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
     """ Make some default programs"""

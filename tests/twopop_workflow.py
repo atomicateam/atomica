@@ -17,7 +17,7 @@ plot_initial = True
 test = "sir"
 tmpdir = "." + os.sep + "temp" + os.sep
 
-F = au.ProjectFramework.load(tmpdir+test+".frw")
+F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 P = au.Project(name=test.upper()+" project", framework=F)
 P.load_databook(databook_path="./databooks/databook_sir_twopop.xlsx", make_default_parset=True, do_run=True)
 

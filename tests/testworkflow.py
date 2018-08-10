@@ -2,9 +2,6 @@
 Version:
 """
 
-import logging
-logger = logging.getLogger()
-
 import os
 import atomica.ui as au
 import sciris.core as sc
@@ -12,33 +9,32 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-#test = "sir"
-test = "tb"
-#test = "hypertension"
-#test = "udt"
+# test = "sir"
+# test = "tb"
+# test = "hypertension"
+test = "udt"
 #test = "usdt"
-#test = "hiv"
+# test = "hiv"
 #test = "diabetes"
 #test = "service"
 
 
 torun = [
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"plotcascade",
-#"makeprogramspreadsheet",
-#"testprograms",
+"loadframework",
+"saveframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"plotcascade",
+"makeprogramspreadsheet",
+"testprograms",
 "runsim_programs",
-#"makeplots",
-#"export",
+"makeplots",
+"export",
 # "manualcalibrate",
-#"autocalibrate",
+# "autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -69,14 +65,11 @@ if test == "tb":
 
 tmpdir = "." + os.sep + "temp" + os.sep
 
-if "makeframework" in torun:
+if "loadframework" in torun:
     F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
-    F.save(tmpdir+test+".frw")
-
-if "loadframework" in torun:
-    F = au.ProjectFramework.load(tmpdir+test+".frw")
+    F.save(tmpdir+'framework_'+test+".xlsx")
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
