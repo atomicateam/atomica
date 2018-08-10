@@ -210,7 +210,7 @@ class ParameterSet(NamedItem):
                 for pop_name in self.pop_names:
                     self.pars['cascade'][-1].t[pop_name] = None
                     self.pars['cascade'][-1].y[pop_name] = None
-                    self.pars['cascade'][-1].y_format[pop_name] = spec['Format'].lower().strip() if spec['Format'] is not None else None
+                    self.pars['cascade'][-1].y_format[pop_name] = spec['format'].lower().strip() if spec['format'] is not None else None
                     self.pars['cascade'][-1].y_factor[pop_name] = 1.0
 
         # Transfer and interaction extraction.

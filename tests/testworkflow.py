@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
 # test = "sir"
-test = "tb"
+# test = "tb"
 # test = "hypertension"
-#test = "udt"
+test = "udt"
 #test = "usdt"
 # test = "hiv"
 #test = "diabetes"
@@ -27,14 +27,14 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-# "plotcascade",
-# "makeprogramspreadsheet",
-# "testprograms",
-# "runsim_programs",
-#"makeplots",
-#"export",
+"plotcascade",
+"makeprogramspreadsheet",
+"testprograms",
+"runsim_programs",
+"makeplots",
+"export",
 # "manualcalibrate",
-#"autocalibrate",
+# "autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',

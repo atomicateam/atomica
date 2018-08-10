@@ -222,7 +222,7 @@ class Project(object):
         F = self.framework
         comps = []
         for _,spec in F.comps.iterrows():
-            if spec['Is Source']=='y' or spec['Is Sink']=='y' or spec['Is Junction']=='y':
+            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
                 continue
             else:
                 comps.append(spec.name)
@@ -230,8 +230,8 @@ class Project(object):
         # TODO: Think about whether the following makes sense.
         parlist = [] 
         for _,spec in F.pars.iterrows():
-            if spec['Is Impact']=='y':
-                parlist.append((spec.name,spec['Display Name']))
+            if spec['is impact']=='y':
+                parlist.append((spec.name,spec['display name']))
         pars = sc.odict(parlist)
 
 

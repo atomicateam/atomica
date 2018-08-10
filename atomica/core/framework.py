@@ -49,20 +49,21 @@ class ProjectFramework(object):
 
         for worksheet in workbook.worksheets:
             tables = read_tables(worksheet)  # Read the tables
-            self.sheets[worksheet.title] = list()
+            sheet_title = worksheet.title.lower()
+            self.sheets[sheet_title] = list()
             for table in tables:
                 # Get a dataframe
                 df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
                 df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-                df.columns = df.iloc[0]
+                df.columns = df.iloc[0].str.lower()
                 df = df[1:]
-                self.sheets[worksheet.title].append(df)
+                self.sheets[sheet_title].append(df)
 
             # For convenience, if there is only one table (which is the case for most of the sheets) then
             # don't store it as a list. So there will only be a list of DataFrames if there was more than
             # one table on the page (e.g. for cascades)
-            if len(self.sheets[worksheet.title]) == 1:
-                self.sheets[worksheet.title] = self.sheets[worksheet.title][0]
+            if len(self.sheets[sheet_title]) == 1:
+                self.sheets[sheet_title] = self.sheets[sheet_title][0]
 
         self._validate()
         if name is not None:
@@ -80,13 +81,13 @@ class ProjectFramework(object):
     # to store them separately or going via the DataFrames every time
     @property
     def comps(self):
-        # Shortcut to Compartments sheet
-        return self.sheets.get('Compartments')
+        # Shortcut to compartments sheet
+        return self.sheets.get('compartments')
 
     @comps.setter
     def comps(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'Compartments' in self.sheets.keys(): self.sheets['Compartments'] = value
+        if 'compartments' in self.sheets.keys(): self.sheets['compartments'] = value
         else: raise AtomicaException('Cannot set compartment value as Compartment sheet was not defined.')
 
     def get_comp(self,comp_name):
@@ -95,12 +96,12 @@ class ProjectFramework(object):
     @property
     def characs(self):
         # Shortcut to Characteristics sheet
-        return self.sheets.get('Characteristics')
+        return self.sheets.get('characteristics')
 
     @characs.setter
     def characs(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'Characteristics' in self.sheets.keys(): self.sheets['Characteristics'] = value
+        if 'characteristics' in self.sheets.keys(): self.sheets['characteristics'] = value
         else: raise AtomicaException('Cannot set value as Characteristics sheet was not defined.')
 
     def get_charac(self,charac_name):
@@ -109,12 +110,12 @@ class ProjectFramework(object):
     @property
     def pars(self):
         # Shortcut to Parameters sheet
-        return self.sheets.get('Parameters')
+        return self.sheets.get('parameters')
 
     @pars.setter
     def pars(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'Parameters' in self.sheets.keys(): self.sheets['Parameters'] = value
+        if 'parameters' in self.sheets.keys(): self.sheets['parameters'] = value
         else: raise AtomicaException('Cannot set value as Parameters sheet was not defined.')
 
     def get_par(self,par_name):
@@ -123,12 +124,12 @@ class ProjectFramework(object):
     @property
     def interactions(self):
         # Shortcut to Interactions sheet
-        return self.sheets.get('Interactions')
+        return self.sheets.get('interactions')
 
     @interactions.setter
     def interactions(self, value):
         assert isinstance(value,pd.DataFrame)
-        if 'Interactions' in self.sheets.keys(): self.sheets['Interactions'] = value
+        if 'interactions' in self.sheets.keys(): self.sheets['interactions'] = value
         else: raise AtomicaException('Cannot set value as Interactions sheet was not defined.')
 
     @property
@@ -138,12 +139,12 @@ class ProjectFramework(object):
 
         d = sc.odict()
 
-        if 'Cascades' not in self.sheets:
+        if 'cascades' not in self.sheets:
             return d # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
-        elif isinstance(self.sheets['Cascades'],pd.DataFrame):
-            cascade_list = [self.sheets['Cascades']] # Turn it into a list
+        elif isinstance(self.sheets['cascades'],pd.DataFrame):
+            cascade_list = [self.sheets['cascades']] # Turn it into a list
         else:
-            cascade_list = self.sheets['Cascades']
+            cascade_list = self.sheets['cascades']
 
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
@@ -162,8 +163,8 @@ class ProjectFramework(object):
         for df,item_type in zip([self.comps,self.characs,self.pars,self.interactions],[FS.KEY_COMPARTMENT,FS.KEY_CHARACTERISTIC,FS.KEY_PARAMETER,FS.KEY_INTERACTION]):
             if name in df.index:
                 return df.loc[name], item_type
-            elif name in set(df['Display Name']):
-                return df.loc[df['Display Name'] == name].iloc[0], item_type
+            elif name in set(df['display name']):
+                return df.loc[df['display name'] == name].iloc[0], item_type
 
         raise NotFoundError('Variable "%s" not found in Framework' % (name))
 
@@ -179,7 +180,7 @@ class ProjectFramework(object):
         # with a dict where the key is a parameter name and the value is a list of (from,to) tuples
         #
         # Expects a sheet called 'Transitions' to be present and correctly filled out
-        t = self.sheets['Transitions'].copy() # Copy the dataframe on this sheet
+        t = self.sheets['transitions'].copy() # Copy the dataframe on this sheet
         assert isinstance(t,pd.DataFrame) # This will be a list if there was more than one item present
 
         self.transitions = {x:list() for x in list(self.pars.index)}
@@ -203,113 +204,113 @@ class ProjectFramework(object):
         # - Checking that the provided information is internally consistent
 
         # Check for required sheets
-        for page in ['Databook Pages','Compartments','Parameters','Characteristics','Transitions']:
+        for page in ['databook pages','compartments','parameters','characteristics','transitions']:
             assert page in self.sheets, 'Framework File missing required sheet "%s"' % (page)
 
         ### VALIDATE METADATA
 
         # Validate 'About' sheet - it must have a name
-        if 'About' not in self.sheets:
-            self.sheets['About'] = pd.DataFrame.from_records([('Unnamed','No description available')],columns=['Name','Description'])
+        if 'about' not in self.sheets:
+            self.sheets['about'] = pd.DataFrame.from_records([('Unnamed','No description available')],columns=['name','description'])
 
-        required_columns = ['Name']
+        required_columns = ['name']
         defaults = dict()
         valid_content = {
-            'Name': None,  # Valid content being `None` means that it just cannot be empty
+            'name': None,  # Valid content being `None` means that it just cannot be empty
         }
-        self.sheets['About'] = sanitize_dataframe(self.sheets['About'], required_columns, defaults, valid_content)
-        self.sheets['About']['Name'] = self.sheets['About']['Name'].astype(str)
+        self.sheets['about'] = sanitize_dataframe(self.sheets['about'], required_columns, defaults, valid_content)
+        self.sheets['about']['name'] = self.sheets['about']['name'].astype(str)
 
-        if isinstance(self.sheets['About'],list):
-            self.name = self.sheets['About'][0]['Name'].iloc[0]
+        if isinstance(self.sheets['about'],list):
+            self.name = self.sheets['about'][0]['name'].iloc[0]
         else:
-            self.name = self.sheets['About']['Name'].iloc[0]
+            self.name = self.sheets['about']['name'].iloc[0]
 
-        if 'Cascade' in self.sheets and 'Cascades' not in self.sheets:
+        if 'cascade' in self.sheets and 'cascades' not in self.sheets:
             logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
 
-        if 'Plot' in self.sheets and 'Plots' not in self.sheets:
+        if 'plot' in self.sheets and 'plots' not in self.sheets:
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
         ### VALIDATE COMPARTMENTS
-        required_columns = ['Display Name','Is Source', 'Is Sink']
+        required_columns = ['display name','is source', 'is sink']
         defaults = {
-            'Is Sink':'n',
-            'Is Source':'n',
-            'Is Junction':'n',
-            'Can Calibrate':'n',
-            'Databook Page':None,
-            'Default Value':None,
-            'Databook Order':None, # Default is for it to be randomly ordered if the Databook Page is not None
+            'is sink':'n',
+            'is source':'n',
+            'is junction':'n',
+            'can calibrate':'n',
+            'databook page':None,
+            'default value':None,
+            'databook order':None, # Default is for it to be randomly ordered if the databook page is not None
         }
         valid_content = {
-            'Display Name':None, # Valid content being `None` means that it just cannot be empty
-            'Is Sink':{'y','n'},
-            'Is Source':{'y','n'},
-            'Is Junction':{'y','n'},
-            'Can Calibrate':{'y','n'},
+            'display name':None, # Valid content being `None` means that it just cannot be empty
+            'is sink':{'y','n'},
+            'is source':{'y','n'},
+            'is junction':{'y','n'},
+            'can calibrate':{'y','n'},
         }
 
-        self.comps.set_index('Code Name',inplace=True)
+        self.comps.set_index('code name',inplace=True)
         self.comps = sanitize_dataframe(self.comps, required_columns, defaults, valid_content)
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
-        if 'Setup Weight' not in self.comps:
-            self.comps['Setup Weight'] = (~self.comps['Databook Page'].isnull()).astype(int)
+        if 'setup weight' not in self.comps:
+            self.comps['setup weight'] = (~self.comps['databook page'].isnull()).astype(int)
         else:
-            fill_ones = self.comps['Setup Weight'].isnull() & self.comps['Databook Page']
-            self.comps['Setup Weight'][fill_ones] = 1
-            self.comps['Setup Weight'] = self.comps['Setup Weight'].fillna(0)
+            fill_ones = self.comps['setup weight'].isnull() & self.comps['databook page']
+            self.comps['setup weight'][fill_ones] = 1
+            self.comps['setup weight'] = self.comps['setup weight'].fillna(0)
 
         # VALIDATE THE COMPARTMENT SPECIFICATION
         for index,row in self.comps.iterrows():
-            n_types = (row[['Is Sink','Is Source','Is Junction']]=='y').astype(int).sum() # This sums the number of Y's for each compartment
+            n_types = (row[['is sink','is source','is junction']]=='y').astype(int).sum() # This sums the number of Y's for each compartment
             assert n_types <= 1, 'Compartment "%s" can only be one of Sink, Source, or Junction' % row.name
 
-            if (row['Setup Weight']>0) & (row['Is Source']=='y' or row['Is Sink']=='y'):
+            if (row['setup weight']>0) & (row['is source']=='y' or row['is sink']=='y'):
                 raise AtomicaException('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % row.name)
 
-            if (row['Databook Page'] is not None) & (row['Is Source']=='y' or row['Is Sink']=='y'):
-                raise AtomicaException('Compartment "%s" is a source or a sink, but has a Databook Page' % row.name)
+            if (row['databook page'] is not None) & (row['is source']=='y' or row['is sink']=='y'):
+                raise AtomicaException('Compartment "%s" is a source or a sink, but has a databook page' % row.name)
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
             # will appear in the parset
-            if (row['Databook Page'] is None) & (row['Can Calibrate']=='y'):
+            if (row['databook page'] is None) & (row['can calibrate']=='y'):
                 raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
-            if (row['Databook Page'] is None) and (row['Databook Order'] is not None):
+            if (row['databook page'] is None) and (row['databook order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
 
         ### VALIDATE PARAMETERS
-        required_columns = ['Display Name','Format']
+        required_columns = ['display name','format']
         defaults = {
-            'Default Value':None,
-            'Minimum Value':None,
-            'Maximum Value':None,
-            'Function':None,
-            'Databook Page':None,
-            'Databook Order':None,
-            'Can Calibrate':None,
-            'Is Impact':'n',
+            'default value':None,
+            'minimum value':None,
+            'maximum value':None,
+            'function':None,
+            'databook page':None,
+            'databook order':None,
+            'can calibrate':None,
+            'is impact':'n',
         }
         valid_content = {
-            'Display Name': None,
-            'Is Impact':{'y','n'},
-            'Can Calibrate':{'y','n',None},
+            'display name': None,
+            'is impact':{'y','n'},
+            'can calibrate':{'y','n',None},
         }
 
-        self.pars.set_index('Code Name',inplace=True)
+        self.pars.set_index('code name',inplace=True)
         self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
 
         # Make sure all units are lowercase
-        self.pars['Format'] = self.pars['Format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
 
-        # Set 'Can Calibrate' defaults
+        # Set 'can calibrate' defaults
         # By default, it can be calibrated if it is an impact parameter
-        default_calibrate = (self.pars['Can Calibrate'].isnull()) & (self.pars['Is Impact'] == 'y')
-        self.pars['Can Calibrate'][default_calibrate] = 'y'
-        self.pars['Can Calibrate'] = self.pars['Can Calibrate'].fillna('n')
+        default_calibrate = (self.pars['can calibrate'].isnull()) & (self.pars['is impact'] == 'y')
+        self.pars['can calibrate'][default_calibrate] = 'y'
+        self.pars['can calibrate'] = self.pars['can calibrate'].fillna('n')
 
 
         # Parse the transitions matrix
@@ -320,7 +321,7 @@ class ProjectFramework(object):
             if self.transitions[par.name]: # If this parameter is associated with transitions
 
                 # Units must be specified if this is a function parameter (in which case the databook does not specify the units)
-                if (par['Function'] is not None) and (par['Format'] is None):
+                if (par['function'] is not None) and (par['format'] is None):
                     raise AtomicaException('Parameter %s has a custom function and is a transition parameter, so needs to have a format specified in the Framework' % par.name)
 
                 from_comps = [x[0] for x in self.transitions[par.name]]
@@ -333,78 +334,78 @@ class ProjectFramework(object):
                 n_special_outflow = 0
                 for comp in from_comps:
                     comp_spec = self.get_comp(comp)
-                    if comp_spec['Is Sink']=='y':
+                    if comp_spec['is sink']=='y':
                         raise AtomicaException('Parameter "%s" has an outflow from Compartment "%s" which is a sink' % par.name,comp)
-                    elif comp_spec['Is Source']=='y':
+                    elif comp_spec['is source']=='y':
                         n_special_outflow += 1
-                        assert par['Format'] == FS.QUANTITY_TYPE_NUMBER, 'Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par.name
-                    elif comp_spec['Is Junction']=='y':
+                        assert par['format'] == FS.QUANTITY_TYPE_NUMBER, 'Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par.name
+                    elif comp_spec['is junction']=='y':
                         n_special_outflow += 1
-                        assert par['Format'] == FS.QUANTITY_TYPE_PROPORTION, 'Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par.name
+                        assert par['format'] == FS.QUANTITY_TYPE_PROPORTION, 'Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par.name
 
-                    if (par['Format'] == FS.QUANTITY_TYPE_PROPORTION) and (comp_spec['Is Junction']!='y'):
+                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (comp_spec['is junction']!='y'):
                         raise AtomicaException('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not',par.name,comp)
 
                 if n_special_outflow > 1:
                     raise AtomicaException('Parameter "%s" has an outflow more than one source compartment or junction, which prevents disaggregation from working correctly' % par.name)
 
                 for comp in to_comps:
-                    if self.get_comp(comp)['Is Source']=='y':
+                    if self.get_comp(comp)['is source']=='y':
                         raise AtomicaException('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
 
         ### VALIDATE CHARACTERISTICS
 
-        required_columns = ['Display Name']
+        required_columns = ['display name']
         defaults = {
-            'Components':None,
-            'Denominator':None,
-            'Default Value':None,
-            'Function':None,
-            'Databook Page': None,
-            'Databook Order':None,
-            'Can Calibrate':'n',
+            'components':None,
+            'denominator':None,
+            'default value':None,
+            'function':None,
+            'databook page': None,
+            'databook order':None,
+            'can calibrate':'n',
         }
         valid_content = {
-            'Display Name': None,
-            'Components':None,
-            'Can Calibrate':{'y','n'},
+            'display name': None,
+            'components':None,
+            'can calibrate':{'y','n'},
         }
 
-        self.characs.set_index('Code Name',inplace=True)
+        self.characs.set_index('code name',inplace=True)
         self.characs = sanitize_dataframe(self.characs, required_columns, defaults, valid_content)
 
-        if 'Setup Weight' not in self.characs:
-            self.characs['Setup Weight'] = (~self.characs['Databook Page'].isnull()).astype(int)
+        if 'setup weight' not in self.characs:
+            self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
         else:
-            fill_ones = self.characs['Setup Weight'].isnull() & self.characs['Databook Page']
-            self.characs['Setup Weight'][fill_ones] = 1
-            self.characs['Setup Weight'] = self.characs['Setup Weight'].fillna(0)
+            fill_ones = self.characs['setup weight'].isnull() & self.characs['databook page']
+            self.characs['setup weight'][fill_ones] = 1
+            self.characs['setup weight'] = self.characs['setup weight'].fillna(0)
 
         for i,row in self.characs.iterrows():
 
-            for component in row['Components'].split(','):
+            for component in row['components'].split(','):
                 assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name,component)
 
-                if row['Denominator'] is not None:
-                    assert row['Denominator'] in self.comps.index or row['Denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component)
+                if row['denominator'] is not None:
+                    assert row['denominator'] in self.comps.index or row['denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component)
 
-                if (row['Databook Page'] is None) & (row['Can Calibrate']=='y'):
+                if (row['databook page'] is None) & (row['can calibrate']=='y'):
                     raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
         ### VALIDATE INTERACTIONS
 
-        if 'Interactions' not in self.sheets:
-            self.sheets['Interactions'] = pd.DataFrame(columns=['Code Name','Display Name'])
+        if 'interactions' not in self.sheets:
+            self.sheets['interactions'] = pd.DataFrame(columns=['code name','display name'])
 
-        required_columns = ['Display Name']
+        required_columns = ['display name']
         defaults = {
-            'Default Value':None,
+            'default value':None,
         }
         valid_content = {
-            'Display Name': None,
+            'display name': None,
         }
 
-        self.interactions.set_index('Code Name',inplace=True)
+        self.interactions.set_index('code name',inplace=True)
         self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
 
         ### VALIDATE NAMES - No collisions, no keywords
@@ -426,7 +427,7 @@ class ProjectFramework(object):
             else:
                 raise NotAllowedError('Duplicate code name "%s"' % name)
 
-        display_names = list(self.comps['Display Name']) + list(self.characs['Display Name']) + list(self.pars['Display Name']) + list(self.interactions['Display Name'])
+        display_names = list(self.comps['display name']) + list(self.characs['display name']) + list(self.pars['display name']) + list(self.interactions['display name'])
         tmp = set()
         for name in display_names:
             if name not in tmp:
@@ -444,7 +445,7 @@ class ProjectFramework(object):
         # Check that all cascade constituents match a characteristic or compartment
         for df in self.cascades.values():
             for _,spec in df.iterrows():
-                for component in spec['Constituents'].split(','):
+                for component in spec['constituents'].split(','):
                     assert component.strip() in self.comps.index or component.strip() in self.characs.index, 'In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (spec.name,component)
 
 
@@ -454,14 +455,14 @@ class ProjectFramework(object):
 
         # State variables are in number amounts unless normalized.
         if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
-            if "Denominator" in item_spec.index and item_spec["Denominator"] is not None:
+            if "denominator" in item_spec.index and item_spec["denominator"] is not None:
                 allowed_units = [FS.QUANTITY_TYPE_FRACTION]
             else:
                 allowed_units = [FS.QUANTITY_TYPE_NUMBER]
 
         # Modeller's choice for parameters
-        elif item_type in [FS.KEY_PARAMETER] and "Format" in item_spec and item_spec["Format"] is not None:
-            allowed_units = [item_spec["Format"]]
+        elif item_type in [FS.KEY_PARAMETER] and 'format' in item_spec and item_spec['format'] is not None:
+            allowed_units = [item_spec['format']]
         else:
             # User choice if a transfer or a transition parameter.
             if item_type in [FS.KEY_TRANSFER] or (item_spec.name in self.transitions and self.transitions[item_spec.name]):
@@ -490,7 +491,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
 
     # First check required columns are present
     if any(df.index.isnull()):
-        raise AtomicaException('DataFrame index cannot be none (this probably means a "Code Name" was left empty')
+        raise AtomicaException('DataFrame index cannot be none (this probably means a "code name" was left empty')
 
     for col in required_columns:
         assert col in df, 'DataFrame did not contain the required column "%s"' % col

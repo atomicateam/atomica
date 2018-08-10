@@ -135,9 +135,9 @@ class ProjectData(object):
 
         for df in [framework.comps, framework.characs, framework.pars]:
             for _,spec in df.iterrows():
-                databook_page = spec.get('Databook Page')
-                databook_order = spec.get('Databook Order')
-                full_name = spec['Display Name']
+                databook_page = spec.get('databook page')
+                databook_order = spec.get('databook order')
+                full_name = spec['display name']
                 if databook_page is not None:
                     if databook_order is None:
                         order = np.inf
@@ -147,13 +147,13 @@ class ProjectData(object):
                     data.tdve[full_name] = TimeDependentValuesEntry(name=full_name,tvec=tvec,allowed_units=framework.get_allowed_units(full_name))
 
         # Now convert pages to full names and sort them into the correct order
-        for _,spec in framework.sheets['Databook Pages'].iterrows():
+        for _,spec in framework.sheets['databook pages'].iterrows():
 
-            if spec['Datasheet Code Name'] in pages:
-                pages[spec['Datasheet Code Name']].sort(key=lambda x: x[1])
-                data.tdve_pages[spec['Datasheet Title']] = [x[0] for x in pages[spec['Datasheet Code Name']]]
+            if spec['datasheet code name'] in pages:
+                pages[spec['datasheet code name']].sort(key=lambda x: x[1])
+                data.tdve_pages[spec['datasheet title']] = [x[0] for x in pages[spec['datasheet code name']]]
             else:
-                data.tdve_pages[spec['Datasheet Title']] = list()
+                data.tdve_pages[spec['datasheet title']] = list()
 
         # Now, proceed to add pops, transfers, and interactions
         for code_name,full_name in new_pops.items():
@@ -163,7 +163,7 @@ class ProjectData(object):
             data.add_transfer(code_name,full_name)
 
         for _,spec in framework.interactions.iterrows():
-            interpop = data.add_interaction(spec.name, spec['Display Name'])
+            interpop = data.add_interaction(spec.name, spec['display name'])
             if 'default_value' in spec and spec['default_value']:
                 for from_pop in interpop.pops:
                     for to_pop in interpop.pops:
@@ -177,10 +177,10 @@ class ProjectData(object):
                 # In order to write a default value
                 # - The default value should be present and not None
                 # - The quantity should appear in the databook
-                if 'Default Value' in spec and (spec['Default Value'] is not None) and spec['Databook Page']:
-                    tdve = data.tdve[spec['Display Name']]
+                if 'default value' in spec and (spec['default value'] is not None) and spec['databook page']:
+                    tdve = data.tdve[spec['display name']]
                     for ts in tdve.ts.values():
-                        ts.insert(None,spec['Default Value'])
+                        ts.insert(None,spec['default value'])
 
         return data
 
@@ -271,9 +271,9 @@ class ProjectData(object):
         # those quantities all have some data values associated with them
         for df in [framework.comps, framework.characs, framework.pars]:
             for _, spec in df.iterrows():
-                if spec['Databook Page'] is not None:
+                if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
-                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['Display Name'],spec.name))
+                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['display name'],spec.name))
                     else:
                         allowed_units = framework.get_allowed_units(spec.name)
                         for name,ts in self.tdve[spec.name].ts.items():
@@ -391,8 +391,8 @@ class ProjectData(object):
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
-        assert tables[0][0][0].value.strip() == 'Abbreviation'
-        assert tables[0][0][1].value.strip() == 'Full Name'
+        assert tables[0][0][0].value.strip().lower() == 'abbreviation'
+        assert tables[0][0][1].value.strip().lower() == 'full name'
 
         for row in tables[0][1:]:
             if row[0].value.strip().lower() == 'all':
