@@ -1,6 +1,6 @@
 # Imports
 
-from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
+from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllowedError, logger
 from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function

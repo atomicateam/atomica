@@ -2,9 +2,6 @@
 Version:
 """
 
-import logging
-logger = logging.getLogger()
-
 import os
 import atomica.ui as au
 import sciris.core as sc
@@ -30,10 +27,10 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-"plotcascade",
-"makeprogramspreadsheet",
-"testprograms",
-"runsim_programs",
+# "plotcascade",
+# "makeprogramspreadsheet",
+# "testprograms",
+# "runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -72,7 +69,7 @@ if "loadframework" in torun:
     F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
-    F.save(tmpdir+test+".xlsx")
+    F.save(tmpdir+'framework_'+test+".xlsx")
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.

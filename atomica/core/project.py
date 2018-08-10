@@ -44,7 +44,6 @@ import numpy as np
 from .excel import AtomicaSpreadsheet
 from six import string_types
 
-
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
@@ -52,11 +51,7 @@ class ProjectSettings(object):
         self.sim_end = sim_end if sim_end is not None else 2035.0
         self.sim_dt = sim_dt if sim_dt is not None else 1.0 / 4
 
-        # Other
-        #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
-        #        self.safetymargin = 0.5 # Do not move more than this fraction of people on a single timestep
-        #        self.infmoney = 1e10 # A lot of money
-        logger.info("Initialized project settings.")
+        logger.debug("Initialized project settings.")
 
     def __repr__(self):
         """ Print object """
@@ -171,7 +166,6 @@ class Project(object):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
-        print(self.framework)
         data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
         return data

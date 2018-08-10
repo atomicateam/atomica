@@ -7,7 +7,6 @@ from .structure import FrameworkSettings as FS
 from .system import AtomicaException, logger
 from .utils import NamedItem
 
-
 # Parameter class that stores one array of values converted from raw project data
 class Parameter(NamedItem):
     """ Class to hold one set of parameter values disaggregated by populations. """
@@ -157,7 +156,7 @@ class ParameterSet(NamedItem):
         self.transfers = sc.odict()  # Dictionary of inter-population transitions.
         self.interactions = sc.odict()  # Dictionary of inter-population interactions.
 
-        logger.info("Created ParameterSet: {0}".format(self.name))
+        logger.debug("Created ParameterSet: {0}".format(self.name))
 
     def copy(self, new_name=None):
         x = sc.dcp(self)
