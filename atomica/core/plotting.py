@@ -1189,7 +1189,7 @@ def get_full_name(output_id, proj):
     if output_id in proj.data.pops:
         return proj.data.pops[output_id]['label'] # Convert population
 
-    full_name = lambda x: proj.framework.get_variable(x)[0]['Display Name']
+    full_name = lambda x: proj.framework.get_variable(x)[0]['display name']
 
     if ':' in output_id: # We are parsing a link
         # Handle Links specified with colon syntax
