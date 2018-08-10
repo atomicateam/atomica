@@ -884,10 +884,10 @@ def get_y_factors(project_id, parsetname=-1):
         for parname in parset.par_ids[par_type].keys():
             this_par = parset.get_par(parname)
             this_spec = proj.framework.get_variable(parname)[0]
-            if 'Can Calibrate' in this_spec and this_spec['Can Calibrate'] == 'y':
+            if 'can calibrate' in this_spec and this_spec['can calibrate'] == 'y':
                 for popname,y_factor in this_par.y_factor.items():
                     count += 1
-                    parlabel = this_spec['Display Name']
+                    parlabel = this_spec['display name']
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     try:    

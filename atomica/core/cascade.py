@@ -7,8 +7,7 @@ import matplotlib
 from .utils import NDict
 from .results import Result
 from six import string_types
-import logging
-logger = logging.getLogger(__name__)
+from .system import logger
 
 default_figsize = (9,5)
 
@@ -41,6 +40,46 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
         year = sc.promotetoarray(year)
     
     return cascade, pops, year
+
+def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
+    # Plot a stacked timeseries of the cascade. Unlike a normal stacked plot, the shaded areas show losses
+    # so for example the overall height of the plot corresponds to the number of people in the first cascade stage
+    from .plotting import PlotData, plot_series # Import here to avoid circular dependencies
+
+    cascade, pops, _ = sanitize_cascade_inputs(result=result, cascade=cascade, pops=pops, year=None)
+
+    if isinstance(result,list):
+        figs = []
+        for r in result:
+            figs.append(plot_single_cascade(r,cascade,pops,data))
+        return figs
+
+    # Now, construct and plot the series
+    assert isinstance(result,Result), 'Input must be a single Result object'
+    if isinstance(cascade,string_types):
+        outputs = get_cascade_outputs(result.framework,cascade)
+    else:
+        outputs = cascade
+
+    d = PlotData(result, outputs=outputs, pops=pops)
+    assert len(d.pops) == 1, 'Cannot get results for multiple populations or population aggregations yet, only a single pop or single aggregation'
+    if len(d.series) > 1:
+        # Iteratively un-nest the series - outputs are expected to be an odict in order of cascade stage
+        for i in range(0,len(d.series)-1):
+            d.series[i].vals -= d.series[i+1].vals
+    d.outputs.reverse() # Invert stacking order so smallest stage is on the bottom
+    d.set_colors(outputs=d.outputs) # Assign the colours now, so that they can be used consistently for data afterwards
+    figs = plot_series(d,plot_type='stacked',axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
+    ax = figs[0].axes[0]
+
+    if data is not None:
+        t = d.tvals()[0]
+        cascade_data,_ = get_cascade_data(data,result.framework,cascade,pops,t)
+        for stage,vals in cascade_data.items():
+            color = d[d.results[0],d.pops[0],stage].color # Get the colour of this quantity
+            flt = ~np.isnan(vals)
+            if np.any(flt): # Need to only plot real values, because NaNs show up in mpld3 even though they don't appear in the normal figure
+                ax.scatter(t[flt],vals[flt],marker='o', s=40, linewidths=1, facecolors=color,color='k',zorder=100)
 
 
 def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=None):

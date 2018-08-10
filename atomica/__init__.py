@@ -23,20 +23,23 @@ License:
 import sys
 from datetime import datetime
 import logging
-logger = logging.getLogger() # Get the root logger, keep its level
+logger = logging.getLogger('atomica')
 
-h1 = logging.StreamHandler(sys.stdout)
-h2 = logging.StreamHandler(sys.stderr)
-# h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
-h1.setLevel(0) # Handle all
-h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x,logRecord: logRecord.levelno < logging.WARNING})()) # Display anything less than a warning
-h2.setLevel(logging.WARNING)
-
-logger.addHandler(h1)
-logger.addHandler(h2)
+if not any([isinstance(h,logging.StreamHandler) and not isinstance(h,logging.FileHandler) for h in logger.handlers]):
+    # Only add handlers if they don't already exist in the module-level logger
+    # User can still add a file handler to the 
+    h1 = logging.StreamHandler(sys.stdout)
+    h2 = logging.StreamHandler(sys.stderr)
+    # h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
+    h1.setLevel(0) # Handle all
+    h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x,logRecord: logRecord.levelno < logging.WARNING})()) # Display anything less than a warning
+    h2.setLevel(logging.WARNING)
+    
+    logger.addHandler(h1)
+    logger.addHandler(h2)
 
 import atomica.core.version
-logger.critical( 'Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
+logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
 logger.critical(datetime.now())
 
 try:
@@ -46,10 +49,6 @@ try:
     del atomica_git
 except:
     pass
-
-# Import things for the user
-from . import core # All Atomica functions
-from . import ui as au # The actual Atomica user interface
 
 # Import app flavors
 try:

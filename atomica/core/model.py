@@ -1,6 +1,6 @@
 # Imports
 
-from .system import AtomicaException, logger, NotFoundError, AtomicaInputError, NotAllowedError
+from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllowedError, logger
 from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
@@ -115,15 +115,22 @@ class Compartment(Variable):
         if ti is None:
             ti = np.arange(0, len(self.t))
 
-        outflow_probability = 0
+        outflow_probability = 0 # Outflow probability at this timestep
         for link in self.outlinks:
-            if link.parameter.units == 'fraction':
+
+            if link.parameter.units == FS.QUANTITY_TYPE_DURATION:
+                x = 1.0 - np.exp(-1.0 / link.parameter.vals[ti])
                 outflow_probability += 1 - (1 - link.parameter.vals[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
-            elif link.parameter.units == 'number':
+            elif link.parameter.units == FS.QUANTITY_TYPE_PROBABILITY:
+                outflow_probability += 1 - (1 - link.parameter.vals[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
+            elif link.parameter.units == FS.QUANTITY_TYPE_NUMBER:
                 outflow_probability += link.parameter.vals[ti] * self.dt / self.vals[ti]
+            elif link.parameter.units == FS.QUANTITY_TYPE_PROPORTION:
+                outflow_probability += link.parameter.vals[ti]
             else:
                 raise AtomicaInputError('Unknown parameter units')
 
+<<<<<<< HEAD
         # remain_probability = 1 - outflow_probability
 
         dur = np.zeros(outflow_probability.shape)
@@ -145,7 +152,24 @@ class Compartment(Variable):
         # TODO: QUESTION, IS THIS DEPRECATED??
 #        dur[dur < 1] = (1 - (1. / np.log(remain_probability[dur < 1]) ** 2) *
 #                        (remain_probability[dur < 1] - 1)) * self.dt
+=======
+        remain_probability = 1 - outflow_probability
+
+        # This is the algorithm - we calculate the probability of leaving after a specific number of time steps, and then
+        # take the expectation value. The example below shows a discrete numerical calculation as well as a closed-form
+        # approximation which is what actually gets used
+        # remain_probability = 0.99
+        # x = np.arange(0,1000)
+        # y = (remain_probability**x)*(1-remain_probability)
+        # numerical = np.sum((x+1) * y) * self.dt # x+1 because if we leave at the first timestep, we are considered to have stayed for dt units of time
+        # analytic = (1 - (1. / np.log(remain_probability) ** 2) * (remain_probability - 1)) * self.dt
+        # print('numerical=%.2f, analytic=%.2f' % (numerical,analytic))
+
+        dur = (1 - (1. / np.log(remain_probability) ** 2) * (remain_probability - 1)) * self.dt
+>>>>>>> develop
         return dur
+
+
 
     def expected_outflow(self, ti):
         # After 1 year, where are people expected to be? If people would leave in less than a year,
@@ -457,10 +481,18 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
+<<<<<<< HEAD
     def __init__(self, framework, name='default', label='Population 1'):
 
         self.name = name
         self.label = label
+=======
+    def __init__(self, framework, name, label):
+
+        self.name = name # This is the code name
+        self.label = label # This is the full name
+
+>>>>>>> develop
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
         # List of characteristics and output parameters.
         # Dependencies computed during integration, pure outputs added after.
@@ -608,11 +640,11 @@ class Population(object):
         # Instantiate compartments
         for comp_name in list(comps.index):
             self.comps.append(Compartment(pop=self, name=comp_name))
-            if comps.at[comp_name,"Is Source"] == 'y':
+            if comps.at[comp_name,"is source"] == 'y':
                 self.comps[-1].tag_birth = True
-            if comps.at[comp_name,"Is Sink"] == 'y':
+            if comps.at[comp_name,"is sink"] == 'y':
                 self.comps[-1].tag_dead = True
-            if comps.at[comp_name,"Is Junction"] == 'y':
+            if comps.at[comp_name,"is junction"] == 'y':
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -623,10 +655,10 @@ class Population(object):
 
         # Characteristics second pass, add includes and denominator
         for charac_name,charac in zip(list(characs.index),self.characs):
-            includes = [x.strip() for x in characs.at[charac_name,'Components'].split(',')]
+            includes = [x.strip() for x in characs.at[charac_name,'components'].split(',')]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            denominator = characs.at[charac_name,"Denominator"]
+            denominator = characs.at[charac_name,"denominator"]
             if denominator is not None:
                 charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
 
@@ -635,7 +667,7 @@ class Population(object):
             par = Parameter(pop=self, name=par_name)
             self.pars.append(par)
             if framework.transitions[par_name]: # If there are any links associated with this parameter
-                par.units = pars.at[par_name,"Format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+                par.units = pars.at[par_name,"format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
                 for pair in framework.transitions[par_name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
@@ -650,8 +682,8 @@ class Population(object):
 
         # Parameters second pass, process f_stacks, deps, and limits
         for par_name,par in zip(list(pars.index),self.pars):
-            min_value = pars.at[par_name,'Minimum Value']
-            max_value = pars.at[par_name,'Maximum Value']
+            min_value = pars.at[par_name,'minimum value']
+            max_value = pars.at[par_name,'maximum value']
 
             if (min_value is not None) or (max_value is not None):
                 par.limits = [-np.inf, np.inf]
@@ -660,7 +692,7 @@ class Population(object):
                 if max_value is not None:
                     par.limits[1] = max_value
 
-            fcn_str = pars.at[par_name,'Function']
+            fcn_str = pars.at[par_name,'function']
             if fcn_str is not None:
                 par.set_fcn(framework,fcn_str)
 
@@ -677,8 +709,8 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c in self.characs if framework.get_charac(c.name)['Databook Page'] is not None and framework.get_charac(c.name)['Setup Weight']]
-        characs += [c for c in self.comps if framework.get_comp(c.name)['Databook Page'] is not None and framework.get_comp(c.name)['Setup Weight']]
+        characs = [c for c in self.characs if framework.get_charac(c.name)['databook page'] is not None and framework.get_charac(c.name)['setup weight']]
+        characs += [c for c in self.comps if framework.get_comp(c.name)['databook page'] is not None and framework.get_comp(c.name)['setup weight']]
 
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name: i for i, c in enumerate(characs)}  # Make lookup dict for characteristic indices
@@ -772,21 +804,21 @@ class Model(object):
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
 
         self.pops = list()  # List of population groups that this model subdivides into.
-        self.pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self.interactions = sc.odict()
-        self.t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
-        self.par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
-
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
         self.program_instructions = sc.dcp(program_instructions) # program instructions
-        self.program_cache = None
-
         self.t = None
         self.dt = None
-        self.vars_by_pop = None  # Cache to look up lists of variables by name across populations
+
+        self._t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
+        self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
+        self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
+        self._program_cache = None
+        self._par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
 
         self.framework = sc.dcp(framework) # Store a copy of the Framework used to generate this model
+        self.framework.spreadsheet = None # No need to keep the spreadsheet
         self.build(settings, parset)
 
     def unlink(self):
@@ -794,14 +826,14 @@ class Model(object):
         # Primary storage is in the comps, links, and outputs properties
 
         # If we are already unlinked, do nothing
-        if self.vars_by_pop is None:
+        if self._vars_by_pop is None:
             return
 
         for pop in self.pops:
             pop.unlink()
 
-        self.vars_by_pop = None
-        self.program_cache = None # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
+        self._vars_by_pop = None
+        self._program_cache = None # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
 
     def relink(self):
         # Need to enumerate objects at Model level because transitions link across pops
@@ -817,7 +849,7 @@ class Model(object):
             for pop in self.pops:
                 pop.relink(objs)
 
-        if self.vars_by_pop is None:
+        if self._vars_by_pop is None:
             self.set_vars_by_pop()
 
     def update_program_cache(self):
@@ -825,25 +857,25 @@ class Model(object):
         # Finally, prepare programs
         if self.progset and self.program_instructions:
             self.programs_active = True
-            self.program_cache = dict()
+            self._program_cache = dict()
 
-            self.program_cache['comps'] = {}
-            self.program_cache['pars'] = {}
+            self._program_cache['comps'] = {}
+            self._program_cache['pars'] = {}
             for prog in self.progset.programs.values():
-                self.program_cache['comps'][prog.short] = []
+                self._program_cache['comps'][prog.short] = []
 
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
-                        self.program_cache['comps'][prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
+                        self._program_cache['comps'][prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
 
             for target_par in prog.target_pars:
-                if target_par['param'] not in self.program_cache['pars']:
-                    self.program_cache['pars'][target_par['param']] = {}
+                if target_par['param'] not in self._program_cache['pars']:
+                    self._program_cache['pars'][target_par['param']] = {}
 
-                self.program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
+                self._program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
 
-            self.program_cache['alloc'] = self.progset.get_alloc(self.program_instructions,self.t)
-            self.program_cache['coverage'] = self.progset.get_num_covered(year=self.t,alloc=self.program_cache['alloc'])
+            self._program_cache['alloc'] = self.progset.get_alloc(self.program_instructions, self.t)
+            self._program_cache['coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
 
             self.progset.prepare_cache()
         else:
@@ -852,11 +884,11 @@ class Model(object):
 
 
     def set_vars_by_pop(self):
-        self.vars_by_pop = defaultdict(list)
+        self._vars_by_pop = defaultdict(list)
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
-                self.vars_by_pop[var.name].append(var)
-        self.vars_by_pop = dict(self.vars_by_pop) # Stop new entries from appearing in here by accident
+                self._vars_by_pop[var.name].append(var)
+        self._vars_by_pop = dict(self._vars_by_pop) # Stop new entries from appearing in here by accident
 
     def __getstate__(self):
         # The combination of
@@ -881,7 +913,7 @@ class Model(object):
 
     def get_pop(self, pop_name):
         """ Allow model populations to be retrieved by name rather than index. """
-        pop_index = self.pop_ids[pop_name]
+        pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
 
@@ -891,12 +923,17 @@ class Model(object):
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
+<<<<<<< HEAD
         for k, pop_name in enumerate(parset.pop_names):
             self.pops.append(Population(framework=self.framework, name=pop_name, label=parset.pop_labels[k]))
             # TODO: Update preallocate case.
+=======
+        for k, (pop_name,pop_label) in enumerate(zip(parset.pop_names,parset.pop_labels)):
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label))
+>>>>>>> develop
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
-            self.pop_ids[pop_name] = k
+            self._pop_ids[pop_name] = k
             self.pops[-1].initialize_compartments(parset, self.framework, self.t[0])
 
         # Expand interactions into matrix form
@@ -963,18 +1000,18 @@ class Model(object):
                                 else:
                                     pop.link_lookup[link.name] = [link]
 
-        # Now that all object have been created, update vars_by_pop() accordingly
+        # Now that all object have been created, update _vars_by_pop() accordingly
         self.set_vars_by_pop()
 
     def process(self):
         """ Run the full model. """
 
-        assert self.t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
+        assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
 
         self.update_program_cache()
 
         # Initial flush of people in junctions
-        if self.t_index == 0:
+        if self._t_index == 0:
             # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate initial flows
             self.update_pars() # Update transition parameters in case junction outflows are function parameters
             self.update_junctions(initial_flush=True) # Flush the current contents of the junction without considering any inflows
@@ -983,9 +1020,9 @@ class Model(object):
             self.update_junctions() # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
 
         # Main integration loop
-        while self.t_index < (self.t.size-1):
-            self.update_comps() # This writes values to comp.vals[ti+1] so this will be out of bounds if self.t_index == self.t.size-1
-            self.t_index += 1  # Step the simulation forward
+        while self._t_index < (self.t.size - 1):
+            self.update_comps() # This writes values to comp.vals[ti+1] so this will be out of bounds if self._t_index == self.t.size-1
+            self._t_index += 1  # Step the simulation forward
             self.update_pars()
             self.update_links()
             self.update_junctions()
@@ -1005,7 +1042,7 @@ class Model(object):
                 #             for link in par.links:
                 #                 link.vals = None
 
-        self.program_cache = None # Drop the program cache afterwards to save space
+        self._program_cache = None # Drop the program cache afterwards to save space
 
     def update_links(self):
         """
@@ -1016,7 +1053,7 @@ class Model(object):
         This function computes the link flow rates.
         """
 
-        ti = self.t_index
+        ti = self._t_index
 
         for pop in self.pops:
 
@@ -1069,12 +1106,12 @@ class Model(object):
 
     def update_comps(self):
         """
-        Set the compartment values at self.t_index+1 based on the current values at self.t_index
-        and the link values at self.t_index. Values are updated by iterating over all outgoing links
+        Set the compartment values at self._t_index+1 based on the current values at self._t_index
+        and the link values at self._t_index. Values are updated by iterating over all outgoing links
 
         """
 
-        ti = self.t_index
+        ti = self._t_index
 
         # Pre-populate the current value - need to iterate over pops here because transfers
         # will cross population boundaries
@@ -1109,7 +1146,7 @@ class Model(object):
         # some people in it initially, or after `update_links` in which case it won't have any people
         # so it needs to fill itself from its incoming links
 
-        ti = self.t_index # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
+        ti = self._t_index # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
 
         for pop in self.pops:
 
@@ -1170,7 +1207,7 @@ class Model(object):
         Parameters that have special rules are usually dependent on other population values, so are included here.
         """
 
-        ti = self.t_index
+        ti = self._t_index
 
         # The output list maintains the order in which characteristics and parameters appear in the
         # settings, and also puts characteristics before parameters. So iterating through that list
@@ -1193,20 +1230,20 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            prop_covered = dict.fromkeys(self.program_cache['comps'], 0.0)
-            for k,comp_list in self.program_cache['comps'].items():
+            prop_covered = dict.fromkeys(self._program_cache['comps'], 0.0)
+            for k,comp_list in self._program_cache['comps'].items():
                 n = 0.0
                 for comp in comp_list:
                     n += comp.vals[ti]
-                prop_covered[k] = np.minimum(self.program_cache['coverage'][k][ti]/n,1.)
+                prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
 
             # Compute the updated program values
             prog_vals = self.progset.get_outcomes(prop_covered)
 
-        for par_name in self.par_list:
+        for par_name in self._par_list:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
-            pars = self.vars_by_pop[par_name]
+            pars = self._vars_by_pop[par_name]
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:

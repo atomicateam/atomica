@@ -14,9 +14,7 @@ from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
 from six import string_types
-
-import logging
-logger = logging.getLogger(__name__)
+from .system import logger
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
