@@ -19,24 +19,17 @@ import matplotlib
 import sciris.core as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, NotFoundError
+from .system import AtomicaException, NotFoundError, logger
 from .parser_function import parse_function
 from .utils import NDict
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
 import scipy.interpolate
-
-import logging
-logger = logging.getLogger(__name__)
-
 from six import string_types
-import logging
-logger = logging.getLogger(__name__)
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
-
 
 def save_figs(figs, path='.', prefix='', fnames=None):
     # Take in array of figures, and save them to disk
@@ -1196,7 +1189,7 @@ def get_full_name(output_id, proj):
     if output_id in proj.data.pops:
         return proj.data.pops[output_id]['label'] # Convert population
 
-    full_name = lambda x: proj.framework.get_variable(x)[0]['Display Name']
+    full_name = lambda x: proj.framework.get_variable(x)[0]['display name']
 
     if ':' in output_id: # We are parsing a link
         # Handle Links specified with colon syntax

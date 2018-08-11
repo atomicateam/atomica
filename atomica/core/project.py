@@ -34,7 +34,7 @@ from .parameters import ParameterSet
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
 from .optimization import optimize, OptimInstructions
-from .system import SystemSettings as SS, AtomicaException, logger
+from .system import AtomicaException, logger
 from .workbook_export import make_progbook
 from .workbook_import import load_progbook
 from .scenarios import BudgetScenario
@@ -44,7 +44,6 @@ import numpy as np
 from .excel import AtomicaSpreadsheet
 from six import string_types
 
-
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
@@ -52,11 +51,7 @@ class ProjectSettings(object):
         self.sim_end = sim_end if sim_end is not None else 2035.0
         self.sim_dt = sim_dt if sim_dt is not None else 1.0 / 4
 
-        # Other
-        #        self.defaultblue = (0.16, 0.67, 0.94) # The color of Atomica
-        #        self.safetymargin = 0.5 # Do not move more than this fraction of people on a single timestep
-        #        self.infmoney = 1e10 # A lot of money
-        logger.info("Initialized project settings.")
+        logger.debug("Initialized project settings.")
 
     def __repr__(self):
         """ Print object """
@@ -171,8 +166,7 @@ class Project(object):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
-        print(self.framework)
-        data = ProjectData.new(self.framework, np.arange(data_start,data_end,data_dt), pops=num_pops, transfers=num_transfers)
+        data = ProjectData.new(self.framework, np.arange(data_start,data_end+data_dt,data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
         return data
 
@@ -228,7 +222,7 @@ class Project(object):
         F = self.framework
         comps = []
         for _,spec in F.comps.iterrows():
-            if spec['Is Source']=='y' or spec['Is Sink']=='y' or spec['Is Junction']=='y':
+            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
                 continue
             else:
                 comps.append(spec.name)
@@ -236,8 +230,8 @@ class Project(object):
         # TODO: Think about whether the following makes sense.
         parlist = [] 
         for _,spec in F.pars.iterrows():
-            if spec['Is Impact']=='y':
-                parlist.append((spec.name,spec['Display Name']))
+            if spec['is impact']=='y':
+                parlist.append((spec.name,spec['display name']))
         pars = sc.odict(parlist)
 
 
@@ -511,15 +505,16 @@ class Project(object):
 
     def save(self, filepath):
         """ Save the current project to a relevant object file. """
-        filepath = sc.makefilepath(filename=filepath, ext=SS.OBJECT_EXTENSION_PROJECT,
-                                sanitize=True)  # Enforce file extension.
+        filepath = sc.makefilepath(filename=filepath, ext='prj',sanitize=True)  # Enforce file extension.
         sc.saveobj(filepath, self)
         return None
 
-    @classmethod
-    def load(cls, filepath):
+    @staticmethod
+    def load(filepath):
         """ Convenience class method for loading a project in the absence of an instance. """
-        return sc.loadobj(filepath)
+        P = sc.loadobj(filepath)
+        assert isinstance(P,Project)
+        return P
 
     def demo_scenarios(self, dorun=False, doadd=True):
         json1 = sc.odict()

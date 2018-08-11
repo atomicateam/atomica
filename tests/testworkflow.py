@@ -2,9 +2,6 @@
 Version:
 """
 
-import logging
-logger = logging.getLogger()
-
 import os
 import atomica.ui as au
 import sciris.core as sc
@@ -13,32 +10,31 @@ import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
 #test = "sir"
-test = "tb"
+#test = "tb"
 #test = "hypertension"
 #test = "udt"
 #test = "usdt"
-#test = "hiv"
+test = "hiv"
 #test = "diabetes"
 #test = "service"
 
 
 torun = [
-#"makeframework",
-#"saveframework",
-#"loadframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"plotcascade",
-#"makeprogramspreadsheet",
-#"testprograms",
+"loadframework",
+"saveframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"plotcascade",
+"makeprogramspreadsheet",
+"testprograms",
 "runsim_programs",
-#"makeplots",
-#"export",
+"makeplots",
+"export",
 # "manualcalibrate",
-#"autocalibrate",
+# "autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -56,6 +52,8 @@ if test == "sir":
     deaths = ["sus:dead", "inf:dead", "rec:dead"]
     grouped_deaths = {'inf': ['inf:dead'], 'sus': ['sus:dead'], 'rec': ['rec:dead']}  # As rec-dead does not have a unique link tag, plotting rec-dead separately would require actually extracting its link object
     plot_pop = [test_pop]
+if test == "hypertension":
+    plot_pop = ["m_rural"]
 if test == "tb":
     test_vars = ["sus", "vac", "spdu", "alive", "b_rate"]
     test_pop = "0-4"
@@ -69,14 +67,11 @@ if test == "tb":
 
 tmpdir = "." + os.sep + "temp" + os.sep
 
-if "makeframework" in torun:
+if "loadframework" in torun:
     F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
 if "saveframework" in torun:
-    F.save(tmpdir+test+".frw")
-
-if "loadframework" in torun:
-    F = au.ProjectFramework.load(tmpdir+test+".frw")
+    F.save(tmpdir+'framework_'+test+".xlsx")
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
@@ -317,12 +312,13 @@ if "runsim_programs" in torun:
     
 if "makeplots" in torun:
     # Low level debug plots.
-    for var in test_vars:
-        P.results["parset_default"].get_variable(test_pop,var)[0].plot()
+    if test in ['tb','sir']:
+        for var in test_vars:
+            P.results["parset_default"].get_variable(test_pop,var)[0].plot()
     
-    # Plot population decomposition.
-    d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
-    au.plot_series(d, plot_type="stacked")
+        # Plot population decomposition.
+        d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
+        au.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # Plot bars for deaths, aggregated by strain, stacked by pop
@@ -346,9 +342,9 @@ if "makeplots" in torun:
         d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
         au.plot_series(d, plot_type='stacked', axis='outputs')
 
-    # Plot aggregate flows
-    d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
-    au.plot_series(d, axis="pops")
+        # Plot aggregate flows
+        d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
+        au.plot_series(d, axis="pops")
 
 
 if "export" in torun:

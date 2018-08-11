@@ -48,6 +48,10 @@ class Result(NamedItem):
     def t_observed_data(self):
         return self.t[self.indices_observed_data]
 
+    @property
+    def pop_labels(self):
+        return [x.label for x in self.model.pops]
+
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have
     # different contents
@@ -94,41 +98,46 @@ class Result(NamedItem):
         from .plotting import PlotData
         from .cascade import get_cascade_vals
 
+        pop_names = sc.odict()
+        pop_names['all'] = 'Entire population'
+        for pop_name,pop_label in zip(self.pop_names,self.pop_labels):
+            pop_names[pop_name] = pop_label
+
         new_tvals = np.arange(np.ceil(self.t[0]), np.floor(self.t[-1]) + 1)
 
-        if 'Plots' not in self.framework.sheets:
+        if 'plots' not in self.framework.sheets:
             plot_df = None
         else:
-            plots_required = self.framework.sheets['Plots']
+            plots_required = self.framework.sheets['plots'][0]
             plot_df = []
 
             # Now for each plot, we have one output and several populations
             # We will have one dataframe for each output
             for _,spec in plots_required.iterrows():
-                if 'Type' in spec and spec['Type'] == 'bar':
+                if 'type' in spec and spec['type'] == 'bar':
                     continue # For now, don't do bars - not implemented yet
                 data = sc.odict()
-                popdata = PlotData(self,outputs=evaluate_plot_string(spec['Quantities']))
+                popdata = PlotData(self,outputs=evaluate_plot_string(spec['quantities']))
                 assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
                 popdata.interpolate(new_tvals)
                 for pop in popdata.pops:
-                    data[pop] = popdata[self.name,pop,popdata.outputs[0]].vals
+                    data[pop_names[pop]] = popdata[self.name,pop,popdata.outputs[0]].vals
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
-                df.name = spec['Display Name']
+                df.name = spec['display name']
                 plot_df.append(df)
 
         cascade_df = list()
+
         for name in self.framework.cascades.keys():
-            for pop in ['all'] + self.pop_names:
+            for pop,label in pop_names.items():
                 data = sc.odict()
                 cascade_vals,_ = get_cascade_vals(self,name,pops=pop,year=new_tvals)
                 for stage,vals in cascade_vals.items():
                     data[stage] = vals
-
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
-                df.name = '%s - Population "%s"' % (name,pop)
+                df.name = '%s - %s' % (name,label)
                 cascade_df.append(df)
 
         writer = pd.ExcelWriter(filename + '.xlsx' if not filename.endswith('.xlsx') else filename,engine='xlsxwriter')
@@ -147,10 +156,10 @@ class Result(NamedItem):
             worksheet.set_column(0, 0, required_width * 1.1 + 1)
 
         if plot_df:
-            write_df_list(plot_df,'Plots')
+            write_df_list(plot_df,'plots')
 
         if cascade_df:
-            write_df_list(cascade_df,'Cascades')
+            write_df_list(cascade_df,'cascades')
 
         writer.save()
         writer.close()
@@ -165,15 +174,15 @@ class Result(NamedItem):
 
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('compartments', pop.name, comp.name)] = comp.vals
+                d[('Compartments', pop.name, comp.name)] = comp.vals
             for charac in pop.characs:
-                d[('characteristics', pop.name, charac.name)] = charac.vals
+                d[('Characteristics', pop.name, charac.name)] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('parameters', pop.name, par.name)] = par.vals
+                    d[('Parameters', pop.name, par.name)] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                key = ('flow rates', pop.name, link.name)
+                key = ('Flow rates', pop.name, link.name)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
@@ -191,20 +200,20 @@ class Result(NamedItem):
     def plot(self,plot_name=None,plot_group=None,pops=None,project=None):
         from .plotting import PlotData, plot_series
 
-        df = self.framework.sheets['Plots']
+        df = self.framework.sheets['plots'][0]
 
         if plot_group is not None:
-            for plot_name in df.loc[df['Plot Group']==plot_group,'Code Name']:
+            for plot_name in df.loc[df['plot group']==plot_group,'code name']:
                 self.plot(plot_name=plot_name)
             return
 
-        this_plot = df.loc[df['Code Name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
+        this_plot = df.loc[df['code name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
-        quantities = evaluate_plot_string(this_plot['Quantities'])
+        quantities = evaluate_plot_string(this_plot['quantities'])
 
         d = PlotData(self, outputs=quantities, pops=pops,project=project)
         h = plot_series(d, axis='pops',data=(project.data if project is not None else None))
-        plt.title(this_plot['Display Name'])
+        plt.title(this_plot['display name'])
         return h
 
 def evaluate_plot_string(plot_string):

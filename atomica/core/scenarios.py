@@ -5,11 +5,9 @@ Version: 2018mar26
 
 import numpy as np
 import sciris.core as sc
-from .system import AtomicaException
+from .system import AtomicaException, logger
 from .utils import NamedItem
 from .programs import ProgramInstructions
-import logging
-logger = logging.getLogger(__name__)
 
 class Scenario(NamedItem):
     def __init__(self, name):
