@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-08-07
+Last update: 2018-08-12
 -->
 
 <template>
@@ -148,9 +148,6 @@ Last update: 2018-08-07
         </div>
       </div>
     </modal>
-
-    <!-- Popup spinner -->
-    <popup-spinner></popup-spinner>
     
   </div>
 
@@ -162,14 +159,9 @@ Last update: 2018-08-07
   import rpcservice from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'FrameworksPage',
-    
-    components: {
-      PopupSpinner
-    },
     
     data() {
       return {

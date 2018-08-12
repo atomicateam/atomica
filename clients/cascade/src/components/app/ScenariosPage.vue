@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-09
+Last update: 2018-08-12
 -->
 
 <template>
@@ -179,9 +179,6 @@ Last update: 2018-08-09
         </div>
       </modal>
 
-      <!-- Popup spinner -->
-      <popup-spinner></popup-spinner>
-
     </div>
   </div>
 </template>
@@ -195,14 +192,9 @@ Last update: 2018-08-09
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
-  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'scenarioPage',
-
-    components: {
-      PopupSpinner
-    },
 
     data() {
       return {
@@ -351,6 +343,8 @@ Last update: 2018-08-09
         
         // Start indicating progress.
         status.start(this)
+//        this.$spinner.start()
+//        this.$modal.show('popup-spinner2')
         
         // Get the current project's scenario summaries from the server.
         rpcservice.rpcCall('get_scen_info', [this.projectID()])
@@ -363,6 +357,8 @@ Last update: 2018-08-09
           
           // Indicate success.
           status.succeed(this, 'Scenarios loaded')
+//          this.$spinner.stop()
+//          this.$modal.hide('popup-spinner2')
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
@@ -370,6 +366,8 @@ Last update: 2018-08-09
           
           // Indicate failure.
           status.fail(this, 'Could not get scenarios: ' + error.message)
+//          this.$spinner.stop()
+//          this.$modal.hide('popup-spinner2')
         })
       },
 

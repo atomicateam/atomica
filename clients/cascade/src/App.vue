@@ -1,7 +1,7 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 7/5/18 (gchadder3)
+Last update: 8/12/18 (gchadder3)
 -->
 
 <template>
@@ -9,6 +9,7 @@ Last update: 7/5/18 (gchadder3)
     <simplert></simplert>
     <router-view></router-view>
     <vue-progress-bar></vue-progress-bar>
+    <popup-spinner></popup-spinner>
     <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
     <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">
       <ul class="nav navbar-nav">

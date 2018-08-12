@@ -1,4 +1,14 @@
-<!--Based on MoonLoader.vue -->
+<!--
+PopupSpinner component
+
+Based on MoonLoader.vue from vue-spinner GitHub project:
+https://github.com/greyby/vue-spinner/blob/master/src/MoonLoader.vue 
+
+Depends also on vue-js-modal GitHub project:
+https://github.com/euvl/vue-js-modal
+
+Last update: 2018-08-12
+-->
 
 <template>
   <modal name="popup-spinner"
@@ -20,6 +30,8 @@
 </template>
 
 <script>
+  import SpinnerPlugin from './index'
+  
   export default {
     name: 'PopupSpinner',
     
@@ -55,6 +67,16 @@
         }, 
         opened: false
       }
+    },
+    
+    beforeMount() {
+      SpinnerPlugin.eventBus.$on('start', () => {
+        this.show()
+      })
+      
+      SpinnerPlugin.eventBus.$on('stop', () => {
+        this.hide()
+      })      
     },
     
     computed: {
@@ -99,8 +121,16 @@
         if (event.keyCode == 27) {
           console.log('Exited spinner through Esc key')
           this.$emit('spinner-cancel')
-          this.$modal.hide('popup-spinner') // Dispel the spinner.
+          this.hide()
         }
+      }, 
+      
+      show() {
+        this.$modal.show('popup-spinner') // Bring up the spinner modal.
+      },
+      
+      hide() {
+        this.$modal.hide('popup-spinner') // Dispel the spinner modal.
       }
     }
 
@@ -152,9 +182,9 @@
     }
   }
 
-   .vue-dialog div {
-     box-sizing: border-box;
-   }
+  .vue-dialog div {
+    box-sizing: border-box;
+  }
   .vue-dialog .dialog-flex {
     width: 100%;
     height: 100%;

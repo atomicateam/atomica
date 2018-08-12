@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-09
+Last update: 2018-08-12
 -->
 
 <template>
@@ -206,9 +206,6 @@ Last update: 2018-08-09
         </div>
       </modal>
 
-      <!-- Popup spinner -->
-      <popup-spinner></popup-spinner>
-    
     </div>
   </div>
 </template>
@@ -222,14 +219,9 @@ Last update: 2018-08-09
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
-  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'OptimizationPage',
-
-    components: {
-      PopupSpinner
-    },
 
     data() {
       return {
