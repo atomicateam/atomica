@@ -413,9 +413,9 @@ class ProjectData(object):
 
         for name,content in self.pops.items():
             current_row += 1
-            sheet.write(current_row, 0, name)
+            sheet.write(current_row, 0, name,self._formats['unlocked'])
             update_widths(widths, 0, name)
-            sheet.write(current_row, 1, content['label'])
+            sheet.write(current_row, 1, content['label'],self._formats['unlocked'])
             update_widths(widths, 1, content['label'])
             self._references[name] = "='%s'!%s" % (sheet.name,xlrc(current_row,0,True,True))
             self._references[content['label']] = "='%s'!%s" % (sheet.name,xlrc(current_row,1,True,True)) # Reference to the full name
