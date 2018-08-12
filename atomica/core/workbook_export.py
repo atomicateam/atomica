@@ -203,7 +203,7 @@ class ProgramSpreadsheet(object):
 
         self.book = xw.Workbook(f)
         self.formats = standard_formats(self.book)
-        self.content_rules = ContentRules(self.formats) # TODO - move some of the AtomicaFormats methods to excel.py
+        self.content_rules = ContentRules(self.formats) 
 
         self.generate_targeting()
         self.generate_costcovdata()
