@@ -1,10 +1,13 @@
 // index.js -- index JavaScript file for PopupSpinner plugin
+//
+// Last update: 2018-08-12
 
+// The Vue component for the actual modal dialog spinner.
 import PopupSpinner from './PopupSpinner.vue'
 
 const SpinnerPlugin = {
   install(Vue) {
-    // Make sure that plugin can be insstalled only once
+    // Make sure that plugin can be installed only once
     if (this.installed) {
       return
     }
@@ -15,7 +18,7 @@ const SpinnerPlugin = {
     this.eventBus = new Vue()
 
     // Create the global $spinner functions the user can call 
-    // from any component.
+    // from inside any component.
     Vue.prototype.$spinner = {
       start() {
         // Send a start event to the bus.

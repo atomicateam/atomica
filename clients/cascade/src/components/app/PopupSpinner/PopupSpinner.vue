@@ -7,7 +7,7 @@ https://github.com/greyby/vue-spinner/blob/master/src/MoonLoader.vue
 Depends also on vue-js-modal GitHub project:
 https://github.com/euvl/vue-js-modal
 
-Last update: 2018-08-12
+Last update: 2018-08-13
 -->
 
 <template>
@@ -18,6 +18,7 @@ Last update: 2018-08-12
          :click-to-close="false" 
          @before-open="beforeOpen" 
          @before-close="beforeClose">
+         
     <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
       <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
         <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
@@ -27,10 +28,32 @@ Last update: 2018-08-12
       </div>
     </div>
   </modal>
+  
+<!--  <modal name="popup-spinner"
+         height="105px"
+         width="100px"
+         style="opacity: 1.0" 
+         :click-to-close="false" 
+         @before-open="beforeOpen" 
+         @before-close="beforeClose">
+         
+    <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">
+      <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
+        <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
+        </div>
+        <div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
+        </div>
+      </div>
+    </div>
+    
+    <div style="text-align: center">
+      Loading...
+    </div>
+  </modal> -->
 </template>
 
 <script>
-  import SpinnerPlugin from './index'
+  import SpinnerPlugin from './index'  // used to access the event bus
   
   export default {
     name: 'PopupSpinner',
@@ -70,10 +93,12 @@ Last update: 2018-08-12
     },
     
     beforeMount() {
+      // Create listener for start event.
       SpinnerPlugin.eventBus.$on('start', () => {
         this.show()
       })
       
+      // Create listener for stop event.
       SpinnerPlugin.eventBus.$on('stop', () => {
         this.hide()
       })      
@@ -84,7 +109,7 @@ Last update: 2018-08-12
         return parseFloat(this.size)/7
       },
       
-      spinnerMoonStyle () {
+      spinnerMoonStyle() {
         return {
           height: this.moonSize  + 'px',
           width: this.moonSize  + 'px',
@@ -92,14 +117,14 @@ Last update: 2018-08-12
         }
       },
       
-      animationStyle2 () {
+      animationStyle2() {
         return {
           top: parseFloat(this.size)/2 - this.moonSize/2 + 'px',
           backgroundColor: this.color
         }
       },
       
-      animationStyle3 () {
+      animationStyle3() {
         return {
           border: this.moonSize + 'px solid ' + this.color
         }
