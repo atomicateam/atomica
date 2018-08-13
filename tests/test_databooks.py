@@ -36,6 +36,16 @@ P.load_databook(databook_path="./temp/d_blug_halfyear.xlsx", make_default_parset
 d = au.PlotData(P.results["parset_default"], pops='0-4')
 au.plot_series(d, plot_type="stacked") # This should look like the usual Optima-TB result
 
+# Change the pops and run it
+data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
+data.rename_pop('0-4','0-3','Gen 0-3')
+data.rename_transfer('age','age_up','Age Up')
+data.save('./temp/d_blug_renamed.xlsx')
+P = Project(name="test", framework=F, do_run=False)
+P.load_databook(databook_path="./temp/d_blug_renamed.xlsx", make_default_parset=True, do_run=True)
+d = au.PlotData(P.results["parset_default"], pops='0-3')
+au.plot_series(d, plot_type="stacked") # This should look like the usual Optima-TB result
+
 # Remove some key pops
 d2 = sc.dcp(data)
 d2.remove_pop('Pris')

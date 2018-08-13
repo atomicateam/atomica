@@ -12,7 +12,7 @@ from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDepend
 import xlsxwriter as xw
 import io
 import numpy as np
-from .system import AtomicaException
+from .system import AtomicaException, NotFoundError
 from .structure import FrameworkSettings as FS
 from collections import defaultdict
 from six import string_types
@@ -144,7 +144,7 @@ class ProjectData(object):
                     else:
                         order = databook_order
                     pages[databook_page].append((full_name,order))
-                    data.tdve[full_name] = TimeDependentValuesEntry(name=full_name,tvec=tvec,allowed_units=framework.get_allowed_units(full_name))
+                    data.tdve[full_name] = TimeDependentValuesEntry(full_name,tvec,allowed_units=framework.get_allowed_units(full_name))
 
         # Now convert pages to full names and sort them into the correct order
         for _,spec in framework.sheets['databook pages'][0].iterrows():
@@ -347,6 +347,36 @@ class ProjectData(object):
             default_unit = tdve.allowed_units[0] if tdve.allowed_units else None
             tdve.ts[code_name] = TimeSeries(format=default_unit,units=default_unit)
 
+    def rename_pop(self,existing_code_name,new_code_name,new_full_name):
+        # Rename an existing pop
+        assert existing_code_name in self.pops, 'A population with code name "%s" is not present' % (existing_code_name)
+        assert new_code_name not in self.pops, 'Population with name "%s" already exists' % (new_code_name)
+        if new_code_name.strip().lower() == 'all':
+            raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')
+
+        # First change the name of the key
+        self.pops.rename(existing_code_name,new_code_name)
+
+        # Then change the full name
+        self.pops[new_code_name]['label'] = new_full_name
+
+        # Update interactions and transfers - need to change all of the to/from tuples
+        for interaction in self.transfers+self.interpops:
+            idx = interaction.pops.index(existing_code_name)
+            interaction.pops[idx] = new_code_name
+            for from_pop,to_pop in interaction.ts.keys():
+                if to_pop == existing_code_name and from_pop == existing_code_name:
+                    interaction.ts.rename((from_pop,to_pop),(new_code_name,new_code_name))
+                elif from_pop == existing_code_name:
+                    interaction.ts.rename((from_pop,to_pop),(new_code_name,to_pop))
+                elif to_pop == existing_code_name:
+                    interaction.ts.rename((from_pop,to_pop),(from_pop,new_code_name))
+
+        # Update TDVE tables
+        for tdve in self.tdve.values():
+            if existing_code_name in tdve.ts:
+                tdve.ts.rename(existing_code_name,new_code_name)
+
     def remove_pop(self,pop_name):
         # Remove population with given code name
         del self.pops[pop_name]
@@ -366,6 +396,24 @@ class ProjectData(object):
         for transfer in self.transfers:
             assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
         self.transfers.append(TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='transfer', ts=None))
+
+    def rename_transfer(self,existing_code_name,new_code_name,new_full_name):
+
+        # Check no name collisions
+        for transfer in self.transfers:
+            assert new_code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (new_code_name)
+
+        # Find the transfer to change
+        for transfer in self.transfers:
+            if existing_code_name == transfer.code_name:
+                transfer_to_change = transfer
+                break
+        else:
+            raise NotFoundError('Transfer with name "%s" was not found' % (existing_code_name))
+
+        # Modify it
+        transfer_to_change.code_name = new_code_name
+        transfer_to_change.full_name = new_full_name
 
     def remove_transfer(self,code_name):
         names = [x.code_name for x in self.transfers]
