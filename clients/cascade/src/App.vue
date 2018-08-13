@@ -1,7 +1,7 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 8/12/18 (gchadder3)
+Last update: 8/13/18 (gchadder3)
 -->
 
 <template>
