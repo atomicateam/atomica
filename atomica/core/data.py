@@ -9,6 +9,7 @@ import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, ProgramEntry
+import xlrd
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -493,6 +494,10 @@ class ProjectData(object):
 # Program data maps to a program databook
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
 # data values
+            
+## QUESTION, SHOULD THIS JUST BE A PROGSET?
+## IE, PROGSETS THEMSELVES HAVE TO AND FROM SPREADSHEET METHODS??
+## TRY TO AVOID TOO MUCH DATA CONVERSION            
 class ProgramData(object):
     def __init__(self, pops=None, comps=None, progs=None, pars=None, data=None, data_start=None, data_end=None, blh_effects=False):
 
@@ -509,17 +514,7 @@ class ProgramData(object):
         self.data_end = data_end if data_end is not None else 2018.0 # WARNING, remove
         self.prog_range = None
         self.data_range = range(int(self.data_start), int(self.data_end + 1))
-
-        data['progs'] = sc.odict()
-        data['pars'] = sc.odict()
-        data['progs']['short'] = []
-        data['progs']['name'] = []
-        data['progs']['label'] = []
-        data['progs']['target_pops'] = []
-        data['progs']['target_comps'] = []
-        
-#        self.npops = len(pops)
-#        self.nprogs = len(progs)
+        self.data = data
 
         # Internal storage used with methods while writing
         self._formats = None
@@ -539,9 +534,9 @@ class ProgramData(object):
         self._formats = standard_formats(self._book)
         self._references = {} # Reset the references dict
 
-        self._write_targeting()
-        self._write_costcovdata()
-        self._write_covoutdata()
+        self._write_targeting(self.data)
+        self._write_costcovdata(self.data)
+        self._write_covoutdata(self.data)
 
         self._book.close()
 
@@ -556,26 +551,45 @@ class ProgramData(object):
     def from_spreadsheet(spreadsheet):
         # Read in program data from a spreadsheet
         self = ProgramData()
+        data=sc.odict()
 
         if isinstance(spreadsheet,string_types):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
+        workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
 
-        # These sheets are optional - if none of these are provided in the databook
-        # then they will remain empty
-        self.transfers = list()
-        self.interpops = list()
+        sheetdata = workbook.sheet_by_name('Program targeting') # Load 
+        colindices = []
 
-        for sheet in workbook.worksheets:
-            if sheet.title.startswith('#ignore'):
-                continue
-            if sheet.title == 'Program targeting':
-                self._read_targeting(sheet)
-            elif sheet.title == 'Spending data':
-                self._read_costcovdata(sheet)
-            elif sheet.title == 'Program effects':
-                self._read_covoutdata(sheet)
+        for row in range(sheetdata.nrows):     
+            # Get data
+            thesedata = sheetdata.row_values(row, start_colx=2) 
+    
+            # Get metadata from first row
+            if row==0:
+                for col in range(2,sheetdata.ncols):
+                    cell_val = sheetdata.cell(row, col).value
+                    if cell_val!='': colindices.append(col-1)
+    
+            if row==1:
+                data['pops'] = thesedata[3:colindices[1]-2]
+                data['comps'] = thesedata[colindices[1]-1:]
+    
+            else:
+                if thesedata[0]:
+                    progname = str(thesedata[0])
+                    data['progs']['short'].append(progname)
+                    data['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
+                    data['progs']['label'].append(str(thesedata[1]))
+                    data['progs']['target_pops'].append(thesedata[3:colindices[0]])
+                    data['progs']['target_comps'].append(self.blank2newtype(thesedata[colindices[1]-1:],0))
+                    data[progname] = sc.odict()
+                    data[progname]['name'] = str(thesedata[1])
+                    data[progname]['target_pops'] = thesedata[3:colindices[0]]
+                    data[progname]['target_comps'] = self.blank2newtype(thesedata[colindices[1]-1:], 0)
+                    data[progname]['spend'] = []
+                    data[progname]['capacity'] = []
+                    data[progname]['unitcost'] = sc.odict()
     
     
     def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
@@ -596,10 +610,78 @@ class ProgramData(object):
                          ("assumption",      assumption)])
         
 
-    def _write_targeting(self):
+    def getyears(sheetdata):
+        ''' Get years from a worksheet'''
+        years = [] # Initialize data years
+        for col in range(sheetdata.ncols):
+            thiscell = sheetdata.cell_value(1,col) # 1 is the 2nd row which is where the year data should be
+            if thiscell=='' and len(years)>0: #  We've gotten to the end
+                lastdatacol = col # Store this column number
+                break # Quit
+            elif thiscell != '': # Nope, more years, keep going
+                years.append(float(thiscell)) # Add this year
+        
+        return lastdatacol, years
+       
+       
+    def blank2newtype(thesedata, newtype=None):
+        ''' Convert a blank entry to another type, e.g. nan, None or zero'''
+        if newtype is None or newtype=='nan': newval = np.nan # For backward compatability
+        elif newtype=='None': newval = None
+        elif newtype=='zero': newval = 0
+        elif sc.isnumber(newtype): newval = newtype
+        else: 
+            errormsg = 'Cannot convert blanks to type %s, can only convert to types [''nan'', ''None'', ''zero''] or numbers' % (type(newtype)) 
+            raise AtomicaException(errormsg)
+        return [newval if thisdatum=='' else thisdatum for thisdatum in thesedata ]
+        
+    
+    def validatedata(thesedata, sheetname, thispar, row, checkupper=False, checklower=True, checkblank=True, startcol=0):
+        ''' Do basic validation on the data: at least one point entered, between 0 and 1 or just above 0 if checkupper=False '''
+        
+        result = sc.odict()
+        result['isvalid'] = 1
+        # Check that only numeric data have been entered
+        for column,datum in enumerate(thesedata):
+            if not sc.isnumber(datum):
+                errormsg = 'Invalid entry in sheet "%s", parameter "%s":\n' % (sheetname, thispar) 
+                errormsg += 'row=%i, column=%s, value="%s"\n' % (row+1, xlrd.colname(column+startcol), datum)
+                errormsg += 'Be sure all entries are numeric'
+                if ' ' or '\t' in datum: errormsg +=' (there seems to be a space or tab)'
+                raise AtomicaException(errormsg)
+        
+        # Now check integrity of data itself
+        validdata = np.array(thesedata)[~np.isnan(thesedata)]
+        if len(validdata):
+            valid = np.array([True]*len(validdata)) # By default, set everything to valid
+            if checklower: valid *= np.array(validdata)>=0
+            if checkupper: valid *= np.array(validdata)<=1
+            if not valid.all():
+                invalid = validdata[valid==False]
+                errormsg = 'Invalid entry in sheet "%s", parameter "%s":\n' % (sheetname, thispar) 
+                errormsg += 'row=%i, invalid="%s", values="%s"\n' % (row+1, invalid, validdata)
+                errormsg += 'Be sure that all values are >=0 (and <=1 if a probability)'
+                result['isvalid'] = 0
+                result['errormsg'] = errormsg
+        elif checkblank: # No data entered
+            errormsg = 'No data or assumption entered for sheet "%s", parameter "%s", row=%i' % (sheetname, thispar, row) 
+            result['isvalid'] = 0
+            result['errormsg'] = errormsg
+        return result
+
+    
+    def _write_targeting(self, data):
         # Generate targeting sheet
         sheet = self._book.add_worksheet('Program targeting')
 
+        for item in items:
+            if type(item) is dict:
+                item_name = item['name']
+                short_name = item.get('short', item_name)
+                male = item.get('male', False)
+                female = item.get('female', False)
+                age_from = item.get('age_from',15)
+                age_to = item.get('age_to',49)
         # Set column width
         sheet.set_column(2, 2, 15)
         sheet.set_column(3, 3, 40)
@@ -634,44 +716,6 @@ class ProgramData(object):
         current_row = self.prog_range.emit(self._formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range.param_refs()
 
-
-    def _read_targeting(self, sheet):
-        colindices = []
-        if verbose: print('Reading program targeting data with %s rows' % sheetdata.nrows)
-        for row in range(sheetdata.nrows): 
-    
-            # Get data
-            thesedata = sheetdata.row_values(row, start_colx=2) 
-    
-            # Get metadata from first row
-            if row==0:
-                for col in range(2,sheetdata.ncols):
-                    cell_val = sheetdata.cell(row, col).value
-                    if cell_val!='': colindices.append(col-1)
-    
-            if row==1:
-                data['pops'] = thesedata[3:colindices[1]-2]
-                data['comps'] = thesedata[colindices[1]-1:]
-    
-            else:
-                if thesedata[0]:
-                    if verbose: print('  Reading row for program: %s' % thesedata[0])
-                    progname = str(thesedata[0])
-                    data['progs']['short'].append(progname)
-                    data['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
-                    data['progs']['label'].append(str(thesedata[1]))
-                    data['progs']['target_pops'].append(thesedata[3:colindices[0]])
-                    data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
-                    data[progname] = sc.odict()
-                    data[progname]['name'] = str(thesedata[1])
-                    data[progname]['target_pops'] = thesedata[3:colindices[0]]
-                    data[progname]['target_comps'] = blank2newtype(thesedata[colindices[1]-1:], 0)
-                    data[progname]['spend'] = []
-    #                    data[progname]['basespend'] = []
-                    data[progname]['capacity'] = []
-                    data[progname]['unitcost'] = sc.odict()
-    
-            return tables
 
     def _write_costcovdata(self):
         # Generate cost-coverage sheet
