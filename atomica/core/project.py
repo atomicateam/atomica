@@ -26,7 +26,7 @@ Version: 2018jul29
 
 from .version import version
 from .calibration import perform_autofit
-from .data import ProjectData
+from .data import ProjectData, make_progbook
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
@@ -35,7 +35,7 @@ from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
 from .optimization import optimize, OptimInstructions
 from .system import AtomicaException, logger
-from .workbook_export import make_progbook
+#from .workbook_export import make_progbook
 from .workbook_import import load_progbook
 from .scenarios import BudgetScenario
 from .utils import NDict

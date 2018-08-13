@@ -657,239 +657,140 @@ class TimeDependentValuesEntry(object):
 
 
 class ProgramEntry(object):
-    # Used for representing program data
+    ''' Class for generating the program data entry spreadsheet '''
 
-    def __init__(self, name=None, datareqs=None, tvec=None, allowed_units=None):
-        # ts - An odict where the key is a population name and the value is a TimeSeries
-        # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
-        # tvec - The time values that will be written in the headings
-        # allowed_units - Possible values for the unit selection dropdown
-        
-        # Validate inputs and set defaults
-        if tvec is None:        raise AtomicaException('Please provide a tvec to initiate')
-        if name is None:        raise AtomicaException('Please provide a name to initiate')
-        if datareqs is None:    datareqs = ['Data'] # Set a reasonable default
-        self.ts = sc.odict([(datareq, None) for datareq in datareqs])
+    def __init__(self, sheet=None, first_row=None, first_col=None, content=None, row_interval=None):
+        ''' Initialize '''
 
-        self.name = name
-        self.tvec = tvec
-        self.allowed_units = allowed_units
+        self.sheet = sheet
+        self.first_row = first_row
+        self.first_col =  first_col if first_col is not None else 2
+        self.content = content
+        self.row_interval = row_interval if row_interval is not None else 3
+
+        # Set the data range
+        self.first_data_row = first_row + 2
+        self.num_data_rows = len(self.content["row_names"])
+        if self.content["row_levels"] is not None:
+            self.first_col += 1
+            self.num_data_rows *= len(self.content["row_levels"])
+            self.num_data_rows += len(self.content["row_names"]) - 1
+
+        self.first_data_col = first_col if first_col is not None else 2
+        self.num_data_cols = len(self.content["column_names"])
+
+        self.last_data_row = self.first_data_row + self.num_data_rows - 1
+        self.last_data_col = self.first_data_col + self.num_data_cols - 1
+
+        self.start = xlrc(self.first_data_row, self.first_data_col)
+        self.end = xlrc(self.last_data_row, self.last_data_col) 
+
 
     def __repr__(self):
+        ''' Representation '''
         output= sc.desc(self)
         return output
 
-    @property
-    def has_data(self):
-        # Returns True if any of the time series
-        return any([x.has_data for x in self.ts.values()])
 
-    @staticmethod
-    def from_rows(rows):
-        from .structure import TimeSeries # Import here to avoid circular reference
+    def param_refs(self):
+        ''' Returns a list of references to the program names '''
+        prog_range = range(self.first_data_row, self.last_data_row+1)
+        
+        range_vals = []
+        for row in prog_range: 
+            cell_address = xlrc(row, self.first_data_col+1, row_abs=True, col_abs=True)
+            range_vals.append("='%s'!%s" % (self.sheet.get_name(), cell_address))
+        return range_vals
 
-        # First, read the headings
-        vals = [x.value for x in rows[0]]
-        name = vals[0].strip()
-        tvec = np.array(vals[4:],dtype=float)
-        ts_entries = sc.odict()
 
-        # For each TimeSeries that we will instantiate
-        for row in rows[1:]:
-            vals = [x.value for x in row]
-            series_name = vals[0]
-            format = vals[1].lower().strip() if vals[1] else None
-            assumption = vals[2]
-            assert vals[3] == 'OR' # Check row is as expected
-            data = vals[4:]
-            ts = TimeSeries(format=format)
-            if assumption is not None and assumption != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                ts.insert(None,float(assumption))
-            for t,v in zip(tvec,data):
-                if np.isfinite(t) and v is not None: # Ignore any times that are NaN
-                    ts.insert(t,v)
-            ts_entries[series_name] = ts
+    def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+        """ Emits the range and returns the new current row in the given sheet """
+        # top-top headers
+        
+        self.formats = formats
+        self.sheet.write(self.first_row, 0, self.content["name"], formats['bold'])
+        
 
-        tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
-        return ProgramEntry(name,tvec,ts_entries)
+        if self.content["assumption"] and self.first_row == 0 and self.content["assumption_properties"]['title'] is not None:
+            self.sheet.write(self.first_row, self.last_data_col+2, self.content["assumption_properties"]['title'], self.formats['rc_title']['left']['F'])
 
-    def write(self,worksheet,start_row,formats,references=None,widths=None):
-        """ Write content """
-        if not references:
-            references = dict()
+        # headers
+        for i, name in enumerate(self.content["column_names"]):
+            self.sheet.write(self.first_row+1, self.first_data_col+i, name, formats['rc_title']['right']['T'])
 
-        current_row = start_row
+        if self.content["assumption"]:
+            for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
+                self.sheet.write(self.first_row+1, self.last_data_col+2+index, col_name)
 
-        # First, assemble and write the headings
-        headings = ['','','']
-        headings += [float(x) for x in self.tvec]
-        headings += ['','Assumption']
-        for i,entry in enumerate(headings):
-            worksheet.write(current_row, i, entry, formats['center_bold'])
-            update_widths(widths,i,entry)
+        current_row = self.first_data_row
+        num_levels = len(self.content["row_levels"]) if self.content["row_levels"] is not None else 1
+        
+        # Get row names and formats
+        if self.content["row_levels"] is None:
+            row_names = [[name] for name in self.content["row_names"]]
+            row_formats = [self.content["row_format"] for name in self.content["row_names"]]
+        else:
+            row_names = [[name, level] for name in self.content["row_names"] for level in self.content["row_levels"]]
+            if self.content["row_formats"] is not None:
+                row_formats = [row_format for name in self.content["row_names"] for row_format in self.content["row_formats"]]
+            else:
+                row_formats = [self.content["row_format"] for name in self.content["row_names"] for level in self.content["row_levels"]]
 
-        # Now, write the TimeSeries objects - self.ts is an odict and whatever programs are present will be written in whatever order they are in
-        for datareq, data_ts in self.ts.items():
+        # iterate over rows, incrementing current_row as we go
+        for i, names_format in enumerate(zip(row_names, row_formats)):
+            names, row_format = names_format
+            start_col = self.first_data_col - len(names)
+            # emit row name(s)
+            for n, name in enumerate(names):
+                self.sheet.write(current_row, start_col+n, name, formats['rc_title']['left']['T'],)
+            # emit data if present
+            savedata = False
+            if self.content["data"] is not None:
+                try:
+                    for j, item in enumerate(self.content["data"][i]):
+                        self.sheet.write(current_row, self.first_data_col+j, item, self.formats[row_format])
+                    savedata = True  # It saved successfully
+                except:
+                    errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content["name"], self.content["data"])
+                    print(errormsg)
+                    savedata = False
+            if not savedata:
+                for j in range(self.num_data_cols):
+                    self.sheet.write(current_row, self.first_data_col+j, None, self.formats[row_format])
+            # emit assumption
+            if self.content["assumption"]:
+
+                self.sheet.write(current_row, self.last_data_col + 1,
+                                     self.content["assumption_properties"]['connector'],
+                                     formats['center_bold'])
+
+                for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
+                    saveassumptiondata = False
+                    if self.content["assumption_data"] is not None:
+                        try:
+                            assumptiondata = self.content["assumption_data"][i]
+                            if isinstance(assumptiondata, list):  # Check to see if it's a list
+                                if len(assumptiondata) != 1:  # Check to see if it has the right length
+                                    errormsg = 'WARNING, assumption "%s" appears to have the wrong length:\n%s' % (
+                                        self.content["name"], assumptiondata)
+                                    print(errormsg)
+                                    saveassumptiondata = False
+                                else:  # It has length 1, it's good to go
+                                    assumptiondata = assumptiondata[0]  # Just pull out the only element
+                            self.sheet.write(current_row, self.last_data_col+2+index,
+                                                   assumptiondata, self.formats['row_format'])
+                            saveassumptiondata = True
+                        except Exception as E:
+                            errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (
+                                self.content["name"], assumptiondata, repr(E))
+                            print(errormsg)
+                            saveassumptiondata = False
+                            raise E
+                    if not saveassumptiondata:
+                        self.sheet.write(current_row, self.last_data_col+2+index, None, self.formats[row_format])
             current_row += 1
-            # Write the name
-            if datareq in references:
-                worksheet.write_formula(current_row, 0, references[datareq], formats['bold'],value=datareq)
-                update_widths(widths, 0, datareq)
-            else:
-                worksheet.write_string(current_row, 0, datareq, formats['bold'])
-                update_widths(widths, 0, datareq)
-
-            # Write the units
-            worksheet.write(current_row,1,data_ts.format.title() if data_ts.format else None)
-            update_widths(widths, 1, data_ts.format.title() if data_ts.format else None)
-
-            if self.allowed_units: # Add validation if a list of options is specified
-                worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
-
-            if data_ts.has_data:
-                format = formats['not_required']
-            else:
-                format = formats['unlocked']
-
-            # Write the assumption
-            worksheet.write(current_row,2,data_ts.assumption, format)
-
-            # Write the separator between the assumptions and the time values
-            worksheet.write(current_row,3,'OR',formats['center'])
-            update_widths(widths, 3, 'OR')
-
-            # Write the time values
-            offset = 4 # This is the column where the time values begin
-            content = [None]*len(self.tvec)
-
-            for t,v in zip(data_ts.t,data_ts.vals):
-                idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec
-                content[idx] = v
-
-            for idx,v in enumerate(content):
-                if v is None:
-                    worksheet.write_blank(current_row, offset+idx, v, format)
-                else:
-                    worksheet.write(current_row, offset+idx, v, format)
-
-            # Conditional formatting for the assumption
-            fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row,offset),xlrc(current_row,offset+idx))
-            # Hatched out if the cell will be ignored
-            worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'='+fcn_empty_times,'format':formats['ignored']})
-            worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times,xlrc(current_row,2)),'format':formats['ignored_warning']})
-
-
-
-
-
-
-
-            
-#
-#
-#
-#
-#
-#    def emit(self, content_rules, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
-#        """ Emits the range and returns the new current row in the given sheet """
-#        # top-top headers
-#        
-## DONE
-##        self.sheet.write(self.first_row, 0, self.content["name"], formats['bold'])
-#        
-#        # headers
-##        for i, name in enumerate(self.content["column_names"]):
-##            content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
-##                                      rc_title_align, )
-##
-##        if self.content["assumption"]:
-##            for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
-##                content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.last_col + 2 + index,
-##                                          col_name)
-##
-##        current_row = self.data_range.first_row
-#        num_levels = len(self.content["row_levels"]) if self.content["row_levels"] is not None else 1
-#        
-#        # Get row names and formats
-#        if self.content["row_levels"] is None:
-#            row_names = [[name] for name in self.content["row_names"]]
-#            row_formats = [self.content["row_format"] for name in self.content["row_names"]]
-#        else:
-#            row_names = [[name, level] for name in self.content["row_names"] for level in self.content["row_levels"]]
-#            if self.content["row_formats"] is not None:
-#                row_formats = [row_format for name in self.content["row_names"] for row_format in self.content["row_formats"]]
-#            else:
-#                row_formats = [self.content["row_format"] for name in self.content["row_names"] for level in self.content["row_levels"]]
-#
-#        # iterate over rows, incrementing current_row as we go
-#        for i, names_format in enumerate(zip(row_names, row_formats)):
-#            names, row_format = names_format
-#            if row_format=='g':
-#                import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-#            start_col = self.data_range.first_col - len(names)
-#            # emit row name(s)
-#            for n, name in enumerate(names):
-#                content_rules.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align, wrap='F')
-#            # emit data if present
-#            savedata = False
-#            if self.content["data"] is not None:
-#                try:
-#                    for j, item in enumerate(self.content["data"][i]):
-#                        content_rules.write_unlocked(self.sheet, current_row, self.data_range.first_col + j, item, row_format)
-#                    savedata = True  # It saved successfully
-#                except:
-#                    errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content["name"], self.content["data"])
-#                    print(errormsg)
-#                    savedata = False
-#            if not savedata:
-#                for j in range(self.data_range.num_cols):
-#                    content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
-#            # emit assumption
-#            if self.content["assumption"]:
-#
-#                self.sheet.write(current_row, self.data_range.last_col + 1,
-#                                     self.content["assumption_properties"]['connector'],
-#                                     formats['center_bold'])
-#
-#                for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
-#                    saveassumptiondata = False
-#                    if self.content["assumption_data"] is not None:
-#                        try:
-#                            assumptiondata = self.content["assumption_data"][i]
-#                            if isinstance(assumptiondata, list):  # Check to see if it's a list
-#                                if len(assumptiondata) != 1:  # Check to see if it has the right length
-#                                    errormsg = 'WARNING, assumption "%s" appears to have the wrong length:\n%s' % (
-#                                        self.content["name"], assumptiondata)
-#                                    print(errormsg)
-#                                    saveassumptiondata = False
-#                                else:  # It has length 1, it's good to go
-#                                    assumptiondata = assumptiondata[0]  # Just pull out the only element
-#                            content_rules.write_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
-#                                                   assumptiondata, row_format)
-#                            saveassumptiondata = True
-#                        except Exception as E:
-#                            errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (
-#                                self.content["name"], assumptiondata, repr(E))
-#                            print(errormsg)
-#                            saveassumptiondata = False
-#                            raise E
-#                    if not saveassumptiondata:
-#                        content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
-#                                                     row_format)
-#            current_row += 1
-#            if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
-#                current_row += 1
-#        # done! return the new current_row plus spacing
-#        return current_row + ProgramSpend.ROW_INTERVAL  # for spacing
-#
-#    def param_refs(self, column_number=0):
-#        return self.data_range.param_refs(self.sheet.get_name(), column_number)
-
-
-
-
-
-
-
-
+            if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
+                current_row += 1
+        # Return the new current_row plus spacing
+        return current_row + self.row_interval # for spacing
 
