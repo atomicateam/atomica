@@ -26,7 +26,7 @@ Version: 2018jul29
 
 from .version import version
 from .calibration import perform_autofit
-from .data import ProjectData, make_progbook
+from .data import ProjectData, ProgramData, make_progbook
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
@@ -36,7 +36,7 @@ from .scenarios import Scenario, ParameterScenario
 from .optimization import optimize, OptimInstructions
 from .system import AtomicaException, logger
 #from .workbook_export import make_progbook
-from .workbook_import import load_progbook
+#from .workbook_import import load_progbook
 from .scenarios import BudgetScenario
 from .utils import NDict
 import sciris.core as sc
@@ -249,7 +249,8 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
+        progdata = ProgramData.from_spreadsheet(progbook_spreadsheet)
+#        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
         self.progbook = sc.dcp(progbook_spreadsheet)
 
         # Check if the populations match - if not, raise an error, if so, add the data

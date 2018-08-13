@@ -703,25 +703,27 @@ class ProgramEntry(object):
         return range_vals
 
 
-    def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+    def emit(self, formats, data=None, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
         """ Emits the range and returns the new current row in the given sheet """
-        # top-top headers
         
+        # Top-of-page headers
         self.formats = formats
         self.sheet.write(self.first_row, 0, self.content["name"], formats['bold'])
         
-
+        # Write the main heading for the assumption column
         if self.content["assumption"] and self.first_row == 0 and self.content["assumption_properties"]['title'] is not None:
             self.sheet.write(self.first_row, self.last_data_col+2, self.content["assumption_properties"]['title'], self.formats['rc_title']['left']['F'])
 
-        # headers
+        # Write the heading for the other columns
         for i, name in enumerate(self.content["column_names"]):
             self.sheet.write(self.first_row+1, self.first_data_col+i, name, formats['rc_title']['right']['T'])
 
+        # Write the subheading for the assumption column(s)
         if self.content["assumption"]:
             for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
-                self.sheet.write(self.first_row+1, self.last_data_col+2+index, col_name)
+                self.sheet.write(self.first_row+1, self.last_data_col+2+index, col_name, formats['rc_title']['right']['T'])
 
+        # Initialise first row and row levels
         current_row = self.first_data_row
         num_levels = len(self.content["row_levels"]) if self.content["row_levels"] is not None else 1
         
@@ -736,16 +738,18 @@ class ProgramEntry(object):
             else:
                 row_formats = [self.content["row_format"] for name in self.content["row_names"] for level in self.content["row_levels"]]
 
-        # iterate over rows, incrementing current_row as we go
+        # Iterate over rows, incrementing current_row as we go
         for i, names_format in enumerate(zip(row_names, row_formats)):
             names, row_format = names_format
             start_col = self.first_data_col - len(names)
-            # emit row name(s)
+
+            # Write row name(s)
             for n, name in enumerate(names):
-                self.sheet.write(current_row, start_col+n, name, formats['rc_title']['left']['T'],)
-            # emit data if present
+                self.sheet.write(current_row, start_col+n, name, formats['rc_title']['left']['T'])
+
+            # Write data if present
             savedata = False
-            if self.content["data"] is not None:
+            if data is not None:
                 try:
                     for j, item in enumerate(self.content["data"][i]):
                         self.sheet.write(current_row, self.first_data_col+j, item, self.formats[row_format])
@@ -757,7 +761,8 @@ class ProgramEntry(object):
             if not savedata:
                 for j in range(self.num_data_cols):
                     self.sheet.write(current_row, self.first_data_col+j, None, self.formats[row_format])
-            # emit assumption
+
+            # Write assumption if present
             if self.content["assumption"]:
 
                 self.sheet.write(current_row, self.last_data_col + 1,
@@ -788,6 +793,7 @@ class ProgramEntry(object):
                             raise E
                     if not saveassumptiondata:
                         self.sheet.write(current_row, self.last_data_col+2+index, None, self.formats[row_format])
+
             current_row += 1
             if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
                 current_row += 1

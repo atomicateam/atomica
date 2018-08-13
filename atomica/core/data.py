@@ -494,26 +494,29 @@ class ProjectData(object):
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
 # data values
 class ProgramData(object):
-    def __init__(self, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
+    def __init__(self, pops=None, comps=None, progs=None, pars=None, data=None, data_start=None, data_end=None, blh_effects=False):
 
-        self.book = None
-        self.formats = None
-
+#        self.book = None
+#        self.formats = None
+#
         self.pops = pops
         self.comps = comps
         self.progs = progs
-        self.pars = pars.values()
+        self.pars = pars.values() if isinstance(pars,dict) else None
         self.blh_effects = blh_effects
 
         self.data_start = data_start if data_start is not None else 2015.0 # WARNING, remove
         self.data_end = data_end if data_end is not None else 2018.0 # WARNING, remove
         self.prog_range = None
-        self.ref_pop_range = None
         self.data_range = range(int(self.data_start), int(self.data_end + 1))
 
-        self.npops = len(pops)
-        self.nprogs = len(progs)
+#        self.npops = len(pops)
+#        self.nprogs = len(progs)
 
+        # Internal storage used with methods while writing
+        self._formats = None
+        self._book = None
+        self._references = None
 
     def __repr__(self):
         output = sc.desc(self)
@@ -541,6 +544,32 @@ class ProgramData(object):
         return spreadsheet
 
 
+    @staticmethod
+    def from_spreadsheet(spreadsheet):
+        # Read in program data from a spreadsheet
+        self = ProgramData()
+
+        if isinstance(spreadsheet,string_types):
+            spreadsheet = AtomicaSpreadsheet(spreadsheet)
+
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
+
+        # These sheets are optional - if none of these are provided in the databook
+        # then they will remain empty
+        self.transfers = list()
+        self.interpops = list()
+
+        for sheet in workbook.worksheets:
+            if sheet.title.startswith('#ignore'):
+                continue
+            if sheet.title == 'Program targeting':
+                self._read_targeting(sheet)
+            elif sheet.title == 'Spending data':
+                self._read_costcovdata(sheet)
+            elif sheet.title == 'Program effects':
+                self._read_covoutdata(sheet)
+    
+    
     def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
                     row_format='general', row_formats=None, assumption_properties=None, assumption_data=None, assumption=True):
         # Set the content
@@ -596,6 +625,12 @@ class ProgramData(object):
         self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
         current_row = self.prog_range.emit(self._formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range.param_refs()
+
+    def _read_targeting(self, sheet):
+        tables = read_tables(sheet)
+        return tables
+
+
 
     def _write_costcovdata(self):
         # Generate cost-coverage sheet
