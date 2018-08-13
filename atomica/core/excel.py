@@ -655,37 +655,9 @@ class TimeDependentValuesEntry(object):
         return current_row+2 # Add two so there is a blank line after this table
 
 
-#class SheetRange:
-#    def __init__(self, first_row, first_col, num_rows, num_cols):
-#        self.first_row = first_row
-#        self.first_col = first_col
-#
-#        self.num_rows = num_rows
-#        self.num_cols = num_cols
-#
-#        self.last_row = self.first_row + self.num_rows - 1
-#        self.last_col = self.first_col + self.num_cols - 1
-#
-#        self.start = xlrc(self.first_row, self.first_col)
-#        self.end = xlrc(self.last_row, self.last_col) 
-#
-#    def param_refs(self, sheet_name, column_number=1):
-#        """ gives the list of references to the entries in the row names (which are parameters) """
-#        par_range = range(self.first_row, self.last_row + 1)
-#        
-#        range_vals = []
-#        for row in par_range: 
-#            cell_address = xlrc(row, self.first_col + column_number, row_abs=True, col_abs=True)
-#            range_vals.append("='%s'!%s" % (sheet_name, cell_address))
-#        return range_vals
-#
 
 class ProgramEntry(object):
-    # A table is used for representing program spending data, a quantity
-    # that has one sparse time array for each population. Contains
-    # - An ordered list of TimeSeries objects
-    # - A name for the quantity (as this is what gets printed and read, it's usually a full name rather than a code name)
-    # - A time axis (e.g. np.arange(2000,2019)) - all time values must exactly match one of the values here
+    # Used for representing program data
 
     def __init__(self, name=None, datareqs=None, tvec=None, allowed_units=None):
         # ts - An odict where the key is a population name and the value is a TimeSeries
