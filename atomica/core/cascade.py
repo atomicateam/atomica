@@ -94,7 +94,7 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
         for i in range(0,len(d.series)-1):
             d.series[i].vals -= d.series[i+1].vals
     d.outputs.reverse() # Invert stacking order so smallest stage is on the bottom
-    d.set_colors(outputs=d.outputs) # Assign the colours now, so that they can be used consistently for data afterwards
+    d.set_colors(colors='Blues',outputs=d.outputs[::-1]) # Assign the colours now, so that they can be used consistently for data afterwards
     figs = plot_series(d,plot_type='stacked',axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
     ax = figs[0].axes[0]
 
