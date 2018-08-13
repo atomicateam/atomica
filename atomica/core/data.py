@@ -501,7 +501,7 @@ class ProgramData(object):
 #
         self.pops = pops
         self.comps = comps
-        self.progs = progs
+        self.progs = progs if isinstance(progs,dict) else sc.odict()
         self.pars = pars.values() if isinstance(pars,dict) else None
         self.blh_effects = blh_effects
 
@@ -510,6 +510,14 @@ class ProgramData(object):
         self.prog_range = None
         self.data_range = range(int(self.data_start), int(self.data_end + 1))
 
+        data['progs'] = sc.odict()
+        data['pars'] = sc.odict()
+        data['progs']['short'] = []
+        data['progs']['name'] = []
+        data['progs']['label'] = []
+        data['progs']['target_pops'] = []
+        data['progs']['target_comps'] = []
+        
 #        self.npops = len(pops)
 #        self.nprogs = len(progs)
 
@@ -626,11 +634,44 @@ class ProgramData(object):
         current_row = self.prog_range.emit(self._formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range.param_refs()
 
+
     def _read_targeting(self, sheet):
-        tables = read_tables(sheet)
-        return tables
-
-
+        colindices = []
+        if verbose: print('Reading program targeting data with %s rows' % sheetdata.nrows)
+        for row in range(sheetdata.nrows): 
+    
+            # Get data
+            thesedata = sheetdata.row_values(row, start_colx=2) 
+    
+            # Get metadata from first row
+            if row==0:
+                for col in range(2,sheetdata.ncols):
+                    cell_val = sheetdata.cell(row, col).value
+                    if cell_val!='': colindices.append(col-1)
+    
+            if row==1:
+                data['pops'] = thesedata[3:colindices[1]-2]
+                data['comps'] = thesedata[colindices[1]-1:]
+    
+            else:
+                if thesedata[0]:
+                    if verbose: print('  Reading row for program: %s' % thesedata[0])
+                    progname = str(thesedata[0])
+                    data['progs']['short'].append(progname)
+                    data['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
+                    data['progs']['label'].append(str(thesedata[1]))
+                    data['progs']['target_pops'].append(thesedata[3:colindices[0]])
+                    data['progs']['target_comps'].append(blank2newtype(thesedata[colindices[1]-1:],0))
+                    data[progname] = sc.odict()
+                    data[progname]['name'] = str(thesedata[1])
+                    data[progname]['target_pops'] = thesedata[3:colindices[0]]
+                    data[progname]['target_comps'] = blank2newtype(thesedata[colindices[1]-1:], 0)
+                    data[progname]['spend'] = []
+    #                    data[progname]['basespend'] = []
+                    data[progname]['capacity'] = []
+                    data[progname]['unitcost'] = sc.odict()
+    
+            return tables
 
     def _write_costcovdata(self):
         # Generate cost-coverage sheet
