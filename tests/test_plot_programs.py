@@ -69,4 +69,9 @@ d = au.PlotData.program_spending([result1,result2],outputs=outputs)
 d.interpolate(2018)
 au.plot_bars(d,stack_outputs='all')
 
+# Aggregate spending over time
+# This plot shows the total spend from 2020-2030
+# so it's 10x the plot for just 2018
+d = au.PlotData.program_spending([result1,result2],t_bins=[2020,2030])
+au.plot_bars(d,stack_outputs='all')
 
