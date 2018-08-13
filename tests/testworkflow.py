@@ -14,25 +14,25 @@ from atomica.core.optimization import optimize
 #test = "hypertension"
 test = "udt"
 #test = "usdt"
-test = "hiv"
+#test = "hiv"
 #test = "diabetes"
 #test = "service"
 
 
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-"plotcascade",
+#"loadframework",
+#"saveframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#"plotcascade",
 "makeprogramspreadsheet",
-"testprograms",
-"runsim_programs",
-"makeplots",
-"export",
+#"testprograms",
+#"runsim_programs",
+#"makeplots",
+#"export",
 # "manualcalibrate",
 # "autocalibrate",
 #"parameterscenario",
