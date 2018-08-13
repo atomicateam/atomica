@@ -8,93 +8,79 @@ import io
 
 # %% Classes
 
-class ContentRules:
+## TODO:
+## 1. Eliminate ContentRules -- DONE
+## 2. Eliminate SheetRange
+## 3. Move ProgramENtry class to excel.py
+## 4. Move make_progbook to something similar to other methods
+## 5. Import the data writing methods from HIV
+## 6. Clean up links
 
-    def __init__(self, formats):
-        self.formats = formats
-
-    def write_rowcol_name(self, sheet, row, col, name, align='right', wrap='T'):
-        sheet.write(row, col, name, self.formats['rc_title'][align][wrap])
-
-    # special processing for bool values (to keep the content separate from representation)
-    def write_unlocked(self, sheet, row, col, data, row_format='unlocked'):
-        if type(data) == bool:
-            bool_data = 'TRUE' if data else 'FALSE'
-            sheet.write(row, col, bool_data, self.formats[row_format])
-        else:
-            sheet.write(row, col, data, self.formats[row_format])
-
-    def write_empty_unlocked(self, sheet, row, col, row_format='unlocked'):
-        sheet.write_blank(row, col, None, self.formats[row_format])
-
-
-class SheetRange:
-    def __init__(self, first_row, first_col, num_rows, num_cols):
-        self.first_row = first_row
-        self.first_col = first_col
-
-        self.num_rows = num_rows
-        self.num_cols = num_cols
-
-        self.last_row = self.first_row + self.num_rows - 1
-        self.last_col = self.first_col + self.num_cols - 1
-
-        self.start = xlrc(self.first_row, self.first_col)
-        self.end = xlrc(self.last_row, self.last_col) 
-
-    def param_refs(self, sheet_name, column_number=1):
-        """ gives the list of references to the entries in the row names (which are parameters) """
-        par_range = range(self.first_row, self.last_row + 1)
-        
-        range_vals = []
-        for row in par_range: 
-            cell_address = xlrc(row, self.first_col + column_number, row_abs=True, col_abs=True)
-            range_vals.append("='%s'!%s" % (sheet_name, cell_address))
-        return range_vals
 
 
 class ProgramEntry(object):
     FIRST_COL = 2
     ROW_INTERVAL = 3
 
-    def __init__(self, sheet=None, first_row=None, content=None):
+    def __init__(self, sheet=None, first_row=None, first_col=None, content=None):
+
         self.sheet = sheet
-        self.content = content
-        first_data_col = ProgramEntry.FIRST_COL
-        num_data_rows = len(self.content["row_names"])
-
-        if self.content["row_levels"] is not None:
-            first_data_col += 1
-            num_data_rows *= len(self.content["row_levels"])
-            num_data_rows += len(self.content["row_names"]) - 1
-
-        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content["column_names"]))
+        self.first_col =  first_col if first_col is not None else 2
         self.first_row = first_row
+        self.content = content
 
-    def num_rows(self):
-        return self.data_range.num_rows + 2
+        # Get the number of rows with data
 
-    def emit(self, content_rules, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+        # Set the data range
+        self.first_data_row = first_row + 2
+        self.num_data_rows = len(self.content["row_names"])
+        if self.content["row_levels"] is not None:
+            self.first_col += 1
+            self.num_data_rows *= len(self.content["row_levels"])
+            self.num_data_rows += len(self.content["row_names"]) - 1
+
+        self.first_data_col = first_col if first_col is not None else 2
+        self.num_data_cols = len(self.content["column_names"])
+
+        self.last_data_row = self.first_data_row + self.num_data_rows - 1
+        self.last_data_col = self.first_data_col + self.num_data_cols - 1
+
+        self.start = xlrc(self.first_data_row, self.first_data_col)
+        self.end = xlrc(self.last_data_row, self.last_data_col) 
+#        self.data_range = SheetRange(first_row + 2, first_data_col, num_data_rows, len(self.content["column_names"]))
+
+    def param_refs(self):
+        """ Gives the list of references to the program names """
+        prog_range = range(self.first_data_row, self.last_data_row+1)
+        
+        range_vals = []
+        for row in prog_range: 
+            cell_address = xlrc(row, self.first_data_col+1, row_abs=True, col_abs=True)
+            range_vals.append("='%s'!%s" % (self.sheet.get_name(), cell_address))
+        return range_vals
+
+
+
+    def emit(self, formats, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
         """ Emits the range and returns the new current row in the given sheet """
         # top-top headers
         
+        self.formats = formats
         self.sheet.write(self.first_row, 0, self.content["name"], formats['bold'])
         
+
         if self.content["assumption"] and self.first_row == 0 and self.content["assumption_properties"]['title'] is not None:
-            content_rules.write_rowcol_name(sheet=self.sheet, row=self.first_row, col=self.data_range.last_col + 2,
-                                      name=self.content["assumption_properties"]['title'], align='left', wrap='F')
+            self.sheet.write(self.first_row, self.last_data_col+2, self.content["assumption_properties"]['title'], self.formats['rc_title']['left']['F'])
 
         # headers
         for i, name in enumerate(self.content["column_names"]):
-            content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.first_col + i, name,
-                                      rc_title_align, )
+            self.sheet.write(self.first_row+1, self.first_data_col+i, name, formats['rc_title']['right']['T'])
 
         if self.content["assumption"]:
             for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
-                content_rules.write_rowcol_name(self.sheet, self.first_row + 1, self.data_range.last_col + 2 + index,
-                                          col_name)
+                self.sheet.write(self.first_row+1, self.last_data_col+2+index, col_name)
 
-        current_row = self.data_range.first_row
+        current_row = self.first_data_row
         num_levels = len(self.content["row_levels"]) if self.content["row_levels"] is not None else 1
         
         # Get row names and formats
@@ -111,30 +97,28 @@ class ProgramEntry(object):
         # iterate over rows, incrementing current_row as we go
         for i, names_format in enumerate(zip(row_names, row_formats)):
             names, row_format = names_format
-            if row_format=='g':
-                import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-            start_col = self.data_range.first_col - len(names)
+            start_col = self.first_data_col - len(names)
             # emit row name(s)
             for n, name in enumerate(names):
-                content_rules.write_rowcol_name(self.sheet, current_row, start_col + n, name, rc_row_align, wrap='F')
+                self.sheet.write(current_row, start_col+n, name, formats['rc_title']['left']['T'],)
             # emit data if present
             savedata = False
             if self.content["data"] is not None:
                 try:
                     for j, item in enumerate(self.content["data"][i]):
-                        content_rules.write_unlocked(self.sheet, current_row, self.data_range.first_col + j, item, row_format)
+                        self.sheet.write(current_row, self.first_data_col+j, item, self.formats[row_format])
                     savedata = True  # It saved successfully
                 except:
                     errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content["name"], self.content["data"])
                     print(errormsg)
                     savedata = False
             if not savedata:
-                for j in range(self.data_range.num_cols):
-                    content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.first_col + j, row_format)
+                for j in range(self.num_data_cols):
+                    self.sheet.write(current_row, self.first_data_col+j, None, self.formats[row_format])
             # emit assumption
             if self.content["assumption"]:
 
-                self.sheet.write(current_row, self.data_range.last_col + 1,
+                self.sheet.write(current_row, self.last_data_col + 1,
                                      self.content["assumption_properties"]['connector'],
                                      formats['center_bold'])
 
@@ -151,8 +135,8 @@ class ProgramEntry(object):
                                     saveassumptiondata = False
                                 else:  # It has length 1, it's good to go
                                     assumptiondata = assumptiondata[0]  # Just pull out the only element
-                            content_rules.write_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
-                                                   assumptiondata, row_format)
+                            self.sheet.write(current_row, self.last_data_col+2+index,
+                                                   assumptiondata, self.formats['row_format'])
                             saveassumptiondata = True
                         except Exception as E:
                             errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (
@@ -161,16 +145,13 @@ class ProgramEntry(object):
                             saveassumptiondata = False
                             raise E
                     if not saveassumptiondata:
-                        content_rules.write_empty_unlocked(self.sheet, current_row, self.data_range.last_col + 2 + index,
-                                                     row_format)
+                        self.sheet.write(current_row, self.last_data_col+2+index, None, self.formats[row_format])
             current_row += 1
             if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks
                 current_row += 1
         # done! return the new current_row plus spacing
         return current_row + ProgramEntry.ROW_INTERVAL  # for spacing
 
-    def param_refs(self, column_number=0):
-        return self.data_range.param_refs(self.sheet.get_name(), column_number)
 
 
 
@@ -204,7 +185,7 @@ class ProgramSpreadsheet(object):
 
         self.book = xw.Workbook(f)
         self.formats = standard_formats(self.book)
-        self.content_rules = ContentRules(self.formats) 
+#        self.content_rules = ContentRules(self.formats) 
 
         self.generate_targeting()
         self.generate_costcovdata()
@@ -269,8 +250,20 @@ class ProgramSpreadsheet(object):
                                    assumption=False)
         
         self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = self.prog_range.emit(self.content_rules, self.formats, rc_title_align='left')
-        self.ref_prog_range = self.prog_range
+        current_row = self.prog_range.emit(self.formats, rc_title_align='left')
+        self.ref_prog_range = self.prog_range.param_refs()
+
+    def param_refs(self, sheet=None, first_row=None, content=None):
+        """ Gives the list of references to the program names """
+        prog_range = range(self.first_data_row+2, self.last_data_row + 1)
+        
+        range_vals = []
+        for row in prog_range: 
+            cell_address = xlrc(row, self.first_data_col+1, row_abs=True, col_abs=True)
+            range_vals.append("='%s'!%s" % (sheet.get_name(), cell_address))
+        return range_vals
+
+
 
 
     def generate_costcovdata(self):
@@ -281,13 +274,13 @@ class ProgramSpreadsheet(object):
         sheet.set_column('C:C', 20)
         row_levels = ['Total spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
                       'Unit cost: high']
-        content = self.set_content(row_names=self.ref_prog_range.param_refs(),
+        content = self.set_content(row_names=self.ref_prog_range,
                                    column_names=range(int(self.data_start), int(self.data_end + 1)),
                                    row_formats=['general']*5,
                                    row_levels=row_levels)
 
-        the_range = ProgramEntry(sheet, current_row, content)
-        current_row = the_range.emit(self.content_rules, self.formats)
+        the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
+        current_row = the_range.emit(self.formats)
 
     def generate_covoutdata(self):
         # Generate coverage-outcome sheet
@@ -309,7 +302,7 @@ class ProgramSpreadsheet(object):
 
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
-                                 'columns': self.ref_prog_range.param_refs()}
+                                 'columns': self.ref_prog_range}
 
         content = self.set_content(row_names=self.pars,
                                    column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
@@ -317,8 +310,8 @@ class ProgramSpreadsheet(object):
                                    assumption_properties=assumption_properties,
                                    row_levels=row_levels)
 
-        the_range = ProgramEntry(sheet, current_row, content)
-        current_row = the_range.emit(self.content_rules, self.formats, rc_title_align='left')
+        the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
+        current_row = the_range.emit(self.formats, rc_title_align='left')
 
 
 def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):

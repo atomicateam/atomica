@@ -20,15 +20,15 @@ test = "udt"
 
 
 torun = [
-"loadframework",
+#"loadframework",
 #"saveframework",
 #"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
 #"runsim",
 #"plotcascade",
-#"makeprogramspreadsheet",
+"makeprogramspreadsheet",
 #"testprograms",
 #"runsim_programs",
 #"makeplots",
