@@ -8,7 +8,7 @@ from .structure import TimeSeries
 import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
+from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, ProgramEntry
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -111,7 +111,7 @@ class ProjectData(object):
         # transfers - Can be a number, or an odict with names and labels
         # interactions - Can be a number, or an odict with names and labels
 
-        if not isinstance(pops,dict):
+        if sc.isnumber(pops):
             new_pops = sc.odict()
             for i in range(0,pops):
                 new_pops['pop_%d' % (i)] = 'Population %d' % (i)
@@ -121,7 +121,7 @@ class ProjectData(object):
         if not new_pops:
             raise AtomicaException('A new databook must have at least 1 population')
 
-        if not isinstance(transfers,dict):
+        if sc.isnumber(transfers):
             new_transfers = sc.odict()
             for i in range(0,transfers):
                 new_transfers['transfer_%d' % (i)] = 'Transfer %d' % (i)
@@ -495,29 +495,14 @@ class ProjectData(object):
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
 # data values
 class ProgramData(object):
-
-
     def __init__(self):
-        # This is just an overview of the structure of ProgramData
-        # There are two pathways to a ProgramData
-        # - Could load an existing one, with ProgramData.from_spreadsheet()
-        # - Could make a new one, with ProgramData.new()
-        self.pops = sc.odict() # This is an odict mapping code_name:{'label':full_name}
-        self.tvec = None # Used for spending/coverage/cost data
-
-        self.comps = comps
-        self.progs = progs
-        self.pars = pars.values()
-        self.blh_effects = blh_effects
-
-        self.data_start = data_start if data_start is not None else 2015.0 # WARNING, remove
-        self.data_end = data_end if data_end is not None else 2018.0 # WARNING, remove
-        self.prog_range = None
-        self.ref_pop_range = None
-        self.data_range = range(int(self.data_start), int(self.data_end + 1))
-
-        self.npops = len(pops)
-        self.nprogs = len(progs)
+        # Overview of the structure of ProgramData
+        self.pops = list() # This is an odict mapping code_name:{'label':full_name}
+        self.comps = list()
+        self.progs = list()
+        self.pars = list()
+        self.tvec = None 
+        self.tdve = {}
 
         # Internal storage used with methods while writing
         self._formats = None
@@ -529,58 +514,51 @@ class ProgramData(object):
         return output
 
 
-    @staticmethod
-    def new(framework,tvec,pops,transfers):
-        # Make a brand new databook
-        # pops - Can be a number, or an odict with names and labels
-        # transfers - Can be a number, or an odict with names and labels
-        # interactions - Can be a number, or an odict with names and labels
-    """ Generate the Atomica programs spreadsheet """
-
-#        def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
-
-        # An integer argument is given: just create a pops dict using empty entries
-        if sc.isnumber(pops):
-            npops = pops
-            pops = []  # Create real pops list
-            for p in range(npops):
-                pops.append('Pop %i' % (p + 1))
-    
-        if sc.isnumber(comps):
-            ncomps = comps
-            comps = []  # Create real compartments list
-            for p in range(ncomps):
-                pops.append('Comp %i' % (p + 1))
-    
-        if sc.isnumber(progs):
-            nprogs = progs
-            progs = []  # Create real pops list
-            for p in range(nprogs):
-                progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
-    
-        book = ProgramSpreadsheet(pops=pops, comps=comps, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
-        ss = book.to_spreadsheet()
-        ss.save(filename)
-        return filename
-            
-        print('Not done')
+#    def __init__(self, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
+#
+#        self.book = None
+#        self.formats = None
+#
+#        self.pops = pops
+#        self.comps = comps
+#        self.progs = progs
+#        self.pars = pars.values()
+#        self.blh_effects = blh_effects
+#
+#        self.data_start = data_start if data_start is not None else 2015.0 # WARNING, remove
+#        self.data_end = data_end if data_end is not None else 2018.0 # WARNING, remove
+#        self.prog_range = None
+#        self.ref_pop_range = None
+#        self.data_range = range(int(self.data_start), int(self.data_end + 1))
+#
+#        self.npops = len(pops)
+#        self.nprogs = len(progs)
 
     def to_spreadsheet(self):
         # Return a AtomicaSpreadsheet with the contents of this Workbook
         f = io.BytesIO() # Write to this binary stream in memory
 
-        self.book = xw.Workbook(f)
-        self.formats = standard_formats(self.book)
-        self.content_rules = ContentRules(self.formats) 
+        self._book = xw.Workbook(f)
+        self._formats = standard_formats(self.book)
+        self._references = {} # Reset the references dict
 
-        self.generate_targeting()
-        self.generate_costcovdata()
-        self.generate_covoutdata()
+        self._write_targeting()
+        self._write_costcovdata()
+        self._write_covoutdata()
 
         self.book.close()
 
-        # Dump the file content into a AtomicaSpreadsheet
-        return AtomicaSpreadsheet(f)
+        # Dump the file content into a ScirisSpreadsheet
+        spreadsheet = AtomicaSpreadsheet(f)
+
+        # Clear everything
+        f.close()
+        self._book = None
+        self._formats = None
+        self._references = None
+
+        # Return the spreadsheet
+        return spreadsheet
 
 
     def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
@@ -601,7 +579,7 @@ class ProgramData(object):
                          ("assumption",      assumption)])
         
 
-    def generate_targeting(self):
+    def _write_targeting(self):
         # Generate targeting sheet
         sheet = self.book.add_worksheet('Program targeting')
 
@@ -635,12 +613,12 @@ class ProgramData(object):
                                    data=coded_params,
                                    assumption=False)
         
-        self.prog_range = TitledRange(sheet=sheet, first_row=current_row, content=content)
+        self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
         current_row = self.prog_range.emit(self.content_rules, self.formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range
 
 
-    def generate_costcovdata(self):
+    def _write_costcovdata(self):
         # Generate cost-coverage sheet
         sheet = self.book.add_worksheet('Spending data')
 
@@ -653,10 +631,10 @@ class ProgramData(object):
                                    row_formats=['general']*5,
                                    row_levels=row_levels)
 
-        the_range = TitledRange(sheet, current_row, content)
+        the_range = ProgramEntry(sheet, current_row, content)
         current_row = the_range.emit(self.content_rules, self.formats)
 
-    def generate_covoutdata(self):
+    def _write_covoutdata(self):
         # Generate coverage-outcome sheet
         sheet = self.book.add_worksheet('Program effects')
 
@@ -684,6 +662,33 @@ class ProgramData(object):
                                    assumption_properties=assumption_properties,
                                    row_levels=row_levels)
 
-        the_range = TitledRange(sheet, current_row, content)
+        the_range = ProgramEntry(sheet, current_row, content)
         current_row = the_range.emit(self.content_rules, self.formats, rc_title_align='left')
-        
+
+
+#def make_progbook(filename, pops, comps, progs, pars, data_start=None, data_end=None, blh_effects=False):
+#    """ Generate the Atomica programs spreadsheet """
+#
+#    # An integer argument is given: just create a pops dict using empty entries
+#    if sc.isnumber(pops):
+#        npops = pops
+#        pops = []  # Create real pops list
+#        for p in range(npops):
+#            pops.append('Pop %i' % (p + 1))
+#
+#    if sc.isnumber(comps):
+#        ncomps = comps
+#        comps = []  # Create real compartments list
+#        for p in range(ncomps):
+#            pops.append('Comp %i' % (p + 1))
+#
+#    if sc.isnumber(progs):
+#        nprogs = progs
+#        progs = []  # Create real pops list
+#        for p in range(nprogs):
+#            progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
+#
+#    book = ProgramSpreadsheet(pops=pops, comps=comps, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
+#    ss = book.to_spreadsheet()
+#    ss.save(filename)
+#    return filename
