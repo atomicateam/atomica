@@ -12,44 +12,24 @@ Last update: 2018-08-13
 
 <template>
   <modal name="popup-spinner"
-         height="85px"
-         width="80px"
+         :height="modalHeight"
+         :width="modalWidth"
          style="opacity: 1.0" 
          :click-to-close="false" 
          @before-open="beforeOpen" 
          @before-close="beforeClose">
          
-    <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
-      <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
-        <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
-        </div>
-        <div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
+    <div :style="spinnerWrapStyle">
+      <div class="v-spinner" v-show="loading">
+        <div class="v-moon v-moon1" :style="spinnerStyle">
+          <div class="v-moon v-moon2" :style="[spinnerMoonStyle,animationStyle2]">
+          </div>
+          <div class="v-moon v-moon3" :style="[spinnerStyle,animationStyle3]">
+          </div>
         </div>
       </div>
     </div>
   </modal>
-  
-<!--  <modal name="popup-spinner"
-         height="105px"
-         width="100px"
-         style="opacity: 1.0" 
-         :click-to-close="false" 
-         @before-open="beforeOpen" 
-         @before-close="beforeClose">
-         
-    <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">
-      <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
-        <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
-        </div>
-        <div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
-        </div>
-      </div>
-    </div>
-    
-    <div style="text-align: center">
-      Loading...
-    </div>
-  </modal> -->
 </template>
 
 <script>
@@ -75,6 +55,10 @@ Last update: 2018-08-13
         type: String,
         default: '2px'
       },
+      padding: {
+        type: String,
+        default: '15px'      
+      },
       radius: {
         type: String,
         default: '100%'
@@ -87,7 +71,10 @@ Last update: 2018-08-13
           height: this.size,
           width: this.size,
           borderRadius: this.radius
-        }, 
+        },
+        spinnerWrapStyle: {
+          padding: this.padding
+        },        
         opened: false
       }
     },
@@ -105,6 +92,14 @@ Last update: 2018-08-13
     },
     
     computed: {
+      modalHeight() {
+        return parseFloat(this.size) + 2 * parseFloat(this.padding) + 'px'
+      },
+      
+      modalWidth() {
+        return parseFloat(this.size) + 2 * parseFloat(this.padding) + 'px'
+      },
+      
       moonSize() {
         return parseFloat(this.size)/7
       },
