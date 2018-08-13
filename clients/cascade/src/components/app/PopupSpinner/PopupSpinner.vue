@@ -30,9 +30,9 @@ Last update: 2018-08-13
       </div>
     </div>
     
-<!--    <div v-if="title !== ''">
+    <div v-if="title !== ''" :style="titleStyle">
       {{ title }}
-    </div> -->
+    </div>
   </modal>
 </template>
 
@@ -47,14 +47,14 @@ Last update: 2018-08-13
         type: Boolean,
         default: true
       },
-/*     title: {
+     title: {
         type: String,
         default: ''      
       },
       hasclosebutton: {
         type: Boolean,
         default: false      
-      },  */ 
+      }, 
       color: {
         type: String,
         default: '#0000ff'
@@ -88,8 +88,8 @@ Last update: 2018-08-13
           padding: this.padding
         }, 
         titleStyle: {
-          align: center
-        },        
+          textAlign: 'center'
+        },    
         opened: false
       }
     },
@@ -109,14 +109,13 @@ Last update: 2018-08-13
     computed: {
       modalHeight() {
         let spinnerWrapHeight = parseFloat(this.size) + 2 * parseFloat(this.padding)
-        return spinnerWrapHeight
         
-/*        if (this.title === '') {
+        if (this.title === '') {
           return spinnerWrapHeight + 'px'
         }
         else {
-          return spinnerWrapHeight + 20 + 'px'        
-        } */
+          return spinnerWrapHeight + 20 + parseFloat(this.padding) + 'px'        
+        }
       },
       
       modalWidth() {
