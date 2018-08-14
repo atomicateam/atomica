@@ -908,7 +908,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, tool=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -935,7 +935,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
     if tool == 'cascade':
-        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year))
+        output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year))
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
