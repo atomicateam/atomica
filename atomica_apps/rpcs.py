@@ -1394,6 +1394,8 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
+    if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
+        return {'error': 'No scenario selected'}
     proj.results['scenarios'] = results # WARNING, will want to save separately!
     if tool == 'cascade': # For Cascade Tool
         output = get_cascade_plot(proj, results, year=plotyear)
