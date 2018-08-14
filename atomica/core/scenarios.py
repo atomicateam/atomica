@@ -10,9 +10,10 @@ from .utils import NamedItem
 from .programs import ProgramInstructions
 
 class Scenario(NamedItem):
-    def __init__(self, name):
+    def __init__(self, name, active=None):
         NamedItem.__init__(self, name)
         self.result_uid = None # If the scenario is run via Project.run_scenario, this will be the UID of the most recent result generated using this Scenario
+        self.active = active if active is not None else True
 
     def get_parset(self, parset, settings):
         return parset
@@ -22,7 +23,7 @@ class Scenario(NamedItem):
 
 
 class ParameterScenario(Scenario):
-    def __init__(self, name, scenario_values=None):
+    def __init__(self, name, scenario_values=None, active=None):
         """
         Given some data that describes a parameter scenario, creates the corresponding parameterSet
         which can then be combined with a ParameterSet when running a model.
@@ -50,7 +51,7 @@ class ParameterScenario(Scenario):
             pscenario = ParameterScenario(name="examplePS",scenario_values=scvalues)
 
         """
-        super(ParameterScenario, self).__init__(name)
+        super(ParameterScenario, self).__init__(name, active)
         # TODO - could do some extra validation here
         self.scenario_values = scenario_values
 
@@ -134,10 +135,9 @@ class ParameterScenario(Scenario):
 
 class BudgetScenario(Scenario):
 
-    def __init__(self, name=None, active=True, parsetname=None, progsetname=None, alloc=None, start_year=None, verbose=False):
-        if verbose: print('Creating budget scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
-        self.name = name
-        self.active = active  # whether the scenario is active or not
+    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None):
+        super(BudgetScenario, self).__init__(name,active)
+        logger.debug('Creating budget scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
         self.parsetname = parsetname
         self.progsetname = progsetname
         self.alloc = alloc
