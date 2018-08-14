@@ -164,8 +164,8 @@ Last update: 2018-08-12
                    <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
             <b>Objective</b><br>
-            <input type="radio" v-model="modalOptim.prog_spending[0]" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
-            <input type="radio" v-model="modalOptim.prog_spending[0]" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
+            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
+            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -437,6 +437,7 @@ Last update: 2018-08-12
         status.start(this)
 
         // Set the objectives
+        this.modalOptim.objective_weights = {'finalstage':this.finalstage,'conversion':(1.0-this.finalstage)}
         this.endYear = this.modalOptim.end_year
         
         // Get the optimization summary from the modal.
