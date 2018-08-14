@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-08
+Last update: 2018-08-13
 -->
 
 <template>
@@ -18,6 +18,7 @@ Last update: 2018-08-08
         <thead>
         <tr>
           <th>Name</th>
+          <th>Active?</th>
           <th>Actions</th>
         </tr>
         </thead>
@@ -26,6 +27,9 @@ Last update: 2018-08-08
           <td>
             <b>{{ scenSummary.name }}</b>
           </td>
+          <td>
+            <input type="checkbox" v-model="scenSummary.active"/>
+          </td>          
           <td style="white-space: nowrap">
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
@@ -179,9 +183,6 @@ Last update: 2018-08-08
         </div>
       </modal>
 
-      <!-- Popup spinner -->
-      <popup-spinner></popup-spinner>
-
     </div>
   </div>
 </template>
@@ -195,14 +196,9 @@ Last update: 2018-08-08
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
-  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'scenarioPage',
-
-    components: {
-      PopupSpinner
-    },
 
     data() {
       return {
@@ -249,7 +245,7 @@ Last update: 2018-08-08
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else { // Otherwise...
+      else if (this.$store.state.activeProject.project != undefined){ // Otherwise...
         // Load the scenario summaries of the current project.
         console.log('created() called')
         this.sleep(1)  // used so that spinners will come up by callback func
@@ -554,13 +550,13 @@ Last update: 2018-08-08
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
           })
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message
           this.servererror = error.message
-          status.fail(this, 'Could not make graphs')
+          status.fail(this, 'Could not make graphs: ' + error.message)
         })        
       },
 

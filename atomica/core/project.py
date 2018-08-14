@@ -509,8 +509,9 @@ class Project(object):
     def run_scenarios(self):
         results = []
         for scenario in self.scens.values():
-            result = scenario.run(project=self)
-            results.append(result)
+            if scenario.active:
+                result = scenario.run(project=self)
+                results.append(result)
         return results
 
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
@@ -551,15 +552,18 @@ class Project(object):
         json1['progsetname'] = -1
         json1['start_year']  = 2020
         json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['start_year'])
-        
+        json1['active']      = True
+
         json2 = sc.dcp(json1)
         json2['name']        ='Doubled budget'
-        json2['alloc'][:] *= 2.0
-        
+        json2['alloc'][:]    *= 2.0
+        json2['active']      = True
+
         json3 = sc.dcp(json1)
         json3['name']        ='Zero budget'
-        json3['alloc'][:] *= 0.0
-        
+        json3['alloc'][:]    *= 0.0
+        json3['active']      = True
+
         if doadd:
             for json in [json1, json2, json3]:
                 self.make_scenario(which='budget', json=json)
@@ -580,11 +584,11 @@ class Project(object):
         json['start_year']        = 2018
         json['end_year']          = 2025
         json['budget_factor']     = 2.5
-        json['objective_weights'] = {'finalstage':1,'conversion':0} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
+        json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
         json['maxtime']           = 30 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
-            json['prog_spending'][prog_name] = [1,None]
+            json['prog_spending'][prog_name] = [0,None]
         optim = self.make_optimization(json=json)
         if dorun:
             results = self.run_optimization(optimization=json['name'])

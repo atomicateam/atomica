@@ -103,6 +103,7 @@ class ProjectSO(sw.ScirisObject):
         except: 
             print('Could not load populations for project')
             n_pops = 'N/A'
+        pop_pairs = [[key,val['label']] for key,val in self.proj.data.pops.items()] # Pull out population keys and names
         obj_info = {
             'project': {
                 'id':            self.uid,
@@ -114,6 +115,7 @@ class ProjectSO(sw.ScirisObject):
                 'sim_start':     self.proj.settings.sim_start,
                 'sim_end':       self.proj.settings.sim_end,
                 'framework':     framework_name,
+                'pops':          pop_pairs
             }
         }
         return obj_info

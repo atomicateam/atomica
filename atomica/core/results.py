@@ -84,7 +84,7 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self,filename):
+    def export(self,filename,plot_names=None,cascade_names=None):
         # This function writes an XLSX file with the data corresponding to any Cascades or Plots
         # that are present. Note that results are exported for every year by selecting integer years.
         # Flow rates are annualized instantaneously. So for example, the flow will have values from
@@ -93,8 +93,16 @@ class Result(NamedItem):
         # plotted are probabilities. Selecting the annualized value at a particular year also means that the
         # data being exported will match up with whatever plots are generated from within Atomica
         #
+        # Optionally can specify a list/set of names of the plots/cascades to include in the export
+        # Set to an empty list to omit that category e.g.
+        #
+        #   plot_names = None # export all plots in framework
+        #   plot_names = ['a','b'] # export only plots 'a' and 'b'
+        #   plot_names = [] # don't export any plots e.g. to only export cascades
+        #
         # First, make a dataframe for all the plot data, if plots are specified in the cascade
         # Imports here to avoid circular references
+
         from .plotting import PlotData
         from .cascade import get_cascade_vals
 
@@ -109,6 +117,8 @@ class Result(NamedItem):
             plot_df = None
         else:
             plots_required = self.framework.sheets['plots'][0]
+            if plot_names is not None:
+                plots_required = plots_required[plots_required['name'].isin(plot_names)]
             plot_df = []
 
             # Now for each plot, we have one output and several populations
@@ -124,21 +134,22 @@ class Result(NamedItem):
                     data[pop_names[pop]] = popdata[self.name,pop,popdata.outputs[0]].vals
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
-                df.name = spec['display name']
+                df.name = spec['name']
                 plot_df.append(df)
 
         cascade_df = list()
 
         for name in self.framework.cascades.keys():
-            for pop,label in pop_names.items():
-                data = sc.odict()
-                cascade_vals,_ = get_cascade_vals(self,name,pops=pop,year=new_tvals)
-                for stage,vals in cascade_vals.items():
-                    data[stage] = vals
-                df = pd.DataFrame(data, index=new_tvals)
-                df = df.T
-                df.name = '%s - %s' % (name,label)
-                cascade_df.append(df)
+            if cascade_names is None or name in cascade_names:
+                for pop,label in pop_names.items():
+                    data = sc.odict()
+                    cascade_vals,_ = get_cascade_vals(self,name,pops=pop,year=new_tvals)
+                    for stage,vals in cascade_vals.items():
+                        data[stage] = vals
+                    df = pd.DataFrame(data, index=new_tvals)
+                    df = df.T
+                    df.name = '%s - %s' % (name,label)
+                    cascade_df.append(df)
 
         writer = pd.ExcelWriter(filename + '.xlsx' if not filename.endswith('.xlsx') else filename,engine='xlsxwriter')
         formats = standard_formats(writer.book)
@@ -203,17 +214,17 @@ class Result(NamedItem):
         df = self.framework.sheets['plots'][0]
 
         if plot_group is not None:
-            for plot_name in df.loc[df['plot group']==plot_group,'code name']:
+            for plot_name in df.loc[df['plot group']==plot_group,'name']:
                 self.plot(plot_name=plot_name)
             return
 
-        this_plot = df.loc[df['code name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
+        this_plot = df.loc[df['name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
         quantities = evaluate_plot_string(this_plot['quantities'])
 
         d = PlotData(self, outputs=quantities, pops=pops,project=project)
         h = plot_series(d, axis='pops',data=(project.data if project is not None else None))
-        plt.title(this_plot['display name'])
+        plt.title(this_plot['name'])
         return h
 
 def evaluate_plot_string(plot_string):

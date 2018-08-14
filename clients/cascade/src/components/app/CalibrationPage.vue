@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-08
+Last update: 2018-08-12
 -->
 
 <template>
@@ -57,6 +57,13 @@ Last update: 2018-08-08
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop">
+            <option v-for='pop in active_pops'>
+              {{ pop }}
+            </option>
+          </select>
         </div>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -189,9 +196,6 @@ Last update: 2018-08-08
 
     </modal>
     
-    <!-- Popup spinner -->
-    <popup-spinner @spinner-cancel="onSpinnerCancel"></popup-spinner>
-    
   </div>
 </template>
 
@@ -203,14 +207,9 @@ Last update: 2018-08-08
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
-  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'CalibrationPage',
-    
-    components: {
-      PopupSpinner
-    },
     
     data() {
       return {
@@ -225,7 +224,10 @@ Last update: 2018-08-08
         newParsetName: [],
         startYear: 0,
         endYear: 0,
+        activePop: "All",
         plotOptions: [],
+        yearOptions: [],
+        popOptions: []
       }
     },
 
@@ -255,6 +257,19 @@ Last update: 2018-08-08
         }
       },
 
+      active_pops() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          let pop_pairs = this.$store.state.activeProject.project.pops
+          let pop_list = ["All"]
+          for(let i = 0; i < pop_pairs.length; ++i) {
+            pop_list.push(pop_pairs[i][1]);
+          }
+          return pop_list
+        }
+      },
+
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -279,7 +294,8 @@ Last update: 2018-08-08
       } else if (this.$store.state.activeProject.project != undefined) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
-        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
+        this.popOptions = this.active_pops
+//        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
         this.viewTable()
         this.getPlotOptions()
         this.sleep(1)  // used so that spinners will come up by callback func
@@ -410,7 +426,7 @@ Last update: 2018-08-08
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, 'cascade'])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, this.activePop, 'cascade'])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length

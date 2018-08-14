@@ -1,25 +1,48 @@
-<!--Based on MoonLoader.vue -->
+<!--
+PopupSpinner component
+
+Based on MoonLoader.vue from vue-spinner GitHub project:
+https://github.com/greyby/vue-spinner/blob/master/src/MoonLoader.vue 
+
+Depends also on vue-js-modal GitHub project:
+https://github.com/euvl/vue-js-modal
+
+Last update: 2018-08-13
+-->
 
 <template>
   <modal name="popup-spinner"
-         height="85px"
-         width="80px"
+         :height="modalHeight"
+         :width="modalWidth"
          style="opacity: 1.0" 
          :click-to-close="false" 
          @before-open="beforeOpen" 
          @before-close="beforeClose">
-    <div class="v-spinner" v-show="loading" style="padding: 15px; opacity:1.0">  <!--WARNING, opacity command doesn't work here-->
-      <div class="v-moon v-moon1" v-bind:style="spinnerStyle">
-        <div class="v-moon v-moon2" v-bind:style="[spinnerMoonStyle,animationStyle2]">
-        </div>
-        <div class="v-moon v-moon3" v-bind:style="[spinnerStyle,animationStyle3]">
+         
+    <div :style="spinnerWrapStyle">
+      <div class="v-spinner" v-show="loading">
+        <div class="v-moon v-moon1" :style="spinnerStyle">
+          <div class="v-moon v-moon2" :style="[spinnerMoonStyle,animationStyle2]">
+          </div>
+          <div class="v-moon v-moon3" :style="[spinnerStyle,animationStyle3]">
+          </div>
         </div>
       </div>
     </div>
+    
+    <div v-if="title !== ''" :style="titleStyle">
+      {{ title }}
+    </div>
+    
+    <div v-if="hasCancelButton" style="padding: 13px">
+      <button @click="cancel" :style="cancelButtonStyle">Cancel</button>
+    </div>    
   </modal>
 </template>
 
 <script>
+  import SpinnerPlugin from './index'  // used to access the event bus
+  
   export default {
     name: 'PopupSpinner',
     
@@ -28,6 +51,14 @@
         type: Boolean,
         default: true
       },
+     title: {
+        type: String,
+        default: ''      
+      },
+      hasCancelButton: {
+        type: Boolean,
+        default: false      
+      }, 
       color: {
         type: String,
         default: '#0000ff'
@@ -39,6 +70,10 @@
       margin: {
         type: String,
         default: '2px'
+      },
+      padding: {
+        type: String,
+        default: '15px'      
       },
       radius: {
         type: String,
@@ -52,17 +87,59 @@
           height: this.size,
           width: this.size,
           borderRadius: this.radius
+        },
+        spinnerWrapStyle: {
+          padding: this.padding
         }, 
+        titleStyle: {
+          textAlign: 'center'
+        },
+        cancelButtonStyle: {
+          padding: '2px'
+        },          
         opened: false
       }
     },
     
+    beforeMount() {
+      // Create listener for start event.
+      SpinnerPlugin.eventBus.$on('start', () => {
+        this.show()
+      })
+      
+      // Create listener for stop event.
+      SpinnerPlugin.eventBus.$on('stop', () => {
+        this.hide()
+      })      
+    },
+    
     computed: {
+      modalHeight() {
+        // Start with the height of the spinner wrapper.
+        let fullHeight = parseFloat(this.size) + 2 * parseFloat(this.padding)
+        
+        // If there is a title there, add space for the text.
+        if (this.title !== '') {
+          fullHeight = fullHeight + 20 + parseFloat(this.padding)        
+        }
+        
+        // If there is a cancel button there, add space for it.
+        if (this.hasCancelButton) {
+          fullHeight = fullHeight + 20 + parseFloat(this.padding)
+        }
+        
+        return fullHeight + 'px'
+      },
+      
+      modalWidth() {
+        return parseFloat(this.size) + 2 * parseFloat(this.padding) + 'px'
+      },
+      
       moonSize() {
         return parseFloat(this.size)/7
       },
       
-      spinnerMoonStyle () {
+      spinnerMoonStyle() {
         return {
           height: this.moonSize  + 'px',
           width: this.moonSize  + 'px',
@@ -70,14 +147,14 @@
         }
       },
       
-      animationStyle2 () {
+      animationStyle2() {
         return {
           top: parseFloat(this.size)/2 - this.moonSize/2 + 'px',
           backgroundColor: this.color
         }
       },
       
-      animationStyle3 () {
+      animationStyle3() {
         return {
           border: this.moonSize + 'px solid ' + this.color
         }
@@ -98,9 +175,21 @@
       onKey(event) {
         if (event.keyCode == 27) {
           console.log('Exited spinner through Esc key')
-          this.$emit('spinner-cancel')
-          this.$modal.hide('popup-spinner') // Dispel the spinner.
+          this.cancel()
         }
+      }, 
+      
+      cancel() {
+        this.$emit('spinner-cancel')
+        this.hide()      
+      },
+      
+      show() {
+        this.$modal.show('popup-spinner') // Bring up the spinner modal.
+      },
+      
+      hide() {
+        this.$modal.hide('popup-spinner') // Dispel the spinner modal.
       }
     }
 
@@ -152,9 +241,9 @@
     }
   }
 
-   .vue-dialog div {
-     box-sizing: border-box;
-   }
+  .vue-dialog div {
+    box-sizing: border-box;
+  }
   .vue-dialog .dialog-flex {
     width: 100%;
     height: 100%;
