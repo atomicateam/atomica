@@ -468,7 +468,7 @@ Last update: 2018-08-14
         else {
           newOptim.name = this.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
-        }       
+        }
         
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {

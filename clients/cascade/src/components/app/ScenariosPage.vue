@@ -436,6 +436,7 @@ Last update: 2018-08-14
           // Get the index of the original (pre-edited) name
           let index = scenNames.indexOf(this.addEditModal.origName)
           if (index > -1) {
+            this.scenSummaries[index].name = newScen.name  // hack to make sure Vue table updated
             this.scenSummaries[index] = newScen
           }
           else {
