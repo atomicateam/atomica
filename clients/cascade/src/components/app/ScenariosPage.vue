@@ -207,7 +207,7 @@ Last update: 2018-08-14
       return {
         serverresponse: 'no response',
         scenSummaries: [],
-        defaultBudgetScen: [],
+        defaultBudgetScen: {},
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -221,7 +221,8 @@ Last update: 2018-08-14
         table: null,
         endYear: 2018, // TEMP FOR DEMO
         addEditModal: {
-          scenSummary: {},
+          scenSummary: {},    
+          origName: '',
           mode: 'add'
         }
       }
@@ -400,6 +401,7 @@ Last update: 2018-08-14
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+          this.addEditModal.origName = this.addEditModal.scenSummary.name
           this.addEditModal.mode = 'add'
           this.$modal.show('add-budget-scen');
           console.log(this.defaultBudgetScen)
@@ -420,21 +422,34 @@ Last update: 2018-08-14
         // Start indicating progress.
         status.start(this)
         
-        let newScen = this.dcp(this.defaultBudgetScen); // You've got to be kidding me, buster
-        let otherNames = []
+        // Get the new scenario summary from the modal.
+        let newScen = this.dcp(this.addEditModal.scenSummary)
+  
+        // Get the list of all of the current scenario names.
+        let scenNames = []
         this.scenSummaries.forEach(scenSum => {
-          otherNames.push(scenSum.name)
-        });
-        let index = otherNames.indexOf(newScen.name);
-        if (index > -1) {
-          console.log('scenario named '+newScen.name+' exists, overwriting...')
-          this.scenSummaries[index] = newScen
+          scenNames.push(scenSum.name)
+        })
+               
+        // If we are editing an existing scenario...
+        if (this.addEditModal.mode == 'edit') {
+          // Get the index of the original (pre-edited) name
+          let index = scenNames.indexOf(this.addEditModal.origName)
+          if (index > -1) {
+            this.scenSummaries[index] = newScen
+          }
+          else {
+            console.log('Error: a mismatch in editing keys')
+          }            
         }
+        // Else (we are adding a new scenario)...
         else {
-          console.log('scenario named '+newScen.name+' does not exist, creating new...')
+          newScen.name = this.getUniqueName(newScen.name, scenNames)
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
+        console.log(this.scenSummaries)        
+        
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
@@ -455,7 +470,8 @@ Last update: 2018-08-14
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
         this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
-        this.addEditModal.mode = 'edit'        
+        this.addEditModal.origName = this.addEditModal.scenSummary.name         
+        this.addEditModal.mode = 'edit' 
         this.$modal.show('add-budget-scen');
       },
 
