@@ -276,18 +276,10 @@ Last update: 2018-08-12
           // Load the optimization summaries of the current project.
           this.getOptimSummaries()
           this.getDefaultOptim()
-          this.sleep(1)  // used so that spinners will come up by callback func
-            .then(response => {
-              this.resetModal()
-            })
+          this.resetModal()
           this.updateSets()
           this.getPlotOptions()          
         })
-        // Load the optimization summaries of the current project.
-/*        this.getOptimSummaries()
-        this.getDefaultOptim()
-        this.updateSets()
-        this.getPlotOptions()  */      
       }
     },
 
