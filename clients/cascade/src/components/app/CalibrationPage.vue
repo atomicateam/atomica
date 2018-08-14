@@ -57,6 +57,13 @@ Last update: 2018-08-12
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop">
+            <option v-for='pop in active_pops'>
+              {{ pop }}
+            </option>
+          </select>
         </div>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -217,7 +224,7 @@ Last update: 2018-08-12
         newParsetName: [],
         startYear: 0,
         endYear: 0,
-        thisPop: '',
+        activePop: "All",
         plotOptions: [],
         yearOptions: [],
         popOptions: []
@@ -254,7 +261,12 @@ Last update: 2018-08-12
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-          return this.$store.state.activeProject.project.pops
+          let pop_pairs = this.$store.state.activeProject.project.pops
+          let pop_list = ["All"]
+          for(let i = 0; i < pop_pairs.length; ++i) {
+            pop_list.push(pop_pairs[i][1]);
+          }
+          return pop_list
         }
       },
 
@@ -414,7 +426,7 @@ Last update: 2018-08-12
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, 'cascade'])
+        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, this.activePop, 'cascade'])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
