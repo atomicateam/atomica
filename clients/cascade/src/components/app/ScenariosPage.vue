@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-13
+Last update: 2018-08-14
 -->
 
 <template>
@@ -123,16 +123,19 @@ Last update: 2018-08-13
              :clickToClose="clickToClose"
              :transition="transition">
 
-        <!--TO_PORT-->
         <div class="dialog-content">
-          <div class="dialog-c-title">
-            Add/edit scenario
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
           </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
+          </div>
+          
           <div class="dialog-c-text">
             Scenario name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultBudgetScen.name"/><br>
+                   v-model="addEditModal.scenSummary.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -148,7 +151,7 @@ Last update: 2018-08-13
             Budget year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultBudgetScen.start_year"/><br>
+                   v-model="addEditModal.scenSummary.start_year"/><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
               <tr>
@@ -157,7 +160,7 @@ Last update: 2018-08-13
               </tr>
               </thead>
               <tbody>
-              <tr v-for="item in defaultBudgetScen.alloc">
+              <tr v-for="item in addEditModal.scenSummary.alloc">
                 <td>
                   {{ item[2] }}
                 </td>
@@ -217,6 +220,10 @@ Last update: 2018-08-13
         scenariosLoaded: false,
         table: null,
         endYear: 2018, // TEMP FOR DEMO
+        addEditModal: {
+          scenSummary: {},
+          mode: 'add'
+        }
       }
     },
 
@@ -392,6 +399,8 @@ Last update: 2018-08-13
         rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
+          this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+          this.addEditModal.mode = 'add'
           this.$modal.show('add-budget-scen');
           console.log(this.defaultBudgetScen)
         })
@@ -445,6 +454,8 @@ Last update: 2018-08-13
         this.defaultBudgetScen = scenSummary
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
+        this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+        this.addEditModal.mode = 'edit'        
         this.$modal.show('add-budget-scen');
       },
 
