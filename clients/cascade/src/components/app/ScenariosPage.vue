@@ -18,6 +18,7 @@ Last update: 2018-08-13
         <thead>
         <tr>
           <th>Name</th>
+          <th>Active?</th>
           <th>Actions</th>
         </tr>
         </thead>
@@ -26,6 +27,9 @@ Last update: 2018-08-13
           <td>
             <b>{{ scenSummary.name }}</b>
           </td>
+          <td>
+            <input type="checkbox" v-model="scenSummary.active"/>
+          </td>          
           <td style="white-space: nowrap">
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
@@ -546,13 +550,13 @@ Last update: 2018-08-13
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
           })
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message
           this.servererror = error.message
-          status.fail(this, 'Could not make graphs')
+          status.fail(this, 'Could not make graphs: ' + error.message)
         })        
       },
 
