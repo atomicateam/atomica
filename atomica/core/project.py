@@ -481,8 +481,9 @@ class Project(object):
     def run_scenarios(self):
         results = []
         for scenario in self.scens.values():
-            result = scenario.run(project=self)
-            results.append(result)
+            if scenario.active:
+                result = scenario.run(project=self)
+                results.append(result)
         return results
 
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
