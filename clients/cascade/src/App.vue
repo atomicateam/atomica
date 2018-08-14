@@ -9,7 +9,9 @@ Last update: 8/13/18 (gchadder3)
     <simplert></simplert>
     <router-view></router-view>
     <vue-progress-bar></vue-progress-bar>
-    <popup-spinner size="50px" padding="15px" title="Loading..."></popup-spinner>
+<!--    <popup-spinner size="50px" padding="15px"></popup-spinner> -->
+<!--    <popup-spinner size="50px" padding="15px" title="Loading..."></popup-spinner> -->
+    <popup-spinner size="50px" padding="15px" title="Loading..." has-cancel-button></popup-spinner>
     <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
     <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">
       <ul class="nav navbar-nav">

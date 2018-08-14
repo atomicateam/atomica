@@ -33,6 +33,10 @@ Last update: 2018-08-13
     <div v-if="title !== ''" :style="titleStyle">
       {{ title }}
     </div>
+    
+    <div v-if="hasCancelButton" style="padding: 13px">
+      <button @click="cancel" :style="cancelButtonStyle">Cancel</button>
+    </div>    
   </modal>
 </template>
 
@@ -51,7 +55,7 @@ Last update: 2018-08-13
         type: String,
         default: ''      
       },
-      hasclosebutton: {
+      hasCancelButton: {
         type: Boolean,
         default: false      
       }, 
@@ -89,7 +93,10 @@ Last update: 2018-08-13
         }, 
         titleStyle: {
           textAlign: 'center'
-        },    
+        },
+        cancelButtonStyle: {
+          padding: '2px'
+        },          
         opened: false
       }
     },
@@ -108,14 +115,20 @@ Last update: 2018-08-13
     
     computed: {
       modalHeight() {
-        let spinnerWrapHeight = parseFloat(this.size) + 2 * parseFloat(this.padding)
+        // Start with the height of the spinner wrapper.
+        let fullHeight = parseFloat(this.size) + 2 * parseFloat(this.padding)
         
-        if (this.title === '') {
-          return spinnerWrapHeight + 'px'
+        // If there is a title there, add space for the text.
+        if (this.title !== '') {
+          fullHeight = fullHeight + 20 + parseFloat(this.padding)        
         }
-        else {
-          return spinnerWrapHeight + 20 + parseFloat(this.padding) + 'px'        
+        
+        // If there is a cancel button there, add space for it.
+        if (this.hasCancelButton) {
+          fullHeight = fullHeight + 20 + parseFloat(this.padding)
         }
+        
+        return fullHeight + 'px'
       },
       
       modalWidth() {
@@ -162,10 +175,14 @@ Last update: 2018-08-13
       onKey(event) {
         if (event.keyCode == 27) {
           console.log('Exited spinner through Esc key')
-          this.$emit('spinner-cancel')
-          this.hide()
+          this.cancel()
         }
       }, 
+      
+      cancel() {
+        this.$emit('spinner-cancel')
+        this.hide()      
+      },
       
       show() {
         this.$modal.show('popup-spinner') // Bring up the spinner modal.
