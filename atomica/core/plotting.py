@@ -401,7 +401,7 @@ class PlotData(object):
         return s
 
     @staticmethod
-    def program_spending(results,outputs=None,t_bins=None,time_aggregation='sum'):
+    def programs(results,outputs=None,t_bins=None,time_aggregation='sum',quantity='spending'):
         # This constructs a PlotData instance from spending values
         #
         # INPUTS
@@ -412,11 +412,15 @@ class PlotData(object):
         # - prognames - specification of which programs to plot spending for
         #     - the name of a single program
         #     - a list of program names
-        #     - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Currently outputs can only be aggregated by summation, because average spending
+        #     - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Output aggregation type is 'sum' for program spending,
+        #         and NOT permitted for coverages (due to modality interactions)
+        #
+        # Currently outputs can only be aggregated by summation, because average spending
         #           across programs is probably not going to be an interesting aggregation to use (and would add a lot of complexity)
         # - t_bins - sum spending values within these bins - if None, just return spending at all simulation times
         # - t_vals - years to include, PlotData is interpolated onto these years (with NaN extrapolation)
         # - time_aggregation
+        # - quantity - can be 'spending', 'coverage_number', or 'coverage_fraction'
 
         # Sanitize the results input
         if isinstance(results, sc.odict):
@@ -448,7 +452,27 @@ class PlotData(object):
         # Because aggregations always occur within a Result object, loop over results
         for result in results:
 
-            alloc = result.model.progset.get_alloc(result.model.program_instructions,tvec=result.t) # Time varying alloc at all times, keyed by the program name - basically the unaggregated outputs
+            alloc = result.model.progset.get_alloc(result.model.program_instructions, tvec=result.t)
+
+            if quantity == 'spending':
+                # Values associated with each program are spending
+                units = '$'
+            elif quantity == 'coverage':
+
+                # Extract the coverage numerator
+                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc) # program coverage based on unit cost and spending
+                # Get the program coverage denominator
+                num_eligible = dict()
+                for prog in result.model.progset.programs.values(): # For each program
+                    for pop_name in prog.target_pops:
+                        for comp_name in prog.target_comps:
+                            if prog.short in num_eligible:
+                                num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
+                            else:
+                                num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals
+                units = '' # coverage is a dimensionless fraction
+            else:
+                raise AtomicaException('Unknown quantity')
 
             for output in outputs:  # For each final output
                 if isinstance(output, dict): # If this is an aggregation over programs
@@ -458,12 +482,10 @@ class PlotData(object):
                     # We only support summation for combining program spending, not averaging
                     # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
                     vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
-                    units = '$'
                     output_name = output_name
                     data_label = None # No data present for aggregations
                 else:
                     vals = alloc[output]*result.dt
-                    units = '$'
                     output_name =  output
                     data_label = output # Can look up program spending by the program name
 
