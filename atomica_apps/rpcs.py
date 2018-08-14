@@ -1437,8 +1437,13 @@ def js_to_py_optim(js_optim):
     json = js_optim
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
         json[key] = to_number(json[key]) # Convert to a number
-    for subkey in json['objective_weights'].keys():
-        json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+#    for subkey in json['objective_weights'].keys():
+#        json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+    print('TEMP')
+    json['objective_weights'] = dict()
+    for k,key in enumerate(['finalstage','conversion']):
+        json['objective_weights'][key] = to_number(js_optim['objective_weights'][k])
+    print('end-temp')
     for subkey in json['prog_spending'].keys():
         this = json['prog_spending'][subkey]
         json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
