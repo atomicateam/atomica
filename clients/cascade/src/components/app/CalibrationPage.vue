@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-08
+Last update: 2018-08-12
 -->
 
 <template>
@@ -189,9 +189,6 @@ Last update: 2018-08-08
 
     </modal>
     
-    <!-- Popup spinner -->
-    <popup-spinner @spinner-cancel="onSpinnerCancel"></popup-spinner>
-    
   </div>
 </template>
 
@@ -203,14 +200,9 @@ Last update: 2018-08-08
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
-  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'CalibrationPage',
-    
-    components: {
-      PopupSpinner
-    },
     
     data() {
       return {

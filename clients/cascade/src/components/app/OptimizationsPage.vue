@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-08
+Last update: 2018-08-12
 -->
 
 <template>
@@ -206,9 +206,6 @@ Last update: 2018-08-08
         </div>
       </modal>
 
-      <!-- Popup spinner -->
-      <popup-spinner></popup-spinner>
-    
     </div>
   </div>
 </template>
@@ -222,14 +219,9 @@ Last update: 2018-08-08
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
-  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'OptimizationPage',
-
-    components: {
-      PopupSpinner
-    },
 
     data() {
       return {
@@ -279,7 +271,7 @@ Last update: 2018-08-08
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else { // Otherwise...
+      else if (this.$store.state.activeProject.project != undefined) { // Otherwise...
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.

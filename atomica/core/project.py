@@ -481,8 +481,9 @@ class Project(object):
     def run_scenarios(self):
         results = []
         for scenario in self.scens.values():
-            result = scenario.run(project=self)
-            results.append(result)
+            if scenario.active:
+                result = scenario.run(project=self)
+                results.append(result)
         return results
 
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
@@ -523,15 +524,18 @@ class Project(object):
         json1['progsetname'] = -1
         json1['start_year']  = 2020
         json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['start_year'])
-        
+        json1['active']      = True
+
         json2 = sc.dcp(json1)
         json2['name']        ='Doubled budget'
-        json2['alloc'][:] *= 2.0
-        
+        json2['alloc'][:]    *= 2.0
+        json2['active']      = True
+
         json3 = sc.dcp(json1)
         json3['name']        ='Zero budget'
-        json3['alloc'][:] *= 0.0
-        
+        json3['alloc'][:]    *= 0.0
+        json3['active']      = True
+
         if doadd:
             for json in [json1, json2, json3]:
                 self.make_scenario(which='budget', json=json)
