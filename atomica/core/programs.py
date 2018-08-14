@@ -11,7 +11,7 @@ import sciris.core as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
-from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
+from numpy import array, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, ProgramEntry
 from six import string_types
@@ -50,9 +50,10 @@ class ProgramSet(NamedItem):
         NamedItem.__init__(self,name)
         self.programs   = sc.odict()
         self.covout     = sc.odict()
-        self.data_start = data_start
-        self.data_end   = data_end
         self.project    = project
+        self.data_start = data_start if data_start is not None else self.project.data.tvec[0]
+        self.data_end   = data_end if data_end is not None else self.project.data.tvec[-1]
+        self.allyears   = sc.inclusiverange(self.data_start,self.data_end+1) # Initialize data years
         self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
 
         if programs is not None: self.add_programs(programs)
@@ -91,7 +92,6 @@ class ProgramSet(NamedItem):
         if isinstance(spreadsheet,string_types):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
         workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
-        tmpdata = sc.odict()
 
         # Load individual sheets
         metadata = workbook.sheet_by_name('Program targeting') 
@@ -109,37 +109,38 @@ class ProgramSet(NamedItem):
                     if cell_val!='': colindices.append(col-1)
     
             if row==1: # Get population and compartment data from second row
-                tmpdata['pops'] = thesedata[3:colindices[1]-2]
-                tmpdata['comps'] = thesedata[colindices[1]-1:]
+                self.allpops = thesedata[3:colindices[1]-2]
+                self.allcomps = thesedata[colindices[1]-1:]
 
                 # Check if the populations match - if not, raise an error, if so, add the data
-                if project is not None and set(tmpdata['pops']) != set(project.pop_labels):
-                    errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (tmpdata['pops'], set(project.pop_labels))
+                if project is not None and set(self.allpops) != set(project.pop_labels):
+                    errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (self.allpops, set(project.pop_labels))
                     raise AtomicaException(errormsg)
-                if project is not None and set(tmpdata['comps']) != set(list(project.framework.comps.index)):
-                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (tmpdata['comps'], set(list(project.framework.comps.index)))
+                if project is not None and set(self.allcomps) != set(list(project.framework.comps.index)):
+                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (self.allcomps, set(list(project.framework.comps.index)))
                     raise AtomicaException(errormsg)
     
             else: # Get the program name and targeting data from the rest of the rows 
                 if thesedata[0]: 
                     p = Program(name=str(thesedata[0]),
                                 label=str(thesedata[1]),
-                                target_comps =[compname for i,compname in enumerate(tmpdata['comps']) if thesedata[colindices[1]-1:]])
+                                target_comps =[compname for i,compname in enumerate(self.allcomps) if thesedata[colindices[1]-1:][i]])
                     programs.append(p)
+                    
 
         # Add the programs
         self.add_programs(progs=programs)
         nprogs=len(programs)
 
         # Add spending data from the costing datasheet
-        tmpdata['years'] = [] # Initialize data years
+        self.allyears = [] # Overwrite data years
         for col in range(costdata.ncols):
             thiscell = costdata.cell_value(1,col) # 1 is the 2nd row which is where the year data should be
-            if thiscell=='' and len(tmpdata['years'])>0: #  We've gotten to the end
+            if thiscell=='' and len(self.allyears)>0: #  We've gotten to the end
                 lastdatacol = col # Store this column number
                 break # Quit
             elif thiscell != '': # More years, keep going
-                tmpdata['years'].append(float(thiscell)) # Add this year
+                self.allyears.append(float(thiscell)) # Add this year
         assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
     
         for row in range(costdata.nrows):
@@ -147,15 +148,15 @@ class ProgramSet(NamedItem):
             if progname != '': # The first column is blank: it's time for the data
                 datatype = costdata.cell_value(row, 2) # Get the type of data -- WARNING, could be improved
                 if datatype=='Total spend':
-                    for col,year in enumerate(tmpdata['years']):
+                    for col,year in enumerate(self.allyears):
                         spend = costdata.cell_value(row, col+3)
                         if spend: self.programs[progname].add_spend(spend=spend, year=year)
                 elif datatype=='Capacity constraints':
-                    for col,year in enumerate(tmpdata['years']):
+                    for col,year in enumerate(self.allyears):
                         capacity = costdata.cell_value(row, col+3)
                         if capacity: self.programs[progname].update(capacity=capacity, year=year)
                 elif datatype=='Unit cost: best':
-                    for col,year in enumerate(tmpdata['years']):
+                    for col,year in enumerate(self.allyears):
                         unit_cost = [x for x in costdata.col_values(col+3, start_rowx=row, end_rowx=row+3) if x]
                         if unit_cost: self.programs[progname].update(unit_cost=unit_cost, year=year)
                     
@@ -192,7 +193,7 @@ class ProgramSet(NamedItem):
         return newps
             
         
-    def to_spreadsheet(self, filename=None, project=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+    def to_spreadsheet(self, filename=None, progs=None, data_start=None, data_end=None, blh_effects=False):
         ''' Write the contents of a program set to a spreadsheet. '''
         f = io.BytesIO() # Write to this binary stream in memory
 
@@ -207,6 +208,7 @@ class ProgramSet(NamedItem):
         self._book.close()
         spreadsheet = AtomicaSpreadsheet(f)
         return spreadsheet
+
 
     def save(self,fname):
         ''' Shortcut for saving to disk, copied from data.py'''
@@ -237,6 +239,7 @@ class ProgramSet(NamedItem):
     
     def _write_targeting(self):
         # Generate targeting sheet
+        widths = dict()
         sheet = self._book.add_worksheet('Program targeting')
         
         ## Get other inputs
@@ -248,43 +251,49 @@ class ProgramSet(NamedItem):
             else:
                 comps.append(spec.name)
 
-        # Set column width
-        sheet.set_column(2, 2, 15)
-        sheet.set_column(3, 3, 40)
-        sheet.set_column(6, 6, 12)
-        sheet.set_column(7, 7, 16)
-        sheet.set_column(8, 8, 16)
-        sheet.set_column(9, 9, 12)
+        # Set column widths
+        widths = {1: 5, 2: 30, 3: 30, 4: 2, 5: 11, 5+len(pops): 2, 5+len(pops)+1: 11}
         current_row = 0
 
         # Write descriptions of targeting
-        sheet.write(0, 5, "Targeted to (populations)", self._formats["bold"])
-        sheet.write(0, 6 + len(pops), "Targeted to (compartments)", self._formats["bold"])
+        sheet.write(0, 5, "Targeted to (populations)", self._formats['rc_title']['left']['T'])
+        sheet.write(0, 6+len(pops), "Targeted to (compartments)", self._formats['rc_title']['left']['T'])
 
         # Write populations and compartments for targeting
-        coded_params = []
+        existing_data = []
         for prog in self.programs.values():
             label = prog.label
             name = prog.name
             target_pops = [''] + ['' if pop not in prog.target_pops else 1 for pop in pops]
             target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
-            coded_params.append([name, label] + target_pops + target_comps)
+            existing_data.append([name, label] + target_pops + target_comps)
 
         # Make column names
         column_names = ['Short name', 'Long name', ''] + pops + [''] + comps
         content = self.set_content(row_names=range(1,len(self.programs)+1),
                                    column_names=column_names,
-                                   data=coded_params,
+                                   data=existing_data,
                                    assumption=False)
         
         self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
         current_row = self.prog_range.emit(self._formats, rc_title_align='left')
         self.ref_prog_range = self.prog_range.param_refs()
+        apply_widths(sheet,widths)
 
 
     def _write_costcovdata(self):
         # Generate cost-coverage sheet
         sheet = self._book.add_worksheet('Spending data')
+
+        # Get data
+        existing_data = []
+        for prog in self.programs.values():
+            spend = [prog.spend_data.findrow(year)[1] if prog.spend_data and prog.spend_data.findrow(year) is not None else '' for year in self.allyears]
+            capacity = [prog.capacity.findrow(year)[1] if prog.capacity and prog.capacity.findrow(year) is not None else '' for year in self.allyears]
+            unit_cost_b = [prog.unit_cost.findrow(year)[1] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.allyears]
+            unit_cost_l = [prog.unit_cost.findrow(year)[2] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.allyears]
+            unit_cost_h = [prog.unit_cost.findrow(year)[3] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.allyears]
+            existing_data.extend([spend,capacity,unit_cost_b,unit_cost_l,unit_cost_h])
 
         current_row = 0
         sheet.set_column('C:C', 20)
@@ -293,6 +302,7 @@ class ProgramSet(NamedItem):
         content = self.set_content(row_names=self.ref_prog_range,
                                    column_names=range(int(self.data_start), int(self.data_end + 1)),
                                    row_formats=['general']*5,
+                                   data=existing_data,
                                    row_levels=row_levels)
 
         the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
@@ -323,9 +333,20 @@ class ProgramSet(NamedItem):
                                  'connector': '',
                                  'columns': self.ref_prog_range}
 
+        # Get data
+        existing_data = []
+        existing_extra = []
+        for covout in self.covout.values():
+            npi_val = covout.npi_val.get()
+            existing_data.append([npi_val,''])
+            prog_vals = [covout.progs[prog.name].get() if prog.name in covout.progs.keys() else '' for prog in self.programs.values() ]
+            existing_extra.append(prog_vals)
+
         content = self.set_content(row_names=pars,
                                    column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
                                    row_format='general',
+                                   data=existing_data,
+                                   assumption_data=existing_extra,
                                    assumption_properties=assumption_properties,
                                    row_levels=row_levels)
 

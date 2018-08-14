@@ -252,7 +252,7 @@ class Project(object):
     def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
         ''' Load a programs databook'''
         if verbose: print('Making ProgramSet')
-        progset = ProgramSet(name=name)
+        progset = ProgramSet(name=name, project=self)
         if verbose: print('Uploading program data')
         if isinstance(progbook_path,string_types):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')

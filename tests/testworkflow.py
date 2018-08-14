@@ -30,7 +30,7 @@ torun = [
 #"plotcascade",
 "makeprogramspreadsheet",
 #"testprograms",
-"runsim_programs",
+#"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -140,7 +140,8 @@ if "makeprogramspreadsheet" in torun:
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
     elif test == "udt":
-        P.make_progbook(filename, progs=4)
+#        P.make_progbook(filename, progs=4)
+        P.progsets[0].save(filename)
     elif test == "usdt":
         P.make_progbook(filename, progs=9)
     elif test == "hiv":

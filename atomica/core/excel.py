@@ -747,22 +747,22 @@ class ProgramEntry(object):
             for n, name in enumerate(names):
                 self.sheet.write(current_row, start_col+n, name, formats['rc_title']['left']['T'])
 
-            # Write data if present
+            # Write first part (data) if present
             savedata = False
-            if data is not None:
+            if self.content["data"]:
                 try:
                     for j, item in enumerate(self.content["data"][i]):
                         self.sheet.write(current_row, self.first_data_col+j, item, self.formats[row_format])
                     savedata = True  # It saved successfully
                 except:
                     errormsg = 'WARNING, failed to save "%s" with data:\n%s' % (self.content["name"], self.content["data"])
-                    print(errormsg)
+                    raise AtomicaException(errormsg)
                     savedata = False
             if not savedata:
                 for j in range(self.num_data_cols):
                     self.sheet.write(current_row, self.first_data_col+j, None, self.formats[row_format])
 
-            # Write assumption if present
+            # Write second part (assumption or program effects) if present
             if self.content["assumption"]:
 
                 self.sheet.write(current_row, self.last_data_col + 1,
@@ -771,26 +771,15 @@ class ProgramEntry(object):
 
                 for index, col_name in enumerate(self.content["assumption_properties"]['columns']):
                     saveassumptiondata = False
-                    if self.content["assumption_data"] is not None:
+                    if self.content["assumption_data"]:
                         try:
-                            assumptiondata = self.content["assumption_data"][i]
-                            if isinstance(assumptiondata, list):  # Check to see if it's a list
-                                if len(assumptiondata) != 1:  # Check to see if it has the right length
-                                    errormsg = 'WARNING, assumption "%s" appears to have the wrong length:\n%s' % (
-                                        self.content["name"], assumptiondata)
-                                    print(errormsg)
-                                    saveassumptiondata = False
-                                else:  # It has length 1, it's good to go
-                                    assumptiondata = assumptiondata[0]  # Just pull out the only element
-                            self.sheet.write(current_row, self.last_data_col+2+index,
-                                                   assumptiondata, self.formats['row_format'])
+                            self.sheet.write(current_row, self.last_data_col+2+index, self.content["assumption_data"][i][index], self.formats[row_format])
                             saveassumptiondata = True
                         except Exception as E:
                             errormsg = 'WARNING, failed to save assumption "%s" with data:\n%s\nError message:\n (%s)' % (
-                                self.content["name"], assumptiondata, repr(E))
-                            print(errormsg)
+                                self.content["name"], self.content["assumption_data"], repr(E))
                             saveassumptiondata = False
-                            raise E
+                            raise AtomicaException(errormsg)
                     if not saveassumptiondata:
                         self.sheet.write(current_row, self.last_data_col+2+index, None, self.formats[row_format])
 
