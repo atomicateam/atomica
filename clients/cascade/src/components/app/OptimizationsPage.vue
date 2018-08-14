@@ -435,6 +435,7 @@ Last update: 2018-08-12
 
         // Set the objectives
         this.modalOptim.objective_weights = {'finalstage':this.finalstage,'conversion':(1.0-this.finalstage)}
+        this.endYear = this.modalOptim.end_year
         
         // Get the optimization summary from the modal.
         let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
@@ -730,5 +731,10 @@ Last update: 2018-08-12
   .calib-tables table td:nth-child(1) {
     width: 192px; /* Header column */
     padding-right: 11px;
+  }
+  .controls-box {
+    border: 2px solid #ddd;
+    padding: 7px;
+    display: inline-block;
   }
 </style>
