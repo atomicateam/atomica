@@ -831,11 +831,11 @@ class Model(object):
             self._program_cache['comps'] = {}
             self._program_cache['pars'] = {}
             for prog in self.progset.programs.values():
-                self._program_cache['comps'][prog.short] = []
+                self._program_cache['comps'][prog.name] = []
 
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
-                        self._program_cache['comps'][prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
+                        self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
             for target_par in prog.target_pars:
                 if target_par['param'] not in self._program_cache['pars']:

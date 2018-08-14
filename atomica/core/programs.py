@@ -93,10 +93,10 @@ class ProgramSet(NamedItem):
         metadata = workbook.sheet_by_name('Program targeting') 
         costdata = workbook.sheet_by_name('Spending data') 
         effdata = workbook.sheet_by_name('Program effects') 
-        colindices = []
-        programs = []
         
         # Initialise programs
+        colindices = []
+        programs = []
         for row in range(metadata.nrows):
             thesedata = metadata.row_values(row, start_colx=2) 
             if row==0: # Get metadata from first row
@@ -117,166 +117,54 @@ class ProgramSet(NamedItem):
                 if thesedata[0]: 
                     p = Program(name=str(thesedata[0]),
                                 label=str(thesedata[1]),
-                                target_pops =[popname for i,popname in enumerate(tmpdata['pops']) if thesedata[3:colindices[0]][i]],
-                                target_comps =[compname for i,compname in enumerate(tmpdata['comps']) if thesedata[colindices[1]-1:]],
-                                )
+                                target_comps =[compname for i,compname in enumerate(tmpdata['comps']) if thesedata[colindices[1]-1:]])
                     programs.append(p)
 
         # Add the programs
         self.add_programs(progs=programs)
+        nprogs=len(programs)
 
-#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-        # Add spending data
-#        for np in range(nprogs):
-#            pkey = progdata['progs']['short'][np]
-#            for yrno,year in enumerate(progdata['years']):
-#
-#                spend = progdata[pkey]['spend'][yrno]
-#                unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
-#                if not (isnan(unit_cost)).all():
-#                    self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
-#        
-#                if not isnan(spend):
-#                    self.programs[np].add_spend(spend=spend, year=year)
-
-
-
-#        # Get population and compartment names
-#        pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
-#        comp_short_name = lambda x: project.framework.get_variable(x)[0].name
-
-#                    progname = str(thesedata[0])
-#                    tmpdata['progs']['short'].append(progname)
-#                    tmpdata['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
-#                    tmpdata['progs']['label'].append(str(thesedata[1]))
-#                    tmpdata['progs']['target_pops'].append(thesedata[3:colindices[0]])
-#                    tmpdata['progs']['target_comps'].append(self.blank2newtype(thesedata[colindices[1]-1:],0))
-#                    tmpdata[progname] = sc.odict()
-#                    tmpdata[progname]['name'] = str(thesedata[1])
-#                    tmpdata[progname]['target_pops'] = thesedata[3:colindices[0]]
-#                    tmpdata[progname]['target_comps'] = self.blank2newtype(thesedata[colindices[1]-1:], 0)
-#                    tmpdata[progname]['spend'] = []
-#                    tmpdata[progname]['capacity'] = []
-#                    tmpdata[progname]['unitcost'] = sc.odict()
-#            
-#            
-#        nprogs = len(progdata['progs']['short'])
-#        programs = []
-#        # Read in the information for programs
-#        for np in range(nprogs):
-#            if verbose: print('  Reading in information for program %s/%s' % (np+1, nprogs))
-#            pkey = progdata['progs']['short'][np]
-#            capacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
-#            p = Program(short=pkey,
-#                        name=progdata['progs']['short'][np],
-#                        label = progdata['progs']['label'][np],
-#                        target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
-#                        target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
-#                        capacity=capacity,
-#                        )
-#            programs.append(p)
-#
-#        if verbose: print('Adding programs')
-#        self.add_programs(progs=programs)
-#
-
-
-#    
+        # Add spending data from the costing datasheet
+        tmpdata['years'] = [] # Initialize data years
+        for col in range(costdata.ncols):
+            thiscell = costdata.cell_value(1,col) # 1 is the 2nd row which is where the year data should be
+            if thiscell=='' and len(tmpdata['years'])>0: #  We've gotten to the end
+                lastdatacol = col # Store this column number
+                break # Quit
+            elif thiscell != '': # More years, keep going
+                tmpdata['years'].append(float(thiscell)) # Add this year
+        assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
     
-        
-
-
-
-    def make(self, progdata=None, project=None, verbose=False):
-        '''Make a program set from a program data object.'''
-
-        if verbose: print('Making program set from program data')
-        pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
+        for row in range(costdata.nrows):
+            progname = costdata.cell_value(row, 1) # Get the name of the program
+            if progname != '': # The first column is blank: it's time for the data
+                datatype = costdata.cell_value(row, 2) # Get the type of data -- WARNING, could be improved
+                if datatype=='Total spend':
+                    for col,year in enumerate(tmpdata['years']):
+                        spend = costdata.cell_value(row, col+3)
+                        if spend: self.programs[progname].add_spend(spend=spend, year=year)
+                elif datatype=='Capacity constraints':
+                    for col,year in enumerate(tmpdata['years']):
+                        capacity = costdata.cell_value(row, col+3)
+                        if capacity: self.programs[progname].update(capacity=capacity, year=year)
+                elif datatype=='Unit cost: best':
+                    for col,year in enumerate(tmpdata['years']):
+                        unit_cost = [x for x in costdata.col_values(col+3, start_rowx=row, end_rowx=row+3) if x]
+                        if unit_cost: self.programs[progname].update(unit_cost=unit_cost, year=year)
+                    
+        # Add program effect data from the program effect datasheet
+        pop_short_name = {v['label']:k for k,v in project.data.pops.items()} 
         comp_short_name = lambda x: project.framework.get_variable(x)[0].name
-
-        # Sort out inputs
-        if verbose: print('Sorting out inputs')
-        if progdata is None:
-            if project.progdata is None:
-                errormsg = 'You need to supply program data or a project with program data in order to make a program set.'
-                raise AtomicaException(errormsg)
-            else:
-                progdata = project.progdata
-                
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if verbose: print('Checking if populations match')
-        if project is not None and set(progdata['pops']) != set(project.pop_labels):
-            errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(project.pop_labels))
-            raise AtomicaException(errormsg)
-                
-        if verbose: print('Initializing programs')
-        nprogs = len(progdata['progs']['short'])
-        programs = []
-        
-        # Read in the information for programs
-        for np in range(nprogs):
-            if verbose: print('  Reading in information for program %s/%s' % (np+1, nprogs))
-            pkey = progdata['progs']['short'][np]
-            capacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
-            p = Program(short=pkey,
-                        name=progdata['progs']['short'][np],
-                        label = progdata['progs']['label'][np],
-                        target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
-                        target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
-                        capacity=capacity,
-                        )
-            programs.append(p)
-
-        if verbose: print('Adding programs')
-        self.add_programs(progs=programs)
-
-        if verbose: print('Updating program parameters')
-        for np in range(nprogs):
-            if verbose: print('  Updating program %s/%s' % (np+1, nprogs))
-            pkey = progdata['progs']['short'][np]
-            for yrno,year in enumerate(progdata['years']):
-
-                spend = progdata[pkey]['spend'][yrno]
-                unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
-                if not (isnan(unit_cost)).all():
-                    self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
-        
-                if not isnan(spend):
-                    self.programs[np].add_spend(spend=spend, year=year)
-        
-
-        # Read in the information for covout functions and update the target pars
-        if verbose: print('Adding program effects')
-        prognames = progdata['progs']['short']
-        covouts = odict()
-        prog_effects = odict()
-
-        for parname,pardata in progdata['pars'].iteritems():
-            
-            par = comp_short_name(parname) # Get short name of parameter
-            covouts[par] = progdata['pars'][parname]
-            if verbose: print('  Adding effects for program %s' % (par))
-            prog_effects[par] = odict()
-            for pop,popdata in pardata.iteritems():
-                pop = pop_short_name[pop]
-                prog_effects[par][pop] = odict()
-                for pno in range(len(prognames)):
-                    vals = []
-                    for blh in range(len(popdata['prog_vals'])):
-                        val = popdata['prog_vals'][blh][pno]
-                        if isnumber(val) and val is not nan: vals.append(val) 
-                    if vals:
-                        prog_effects[par][pop][prognames[pno]] = vals
-                        self.programs[pno].update(target_pars=(par,pop))
-                if not prog_effects[par][pop]: prog_effects[par].pop(pop) # No effects, so remove
-            if not prog_effects[par]: prog_effects.pop(par) # No effects, so remove
-        
-        if verbose: print('Adding coverage-outcome effects')
-        self.add_covouts(covouts, prog_effects, pop_short_name)
-        if verbose: print('Updating')
-        self.update()
-        if verbose: print('Done with make().')
-        return None
+        for row in range(effdata.nrows): # Even though it loops over every row, skip all except the best rows
+            if effdata.cell_value(row, 1)!='': # Data row
+                par_name = comp_short_name(effdata.cell_value(row, 1)) # Get the name of the parameter
+                pop_name = pop_short_name[effdata.cell_value(row, 2)]
+                npi_val = effdata.cell_value(row, 3) if effdata.cell_value(row, 3)!='' else 0.
+                prog_vals = sc.odict([(pname, pval) for pname,pval in zip(self.programs.keys(),effdata.row_values(row, start_colx=5, end_colx=5+nprogs)) if pval])
+                if prog_vals: # There are programmatic effects for this parameter, so we add it
+                    self.add_covout(par=par_name, pop=pop_name, cov_interaction=None, imp_interaction=None, npi_val=npi_val, max_val=None, prog=prog_vals)
+                    for pname in prog_vals.keys():
+                        self.programs[pname].update(target_pars=(par_name,pop_name))
 
 
     def get_alloc(self,instructions=None,tvec=None):
@@ -393,7 +281,7 @@ class ProgramSet(NamedItem):
         return None
 
 
-    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, prognames=None, verbose=False):
+    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, verbose=False):
         ''' add a single coverage-outcome parameter '''
         # Process inputs
         if verbose: print('Adding single coverage-outcome parameter for par=%s, pop=%s' % (par, pop))
