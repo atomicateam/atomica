@@ -1273,7 +1273,7 @@ def delete_progset(project_id, progsetname=None):
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
-    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'start_year'] 
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
@@ -1297,7 +1297,7 @@ def py_to_js_scen(py_scen, project=None):
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'parsetname', 'progsetname'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname'] 
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
     py_scen['start_year'] = float(js_scen['start_year']) # Convert to number

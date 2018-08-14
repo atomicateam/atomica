@@ -10,9 +10,10 @@ from .utils import NamedItem
 from .programs import ProgramInstructions
 
 class Scenario(NamedItem):
-    def __init__(self, name):
-        NamedItem.__init__(self,name)
+    def __init__(self, name, active=True):
+        NamedItem.__init__(self, name)
         self.result_uid = None # If the scenario is run via Project.run_scenario, this will be the UID of the most recent result generated using this Scenario
+        self.active = active  # whether the scenario is active or not
 
     def get_parset(self, parset, settings):
         return parset
