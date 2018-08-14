@@ -1485,6 +1485,7 @@ def to_number(raw):
 def set_optim_info(project_id, optim_summaries):
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
+    proj.optims.clear()
     for j,js_optim in enumerate(optim_summaries):
         print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
         json = js_to_py_optim(js_optim)

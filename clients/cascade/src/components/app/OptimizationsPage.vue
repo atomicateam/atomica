@@ -437,7 +437,7 @@ Last update: 2018-08-12
         status.start(this)
 
         // Set the objectives
-        this.modalOptim.objective_weights = {'finalstage':this.finalstage,'conversion':(1.0-this.finalstage)}
+        this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage))
         this.endYear = this.modalOptim.end_year
         
         // Get the optimization summary from the modal.
