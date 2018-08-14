@@ -556,7 +556,7 @@ class Project(object):
         json['start_year']        = 2018
         json['end_year']          = 2025
         json['budget_factor']     = 2.5
-        json['objective_weights'] = {'finalstage':1,'conversion':0} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
+        json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
         json['maxtime']           = 30 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
