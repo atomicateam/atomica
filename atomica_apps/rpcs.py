@@ -1492,7 +1492,7 @@ def set_optim_info(project_id, optim_summaries):
         print(json)
         proj.make_optimization(json=json)
     print('Saving project...')
-    save_project(proj)   
+    save_project(proj)
     return None
 
 

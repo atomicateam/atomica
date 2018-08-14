@@ -240,7 +240,6 @@ Last update: 2018-08-12
         areShowingPlots: false,
         plotOptions: [],
         table: null,
-        finalstage: 1,
         endYear: 2018,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
@@ -277,6 +276,10 @@ Last update: 2018-08-12
           // Load the optimization summaries of the current project.
           this.getOptimSummaries()
           this.getDefaultOptim()
+          this.sleep(1)  // used so that spinners will come up by callback func
+            .then(response => {
+              this.resetModal()
+            })
           this.updateSets()
           this.getPlotOptions()          
         })
@@ -483,7 +486,9 @@ Last update: 2018-08-12
       },
 
       resetModal() {
+        console.log('resetModal() called')
         this.modalOptim = this.dcp(this.defaultOptim)
+        console.log(this.modalOptim)
       },
 
       editOptim(optimSummary) {
@@ -529,6 +534,7 @@ Last update: 2018-08-12
         status.start(this)
         
         for(var i = 0; i< this.optimSummaries.length; i++) {
+          console.log('Trying ' + this.optimSummaries[i].name + ' vs ' + optimSummary.name)
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
           }
