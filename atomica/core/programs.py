@@ -18,6 +18,7 @@ from six import string_types
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import xlrd
 import xlsxwriter as xw
+import io
 
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
@@ -41,10 +42,6 @@ class ProgramInstructions(object):
 #--------------------------------------------------------------------
 # ProgramSet class
 #--------------------------------------------------------------------
-
-
-
-
 
 class ProgramSet(NamedItem):
 
@@ -80,8 +77,12 @@ class ProgramSet(NamedItem):
         
         return output
 
+
+    #######################################################################################################
+    # Methods for data I/O
+    #######################################################################################################
     def from_spreadsheet(self, spreadsheet=None, project=None):
-        '''Make a program set from by loading in a spreadsheet.'''
+        '''Make a program set by loading in a spreadsheet.'''
 
         # Create and load spreadsheet
         if isinstance(spreadsheet,string_types):
@@ -110,7 +111,10 @@ class ProgramSet(NamedItem):
 
                 # Check if the populations match - if not, raise an error, if so, add the data
                 if project is not None and set(tmpdata['pops']) != set(project.pop_labels):
-                    errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (tmpdata['pops'], set(project.pop_labels))
+                    errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (tmpdata['pops'], set(project.pop_labels))
+                    raise AtomicaException(errormsg)
+                if project is not None and set(tmpdata['pops']) != set(list(project.framework.comps.index)):
+                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (tmpdata['pops'], set(list(project.framework.comps.index)))
                     raise AtomicaException(errormsg)
     
             else: # Get the program name and targeting data from the rest of the rows 
@@ -167,40 +171,157 @@ class ProgramSet(NamedItem):
                         self.programs[pname].update(target_pars=(par_name,pop_name))
 
 
-    def get_alloc(self,instructions=None,tvec=None):
-        # Get time-varying alloc for each program
-        # Input
-        # - instructions : program instructions
-        # - t : np.array vector of time values (years)
-        #
-        # Returns a dict where the key is the program name and
-        # the value is an array of spending values the same size as t
-        # Spending will be drawn from the instructions if it exists. The `instructions.alloc`
-        # can either be:
-        # - None
-        # - A dict in which a program may or may not appear
-        # - A dict in which a program appears and has a TimeSeries of spending but has no associated data
-        #
-        # Validate inputs
-        if tvec is None:
-            tvec = instructions.start_year
-        tvec = sc.promotetoarray(tvec)
+    def new(self, filename, name=None, project=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+    """ Generate a new progset with blank data based on a project file """
 
-        if instructions is None: # If no instructions provided, just return the default budget
-            return self.get_budgets(year=tvec)
-        else:
-            if instructions.alloc is None:
-                return self.get_budgets(year=tvec)
-            else: 
-                alloc = sc.odict()
-                for prog in self.programs.values():
-                    if prog.name in instructions.alloc:
-                        alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
-                    else:
-                        alloc[prog.name] = prog.get_spend(tvec)
-                return alloc
+        # Validate and process inputs
+        if sc.isnumber(progs):
+            nprogs = progs
+            progs = []  # Create real program list
+            for p in range(nprogs):
+                progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
+        else: 
+            errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
+            raise AtomicaException(errormsg)
+            
+        
+
+        book = ProgramSet(name=name, project=project, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
+        ss = book.to_spreadsheet()
+        ss.save(filename)
+        return filename
+            
+        
+        
+    def to_spreadsheet(self, filename=None, framework=None, progs=None, pars=None, data_start=None, data_end=None, blh_effects=False):
+        '''Write the contents of a program set to a spreadsheet.'''
+        f = io.BytesIO() # Write to this binary stream in memory
+
+        self._book = xw.Workbook(f)
+        self._formats = standard_formats(self._book)
+        self._references = {} # Reset the references dict
+            
+        self._write_targeting()
+        self._write_costcovdata()
+        self._write_covoutdata()
+
+        self._book.close()
+
+        # Dump the file content into a ScirisSpreadsheet
+        spreadsheet = AtomicaSpreadsheet(f)
+
+        # Return the spreadsheet
+        return spreadsheet
 
 
+    #######################################################################################################
+    # Helper methods for data I/O
+    #######################################################################################################
+    def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
+                    row_format='general', row_formats=None, assumption_properties=None, assumption_data=None, assumption=True):
+        # Set the content
+        if assumption_properties is None:
+            assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
+        self.assumption_data = assumption_data
+        return sc.odict([("name",            name),
+                         ("row_names",       row_names),
+                         ("column_names",    column_names),
+                         ("row_levels",      row_levels),
+                         ("row_format",      row_format),
+                         ("row_formats",     row_formats),
+                         ("data",            data),
+                         ("assumption_properties", assumption_properties),
+                         ("assumption_data", assumption_data),
+                         ("assumption",      assumption)])
+
+    
+    def _write_targeting(self):
+        # Generate targeting sheet
+        sheet = self._book.add_worksheet('Program targeting')
+
+        # Set column width
+        sheet.set_column(2, 2, 15)
+        sheet.set_column(3, 3, 40)
+        sheet.set_column(6, 6, 12)
+        sheet.set_column(7, 7, 16)
+        sheet.set_column(8, 8, 16)
+        sheet.set_column(9, 9, 12)
+        current_row = 0
+
+        # Write descriptions of targeting
+        sheet.write(0, 5, "Targeted to (populations)", self._formats["bold"])
+        sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)", self._formats["bold"])
+
+        # Write populations and compartments for targeting
+        coded_params = []
+        for prog in self.programs.values():
+            if type(item) is dict:
+                name = item['name']
+                short = item['short']
+                target_pops = [''] + ['' for popname in self.pops]
+                target_comps = [''] + ['' for comp in self.comps]
+            coded_params.append([short, name] + target_pops + target_comps)
+
+        # Make column names
+        column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
+        content = self.set_content(row_names=range(1,len(self.progs)+1),
+                                   column_names=column_names,
+                                   data=coded_params,
+                                   assumption=False)
+        
+        self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
+        current_row = self.prog_range.emit(self._formats, rc_title_align='left')
+        self.ref_prog_range = self.prog_range.param_refs()
+
+
+    def _write_costcovdata(self):
+        # Generate cost-coverage sheet
+        sheet = self._book.add_worksheet('Spending data')
+
+        current_row = 0
+        sheet.set_column('C:C', 20)
+        row_levels = ['Total spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
+                      'Unit cost: high']
+        content = self.set_content(row_names=self.ref_prog_range,
+                                   column_names=range(int(self.data_start), int(self.data_end + 1)),
+                                   row_formats=['general']*5,
+                                   row_levels=row_levels)
+
+        the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
+        current_row = the_range.emit(self._formats)
+
+    def _write_covoutdata(self):
+        # Generate coverage-outcome sheet
+        sheet = self._book.add_worksheet('Program effects')
+
+        current_row = 0
+        sheet.set_column(1, 1, 30)
+        sheet.set_column(2, 2, 12)
+        sheet.set_column(3, 3, 12)
+        sheet.set_column(4, 4, 12)
+        sheet.set_column(5, 5, 12)
+        sheet.set_column(6, 6, 2)
+
+        row_levels = []
+        for p in self.pops:
+            if self.blh_effects:
+                row_levels.extend([p + ': best', p + ': low', p + ': high'])
+            else: row_levels.extend([p])
+
+        assumption_properties = {'title': 'Value for a person covered by this program alone:',
+                                 'connector': '',
+                                 'columns': self.ref_prog_range}
+
+        content = self.set_content(row_names=self.pars,
+                                   column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
+                                   row_format='general',
+                                   assumption_properties=assumption_properties,
+                                   row_levels=row_levels)
+
+        the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
+        current_row = the_range.emit(self._formats, rc_title_align='left')
+
+        
     def update(self):
         ''' Update (run this is you change something... )'''
 
@@ -238,6 +359,9 @@ class ProgramSet(NamedItem):
         return None
 
 
+    #######################################################################################################
+    # Methods to add or remove programs, populations, parameters
+    #######################################################################################################        
     def add_programs(self, progs=None, replace=False):
         ''' Add a list of programs '''
         
@@ -368,6 +492,43 @@ class ProgramSet(NamedItem):
             progs_by_target_par[par_type] = progs_by_target_par[par_type]
         if filter_par_type: return progs_by_target_par[filter_par_type]
         else: return progs_by_target_par
+
+
+    #######################################################################################################
+    # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
+    #######################################################################################################        
+    def get_alloc(self,instructions=None,tvec=None):
+        # Get time-varying alloc for each program
+        # Input
+        # - instructions : program instructions
+        # - t : np.array vector of time values (years)
+        #
+        # Returns a dict where the key is the program name and
+        # the value is an array of spending values the same size as t
+        # Spending will be drawn from the instructions if it exists. The `instructions.alloc`
+        # can either be:
+        # - None
+        # - A dict in which a program may or may not appear
+        # - A dict in which a program appears and has a TimeSeries of spending but has no associated data
+        #
+        # Validate inputs
+        if tvec is None:
+            tvec = instructions.start_year
+        tvec = sc.promotetoarray(tvec)
+
+        if instructions is None: # If no instructions provided, just return the default budget
+            return self.get_budgets(year=tvec)
+        else:
+            if instructions.alloc is None:
+                return self.get_budgets(year=tvec)
+            else: 
+                alloc = sc.odict()
+                for prog in self.programs.values():
+                    if prog.name in instructions.alloc:
+                        alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
+                    else:
+                        alloc[prog.name] = prog.get_spend(tvec)
+                return alloc
 
 
     def get_budgets(self, year=None, optimizable=None):
@@ -555,11 +716,6 @@ class ProgramSet(NamedItem):
         return outcomes
         
         
-    ## TODO : WRITE THESE
-    def get_pars(self, coverage=None, year=None, sample='best'):
-        ''' Get a full parset for given coverage levels'''
-        pass
-    
     def export(self):
         '''Export progset data to a progbook'''
         pass
