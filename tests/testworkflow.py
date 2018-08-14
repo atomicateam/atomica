@@ -28,7 +28,7 @@ torun = [
 #"makeparset",
 #"runsim",
 #"plotcascade",
-#"makeprogramspreadsheet",
+"makeprogramspreadsheet",
 #"testprograms",
 "runsim_programs",
 #"makeplots",

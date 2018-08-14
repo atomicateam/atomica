@@ -13,7 +13,7 @@ from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, ProgramEntry
 from six import string_types
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import xlrd
@@ -45,11 +45,14 @@ class ProgramInstructions(object):
 
 class ProgramSet(NamedItem):
 
-    def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="Additive", default_imp_interaction="best"):
+    def __init__(self, name="default", project=None, programs=None, covouts=None, data_start=None, data_end=None, default_cov_interaction="Additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
         self.programs   = sc.odict()
         self.covout     = sc.odict()
+        self.data_start = data_start
+        self.data_end   = data_end
+        self.project    = project
         self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
 
         if programs is not None: self.add_programs(programs)
@@ -113,8 +116,8 @@ class ProgramSet(NamedItem):
                 if project is not None and set(tmpdata['pops']) != set(project.pop_labels):
                     errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (tmpdata['pops'], set(project.pop_labels))
                     raise AtomicaException(errormsg)
-                if project is not None and set(tmpdata['pops']) != set(list(project.framework.comps.index)):
-                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (tmpdata['pops'], set(list(project.framework.comps.index)))
+                if project is not None and set(tmpdata['comps']) != set(list(project.framework.comps.index)):
+                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (tmpdata['comps'], set(list(project.framework.comps.index)))
                     raise AtomicaException(errormsg)
     
             else: # Get the program name and targeting data from the rest of the rows 
@@ -171,30 +174,26 @@ class ProgramSet(NamedItem):
                         self.programs[pname].update(target_pars=(par_name,pop_name))
 
 
-    def new(self, filename, name=None, project=None, progs=None, data_start=None, data_end=None, blh_effects=False):
-    """ Generate a new progset with blank data based on a project file """
+    @staticmethod
+    def new(filename, name=None, project=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+        ''' Generate a new progset with blank data based on a project file. '''
 
         # Validate and process inputs
         if sc.isnumber(progs):
             nprogs = progs
             progs = []  # Create real program list
             for p in range(nprogs):
-                progs.append({'short': 'Prog %i' % (p + 1), 'name': 'Program %i' % (p + 1)})
+                progs.append({'name': 'Prog %i' % (p + 1), 'label': 'Program %i' % (p + 1)})
         else: 
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
             
-        
-
-        book = ProgramSet(name=name, project=project, progs=progs, pars=pars, data_start=data_start, data_end=data_end, blh_effects=blh_effects)
-        ss = book.to_spreadsheet()
-        ss.save(filename)
-        return filename
+        newps = ProgramSet(name=name, project=project, programs=progs, data_start=data_start, data_end=data_end)
+        return newps
             
         
-        
-    def to_spreadsheet(self, filename=None, framework=None, progs=None, pars=None, data_start=None, data_end=None, blh_effects=False):
-        '''Write the contents of a program set to a spreadsheet.'''
+    def to_spreadsheet(self, filename=None, project=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+        ''' Write the contents of a program set to a spreadsheet. '''
         f = io.BytesIO() # Write to this binary stream in memory
 
         self._book = xw.Workbook(f)
@@ -206,12 +205,13 @@ class ProgramSet(NamedItem):
         self._write_covoutdata()
 
         self._book.close()
-
-        # Dump the file content into a ScirisSpreadsheet
         spreadsheet = AtomicaSpreadsheet(f)
-
-        # Return the spreadsheet
         return spreadsheet
+
+    def save(self,fname):
+        ''' Shortcut for saving to disk, copied from data.py'''
+        ss = self.to_spreadsheet()
+        ss.save(fname)
 
 
     #######################################################################################################
@@ -238,6 +238,15 @@ class ProgramSet(NamedItem):
     def _write_targeting(self):
         # Generate targeting sheet
         sheet = self._book.add_worksheet('Program targeting')
+        
+        ## Get other inputs
+        pops = self.project.data.pops.keys()
+        comps = []
+        for _,spec in self.project.framework.comps.iterrows():
+            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
+                continue
+            else:
+                comps.append(spec.name)
 
         # Set column width
         sheet.set_column(2, 2, 15)
@@ -250,21 +259,20 @@ class ProgramSet(NamedItem):
 
         # Write descriptions of targeting
         sheet.write(0, 5, "Targeted to (populations)", self._formats["bold"])
-        sheet.write(0, 6 + len(self.pops), "Targeted to (compartments)", self._formats["bold"])
+        sheet.write(0, 6 + len(pops), "Targeted to (compartments)", self._formats["bold"])
 
         # Write populations and compartments for targeting
         coded_params = []
         for prog in self.programs.values():
-            if type(item) is dict:
-                name = item['name']
-                short = item['short']
-                target_pops = [''] + ['' for popname in self.pops]
-                target_comps = [''] + ['' for comp in self.comps]
-            coded_params.append([short, name] + target_pops + target_comps)
+            label = prog.label
+            name = prog.name
+            target_pops = [''] + ['' if pop not in prog.target_pops else 1 for pop in pops]
+            target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
+            coded_params.append([name, label] + target_pops + target_comps)
 
         # Make column names
-        column_names = ['Short name', 'Long name', ''] + self.pops + [''] + self.comps
-        content = self.set_content(row_names=range(1,len(self.progs)+1),
+        column_names = ['Short name', 'Long name', ''] + pops + [''] + comps
+        content = self.set_content(row_names=range(1,len(self.programs)+1),
                                    column_names=column_names,
                                    data=coded_params,
                                    assumption=False)
@@ -293,6 +301,12 @@ class ProgramSet(NamedItem):
     def _write_covoutdata(self):
         # Generate coverage-outcome sheet
         sheet = self._book.add_worksheet('Program effects')
+        pops = self.project.data.pops.keys()
+        parlist = [] 
+        for _,spec in self.project.framework.pars.iterrows():
+            if spec['is impact']=='y':
+                parlist.append((spec.name,spec['display name']))
+        pars = sc.odict(parlist)
 
         current_row = 0
         sheet.set_column(1, 1, 30)
@@ -303,16 +317,13 @@ class ProgramSet(NamedItem):
         sheet.set_column(6, 6, 2)
 
         row_levels = []
-        for p in self.pops:
-            if self.blh_effects:
-                row_levels.extend([p + ': best', p + ': low', p + ': high'])
-            else: row_levels.extend([p])
+        for p in pops: row_levels.extend([p])
 
         assumption_properties = {'title': 'Value for a person covered by this program alone:',
                                  'connector': '',
                                  'columns': self.ref_prog_range}
 
-        content = self.set_content(row_names=self.pars,
+        content = self.set_content(row_names=pars,
                                    column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
                                    row_format='general',
                                    assumption_properties=assumption_properties,
@@ -740,7 +751,7 @@ class Program(NamedItem):
         self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
         self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
         self.target_pops        = None # Populations targeted by the program
-        self.target_comps       = None # Compartments targeted by the program - used for calculating coverage denominators
+        self.target_comps       = [] # Compartments targeted by the program - used for calculating coverage denominators
         self.spend_data         = None # Latest or estimated expenditure
         self.unit_cost          = None # Unit cost of program
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear

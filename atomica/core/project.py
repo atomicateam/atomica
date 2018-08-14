@@ -26,7 +26,8 @@ Version: 2018jul29
 
 from .version import version
 from .calibration import perform_autofit
-from .data import ProjectData, ProgramData, make_progbook
+from .data import ProjectData, ProgramData
+#from .data import ProjectData, ProgramData, make_progbook
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
@@ -207,35 +208,48 @@ class Project(object):
         self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, blh_effects=False):
+    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
         ''' Make a programs databook'''
-
-        # Check imports
-        if progs is None:
-            errormsg = 'Please specify programs for making a program book.'
-            raise AtomicaException(errormsg)
-
         ## Get filepath
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
-
-        ## Get other inputs
-        F = self.framework
-        comps = []
-        for _,spec in F.comps.iterrows():
-            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
-                continue
-            else:
-                comps.append(spec.name)
-
-        # TODO: Think about whether the following makes sense.
-        parlist = [] 
-        for _,spec in F.pars.iterrows():
-            if spec['is impact']=='y':
-                parlist.append((spec.name,spec['display name']))
-        pars = sc.odict(parlist)
+        if data_start is None:
+            data_start = self.data.tvec[0]
+        if data_end is None:
+            data_end= self.data.tvec[-1]
+        progset = ProgramSet.new(full_path, project=self, progs=progs, data_start=data_start, data_end=data_end)
+        progset.save(full_path)
 
 
-        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
+
+#    def make_progbook(self, progbook_path=None, progs=None, blh_effects=False):
+#        ''' Make a programs databook'''
+#
+#        # Check imports
+#        if progs is None:
+#            errormsg = 'Please specify programs for making a program book.'
+#            raise AtomicaException(errormsg)
+#
+#        ## Get filepath
+#        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
+#
+#        ## Get other inputs
+#        F = self.framework
+#        comps = []
+#        for _,spec in F.comps.iterrows():
+#            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
+#                continue
+#            else:
+#                comps.append(spec.name)
+#
+#        # TODO: Think about whether the following makes sense.
+#        parlist = [] 
+#        for _,spec in F.pars.iterrows():
+#            if spec['is impact']=='y':
+#                parlist.append((spec.name,spec['display name']))
+#        pars = sc.odict(parlist)
+#
+#
+#        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
         
 
     def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
