@@ -238,42 +238,58 @@ class Project(object):
         make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
         
 
-
-    def load_progbook(self, progbook_path=None, make_default_progset=True, blh_effects=False):
+    def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
         ''' Load a programs databook'''
-        
-        ## Load spreadsheet and update metadata
+        if verbose: print('Making ProgramSet')
+        progset = ProgramSet(name=name)
+        if verbose: print('Uploading program data')
         if isinstance(progbook_path,string_types):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
 
-        progdata = ProgramData.from_spreadsheet(progbook_spreadsheet)
-#        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
-        self.progbook = sc.dcp(progbook_spreadsheet)
-
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.pop_labels):
-            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
-            raise AtomicaException(errormsg)
-        self.progdata = progdata
-
-        self.modified = sc.today()
-
-        if make_default_progset: self.make_progset(name="default")
-        
-
-    def make_progset(self, progdata=None, name="default", verbose=False):
-        '''Make a progset from program spreadsheet data'''
-        
-        if verbose: print('Making ProgramSet')
-        progset = ProgramSet(name=name)
-        if verbose: print('Making program data')
-        progset.make(progdata=progdata, project=self)
+        progset.from_spreadsheet(spreadsheet=progbook_spreadsheet, project=self)
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')
+
+
+#    def load_progbook(self, progbook_path=None, make_default_progset=True, blh_effects=False):
+#        ''' Load a programs databook'''
+#        
+#        ## Load spreadsheet and update metadata
+#        if isinstance(progbook_path,string_types):
+#            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
+#            progbook_spreadsheet = AtomicaSpreadsheet(full_path)
+#        else:
+#            progbook_spreadsheet = progbook_path
+#
+##        progdata = ProgramData.from_spreadsheet(progbook_spreadsheet)
+##        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
+#        self.progbook = sc.dcp(progbook_spreadsheet)
+#
+#        # Check if the populations match - if not, raise an error, if so, add the data
+#        if set(progdata['pops']) != set(self.pop_labels):
+#            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
+#            raise AtomicaException(errormsg)
+#        self.progdata = progdata
+#
+#        self.modified = sc.today()
+#
+#        if make_default_progset: self.make_progset(name="default")
+#        
+#
+#    def make_progset(self, progdata=None, name="default", verbose=False):
+#        '''Make a progset from program spreadsheet data'''
+#        
+#        if verbose: print('Making ProgramSet')
+#        progset = ProgramSet(name=name)
+#        if verbose: print('Making program data')
+#        progset.make(progdata=progdata, project=self)
+#        if verbose: print('Updating program sets')
+#        self.progsets.append(progset)
+#        if verbose: print('Done with make_progset().')
 
 #    def makedefaults(self, name=None, scenname=None, overwrite=False):
 #        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''

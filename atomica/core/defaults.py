@@ -118,11 +118,11 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
-        if verbose: print('Creating scenarios')
-        P.demo_scenarios() # Add example scenarios
-        if verbose: print('Creating optimizations')
-        P.demo_optimization() # Add optimization example
+        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+#        if verbose: print('Creating scenarios')
+#        P.demo_scenarios() # Add example scenarios
+#        if verbose: print('Creating optimizations')
+#        P.demo_optimization() # Add optimization example
         if verbose: print('Done!')
 
     elif which=='usdt':

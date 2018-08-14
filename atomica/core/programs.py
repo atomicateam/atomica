@@ -13,7 +13,11 @@ from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, nan, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths
 from six import string_types
+from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+import xlrd
+import xlsxwriter as xw
 
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
@@ -75,6 +79,113 @@ class ProgramSet(NamedItem):
         output += '============================================================\n'
         
         return output
+
+    def from_spreadsheet(self, spreadsheet=None, project=None):
+        '''Make a program set from by loading in a spreadsheet.'''
+
+        # Create and load spreadsheet
+        if isinstance(spreadsheet,string_types):
+            spreadsheet = AtomicaSpreadsheet(spreadsheet)
+        workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
+        tmpdata = sc.odict()
+
+        # Load individual sheets
+        metadata = workbook.sheet_by_name('Program targeting') 
+        costdata = workbook.sheet_by_name('Spending data') 
+        effdata = workbook.sheet_by_name('Program effects') 
+        colindices = []
+        programs = []
+        
+        # Initialise programs
+        for row in range(metadata.nrows):
+            thesedata = metadata.row_values(row, start_colx=2) 
+            if row==0: # Get metadata from first row
+                for col in range(2,metadata.ncols):
+                    cell_val = metadata.cell(row, col).value
+                    if cell_val!='': colindices.append(col-1)
+    
+            if row==1: # Get population and compartment data from second row
+                tmpdata['pops'] = thesedata[3:colindices[1]-2]
+                tmpdata['comps'] = thesedata[colindices[1]-1:]
+
+                # Check if the populations match - if not, raise an error, if so, add the data
+                if project is not None and set(tmpdata['pops']) != set(project.pop_labels):
+                    errormsg = 'The populations in the program data are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (tmpdata['pops'], set(project.pop_labels))
+                    raise AtomicaException(errormsg)
+    
+            else: # Get the program name and targeting data from the rest of the rows 
+                if thesedata[0]: 
+                    p = Program(name=str(thesedata[0]),
+                                label=str(thesedata[1]),
+                                target_pops =[popname for i,popname in enumerate(tmpdata['pops']) if thesedata[3:colindices[0]][i]],
+                                target_comps =[compname for i,compname in enumerate(tmpdata['comps']) if thesedata[colindices[1]-1:]],
+                                )
+                    programs.append(p)
+
+        # Add the programs
+        self.add_programs(progs=programs)
+
+#        import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
+        # Add spending data
+#        for np in range(nprogs):
+#            pkey = progdata['progs']['short'][np]
+#            for yrno,year in enumerate(progdata['years']):
+#
+#                spend = progdata[pkey]['spend'][yrno]
+#                unit_cost = [progdata[pkey]['unitcost'][blh][yrno] for blh in range(3)]
+#                if not (isnan(unit_cost)).all():
+#                    self.programs[np].update(unit_cost=sanitize(unit_cost, label=pkey), year=year)
+#        
+#                if not isnan(spend):
+#                    self.programs[np].add_spend(spend=spend, year=year)
+
+
+
+#        # Get population and compartment names
+#        pop_short_name = {v['label']:k for k,v in project.data.pops.items()} # TODO - Make this inversion easier - maybe reconsider having 'label' in the specs dict for pops
+#        comp_short_name = lambda x: project.framework.get_variable(x)[0].name
+
+#                    progname = str(thesedata[0])
+#                    tmpdata['progs']['short'].append(progname)
+#                    tmpdata['progs']['name'].append(str(thesedata[1])) # WARNING, don't need name and short
+#                    tmpdata['progs']['label'].append(str(thesedata[1]))
+#                    tmpdata['progs']['target_pops'].append(thesedata[3:colindices[0]])
+#                    tmpdata['progs']['target_comps'].append(self.blank2newtype(thesedata[colindices[1]-1:],0))
+#                    tmpdata[progname] = sc.odict()
+#                    tmpdata[progname]['name'] = str(thesedata[1])
+#                    tmpdata[progname]['target_pops'] = thesedata[3:colindices[0]]
+#                    tmpdata[progname]['target_comps'] = self.blank2newtype(thesedata[colindices[1]-1:], 0)
+#                    tmpdata[progname]['spend'] = []
+#                    tmpdata[progname]['capacity'] = []
+#                    tmpdata[progname]['unitcost'] = sc.odict()
+#            
+#            
+#        nprogs = len(progdata['progs']['short'])
+#        programs = []
+#        # Read in the information for programs
+#        for np in range(nprogs):
+#            if verbose: print('  Reading in information for program %s/%s' % (np+1, nprogs))
+#            pkey = progdata['progs']['short'][np]
+#            capacity = None if isnan(progdata[pkey]['capacity']).all() else progdata[pkey]['capacity']
+#            p = Program(short=pkey,
+#                        name=progdata['progs']['short'][np],
+#                        label = progdata['progs']['label'][np],
+#                        target_pops =[pop_short_name[val] for i,val in enumerate(progdata['pops']) if progdata['progs']['target_pops'][i]],
+#                        target_comps=[comp_short_name(val) for i,val in enumerate(progdata['comps']) if progdata['progs']['target_comps'][np][i]],
+#                        capacity=capacity,
+#                        )
+#            programs.append(p)
+#
+#        if verbose: print('Adding programs')
+#        self.add_programs(progs=programs)
+#
+
+
+#    
+    
+        
+
+
 
     def make(self, progdata=None, project=None, verbose=False):
         '''Make a program set from a program data object.'''
@@ -174,7 +285,7 @@ class ProgramSet(NamedItem):
         # - instructions : program instructions
         # - t : np.array vector of time values (years)
         #
-        # Returns a dict where the key is the program short name and
+        # Returns a dict where the key is the program name and
         # the value is an array of spending values the same size as t
         # Spending will be drawn from the instructions if it exists. The `instructions.alloc`
         # can either be:
@@ -195,10 +306,10 @@ class ProgramSet(NamedItem):
             else: 
                 alloc = sc.odict()
                 for prog in self.programs.values():
-                    if prog.short in instructions.alloc:
-                        alloc[prog.short] = instructions.alloc[prog.short].interpolate(tvec)
+                    if prog.name in instructions.alloc:
+                        alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
                     else:
-                        alloc[prog.short] = prog.get_spend(tvec)
+                        alloc[prog.name] = prog.get_spend(tvec)
                 return alloc
 
 
@@ -258,7 +369,7 @@ class ProgramSet(NamedItem):
                 raise AtomicaException(errormsg)
             
             # Save it
-            self.programs[prog.short] = prog
+            self.programs[prog.name] = prog
 
         self.update()
         return None
@@ -382,7 +493,7 @@ class ProgramSet(NamedItem):
 
         # Get cost data for each program 
         for prog in self.programs.values():
-            default_budget[prog.short] = prog.get_spend(year)
+            default_budget[prog.name] = prog.get_spend(year)
 
         return default_budget
 
@@ -398,12 +509,12 @@ class ProgramSet(NamedItem):
 
         # Get cost data for each program 
         for prog in self.programs.values():
-            if alloc and prog.short in alloc:
-                spending = alloc[prog.short]
+            if alloc and prog.name in alloc:
+                spending = alloc[prog.name]
             else:
                 spending = None
 
-            num_covered[prog.short] = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
+            num_covered[prog.name] = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
 
         return num_covered
 
@@ -412,8 +523,8 @@ class ProgramSet(NamedItem):
         '''Returns proportion covered for a time/spending vector and denominator.
         Denominator is expected to be a dictionary.'''
         # INPUT
-        # denominator - dict of denominator values keyed by program short name
-        # alloc - dict of spending values (arrays) keyed by program short name (same thing returned by self.get_alloc)
+        # denominator - dict of denominator values keyed by program name
+        # alloc - dict of spending values (arrays) keyed by program name (same thing returned by self.get_alloc)
         prop_covered = odict() # Initialise outputs
 
         # Make sure that denominator has been supplied
@@ -422,14 +533,14 @@ class ProgramSet(NamedItem):
             raise AtomicaException(errormsg)
             
         for prog in self.programs.values():
-            if alloc and prog.short in alloc:
-                spending = alloc[prog.short]
+            if alloc and prog.name in alloc:
+                spending = alloc[prog.name]
             else:
                 spending = None
 
             num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
-            denom = denominator[prog.short]            
-            prop_covered[prog.short] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
+            denom = denominator[prog.name]            
+            prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
             
         return prop_covered
 
@@ -482,12 +593,12 @@ class ProgramSet(NamedItem):
                 # Loop over the programs that target this parameter/population combo
                 for prog in relevant_progs[pop]:
                     if not self._covout_valid_cache[(par_type,pop)]:
-                        print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.short))
+                        print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.name))
                         outcomes[par_type][pop] = None
                     else:
                         outcomes[par_type][pop]  = self.covout[(par_type,pop)].npi_val.get(sample)
-                        thiscov[prog.short]         = coverage[prog.short]
-                        delta[prog.short]           = self.covout[(par_type,pop)].progs[prog.short].get(sample) - outcomes[par_type][pop]
+                        thiscov[prog.name]         = coverage[prog.name]
+                        delta[prog.name]           = self.covout[(par_type,pop)].progs[prog.name].get(sample) - outcomes[par_type][pop]
                         
                 # Pre-check for additive calc
                 if self.covout[(par_type,pop)].cov_interaction == 'Additive':
@@ -501,10 +612,10 @@ class ProgramSet(NamedItem):
                     # Outcome += c1*delta_out1 + c2*delta_out2
                     for prog in relevant_progs[pop]:
                         if not self._covout_valid_cache[(par_type,pop)]:
-                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.short, pop, par_type))
+                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.name, pop, par_type))
                             outcomes[par_type][pop] = None
                         else: 
-                            outcomes[par_type][pop] += thiscov[prog.short]*delta[prog.short]
+                            outcomes[par_type][pop] += thiscov[prog.name]*delta[prog.name]
                         
                 # NESTED CALCULATION
                 elif self.covout[(par_type,pop)].cov_interaction == 'Nested':
@@ -576,11 +687,11 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self,short=None, name=None, label=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self, name=None, label=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
-        self.short              = None # Short name of program
+        self.name               = None # Short name of program
         self.label              = None # Full name of the program
         self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
         self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
@@ -591,14 +702,14 @@ class Program(NamedItem):
         self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
         
         # Populate the values
-        self.update(short=short, name=name, label=label, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.update(name=name, label=label, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
     def __repr__(self):
         ''' Print out useful info'''
         output = sc.desc(self)
-        output += '          Program name: %s\n'    % self.short
+        output += '          Program name: %s\n'    % self.name
         output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
@@ -608,7 +719,7 @@ class Program(NamedItem):
     
 
 
-    def update(self, short=None, name=None, label=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
+    def update(self, name=None, label=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
@@ -742,7 +853,6 @@ class Program(NamedItem):
             return None
             
         # Actually set everything
-        if short        is not None: self.short          = short # short name
         if name         is not None: self.name           = name # full name
         if label        is not None: self.label          = label # full name
         if target_pops  is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
@@ -756,10 +866,10 @@ class Program(NamedItem):
                 set_spend(spend_data=spend_data,spend_type=spend_type) # Set spending data
         
         # Finally, check everything
-        if self.short is None: # self.short must exist
-            errormsg = 'You must supply a short name for a program'
+        if self.name is None: # self.name must exist
+            errormsg = 'You must supply a name for a program'
             raise AtomicaException(errormsg)
-        if self.name is None:       self.name = self.short # If name not supplied, use short
+        if self.label is None:       self.label = self.name # If label not supplied, use name
         if self.target_pops is None: self.target_pops = [] # Empty list
         if self.target_pars is None:
             self.target_pars = [] # Empty list

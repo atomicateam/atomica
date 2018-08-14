@@ -238,24 +238,24 @@ if "runsim_programs" in torun:
 #        P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
-    elif test == 'udt':
-        scen1alloc = {'Testing - pharmacies': 70000}
-        scen2alloc = {'Testing - clinics': 120000}
-        scen3alloc = {'Testing - outreach': 50000}
-        scen4alloc = {'Adherence': 40000}
-        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
-        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
-        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
-        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
-
-        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="Baseline")
-        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="Scale up pharmacies")
-        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="Scale up clinics")
-        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="Scale up outreach")
-        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="Scale up adherence")
-
-        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
+#    elif test == 'udt':
+#        scen1alloc = {'Testing - pharmacies': 70000}
+#        scen2alloc = {'Testing - clinics': 120000}
+#        scen3alloc = {'Testing - outreach': 50000}
+#        scen4alloc = {'Adherence': 40000}
+#        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+#        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
+#        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
+#        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
+#        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
+#
+#        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="Baseline")
+#        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="Scale up pharmacies")
+#        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="Scale up clinics")
+#        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="Scale up outreach")
+#        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="Scale up adherence")
+#
+#        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
 
     elif test == 'usdt':
         scenalloc = {'Screening at pharmacies':  2400000 }
