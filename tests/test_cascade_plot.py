@@ -37,7 +37,10 @@ if "basicplots" in torun and test=='tb':
     if test=='tb': 
         au.plot_cascade(result,cascade='main',pops='0-4',year=endyear,data=P.data)
         au.plot_cascade(result,cascade='secondary',pops='0-4',year=endyear,data=P.data)
-    
+
+        au.plot_cascade(result,cascade='secondary',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
+        au.plot_cascade(result,cascade='secondary',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
+
 
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
