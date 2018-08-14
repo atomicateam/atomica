@@ -525,7 +525,7 @@ class TimeDependentValuesEntry(object):
     # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
     #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
 
-    def __init__(self, name=None, tvec=None, ts = None, allowed_units = None, self_connections=True, template_item_type=None,iterated_type=None,iterate_over_links=None,value_attribute=None):
+    def __init__(self, name, tvec, ts = None, allowed_units = None):
         # ts - An odict where the key is a population name and the value is a TimeSeries
         # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
         # tvec - The time values that will be written in the headings
@@ -533,18 +533,10 @@ class TimeDependentValuesEntry(object):
         if ts is None:
             ts = sc.odict()
 
-        # TODO - name and tvec should be compulsory positional arguments, they can be none to support legacy code for the moment
         self.name = name
         self.tvec = tvec
         self.ts = ts
         self.allowed_units = allowed_units
-
-        # Todo - get rid of these once reading is updated?
-        self.template_item_type = template_item_type # This is whether the table is for a compartment, characteristic, or parameter
-        self.iterated_type = iterated_type # Most TDVE tables contain multiple TimeSeries, this states what they are e.g. 'pop'
-        self.iterate_over_links = iterate_over_links
-        self.value_attribute = value_attribute # This says something like 'data'
-        self.self_connections = self_connections # This is probably only relevant for link tables
 
     def __repr__(self):
         output= sc.desc(self)

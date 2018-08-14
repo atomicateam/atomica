@@ -20,24 +20,29 @@ result = P.results[0]
 
 # # Make some plots from plot names and groups in the Framework
 if "basicplots" in torun and test=='tb':
-    result.plot(plot_name='plot5',project=P)
-    result.plot(plot_name='plot5',pops='all',project=P)
-    result.plot(plot_name='plot19',pops='all',project=P)
+    result.plot(plot_name='Active DS-TB',project=P)
+    result.plot(plot_name='Active DS-TB',pops='all',project=P)
     result.plot(plot_group='latency')
 
 #    # Export limited set of results based on 'Export' column in Framework, or export everything
-    result.export(filename='./temp/export_from_framework.xlsx') # Export only the quantities tagged as 'export' in the Framework
+    result.export(filename='./temp/export_from_framework_1.xlsx') # Export only the quantities tagged as 'export' in the Framework
+    result.export(filename='./temp/export_from_framework_2.xlsx',plot_names=['Active DS-TB']) # export all cascades but only one plot
+    result.export(filename='./temp/export_from_framework_3.xlsx',plot_names=['Active DS-TB','Active treatment'],cascade_names=[]) # Export two plots and no cascades
+
     result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
 
     # Plot various cascades
     startyear = 2000 if test=='tb' else 2016
     endyear = 2030 if test=='tb' else 2017
-    au.plot_cascade(result,cascade='main',pops='all',year=startyear,data=P.data)
-    au.plot_cascade(result,cascade='main',pops='all',year=endyear,data=P.data)
+    au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='all',year=startyear,data=P.data)
+    au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='all',year=endyear,data=P.data)
     if test=='tb': 
-        au.plot_cascade(result,cascade='main',pops='0-4',year=endyear,data=P.data)
-        au.plot_cascade(result,cascade='secondary',pops='0-4',year=endyear,data=P.data)
-    
+        au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='0-4',year=endyear,data=P.data)
+        au.plot_cascade(result,cascade='SP treatment',pops='0-4',year=endyear,data=P.data)
+
+        au.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
+        au.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
+
 
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
