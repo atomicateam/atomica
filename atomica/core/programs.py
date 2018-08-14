@@ -168,9 +168,11 @@ class ProgramSet(NamedItem):
                 par_name = comp_short_name(effdata.cell_value(row, 1)) # Get the name of the parameter
                 pop_name = pop_short_name[effdata.cell_value(row, 2)]
                 npi_val = effdata.cell_value(row, 3) if effdata.cell_value(row, 3)!='' else 0.
-                prog_vals = sc.odict([(pname, pval) for pname,pval in zip(self.programs.keys(),effdata.row_values(row, start_colx=5, end_colx=5+nprogs)) if pval])
+                cov_interaction = effdata.cell_value(row, 4) if effdata.cell_value(row, 4)!='' else None
+                imp_interaction = effdata.cell_value(row, 5) if effdata.cell_value(row, 5)!='' else None
+                prog_vals = sc.odict([(pname, pval) for pname,pval in zip(self.programs.keys(),effdata.row_values(row, start_colx=7, end_colx=7+nprogs)) if pval])
                 if prog_vals: # There are programmatic effects for this parameter, so we add it
-                    self.add_covout(par=par_name, pop=pop_name, cov_interaction=None, imp_interaction=None, npi_val=npi_val, max_val=None, prog=prog_vals)
+                    self.add_covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=None, prog=prog_vals)
                     for pname in prog_vals.keys():
                         self.programs[pname].update(target_pars=(par_name,pop_name))
 
@@ -220,7 +222,7 @@ class ProgramSet(NamedItem):
     # Helper methods for data I/O
     #######################################################################################################
     def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
-                    row_format='general', row_formats=None, assumption_properties=None, assumption_data=None, assumption=True):
+                    row_format='general', row_formats=None, validation=None, assumption_properties=None, assumption_data=None, assumption=True):
         # Set the content
         if assumption_properties is None:
             assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
@@ -232,6 +234,7 @@ class ProgramSet(NamedItem):
                          ("row_format",      row_format),
                          ("row_formats",     row_formats),
                          ("data",            data),
+                         ("validation",      validation),
                          ("assumption_properties", assumption_properties),
                          ("assumption_data", assumption_data),
                          ("assumption",      assumption)])
@@ -239,7 +242,6 @@ class ProgramSet(NamedItem):
     
     def _write_targeting(self):
         # Generate targeting sheet
-        widths = dict()
         sheet = self._book.add_worksheet('Program targeting')
         
         ## Get other inputs
@@ -276,13 +278,14 @@ class ProgramSet(NamedItem):
                                    assumption=False)
         
         self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = self.prog_range.emit(self._formats, rc_title_align='left')
+        current_row = self.prog_range.emit(self._formats, rc_title_align='left', widths=widths)
         self.ref_prog_range = self.prog_range.param_refs()
         apply_widths(sheet,widths)
 
 
     def _write_costcovdata(self):
         # Generate cost-coverage sheet
+        widths = dict()
         sheet = self._book.add_worksheet('Spending data')
 
         # Get data
@@ -306,7 +309,9 @@ class ProgramSet(NamedItem):
                                    row_levels=row_levels)
 
         the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = the_range.emit(self._formats)
+        current_row = the_range.emit(self._formats, widths=widths)
+        apply_widths(sheet,widths)
+
 
     def _write_covoutdata(self):
         # Generate coverage-outcome sheet
@@ -318,29 +323,24 @@ class ProgramSet(NamedItem):
                 parlist.append((spec.name,spec['display name']))
         pars = sc.odict(parlist)
 
+        # Set column widths and other initial data
+        widths = {0: 20, 2: 10, 3: 16, 4: 16, 5: 2}
         current_row = 0
-        sheet.set_column(1, 1, 30)
-        sheet.set_column(2, 2, 12)
-        sheet.set_column(3, 3, 12)
-        sheet.set_column(4, 4, 12)
-        sheet.set_column(5, 5, 12)
-        sheet.set_column(6, 6, 2)
-
         row_levels = []
         for p in pops: row_levels.extend([p])
+        assumption_properties = {'title': 'Value for a person covered by this program alone:','connector': '','columns': self.ref_prog_range}
 
-        assumption_properties = {'title': 'Value for a person covered by this program alone:',
-                                 'connector': '',
-                                 'columns': self.ref_prog_range}
-
-        # Get data
+        # Get data if it exists for writing to file
         existing_data = []
         existing_extra = []
-        for covout in self.covout.values():
-            npi_val = covout.npi_val.get()
-            existing_data.append([npi_val,''])
-            prog_vals = [covout.progs[prog.name].get() if prog.name in covout.progs.keys() else '' for prog in self.programs.values() ]
-            existing_extra.append(prog_vals)
+        for par in pars.keys():
+            for pop in pops:
+                npi_val = self.covout[(par,pop)].npi_val.get() if (par,pop) in self.covout.keys() else ''
+                cov_interaction = self.covout[(par,pop)].cov_interaction if (par,pop) in self.covout.keys() else ''
+                imp_interaction = self.covout[(par,pop)].imp_interaction if (par,pop) in self.covout.keys() else ''
+                existing_data.append([npi_val,cov_interaction,imp_interaction])
+                prog_vals = [self.covout[(par,pop)].progs[prog.name].get() if (par,pop) in self.covout.keys() and prog.name in self.covout[(par,pop)].progs.keys() else '' for prog in self.programs.values() ]
+                existing_extra.append(prog_vals)
 
         content = self.set_content(row_names=pars,
                                    column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
@@ -348,10 +348,12 @@ class ProgramSet(NamedItem):
                                    data=existing_data,
                                    assumption_data=existing_extra,
                                    assumption_properties=assumption_properties,
+                                   validation={3:["Random","Additive","Nested"],4:["Synergistic","best"]},
                                    row_levels=row_levels)
 
         the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = the_range.emit(self._formats, rc_title_align='left')
+        current_row = the_range.emit(self._formats, rc_title_align='left', widths=widths)
+        apply_widths(sheet,widths)
 
         
     def update(self):

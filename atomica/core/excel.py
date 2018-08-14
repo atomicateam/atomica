@@ -695,7 +695,7 @@ class ProgramEntry(object):
         return range_vals
 
 
-    def emit(self, formats, data=None, rc_row_align='right', rc_title_align='right'):  # only important for row/col titles
+    def emit(self, formats, data=None, rc_row_align='right', rc_title_align='right', widths=None):  # only important for row/col titles
         """ Emits the range and returns the new current row in the given sheet """
         
         # Top-of-page headers
@@ -734,10 +734,11 @@ class ProgramEntry(object):
         for i, names_format in enumerate(zip(row_names, row_formats)):
             names, row_format = names_format
             start_col = self.first_data_col - len(names)
-
+            
             # Write row name(s)
             for n, name in enumerate(names):
                 self.sheet.write(current_row, start_col+n, name, formats['rc_title']['left']['T'])
+                update_widths(widths,start_col+n,name)
 
             # Write first part (data) if present
             savedata = False
@@ -774,6 +775,11 @@ class ProgramEntry(object):
                             raise AtomicaException(errormsg)
                     if not saveassumptiondata:
                         self.sheet.write(current_row, self.last_data_col+2+index, None, self.formats[row_format])
+
+            # Insert any data validations
+            if self.content["validation"]:
+                for col,source in self.content["validation"].iteritems():
+                    self.sheet.data_validation(xlrc(current_row,col), {"validate": "list", "source": source})
 
             current_row += 1
             if num_levels > 1 and ((i + 1) % num_levels) == 0:  # shift between the blocks

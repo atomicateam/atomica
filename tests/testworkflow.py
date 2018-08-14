@@ -12,9 +12,9 @@ from atomica.core.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-test = "udt"
+#test = "udt"
 #test = "usdt"
-#test = "hiv"
+test = "hiv"
 #test = "diabetes"
 #test = "service"
 
@@ -28,7 +28,8 @@ torun = [
 #"makeparset",
 #"runsim",
 #"plotcascade",
-"makeprogramspreadsheet",
+"makeblankprogbook",
+"writeprogbook",
 #"testprograms",
 #"runsim_programs",
 #"makeplots",
@@ -131,23 +132,30 @@ if 'plotcascade' in torun:
         fig = pl.gcf()
         sqs.browser(fig)
     
-if "makeprogramspreadsheet" in torun:
+if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    P = au.demo(which=test, do_plot=0, do_run=False)
+    P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
     filename = "temp/progbook_"+test+"_blank.xlsx"
     if test == "tb":
         P.make_progbook(filename, progs=29)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
     elif test == "udt":
-#        P.make_progbook(filename, progs=4)
-        P.progsets[0].save(filename)
+        P.make_progbook(filename, progs=4)
     elif test == "usdt":
         P.make_progbook(filename, progs=9)
     elif test == "hiv":
         P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
+
+
+if "writeprogbook" in torun:
+    print('\n\n\nExporting programs spreadsheet ... ')
+    P = au.demo(which=test, do_plot=0, do_run=False)
+    filename = "temp/progbook_"+test+"_export.xlsx"
+    if test in ["tb","udt","usdt","hiv","hypertension"]:
+        P.progsets[0].save(filename)
 
 
 if "testprograms" in torun:

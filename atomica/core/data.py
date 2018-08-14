@@ -9,7 +9,6 @@ import sciris.core as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
-import xlrd
 import xlsxwriter as xw
 import io
 import numpy as np
