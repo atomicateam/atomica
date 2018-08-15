@@ -690,7 +690,7 @@ class ProgramEntry(object):
         
         range_vals = []
         for row in prog_range: 
-            cell_address = xlrc(row, self.first_data_col+1, row_abs=True, col_abs=True)
+            cell_address = xlrc(row, self.first_data_col, row_abs=True, col_abs=True)
             range_vals.append("='%s'!%s" % (self.sheet.get_name(), cell_address))
         return range_vals
 

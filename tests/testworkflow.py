@@ -28,7 +28,7 @@ torun = [
 #"makeparset",
 #"runsim",
 #"plotcascade",
-#"makeblankprogbook",
+"makeblankprogbook",
 "writeprogbook",
 #"testprograms",
 #"runsim_programs",

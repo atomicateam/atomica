@@ -189,7 +189,6 @@ class ProgramSet(NamedItem):
                         capacity = costdata.cell_value(row, col+3)
                         if capacity: self.programs[progname].update(capacity=capacity, year=year)
                 elif datatype=='Unit cost':
-#                    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
                     for col,year in enumerate(self.data_years):
                         unit_cost = costdata.cell_value(row, col+3)
                         if unit_cost: self.programs[progname].update(unit_cost=[unit_cost], year=year)
@@ -197,7 +196,7 @@ class ProgramSet(NamedItem):
         # Add program effect data from the program effect datasheet
         pop_short_name = {v['label']:k for k,v in data.pops.items()} 
         comp_short_name = lambda x: framework.get_variable(x)[0].name
-        self.allpars = []
+        self.allpars = odict()
         for row in range(effdata.nrows): # Even though it loops over every row, skip all except the best rows
             if effdata.cell_value(row, 1)!='': # Data row
                 par_name = comp_short_name(effdata.cell_value(row, 1)) # Get the name of the parameter
@@ -206,7 +205,7 @@ class ProgramSet(NamedItem):
                 cov_interaction = effdata.cell_value(row, 4) if effdata.cell_value(row, 4)!='' else None
                 imp_interaction = effdata.cell_value(row, 5) if effdata.cell_value(row, 5)!='' else None
                 prog_vals = sc.odict([(pname, pval) for pname,pval in zip(self.programs.keys(),effdata.row_values(row, start_colx=7, end_colx=7+nprogs)) if pval])
-                if par_name not in self.allpars: self.allpars.append(par_name)
+                if par_name not in self.allpars.keys(): self.allpars[par_name] = effdata.cell_value(row, 1)
                 if prog_vals: # There are programmatic effects for this parameter, so we add it
                     self.add_covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=None, prog=prog_vals)
                     for pname in prog_vals.keys():
@@ -242,17 +241,17 @@ class ProgramSet(NamedItem):
                 else:
                     data = project.data
                     framework = project.framework
-                pops = [p['label'] for p in data.pops.values()]
+                pops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
                 comps = []
                 for _,spec in framework.comps.iterrows():
                     if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
                         continue
                     else:
                         comps.append(spec.name)
-                pars = [] 
+                pars = odict() 
                 for _,spec in framework.pars.iterrows():
                     if spec['is impact']=='y':
-                        pars.append(spec['display name'])
+                        pars[spec.name] = spec['display name']
 
         else:
             # Starting totally from scratch with integer arguments: just create lists with empty entries
@@ -333,7 +332,7 @@ class ProgramSet(NamedItem):
         sheet = self._book.add_worksheet('Program targeting')
         
         ## Get other inputs
-        pops = self.allpops.values()
+        pops = self.allpops
         comps = self.allcomps
 
         # Set column widths
@@ -349,12 +348,12 @@ class ProgramSet(NamedItem):
         for prog in self.programs.values():
             label = prog.label
             name = prog.name
-            target_pops  = [''] + ['' if pop not in prog.target_pops else 1 for pop in pops]
+            target_pops  = [''] + ['' if pop not in prog.target_pops else 1 for pop in self.allpops.keys()]
             target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
             existing_data.append([name, label] + target_pops + target_comps)
 
         # Make column names
-        column_names = ['Short name', 'Long name', ''] + pops + [''] + comps
+        column_names = ['Short name', 'Long name', ''] + self.allpops.values() + [''] + comps
         content = self.set_content(row_names=range(1,len(self.programs)+1),
                                    column_names=column_names,
                                    data=existing_data,
@@ -403,13 +402,13 @@ class ProgramSet(NamedItem):
         widths = {0: 20, 2: 10, 3: 16, 4: 16, 5: 2}
         current_row = 0
         row_levels = []
-        for p in pops: row_levels.extend([p])
+        for p in pops.values(): row_levels.extend([p])
         assumption_properties = {'title': 'Value for a person covered by this program alone:','connector': '','columns': self.ref_prog_range}
 
         # Get data if it exists for writing to file
         existing_data = []
         existing_extra = []
-        for par in pars:
+        for par in pars.keys():
             for pop in pops.keys():
                 npi_val = self.covout[(par,pop)].npi_val.get() if (par,pop) in self.covout.keys() else ''
                 cov_interaction = self.covout[(par,pop)].cov_interaction if (par,pop) in self.covout.keys() else ''
@@ -418,7 +417,7 @@ class ProgramSet(NamedItem):
                 prog_vals = [self.covout[(par,pop)].progs[prog.name].get() if (par,pop) in self.covout.keys() and prog.name in self.covout[(par,pop)].progs.keys() else '' for prog in self.programs.values() ]
                 existing_extra.append(prog_vals)
 
-        content = self.set_content(row_names=pars,
+        content = self.set_content(row_names=pars.values(),
                                    column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
                                    row_format='general',
                                    data=existing_data,
