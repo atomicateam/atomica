@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-14
+Last update: 2018-08-15
 -->
 
 <template>
@@ -229,7 +229,7 @@ Last update: 2018-08-14
         parsetOptions: [],
         newParsetName: [],
         startYear: 0,
-        endYear: 0,
+        endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
         plotOptions: [],
         yearOptions: [],
@@ -309,9 +309,8 @@ Last update: 2018-08-14
       } else if ((this.$store.state.activeProject.project != undefined) && 
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.active_sim_start
-        this.endYear = this.active_sim_end
+//        this.endYear = this.active_sim_end
         this.popOptions = this.active_pops
-//        this.endYear = 2018  // TODO: I'm guessing this should be temporary, just for the demo.
         this.viewTable()
         this.getPlotOptions()
         this.sleep(1)  // used so that spinners will come up by callback func
