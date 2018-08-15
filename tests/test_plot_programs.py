@@ -4,9 +4,6 @@ P = au.demo(which='tb')
 instructions = au.ProgramInstructions()
 result1 = P.run_sim(P.parsets[0],P.progsets[0],progset_instructions=instructions,result_name='Default budget')
 
-d = au.PlotData.programs(result1,quantity='coverage')
-au.plot_series(d,plot_type='stacked')
-
 # Override the default budget (these are relatively minor tweaks)
 alloc = dict()
 alloc['BCG'] = 28792743
@@ -40,6 +37,8 @@ alloc['PCF-HIV-'] = 8020991
 alloc['PCF-HIV+'] = 6956362
 instructions = au.ProgramInstructions(alloc=alloc,start_year=2018)
 result2 = P.run_sim(P.parsets[0],P.progsets[0],progset_instructions=instructions,result_name='Modified budget')
+
+## SPENDING PLOTS
 
 # Stacked time series of spending
 d = au.PlotData.programs(result1)

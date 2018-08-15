@@ -14,14 +14,12 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
-import matplotlib
 
 import sciris.core as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, NotFoundError, logger
+from .system import AtomicaException, NotFoundError, logger, NotAllowedError
 from .parser_function import parse_function
-from .utils import NDict
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
 import scipy.interpolate
@@ -401,7 +399,7 @@ class PlotData(object):
         return s
 
     @staticmethod
-    def programs(results,outputs=None,t_bins=None,time_aggregation='sum',quantity='spending'):
+    def programs(results,outputs=None,t_bins=None,quantity='spending'):
         # This constructs a PlotData instance from spending values
         #
         # INPUTS
@@ -412,15 +410,11 @@ class PlotData(object):
         # - prognames - specification of which programs to plot spending for
         #     - the name of a single program
         #     - a list of program names
-        #     - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Output aggregation type is 'sum' for program spending,
-        #         and NOT permitted for coverages (due to modality interactions)
-        #
-        # Currently outputs can only be aggregated by summation, because average spending
-        #           across programs is probably not going to be an interesting aggregation to use (and would add a lot of complexity)
-        # - t_bins - sum spending values within these bins - if None, just return spending at all simulation times
-        # - t_vals - years to include, PlotData is interpolated onto these years (with NaN extrapolation)
-        # - time_aggregation
-        # - quantity - can be 'spending', 'coverage_number', or 'coverage_fraction'
+        #     - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Output aggregation type is automatically 'sum' for
+        #                              program spending, and NOT permitted for coverages (due to modality interactions)
+        # - t_bins - aggregate over time, using summation for spending and number coverage, and average for fraction/proportion coverage
+        # - quantity - can be 'spending', 'coverage_number', 'coverage_denominator', or 'coverage_fraction'. The 'coverage_denominator' is
+        #              the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_denominator
 
         # Sanitize the results input
         if isinstance(results, sc.odict):
@@ -443,6 +437,7 @@ class PlotData(object):
         outputs = expand_dict(outputs)
         progs_required = extract_labels(outputs)
 
+        assert quantity in ['spending','coverage_number','coverage_fraction']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -455,43 +450,59 @@ class PlotData(object):
             alloc = result.model.progset.get_alloc(result.model.program_instructions, tvec=result.t)
 
             if quantity == 'spending':
-                # Values associated with each program are spending
-                units = '$'
-            elif quantity == 'coverage':
-
-                # Extract the coverage numerator
+                units = '$/year'
+            elif quantity == 'coverage_number':
                 num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc) # program coverage based on unit cost and spending
+                units = 'Number of people/year'
+            elif quantity in ['coverage_fraction','coverage_denominator']:
+                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc)  # program coverage based on unit cost and spending
                 # Get the program coverage denominator
+                prop_covered = dict()
                 num_eligible = dict()
                 for prog in result.model.progset.programs.values(): # For each program
                     for pop_name in prog.target_pops:
                         for comp_name in prog.target_comps:
-                            if prog.short in num_eligible:
-                                num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
-                            else:
+                            if prog.short not in num_eligible:
                                 num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals
-                units = '' # coverage is a dimensionless fraction
+                            else:
+                                num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
+                    prop_covered[prog.short] = num_covered[prog.short]/num_eligible
+                units = ''
             else:
                 raise AtomicaException('Unknown quantity')
 
             for output in outputs:  # For each final output
                 if isinstance(output, dict): # If this is an aggregation over programs
-                    output_name = list(output.keys())[0] # This is the aggregated name
-                    labels = output[output_name] # These are the quantities being aggregated
+                    if quantity == 'spending':
+                        output_name = list(output.keys())[0] # This is the aggregated name
+                        labels = output[output_name] # These are the quantities being aggregated
 
-                    # We only support summation for combining program spending, not averaging
-                    # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
-                    vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
-                    output_name = output_name
-                    data_label = None # No data present for aggregations
+                        # We only support summation for combining program spending, not averaging
+                        # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
+                        vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
+                        output_name = output_name
+                        data_label = None # No data present for aggregations
+                    else:
+                        raise NotAllowedError('Cannot use program aggregation for anything other than spending yet')
                 else:
-                    vals = alloc[output]*result.dt
-                    output_name =  output
+                    if quantity == 'spending':
+                        vals = alloc[output]
+                    elif quantity == 'coverage_number':
+                        vals = num_covered[output]
+                    elif quantity == 'coverage_fraction':
+                        vals = num_eligible[output]
+                    elif quantity == 'coverage_denominator':
+                        vals = prop_covered[output]
+                    else:
+                        raise AtomicaException('Unknown quantity')
+                    output_name = output
                     data_label = output # Can look up program spending by the program name
 
-                if t_bins is None:  # Annualize if not time aggregating
-                    vals /= result.dt
-                    units += '/year'
+                if quantity in ['spending','coverage_number'] and t_bins is not None:
+                    # If we are time-aggregating, then the annual quantities which are going to be summed need to be
+                    # converted back to timestep values - for both spending and number coverage, this is simply multiplicative
+                    vals *= result.dt
+                    units = units.replace('/year','')
 
                 # Accumulate the Series
                 plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units)) # The program should specify the units for its unit cost
@@ -506,10 +517,14 @@ class PlotData(object):
         plotdata.output_names = {x: (results[0].model.progset.programs[x].label if x in results[0].model.progset.programs else x) for x in plotdata.outputs}
 
         if t_bins is not None:
-            plotdata._time_aggregate(t_bins,time_aggregation)
+            if quantity in ['spending','coverage_number','coverage_denominator']:
+                plotdata._time_aggregate(t_bins,'sum')
+            elif quantity == 'coverage_fraction':
+                plotdata._time_aggregate(t_bins,'average')
+            else:
+                raise AtomicaException('Unknown quantity')
 
         return plotdata
-
 
     def tvals(self):
         # Return a vector of time values for the PlotData object, if all of the series have the
