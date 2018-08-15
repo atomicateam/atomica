@@ -131,6 +131,14 @@ class ProgramSet(NamedItem):
         colindices = []
         programs = []
         comp_short_name = lambda x: framework.get_variable(x)[0].name
+        
+        releval_frw_comps = odict()
+        for _,spec in framework.comps.iterrows():
+            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
+                continue
+            else:
+                releval_frw_comps[spec.name] = spec['display name']
+        
         for row in range(metadata.nrows):
             thesedata = metadata.row_values(row, start_colx=2) 
             if row==0: # Get metadata from first row
@@ -149,8 +157,8 @@ class ProgramSet(NamedItem):
                         raise AtomicaException(errormsg)
                 else:
                     self.allpops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
-                if set(comps) != set(framework.comps['display name'].tolist()):
-                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (set(comps), set(framework.comps['display name'].tolist()))
+                if set(comps) != set(releval_frw_comps.values()):
+                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file, differences are "%s"' % (set(comps).symmetric_difference(set(releval_frw_comps.values()) ))
                     raise AtomicaException(errormsg)
                 else: 
                     for comp in comps: self.allcomps[comp_short_name(comp)] = comp
