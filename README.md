@@ -34,6 +34,7 @@ python testworkflow.py
 ### Initial installation
 * Complete the backend installation instructions above.
 * Ensure `redis` is installed: https://redis.io/topics/quickstart
+* Ensure `node.js` is installed: https://nodejs.org/en/download/
 * Ensure `npm` is installed: https://www.npmjs.com/get-npm
 * Change into the clients folder: `cd atomica/clients`
 * Install the JavaScript modules: `python install_client.py`
