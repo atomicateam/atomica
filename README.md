@@ -14,13 +14,17 @@ python setup.py develop
 ## Frontend installation
 * Ensure `redis` is installed: https://redis.io/topics/quickstart
 * Ensure `npm` is installed: https://www.npmjs.com/get-npm
-* To install e.g. the `cascade` client:
-* Change into the client directory: `cd atomica/clients/cascade`
+* Change into the clients folder: `cd atomica/clients`
 * Install the JavaScript modules: `python install_client.py`
-* When that finishes, start the development client: `python dev_client.py`
+* Then, to install e.g. the `cascade` client:
+* Change into the tool directory: `cd cascade`
+* Start the development client: `python dev_client.py`
 * In a **separate** terminal window, start the server: `python start_server.py`
-* The client should now be running on `localhost:8080`, which you can go to in your browser.
+* The client should now be running on `localhost:8080`, which you can go to in your browser (if it doesn't open your browser automatically).
 * Note: instead of `python dev_client.py`, you can also run `python build_client.py`, which will compile the client and serve it on its "official" port (e.g. for `cascade`, `localhost:8094`).
+* Note: to run optimizations, you will also need Celery: `./start_celery.sh` (Mac/Linux) or `start_celery.cmd` (Windows).
+
+By default, you can log into the client using the username/password `demo`/`demo`.
 
 # Code structure
 
