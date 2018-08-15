@@ -33,6 +33,7 @@ python testworkflow.py
 
 ### Initial installation
 * Complete the backend installation instructions above.
+* Ensure `import atomica_apps` works from a Python interpreter in the terminal. If not: (a) check our paths, (b) install any modules that are missing (we will soon have a `requirements.txt` file that solves this problem).
 * Ensure `redis` is installed: https://redis.io/topics/quickstart
 * Ensure `node.js` is installed: https://nodejs.org/en/download/
 * Ensure `npm` is installed: https://www.npmjs.com/get-npm
