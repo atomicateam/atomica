@@ -139,20 +139,25 @@ class ProjectFramework(object):
         # If the Cascades sheet is present, return an odict where the key is the name of the cascade
         # and the value is the corresponding dataframe
 
-        d = sc.odict()
-
         if 'cascades' not in self.sheets:
-            return d # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
+            return sc.odict() # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
 
         cascade_list = self.sheets['cascades']
+        data_present = False # If there is a cascade sheet but only has headings, then treat it like it wasn't defined
+        d = sc.odict()
 
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
             if cascade_name in d:
                 raise NotAllowedError('A cascade with name "%s" was already read in' % (cascade_name))
             d[cascade_name] = df
+            if df.shape[0]:
+                data_present = True
 
-        return d
+        if data_present:
+            return d
+        else:
+            return sc.odict()
 
     def get_interaction(self,interaction_name):
         return self.interactions.loc[interaction_name]

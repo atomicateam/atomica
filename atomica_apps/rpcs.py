@@ -936,15 +936,16 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
     if tool == 'cascade':
-        output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year))
+        if result.framework.cascades:
+            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
+        else:
+            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=None) # Plot the fallback cascade - this might not be a valid cascade
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
         unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
         output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
-
-
 
 
 #%% Plotting
