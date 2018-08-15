@@ -88,14 +88,10 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
         outputs = cascade
 
     d = PlotData(result, outputs=outputs, pops=pops)
-    assert len(d.pops) == 1, 'Cannot get results for multiple populations or population aggregations yet, only a single pop or single aggregation'
-    if len(d.series) > 1:
-        # Iteratively un-nest the series - outputs are expected to be an odict in order of cascade stage
-        for i in range(0,len(d.series)-1):
-            d.series[i].vals -= d.series[i+1].vals
-    d.outputs.reverse() # Invert stacking order so smallest stage is on the bottom
-    d.set_colors(outputs=d.outputs) # Assign the colours now, so that they can be used consistently for data afterwards
-    figs = plot_series(d,plot_type='stacked',axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
+    d.set_colors(outputs=d.outputs)
+    assert len(d.pops) == 1, 'Only supports plotting one population at a time'
+
+    figs = plot_series(d,axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
     ax = figs[0].axes[0]
 
     if data is not None:

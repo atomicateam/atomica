@@ -34,15 +34,20 @@ if "basicplots" in torun and test=='tb':
     # Plot various cascades
     startyear = 2000 if test=='tb' else 2016
     endyear = 2030 if test=='tb' else 2017
-    au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='all',year=startyear,data=P.data)
-    au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='all',year=endyear,data=P.data)
-    if test=='tb': 
+
+    if test=='tb':
+        au.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=startyear, data=P.data)
+        au.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=endyear, data=P.data)
+
         au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='0-4',year=endyear,data=P.data)
         au.plot_cascade(result,cascade='SP treatment',pops='0-4',year=endyear,data=P.data)
 
         au.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
         au.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
 
+    else:
+        au.plot_cascade(result, cascade='main', pops='all', year=startyear, data=P.data)
+        au.plot_cascade(result, cascade='main', pops='all', year=endyear, data=P.data)
 
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
