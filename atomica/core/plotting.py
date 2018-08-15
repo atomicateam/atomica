@@ -131,8 +131,9 @@ class PlotData(object):
         # Validate inputs
         if isinstance(results, sc.odict):
             results = [result for _, result in results.items()]
-        elif isinstance(results, Result):
+        elif not isinstance(results, list):
             results = [results]
+
 
         result_names = [x.name for x in results]
         if len(set(result_names)) != len(result_names):
@@ -437,7 +438,7 @@ class PlotData(object):
         outputs = expand_dict(outputs)
         progs_required = extract_labels(outputs)
 
-        assert quantity in ['spending','coverage_number','coverage_fraction']
+        assert quantity in ['spending','coverage_number','coverage_denominator','coverage_fraction']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -458,7 +459,7 @@ class PlotData(object):
                 num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc)  # program coverage based on unit cost and spending
                 # Get the program coverage denominator
                 prop_covered = dict()
-                num_eligible = dict()
+                num_eligible = dict() # This is the coverage denominator, number of people covered by the program
                 for prog in result.model.progset.programs.values(): # For each program
                     for pop_name in prog.target_pops:
                         for comp_name in prog.target_comps:
@@ -466,8 +467,11 @@ class PlotData(object):
                                 num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals
                             else:
                                 num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
-                    prop_covered[prog.short] = num_covered[prog.short]/num_eligible
-                units = ''
+                    prop_covered[prog.short] = np.minimum(num_covered[prog.short]/num_eligible[prog.short],np.ones(result.t.shape))
+                if quantity == 'coverage_denominator':
+                    units = 'Number of people'
+                elif quantity == 'coverage_fraction':
+                    units = 'Fraction covered/year'
             else:
                 raise AtomicaException('Unknown quantity')
 
@@ -490,9 +494,9 @@ class PlotData(object):
                     elif quantity == 'coverage_number':
                         vals = num_covered[output]
                     elif quantity == 'coverage_fraction':
-                        vals = num_eligible[output]
-                    elif quantity == 'coverage_denominator':
                         vals = prop_covered[output]
+                    elif quantity == 'coverage_denominator':
+                        vals = num_eligible[output]
                     else:
                         raise AtomicaException('Unknown quantity')
                     output_name = output
