@@ -9,8 +9,8 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-#test = "sir"
-test = "tb"
+test = "sir"
+#test = "tb"
 #test = "hypertension"
 #test = "udt"
 #test = "usdt"
@@ -154,7 +154,7 @@ if "writeprogbook" in torun:
     print('\n\n\nExporting programs spreadsheet ... ')
     P = au.demo(which=test, do_plot=0, do_run=False)
     filename = "temp/progbook_"+test+"_export.xlsx"
-    if test in ["tb","udt","usdt","hiv","hypertension"]:
+    if test in ["sir","tb","udt","usdt","hiv","hypertension"]:
         P.progsets[0].save(filename)
 
 

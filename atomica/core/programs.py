@@ -65,9 +65,9 @@ class ProgramSet(NamedItem):
             self.data_years     = sc.inclusiverange(self.data_start,self.data_end+1) # Initialize data years
 
         # Populations, parameters, and compartments 
-        self.allpops        = pops
-        self.allcomps       = comps
-        self.allpars        = pars
+        self.allpops        = pops if pops is not None else sc.odict()
+        self.allcomps       = comps if comps is not None else sc.odict()
+        self.allpars        = pars if pars is not None else sc.odict()
 
         self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
 
@@ -130,6 +130,7 @@ class ProgramSet(NamedItem):
         # Initialise programs
         colindices = []
         programs = []
+        comp_short_name = lambda x: framework.get_variable(x)[0].name
         for row in range(metadata.nrows):
             thesedata = metadata.row_values(row, start_colx=2) 
             if row==0: # Get metadata from first row
@@ -139,7 +140,7 @@ class ProgramSet(NamedItem):
     
             if row==1: # Get population and compartment data from second row
                 pops = thesedata[3:colindices[1]-2]
-                self.allcomps = thesedata[colindices[1]-1:]
+                comps = thesedata[colindices[1]-1:]
 
                 # Check if the populations and compartments match those in the data and framework
                 if set(pops) != set([p['label'] for p in data.pops.values()]):
@@ -148,9 +149,12 @@ class ProgramSet(NamedItem):
                         raise AtomicaException(errormsg)
                 else:
                     self.allpops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
-                if set(self.allcomps) != set(list(framework.comps.index)):
-                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (self.allcomps, set(list(framework.comps.index)))
+                if set(comps) != set(framework.comps['display name'].tolist()):
+                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (set(comps), set(framework.comps['display name'].tolist()))
                     raise AtomicaException(errormsg)
+                else: 
+                    for comp in comps: self.allcomps[comp_short_name(comp)] = comp
+                    
     
             else: # Get the program name and targeting data from the rest of the rows 
                 if thesedata[0]: 
@@ -187,7 +191,10 @@ class ProgramSet(NamedItem):
                 elif datatype=='Capacity constraints':
                     for col,year in enumerate(self.data_years):
                         capacity = costdata.cell_value(row, col+3)
-                        if capacity: self.programs[progname].update(capacity=capacity, year=year)
+                        try:
+                            if capacity: self.programs[progname].update(capacity=[capacity], year=year)
+                        except: 
+                            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
                 elif datatype=='Unit cost':
                     for col,year in enumerate(self.data_years):
                         unit_cost = costdata.cell_value(row, col+3)
@@ -195,7 +202,6 @@ class ProgramSet(NamedItem):
                     
         # Add program effect data from the program effect datasheet
         pop_short_name = {v['label']:k for k,v in data.pops.items()} 
-        comp_short_name = lambda x: framework.get_variable(x)[0].name
         self.allpars = odict()
         for row in range(effdata.nrows): # Even though it loops over every row, skip all except the best rows
             if effdata.cell_value(row, 1)!='': # Data row
@@ -242,12 +248,12 @@ class ProgramSet(NamedItem):
                     data = project.data
                     framework = project.framework
                 pops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
-                comps = []
+                comps = odict()
                 for _,spec in framework.comps.iterrows():
                     if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
                         continue
                     else:
-                        comps.append(spec.name)
+                        comps[spec.name] = spec['display name']
                 pars = odict() 
                 for _,spec in framework.pars.iterrows():
                     if spec['is impact']=='y':
@@ -266,13 +272,15 @@ class ProgramSet(NamedItem):
                 ncomps = comps
                 comps = []  # Create real compartments list
                 for p in range(ncomps):
-                    pops.append('Comp %i' % (p + 1))
+                    comps.append(('Comp %i' % (p + 1), 'Compartment %i' % (p + 1)))
+            comps = sc.odict(comps)
 
             if sc.isnumber(pars):
                 npars = pars
-                pars = []  # Create real pars list
+                pars = odict()  # Create real pars list
                 for p in range(npars):
-                    pars.append('Parameter %i' % (p + 1))
+                    pars.append(('Par %i' % (p + 1), 'Parameter %i' % (p + 1)))
+            pars = sc.odict(pars)
         
         if data_start is None or data_end is None:
             errormsg = 'Please supply a start and end year for program data entry.'
@@ -353,7 +361,7 @@ class ProgramSet(NamedItem):
             existing_data.append([name, label] + target_pops + target_comps)
 
         # Make column names
-        column_names = ['Short name', 'Long name', ''] + self.allpops.values() + [''] + comps
+        column_names = ['Short name', 'Long name', ''] + self.allpops.values() + [''] + comps.values()
         content = self.set_content(row_names=range(1,len(self.programs)+1),
                                    column_names=column_names,
                                    data=existing_data,
@@ -911,55 +919,55 @@ class Program(NamedItem):
             self.target_par_types = list(set(old_target_par_types)) # Add the new values
             return None
         
-        def set_unit_cost(unit_cost=None, year=None):
+        def set_cost_fn_pars(par=None, existing=None, year=None):
             '''
-            Set unit cost.
+            Set unit cost or saturation.
             
-            Unit costs can be specified as a number, a tuple, or a dict. If a dict, they can be 
+            These can be specified as a number, a tuple, or a dict. If a dict, they can be 
             specified with val as a tuple, or best, low, high as keys. Examples:
             
-            set_unit_cost(21) # Assumes current year and that this is the best value
-            set_unit_cost(21, year=2014) # Specifies year
-            set_unit_cost(year=2014, unit_cost=[11, 31]) # Specifies year, low, and high
-            set_unit_cost({'year':2014', 'best':21}) # Specifies year and best
-            set_unit_cost({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
-            set_unit_cost({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
+            set_cost_fn_pars(21) # Assumes current year and that this is the best value
+            set_cost_fn_pars(21, year=2014) # Specifies year
+            set_cost_fn_pars(year=2014, unit_cost=[11, 31]) # Specifies year, low, and high
+            set_cost_fn_pars({'year':2014', 'best':21}) # Specifies year and best
+            set_cost_fn_pars({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
+            set_cost_fn_pars({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
             
             Note, this function will typically not be called directly, but rather through the update() methods
             '''
             
             # Preprocessing
-            unit_cost_keys = ['year', 'best', 'low', 'high']
+            par_keys = ['year', 'best', 'low', 'high']
             if year is None: year = 2018. # TEMPORARY
-            if self.unit_cost is None: self.unit_cost = dataframe(cols=unit_cost_keys) # Create dataframe
+            if existing is None: existing = dataframe(cols=par_keys) # Create dataframe
             
             # Handle cases
-            if isinstance(unit_cost, dataframe): 
-                self.unit_cost = unit_cost # Right format already: use directly
-            elif checktype(unit_cost, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
-                if isnumber(unit_cost[0]): # It's a number (or at least the first entry is): convert to values and use
-                    best,low,high = Val(unit_cost).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
-                    self.unit_cost.addrow([year, best, low, high])
+            if isinstance(par, dataframe): 
+                existing = par # Right format already: use directly
+            elif checktype(par, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
+                if isnumber(par[0]): # It's a number (or at least the first entry is): convert to values and use
+                    best,low,high = Val(par).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
+                    existing.addrow([year, best, low, high])
                 else: # It's not a list of numbers, so have to iterate
-                    for uc in unit_cost: # Actually a list of unit costs
+                    for uc in par: # Actually a list of unit costs
                         if isinstance(uc, dict): 
-                            set_unit_cost(uc) # It's a dict: iterate recursively to add unit costs
+                            set_cost_fn_pars(uc) # It's a dict: iterate recursively to add 
                         else:
-                            errormsg = 'Could not understand list of unit costs: expecting list of floats or list of dicts, not list containing %s' % uc
+                            errormsg = 'Could not understand list of cost function parameters: expecting list of floats or list of dicts, not list containing %s' % uc
                             raise AtomicaException(errormsg)
-            elif isinstance(unit_cost, dict): # Other main usage case -- it's a dict
-                if any([key not in unit_cost_keys+['val'] for key in unit_cost.keys()]):
-                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (unit_cost.keys(), unit_cost_keys)
+            elif isinstance(par, dict): # Other main usage case -- it's a dict
+                if any([key not in par_keys+['val'] for key in par.keys()]):
+                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (par.keys(), par_keys)
                     raise AtomicaException(errormsg)
-                val = unit_cost.get('val') # First try to get 'val'
+                val = par.get('val') # First try to get 'val'
                 if val is None: # If that fails, get other arguments
-                    val = [unit_cost.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
+                    val = [par.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
                 best,low,high = Val(val).get('all') # ... then sanitize them via Val
-                self.unit_cost.addrow([unit_cost.get('year',year), best, low, high]) # Actually add to dataframe
+                existing.addrow([par.get('year',year), best, low, high]) # Actually add to dataframe
             else:
-                errormsg = 'Expecting unit cost of type dataframe, list/tuple/array, or dict, not %s' % type(unit_cost)
+                errormsg = 'Expecting cost function parameters of type dataframe, list/tuple/array, or dict, not %s' % type(par)
                 raise AtomicaException(errormsg)
-            return None
+            return existing
 
         
         def set_spend(spend_data=None, year=None, spend_type='spend'):
@@ -1012,8 +1020,10 @@ class Program(NamedItem):
         if target_pars  is not None: set_target_pars(target_pars) # targeted parameters
         if target_comps is not None: self.target_comps    = promotetolist(target_comps, 'string') # key(s) for targeted populations
 
-        if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
-        if unit_cost   is not None: set_unit_cost(unit_cost, year) # unit cost(s)
+        if capacity    is not None: self.capacity       = set_cost_fn_pars(capacity, existing=self.capacity, year=year) # capacity
+        if unit_cost   is not None: self.unit_cost      = set_cost_fn_pars(unit_cost, existing=self.unit_cost, year=year) # unit cost(s)
+#        if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
+#        if unit_cost   is not None: set_cost_fn_pars(unit_cost, year) # unit cost(s)
         if spend_type is not None:
             if spend_data  is not None:
                 set_spend(spend_data=spend_data,spend_type=spend_type) # Set spending data
