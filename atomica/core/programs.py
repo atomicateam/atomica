@@ -45,29 +45,43 @@ class ProgramInstructions(object):
 
 class ProgramSet(NamedItem):
 
-    def __init__(self, name="default", project=None, programs=None, covouts=None, data_start=None, data_end=None, default_cov_interaction="Additive", default_imp_interaction="best"):
+    def __init__(self, name="default", programs=None, covouts=None, pops=None, comps=None, pars=None, data_start=None, data_end=None, default_cov_interaction="Additive", default_imp_interaction="best"):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
-        self.programs   = sc.odict()
-        self.covout     = sc.odict()
-        self.project    = project
-        self.data_start = data_start if data_start is not None else self.project.data.tvec[0]
-        self.data_end   = data_end if data_end is not None else self.project.data.tvec[-1]
-        self.allyears   = sc.inclusiverange(self.data_start,self.data_end+1) # Initialize data years
-        self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
 
+        # Programs and effects
+        self.programs       = sc.odict()
+        self.covout         = sc.odict()
         if programs is not None: self.add_programs(programs)
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
         self.default_imp_interaction = default_imp_interaction
+        self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
+
+        # Data years
+        self.data_start     = data_start
+        self.data_end       = data_end
+        if self.data_start is not None and self.data_end is not None:
+            self.data_years     = sc.inclusiverange(self.data_start,self.data_end+1) # Initialize data years
+
+        # Populations, parameters, and compartments 
+        self.allpops        = pops
+        self.allcomps       = comps
+        self.allpars        = pars
+
+        self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
+
+        # Meta data
         self.created = today()
         self.modified = today()
-        self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
+
         return None
+
 
     def prepare_cache(self):
         # This function is called once at the start of model.py, which allows various checks to be
         # performed once at the start of the simulation rather than at every timestep
+
         self._covout_valid_cache = {k:v.has_pars() for k,v in self.covout.items()}
 
     def __repr__(self):
@@ -85,8 +99,23 @@ class ProgramSet(NamedItem):
     #######################################################################################################
     # Methods for data I/O
     #######################################################################################################
-    def from_spreadsheet(self, spreadsheet=None, project=None):
+    @staticmethod
+    def from_spreadsheet(spreadsheet=None, data=None, framework=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
+
+        self = ProgramSet()
+
+        # Check framework/data requirements - people can EITHER provide:
+        #  - a data and framework 
+        #  - a project containing data and a framework
+        # Try to get them from the data/framework            
+        if data is None or framework is None:
+            if project is None:
+                errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
+                raise AtomicaException(errormsg)
+            else:
+                data = project.data
+                framework = project.framework
 
         # Create and load spreadsheet
         if isinstance(spreadsheet,string_types):
@@ -112,12 +141,12 @@ class ProgramSet(NamedItem):
                 self.allpops = thesedata[3:colindices[1]-2]
                 self.allcomps = thesedata[colindices[1]-1:]
 
-                # Check if the populations match - if not, raise an error, if so, add the data
-                if project is not None and set(self.allpops) != set(project.pop_labels):
-                    errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (self.allpops, set(project.pop_labels))
+                # Check if the populations and compartments match those in the data and framework
+                if project is not None and set(self.allpops) != set([p['label'] for p in data.pops.values()]):
+                    errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (self.allpops, [p['label'] for p in data.pops.values()])
                     raise AtomicaException(errormsg)
-                if project is not None and set(self.allcomps) != set(list(project.framework.comps.index)):
-                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (self.allcomps, set(list(project.framework.comps.index)))
+                if project is not None and set(self.allcomps) != set(list(framework.comps.index)):
+                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (self.allcomps, set(list(framework.comps.index)))
                     raise AtomicaException(errormsg)
     
             else: # Get the program name and targeting data from the rest of the rows 
@@ -127,42 +156,44 @@ class ProgramSet(NamedItem):
                                 target_comps =[compname for i,compname in enumerate(self.allcomps) if thesedata[colindices[1]-1:][i]])
                     programs.append(p)
                     
-
         # Add the programs
         self.add_programs(progs=programs)
         nprogs=len(programs)
 
         # Add spending data from the costing datasheet
-        self.allyears = [] # Overwrite data years
+        self.data_years = [] # Overwrite data years
         for col in range(costdata.ncols):
             thiscell = costdata.cell_value(1,col) # 1 is the 2nd row which is where the year data should be
-            if thiscell=='' and len(self.allyears)>0: #  We've gotten to the end
+            if thiscell=='' and len(self.data_years)>0: #  We've gotten to the end
                 lastdatacol = col # Store this column number
                 break # Quit
             elif thiscell != '': # More years, keep going
-                self.allyears.append(float(thiscell)) # Add this year
+                self.data_years.append(float(thiscell)) # Add this year
         assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
+        self.data_start = self.data_years[0]
+        self.data_end = self.data_years[-1]
     
         for row in range(costdata.nrows):
             progname = costdata.cell_value(row, 1) # Get the name of the program
             if progname != '': # The first column is blank: it's time for the data
                 datatype = costdata.cell_value(row, 2) # Get the type of data -- WARNING, could be improved
                 if datatype=='Total spend':
-                    for col,year in enumerate(self.allyears):
+                    for col,year in enumerate(self.data_years):
                         spend = costdata.cell_value(row, col+3)
                         if spend: self.programs[progname].add_spend(spend=spend, year=year)
                 elif datatype=='Capacity constraints':
-                    for col,year in enumerate(self.allyears):
+                    for col,year in enumerate(self.data_years):
                         capacity = costdata.cell_value(row, col+3)
                         if capacity: self.programs[progname].update(capacity=capacity, year=year)
                 elif datatype=='Unit cost: best':
-                    for col,year in enumerate(self.allyears):
+                    for col,year in enumerate(self.data_years):
                         unit_cost = [x for x in costdata.col_values(col+3, start_rowx=row, end_rowx=row+3) if x]
                         if unit_cost: self.programs[progname].update(unit_cost=unit_cost, year=year)
                     
         # Add program effect data from the program effect datasheet
         pop_short_name = {v['label']:k for k,v in project.data.pops.items()} 
         comp_short_name = lambda x: project.framework.get_variable(x)[0].name
+        self.allpars = []
         for row in range(effdata.nrows): # Even though it loops over every row, skip all except the best rows
             if effdata.cell_value(row, 1)!='': # Data row
                 par_name = comp_short_name(effdata.cell_value(row, 1)) # Get the name of the parameter
@@ -171,15 +202,17 @@ class ProgramSet(NamedItem):
                 cov_interaction = effdata.cell_value(row, 4) if effdata.cell_value(row, 4)!='' else None
                 imp_interaction = effdata.cell_value(row, 5) if effdata.cell_value(row, 5)!='' else None
                 prog_vals = sc.odict([(pname, pval) for pname,pval in zip(self.programs.keys(),effdata.row_values(row, start_colx=7, end_colx=7+nprogs)) if pval])
+                if par_name not in self.allpars: self.allpars.append(par_name)
                 if prog_vals: # There are programmatic effects for this parameter, so we add it
                     self.add_covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=None, prog=prog_vals)
                     for pname in prog_vals.keys():
                         self.programs[pname].update(target_pars=(par_name,pop_name))
 
+        return self
 
     @staticmethod
-    def new(filename, name=None, project=None, progs=None, data_start=None, data_end=None, blh_effects=False):
-        ''' Generate a new progset with blank data based on a project file. '''
+    def new(filename, name=None, progs=None, pops=None, comps=None, pars=None, project=None, framework=None, data=None, data_start=None, data_end=None):
+        ''' Generate a new progset with blank data. '''
 
         # Validate and process inputs
         if sc.isnumber(progs):
@@ -190,12 +223,61 @@ class ProgramSet(NamedItem):
         else: 
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
+
+        # Complex checking of framework/data requirements - people can EITHER provide:
+        #  - a number of compartments, a number of populations, and a number of parameters
+        #  - a data and framework 
+        #  - a project containing data and a framework
+        if pops is None or comps is None or pars is None:
+            # Try to get them from the data/framework            
+            if data is None or framework is None:
+                if project is None:
+                    errormsg = 'To initialise a ProgramSet, please supply one of the following sets of inputs: (a) the number of populations and compartments you want, (b) a framework and ProjectData structure, (c) a Project.'
+                    raise AtomicaException(errormsg)
+                else:
+                    data = project.data
+                    framework = project.framework
+                pops = [p['label'] for p in data.pops.values()]
+                comps = []
+                for _,spec in framework.comps.iterrows():
+                    if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
+                        continue
+                    else:
+                        comps.append(spec.name)
+                pars = [] 
+                for _,spec in framework.pars.iterrows():
+                    if spec['is impact']=='y':
+                        pars.append(spec['display name'])
+
+        else:
+            # Starting totally from scratch with integer arguments: just create lists with empty entries
+            if sc.isnumber(pops):
+                npops = pops
+                pops = []  # Create real pops list
+                for p in range(npops):
+                    pops.append('Pop %i' % (p + 1))
+        
+            if sc.isnumber(comps):
+                ncomps = comps
+                comps = []  # Create real compartments list
+                for p in range(ncomps):
+                    pops.append('Comp %i' % (p + 1))
+
+            if sc.isnumber(pars):
+                npars = pars
+                pars = []  # Create real pars list
+                for p in range(npars):
+                    pars.append('Parameter %i' % (p + 1))
+        
+        if data_start is None or data_end is None:
+            errormsg = 'Please supply a start and end year for program data entry.'
+            raise AtomicaException(errormsg)
             
-        newps = ProgramSet(name=name, project=project, programs=progs, data_start=data_start, data_end=data_end)
+        newps = ProgramSet(name=name, programs=progs, pops=pops, comps=comps, pars=pars, data_start=data_start, data_end=data_end)
         return newps
             
         
-    def to_spreadsheet(self, filename=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+    def to_spreadsheet(self, filename=None):
         ''' Write the contents of a program set to a spreadsheet. '''
         f = io.BytesIO() # Write to this binary stream in memory
 
@@ -245,13 +327,8 @@ class ProgramSet(NamedItem):
         sheet = self._book.add_worksheet('Program targeting')
         
         ## Get other inputs
-        pops = self.project.data.pops.keys()
-        comps = []
-        for _,spec in self.project.framework.comps.iterrows():
-            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
-                continue
-            else:
-                comps.append(spec.name)
+        pops = self.allpops
+        comps = self.allcomps
 
         # Set column widths
         widths = {1: 5, 2: 30, 3: 30, 4: 2, 5: 11, 5+len(pops): 2, 5+len(pops)+1: 11}
@@ -266,7 +343,7 @@ class ProgramSet(NamedItem):
         for prog in self.programs.values():
             label = prog.label
             name = prog.name
-            target_pops = [''] + ['' if pop not in prog.target_pops else 1 for pop in pops]
+            target_pops  = [''] + ['' if pop not in prog.target_pops else 1 for pop in pops]
             target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
             existing_data.append([name, label] + target_pops + target_comps)
 
@@ -291,11 +368,11 @@ class ProgramSet(NamedItem):
         # Get data
         existing_data = []
         for prog in self.programs.values():
-            spend = [prog.spend_data.findrow(year)[1] if prog.spend_data and prog.spend_data.findrow(year) is not None else '' for year in self.allyears]
-            capacity = [prog.capacity.findrow(year)[1] if prog.capacity and prog.capacity.findrow(year) is not None else '' for year in self.allyears]
-            unit_cost_b = [prog.unit_cost.findrow(year)[1] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.allyears]
-            unit_cost_l = [prog.unit_cost.findrow(year)[2] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.allyears]
-            unit_cost_h = [prog.unit_cost.findrow(year)[3] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.allyears]
+            spend = [prog.spend_data.findrow(year)[1] if prog.spend_data and prog.spend_data.findrow(year) is not None else '' for year in self.data_years]
+            capacity = [prog.capacity.findrow(year)[1] if prog.capacity and prog.capacity.findrow(year) is not None else '' for year in self.data_years]
+            unit_cost_b = [prog.unit_cost.findrow(year)[1] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
+            unit_cost_l = [prog.unit_cost.findrow(year)[2] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
+            unit_cost_h = [prog.unit_cost.findrow(year)[3] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
             existing_data.extend([spend,capacity,unit_cost_b,unit_cost_l,unit_cost_h])
 
         current_row = 0
@@ -316,12 +393,8 @@ class ProgramSet(NamedItem):
     def _write_covoutdata(self):
         # Generate coverage-outcome sheet
         sheet = self._book.add_worksheet('Program effects')
-        pops = self.project.data.pops.keys()
-        parlist = [] 
-        for _,spec in self.project.framework.pars.iterrows():
-            if spec['is impact']=='y':
-                parlist.append((spec.name,spec['display name']))
-        pars = sc.odict(parlist)
+        pops = self.allpops
+        pars = self.allpars
 
         # Set column widths and other initial data
         widths = {0: 20, 2: 10, 3: 16, 4: 16, 5: 2}
@@ -333,7 +406,7 @@ class ProgramSet(NamedItem):
         # Get data if it exists for writing to file
         existing_data = []
         existing_extra = []
-        for par in pars.keys():
+        for par in pars:
             for pop in pops:
                 npi_val = self.covout[(par,pop)].npi_val.get() if (par,pop) in self.covout.keys() else ''
                 cov_interaction = self.covout[(par,pop)].cov_interaction if (par,pop) in self.covout.keys() else ''
