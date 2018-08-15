@@ -138,14 +138,17 @@ class ProgramSet(NamedItem):
                     if cell_val!='': colindices.append(col-1)
     
             if row==1: # Get population and compartment data from second row
-                self.allpops = thesedata[3:colindices[1]-2]
+                pops = thesedata[3:colindices[1]-2]
                 self.allcomps = thesedata[colindices[1]-1:]
 
                 # Check if the populations and compartments match those in the data and framework
-                if project is not None and set(self.allpops) != set([p['label'] for p in data.pops.values()]):
-                    errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (self.allpops, [p['label'] for p in data.pops.values()])
-                    raise AtomicaException(errormsg)
-                if project is not None and set(self.allcomps) != set(list(framework.comps.index)):
+                if set(pops) != set([p['label'] for p in data.pops.values()]):
+                    if set(pops) != set(data.pops.keys()):
+                        errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (pops, [p['label'] for p in data.pops.values()])
+                        raise AtomicaException(errormsg)
+                else:
+                    self.allpops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
+                if set(self.allcomps) != set(list(framework.comps.index)):
                     errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file: "%s" vs "%s"' % (self.allcomps, set(list(framework.comps.index)))
                     raise AtomicaException(errormsg)
     
@@ -186,13 +189,14 @@ class ProgramSet(NamedItem):
                         capacity = costdata.cell_value(row, col+3)
                         if capacity: self.programs[progname].update(capacity=capacity, year=year)
                 elif datatype=='Unit cost':
+#                    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
                     for col,year in enumerate(self.data_years):
-                        unit_cost = [x for x in costdata.col_values(col, start_rowx=row, end_rowx=row) if x]
-                        if unit_cost: self.programs[progname].update(unit_cost=unit_cost, year=year)
+                        unit_cost = costdata.cell_value(row, col+3)
+                        if unit_cost: self.programs[progname].update(unit_cost=[unit_cost], year=year)
                     
         # Add program effect data from the program effect datasheet
-        pop_short_name = {v['label']:k for k,v in project.data.pops.items()} 
-        comp_short_name = lambda x: project.framework.get_variable(x)[0].name
+        pop_short_name = {v['label']:k for k,v in data.pops.items()} 
+        comp_short_name = lambda x: framework.get_variable(x)[0].name
         self.allpars = []
         for row in range(effdata.nrows): # Even though it loops over every row, skip all except the best rows
             if effdata.cell_value(row, 1)!='': # Data row
@@ -254,9 +258,10 @@ class ProgramSet(NamedItem):
             # Starting totally from scratch with integer arguments: just create lists with empty entries
             if sc.isnumber(pops):
                 npops = pops
-                pops = []  # Create real pops list
+                pops = []  # Create real pops dict
                 for p in range(npops):
-                    pops.append('Pop %i' % (p + 1))
+                    pops.append(('Pop %i' % (p + 1), 'Population %i' % (p + 1)))
+            pops = sc.odict(pops)
         
             if sc.isnumber(comps):
                 ncomps = comps
@@ -328,7 +333,7 @@ class ProgramSet(NamedItem):
         sheet = self._book.add_worksheet('Program targeting')
         
         ## Get other inputs
-        pops = self.allpops
+        pops = self.allpops.values()
         comps = self.allcomps
 
         # Set column widths
@@ -371,15 +376,12 @@ class ProgramSet(NamedItem):
         for prog in self.programs.values():
             spend = [prog.spend_data.findrow(year)[1] if prog.spend_data and prog.spend_data.findrow(year) is not None else '' for year in self.data_years]
             capacity = [prog.capacity.findrow(year)[1] if prog.capacity and prog.capacity.findrow(year) is not None else '' for year in self.data_years]
-            unit_cost_b = [prog.unit_cost.findrow(year)[1] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
-            unit_cost_l = [prog.unit_cost.findrow(year)[2] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
-            unit_cost_h = [prog.unit_cost.findrow(year)[3] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
-            existing_data.extend([spend,capacity,unit_cost_b,unit_cost_l,unit_cost_h])
-
+            unit_cost = [prog.unit_cost.findrow(year)[1] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
+            existing_data.extend([spend,capacity,unit_cost])
+            
         current_row = 0
         sheet.set_column('C:C', 20)
-        row_levels = ['Total spend', 'Capacity constraints', 'Unit cost: best', 'Unit cost: low',
-                      'Unit cost: high']
+        row_levels = ['Total spend', 'Capacity constraints', 'Unit cost']
         content = self.set_content(row_names=self.ref_prog_range,
                                    column_names=range(int(self.data_start), int(self.data_end + 1)),
                                    row_formats=['general']*5,
@@ -408,7 +410,7 @@ class ProgramSet(NamedItem):
         existing_data = []
         existing_extra = []
         for par in pars:
-            for pop in pops:
+            for pop in pops.keys():
                 npi_val = self.covout[(par,pop)].npi_val.get() if (par,pop) in self.covout.keys() else ''
                 cov_interaction = self.covout[(par,pop)].cov_interaction if (par,pop) in self.covout.keys() else ''
                 imp_interaction = self.covout[(par,pop)].imp_interaction if (par,pop) in self.covout.keys() else ''
