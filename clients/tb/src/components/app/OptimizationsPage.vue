@@ -89,16 +89,18 @@ Last update: 2018-08-15
              :clickToClose="clickToClose"
              :transition="transition">
 
-        <!--TO_PORT-->
         <div class="dialog-content">
-          <div class="dialog-c-title">
-            Add/edit optimization
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
+          </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
           </div>
           <div class="dialog-c-text">
             Optimization name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.name"/><br>
+                   v-model="addEditModal.optimSummary.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -114,33 +116,33 @@ Last update: 2018-08-15
             Maximum time to run optimization (s):<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.maxtime"/><br>
+                   v-model="addEditModal.optimSummary.maxtime"/><br>
             Start year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.start_year"/><br>
+                   v-model="addEditModal.optimSummary.start_year"/><br>
             End year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.end_year"/><br>
+                   v-model="addEditModal.optimSummary.end_year"/><br>
             Budget factor:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.budget_factor"/><br>
+                   v-model="addEditModal.optimSummary.budget_factor"/><br>
             <br>
             <b>Relative objective weights</b><br>
             People alive:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.alive"/><br>
+                   v-model="addEditModal.optimSummary.objective_weights.alive"/><br>
             TB-related deaths:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.ddis"/><br>
+                   v-model="addEditModal.optimSummary.objective_weights.ddis"/><br>
             New TB infections:
             <input type="text"
                    class="txbox"
-                   v-model="defaultOptim.objective_weights.acj"/><br>
+                   v-model="addEditModal.optimSummary.objective_weights.acj"/><br>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -152,19 +154,19 @@ Last update: 2018-08-15
               </tr>
               </thead>
               <tbody>
-              <tr v-for="(val,key) in defaultOptim.prog_spending">
+              <tr v-for="(val,key) in addEditModal.optimSummary.prog_spending">
                 <td>
-                  {{ defaultOptim.prog_spending[key].label }}
+                  {{ addEditModal.optimSummary.prog_spending[key].label }}
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key].min"/>
+                         v-model="addEditModal.optimSummary.prog_spending[key].min"/>
                 </td>
                 <td>
                   <input type="text"
                          class="txbox"
-                         v-model="defaultOptim.prog_spending[key].max"/>
+                         v-model="addEditModal.optimSummary.prog_spending[key].max"/>
                 </td>
               </tr>
               </tbody>
@@ -202,7 +204,13 @@ Last update: 2018-08-15
       return {
         serverresponse: 'no response',
         optimSummaries: [],
-        defaultOptim: [],
+        defaultOptim: {  
+          // set stuff here to avoid render errors before things are loaded
+          objective_weights: {
+            conversion: 0, 
+            finalstage: 1
+          }          
+        },
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -213,6 +221,17 @@ Last update: 2018-08-15
         graphData: [],
         areShowingPlots: false,
         plotOptions: [],
+        addEditModal: {
+          optimSummary: {
+            // set stuff here to avoid render errors before things are loaded
+            objective_weights: {
+              conversion: 0, 
+              finalstage: 1
+            }              
+          },    
+          origName: '',
+          mode: 'add'
+        }        
       }
     },
 
@@ -372,6 +391,9 @@ Last update: 2018-08-15
         rpcservice.rpcCall('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
+          this.addEditModal.optimSummary = this.dcp(this.defaultOptim)
+          this.addEditModal.origName = this.addEditModal.optimSummary.name
+          this.addEditModal.mode = 'add'           
           this.$modal.show('add-optim');
           console.log(this.defaultOptim)
         })
@@ -382,23 +404,37 @@ Last update: 2018-08-15
         this.$modal.hide('add-optim')
         
         // Start indicating progress.
-        status.start(this)
+        status.start(this)       
         
-        let newOptim = this.dcp(this.defaultOptim); // You've got to be kidding me, buster
-        let otherNames = []
+        // Get the new optimization summary from the modal.
+        let newOptim = this.dcp(this.addEditModal.optimSummary)
+  
+        // Get the list of all of the current optimization names.
+        let optimNames = []
         this.optimSummaries.forEach(optimSum => {
-          otherNames.push(optimSum.name)
-        });
-        let index = otherNames.indexOf(newOptim.name);
-        if (index > -1) {
-          console.log('Optimization named '+newOptim.name+' exists, overwriting...')
-          this.optimSummaries[index] = newOptim
+          optimNames.push(optimSum.name)
+        })
+               
+        // If we are editing an existing optimization...
+        if (this.addEditModal.mode == 'edit') {
+          // Get the index of the original (pre-edited) name
+          let index = optimNames.indexOf(this.addEditModal.origName)
+          if (index > -1) {
+            this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
+            this.optimSummaries[index] = newOptim
+          }
+          else {
+            console.log('Error: a mismatch in editing keys')
+          }            
         }
+        // Else (we are adding a new optimization)...
         else {
-          console.log('Optimization named '+newOptim.name+' does not exist, creating new...')
+          newOptim.name = this.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
         }
         console.log(newOptim)
+        console.log(this.optimSummaries)
+                
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
@@ -417,6 +453,9 @@ Last update: 2018-08-15
         console.log('editOptim() called');
         this.defaultOptim = optimSummary
         console.log('defaultOptim', this.defaultOptim.obj)
+        this.addEditModal.optimSummary = this.dcp(this.defaultOptim)
+        this.addEditModal.origName = this.addEditModal.optimSummary.name         
+        this.addEditModal.mode = 'edit'          
         this.$modal.show('add-optim');
       },
 
