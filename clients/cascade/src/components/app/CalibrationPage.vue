@@ -27,7 +27,7 @@ Last update: 2018-08-14
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Calibrate</button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -73,8 +73,8 @@ Last update: 2018-08-14
         </div>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="exportResults(activeProjectID)">Export</button>
-        <button class="btn" @click="clearGraphs()">Clear</button>
+        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
+        <button class="btn" @click="clearGraphs()">Clear graphs</button>
         <!--<button class="btn" @click="toggleShowingPlots()">-->
           <!--<span v-if="areShowingPlots">Hide</span>-->
           <!--<span v-else>Show</span>-->

@@ -48,12 +48,8 @@ Last update: 2018-08-14
       <div>
         <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
-        &nbsp;&nbsp;&nbsp;
         <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
-        &nbsp;&nbsp;&nbsp;
-        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
-        &nbsp;&nbsp;&nbsp;
-        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
+
         <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
           <!--<span v-if="areShowingPlots">Hide</span>-->
           <!--<span v-else>Show</span>-->
@@ -72,7 +68,18 @@ Last update: 2018-08-14
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop">
+            <option v-for='pop in active_pops'>
+              {{ pop }}
+            </option>
+          </select>
         </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
+        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
 
       </div>
 
@@ -225,7 +232,8 @@ Last update: 2018-08-14
         plotOptions: [],
         scenariosLoaded: false,
         table: null,
-        endYear: 2018, // TEMP FOR DEMO
+        activePop: "All",
+        endYear: 0,
         addEditModal: {
           scenSummary: {},    
           origName: '',
@@ -239,19 +247,48 @@ Last update: 2018-08-14
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-          console.log('activeProjectID() called')
-          return this.$store.state.activeProject.project.id
+          let projectID = this.$store.state.activeProject.project.id
+          return projectID
         }
       },
-      
+
       activeProjectHasData() {
         if (this.$store.state.activeProject.project === undefined) {
           return false
         }
-        else {        
+        else {
           return this.$store.state.activeProject.project.hasData
         }
-      }, 
+      },
+
+      active_sim_start() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_start
+        }
+      },
+
+      active_sim_end() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_end
+        }
+      },
+
+      active_pops() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          let pop_pairs = this.$store.state.activeProject.project.pops
+          let pop_list = ["All"]
+          for(let i = 0; i < pop_pairs.length; ++i) {
+            pop_list.push(pop_pairs[i][1]);
+          }
+          return pop_list
+        }
+      },
       
       placeholders() {
         var indices = []
@@ -272,6 +309,9 @@ Last update: 2018-08-14
         (this.$store.state.activeProject.project.hasData) ) {      
         // Load the scenario summaries of the current project.
         console.log('created() called')
+        this.startYear = this.active_sim_start
+        this.endYear = this.active_sim_end
+        this.popOptions = this.active_pops
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.getScenSummaries()
@@ -565,7 +605,7 @@ Last update: 2018-08-14
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear})
+          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -609,7 +649,7 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear})
+        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -671,7 +711,21 @@ Last update: 2018-08-14
             div.removeChild(div.firstChild);
           }
         }
-      }
+      },
+
+      exportResults(project_id) {
+        console.log('exportResults() called')
+        status.start(this)
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+          .then(response => {
+            // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => {
+            // Failure.
+            status.fail(this, 'Could not export results')
+          })
+      },
 
     }
   }
