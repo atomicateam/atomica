@@ -9,6 +9,8 @@ require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
 import VModal from 'vue-js-modal'
 // Progress bar plugin
 import VueProgressBar from 'vue-progressbar'
+// PopupSpinner plugin
+import PopupSpinner from './components/app/PopupSpinner'
 
 import GlobalComponents from './globalComponents'
 import GlobalDirectives from './globalDirectives'
@@ -42,6 +44,7 @@ Vue.use(VueProgressBar, {
     termination: 300
   }       
 });
+Vue.use(PopupSpinner);
 
 // global library setup
 Object.defineProperty(Vue.prototype, '$Chartist', {

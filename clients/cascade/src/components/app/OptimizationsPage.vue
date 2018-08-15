@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-08
+Last update: 2018-08-12
 -->
 
 <template>
@@ -164,8 +164,8 @@ Last update: 2018-08-08
                    <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
             <b>Objective</b><br>
-            <input type="radio" v-model="finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
-            <input type="radio" v-model="finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
+            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
+            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -206,9 +206,6 @@ Last update: 2018-08-08
         </div>
       </modal>
 
-      <!-- Popup spinner -->
-      <popup-spinner></popup-spinner>
-    
     </div>
   </div>
 </template>
@@ -222,14 +219,9 @@ Last update: 2018-08-08
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
-  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'OptimizationPage',
-
-    components: {
-      PopupSpinner
-    },
 
     data() {
       return {
@@ -248,7 +240,6 @@ Last update: 2018-08-08
         areShowingPlots: false,
         plotOptions: [],
         table: null,
-        finalstage: 1,
         endYear: 2018,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
@@ -279,20 +270,16 @@ Last update: 2018-08-08
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else { // Otherwise...
+      else if (this.$store.state.activeProject.project != undefined) { // Otherwise...
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
           this.getOptimSummaries()
           this.getDefaultOptim()
+          this.resetModal()
           this.updateSets()
           this.getPlotOptions()          
         })
-        // Load the optimization summaries of the current project.
-/*        this.getOptimSummaries()
-        this.getDefaultOptim()
-        this.updateSets()
-        this.getPlotOptions()  */      
       }
     },
 
@@ -440,6 +427,10 @@ Last update: 2018-08-08
         
         // Start indicating progress.
         status.start(this)
+
+        // Set the objectives
+        this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage))
+        this.endYear = this.modalOptim.end_year
         
         // Get the optimization summary from the modal.
         let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
@@ -487,7 +478,9 @@ Last update: 2018-08-08
       },
 
       resetModal() {
+        console.log('resetModal() called')
         this.modalOptim = this.dcp(this.defaultOptim)
+        console.log(this.modalOptim)
       },
 
       editOptim(optimSummary) {
@@ -533,6 +526,7 @@ Last update: 2018-08-08
         status.start(this)
         
         for(var i = 0; i< this.optimSummaries.length; i++) {
+          console.log('Trying ' + this.optimSummaries[i].name + ' vs ' + optimSummary.name)
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
           }
@@ -735,5 +729,10 @@ Last update: 2018-08-08
   .calib-tables table td:nth-child(1) {
     width: 192px; /* Header column */
     padding-right: 11px;
+  }
+  .controls-box {
+    border: 2px solid #ddd;
+    padding: 7px;
+    display: inline-block;
   }
 </style>

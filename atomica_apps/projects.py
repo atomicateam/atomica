@@ -98,12 +98,13 @@ class ProjectSO(sw.ScirisObject):
         except: 
             print('Could not load framework name for project')
             framework_name = 'N/A'
-        try:    
-            n_pops = len(self.proj.parsets[0].pop_names)
+        try:
+            n_pops = len(self.proj.data.pops)
+            pop_pairs = [[key, val['label']] for key, val in self.proj.data.pops.items()]  # Pull out population keys and names
         except: 
             print('Could not load populations for project')
             n_pops = 'N/A'
-        pop_pairs = [[key,val['label']] for key,val in self.proj.data.pops.items()] # Pull out population keys and names
+            pop_pairs = []
         obj_info = {
             'project': {
                 'id':            self.uid,

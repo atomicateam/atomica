@@ -908,7 +908,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 @timeit
 @register_RPC(validation_type='nonanonymous user')    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, tool=None):
+def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -935,7 +935,7 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
     if tool == 'cascade':
-        output = get_cascade_plot(proj, results=result, pops=None, year=float(end_year))
+        output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year))
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
@@ -1273,7 +1273,7 @@ def delete_progset(project_id, progsetname=None):
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
-    attrs = ['name', 'parsetname', 'progsetname', 'start_year'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'start_year'] 
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
@@ -1297,7 +1297,7 @@ def py_to_js_scen(py_scen, project=None):
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'parsetname', 'progsetname'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname'] 
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
     py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
@@ -1394,6 +1394,8 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
+    if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
+        return {'error': 'No scenario selected'}
     proj.results['scenarios'] = results # WARNING, will want to save separately!
     if tool == 'cascade': # For Cascade Tool
         output = get_cascade_plot(proj, results, year=plotyear)
@@ -1429,6 +1431,18 @@ def py_to_js_optim(py_optim, project=None):
         this_prog.append(prog_label)
         js_optim['prog_spending'][prog_name] = {'min':this_prog[0], 'max':this_prog[1], 'label':prog_label}
     return js_optim
+
+
+def js_to_py_optim(js_optim):
+    json = js_optim
+    for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
+        json[key] = to_number(json[key]) # Convert to a number
+    for subkey in json['objective_weights'].keys():
+        json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+    for subkey in json['prog_spending'].keys():
+        this = json['prog_spending'][subkey]
+        json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
+    return json
     
 
 @register_RPC(validation_type='nonanonymous user')    
@@ -1471,21 +1485,15 @@ def to_number(raw):
 def set_optim_info(project_id, optim_summaries):
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
+    proj.optims.clear()
     for j,js_optim in enumerate(optim_summaries):
         print('Setting optimization %s of %s...' % (j+1, len(optim_summaries)))
-        json = js_optim
-        for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
-            json[key] = to_number(json[key]) # Convert to a number
-        for subkey in json['objective_weights'].keys():
-            json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
-        for subkey in json['prog_spending'].keys():
-            this = json['prog_spending'][subkey]
-            json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
+        json = js_to_py_optim(js_optim)
         print('Python optimization info for optimization %s:' % (j+1))
         print(json)
         proj.make_optimization(json=json)
     print('Saving project...')
-    save_project(proj)   
+    save_project(proj)
     return None
 
 
