@@ -185,9 +185,9 @@ class ProgramSet(NamedItem):
                     for col,year in enumerate(self.data_years):
                         capacity = costdata.cell_value(row, col+3)
                         if capacity: self.programs[progname].update(capacity=capacity, year=year)
-                elif datatype=='Unit cost: best':
+                elif datatype=='Unit cost':
                     for col,year in enumerate(self.data_years):
-                        unit_cost = [x for x in costdata.col_values(col+3, start_rowx=row, end_rowx=row+3) if x]
+                        unit_cost = [x for x in costdata.col_values(col, start_rowx=row, end_rowx=row) if x]
                         if unit_cost: self.programs[progname].update(unit_cost=unit_cost, year=year)
                     
         # Add program effect data from the program effect datasheet
@@ -209,6 +209,7 @@ class ProgramSet(NamedItem):
                         self.programs[pname].update(target_pars=(par_name,pop_name))
 
         return self
+
 
     @staticmethod
     def new(filename, name=None, progs=None, pops=None, comps=None, pars=None, project=None, framework=None, data=None, data_start=None, data_end=None):
