@@ -376,7 +376,7 @@ class TimeDependentConnections(object):
                 assert vals[5] == 'OR' # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(format=units,units=units)
                 if assumption:
-                    ts.insert(None, float(assumption))
+                    ts.insert(None, assumption)
                 for t, v in zip(tvec, vals[6:]):
                     if v is not None:
                         ts.insert(t, v)
@@ -572,7 +572,7 @@ class TimeDependentValuesEntry(object):
             data = vals[4:]
             ts = TimeSeries(format=format,units=units)
             if assumption is not None and assumption != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                ts.insert(None,float(assumption))
+                ts.insert(None,assumption)
             for t,v in zip(tvec,data):
                 if np.isfinite(t) and v is not None: # Ignore any times that are NaN
                     ts.insert(t,v)

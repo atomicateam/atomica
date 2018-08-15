@@ -7,7 +7,7 @@ import matplotlib
 from .utils import NDict
 from .results import Result
 from six import string_types
-from .system import logger
+from .system import logger, NotAllowedError
 
 default_figsize = (9,5)
 
@@ -27,15 +27,36 @@ def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, sh
 def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     # INPUTS
     # - result : A single Result or a list of Results
-    # - cascade : the name of a cascade, or a cascade dict. If none, will be the framework's first cascade
-    # - pops : A single code name or full name, or a list of code nmes or full names
+    # - cascade : A specification of the cascade to plot. It can be
+    #             - The name of a cascade as entered in the framework
+    #             - The index of a cascade entered in the framework (0 for the first one)
+    #             - A list of comps/characs to use in order e.g. ['all_people','all_dx','all_tx'] - the stage will be named using the variable's name
+    #             - An odict of comps/charac combinations e.g. {'all_people':['sus','inf','rec'],'infected':['sus','inf'],'recovered':['rec']}
+    #             - `None`, in which case a default cascade will be formed from all characteristics without denominators in framework order
+    # - pops : A single code name or full name, or a list of code names or full names
     # - year : A single year, or array of years
 
     # Sanitize based on the first result provided, if it's a list
     if isinstance(result, list): result = result[0]  # Sanitize input -- if needed
 
     # Sanitize cascade input
-    if cascade is None: cascade = result.framework.cascades.keys()[0]
+    if cascade is None:
+        # Assemble cascade from characteristics without denominators
+        cascade = sc.odict()
+        for _,spec in result.framework.characs.iterrows():
+            if not spec['denominator']:
+                cascade[spec['display name']] = [spec.name]
+    elif isinstance(cascade,list):
+        # Assemble cascade from comp/charac names using the display name as the stage name
+        outputs = sc.odict()
+        for name in cascade:
+            spec = result.framework.get_variable(name)[0]
+            outputs[spec['display name']] = [spec.name]
+        cascade = outputs
+    elif isinstance(cascade,int):
+        # Retrieve the cascade name based on index
+        available_cascades = list(result.framework.cascades)
+        cascade = available_cascades[cascade]
 
     # Convert input pops to code names, if they were provided as full names e.g. from the FE
     if pops is None or pops == 'all' or pops == 'All':
@@ -88,14 +109,10 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
         outputs = cascade
 
     d = PlotData(result, outputs=outputs, pops=pops)
-    assert len(d.pops) == 1, 'Cannot get results for multiple populations or population aggregations yet, only a single pop or single aggregation'
-    if len(d.series) > 1:
-        # Iteratively un-nest the series - outputs are expected to be an odict in order of cascade stage
-        for i in range(0,len(d.series)-1):
-            d.series[i].vals -= d.series[i+1].vals
-    d.outputs.reverse() # Invert stacking order so smallest stage is on the bottom
-    d.set_colors(outputs=d.outputs) # Assign the colours now, so that they can be used consistently for data afterwards
-    figs = plot_series(d,plot_type='stacked',axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
+    d.set_colors(outputs=d.outputs)
+    assert len(d.pops) == 1, 'Only supports plotting one population at a time'
+
+    figs = plot_series(d,axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
     ax = figs[0].axes[0]
 
     if data is not None:
@@ -293,10 +310,6 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     else:
         table = {'text':cell_text, 'labels':row_labels}
         return fig,table
-        
-
-
-
 
 def get_cascade_outputs(framework,cascade_name):
     # Given a cascade name, return an outputs dicts corresponding to the cascade stages
@@ -362,6 +375,10 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
                 cascade_vals[output] = d[(result,pop,output)].vals # NB. Might want to return the Series here to retain formatting, units etc.
     t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
 
+    for i in range(0,len(cascade_vals)-1):
+        if np.any(cascade_vals[i+1]>cascade_vals[i]):
+            stages = list(cascade_vals.keys())
+            raise NotAllowedError('Requested cascade was not valid because stage "%s" comes after stage "%s" but has more people' % (stages[i],stages[i+1]))
     return cascade_vals,t
 
 def get_cascade_data(data,framework,cascade,pops=None,year=None):
@@ -399,6 +416,8 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
     # Now, get the outputs in the given years
     data_values = dict()
     for stage_constituents in outputs.values():
+        if isinstance(stage_constituents,string_types):
+            stage_constituents = [stage_constituents] # Make it a list - this is going to be a common source of errors otherwise
         for code_name in stage_constituents:
             if code_name not in data_values:
                 data_values[code_name] = np.zeros(t.shape)* np.nan # data values start out as NaN - this is a fallback in case for some reason pops is empty (the data will be all NaNs then)

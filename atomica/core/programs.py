@@ -803,7 +803,7 @@ class Program(NamedItem):
                     spend.append(this_spend)
             else: # Just get the most recent non-nan number
                 spend = self.spend_data['spend'][~isnan(array([x for x in self.spend_data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
-            return spend
+            return array(spend).ravel() # Return vector of spending
         except Exception as E:
             if die:
                 errormsg = 'Retrieving spending failed: %s' % E.message
