@@ -46,9 +46,9 @@ python testworkflow.py
 * By default, you can log into the client using the username/password `demo`/`demo`.
 
 ### Notes
-* To run optimizations, you will also need Celery: `./start_celery.sh` (Mac/Linux) or `start_celery.cmd` (Windows).
-* Instead of `python dev_client.py`, which immediately recompile the client if it detects a change in the source files, you can also run `python build_client.py`, which will compile the client and serve it on its "official" port after `python start_server.py` (e.g. for `cascade`, `localhost:8094`).
-* If additional Node.js modules are required, you will need to rerun `python install_client.py`. This will usually be the case if and only if the build fails (i.e. `python dev_client.py` gives an error).
+* To run optimizations, you will also need Celery: `./start_celery.sh` (Mac/Linux) or `start_celery.cmd` (Windows) in the tool folder.
+* Instead of `python dev_client.py`, which immediately recompiles the client if it detects a change in the source files, you can also run `python build_client.py`, which will compile the client only once. You can then serve it on its "official" port via the usual `python start_server.py` (e.g. `localhost:8094` for `cascade`, as opposed to `localhost:8080` when the client is compiled with `python dev_client.py`).
+* If additional Node.js modules have been added, you will need to rerun `python install_client.py` before building the client. This will usually be the case if and only if the build fails (i.e. `python dev_client.py` gives an error).
 
 
 # Code structure
