@@ -1,3 +1,10 @@
+
+# About Atomica
+
+Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
+
+Atomica is still under development; please check back regularly for updates.
+
 # Installation
 
 ## Backend installation
@@ -23,19 +30,26 @@ python testworkflow.py
 ```
 
 ## Frontend installation
+
+### Initial installation
+* Complete the backend installation instructions above.
 * Ensure `redis` is installed: https://redis.io/topics/quickstart
 * Ensure `npm` is installed: https://www.npmjs.com/get-npm
 * Change into the clients folder: `cd atomica/clients`
 * Install the JavaScript modules: `python install_client.py`
-* Then, to install e.g. the `cascade` client:
-* Change into the tool directory: `cd cascade`
-* Start the development client: `python dev_client.py`
-* In a **separate** terminal window, start the server: `python start_server.py`
-* The client should now be running on `localhost:8080`, which you can go to in your browser (if it doesn't open your browser automatically).
-* Note: instead of `python dev_client.py`, you can also run `python build_client.py`, which will compile the client and serve it on its "official" port (e.g. for `cascade`, `localhost:8094`).
-* Note: to run optimizations, you will also need Celery: `./start_celery.sh` (Mac/Linux) or `start_celery.cmd` (Windows).
 
-By default, you can log into the client using the username/password `demo`/`demo`.
+### Running
+* To use e.g. the `cascade` client, change into the tool folder: `cd cascade` (aside from this step, all the steps below are identical for the `tb` client)
+* Start the development client: `python dev_client.py`
+* In the same folder in a **separate** terminal window, start the server: `python start_server.py`
+* The client should now be running on `localhost:8080`, which you can go to in your browser (if it doesn't open your browser automatically).
+* By default, you can log into the client using the username/password `demo`/`demo`.
+
+### Notes
+* To run optimizations, you will also need Celery: `./start_celery.sh` (Mac/Linux) or `start_celery.cmd` (Windows).
+* Instead of `python dev_client.py`, which immediately recompile the client if it detects a change in the source files, you can also run `python build_client.py`, which will compile the client and serve it on its "official" port after `python start_server.py` (e.g. for `cascade`, `localhost:8094`).
+* If additional Node.js modules are required, you will need to rerun `python install_client.py`. This will usually be the case if and only if the build fails (i.e. `python dev_client.py` gives an error).
+
 
 # Code structure
 
