@@ -1508,6 +1508,18 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None):
         output = get_plots(proj, results, plot_options=plot_options)
     return output
 
+def make_plots(results,outputs=None,cascades=None,budget=None):
+    #
+    # make_plots is a central point for generating three types of plots
+    #
+    # - outputs, which are the plots defined in the 'Plots' sheet of the framework
+    # - cascades, which are defined in the 'Cascades' sheet of the framework
+    # - budget, which is automatic
+    #
+    #
+    print('hello')
+
+
 
 # Deprecated, see equivalent in apptasks.py
 #@register_RPC(validation_type='nonanonymous user')    
