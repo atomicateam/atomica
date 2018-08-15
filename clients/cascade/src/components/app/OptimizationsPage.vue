@@ -12,7 +12,13 @@ Last update: 2018-08-14
         <p>No project is loaded.</p>
       </div>
     </div>
-
+    
+    <div v-else-if="!activeProjectHasData">
+      <div style="font-style:italic">
+        <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
+      </div>
+    </div>
+    
     <div v-else>
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
@@ -266,7 +272,16 @@ Last update: 2018-08-14
           return this.$store.state.activeProject.project.id
         }
       },
-
+      
+      activeProjectHasData() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return false
+        }
+        else {        
+          return this.$store.state.activeProject.project.hasData
+        }
+      }, 
+      
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -282,7 +297,8 @@ Last update: 2018-08-14
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else if (this.$store.state.activeProject.project != undefined) { // Otherwise...
+      else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
