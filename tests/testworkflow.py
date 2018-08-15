@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
 #test = "sir"
-#test = "tb"
+test = "tb"
 #test = "hypertension"
 #test = "udt"
 #test = "usdt"
-test = "hiv"
+#test = "hiv"
 #test = "diabetes"
 #test = "service"
 
