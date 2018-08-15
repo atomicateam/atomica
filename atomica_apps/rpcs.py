@@ -56,15 +56,16 @@ def timeit(method):
 # Make a Result storable by Sciris
 class ResultSO(sw.ScirisObject):
 
-    def __init__(self,result):
-        super(ResultSO, self).__init__(result.uid)
+    def __init__(self, result):
+        super(ResultSO, self).__init__(result.uid, type_prefix='result', 
+              file_suffix='.res', instance_label=result.name)
         self.result = result
 
 # A ResultPlaceholder can be stored in proj.results instead of a Result
 class ResultPlaceholder(au.NamedItem):
 
     def __init__(self,result):
-        au.NamedItem.__init__(self,result.name)
+        au.NamedItem.__init__(self, result.name)
         self.uid = result.uid
 
     def get(self):
@@ -72,7 +73,7 @@ class ResultPlaceholder(au.NamedItem):
         return result_so.result
 
 @timeit
-def store_result_separately(proj,result):
+def store_result_separately(proj, result):
     # Given a result, add a ResultPlaceholder to the project
     # Save both the updated project and the result to the datastore
     result_so = ResultSO(result)

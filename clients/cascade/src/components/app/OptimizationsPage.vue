@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-12
+Last update: 2018-08-14
 -->
 
 <template>
@@ -12,7 +12,13 @@ Last update: 2018-08-12
         <p>No project is loaded.</p>
       </div>
     </div>
-
+    
+    <div v-else-if="!activeProjectHasData">
+      <div style="font-style:italic">
+        <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
+      </div>
+    </div>
+    
     <div v-else>
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
@@ -227,8 +233,20 @@ Last update: 2018-08-12
       return {
         serverresponse: 'no response',
         optimSummaries: [],
-        defaultOptim: [],
-        modalOptim: [],
+        defaultOptim: {  
+          // set stuff here to avoid render errors before things are loaded
+          objective_weights: {
+            conversion: 0, 
+            finalstage: 1
+          }          
+        },
+        modalOptim: {
+          // set stuff here to avoid render errors before things are loaded
+          objective_weights: {
+            conversion: 0, 
+            finalstage: 1
+          }
+        },
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -254,7 +272,16 @@ Last update: 2018-08-12
           return this.$store.state.activeProject.project.id
         }
       },
-
+      
+      activeProjectHasData() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return false
+        }
+        else {        
+          return this.$store.state.activeProject.project.hasData
+        }
+      }, 
+      
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -270,7 +297,8 @@ Last update: 2018-08-12
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else if (this.$store.state.activeProject.project != undefined) { // Otherwise...
+      else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
@@ -456,7 +484,7 @@ Last update: 2018-08-12
         else {
           newOptim.name = this.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
-        }       
+        }
         
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
