@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-12
+Last update: 2018-08-14
 -->
 
 <template>
@@ -227,8 +227,20 @@ Last update: 2018-08-12
       return {
         serverresponse: 'no response',
         optimSummaries: [],
-        defaultOptim: [],
-        modalOptim: [],
+        defaultOptim: {  
+          // set stuff here to avoid render errors before things are loaded
+          objective_weights: {
+            conversion: 0, 
+            finalstage: 1
+          }          
+        },
+        modalOptim: {
+          // set stuff here to avoid render errors before things are loaded
+          objective_weights: {
+            conversion: 0, 
+            finalstage: 1
+          }
+        },
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -456,7 +468,7 @@ Last update: 2018-08-12
         else {
           newOptim.name = this.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
-        }       
+        }
         
         rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
