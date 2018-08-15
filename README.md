@@ -10,6 +10,17 @@ cd sciris
 python setup.py develop
 ```
 * Note that some dependencies might be missing (we are working on this!).
+* Install Atomica:
+```
+git clone https://github.com/optimamodel/atomica.git
+cd atomica
+python setup.py develop
+```
+* You can test with:
+```
+cd atomica/tests
+python testworkflow.py
+```
 
 ## Frontend installation
 * Ensure `redis` is installed: https://redis.io/topics/quickstart
