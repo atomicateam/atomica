@@ -77,3 +77,14 @@ au.plot_bars(d,stack_outputs='all')
 d = au.PlotData.programs([result1,result2],t_bins=[2020,2030])
 au.plot_bars(d,stack_outputs='all')
 
+## COVERAGE PLOTS
+
+# Stacked time series of spending
+d = au.PlotData.programs(result1,quantity='coverage_number')
+au.plot_series(d,plot_type='stacked')
+
+d = au.PlotData.programs(result1,quantity='coverage_denominator')
+au.plot_series(d,plot_type='stacked')
+
+d = au.PlotData.programs(result1,quantity='coverage_fraction')
+au.plot_series(d,plot_type='line')

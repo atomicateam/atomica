@@ -464,7 +464,7 @@ class PlotData(object):
                     for pop_name in prog.target_pops:
                         for comp_name in prog.target_comps:
                             if prog.short not in num_eligible:
-                                num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals
+                                num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals.copy()
                             else:
                                 num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
                     prop_covered[prog.short] = np.minimum(num_covered[prog.short]/num_eligible[prog.short],np.ones(result.t.shape))
@@ -521,9 +521,9 @@ class PlotData(object):
         plotdata.output_names = {x: (results[0].model.progset.programs[x].label if x in results[0].model.progset.programs else x) for x in plotdata.outputs}
 
         if t_bins is not None:
-            if quantity in ['spending','coverage_number','coverage_denominator']:
+            if quantity in ['spending','coverage_number']:
                 plotdata._time_aggregate(t_bins,'sum')
-            elif quantity == 'coverage_fraction':
+            elif quantity in ['coverage_denominator','coverage_fraction']:
                 plotdata._time_aggregate(t_bins,'average')
             else:
                 raise AtomicaException('Unknown quantity')
@@ -890,11 +890,10 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
             offset += result_offset
 
     # If there is only one block per inner group, then use the inner group string as the bar label
-    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and len(
-            set([x for _, x in inner_labels])) > 1:
+    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and len(set([x for _, x in inner_labels])) > 1:
+        ax.set_xticks([x[0] for x in inner_labels])
         ax.set_xticklabels([x[1] for x in inner_labels])
-    elif len(inner_labels) > 1 and len(set(
-            [x for _, x in inner_labels])) > 1:  # Inner group labels are only displayed if there is more than one label
+    elif len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1:  # Inner group labels are only displayed if there is more than one label
         ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
         ax2.set_xticks([x[0] for x in inner_labels])
         ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
