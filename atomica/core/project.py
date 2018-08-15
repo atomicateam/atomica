@@ -441,9 +441,9 @@ class Project(object):
         if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
-            adjustables = list(self.framework.pars.index[self.framework.pars['Can Calibrate']=='y'])
-            adjustables += list(self.framework.comps.index[self.framework.comps['Can Calibrate']=='y'])
-            adjustables += list(self.framework.characs.index[self.framework.characs['Can Calibrate']=='y'])
+            adjustables = list(self.framework.pars.index[self.framework.pars['can calibrate']=='y'])
+            adjustables += list(self.framework.comps.index[self.framework.comps['can calibrate']=='y'])
+            adjustables += list(self.framework.characs.index[self.framework.characs['can calibrate']=='y'])
         if measurables is None:
             measurables = list(self.framework.comps.index)
             measurables += list(self.framework.characs.index)
