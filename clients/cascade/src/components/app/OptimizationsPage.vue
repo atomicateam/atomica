@@ -67,8 +67,8 @@ Last update: 2018-08-14
           </select>
         </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
-        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="plotOptimization()">Refresh</button>
+        <button class="btn" @click="clearGraphs()">Clear graphs</button>
         <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
       </div>
 
