@@ -1499,12 +1499,12 @@ def set_optim_info(project_id, optim_summaries):
 
 
 @register_RPC(validation_type='nonanonymous user') 
-def plot_optimization(project_id, plot_options, tool=None, plotyear=None):
+def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=None):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['optimization']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     return output

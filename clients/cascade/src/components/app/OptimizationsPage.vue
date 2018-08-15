@@ -45,19 +45,6 @@ Last update: 2018-08-14
       <div>
         <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
         &nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <!--<button class="btn" @click="toggleShowingPlots()">-->
-          <!--<span v-if="areShowingPlots">Hide</span>-->
-          <!--<span v-else>Show</span>-->
-          <!--plot controls-->
-        <!--</button>-->
-        &nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="plotOptimization()">Refresh</button>
-        <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
-        <!--<span v-if="areShowingPlots">Hide</span>-->
-        <!--<span v-else>Show</span>-->
-        <!--plot controls-->
-        <!--</button>-->
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
           <!--<b>Start year: &nbsp;</b>-->
@@ -71,7 +58,18 @@ Last update: 2018-08-14
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop">
+            <option v-for='pop in active_pops'>
+              {{ pop }}
+            </option>
+          </select>
         </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
+        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
       </div>
 
 
@@ -258,7 +256,8 @@ Last update: 2018-08-14
         areShowingPlots: false,
         plotOptions: [],
         table: null,
-        endYear: 2018,
+        activePop: "All",
+        endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
       }
@@ -280,7 +279,36 @@ Last update: 2018-08-14
         else {        
           return this.$store.state.activeProject.project.hasData
         }
-      }, 
+      },
+
+      active_sim_start() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_start
+        }
+      },
+
+      active_sim_end() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_end
+        }
+      },
+
+      active_pops() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          let pop_pairs = this.$store.state.activeProject.project.pops
+          let pop_list = ["All"]
+          for(let i = 0; i < pop_pairs.length; ++i) {
+            pop_list.push(pop_pairs[i][1]);
+          }
+          return pop_list
+        }
+      },
       
       placeholders() {
         var indices = []
@@ -302,6 +330,9 @@ Last update: 2018-08-14
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
+          this.startYear = this.active_sim_start
+          this.endYear = this.active_sim_end
+          this.popOptions = this.active_pops
           this.getOptimSummaries()
           this.getDefaultOptim()
           this.resetModal()
@@ -598,7 +629,7 @@ Last update: 2018-08-14
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
           taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
-            [this.projectID(), optimSummary.name, this.plotOptions, true, this.endYear])
+            [this.projectID(), optimSummary.name, this.plotOptions, true, this.endYear, this.activePop])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
 //                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
@@ -652,7 +683,7 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('plot_optimization', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear})
+        rpcservice.rpcCall('plot_optimization', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -715,7 +746,21 @@ Last update: 2018-08-14
             div.removeChild(div.firstChild);
           }
         }
-      }
+      },
+
+      exportResults(project_id) {
+        console.log('exportResults() called')
+        status.start(this)
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+          .then(response => {
+            // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => {
+            // Failure.
+            status.fail(this, 'Could not export results')
+          })
+      },
 
     }
   }
