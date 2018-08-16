@@ -96,7 +96,6 @@ function makeGraphs(vm) {
 
 function clearGraphs() {
   for (var index = 0; index <= 100; index++) {
-    console.log('Clearing plot ' + index)
     var divlabel = 'fig' + index
     var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
     while (div.firstChild) {
