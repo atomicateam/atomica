@@ -1,6 +1,8 @@
 /**
- * Shared services that don't fit anywhere else!
+ * Utilities that are shared across pages
  */
+
+import rpcs from '@/services/rpc-service'
 
 function sleep(time) {
   // Return a promise that resolves after _time_ milliseconds.
@@ -21,6 +23,20 @@ function projectID(vm) {
   } else {
     let projectID = vm.$store.state.activeProject.project.id
     return projectID
+  }
+}
+
+function projectLoaded(vm, uid) {
+  console.log('projectLoaded called')
+  if (vm.$store.state.activeProject.project != undefined) {
+    if (vm.$store.state.activeProject.project.id === uid) {
+      console.log('Project ' + uid + ' is loaded')
+      return true
+    } else {
+      return false
+    }
+  } else {
+    return false
   }
 }
 
@@ -72,6 +88,7 @@ export default {
   sleep,
   placeholders,
   projectID,
+  projectLoaded,
   hasData,
   simStart,
   simEnd,

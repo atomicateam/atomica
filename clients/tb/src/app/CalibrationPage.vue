@@ -217,7 +217,7 @@ Last update: 2018-08-16
         sortColumn: 'index',
         sortReverse: false,
         parList: [],
-        areShowingParameters: true,
+        areShowingParameters: false,
         areShowingPlots: false,
         activeParset: -1,
         parsetOptions: [],
@@ -344,7 +344,7 @@ Last update: 2018-08-16
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
         status.start(this) // Start indicating progress.
-        rpcs.rpc('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length

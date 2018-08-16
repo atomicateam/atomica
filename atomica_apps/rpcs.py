@@ -915,45 +915,6 @@ def get_y_factors(project_id, parsetname=-1):
     return y_factors
 
 
-@timeit
-@RPC()    
-def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None):
-    print('Setting y factors for parset %s...' % parsetname)
-    TEMP_YEAR = 2018 # WARNING, hard-coded!
-    proj = load_project(project_id, raise_exception=True)
-    parset = proj.parsets[parsetname]
-    for pardict in y_factors:
-        parname   = pardict['parname']
-        dispvalue = float(pardict['dispvalue'])
-        popname   = pardict['popname']
-        thispar   = parset.get_par(parname)
-        try:    
-            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
-            if not np.isfinite(interp_val):
-                interp_val = 1
-            if sc.approx(interp_val, 0):
-                interp_val = 1
-        except: 
-            interp_val = 1
-        y_factor  = dispvalue/interp_val
-        parset.get_par(parname).y_factor[popname] = y_factor
-        if not sc.approx(y_factor, 1):
-            print('Modified: %s (%s)' % (parname, y_factor))
-    
-    proj.modified = sc.today()
-    result = proj.run_sim(parset=parsetname, store_results=False)
-    store_result_separately(proj, result)
-    if tool == 'cascade':
-        if result.framework.cascades:
-            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
-        else:
-            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=None) # Plot the fallback cascade - this might not be a valid cascade
-    else:
-        output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
-        # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-        unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
-        output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-    return output
 
 
 #%% Plotting
@@ -1125,6 +1086,47 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     return {'graphs':graphs, 'table':table}
     
 
+@timeit
+@RPC()  
+def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None):
+    print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for pardict in y_factors:
+        parname   = pardict['parname']
+        dispvalue = float(pardict['dispvalue'])
+        popname   = pardict['popname']
+        thispar   = parset.get_par(parname)
+        try:    
+            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
+            if not np.isfinite(interp_val):
+                interp_val = 1
+            if sc.approx(interp_val, 0):
+                interp_val = 1
+        except: 
+            interp_val = 1
+        y_factor  = dispvalue/interp_val
+        parset.get_par(parname).y_factor[popname] = y_factor
+        if not sc.approx(y_factor, 1):
+            print('Modified: %s (%s)' % (parname, y_factor))
+    
+    proj.modified = sc.today()
+    result = proj.run_sim(parset=parsetname, store_results=False)
+    store_result_separately(proj, result)
+    if tool == 'cascade':
+        if result.framework.cascades:
+            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
+        else:
+            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=None) # Plot the fallback cascade - this might not be a valid cascade
+    else:
+        output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
+        # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
+        unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
+        output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+    return output
+    
+    
 @RPC()    
 def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
     

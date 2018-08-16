@@ -92,7 +92,10 @@ Last update: 2018-08-16
               {{ projectSummary.project.name }}
             </td>
             <td>
-              <button class="btn __green" @click="openProject(projectSummary.project.id)">Open</button>
+              <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">
+                <span v-if="projectLoaded(projectSummary.project.id)">Selected</span>
+                <span v-else>Open</span>
+              </button>
               <button class="btn" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
                 <i class="ti-files"></i>
               </button>
@@ -220,6 +223,7 @@ Last update: 2018-08-16
 <script>
 import axios from 'axios'
 var filesaver = require('file-saver')
+import utils from '@/services/utils'
 import rpcs from '@/services/rpc-service'
 import status from '@/services/status-service'
 import router from '@/router'
@@ -263,6 +267,8 @@ export default {
   },
 
   methods: {
+
+    projectLoaded(project_id) { return utils.projectLoaded(this, project_id) },
 
     beforeOpen (event) {
       console.log(event)
