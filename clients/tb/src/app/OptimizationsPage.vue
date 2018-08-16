@@ -7,13 +7,13 @@ Last update: 2018-08-15
 <template>
   <div class="SitePage">
 
-    <div v-if="activeProjectID ==''">
+    <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
     
-    <div v-else-if="!activeProjectHasData">
+    <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
@@ -34,7 +34,7 @@ Last update: 2018-08-15
           </td>
           <td style="white-space: nowrap">
             <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
-            <button class="btn" @click="runOptim(optimSummary, 30)">Test run</button>
+            <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
             <button class="btn" @click="editOptim(optimSummary)">Edit</button>
             <button class="btn" @click="copyOptim(optimSummary)">Copy</button>
             <button class="btn" @click="deleteOptim(optimSummary)">Delete</button>
@@ -52,10 +52,6 @@ Last update: 2018-08-15
           plot controls
         </button>
       </div>
-
-
-
-
 
 
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
@@ -260,12 +256,11 @@ Last update: 2018-08-15
 
     methods: {
 
-      getPlotOptions() { return utils.getPlotOptions(this) },
-      makeGraphs() { return utils.makeGraphs(this) },
-      clearGraphs() { return utils.clearGraphs() },
+      getPlotOptions()          { return utils.getPlotOptions(this) },
+      clearGraphs()             { return utils.clearGraphs() },
+      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
 
-      // TO_PORT
       updateSets() {
         console.log('updateSets() called')
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
@@ -446,6 +441,8 @@ Last update: 2018-08-15
           taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optimization', [this.projectID, optimSummary.name, this.plotOptions, maxtime])
           .then(response => {
             this.response = response // Pull out the response data.
+            console.log('ok done')
+            console.log(this.response)
             this.makeGraphs(response.data.result.graphs)
           })
           .catch(error => {

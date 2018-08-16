@@ -7,13 +7,13 @@ Last update: 2018-08-14
 <template>
   <div>
 
-    <div v-if="activeProjectID ==''">
+    <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
     
-    <div v-else-if="!activeProjectHasData">
+    <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
