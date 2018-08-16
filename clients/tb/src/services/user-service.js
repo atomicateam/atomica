@@ -1,5 +1,5 @@
 import rpcservice from '@/services/rpc-service'
-import store from './../store'
+import store from '../store'
 import router from '@/router'
 var state = {
   currentUser: {}
