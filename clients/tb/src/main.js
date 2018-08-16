@@ -30,6 +30,7 @@ Vue.use(Notifications);
 Vue.use(SideBar);
 Vue.use(Simplert);
 Vue.use(VModal);
+Vue.use(PopupSpinner);
 Vue.use(VueProgressBar, {
   color: 'rgb(0, 0, 255)',
   failedColor: 'red',
@@ -40,7 +41,6 @@ Vue.use(VueProgressBar, {
     termination: 300
   }       
 });
-Vue.use(PopupSpinner);
 
 // global library setup
 Object.defineProperty(Vue.prototype, '$Chartist', {
@@ -48,7 +48,7 @@ Object.defineProperty(Vue.prototype, '$Chartist', {
     return this.$root.Chartist
   }
 })
-/* eslint-disable no-new */
+
 new Vue({
   el: '#app',
   render: h => h(App),

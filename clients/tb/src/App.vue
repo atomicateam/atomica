@@ -9,12 +9,8 @@ Last update: 8/15/18 (gchadder3)
     <simplert></simplert>
     <router-view></router-view>
     <vue-progress-bar></vue-progress-bar>
-<!--    <popup-spinner size="50px" padding="15px"></popup-spinner> -->
     <popup-spinner size="75px" padding="15px" title="Please wait..."></popup-spinner>
-    <!--<popup-spinner size="50px" padding="15px" title="Loading..." has-cancel-button></popup-spinner>-->
-    <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->    
-    <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
-    <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks">
+    <side-bar type="navbar" :sidebar-links="$sidebar.sidebarLinks"> <!--This sidebar appears only for screens smaller than 992px -- otherwise, it is rendered in TopNavbar.vue-->
       <ul class="nav navbar-nav">
         <!-- Below requires a userService -->
         <li>
@@ -42,7 +38,6 @@ import userService from '@/services/user-service'
 
 export default {
   computed: {
-    // Health prior function
     currentUser: () => {
       return userService.currentUser()
     },
