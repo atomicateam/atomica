@@ -9,7 +9,7 @@ Last update: 2018-07-27
     <div class="container-fluid">
       <div class="navbar-header">
         <div class="logo">
-          <a href="http://tb.tools">
+          <a href="http://ocds.co">
             <img src="static/img/optima-logo-tb.png" height="50px" vertical-align="middle" alt>
           </a>
         </div>
