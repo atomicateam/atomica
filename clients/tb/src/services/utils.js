@@ -15,7 +15,7 @@ function placeholders() {
   return indices;
 }
 
-function activeProjectID(vm) {
+function projectID(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
   } else {
@@ -24,7 +24,7 @@ function activeProjectID(vm) {
   }
 }
 
-function activeHasData(vm) {
+function hasData(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return false
   }
@@ -33,7 +33,7 @@ function activeHasData(vm) {
   }
 }
 
-function activeSimStart(vm) {
+function simStart(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
   } else {
@@ -41,7 +41,7 @@ function activeSimStart(vm) {
   }
 }
 
-function activeSimEnd(vm) {
+function simEnd(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
   } else {
@@ -52,8 +52,8 @@ function activeSimEnd(vm) {
 export default {
   sleep,
   placeholders,
-  activeProjectID,
-  activeHasData,
-  activeSimStart,
-  activeSimEnd
+  projectID,
+  hasData,
+  simStart,
+  simEnd
 }

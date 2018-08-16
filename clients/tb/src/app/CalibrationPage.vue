@@ -7,13 +7,13 @@ Last update: 2018-08-16
 <template>
   <div class="SitePage">
   
-    <div v-if="activeProjectID ==''">
+    <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
     
-    <div v-else-if="!activeHasData">
+    <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
@@ -21,13 +21,13 @@ Last update: 2018-08-16
 
     <div v-else>
       <div class="calib-controls">
-        <button class="btn __green" @click="makeGraphs(activeProjectID)">Save & run</button>
+        <button class="btn __green" @click="makeGraphs(projectID)">Save & run</button>
         <button class="btn" @click="toggleShowingParams()">
           <span v-if="areShowingParameters">Hide</span>
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
+        <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -66,7 +66,7 @@ Last update: 2018-08-16
         </div>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
+        <button class="btn" @click="exportResults(projectID)">Export data</button>
         <button class="btn" @click="clearGraphs()">Clear</button>
         <button class="btn" @click="toggleShowingPlots()">
           <span v-if="areShowingPlots">Hide</span>
@@ -229,11 +229,11 @@ Last update: 2018-08-16
     },
 
     computed: {
-      activeProjectID() { return utils.activeProjectID(this); },
-      activeHasData()   { return utils.activeHasData(this); },
-      activeSimStart()  { return utils.activeSimStart(this); },
-      activeSimEnd()    { return utils.activeSimEnd(this); },
-      placeholders()    { return utils.placeholders(); },
+      projectID()    { return utils.projectID(this); },
+      hasData()      { return utils.hasData(this); },
+      simStart()     { return utils.simStart(this); },
+      simEnd()       { return utils.simEnd(this); },
+      placeholders() { return utils.placeholders(); },
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
@@ -248,34 +248,25 @@ Last update: 2018-08-16
         router.push('/login')
       } else if ((this.$store.state.activeProject.project != undefined) && 
         (this.$store.state.activeProject.project.hasData) ) {
-        this.startYear = this.activeSimStart
-        this.endYear = this.activeSimEnd
+        this.startYear = this.simStart
+        this.endYear = this.simEnd
         this.viewTable()
         this.getPlotOptions()
         this.updateParset()
         utils.sleep(1000)
           .then(response => {
-            this.makeGraphs(this.activeProjectID)
+            this.makeGraphs(this.projectID)
             }
           );
       }
     },
 
     methods: {
-
-      notImplemented(message) {
-        status.failurePopup(this, 'Function "' + message + '" not yet implemented')
-      },
-
-      projectID() {
-        var id = this.$store.state.activeProject.project.id // Shorten this
-        return id
-      },
-
+      
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
-        rpcs.rpc('get_parset_info', [this.projectID()]) // Get the current user's parsets from the server.
+        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
