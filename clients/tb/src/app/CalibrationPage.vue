@@ -77,7 +77,14 @@ Last update: 2018-08-16
 
 
       </div>
-    
+      
+       <div style="text-align: center">
+        <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+        <button class="btn" @click="exportResults(projectID)">Export data</button>
+        <button class="btn" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+      </div>
+          
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -130,17 +137,9 @@ Last update: 2018-08-16
           </table>
         </div>
 
-        <div>
-          <div style="text-align: center">
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
-            <button class="btn" @click="clearGraphs()">Clear graphs</button>
-            <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
-          </div>
-          <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
-            </div>
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+            <!--mpld3 content goes here-->
           </div>
         </div>
 
@@ -166,8 +165,6 @@ Last update: 2018-08-16
             </table>
           </div>
         </div>
-
-
 
       </div>
       
