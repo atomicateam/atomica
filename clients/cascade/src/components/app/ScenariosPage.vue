@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-13
+Last update: 2018-08-14
 -->
 
 <template>
@@ -12,7 +12,13 @@ Last update: 2018-08-13
         <p>No project is loaded.</p>
       </div>
     </div>
-
+    
+    <div v-else-if="!activeProjectHasData">
+      <div style="font-style:italic">
+        <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
+      </div>
+    </div>
+    
     <div v-else>
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
@@ -42,12 +48,8 @@ Last update: 2018-08-13
       <div>
         <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
-        &nbsp;&nbsp;&nbsp;
         <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
-        &nbsp;&nbsp;&nbsp;
-        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
-        &nbsp;&nbsp;&nbsp;
-        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
+
         <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
           <!--<span v-if="areShowingPlots">Hide</span>-->
           <!--<span v-else>Show</span>-->
@@ -66,7 +68,18 @@ Last update: 2018-08-13
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop">
+            <option v-for='pop in active_pops'>
+              {{ pop }}
+            </option>
+          </select>
         </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
+        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
 
       </div>
 
@@ -123,16 +136,19 @@ Last update: 2018-08-13
              :clickToClose="clickToClose"
              :transition="transition">
 
-        <!--TO_PORT-->
         <div class="dialog-content">
-          <div class="dialog-c-title">
-            Add/edit scenario
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
           </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
+          </div>
+          
           <div class="dialog-c-text">
             Scenario name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultBudgetScen.name"/><br>
+                   v-model="addEditModal.scenSummary.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -148,7 +164,7 @@ Last update: 2018-08-13
             Budget year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultBudgetScen.start_year"/><br>
+                   v-model="addEditModal.scenSummary.start_year"/><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
               <tr>
@@ -157,7 +173,7 @@ Last update: 2018-08-13
               </tr>
               </thead>
               <tbody>
-              <tr v-for="item in defaultBudgetScen.alloc">
+              <tr v-for="item in addEditModal.scenSummary.alloc">
                 <td>
                   {{ item[2] }}
                 </td>
@@ -204,7 +220,7 @@ Last update: 2018-08-13
       return {
         serverresponse: 'no response',
         scenSummaries: [],
-        defaultBudgetScen: [],
+        defaultBudgetScen: {},
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -216,7 +232,13 @@ Last update: 2018-08-13
         plotOptions: [],
         scenariosLoaded: false,
         table: null,
-        endYear: 2018, // TEMP FOR DEMO
+        activePop: "All",
+        endYear: 0,
+        addEditModal: {
+          scenSummary: {},    
+          origName: '',
+          mode: 'add'
+        }
       }
     },
 
@@ -225,11 +247,49 @@ Last update: 2018-08-13
         if (this.$store.state.activeProject.project === undefined) {
           return ''
         } else {
-          console.log('activeProjectID() called')
-          return this.$store.state.activeProject.project.id
+          let projectID = this.$store.state.activeProject.project.id
+          return projectID
         }
       },
 
+      activeProjectHasData() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return false
+        }
+        else {
+          return this.$store.state.activeProject.project.hasData
+        }
+      },
+
+      active_sim_start() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_start
+        }
+      },
+
+      active_sim_end() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          return this.$store.state.activeProject.project.sim_end
+        }
+      },
+
+      active_pops() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return ''
+        } else {
+          let pop_pairs = this.$store.state.activeProject.project.pops
+          let pop_list = ["All"]
+          for(let i = 0; i < pop_pairs.length; ++i) {
+            pop_list.push(pop_pairs[i][1]);
+          }
+          return pop_list
+        }
+      },
+      
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -245,9 +305,13 @@ Last update: 2018-08-13
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else if (this.$store.state.activeProject.project != undefined){ // Otherwise...
+      else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {      
         // Load the scenario summaries of the current project.
         console.log('created() called')
+        this.startYear = this.active_sim_start
+        this.endYear = this.active_sim_end
+        this.popOptions = this.active_pops
         this.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.getScenSummaries()
@@ -392,6 +456,9 @@ Last update: 2018-08-13
         rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
+          this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+          this.addEditModal.origName = this.addEditModal.scenSummary.name
+          this.addEditModal.mode = 'add'
           this.$modal.show('add-budget-scen');
           console.log(this.defaultBudgetScen)
         })
@@ -411,21 +478,35 @@ Last update: 2018-08-13
         // Start indicating progress.
         status.start(this)
         
-        let newScen = this.dcp(this.defaultBudgetScen); // You've got to be kidding me, buster
-        let otherNames = []
+        // Get the new scenario summary from the modal.
+        let newScen = this.dcp(this.addEditModal.scenSummary)
+  
+        // Get the list of all of the current scenario names.
+        let scenNames = []
         this.scenSummaries.forEach(scenSum => {
-          otherNames.push(scenSum.name)
-        });
-        let index = otherNames.indexOf(newScen.name);
-        if (index > -1) {
-          console.log('scenario named '+newScen.name+' exists, overwriting...')
-          this.scenSummaries[index] = newScen
+          scenNames.push(scenSum.name)
+        })
+               
+        // If we are editing an existing scenario...
+        if (this.addEditModal.mode == 'edit') {
+          // Get the index of the original (pre-edited) name
+          let index = scenNames.indexOf(this.addEditModal.origName)
+          if (index > -1) {
+            this.scenSummaries[index].name = newScen.name  // hack to make sure Vue table updated
+            this.scenSummaries[index] = newScen
+          }
+          else {
+            console.log('Error: a mismatch in editing keys')
+          }            
         }
+        // Else (we are adding a new scenario)...
         else {
-          console.log('scenario named '+newScen.name+' does not exist, creating new...')
+          newScen.name = this.getUniqueName(newScen.name, scenNames)
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
+        console.log(this.scenSummaries)        
+        
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
@@ -445,6 +526,9 @@ Last update: 2018-08-13
         this.defaultBudgetScen = scenSummary
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
+        this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+        this.addEditModal.origName = this.addEditModal.scenSummary.name         
+        this.addEditModal.mode = 'edit' 
         this.$modal.show('add-budget-scen');
       },
 
@@ -521,7 +605,7 @@ Last update: 2018-08-13
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear})
+          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -565,7 +649,7 @@ Last update: 2018-08-13
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear})
+        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -627,7 +711,21 @@ Last update: 2018-08-13
             div.removeChild(div.firstChild);
           }
         }
-      }
+      },
+
+      exportResults(project_id) {
+        console.log('exportResults() called')
+        status.start(this)
+        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+          .then(response => {
+            // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => {
+            // Failure.
+            status.fail(this, 'Could not export results')
+          })
+      },
 
     }
   }

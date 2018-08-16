@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-08-12
+Last update: 2018-08-15
 -->
 
 <template>
@@ -353,11 +353,8 @@ Last update: 2018-08-12
           {
             let sortDir = this.sortReverse ? -1: 1
             if (this.sortColumn === 'name') {
-              return (frw1.framework.name > frw2.framework.name ? sortDir: -sortDir)
+              return (frw1.framework.name.toLowerCase() > frw2.framework.name.toLowerCase() ? sortDir: -sortDir)
             }
-            /*          else if (this.sortColumn === 'country') {
-             return frw1.country > frw2.country ? sortDir: -sortDir
-             } */
             else if (this.sortColumn === 'creationTime') {
               return frw1.framework.creationTime > frw2.framework.creationTime ? sortDir: -sortDir
             }

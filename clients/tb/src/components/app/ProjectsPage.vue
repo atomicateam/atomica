@@ -345,7 +345,7 @@ export default {
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
-        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
+        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end, 'tb'])
       .then(response => {
         this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
         status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
