@@ -54,15 +54,14 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
     Version: 2018mar27
     """
     
-    options = sc.odict([
-                    ('udt',      '1-population undiagnosed-diagnosed-treated cascade'),
-                    ('usdt',     '1-population undiagnosed-screened-diagnosed-treated cascade'),
-                    ('sir',      '1-population SIR model'),       
-                    # ('diabetes', '1-population diabetes cascade'),        
-                    ('service',  '1-population service delivery cascade'),
-                    ('hypertension',  '4-population hypertension cascade (Malawi)'),
-                    ('hiv',      '2-population HIV care cascade'), 
-                    ('tb',       '10-population tuberculosis model'), 
+    options = sc.odict([ # ('diabetes', '1-population diabetes cascade'), 
+                    ('udt',          'Undiagnosed-diagnosed-treated cascade (1 population)'),
+                    ('usdt',         'Undiagnosed-screened-diagnosed-treated cascade (1 population)'),
+                    ('sir',          'SIR model (1 population)'),       
+                    ('service',      'Service delivery cascade (1 population)'),
+                    ('hypertension', 'Hypertension cascade for Malawi (4 populations)'),
+                    ('hiv',          'HIV care cascade (2 populations)'), 
+                    ('tb',           'Tuberculosis model (10 populations)'), 
                     ])
     
     if which is None:
@@ -95,7 +94,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')
-        P.demo_optimization() # Add optimization example
+        P.demo_tb_optimization() # Add optimization example
         if verbose: print('Done!')
     
     elif which=='service':

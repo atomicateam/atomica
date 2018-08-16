@@ -442,13 +442,14 @@ class OptimInstructions(NamedItem):
     
         # Add all of the terms in the objective
         measurables = []
+        cascade_to_use = proj.framework.cascades.keys()[0] if proj.framework.cascades else None
         for mname,mweight in objective_weights.items():
 
             if mname == 'finalstage' and mweight:
-                measurables = MaximizeCascadeFinalStage('main',[end_year],pop_names='all')
+                measurables = MaximizeCascadeFinalStage(cascade_to_use,[end_year],pop_names='all')
                 break
             elif mname == 'conversion' and mweight:
-                measurables = MaximizeCascadeConversionRate('main',[end_year],pop_names='all')
+                measurables = MaximizeCascadeConversionRate(cascade_to_use,[end_year],pop_names='all')
                 break
             else:
                 measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))

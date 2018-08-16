@@ -51,12 +51,6 @@
     left: 12px;
   }
 
-  .navbar {
-    .navbar-header {
-      margin-left: 10px;
-    }
-  }
-
   .footer:not(.footer-big) {
     nav > ul {
       li:first-child {
@@ -453,4 +447,11 @@
     -webkit-overflow-scrolling: touch;
   }
 
+}
+
+@media screen and (min-width: 1500px) {
+  .container-fluid {
+    padding-left: 60px;
+    padding-right: 60px;
+  }
 }

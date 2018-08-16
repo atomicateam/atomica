@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-29
+Last update: 2018-08-16
 -->
 
 <template>
@@ -9,7 +9,7 @@ Last update: 2018-07-29
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoProject">Create demo project</button>
+        <button class="btn __blue" @click="addDemoProject">Add demo project</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
@@ -213,9 +213,6 @@ Last update: 2018-07-29
       </div>
     </modal>
     
-    <!-- Popup spinner -->
-    <popup-spinner></popup-spinner>
-    
   </div>
 
 </template>
@@ -226,15 +223,10 @@ var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
 import status from '@/services/status-service'
 import router from '@/router'
-import PopupSpinner from './Spinner.vue'
   
 export default {
   name: 'ProjectsPage',
   
-  components: {
-    PopupSpinner
-  },
-    
   data() {
     return {
       filterPlaceholder: 'Type here to filter projects', // Placeholder text for table filter box
@@ -353,7 +345,7 @@ export default {
       this.$modal.hide('create-project')
       status.start(this) // Start indicating progress.
       rpcservice.rpcDownloadCall('create_new_project',  // Have the server create a new project.
-        [this.$store.state.currentUser.UID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
+        [this.$store.state.currentUser.UID, null, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end, 'tb'])
       .then(response => {
         this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
         status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
