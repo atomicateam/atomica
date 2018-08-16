@@ -20,6 +20,7 @@ import xlrd
 import xlsxwriter as xw
 import io
 
+
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
@@ -856,22 +857,25 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self, name=None, label=None, spend_data=None, unit_cost=None, year=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self, name=None, label=None, baseline_spend=None, spend_data=None, unit_cost=None, coverage=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
 
-        self.name               = None # Short name of program
-        self.label              = None # Full name of the program
-        self.target_pars        = None # Parameters targeted by program, in form {'param': par.short, 'pop': pop}
-        self.target_par_types   = None # Parameter types targeted by program, should correspond to short names of parameters
-        self.target_pops        = None # Populations targeted by the program
+        assert name is not None, 'You must supply a name for a program'
+        self.name               = name # Short name of program
+        self.label              = name if label is None else label # Full name of the program
+        self.target_pars        = None # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop}
+        self.target_par_types   = None # List of parameter types targeted by program, should correspond to short names of parameters
+        self.target_pops        = None # List of populations targeted by the program
         self.target_comps       = [] # Compartments targeted by the program - used for calculating coverage denominators
-        self.spend_data         = None # Latest or estimated expenditure
-        self.unit_cost          = None # Unit cost of program
-        self.capacity           = None # Capacity of program (a number) - optional - if not supplied, cost function is assumed to be linear
-        
+        self.baseline_spend     = TimeSeries(assumption=0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data
+        self.spend_data         = TimeSeries() if spend_data is None else spend_data # TimeSeries with spending data
+        self.unit_cost          = TimeSeries() if unit_cost is None else unit_cost # TimeSeries with unit cost of program
+        self.capacity           = TimeSeries() if capacity is None else capacity # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.coverage           = TimeSeries() if coverage is None else coverage # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+
         # Populate the values
-        self.update(name=name, label=label, spend_data=spend_data, unit_cost=unit_cost, year=year, capacity=capacity, target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.update_targets(target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
         return None
 
 
@@ -887,8 +891,7 @@ class Program(NamedItem):
         return output
     
 
-
-    def update(self, name=None, label=None, spend_data=None, unit_cost=None, capacity=None, year=None, target_pops=None, target_pars=None, target_comps=None, spend_type=None):
+    def update_targets(self, target_pops=None, target_pars=None, target_comps=None):
         ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
         
         def set_target_pars(target_pars=None):
@@ -926,190 +929,28 @@ class Program(NamedItem):
             old_target_par_types.extend(target_par_types)
             self.target_par_types = list(set(old_target_par_types)) # Add the new values
             return None
-        
-        def set_cost_fn_pars(par=None, existing=None, year=None):
-            '''
-            Set unit cost or saturation.
-            
-            These can be specified as a number, a tuple, or a dict. If a dict, they can be 
-            specified with val as a tuple, or best, low, high as keys. Examples:
-            
-            set_cost_fn_pars(21) # Assumes current year and that this is the best value
-            set_cost_fn_pars(21, year=2014) # Specifies year
-            set_cost_fn_pars(year=2014, unit_cost=[11, 31]) # Specifies year, low, and high
-            set_cost_fn_pars({'year':2014', 'best':21}) # Specifies year and best
-            set_cost_fn_pars({'year':2014', 'val':(21, 11, 31)}) # Specifies year, best, low, and high
-            set_cost_fn_pars({'year':2014', 'best':21, 'low':11, 'high':31) # Specifies year, best, low, and high
-            
-            Note, this function will typically not be called directly, but rather through the update() methods
-            '''
-            
-            # Preprocessing
-            par_keys = ['year', 'best', 'low', 'high']
-            if year is None: year = 2018. # TEMPORARY
-            if existing is None: existing = dataframe(cols=par_keys) # Create dataframe
-            
-            # Handle cases
-            if isinstance(par, dataframe): 
-                existing = par # Right format already: use directly
-            elif checktype(par, 'arraylike'): # It's a list of....something, either a single year with uncertainty bounds or multiple years
-                if isnumber(par[0]): # It's a number (or at least the first entry is): convert to values and use
-                    best,low,high = Val(par).get('all') # Convert it to a Val to do proper error checking and set best, low, high correctly
-                    existing.addrow([year, best, low, high])
-                else: # It's not a list of numbers, so have to iterate
-                    for uc in par: # Actually a list of unit costs
-                        if isinstance(uc, dict): 
-                            set_cost_fn_pars(uc) # It's a dict: iterate recursively to add 
-                        else:
-                            errormsg = 'Could not understand list of cost function parameters: expecting list of floats or list of dicts, not list containing %s' % uc
-                            raise AtomicaException(errormsg)
-            elif isinstance(par, dict): # Other main usage case -- it's a dict
-                if any([key not in par_keys+['val'] for key in par.keys()]):
-                    errormsg = 'Mismatch between supplied keys %s and key options %s' % (par.keys(), par_keys)
-                    raise AtomicaException(errormsg)
-                val = par.get('val') # First try to get 'val'
-                if val is None: # If that fails, get other arguments
-                    val = [par.get(key) for key in ['best', 'low', 'high']] # Get an array of values...
-                best,low,high = Val(val).get('all') # ... then sanitize them via Val
-                existing.addrow([par.get('year',year), best, low, high]) # Actually add to dataframe
-            else:
-                errormsg = 'Expecting cost function parameters of type dataframe, list/tuple/array, or dict, not %s' % type(par)
-                raise AtomicaException(errormsg)
-            return existing
 
-        
-        def set_spend(spend_data=None, year=None, spend_type='spend'):
-            ''' Handle the spend data'''
-            data_keys = ['year', spend_type]
-
-            # Validate inputs
-            if spend_type=='spend': attr_to_set = 'spend_data'
-            elif spend_type=='basespend': attr_to_set = 'base_spend_data'
-            else:
-                errormsg = 'Unknown spend type %s' % spend_type
-                raise AtomicaException(errormsg)
-            
-            if self.__getattribute__(attr_to_set) is None:
-                    self.__setattr__(attr_to_set,dataframe(cols=data_keys)) # Create dataframe
-
-            if year is None: year = 2018. # TEMPORARY
-            
-            # Consider different input possibilities
-            if isinstance(spend_data, dataframe): 
-                self.__setattr__(attr_to_set,spend_data) # Right format already: use directly
-            elif isinstance(spend_data, dict):
-                spend_data = {key:promotetolist(spend_data.get(key)) for key in data_keys} # Get full row
-                if spend_data['year'] is not None:
-                    for n,year in enumerate(spend_data['year']):
-                        current_data = self.__getattribute__(attr_to_set).findrow(year,asdict=True) # Get current row as a dictionary
-                        if current_data is not None:
-                            for key in spend_data.keys():
-                                if spend_data[key][n] is None: spend_data[key][n] = current_data[key] # Replace with old data if new data is None
-                        these_data = [spend_data['year'][n], spend_data[spend_type][n]] # Get full row - WARNING, FRAGILE TO ORDER!
-                        if attr_to_set == 'spend_data': self.spend_data.addrow(these_data) # Add new data
-                        elif attr_to_set == 'base_spend_data': self.base_spend_data.addrow(these_data) # Add new data
-            elif isinstance(spend_data, list): # Assume it's a list of dicts
-                for datum in spend_data:
-                    if isinstance(datum, dict):
-                        set_spend(datum) # It's a dict: iterate recursively
-                    else:
-                        errormsg = 'Could not understand list of data: expecting list of dicts, not list containing %s' % datum
-                        raise AtomicaException(errormsg)
-            else:
-                errormsg = 'Can only add data as a dataframe, dict, or list of dicts; this is not valid: %s' % spend_data
-                raise AtomicaException(errormsg)
-
-            return None
-            
-        # Actually set everything
-        if name         is not None: self.name           = name # full name
-        if label        is not None: self.label          = label # full name
         if target_pops  is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
         if target_pars  is not None: set_target_pars(target_pars) # targeted parameters
         if target_comps is not None: self.target_comps    = promotetolist(target_comps, 'string') # key(s) for targeted populations
 
-        if capacity    is not None: self.capacity       = set_cost_fn_pars(capacity, existing=self.capacity, year=year) # capacity
-        if unit_cost   is not None: self.unit_cost      = set_cost_fn_pars(unit_cost, existing=self.unit_cost, year=year) # unit cost(s)
-#        if capacity    is not None: self.capacity       = Val(sanitize(capacity)[-1]) # saturation coverage value - TODO, ADD YEARS
-#        if unit_cost   is not None: set_cost_fn_pars(unit_cost, year) # unit cost(s)
-        if spend_type is not None:
-            if spend_data  is not None:
-                set_spend(spend_data=spend_data,spend_type=spend_type) # Set spending data
-        
-        # Finally, check everything
-        if self.name is None: # self.name must exist
-            errormsg = 'You must supply a name for a program'
-            raise AtomicaException(errormsg)
-        if self.label is None:       self.label = self.name # If label not supplied, use name
         if self.target_pops is None: self.target_pops = [] # Empty list
         if self.target_pars is None:
             self.target_pars = [] # Empty list
             self.target_par_types = [] # Empty list
             
         return None
-    
-    
-    def add_spend(self, spend_data=None, year=None, spend=None, spend_type='spend'):
-        ''' Convenience function for adding data. Use either data as a dict/dataframe, or use kwargs, but not both '''
-        if spend_data is None:
-            spend_data = {'year':float(year), spend_type:spend}
-        self.update(spend_data=spend_data, spend_type=spend_type)
 
-        return None
-        
-        
-    def add_pars(self, unit_cost=None, capacity=None, year=None):
-        ''' Convenience function for adding saturation and unit cost. year is ignored if supplied in unit_cost. '''
-        # Convert inputs
-        if year is not None: year=float(year)
-        if unit_cost is not None: unit_cost=promotetolist(unit_cost)
-        self.update(unit_cost=unit_cost, capacity=capacity, year=year)
-        return None
-    
-    
-    def get_spend(self, year=None, total=False, die=False):
+    def get_spend(self, year=None, total=False):
         ''' Convenience function for getting spending data'''
-        spend = []
-        try:
-            if year is not None:
-                year = sc.promotetoarray(year)
-                for yr in year:
-                    this_data = self.spend_data.findrow(yr, closest=True, asdict=True) # Get data
-                    this_spend = this_data['spend']
-                    if this_spend is None: spend = 0 # If not specified, assume 0
-                    if total: 
-                        base_spend = this_data['basespend'] # Add baseline spending
-                        if base_spend is None: base_spend = 0 # Likewise assume 0
-                        this_spend += base_spend
-                    spend.append(this_spend)
-            else: # Just get the most recent non-nan number
-                spend = self.spend_data['spend'][~isnan(array([x for x in self.spend_data['spend']]))][-1] # TODO FIGURE OUT WHY THE SIMPLER WAY DOESN'T WORK
-            return spend
-        except Exception as E:
-            if die:
-                errormsg = 'Retrieving spending failed: %s' % E.message
-                raise AtomicaException(errormsg)
-            else:
-                return None
-            
-    
-    def get_unit_cost(self, year=None, die=False):
-        ''' Convenience function for getting the current unit cost '''
-        if year is None: year = 2018. # TEMPORARY
-        unit_cost = []
-        year = sc.promotetoarray(year)
-        try:
-            for yr in year:
-                this_data = self.unit_cost.findrow(yr, closest=True, asdict=True) # Get data
-                unit_cost.append(this_data['best'])
-            return unit_cost
-        except Exception as E:
-            if die:
-                errormsg = 'Retrieving unit cost failed: %s' % E.message
-                raise AtomicaException(errormsg)
-            else: # If not found, don't die, just return None
-                return None
-    
+        if total:
+            return self.spend_data.interpolate(year) + self.baseline_spend.interpolate(year)
+        else:
+            return self.spend_data.interpolate(year)
+
+    def get_unit_cost(self, year=None):
+        return self.unit_cost.interpolate(year)
+
 
     def optimizable(self, doprint=False, partial=False):
         '''
@@ -1141,36 +982,23 @@ class Program(NamedItem):
         
 
     def has_budget(self):
-        return True if not (isnan(array([x for x in self.spend_data['spend']]))).all() else False #TODO, FIGURE OUT WHY SIMPLER WAY DOESN'T WORK!!!
+        return self.spend_data.has_data()
 
-
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False):
         '''Returns number covered for a time/spending vector'''
         num_covered = 0.
-        
+
         # Validate inputs
         if budget is None:
-            try:
-                budget = self.get_spend(year)
-            except Exception as E:
-                errormsg = 'Can''t get number covered without a spending amount: %s' % E.message
-                raise AtomicaException(errormsg)
-            if isnan(budget).any():
-                errormsg = 'No spending associated with the year provided: %s'
-                raise AtomicaException(errormsg)
+            budget = self.spend_data.interpolate(year)
         budget = promotetoarray(budget)
                 
         if unit_cost is None:
-            try: unit_cost = self.get_unit_cost(year)
-            except Exception as E:
-                errormsg = 'Can''t get number covered without a unit cost: %s' % E.message
-                raise AtomicaException(errormsg)
-            if isnan(unit_cost).any():
-                errormsg = 'No unit cost associated with the year provided: %s' % E.message
-                raise AtomicaException(errormsg)
+            unit_cost = self.unit_cost.interpolate(year)
         unit_cost = promotetoarray(unit_cost)
             
         if capacity is None:
+
             if self.capacity is not None: capacity = self.capacity.get(sample)
             
         # Use a linear cost function if capacity has not been set

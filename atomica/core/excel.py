@@ -641,32 +641,32 @@ class TimeDependentValuesEntry(object):
             update_widths(widths,i,entry)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
-        for pop_name, pop_ts in self.ts.items():
+        for row_name, row_ts in self.ts.items():
             current_row += 1
 
             # Write the name
-            if pop_name in references:
-                worksheet.write_formula(current_row, 0, references[pop_name], formats['center_bold'],value=pop_name)
-                update_widths(widths, 0, pop_name)
+            if row_name in references:
+                worksheet.write_formula(current_row, 0, references[row_name], formats['center_bold'],value=row_name)
+                update_widths(widths, 0, row_name)
             else:
-                worksheet.write_string(current_row, 0, pop_name, formats['center_bold'])
-                update_widths(widths, 0, pop_name)
+                worksheet.write_string(current_row, 0, row_name, formats['center_bold'])
+                update_widths(widths, 0, row_name)
 
             # Write the units
             # TODO - change ts.format to ts.units??
-            worksheet.write(current_row,1,pop_ts.format.title() if pop_ts.format else None)
-            update_widths(widths, 1, pop_ts.format.title() if pop_ts.format else None)
+            worksheet.write(current_row,1,row_ts.format.title() if row_ts.format else None)
+            update_widths(widths, 1, row_ts.format.title() if row_ts.format else None)
 
             if self.allowed_units: # Add validation if a list of options is specified
                 worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
 
-            if pop_ts.has_data:
+            if row_ts.has_data:
                 format = formats['not_required']
             else:
                 format = formats['unlocked']
 
             # Write the assumption
-            worksheet.write(current_row,2,pop_ts.assumption, format)
+            worksheet.write(current_row,2,row_ts.assumption, format)
 
             # Write the separator between the assumptions and the time values
             worksheet.write(current_row,3,'OR',formats['center'])
@@ -676,7 +676,7 @@ class TimeDependentValuesEntry(object):
             offset = 4 # This is the column where the time values begin
             content = [None]*len(self.tvec)
 
-            for t,v in zip(pop_ts.t,pop_ts.vals):
+            for t,v in zip(row_ts.t,row_ts.vals):
                 idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec
                 content[idx] = v
 
