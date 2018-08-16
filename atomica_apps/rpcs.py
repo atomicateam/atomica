@@ -752,12 +752,15 @@ def add_demo_project(user_id, project_name='default'):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, data_start, data_end):
+def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, data_start, data_end, tool=None):
     """
     Create a new project.
     """
-    framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
-    frame = framework_record.frame
+    if tool is None: # Optionally select by tool rather than frame
+        framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
+        frame = framework_record.frame
+    else: # Or get a pre-existing one by the tool name
+        frame = au.demo(kind='framework', which=tool)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
