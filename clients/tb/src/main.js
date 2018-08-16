@@ -20,7 +20,7 @@ Vue.config.productionTip = false
 // library imports
 import Chartist from 'chartist'
 import 'bootstrap/dist/css/bootstrap.css'
-import './assets/sass/project.scss'
+import './sass/project.scss'
 import 'es6-promise/auto'
 
 // plugin setup
