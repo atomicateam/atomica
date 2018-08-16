@@ -462,19 +462,5 @@ Last update: 2018-08-15
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  .calib-main {
-    display: flex;
-    margin-top: 4rem;
-  }
-  .calib-params {
-    flex: 0 0 30%;
-  }
-  .calib-graphs {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    & > div {
-      flex: 0 0 650px;
-    }
-  }
+
 </style>

@@ -988,10 +988,8 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
             if nans_replaced:
                 print('Warning: %s nans were replaced' % nans_replaced)
 
-            if stacked:
-                figs = au.plot_series(plotdata, axis='pops', plot_type='stacked')
-            else:
-                figs = au.plot_series(plotdata, axis='pops', data=proj.data) # Only plot data if not stacked
+            if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
+            else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
 
             for fig in figs:
                 ax = fig.get_axes()[0]
@@ -1012,7 +1010,27 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     return {'graphs':graphs}
 
 
-def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None):
+def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
+    if figsize is None: figsize = (5,3)
+    fig.set_size_inches(figsize)
+    ax = fig.get_axes()[0]
+    ax.set_position([0.25,0.15,0.70,0.75])
+    ax.set_facecolor('none')
+    ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+    ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+    if xlims is not None: ax.set_xlim(xlims)
+    try:
+        legend = fig.findobj(Legend)[0]
+        if len(legend.get_texts())==1:
+            legend.remove() # Can remove the legend if it only has one entry
+    except:
+        pass
+    mpld3.plugins.connect(fig, CursorPosition())
+    graph_dict = mpld3.fig_to_dict(fig)
+    return graph_dict
+    
+    
+def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None, figsize=None):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func() 
     if plot_names is None: 
@@ -1044,24 +1062,10 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
                             series.vals[nan_ind] = series.vals[nan_ind-1]
                             nans_replaced += 1
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
-            if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked')
-            else:       figs = au.plot_series(plotdata, data=data, axis='results')
-
-            # Todo - customize plot formatting here
+            if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
+            else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
             for fig in figs:
-                ax = fig.get_axes()[0]
-                ax.set_facecolor('none')
-                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-                if xlims is not None: ax.set_xlim(xlims)
-                legend = fig.findobj(Legend)[0]
-                if len(legend.get_texts())==1:
-                    legend.remove() # Can remove the legend if it only has one entry
-                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                mpld3.plugins.connect(fig, CursorPosition())
-                graph_dict = mpld3.fig_to_dict(fig)
-                graphs.append(graph_dict)
-            # pl.close('all')
+                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1114,17 +1118,18 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
     proj.modified = sc.today()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
+    cascadeoutput = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
     if tool == 'cascade':
-        if result.framework.cascades:
-            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
-        else:
-            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=None) # Plot the fallback cascade - this might not be a valid cascade
+        return cascadeoutput
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
         unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
         output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-    return output
+        output['graphs'] += cascadeoutput['graphs']
+        return output
+    
+    
     
     
 @RPC()    
@@ -1132,7 +1137,7 @@ def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=Fa
     
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
-    proj.calibrate(max_time=max_time) # WARNING, add kwargs!
+    proj.calibrate(parset=parsetname, max_time=float(max_time)) # WARNING, add kwargs!
     
     print('Rerunning calibrated model...')
     

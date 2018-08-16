@@ -607,52 +607,6 @@ Last update: 2018-08-15
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style>
-  .calib-controls {
-    margin-bottom: 3rem;
-  }
-  .calib-controls .control-group {
-    display: inline-block;
-  }
-  .calib-controls button, .calib-controls .control-group {
-    margin-right: 1rem;
-  }
 
-  .calib-main {
-    display: flex;
-    margin-top: 4rem;
-  }
-  .calib-params {
-    flex: 0 0 30%;
-  }
-  .calib-graphs {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    & > div {
-      flex: 0 0 650px;
-    }
-  }
-
-  .plotopts-main {
-    /*width: 350px;*/
-    /*padding-left: 20px;*/
-    display: flex;
-    /*float: left;*/
-  }
-  .plotopts-main--full {
-    display: block;
-  }
-  .plotopts-params {
-    flex: 1 0 10%;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
-  }
-  .small-button {
-    background: inherit;
-    padding: 0 0 0 0;
-  }
 </style>
 

@@ -27,7 +27,15 @@ Last update: 2018-08-16
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
+        <div class="controls-box">
+          <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
+          for&nbsp;
+          <select v-model="calibTime">
+            <option v-for='time in calibTimes'>
+              {{ time }}
+            </option>
+          </select>
+        </div>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -66,9 +74,7 @@ Last update: 2018-08-16
         </div>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="exportResults(projectID)">Export data</button>
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+
 
       </div>
     
@@ -124,9 +130,17 @@ Last update: 2018-08-16
           </table>
         </div>
 
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+        <div>
+          <div style="text-align: center">
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn" @click="clearGraphs()">Clear graphs</button>
+            <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+          </div>
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
           </div>
         </div>
 
@@ -221,6 +235,8 @@ Last update: 2018-08-16
         startYear: 0,
         endYear: 0,
         plotOptions: [],
+        calibTime: '30 seconds',
+        calibTimes: ['30 seconds', 'Unlimited']
       }
     },
 
@@ -259,9 +275,10 @@ Last update: 2018-08-16
 
     methods: {
 
-      getPlotOptions() { return utils.getPlotOptions(this) },
-      makeGraphs(graphdata) { return utils.makeGraphs(this, graphdata) },
-      clearGraphs() { return utils.clearGraphs() },
+      getPlotOptions()          { return utils.getPlotOptions(this) },
+      clearGraphs()             { return utils.clearGraphs() },
+      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
       updateParset() {
@@ -346,7 +363,12 @@ Last update: 2018-08-16
         console.log('autoCalibrate() called')
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
-        rpcs.rpc('automatic_calibration', [project_id, this.activeParset]) // Go to the server to get the results from the package set.
+        if (this.calibTime === '30 seconds') {
+          let maxtime = 30
+        } else {
+          let maxtime = 9999
+        }
+        rpcs.rpc('automatic_calibration', [project_id, this.activeParset, maxtime]) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs)
           })
@@ -409,51 +431,5 @@ Last update: 2018-08-16
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style>
-  .calib-controls {
-    margin-bottom: 3rem;
-  }
-  .calib-controls .control-group {
-    display: inline-block;
-  }
-  .calib-controls button, .calib-controls .control-group {
-    margin-right: 1rem;
-  }
 
-  .calib-main {
-    display: flex;
-    margin-top: 4rem;
-  }
-  .calib-params {
-    flex: 0 0 30%;
-  }
-  .calib-graphs {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    & > div {
-      flex: 0 0 650px;
-    }
-  }
-
-  .plotopts-main {
-    /*width: 350px;*/
-    /*padding-left: 20px;*/
-    display: flex;
-    /*float: left;*/
-  }
-  .plotopts-main--full {
-    display: block;
-  }
-  .plotopts-params {
-    flex: 1 0 10%;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
-  }
-  .small-button {
-    background: inherit;
-    padding: 0 0 0 0;
-  }
 </style>
