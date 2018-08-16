@@ -170,8 +170,6 @@ Last update: 2018-08-16
           </div>
         </div>
 
-
-
       </div>
       
     </div>
