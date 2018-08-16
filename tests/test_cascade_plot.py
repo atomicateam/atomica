@@ -3,7 +3,7 @@ from atomica.ui import ProjectFramework, Project
 import sciris.core as sc
 
 # test = 'tb'
-test = 'udt'
+test = 'udt2'
 
 torun = [
 "basicplots",
@@ -54,6 +54,9 @@ if "basicplots" in torun:
         au.plot_cascade(result, cascade=None, pops='all', year=startyear, data=P.data) # plot default cascade
         au.plot_cascade(result, cascade=['all_people','all_dx'], pops='all', year=startyear, data=P.data) # plot sequence cascade
         au.plot_cascade(result, cascade={'Everyone':['all_people'],'Infected':['dx','tx']}, pops='all', year=startyear, data=P.data) # plot dict cascade
+    elif test == 'udt2':
+        # No predefined cascades, use the default one
+        au.plot_cascade(result, pops='all', year=2016, data=P.data)  # plot default cascade
     else:
         # Plot the first cascade by default
         startyear = 2016

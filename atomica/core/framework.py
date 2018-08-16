@@ -236,7 +236,7 @@ class ProjectFramework(object):
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
         ### VALIDATE COMPARTMENTS
-        required_columns = ['display name','is source', 'is sink']
+        required_columns = ['display name']
         defaults = {
             'is sink':'n',
             'is source':'n',
