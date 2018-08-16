@@ -33,7 +33,8 @@ Last update: 2018-08-15
             <b>{{ optimSummary.name }}</b>
           </td>
           <td style="white-space: nowrap">
-            <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
+            <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
+            <button class="btn" @click="runOptim(optimSummary, 30)">Test run</button>
             <button class="btn" @click="editOptim(optimSummary)">Edit</button>
             <button class="btn" @click="copyOptim(optimSummary)">Copy</button>
             <button class="btn" @click="deleteOptim(optimSummary)">Delete</button>
@@ -119,10 +120,6 @@ Last update: 2018-08-15
                 {{ progset }}
               </option>
             </select><br><br>
-            Maximum time to run optimization (s):<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="addEditModal.optimSummary.maxtime"/><br>
             Start year:<br>
             <input type="text"
                    class="txbox"
@@ -539,7 +536,7 @@ Last update: 2018-08-15
         this.areShowingPlots = !this.areShowingPlots
       },
 
-      runOptim(optimSummary) {
+      runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim)
         // Start indicating progress.
         status.start(this)
@@ -550,7 +547,7 @@ Last update: 2018-08-15
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
           taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optimization',
-            [this.projectID(), optimSummary.name, this.plotOptions])
+            [this.projectID(), optimSummary.name, this.plotOptions, maxtime])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
 //                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
