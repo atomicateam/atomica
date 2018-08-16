@@ -21,12 +21,15 @@ Last update: 2018-08-16
 
     <div v-else>
       <div class="calib-controls">
-        <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
-        <button class="btn" @click="toggleShowingParams()">
-          <span v-if="areShowingParameters">Hide</span>
-          <span v-else>Show</span>
-          parameters
-        </button>
+        <div class="controls-box">
+          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+          <button class="btn" @click="toggleShowingParams()">
+            <span v-if="areShowingParameters">Hide</span>
+            <span v-else>Show</span>
+            parameters
+          </button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
           <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
           for&nbsp;
@@ -36,7 +39,6 @@ Last update: 2018-08-16
             </option>
           </select>
         </div>
-
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
         <!--<div style="display: inline-block; padding-left: 100px">-->
@@ -132,13 +134,21 @@ Last update: 2018-08-16
 
         <div>
           <div style="text-align: center">
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
-            <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(0.9)">-</button>
-            <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.0)">Scale</button>
-            <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.1)">+</button>
-            <button class="btn" @click="clearGraphs()">Clear graphs</button>
-            <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+            <div class="controls-box">
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportResults(projectID)">Export data</button>
+            </div>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <div class="controls-box">
+              <button class="btn" @click="clearGraphs()">Clear graphs</button>
+              <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+            </div>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <div class="controls-box">
+              <button class="btn" @click="scaleFigs(0.9)">-</button>
+              <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+              <button class="btn" @click="scaleFigs(1.1)">+</button>
+            </div>
           </div>
           <div class="calib-graphs">
             <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
