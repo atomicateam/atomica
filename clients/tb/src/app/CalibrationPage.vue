@@ -21,7 +21,7 @@ Last update: 2018-08-16
 
     <div v-else>
       <div class="calib-controls">
-        <button class="btn __green" @click="makeGraphs(projectID)">Save & run</button>
+        <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
         <button class="btn" @click="toggleShowingParams()">
           <span v-if="areShowingParameters">Hide</span>
           <span v-else>Show</span>
@@ -213,7 +213,7 @@ Last update: 2018-08-16
     
     data() {
       return {
-        serverresponse: 'no response',
+        response: 'no response',
         sortColumn: 'index',
         sortReverse: false,
         parList: [],
@@ -255,7 +255,7 @@ Last update: 2018-08-16
         this.updateParset()
         utils.sleep(1000)
           .then(response => {
-            this.makeGraphs(this.projectID)
+            this.manualCalibration(this.projectID)
             }
           );
       }
@@ -341,40 +341,46 @@ Last update: 2018-08-16
         this.areShowingPlots = !this.areShowingPlots
       },
 
-      makeGraphs(project_id) {
-        console.log('makeGraphs() called')
+      manualCalibration(project_id) {
+        console.log('manualCalibration() called')
         status.start(this) // Start indicating progress.
         rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
-        .then(response => {
-          this.serverresponse = response.data // Pull out the response data.
-          var n_plots = response.data.graphs.length
-          console.log('Rendering ' + n_plots + ' graphs')
-          for (var index = 0; index <= n_plots; index++) {
-            console.log('Rendering plot ' + index)
-            var divlabel = 'fig' + index
-            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-            while (div.firstChild) {
-              div.removeChild(div.firstChild);
-            }
-            try {
-              console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-              });
-              this.haveDrawnGraphs = true
-            }
-            catch (err) {
-              console.log('failled:' + err.message);
-            }
+          .then(response => {
+            status.succeed(this, 'Simulation run') // Indicate success.
+            this.response = response // Pull out the response data.
+            this.makeGraphs()
+          })
+          .catch(error => {
+            console.log(error.message)
+            status.fail(this, 'Could not run manual calibration: ' + error.message)
+          })
+      },
+
+      makeGraphs() {
+        console.log('makeGraphs() called')
+        status.start(this) // Start indicating progress.
+        var n_plots = this.response.data.graphs.length
+        console.log('Rendering ' + n_plots + ' graphs')
+        for (var index = 0; index <= n_plots; index++) {
+          console.log('Rendering plot ' + index)
+          var divlabel = 'fig' + index
+          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+          while (div.firstChild) {
+            div.removeChild(div.firstChild);
           }
-          status.succeed(this, 'Graphs created') // Indicate success.
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          status.fail(this, 'Could not make graphs: ' + error.message)
-        }) 
+          try {
+            console.log(this.response.data.graphs[index]);
+            mpld3.draw_figure(divlabel, this.response.data.graphs[index], function(fig, element) {
+              fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+              fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+            });
+            this.haveDrawnGraphs = true
+          }
+          catch (error) {
+            console.log('Making graphs failed: ' + error.message);
+          }
+        }
+        status.succeed(this, 'Graphs created') // Indicate success.
       },
 
       autoCalibrate(project_id) {
@@ -383,7 +389,7 @@ Last update: 2018-08-16
         this.$Progress.start(7000)
         rpcs.rpc('automatic_calibration', [project_id, this.activeParset]) // Go to the server to get the results from the package set.
         .then(response => {
-          this.serverresponse = response.data // Pull out the response data.
+          this.response = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
           console.log('Rendering ' + n_plots + ' graphs')
           for (var index = 0; index <= n_plots; index++) {
@@ -408,9 +414,8 @@ Last update: 2018-08-16
           status.succeed(this, 'Automatic calibration complete') // Indicate success.
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          status.fail(this, 'Automatic calibration failed')  // Indicate failure.
+          this.response = 'There was an error: ' + error.message // Pull out the error message.
+          status.fail(this, 'Automatic calibration failed: ' + error.message)  // Indicate failure.
         })
       },
 
