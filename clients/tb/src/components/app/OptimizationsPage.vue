@@ -259,7 +259,7 @@ Last update: 2018-08-15
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
       }
-      else { // Otherwise...
+      else if (this.$store.state.activeProject.project != undefined){ // Otherwise...
         // Load the optimization summaries of the current project.
         this.getOptimSummaries()
         this.getDefaultOptim()
