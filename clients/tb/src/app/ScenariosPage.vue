@@ -7,13 +7,13 @@ Last update: 2018-08-15
 <template>
   <div class="SitePage">
 
-    <div v-if="activeProjectID ==''">
+    <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
     
-    <div v-else-if="!activeProjectHasData">
+    <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
@@ -24,7 +24,7 @@ Last update: 2018-08-15
         <thead>
         <tr>
           <th>Name</th>
-          <th>Active?</th>          
+          <th>Active?</th>
           <th>Actions</th>
         </tr>
         </thead>
@@ -167,6 +167,7 @@ Last update: 2018-08-15
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
+  import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
@@ -178,9 +179,9 @@ Last update: 2018-08-15
 
     data() {
       return {
-        serverresponse: 'no response',
+        response: 'no response',
         scenSummaries: [],
-        defaultBudgetScen: [],
+        defaultBudgetScen: {},
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -200,76 +201,44 @@ Last update: 2018-08-15
     },
 
     computed: {
-      activeProjectID() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          console.log('activeProjectID() called')
-          return this.$store.state.activeProject.project.id
-        }
-      },
-
-      activeProjectHasData() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return false
-        }
-        else {
-          return this.$store.state.activeProject.project.hasData
-        }
-      },
-
-      placeholders() {
-        var indices = []
-        for (var i = 0; i <= 100; i++) {
-          indices.push(i);
-        }
-        return indices;
-      },
-
+      projectID()    { return utils.projectID(this) },
+      hasData()      { return utils.hasData(this) },
+      simStart()     { return utils.simStart(this) },
+      simEnd()       { return utils.simEnd(this) },
+      placeholders() { return utils.placeholders() },
     },
 
     created() {
-      // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
+      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
-      } else if ((this.$store.state.activeProject.project != undefined) &&
-        (this.$store.state.activeProject.project.hasData) ) {
-        // Load the scenario summaries of the current project.
+      }
+      else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {      
         console.log('created() called')
-        this.getScenSummaries()
-        this.getDefaultBudgetScen()
-        this.updateSets()
-        this.getPlotOptions()
+        this.startYear  = this.active_sim_start
+        this.endYear    = this.active_sim_end
+        this.popOptions = this.active_pops
+        utils.sleep(1)  // used so that spinners will come up by callback func
+        .then(response => {
+          this.getScenSummaries()
+          this.getDefaultBudgetScen()
+          this.updateSets()
+          this.getPlotOptions()
+        })
       }
     },
 
     methods: {
 
-      dcp(input) {
-        var output = JSON.parse(JSON.stringify(input))
-        return output
-      },
-
-      getUniqueName(fileName, otherNames) {
-        let tryName = fileName
-        let numAdded = 0
-        while (otherNames.indexOf(tryName) > -1) {
-          numAdded = numAdded + 1
-          tryName = fileName + ' (' + numAdded + ')'
-        }
-        return tryName
-      },
-
-      projectID() {
-        var id = this.$store.state.activeProject.project.id // Shorten this
-        return id
-      },
-
-      // TO_PORT
+      getPlotOptions() { return utils.getPlotOptions(this) },
+      makeGraphs(graphdata) { return utils.makeGraphs(this, graphdata) },
+      clearGraphs() { return utils.clearGraphs() },
+      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -283,7 +252,7 @@ Last update: 2018-08-15
           console.log('Active parset: ' + this.activeParset)
 
           // Get the current user's progsets from the server.
-          rpcs.rpc('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -297,91 +266,70 @@ Last update: 2018-08-15
             console.log('Active progset: ' + this.activeProgset)
           })
           .catch(error => {
-            // Failure popup.
-            status.failurePopup(this, 'Could not get progset info')
-          })
+            status.failurePopup(this, 'Could not get progset info: ' + error.message)
+          })            
         })
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not get parset info')
+          status.failurePopup(this, 'Could not get parset info: ' + error.message)
         })
       },
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
-        rpcs.rpc('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           console.log('This is the default:')
           console.log(this.defaultBudgetScen);
         })
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not get default budget scenario')
-        })
+          status.failurePopup(this, 'Could not get default budget scenario: ' + error.message)
+        })         
       },
 
       getScenSummaries() {
         console.log('getScenSummaries() called')
-
-        // Start indicating progress.
         status.start(this)
-
-        // Get the current project's scenario summaries from the server.
-        rpcs.rpc('get_scen_info', [this.projectID()])
+        rpcs.rpc('get_scen_info', [this.projectID])
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
           console.log(this.scenSummaries)
-
           this.scenariosLoaded = true
-
-          // Indicate success.
           status.succeed(this, 'Scenarios loaded')
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-
-          // Indicate failure.
+          this.response = 'There was an error: ' + error.message // Pull out the error message.
           status.fail(this, 'Could not get scenarios: ' + error.message)
         })
       },
 
       setScenSummaries() {
         console.log('setScenSummaries() called')
-
-        // Start indicating progress.
         status.start(this)
-
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
-          // Indicate success.
           status.succeed(this, 'Scenarios saved')
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not save scenarios')
-        })
+          status.fail(this, 'Could not save scenarios: ' + error.message)
+        })        
       },
 
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
-        rpcs.rpc('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
-          this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+          this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
           this.addEditModal.origName = this.addEditModal.scenSummary.name
           this.addEditModal.mode = 'add'
           this.$modal.show('add-budget-scen');
           console.log(this.defaultBudgetScen)
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-
-           // Failure popup.
+          this.response = 'There was an error: ' + error.message // Pull out the error message.
           status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
         })
       },
@@ -389,23 +337,14 @@ Last update: 2018-08-15
       addBudgetScen() {
         console.log('addBudgetScen() called')
         this.$modal.hide('add-budget-scen')
-
-        // Start indicating progress.
         status.start(this)
-
-        // Get the new scenario summary from the modal.
-        let newScen = this.dcp(this.addEditModal.scenSummary)
-
-        // Get the list of all of the current scenario names.
-        let scenNames = []
+        let newScen = utils.dcp(this.addEditModal.scenSummary) // Get the new scenario summary from the modal.
+        let scenNames = [] // Get the list of all of the current scenario names.
         this.scenSummaries.forEach(scenSum => {
           scenNames.push(scenSum.name)
         })
-
-        // If we are editing an existing scenario...
-        if (this.addEditModal.mode == 'edit') {
-          // Get the index of the original (pre-edited) name
-          let index = scenNames.indexOf(this.addEditModal.origName)
+        if (this.addEditModal.mode == 'edit') { // If we are editing an existing scenario...
+          let index = scenNames.indexOf(this.addEditModal.origName) // Get the index of the original (pre-edited) name
           if (index > -1) {
             this.scenSummaries[index].name = newScen.name  // hack to make sure Vue table updated
             this.scenSummaries[index] = newScen
@@ -414,24 +353,18 @@ Last update: 2018-08-15
             console.log('Error: a mismatch in editing keys')
           }
         }
-        // Else (we are adding a new scenario)...
-        else {
-          newScen.name = this.getUniqueName(newScen.name, scenNames)
+        else { // Else (we are adding a new scenario)...
+          newScen.name = utils.getUniqueName(newScen.name, scenNames)
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
-        console.log(this.scenSummaries)
-
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        console.log(this.scenSummaries)        
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
-          // Indicate success.
           status.succeed(this, 'Scenario added')
         })
         .catch(error => {
-          // Indicate failure.
           status.fail(this, 'Could not add scenario')
-
-          // TODO: Should probably fix the corrupted this.scenSummaries.
         })
       },
 
@@ -441,71 +374,46 @@ Last update: 2018-08-15
         this.defaultBudgetScen = scenSummary
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
-        this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
-        this.addEditModal.origName = this.addEditModal.scenSummary.name
-        this.addEditModal.mode = 'edit'
+        this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
+        this.addEditModal.origName = this.addEditModal.scenSummary.name         
+        this.addEditModal.mode = 'edit' 
         this.$modal.show('add-budget-scen');
       },
 
       copyScen(scenSummary) {
         console.log('copyScen() called')
-
-        // Start indicating progress.
         status.start(this)
-
-        var newScen = this.dcp(scenSummary); // You've got to be kidding me, buster
+        var newScen = utils.dcp(scenSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
         })
-        newScen.name = this.getUniqueName(newScen.name, otherNames)
+        newScen.name = utils.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
-          // Indicate success.
           status.succeed(this, 'Scenario copied')
         })
         .catch(error => {
-          // Indicate failure.
           status.fail(this, 'Could not copy scenario')
-
-          // TODO: Should probably fix the corrupted this.scenSummaries.
         })
       },
 
       deleteScen(scenSummary) {
         console.log('deleteScen() called')
-
-        // Start indicating progress.
         status.start(this)
-
         for(var i = 0; i< this.scenSummaries.length; i++) {
           if(this.scenSummaries[i].name === scenSummary.name) {
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
-          // Indicate success.
           status.succeed(this, 'Scenario deleted')
         })
         .catch(error => {
-          // Indicate failure.
           status.fail(this, 'Could not delete scenario')
-
-          // TODO: Should probably fix the corrupted this.scenSummaries.
         })
-      },
-
-      getPlotOptions() {
-        console.log('getPlotOptions() called')
-        rpcs.rpc('get_supported_plots', [true])
-          .then(response => {
-            this.plotOptions = response.data // Get the parameter values
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
-          })
       },
 
       toggleShowingPlots() {
@@ -517,89 +425,38 @@ Last update: 2018-08-15
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcs.rpc('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false})
+          rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false})
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                  fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
-            }
-
-            // Indicate success.
-            status.succeed(this, 'Graphs created')
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-
-            // Indicate failure.
-            status.fail(this, 'Could not make graphs')
+            console.log('There was an error: ' + error.message) // Pull out the error message.
+            status.fail(this, 'Could not run scenarios: ' + error.message) // Indicate failure.
           })
         })
         .catch(error => {
-          // Pull out the error message.
-          this.serverresponse = 'There was an error: ' + error.message
-
-          // Set the server error.
-          this.servererror = error.message
-
-          // Put up a failure notification.
-          status.fail(this, 'Could not make graphs')
-        })
+          this.response = 'There was an error: ' + error.message
+          status.fail(this, 'Could not set scenarios: ' + error.message)
+        })        
       },
 
-      reloadGraphs() {
-        console.log('Reload graphs')
-        let n_plots = this.graphData.length
-        console.log('Rendering ' + n_plots + ' graphs')
-        for (let index = 0; index <= n_plots; index++) {
-          console.log('Rendering plot ' + index)
-          var divlabel = 'fig' + index
-          try {
-            mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-              fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-              fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-            });
-          }
-          catch (err) {
-            console.log('failled:' + err.message);
-          }
-        }
+      plotScenarios() {
+        console.log('plotScens() called')
+        status.start(this)
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        rpcservice.rpcCall('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          .then(response => {
+            this.table = response.data.table
+            this.makeGraphs(response.data.graphs)
+          })
+          .catch(error => {
+            console.log('There was an error: ' + error.message) // Pull out the error message.
+            status.fail(this, 'Could not plot scenarios: ' + error.message) // Indicate failure.
+          })
       },
-
-      clearGraphs() {
-        console.log('Clear graphs')
-        this.graphData = []
-        for (var index = 0; index <= 100; index++) {
-          console.log('Clearing plot ' + index)
-          var divlabel = 'fig' + index
-          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-          while (div.firstChild) {
-            div.removeChild(div.firstChild);
-          }
-        }
-      }
-
     }
   }
 </script>

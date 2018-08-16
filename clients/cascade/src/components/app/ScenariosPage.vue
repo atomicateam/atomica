@@ -85,8 +85,6 @@ Last update: 2018-08-14
 
 
 
-
-
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
         <div class="calib-params" v-if="areShowingPlots">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -143,7 +141,6 @@ Last update: 2018-08-14
           <div class="dialog-c-title" v-else>
             Edit scenario
           </div>
-          
           <div class="dialog-c-text">
             Scenario name:<br>
             <input type="text"
@@ -208,7 +205,7 @@ Last update: 2018-08-14
   import axios from 'axios'
   var filesaver = require('file-saver')
   import utils from '@/services/utils'
-  import rpcservice from '@/services/rpc-service'
+  import rpcs from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
@@ -236,7 +233,7 @@ Last update: 2018-08-14
         activePop: "All",
         endYear: 0,
         addEditModal: {
-          scenSummary: {},    
+          scenSummary: {},
           origName: '',
           mode: 'add'
         }
@@ -281,7 +278,7 @@ Last update: 2018-08-14
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID])
+        rpcs.rpc('get_parset_info', [this.projectID])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -293,9 +290,9 @@ Last update: 2018-08-14
           this.newParsetName = this.activeParset // WARNING, KLUDGY
           console.log('Parset options: ' + this.parsetOptions)
           console.log('Active parset: ' + this.activeParset)
-                    
+
           // Get the current user's progsets from the server.
-          rpcservice.rpcCall('get_progset_info', [this.projectID])
+          rpcs.rpc('get_progset_info', [this.projectID])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -319,7 +316,7 @@ Last update: 2018-08-14
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID])
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           console.log('This is the default:')
@@ -333,7 +330,7 @@ Last update: 2018-08-14
       getScenSummaries() {
         console.log('getScenSummaries() called')
         status.start(this)
-        rpcservice.rpcCall('get_scen_info', [this.projectID]) // Get the current project's scenario summaries from the server.
+        rpcs.rpc('get_scen_info', [this.projectID])
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
@@ -350,7 +347,7 @@ Last update: 2018-08-14
       setScenSummaries() {
         console.log('setScenSummaries() called')
         status.start(this)
-        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           status.succeed(this, 'Scenarios saved')
         })
@@ -362,7 +359,7 @@ Last update: 2018-08-14
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID])
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
@@ -373,9 +370,6 @@ Last update: 2018-08-14
         })
         .catch(error => {
           this.response = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          
-           // Failure popup.
           status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
         })
       },
@@ -397,7 +391,7 @@ Last update: 2018-08-14
           }
           else {
             console.log('Error: a mismatch in editing keys')
-          }            
+          }
         }
         else { // Else (we are adding a new scenario)...
           newScen.name = utils.getUniqueName(newScen.name, scenNames)
@@ -405,7 +399,7 @@ Last update: 2018-08-14
         }
         console.log(newScen)
         console.log(this.scenSummaries)        
-        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           status.succeed(this, 'Scenario added')
         })
@@ -436,7 +430,7 @@ Last update: 2018-08-14
         })
         newScen.name = utils.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           status.succeed(this, 'Scenario copied')
         })
@@ -453,7 +447,7 @@ Last update: 2018-08-14
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           status.succeed(this, 'Scenario deleted')
         })
@@ -469,12 +463,12 @@ Last update: 2018-08-14
       runScens() {
         console.log('runScens() called')
         status.start(this)
-        this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
+        this.$Progress.start(7000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.table = response.data.table
             this.makeGraphs(response.data.graphs)
@@ -511,78 +505,6 @@ Last update: 2018-08-14
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style>
-  .calib-controls {
-    margin-bottom: 3rem;
-  }
-  .calib-controls .control-group {
-    display: inline-block;
-  }
-  .calib-controls button, .calib-controls .control-group {
-    margin-right: 1rem;
-  }
 
-  .calib-main {
-    margin-top: 4rem;
-  }
-  .calib-params {
-    flex: 0 0 30%;
-  }
-  .calib-graphs {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    & > * {
-      flex: 0 0 650px;
-    }
-  }
-
-  /*
-  HACK: The purpose of this code is to get things to line up a bit until
-  we have a proper layout. Using fixed pixel widths is terrible and we
-  shouldn't do it in other places.
-  */
-  .calib-tables span {
-    display: block;
-    margin-bottom: 1rem;
-    font-weight: bold;
-  }
-  .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
-    color: black; /* To match graph */
-    font-family: Helvetica, sans-serif; /* To match graph */
-  }
-  .calib-tables table, .calib-tables tr, .calib-tables td {
-    border: 2px solid #ddd;
-  }
-  .calib-tables table td {
-    width: 96px;
-    padding: 0.5rem;
-    text-align: right;
-  }
-  .calib-tables table td:nth-child(1) {
-    width: 192px; /* Header column */
-    padding-right: 11px;
-  }
-
-  .plotopts-main {
-    /*width: 350px;*/
-    /*padding-left: 20px;*/
-    display: flex;
-    /*float: left;*/
-  }
-  .plotopts-main--full {
-    display: block;
-  }
-  .plotopts-params {
-    flex: 1 0 10%;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
-  }
-  .small-button {
-    background: inherit;
-    padding: 0 0 0 0;
-  }
 </style>
 
