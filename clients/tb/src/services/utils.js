@@ -26,20 +26,6 @@ function projectID(vm) {
   }
 }
 
-function projectLoaded(vm, uid) {
-  console.log('projectLoaded called')
-  if (vm.$store.state.activeProject.project != undefined) {
-    if (vm.$store.state.activeProject.project.id === uid) {
-      console.log('Project ' + uid + ' is loaded')
-      return true
-    } else {
-      return false
-    }
-  } else {
-    return false
-  }
-}
-
 function hasData(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return false
@@ -88,7 +74,6 @@ export default {
   sleep,
   placeholders,
   projectID,
-  projectLoaded,
   hasData,
   simStart,
   simEnd,

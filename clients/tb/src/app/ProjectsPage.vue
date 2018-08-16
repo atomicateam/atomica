@@ -268,7 +268,19 @@ export default {
 
   methods: {
 
-    projectLoaded(project_id) { return utils.projectLoaded(this, project_id) },
+    projectLoaded(uid) {
+      console.log('projectLoaded called')
+      if (this.$store.state.activeProject.project != undefined) {
+        if (this.$store.state.activeProject.project.id === uid) {
+          console.log('Project ' + uid + ' is loaded')
+          return true
+        } else {
+          return false
+        }
+      } else {
+        return false
+      }
+    },
 
     beforeOpen (event) {
       console.log(event)
