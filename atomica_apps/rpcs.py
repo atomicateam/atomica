@@ -28,10 +28,16 @@ from matplotlib.pyplot import rc
 rc('font', size=14)
 
 
+# Dictionary to hold all of the registered RPCs in this module.
+RPC_dict = {}
+
+# RPC registration decorator factory created using call to make_RPC().
+RPC = sw.make_register_RPC(RPC_dict)
+
+
 def CursorPosition():
     plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
     return plugin
-
 
 
 def timeit(method):
@@ -49,8 +55,6 @@ def timeit(method):
         return result
 
     return timed
-
-
 
 
 # Make a Result storable by Sciris
@@ -80,12 +84,6 @@ def store_result_separately(proj, result):
     result_so.add_to_data_store()
     proj.results.append(ResultPlaceholder(result))
     save_project(proj)
-
-# Dictionary to hold all of the registered RPCs in this module.
-RPC_dict = {}
-
-# RPC registration decorator factory created using call to make_RPC().
-RPC = sw.make_register_RPC(RPC_dict)
 
 
 

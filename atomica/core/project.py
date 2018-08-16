@@ -582,7 +582,7 @@ class Project(object):
         json['maxtime']           = 3600 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
-            json['prog_spending'][prog_name] = [1,None]
+            json['prog_spending'][prog_name] = [0,None]
         optim = self.make_optimization(json=json)
         if dorun:
             results = self.run_optimization(optimization=json['name'])
