@@ -5,9 +5,24 @@
 import rpcs from '@/services/rpc-service'
 import status from '@/services/status-service'
 
+function dcp(input) {
+  var output = JSON.parse(JSON.stringify(input))
+  return output
+}
+
 function sleep(time) {
   // Return a promise that resolves after _time_ milliseconds.
   return new Promise((resolve) => setTimeout(resolve, time));
+}
+
+function getUniqueName(fileName, otherNames) {
+  let tryName = fileName
+  let numAdded = 0
+  while (otherNames.indexOf(tryName) > -1) {
+    numAdded = numAdded + 1
+    tryName = fileName + ' (' + numAdded + ')'
+  }
+  return tryName
 }
 
 function placeholders() {
@@ -99,7 +114,9 @@ function exportResults(vm, project_id) {
 }
 
 export default {
+  dcp,
   sleep,
+  getUniqueName,
   placeholders,
   projectID,
   hasData,

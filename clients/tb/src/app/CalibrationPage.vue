@@ -67,12 +67,8 @@ Last update: 2018-08-16
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <button class="btn" @click="exportResults(projectID)">Export data</button>
-        <button class="btn" @click="clearGraphs()">Clear</button>
-        <button class="btn" @click="toggleShowingPlots()">
-          <span v-if="areShowingPlots">Hide</span>
-          <span v-else>Show</span>
-          plot controls
-        </button>
+        <button class="btn" @click="clearGraphs()">Clear graphs</button>
+        <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
 
       </div>
     
@@ -263,6 +259,7 @@ Last update: 2018-08-16
 
     methods: {
 
+      makeGraphs() { return utils.makeGraphs(this) },
       clearGraphs() { return utils.clearGraphs() },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
@@ -356,45 +353,20 @@ Last update: 2018-08-16
           })
       },
 
-      makeGraphs() { return utils.makeGraphs(this) },
-
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         rpcs.rpc('automatic_calibration', [project_id, this.activeParset]) // Go to the server to get the results from the package set.
-        .then(response => {
-          this.response = response.data // Pull out the response data.
-          var n_plots = response.data.graphs.length
-          console.log('Rendering ' + n_plots + ' graphs')
-          for (var index = 0; index <= n_plots; index++) {
-            console.log('Rendering plot ' + index)
-            var divlabel = 'fig' + index
-            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-            while (div.firstChild) {
-              div.removeChild(div.firstChild);
-            }
-            try {
-              console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-              });
-              this.haveDrawnGraphs = true
-            }
-            catch (err) {
-              console.log('failled:' + err.message);
-            }
-          }
-          status.succeed(this, 'Automatic calibration complete') // Indicate success.
-        })
-        .catch(error => {
-          this.response = 'There was an error: ' + error.message // Pull out the error message.
-          status.fail(this, 'Automatic calibration failed: ' + error.message)  // Indicate failure.
-        })
+          .then(response => {
+            this.response = response // Pull out the response data.
+            this.makeGraphs()
+          })
+          .catch(error => {
+            console.log(error.message)
+            status.fail(this, 'Could not run automatic calibration: ' + error.message)
+          })
       },
-
-
 
       renameParsetModal() {
         console.log('renameParsetModal() called');

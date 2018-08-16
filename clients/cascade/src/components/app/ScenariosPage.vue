@@ -207,6 +207,7 @@ Last update: 2018-08-14
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
+  import utils from '@/services/utils'
   import rpcservice from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
@@ -218,7 +219,7 @@ Last update: 2018-08-14
 
     data() {
       return {
-        serverresponse: 'no response',
+        response: 'no response',
         scenSummaries: [],
         defaultBudgetScen: {},
         objectiveOptions: [],
@@ -243,76 +244,25 @@ Last update: 2018-08-14
     },
 
     computed: {
-      activeProjectID() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let projectID = this.$store.state.activeProject.project.id
-          return projectID
-        }
-      },
-
-      activeProjectHasData() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return false
-        }
-        else {
-          return this.$store.state.activeProject.project.hasData
-        }
-      },
-
-      active_sim_start() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_start
-        }
-      },
-
-      active_sim_end() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_end
-        }
-      },
-
-      active_pops() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let pop_pairs = this.$store.state.activeProject.project.pops
-          let pop_list = ["All"]
-          for(let i = 0; i < pop_pairs.length; ++i) {
-            pop_list.push(pop_pairs[i][1]);
-          }
-          return pop_list
-        }
-      },
-      
-      placeholders() {
-        var indices = []
-        for (var i = 0; i <= 100; i++) {
-          indices.push(i);
-        }
-        return indices;
-      },
+      projectID()    { return utils.projectID(this) },
+      hasData()      { return utils.hasData(this) },
+      simStart()     { return utils.simStart(this) },
+      simEnd()       { return utils.simEnd(this) },
+      placeholders() { return utils.placeholders() },
 
     },
 
     created() {
-      // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
+      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project != undefined) && 
         (this.$store.state.activeProject.project.hasData) ) {      
-        // Load the scenario summaries of the current project.
         console.log('created() called')
-        this.startYear = this.active_sim_start
-        this.endYear = this.active_sim_end
+        this.startYear  = this.active_sim_start
+        this.endYear    = this.active_sim_end
         this.popOptions = this.active_pops
-        this.sleep(1)  // used so that spinners will come up by callback func
+        utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.getScenSummaries()
           this.getDefaultBudgetScen()
@@ -324,37 +274,14 @@ Last update: 2018-08-14
 
     methods: {
 
-      dcp(input) {
-        var output = JSON.parse(JSON.stringify(input))
-        return output
-      },
+      makeGraphs() { return utils.makeGraphs(this) },
+      clearGraphs() { return utils.clearGraphs() },
+      exportResults(project_id) { return utils.exportResults(this, project_id) },
       
-      sleep(time) {
-        // Return a promise that resolves after _time_ milliseconds.
-        console.log('Sleeping for ' + time)
-        return new Promise((resolve) => setTimeout(resolve, time));
-      },
-      
-      getUniqueName(fileName, otherNames) {
-        let tryName = fileName
-        let numAdded = 0
-        while (otherNames.indexOf(tryName) > -1) {
-          numAdded = numAdded + 1
-          tryName = fileName + ' (' + numAdded + ')'
-        }
-        return tryName
-      },
-
-      projectID() {
-        var id = this.$store.state.activeProject.project.id // Shorten this
-        return id
-      },
-
-      // TO_PORT
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        rpcservice.rpcCall('get_parset_info', [this.projectID])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -368,7 +295,7 @@ Last update: 2018-08-14
           console.log('Active parset: ' + this.activeParset)
                     
           // Get the current user's progsets from the server.
-          rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          rpcservice.rpcCall('get_progset_info', [this.projectID])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -382,78 +309,60 @@ Last update: 2018-08-14
             console.log('Active progset: ' + this.activeProgset)
           })
           .catch(error => {
-            // Failure popup.
-            status.failurePopup(this, 'Could not get progset info')    
+            status.failurePopup(this, 'Could not get progset info')
           })            
         })
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not get parset info')    
+          status.failurePopup(this, 'Could not get parset info')
         })
       },
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
+        rpcservice.rpcCall('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           console.log('This is the default:')
           console.log(this.defaultBudgetScen);
         })
         .catch(error => {
-          // Failure popup.
           status.failurePopup(this, 'Could not get default budget scenario')
         })         
       },
 
       getScenSummaries() {
         console.log('getScenSummaries() called')
-        
-        // Start indicating progress.
         status.start(this)
-        
-        // Get the current project's scenario summaries from the server.
-        rpcservice.rpcCall('get_scen_info', [this.projectID()])
+        rpcservice.rpcCall('get_scen_info', [this.projectID]) // Get the current project's scenario summaries from the server.
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
           console.log(this.scenSummaries)
-          
           this.scenariosLoaded = true
-          
-          // Indicate success.
           status.succeed(this, 'Scenarios loaded')
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          
-          // Indicate failure.
+          this.response = 'There was an error: ' + error.message // Pull out the error message.
           status.fail(this, 'Could not get scenarios: ' + error.message)
         })
       },
 
       setScenSummaries() {
         console.log('setScenSummaries() called')
-        
-        // Start indicating progress.
         status.start(this)
-        
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
-          // Indicate success.
           status.succeed(this, 'Scenarios saved')
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not save scenarios') 
+          status.fail(this, 'Could not save scenarios')
         })        
       },
 
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
+        rpcservice.rpcCall('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
@@ -463,7 +372,7 @@ Last update: 2018-08-14
           console.log(this.defaultBudgetScen)
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.response = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
           
            // Failure popup.
@@ -507,7 +416,7 @@ Last update: 2018-08-14
         console.log(newScen)
         console.log(this.scenSummaries)        
         
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario added')
@@ -545,7 +454,7 @@ Last update: 2018-08-14
         })
         newScen.name = this.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario copied')
@@ -569,7 +478,7 @@ Last update: 2018-08-14
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario deleted')
@@ -602,12 +511,12 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcservice.rpcCall('set_scen_info', [this.projectID, this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          rpcservice.rpcCall('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
+            this.response = response.data // Pull out the response data.
             this.table = response.data.table
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
@@ -632,13 +541,13 @@ Last update: 2018-08-14
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.response = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
             status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
           })
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message
+          this.response = 'There was an error: ' + error.message
           this.servererror = error.message
           status.fail(this, 'Could not make graphs: ' + error.message)
         })        
@@ -649,9 +558,9 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcservice.rpcCall('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
+            this.response = response.data // Pull out the response data.
             this.table = response.data.table
             var n_plots = response.data.graphs.length
             console.log('Rendering ' + n_plots + ' graphs')
@@ -676,7 +585,7 @@ Last update: 2018-08-14
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.response = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
             status.fail(this, 'Could not make graphs') // Indicate failure.
           })
