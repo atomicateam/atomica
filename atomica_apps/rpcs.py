@@ -40,7 +40,8 @@ def CursorPosition():
     return plugin
 
 def LineLabels(line=None, label=None):
-    plugin = mpld3.plugins.LineLabelTooltip(line, label=label)
+    print('Connecting %s with label %s' % (line, label))
+    plugin = mpld3.plugins.LineHTMLTooltip(line, label=label)
     return plugin
 
 
@@ -1006,23 +1007,31 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
 
 
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
-    if figsize is None: figsize = (5,3)
-    fig.set_size_inches(figsize)
-    ax = fig.get_axes()[0]
-    ax.set_position([0.25,0.15,0.70,0.75])
-    ax.set_facecolor('none')
-    ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-    ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-    if xlims is not None: ax.set_xlim(xlims)
-    try:
-        legend = fig.findobj(Legend)[0]
-        if len(legend.get_texts())==1:
-            legend.remove() # Can remove the legend if it only has one entry
-    except:
-        pass
-    mpld3.plugins.connect(fig, CursorPosition())
-    for l,line in enumerate(fig.axes[0].lines):
-        mpld3.plugins.connect(fig, LineLabels(line, label='hi %s'%l))
+#    if figsize is None: figsize = (5,3)
+#    fig.set_size_inches(figsize)
+#    ax = fig.get_axes()[0]
+#    ax.set_position([0.25,0.15,0.70,0.75])
+#    ax.set_facecolor('none')
+#    ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+#    ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+#    if xlims is not None: ax.set_xlim(xlims)
+#    try:
+#        legend = fig.findobj(Legend)[0]
+#        if len(legend.get_texts())==1:
+#            legend.remove() # Can remove the legend if it only has one entry
+#    except:
+#        pass
+#    mpld3.plugins.connect(fig, CursorPosition())
+#    for l,line in enumerate(fig.axes[0].lines):
+#        mpld3.plugins.connect(fig, LineLabels(line, label='<b>hi</b> %s'%l))
+    
+    fig, ax = pl.subplots()
+    ax.grid(True, alpha=0.3)
+    ax.plot(range(10), lw=5)
+    label = '<h1>line {title}</h1>'.format(title='A')
+    plugin = LineLabels(pl.gcf().axes[0].lines[0], label=label)
+    mpld3.plugins.connect(fig, plugin)
+    
     graph_dict = mpld3.fig_to_dict(fig)
     return graph_dict
     
