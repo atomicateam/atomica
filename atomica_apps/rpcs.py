@@ -84,8 +84,8 @@ def store_result_separately(proj, result):
 # Dictionary to hold all of the registered RPCs in this module.
 RPC_dict = {}
 
-# RPC registration decorator factory created using call to make_register_RPC().
-register_RPC = sw.make_register_RPC(RPC_dict)
+# RPC registration decorator factory created using call to make_RPC().
+RPC = sw.make_register_RPC(RPC_dict)
 
 
 
@@ -333,7 +333,7 @@ def save_project_as_new(proj, user_id):
 
 
 # RPC definitions
-@register_RPC()
+@RPC()
 def get_version_info():
     ''' Return the information about the project. '''
     gitinfo = sc.gitinfo(__file__)
@@ -351,7 +351,7 @@ def get_version_info():
 #%% Framework RPCs
 ##################################################################################
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def get_framework_options():
     """
     Return the available demo frameworks
@@ -360,7 +360,7 @@ def get_framework_options():
     return options
     
     
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def get_scirisdemo_frameworks():
     """
     Return the frameworks associated with the Sciris Demo user.
@@ -385,7 +385,7 @@ def get_scirisdemo_frameworks():
     return output
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def load_framework_summary(framework_id):
     """
     Return the framework summary, given the Framework UID.
@@ -398,7 +398,7 @@ def load_framework_summary(framework_id):
     return load_framework_summary_from_framework_record(framework_entry)
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def load_current_user_framework_summaries():
     """
     Return framework summaries for all frameworks the user has to the client.
@@ -407,7 +407,7 @@ def load_current_user_framework_summaries():
     return load_current_user_framework_summaries2()
 
 
-@register_RPC(validation_type='nonanonymous user')                
+@RPC()                
 def load_all_framework_summaries():
     """
     Return framework summaries for all frameworks to the client.
@@ -421,7 +421,7 @@ def load_all_framework_summaries():
     return {'frameworks': map(load_framework_summary_from_framework_record, 
         framework_entries)}
             
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def delete_frameworks(framework_ids):
     """
     Delete all of the frameworks with the passed in UIDs.
@@ -437,7 +437,7 @@ def delete_frameworks(framework_ids):
         if record is not None:
             frw.frame_collection.delete_object_by_uid(framework_id)
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@RPC(call_type='download')   
 def download_framework(framework_id):
     """
     For the passed in framework UID, get the Framework on the server, save it in a 
@@ -452,7 +452,7 @@ def download_framework(framework_id):
     return full_file_name # Return the full filename.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')
+@RPC(call_type='download')
 def load_zip_of_frw_files(framework_ids):
     """
     Given a list of framework UIDs, make a .zip file containing all of these 
@@ -469,7 +469,7 @@ def load_zip_of_frw_files(framework_ids):
     return server_zip_fname # Return the server file name.
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
@@ -483,7 +483,7 @@ def add_demo_framework(user_id, framework_name):
     return { 'frameworkId': str(frame.uid) } # Return the new framework UID in the return message.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')
+@RPC(call_type='download')
 def create_new_framework():
     """
     Create a new framework.
@@ -494,7 +494,7 @@ def create_new_framework():
     return filepath # Return the filename
 
 
-@register_RPC(call_type='upload', validation_type='nonanonymous user')
+@RPC(call_type='upload')
 def upload_frameworkbook(databook_filename, framework_id):
     """
     Upload a databook to a framework.
@@ -507,7 +507,7 @@ def upload_frameworkbook(databook_filename, framework_id):
     return { 'frameworkId': str(frame.uid) }
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def update_framework_from_summary(framework_summary):
     """
     Given the passed in framework summary, update the underlying framework accordingly.
@@ -520,7 +520,7 @@ def update_framework_from_summary(framework_summary):
     save_framework(frame) # Save the changed framework to the DataStore.
     return None
     
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def copy_framework(framework_id):
     """
     Given a framework UID, creates a copy of the framework with a new UID and returns that UID.
@@ -537,7 +537,7 @@ def copy_framework(framework_id):
     return { 'frameworkId': copy_framework_id } # Return the UID for the new frameworks record.
 
 
-@register_RPC(call_type='upload', validation_type='nonanonymous user')
+@RPC(call_type='upload')
 def create_framework_from_file(filename, user_id=None):
     """
     Given an .xlsx file name and a user UID, create a new framework from the file.
@@ -568,7 +568,7 @@ def create_framework_from_file(filename, user_id=None):
 #%% Project RPCs
 ##################################################################################
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def get_demo_project_options():
     """
     Return the available demo frameworks
@@ -577,7 +577,7 @@ def get_demo_project_options():
     return options
     
     
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def get_scirisdemo_projects():
     """
     Return the projects associated with the Sciris Demo user.
@@ -601,7 +601,7 @@ def get_scirisdemo_projects():
     output = {'projects': sorted_summary_list}
     return output
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def load_project_summary(project_id):
     """
     Return the project summary, given the Project UID.
@@ -614,7 +614,7 @@ def load_project_summary(project_id):
     return load_project_summary_from_project_record(project_entry)
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def load_current_user_project_summaries():
     """
     Return project summaries for all projects the user has to the client.
@@ -623,7 +623,7 @@ def load_current_user_project_summaries():
     return load_current_user_project_summaries2()
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def load_all_project_summaries():
     """
     Return project summaries for all projects to the client.
@@ -637,7 +637,7 @@ def load_all_project_summaries():
     return {'projects': map(load_project_summary_from_project_record, 
         project_entries)}
             
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def delete_projects(project_ids):
     """
     Delete all of the projects with the passed in UIDs.
@@ -653,7 +653,7 @@ def delete_projects(project_ids):
         if record is not None:
             prj.proj_collection.delete_object_by_uid(project_id)
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@RPC(call_type='download')   
 def download_project(project_id):
     """
     For the passed in project UID, get the Project on the server, save it in a 
@@ -668,7 +668,7 @@ def download_project(project_id):
     return full_file_name # Return the full filename.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@RPC(call_type='download')   
 def download_framework_from_project(project_id):
     """
     Download the framework Excel file from a project
@@ -682,7 +682,7 @@ def download_framework_from_project(project_id):
     return full_file_name # Return the full filename.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@RPC(call_type='download')   
 def download_databook(project_id):
     """
     Download databook
@@ -696,7 +696,7 @@ def download_databook(project_id):
     return full_file_name # Return the full filename.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@RPC(call_type='download')   
 def download_progbook(project_id):
     """ Download program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
@@ -708,7 +708,7 @@ def download_progbook(project_id):
     return full_file_name # Return the full filename.
   
     
-@register_RPC(call_type='download', validation_type='nonanonymous user')   
+@RPC(call_type='download')   
 def create_progbook(project_id, num_progs):
     """ Create program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
@@ -721,7 +721,7 @@ def create_progbook(project_id, num_progs):
     
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')
+@RPC(call_type='download')
 def load_zip_of_prj_files(project_ids):
     """
     Given a list of project UIDs, make a .zip file containing all of these 
@@ -738,7 +738,7 @@ def load_zip_of_prj_files(project_ids):
     return server_zip_fname # Return the server file name.
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def add_demo_project(user_id, project_name='default'):
     """
     Add a demo project
@@ -758,7 +758,7 @@ def add_demo_project(user_id, project_name='default'):
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')
+@RPC(call_type='download')
 def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, data_start, data_end, tool=None):
     """
     Create a new project.
@@ -782,7 +782,7 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     return full_file_name # Return the filename
 
 
-@register_RPC(call_type='upload', validation_type='nonanonymous user')
+@RPC(call_type='upload')
 def upload_databook(databook_filename, project_id):
     """
     Upload a databook to a project.
@@ -795,7 +795,7 @@ def upload_databook(databook_filename, project_id):
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
-@register_RPC(call_type='upload', validation_type='nonanonymous user')
+@RPC(call_type='upload')
 def upload_progbook(progbook_filename, project_id):
     """
     Upload a program book to a project.
@@ -808,7 +808,7 @@ def upload_progbook(progbook_filename, project_id):
     return { 'projectId': str(proj.uid) }
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def update_project_from_summary(project_summary):
     """
     Given the passed in project summary, update the underlying project 
@@ -820,7 +820,7 @@ def update_project_from_summary(project_summary):
     save_project(proj) # Save the changed project to the DataStore.
     return
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def copy_project(project_id):
     """
     Given a project UID, creates a copy of the project with a new UID and 
@@ -852,7 +852,7 @@ def copy_project(project_id):
     # Return the UID for the new projects record.
     return { 'projectId': copy_project_id }
 
-@register_RPC(call_type='upload', validation_type='nonanonymous user')
+@RPC(call_type='upload')
 def create_project_from_prj_file(prj_filename, user_id):
     """
     Given a .prj file name and a user UID, create a new project from the file 
@@ -883,7 +883,7 @@ def create_project_from_prj_file(prj_filename, user_id):
 
 
 
-@register_RPC(validation_type='nonanonymous user')
+@RPC()
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
@@ -918,7 +918,7 @@ def get_y_factors(project_id, parsetname=-1):
 
 
 @timeit
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
@@ -982,7 +982,7 @@ def supported_plots_func():
     supported_plots['TB-related deaths'] = ':ddis'
     return supported_plots
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def get_supported_plots(only_keys=False):
     supported_plots = supported_plots_func()
     if only_keys:
@@ -1127,7 +1127,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     return {'graphs':graphs, 'table':table}
     
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=False):
     
     print('Running automatic calibration for parset %s...' % parsetname)
@@ -1156,7 +1156,7 @@ def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=Fa
     return output
 
 
-@register_RPC(call_type='download', validation_type='nonanonymous user')
+@RPC(call_type='download')
 def export_results(project_id, resultset=-1):
     """
     Create a new framework.
@@ -1180,16 +1180,16 @@ def export_results(project_id, resultset=-1):
 #%% Parset functions and RPCs
 ##################################################################################
 
-#TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+
+@RPC() 
 def get_parset_info(project_id):
     print('Returning parset info...')
     proj = load_project(project_id, raise_exception=True)
     parset_names = proj.parsets.keys()
     return parset_names
 
-#TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+
+@RPC() 
 def rename_parset(project_id, parsetname=None, new_name=None):
     print('Renaming parset from %s to %s...' % (parsetname, new_name))
     proj = load_project(project_id, raise_exception=True)
@@ -1198,8 +1198,8 @@ def rename_parset(project_id, parsetname=None, new_name=None):
     save_project(proj)
     return None
 
-#TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+
+@RPC() 
 def copy_parset(project_id, parsetname=None):
     print('Copying parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -1212,8 +1212,8 @@ def copy_parset(project_id, parsetname=None):
     save_project(proj)
     return None
 
-#TO_PORT
-@register_RPC(validation_type='nonanonymous user') 
+
+@RPC() 
 def delete_parset(project_id, parsetname=None):
     print('Deleting parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -1231,7 +1231,7 @@ def delete_parset(project_id, parsetname=None):
 #%% Progset functions and RPCs
 ##################################################################################
 
-@register_RPC(validation_type='nonanonymous user') 
+@RPC() 
 def get_progset_info(project_id):
     print('Returning progset info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1239,7 +1239,7 @@ def get_progset_info(project_id):
     return progset_names
 
 
-@register_RPC(validation_type='nonanonymous user') 
+@RPC() 
 def rename_progset(project_id, progsetname=None, new_name=None):
     print('Renaming progset from %s to %s...' % (progsetname, new_name))
     proj = load_project(project_id, raise_exception=True)
@@ -1249,7 +1249,7 @@ def rename_progset(project_id, progsetname=None, new_name=None):
     return None
 
 
-@register_RPC(validation_type='nonanonymous user') 
+@RPC() 
 def copy_progset(project_id, progsetname=None):
     print('Copying progset %s...' % progsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -1263,7 +1263,7 @@ def copy_progset(project_id, progsetname=None):
     return None
 
 
-@register_RPC(validation_type='nonanonymous user') 
+@RPC() 
 def delete_progset(project_id, progsetname=None):
     print('Deleting progset %s...' % progsetname)
     proj = load_project(project_id, raise_exception=True)
@@ -1331,7 +1331,7 @@ def js_to_py_scen(js_scen):
     return py_scen
     
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def get_scen_info(project_id):
     print('Getting scenario info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1344,7 +1344,7 @@ def get_scen_info(project_id):
     return scenario_summaries
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def set_scen_info(project_id, scenario_summaries):
     print('Setting scenario info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1360,7 +1360,7 @@ def set_scen_info(project_id, scenario_summaries):
     return None
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def get_default_budget_scen(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, raise_exception=True)
@@ -1401,7 +1401,7 @@ def sanitize(vals, skip=False, forcefloat=False):
     
     
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
@@ -1418,7 +1418,7 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
     save_project(proj)    
     return output
     
-@register_RPC(validation_type='nonanonymous user') 
+@RPC() 
 def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None):
     print('Plotting scenarios...')
     proj = load_project(project_id, raise_exception=True)
@@ -1457,7 +1457,7 @@ def js_to_py_optim(js_optim):
     return json
     
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def get_optim_info(project_id):
     print('Getting optimization info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1470,7 +1470,7 @@ def get_optim_info(project_id):
     return optim_summaries
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def get_default_optim(project_id):
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
@@ -1493,7 +1493,7 @@ def to_number(raw):
     return output
 
 
-@register_RPC(validation_type='nonanonymous user')    
+@RPC()    
 def set_optim_info(project_id, optim_summaries):
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True)
@@ -1509,7 +1509,7 @@ def set_optim_info(project_id, optim_summaries):
     return None
 
 
-@register_RPC(validation_type='nonanonymous user') 
+@RPC() 
 def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=None):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
@@ -1534,7 +1534,7 @@ def make_plots(results,outputs=None,cascades=None,budget=None):
 
 
 # Deprecated, see equivalent in apptasks.py
-#@register_RPC(validation_type='nonanonymous user')    
+#@RPC()    
 #def run_optimization(project_id, optim_name):
 #    print('Running optimization...')
 #    proj = load_project(project_id, raise_exception=True)

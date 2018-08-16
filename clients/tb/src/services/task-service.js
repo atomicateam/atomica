@@ -2,7 +2,7 @@
 //
 // Last update: 7/3/18 (gchadder3)
 
-import rpcservice from '@/services/rpc-service'
+import rpcs from '@/services/rpc-service'
 
 // sleep() -- sleep for _time_ milliseconds
 function sleep(time) {
@@ -22,16 +22,16 @@ function getTaskResultWaiting(task_id, waitingtime, func_name, args) {
   
   return new Promise((resolve, reject) => {
     // Launch the task.
-    rpcservice.rpcCall('launch_task', [task_id, func_name, args])
+    rpcs.rpc('launch_task', [task_id, func_name, args])
     .then(response => {
       // Sleep waitingtime seconds.
       sleep(waitingtime * 1000)
       .then(response2 => {
         // Get the result of the task.
-        rpcservice.rpcCall('get_task_result', [task_id])
+        rpcs.rpc('get_task_result', [task_id])
         .then(response3 => {
           // Clean up the task_id task.
-          rpcservice.rpcCall('delete_task', [task_id])
+          rpcs.rpc('delete_task', [task_id])
           
           // Signal success with the result response.
           resolve(response3)              
@@ -67,7 +67,7 @@ function getTaskResultPolling(task_id, timeout, pollinterval, func_name, args) {
   
   return new Promise((resolve, reject) => {
     // Launch the task.
-    rpcservice.rpcCall('launch_task', [task_id, func_name, args])
+    rpcs.rpc('launch_task', [task_id, func_name, args])
     .then(response => {
       // Do the whole sequence of polling steps, starting with the first 
       // (recursive) call.
@@ -111,15 +111,15 @@ function pollStep(task_id, timeout, pollinterval, elapsedtime) {
       sleep(pollinterval * 1000)
       .then(response => {
         // Check the status of the task.
-        rpcservice.rpcCall('check_task', [task_id])
+        rpcs.rpc('check_task', [task_id])
         .then(response2 => {
           // If the task is completed...
           if (response2.data.task.status == 'completed') {
             // Get the result of the task.
-            rpcservice.rpcCall('get_task_result', [task_id])
+            rpcs.rpc('get_task_result', [task_id])
             .then(response3 => {
               // Clean up the task_id task.
-              rpcservice.rpcCall('delete_task', [task_id])
+              rpcs.rpc('delete_task', [task_id])
           
               // Signal success with the response.
               resolve(response3)             
