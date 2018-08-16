@@ -58,13 +58,13 @@ class ResultSO(sw.ScirisObject):
 
     def __init__(self, result):
         super(ResultSO, self).__init__(result.uid, type_prefix='result', 
-              file_suffix='.res', instance_label=result.name)
+            file_suffix='.res', instance_label=result.name)
         self.result = result
 
 # A ResultPlaceholder can be stored in proj.results instead of a Result
 class ResultPlaceholder(au.NamedItem):
 
-    def __init__(self,result):
+    def __init__(self, result):
         au.NamedItem.__init__(self, result.name)
         self.uid = result.uid
 
@@ -544,6 +544,13 @@ def create_framework_from_file(filename, user_id=None):
     """
     print(">> create_framework_from_frw_file '%s'" % filename)
     frame = au.ProjectFramework(filename)
+
+    if not frame.cascades:
+        au.validate_cascade(frame, None)
+    else:
+        for cascade in frame.cascades:
+            au.validate_cascade(frame, cascade)
+
     if frame.name is None: 
         frame.name = os.path.basename(filename) # Ensure that it's not None
         if frame.name.endswith('.xlsx'):

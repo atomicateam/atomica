@@ -236,7 +236,7 @@ class ProjectFramework(object):
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
         ### VALIDATE COMPARTMENTS
-        required_columns = ['display name','is source', 'is sink']
+        required_columns = ['display name']
         defaults = {
             'is sink':'n',
             'is source':'n',
@@ -481,7 +481,6 @@ class ProjectFramework(object):
         template_file =  os.path.abspath(os.path.join(atomica_path('atomica/core'),'framework_template.xlsx'))
         return AtomicaSpreadsheet(template_file)
 
-
 def sanitize_dataframe(df,required_columns,defaults,valid_content):
     # Take in a DataFrame and sanitize it
     # INPUTS
@@ -522,3 +521,4 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
     df.columns = [x.strip() for x in df.columns]
 
     return df
+
