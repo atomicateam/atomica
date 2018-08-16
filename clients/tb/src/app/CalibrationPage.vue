@@ -13,7 +13,7 @@ Last update: 2018-08-16
       </div>
     </div>
     
-    <div v-else-if="!activeProjectHasData">
+    <div v-else-if="!activeHasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
@@ -229,43 +229,11 @@ Last update: 2018-08-16
     },
 
     computed: {
-      activeProjectID() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let projectID = this.$store.state.activeProject.project.id
-          return projectID
-        }
-      },
-      
-      activeProjectHasData() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return false
-        }
-        else {        
-          return this.$store.state.activeProject.project.hasData
-        }
-      }, 
-      
-      active_sim_start() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_start
-        }
-      },
-
-      active_sim_end() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_end
-        }
-      },
-
-      placeholders() {
-        return utils.placeholders();
-      },
+      activeProjectID() { return utils.activeProjectID(this); },
+      activeHasData()   { return utils.activeHasData(this); },
+      activeSimStart()  { return utils.activeSimStart(this); },
+      activeSimEnd()    { return utils.activeSimEnd(this); },
+      placeholders()    { return utils.placeholders(); },
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
@@ -280,8 +248,8 @@ Last update: 2018-08-16
         router.push('/login')
       } else if ((this.$store.state.activeProject.project != undefined) && 
         (this.$store.state.activeProject.project.hasData) ) {
-        this.startYear = this.active_sim_start
-        this.endYear = this.active_sim_end
+        this.startYear = this.activeSimStart
+        this.endYear = this.activeSimEnd
         this.viewTable()
         this.getPlotOptions()
         this.updateParset()

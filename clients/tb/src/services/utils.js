@@ -15,7 +15,45 @@ function placeholders() {
   return indices;
 }
 
+function activeProjectID(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  } else {
+    let projectID = vm.$store.state.activeProject.project.id
+    return projectID
+  }
+}
+
+function activeHasData(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return false
+  }
+  else {
+    return vm.$store.state.activeProject.project.hasData
+  }
+}
+
+function activeSimStart(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  } else {
+    return vm.$store.state.activeProject.project.sim_start
+  }
+}
+
+function activeSimEnd(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  } else {
+    return vm.$store.state.activeProject.project.sim_end
+  }
+}
+
 export default {
   sleep,
-  placeholders
+  placeholders,
+  activeProjectID,
+  activeHasData,
+  activeSimStart,
+  activeSimEnd
 }
