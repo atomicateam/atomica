@@ -58,7 +58,7 @@ Last update: 2018may28
 
 
 <script>
-  import rpcservice from '@/services/rpc-service'
+  import rpcs from '@/services/rpc-service'
   import router from '@/router'
 
   export default {
@@ -76,7 +76,7 @@ Last update: 2018may28
 
     computed: {
       getVersionInfo() {
-        rpcservice.rpcCall('get_version_info')
+        rpcs.rpc('get_version_info')
           .then(response => {
             this.version = response.data['version'];
             this.date = response.data['date'];

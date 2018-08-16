@@ -167,7 +167,7 @@ Last update: 2018-08-15
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import rpcservice from '@/services/rpc-service'
+  import rpcs from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
@@ -269,7 +269,7 @@ Last update: 2018-08-15
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID()])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -283,7 +283,7 @@ Last update: 2018-08-15
           console.log('Active parset: ' + this.activeParset)
                     
           // Get the current user's progsets from the server.
-          rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID()])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -309,7 +309,7 @@ Last update: 2018-08-15
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           console.log('This is the default:')
@@ -328,7 +328,7 @@ Last update: 2018-08-15
         status.start(this)
         
         // Get the current project's scenario summaries from the server.
-        rpcservice.rpcCall('get_scen_info', [this.projectID()])
+        rpcs.rpc('get_scen_info', [this.projectID()])
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
@@ -354,7 +354,7 @@ Last update: 2018-08-15
         // Start indicating progress.
         status.start(this)
         
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenarios saved')
@@ -368,7 +368,7 @@ Last update: 2018-08-15
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
@@ -422,7 +422,7 @@ Last update: 2018-08-15
         console.log(newScen)
         console.log(this.scenSummaries)
         
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario added')
@@ -460,7 +460,7 @@ Last update: 2018-08-15
         })
         newScen.name = this.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario copied')
@@ -484,7 +484,7 @@ Last update: 2018-08-15
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario deleted')
@@ -499,7 +499,7 @@ Last update: 2018-08-15
 
       getPlotOptions() {
         console.log('getPlotOptions() called')
-        rpcservice.rpcCall('get_supported_plots', [true])
+        rpcs.rpc('get_supported_plots', [true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
           })
@@ -517,10 +517,10 @@ Last update: 2018-08-15
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false})
+          rpcs.rpc('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             var n_plots = response.data.graphs.length

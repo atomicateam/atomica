@@ -194,7 +194,7 @@ Last update: 2018-08-15
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import rpcservice from '@/services/rpc-service'
+  import rpcs from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
@@ -306,7 +306,7 @@ Last update: 2018-08-15
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID()])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -320,7 +320,7 @@ Last update: 2018-08-15
           console.log('Active parset: ' + this.activeParset)
           
           // Get the current user's progsets from the server.
-          rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID()])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -346,7 +346,7 @@ Last update: 2018-08-15
 
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
-        rpcservice.rpcCall('get_default_optim', [this.projectID()])
+        rpcs.rpc('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           console.log('This is the default:')
@@ -367,7 +367,7 @@ Last update: 2018-08-15
         status.start(this)
         
         // Get the current project's optimization summaries from the server.
-        rpcservice.rpcCall('get_optim_info', [this.projectID()])
+        rpcs.rpc('get_optim_info', [this.projectID()])
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
           
@@ -386,7 +386,7 @@ Last update: 2018-08-15
         // Start indicating progress.
         status.start(this)
         
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimizations saved')
@@ -400,7 +400,7 @@ Last update: 2018-08-15
       addOptimModal() {
         // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
-        rpcservice.rpcCall('get_default_optim', [this.projectID()])
+        rpcs.rpc('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           this.addEditModal.optimSummary = this.dcp(this.defaultOptim)
@@ -447,7 +447,7 @@ Last update: 2018-08-15
         console.log(newOptim)
         console.log(this.optimSummaries)
                 
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimization added')
@@ -484,7 +484,7 @@ Last update: 2018-08-15
         })
         newOptim.name = this.getUniqueName(newOptim.name, otherNames)
         this.optimSummaries.push(newOptim)
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Opimization copied')
@@ -508,7 +508,7 @@ Last update: 2018-08-15
             this.optimSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimization deleted')
@@ -523,7 +523,7 @@ Last update: 2018-08-15
 
       getPlotOptions() {
         console.log('getPlotOptions() called')
-        rpcservice.rpcCall('get_supported_plots', [true])
+        rpcs.rpc('get_supported_plots', [true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
           })
@@ -542,15 +542,15 @@ Last update: 2018-08-15
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then(response => {          
           // Go to the server to get the results from the package set.
-//            rpcservice.rpcCall('run_optimization',
+//            rpcs.rpc('run_optimization',
           taskservice.getTaskResultPolling('run_optimization', 9999, 3, 'run_optimization',
             [this.projectID(), optimSummary.name, this.plotOptions, maxtime])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
-//                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+//                this.graphData = response.data.graphs // Pull out the response data (use with the rpc).
             this.graphData = response.data.result.graphs // Pull out the response data (use with task).
             var n_plots = this.graphData.length
             console.log('Rendering ' + n_plots + ' graphs')
