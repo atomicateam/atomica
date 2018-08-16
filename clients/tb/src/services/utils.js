@@ -134,20 +134,21 @@ function exportResults(vm, project_id) {
 
 
 function scaleElem(svg, frac) {
-  var $svg = $(svg);
-  var ratio = $svg.attr('width');
-  var height = $svg.attr('height');
-  $svg.attr('width', width*frac);
-  $svg.attr('height', height*frac);
+  console.log('Scaling element!')
+  console.log(svg)
+  var width  = svg.getAttribute("width");
+  var height = svg.getAttribute("height");
+  svg.setAttribute("width",  width*frac);
+  svg.setAttribute("height", height*frac);
 }
 
-function scaleFig(frac) {
-  $(elem)
-    .find(".calib-graphs")
-    .find('svg.mpld3-figure')
-    .each(function(i, svg) {
-      scaleElem(svg, frac);
-    });
+function scaleFigs(frac) {
+  console.log('scaleFigs() called')
+  var graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
+  console.log('Found ' + graphs.length + ' graphs')
+  for (var g = 0; g < graphs.length; g++) {
+    scaleElem(graphs[g], frac);
+  }
 }
 
 export default {
@@ -163,5 +164,5 @@ export default {
   makeGraphs,
   clearGraphs,
   exportResults,
-  scaleFig,
+  scaleFigs,
 }

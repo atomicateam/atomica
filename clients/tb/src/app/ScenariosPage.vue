@@ -46,18 +46,26 @@ Last update: 2018-08-15
       </table>
 
       <div>
-        <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
-        <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
-        <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
-        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">
-          <span v-if="areShowingPlots">Hide</span>
-          <span v-else>Show</span>
-          plot controls
-        </button>
+        <div>
+          <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
+          <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+        </div>
+        <div style="text-align: center">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+          <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(0.9)">-</button>
+          <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.0)">Scale</button>
+          <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.1)">+</button>
+          <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+        </div>
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+            <!--mpld3 content goes here-->
+          </div>
+        </div>
       </div>
-
-
 
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
         <div class="calib-params" v-if="areShowingPlots">
@@ -79,11 +87,6 @@ Last update: 2018-08-15
             </tr>
             </tbody>
           </table>
-        </div>
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index">
-            <!--mpld3 content goes here-->
-          </div>
         </div>
       </div>
 
@@ -196,7 +199,8 @@ Last update: 2018-08-15
           scenSummary: {},
           origName: '',
           mode: 'add'
-        }
+        },
+        figscale: 1.0,
       }
     },
 
@@ -235,11 +239,19 @@ Last update: 2018-08-15
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
+
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+        }
+        this.figscale = 1.0
+        return utils.scaleFigs(frac)
+      },
       
       updateSets() {
         console.log('updateSets() called')
-        // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID])
+        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -251,9 +263,7 @@ Last update: 2018-08-15
           this.newParsetName = this.activeParset // WARNING, KLUDGY
           console.log('Parset options: ' + this.parsetOptions)
           console.log('Active parset: ' + this.activeParset)
-
-          // Get the current user's progsets from the server.
-          rpcs.rpc('get_progset_info', [this.projectID])
+          rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {

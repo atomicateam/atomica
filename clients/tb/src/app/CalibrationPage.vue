@@ -134,6 +134,9 @@ Last update: 2018-08-16
           <div style="text-align: center">
             <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(0.9)">-</button>
+            <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.0)">Scale</button>
+            <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.1)">+</button>
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
             <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
           </div>
@@ -280,6 +283,15 @@ Last update: 2018-08-16
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
+
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+        }
+        this.figscale = 1.0
+        return utils.scaleFigs(frac)
+      },
       
       updateParset() {
         console.log('updateParset() called')
