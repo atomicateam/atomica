@@ -2,20 +2,16 @@
 // (runtime-only or standalone) has been set in webpack.base.conf with an alias.
 import Vue from 'vue'
 // Plugins
-// Simple alert plugin
-import Simplert from 'vue2-simplert-plugin'
-require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
-// Modal dialogs plugin
-import VModal from 'vue-js-modal'
-// Progress bar plugin
-import VueProgressBar from 'vue-progressbar'
-// PopupSpinner plugin
-import PopupSpinner from './components/app/PopupSpinner'
 
+import Simplert from 'vue2-simplert-plugin' // Simple alert plugin
+require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
+import VModal from 'vue-js-modal' // Modal dialogs plugin
+import VueProgressBar from 'vue-progressbar' // Progress bar plugin
+import PopupSpinner from './app/PopupSpinner' // PopupSpinner plugin
+import SideBar from './app/Sidebar' // PopupSpinner plugin
 import GlobalComponents from './globalComponents'
 import GlobalDirectives from './globalDirectives'
-import Notifications from './components/generic/NotificationPlugin'
-import SideBar from './components/app/Sidebar'
+import Notifications from './app/NotificationPlugin'
 import App from './App'
 import router from './router'
 import store from './store'
