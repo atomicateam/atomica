@@ -39,6 +39,10 @@ def CursorPosition():
     plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
     return plugin
 
+def LineLabels(line=None, label=None):
+    plugin = mpld3.plugins.LineLabelTooltip(line, label=label)
+    return plugin
+
 
 def timeit(method):
     def timed(*args, **kw):
@@ -956,7 +960,7 @@ def get_supported_plots(only_keys=False):
         return supported_plots
 
 
-def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None):
+def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None, figsize=None):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
     supported_plots = supported_plots_func()
     if plot_names is None: 
@@ -992,16 +996,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
             else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
 
             for fig in figs:
-                ax = fig.get_axes()[0]
-                ax.set_facecolor('none')
-                ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-                ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-                if xlims is not None: ax.set_xlim(xlims)
-                fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-                mpld3.plugins.connect(fig, CursorPosition())
-                graph_dict = mpld3.fig_to_dict(fig)
-                graphs.append(graph_dict)
-            pl.close('all')
+                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1026,6 +1021,8 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     except:
         pass
     mpld3.plugins.connect(fig, CursorPosition())
+    for l,line in enumerate(fig.axes[0].lines):
+        mpld3.plugins.connect(fig, LineLabels(line, label='hi %s'%l))
     graph_dict = mpld3.fig_to_dict(fig)
     return graph_dict
     
