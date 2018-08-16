@@ -412,23 +412,28 @@ Last update: 2018-08-16
       },
 
       clearGraphs() {
-        for (var index = 0; index <= 100; index++) {
-          console.log('Clearing plot ' + index)
-          var divlabel = 'fig' + index
-          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-          while (div.firstChild) {
-            div.removeChild(div.firstChild);
-          }
-        }
+        return utils.clearGraphs()
       },
+//
+//        for (var index = 0; index <= 100; index++) {
+//          console.log('Clearing plot ' + index)
+//          var divlabel = 'fig' + index
+//          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+//          while (div.firstChild) {
+//            div.removeChild(div.firstChild);
+//          }
+//        }
+//      },
 
       exportResults(project_id) {
-        console.log('exportResults() called')
-        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
-        .catch(error => {
-          status.failurePopup(this, 'Could not export results')
-        })         
+        return utils.exportResults(this, project_id)
       },
+//        console.log('exportResults() called')
+//        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+//        .catch(error => {
+//          status.failurePopup(this, 'Could not export results')
+//        })
+//      },
 
       renameParsetModal() {
         console.log('renameParsetModal() called');

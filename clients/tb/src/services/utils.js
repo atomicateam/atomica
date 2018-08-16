@@ -49,11 +49,32 @@ function simEnd(vm) {
   }
 }
 
+function clearGraphs() {
+  for (var index = 0; index <= 100; index++) {
+    console.log('Clearing plot ' + index)
+    var divlabel = 'fig' + index
+    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+    while (div.firstChild) {
+      div.removeChild(div.firstChild);
+    }
+  }
+}
+
+function exportResults(vm, project_id) {
+  console.log('exportResults() called')
+  rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+    .catch(error => {
+    status.failurePopup(vm, 'Could not export results')
+})
+}
+
 export default {
   sleep,
   placeholders,
   projectID,
   hasData,
   simStart,
-  simEnd
+  simEnd,
+  clearGraphs,
+  exportResults,
 }
