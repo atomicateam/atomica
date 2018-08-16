@@ -15,11 +15,13 @@
 }
 .calib-params {
   flex: 0 0 30%;
+  max-height:80vh;
+  overflow-y: scroll;
 }
 .calib-graphs {
   flex: 1;
   display: flex;
-  max-height:800px;
+  max-height:80vh;
   overflow-y: scroll;
   flex-wrap: wrap;
   & > div {
@@ -28,6 +30,8 @@
 }
 .plotopts-main {
   display: flex;
+  max-height:80vh;
+  overflow-y: scroll;
 }
 .plotopts-main--full {
   display: block;

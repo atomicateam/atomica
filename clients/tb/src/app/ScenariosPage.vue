@@ -12,13 +12,13 @@ Last update: 2018-08-15
         <p>No project is loaded.</p>
       </div>
     </div>
-    
+
     <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
     </div>
-    
+
     <div v-else>
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
@@ -35,7 +35,7 @@ Last update: 2018-08-15
           </td>
           <td>
             <input type="checkbox" v-model="scenSummary.active"/>
-          </td>          
+          </td>
           <td style="white-space: nowrap">
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
@@ -52,117 +52,128 @@ Last update: 2018-08-15
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
         <div style="text-align: center">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-          <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(0.9)">-</button>
-          <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.0)">Scale</button>
-          <button class="btn" :disabled="!scenariosLoaded" @click="scaleFigs(1.1)">+</button>
-          <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+          <div class="controls-box">
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="controls-box">
+            <button class="btn" @click="clearGraphs()">Clear graphs</button>
+            <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="controls-box">
+            <button class="btn" @click="scaleFigs(0.9)">-</button>
+            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+            <button class="btn" @click="scaleFigs(1.1)">+</button>
+          </div>
         </div>
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+
+        <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
+
+          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
+            <div class="plotopts-params" v-if="areShowingPlots">
+              <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                <thead>
+                <tr>
+                  <th>Plot</th>
+                  <th>Active</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="item in plotOptions">
+                  <td>
+                    {{ item.plot_name }}
+                  </td>
+                  <td style="text-align: center">
+                    <input type="checkbox" v-model="item.active"/>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
-        <div class="calib-params" v-if="areShowingPlots">
+    <modal name="add-budget-scen"
+           height="auto"
+           :scrollable="true"
+           :width="900"
+           :classes="['v--modal', 'vue-dialog']"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+          Add scenario
+        </div>
+        <div class="dialog-c-title" v-else>
+          Edit scenario
+        </div>
+        <div class="dialog-c-text">
+          Scenario name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="addEditModal.scenSummary.name"/><br>
+          Parameter set:<br>
+          <select v-model="parsetOptions[0]">
+            <option v-for='parset in parsetOptions'>
+              {{ parset }}
+            </option>
+          </select><br><br>
+          Program set:<br>
+          <select v-model="progsetOptions[0]">
+            <option v-for='progset in progsetOptions'>
+              {{ progset }}
+            </option>
+          </select><br><br>
+          Budget year:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="addEditModal.scenSummary.start_year"/><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th>Plot</th>
-              <th>Active</th>
+              <th>Program</th>
+              <th>Budget</th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="item in plotOptions">
+            <tr v-for="item in addEditModal.scenSummary.alloc">
               <td>
-                {{ item.plot_name }}
+                {{ item[2] }}
               </td>
-              <td style="text-align: center">
-                <input type="checkbox" v-model="item.active"/>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="item[1]"
+                       style="text-align: right"
+                />
               </td>
             </tr>
             </tbody>
           </table>
         </div>
-      </div>
-
-      <modal name="add-budget-scen"
-             height="auto"
-             :scrollable="true"
-             :width="900"
-             :classes="['v--modal', 'vue-dialog']"
-             :pivot-y="0.3"
-             :adaptive="true"
-             :clickToClose="clickToClose"
-             :transition="transition">
-
-        <div class="dialog-content">
-          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
-            Add scenario
-          </div>
-          <div class="dialog-c-title" v-else>
-            Edit scenario
-          </div>
-          <div class="dialog-c-text">
-            Scenario name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="addEditModal.scenSummary.name"/><br>
-            Parameter set:<br>
-            <select v-model="parsetOptions[0]">
-              <option v-for='parset in parsetOptions'>
-                {{ parset }}
-              </option>
-            </select><br><br>
-            Program set:<br>
-            <select v-model="progsetOptions[0]">
-              <option v-for='progset in progsetOptions'>
-                {{ progset }}
-              </option>
-            </select><br><br>
-            Budget year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="addEditModal.scenSummary.start_year"/><br>
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Program</th>
-                <th>Budget</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="item in addEditModal.scenSummary.alloc">
-                <td>
-                  {{ item[2] }}
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="item[1]"
-                         style="text-align: right"
-                  />
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div style="text-align:justify">
-            <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
-              Save scenario
-            </button>
-            <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
-              Cancel
-            </button>
-          </div>
+        <div style="text-align:justify">
+          <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
+            Save scenario
+          </button>
+          <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
         </div>
-      </modal>
+      </div>
+    </modal>
 
-    </div>
   </div>
 </template>
 
@@ -216,19 +227,19 @@ Last update: 2018-08-15
       if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) && 
-        (this.$store.state.activeProject.project.hasData) ) {      
+      else if ((this.$store.state.activeProject.project != undefined) &&
+        (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear  = this.active_sim_start
         this.endYear    = this.active_sim_end
         this.popOptions = this.active_pops
         utils.sleep(1)  // used so that spinners will come up by callback func
-        .then(response => {
-          this.getScenSummaries()
-          this.getDefaultBudgetScen()
-          this.updateSets()
-          this.getPlotOptions()
-        })
+          .then(response => {
+            this.getScenSummaries()
+            this.getDefaultBudgetScen()
+            this.updateSets()
+            this.getPlotOptions()
+          })
       }
     },
 
@@ -248,101 +259,101 @@ Last update: 2018-08-15
         this.figscale = 1.0
         return utils.scaleFigs(frac)
       },
-      
+
       updateSets() {
         console.log('updateSets() called')
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-        .then(response => {
-          this.parsetOptions = response.data // Set the scenarios to what we received.
-          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-            console.log('Parameter set ' + this.activeParset + ' no longer found')
-            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-          } else {
-            console.log('Parameter set ' + this.activeParset + ' still found')
-          }
-          this.newParsetName = this.activeParset // WARNING, KLUDGY
-          console.log('Parset options: ' + this.parsetOptions)
-          console.log('Active parset: ' + this.activeParset)
-          rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
           .then(response => {
-            this.progsetOptions = response.data // Set the scenarios to what we received.
-            if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-              console.log('Program set ' + this.activeProgset + ' no longer found')
-              this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+            this.parsetOptions = response.data // Set the scenarios to what we received.
+            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+              console.log('Parameter set ' + this.activeParset + ' no longer found')
+              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
             } else {
-              console.log('Program set ' + this.activeProgset + ' still found')
+              console.log('Parameter set ' + this.activeParset + ' still found')
             }
-            this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-            console.log('Progset options: ' + this.progsetOptions)
-            console.log('Active progset: ' + this.activeProgset)
+            this.newParsetName = this.activeParset // WARNING, KLUDGY
+            console.log('Parset options: ' + this.parsetOptions)
+            console.log('Active parset: ' + this.activeParset)
+            rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
+              .then(response => {
+                this.progsetOptions = response.data // Set the scenarios to what we received.
+                if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+                  console.log('Program set ' + this.activeProgset + ' no longer found')
+                  this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+                } else {
+                  console.log('Program set ' + this.activeProgset + ' still found')
+                }
+                this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+                console.log('Progset options: ' + this.progsetOptions)
+                console.log('Active progset: ' + this.activeProgset)
+              })
+              .catch(error => {
+                status.failurePopup(this, 'Could not get progset info: ' + error.message)
+              })
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get progset info: ' + error.message)
-          })            
-        })
-        .catch(error => {
-          status.failurePopup(this, 'Could not get parset info: ' + error.message)
-        })
+            status.failurePopup(this, 'Could not get parset info: ' + error.message)
+          })
       },
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
         rpcs.rpc('get_default_budget_scen', [this.projectID])
-        .then(response => {
-          this.defaultBudgetScen = response.data // Set the scenario to what we received.
-          console.log('This is the default:')
-          console.log(this.defaultBudgetScen);
-        })
-        .catch(error => {
-          status.failurePopup(this, 'Could not get default budget scenario: ' + error.message)
-        })         
+          .then(response => {
+            this.defaultBudgetScen = response.data // Set the scenario to what we received.
+            console.log('This is the default:')
+            console.log(this.defaultBudgetScen);
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not get default budget scenario: ' + error.message)
+          })
       },
 
       getScenSummaries() {
         console.log('getScenSummaries() called')
         status.start(this)
         rpcs.rpc('get_scen_info', [this.projectID])
-        .then(response => {
-          this.scenSummaries = response.data // Set the scenarios to what we received.
-          console.log('Scenario summaries:')
-          console.log(this.scenSummaries)
-          this.scenariosLoaded = true
-          status.succeed(this, 'Scenarios loaded')
-        })
-        .catch(error => {
-          this.response = 'There was an error: ' + error.message // Pull out the error message.
-          status.fail(this, 'Could not get scenarios: ' + error.message)
-        })
+          .then(response => {
+            this.scenSummaries = response.data // Set the scenarios to what we received.
+            console.log('Scenario summaries:')
+            console.log(this.scenSummaries)
+            this.scenariosLoaded = true
+            status.succeed(this, 'Scenarios loaded')
+          })
+          .catch(error => {
+            this.response = 'There was an error: ' + error.message // Pull out the error message.
+            status.fail(this, 'Could not get scenarios: ' + error.message)
+          })
       },
 
       setScenSummaries() {
         console.log('setScenSummaries() called')
         status.start(this)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
-        .then( response => {
-          status.succeed(this, 'Scenarios saved')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not save scenarios: ' + error.message)
-        })        
+          .then( response => {
+            status.succeed(this, 'Scenarios saved')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not save scenarios: ' + error.message)
+          })
       },
 
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
         rpcs.rpc('get_default_budget_scen', [this.projectID])
-        .then(response => {
-          this.defaultBudgetScen = response.data // Set the scenario to what we received.
-          this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
-          this.addEditModal.origName = this.addEditModal.scenSummary.name
-          this.addEditModal.mode = 'add'
-          this.$modal.show('add-budget-scen');
-          console.log(this.defaultBudgetScen)
-        })
-        .catch(error => {
-          this.response = 'There was an error: ' + error.message // Pull out the error message.
-          status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
-        })
+          .then(response => {
+            this.defaultBudgetScen = response.data // Set the scenario to what we received.
+            this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
+            this.addEditModal.origName = this.addEditModal.scenSummary.name
+            this.addEditModal.mode = 'add'
+            this.$modal.show('add-budget-scen');
+            console.log(this.defaultBudgetScen)
+          })
+          .catch(error => {
+            this.response = 'There was an error: ' + error.message // Pull out the error message.
+            status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
+          })
       },
 
       addBudgetScen() {
@@ -369,14 +380,14 @@ Last update: 2018-08-15
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
-        console.log(this.scenSummaries)        
+        console.log(this.scenSummaries)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
-        .then( response => {
-          status.succeed(this, 'Scenario added')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not add scenario')
-        })
+          .then( response => {
+            status.succeed(this, 'Scenario added')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not add scenario')
+          })
       },
 
       editScen(scenSummary) {
@@ -386,8 +397,8 @@ Last update: 2018-08-15
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
         this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
-        this.addEditModal.origName = this.addEditModal.scenSummary.name         
-        this.addEditModal.mode = 'edit' 
+        this.addEditModal.origName = this.addEditModal.scenSummary.name
+        this.addEditModal.mode = 'edit'
         this.$modal.show('add-budget-scen');
       },
 
@@ -402,12 +413,12 @@ Last update: 2018-08-15
         newScen.name = utils.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
-        .then( response => {
-          status.succeed(this, 'Scenario copied')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not copy scenario')
-        })
+          .then( response => {
+            status.succeed(this, 'Scenario copied')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not copy scenario')
+          })
       },
 
       deleteScen(scenSummary) {
@@ -419,12 +430,12 @@ Last update: 2018-08-15
           }
         }
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
-        .then( response => {
-          status.succeed(this, 'Scenario deleted')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not delete scenario')
-        })
+          .then( response => {
+            status.succeed(this, 'Scenario deleted')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not delete scenario')
+          })
       },
 
       toggleShowingPlots() {
@@ -437,21 +448,21 @@ Last update: 2018-08-15
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
-        .then(response => {
-          // Go to the server to get the results from the package set.
-          rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false})
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            // Go to the server to get the results from the package set.
+            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false})
+              .then(response => {
+                this.makeGraphs(response.data.graphs)
+              })
+              .catch(error => {
+                console.log('There was an error: ' + error.message) // Pull out the error message.
+                status.fail(this, 'Could not run scenarios: ' + error.message) // Indicate failure.
+              })
           })
           .catch(error => {
-            console.log('There was an error: ' + error.message) // Pull out the error message.
-            status.fail(this, 'Could not run scenarios: ' + error.message) // Indicate failure.
+            this.response = 'There was an error: ' + error.message
+            status.fail(this, 'Could not set scenarios: ' + error.message)
           })
-        })
-        .catch(error => {
-          this.response = 'There was an error: ' + error.message
-          status.fail(this, 'Could not set scenarios: ' + error.message)
-        })        
       },
 
       plotScenarios() {

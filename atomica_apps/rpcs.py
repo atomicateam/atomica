@@ -1123,7 +1123,7 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
         unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
         output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-        output['graphs'] += cascadeoutput['graphs']
+        output['graphs'] = cascadeoutput['graphs'] + output['graphs']
         return output
     
     

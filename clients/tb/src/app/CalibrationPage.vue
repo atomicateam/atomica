@@ -6,13 +6,13 @@ Last update: 2018-08-16
 
 <template>
   <div class="SitePage">
-  
+
     <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
-    
+
     <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
@@ -41,7 +41,7 @@ Last update: 2018-08-16
         </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
-        <!--<div style="display: inline-block; padding-left: 100px">-->
+          <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
             <option v-for='parset in parsetOptions'>
@@ -74,12 +74,26 @@ Last update: 2018-08-16
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
         </div>
-
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
       </div>
-    
+
+      <div style="text-align: center">
+        <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="scaleFigs(0.9)">-</button>
+          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+          <button class="btn" @click="scaleFigs(1.1)">+</button>
+        </div>
+      </div>
+
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -132,28 +146,9 @@ Last update: 2018-08-16
           </table>
         </div>
 
-        <div>
-          <div style="text-align: center">
-            <div class="controls-box">
-              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-              <button class="btn" @click="exportResults(projectID)">Export data</button>
-            </div>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <div class="controls-box">
-              <button class="btn" @click="clearGraphs()">Clear graphs</button>
-              <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
-            </div>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <div class="controls-box">
-              <button class="btn" @click="scaleFigs(0.9)">-</button>
-              <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-              <button class="btn" @click="scaleFigs(1.1)">+</button>
-            </div>
-          </div>
-          <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
-            </div>
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+            <!--mpld3 content goes here-->
           </div>
         </div>
 
@@ -181,7 +176,7 @@ Last update: 2018-08-16
         </div>
 
       </div>
-      
+
     </div>
 
     <modal name="rename-parset"
@@ -215,7 +210,7 @@ Last update: 2018-08-16
       </div>
 
     </modal>
-       
+
   </div>
 </template>
 
@@ -228,10 +223,10 @@ Last update: 2018-08-16
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
-  
+
   export default {
     name: 'CalibrationPage',
-    
+
     data() {
       return {
         response: 'no response',
@@ -269,7 +264,7 @@ Last update: 2018-08-16
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      } else if ((this.$store.state.activeProject.project != undefined) && 
+      } else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
         this.endYear = this.simEnd
@@ -278,7 +273,7 @@ Last update: 2018-08-16
         this.updateParset()
         utils.sleep(1000)
           .then(response => {
-            this.manualCalibration(this.projectID)
+              this.manualCalibration(this.projectID)
             }
           );
       }
@@ -300,27 +295,27 @@ Last update: 2018-08-16
         this.figscale = 1.0
         return utils.scaleFigs(frac)
       },
-      
+
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-        .then(response => {
-          this.parsetOptions = response.data // Set the scenarios to what we received.
-          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-            console.log('Parameter set ' + this.activeParset + ' no longer found')
-            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-          } else {
-            console.log('Parameter set ' + this.activeParset + ' still found')
-          }
-          this.newParsetName = this.activeParset // WARNING, KLUDGY
-          console.log('Parset options: ' + this.parsetOptions)
-          console.log('Active parset: ' + this.activeParset)
-          status.succeed(this, '')  // No green notification.
-        })
-        .catch(error => {
-          status.fail(this, 'Could not update parset')
-        })         
+          .then(response => {
+            this.parsetOptions = response.data // Set the scenarios to what we received.
+            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+              console.log('Parameter set ' + this.activeParset + ' no longer found')
+              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Parameter set ' + this.activeParset + ' still found')
+            }
+            this.newParsetName = this.activeParset // WARNING, KLUDGY
+            console.log('Parset options: ' + this.parsetOptions)
+            console.log('Active parset: ' + this.activeParset)
+            status.succeed(this, '')  // No green notification.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not update parset')
+          })
       },
 
       updateSorting(sortColumn) {
@@ -349,12 +344,12 @@ Last update: 2018-08-16
       viewTable() {
         console.log('viewTable() called')
         rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
-        .then(response => {
-          this.parList = response.data // Get the parameter values
-        })
-        .catch(error => {
-          status.failurePopup(this, 'Could not load parameters: ' + error.message)
-        })
+          .then(response => {
+            this.parList = response.data // Get the parameter values
+          })
+          .catch(error => {
+            status.failurePopup(this, 'Could not load parameters: ' + error.message)
+          })
       },
 
       toggleShowingParams() {
@@ -409,13 +404,13 @@ Last update: 2018-08-16
         this.$modal.hide('rename-parset');
         status.start(this) // Start indicating progress.
         rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
-        .then(response => {
-          this.updateParset() // Update the project summaries so the copied program shows up on the list.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
-        })
-        .catch(error => {
-          status.fail(this, 'Could not rename parameter set') // Indicate failure.
-        })
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not rename parameter set') // Indicate failure.
+          })
       },
 
       copyParset() { // TO_PORT
@@ -423,13 +418,13 @@ Last update: 2018-08-16
         console.log('copyParset() called for ' + this.activeParset)
         status.start(this) // Start indicating progress.
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-        .then(response => {
-          this.updateParset() // Update the project summaries so the copied program shows up on the list.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
-        })
-        .catch(error => {
-          status.fail(this, 'Could not copy parameter set') // Indicate failure.
-        })
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not copy parameter set') // Indicate failure.
+          })
       },
 
       deleteParset() {
@@ -437,13 +432,13 @@ Last update: 2018-08-16
         console.log('deleteParset() called for ' + this.activeParset)
         status.start(this) // Start indicating progress.
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-        .then(response => {
-          this.updateParset() // Update the project summaries so the copied program shows up on the list.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
-        })
-        .catch(error => {
-          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
-        })
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
+          })
       },
     }
   }
