@@ -7,10 +7,14 @@ import matplotlib
 from .utils import NDict
 from .results import Result
 from six import string_types
-from .system import logger, NotAllowedError
+from .system import logger, NotAllowedError, AtomicaException
 
 default_figsize = (9,5)
 
+class InvalidCascade(AtomicaException):
+    # Throw this error if a cascade was not valid. This error should result in the
+    # FE printing a persistent diagnosic message
+    pass
 
 def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
     
@@ -39,24 +43,8 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     # Sanitize based on the first result provided, if it's a list
     if isinstance(result, list): result = result[0]  # Sanitize input -- if needed
 
-    # Sanitize cascade input
-    if cascade is None:
-        # Assemble cascade from characteristics without denominators
-        cascade = sc.odict()
-        for _,spec in result.framework.characs.iterrows():
-            if not spec['denominator']:
-                cascade[spec['display name']] = [spec.name]
-    elif isinstance(cascade,list):
-        # Assemble cascade from comp/charac names using the display name as the stage name
-        outputs = sc.odict()
-        for name in cascade:
-            spec = result.framework.get_variable(name)[0]
-            outputs[spec['display name']] = [spec.name]
-        cascade = outputs
-    elif isinstance(cascade,int):
-        # Retrieve the cascade name based on index
-        available_cascades = list(result.framework.cascades)
-        cascade = available_cascades[cascade]
+    # Sanitize cascade input by turning non-names into output dicts
+    cascade = sanitize_cascade(result.framework,cascade)
 
     # Convert input pops to code names, if they were provided as full names e.g. from the FE
     if pops is None or pops == 'all' or pops == 'All':
@@ -453,6 +441,89 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
                 cascade_data[stage_name] += data_values[code_name]
 
     return cascade_data,t
+
+def sanitize_cascade(framework,cascade):
+    # Construct a fallback cascade from all non-normalized characteristics
+    if cascade is None:
+        # Assemble cascade from characteristics without denominators
+        cascade = sc.odict()
+        for _, spec in framework.characs.iterrows():
+            if not spec['denominator']:
+                cascade[spec['display name']] = [spec.name]
+    elif isinstance(cascade, list):
+        # Assemble cascade from comp/charac names using the display name as the stage name
+        outputs = sc.odict()
+        for name in cascade:
+            spec = framework.get_variable(name)[0]
+            outputs[spec['display name']] = [spec.name]
+        cascade = outputs
+    elif isinstance(cascade, int):
+        # Retrieve the cascade name based on index
+        available_cascades = list(framework.cascades)
+        cascade = available_cascades[cascade]
+    return cascade
+
+def validate_cascade(framework,cascade):
+    # Check if a cascade is valid
+    # INPUTS
+    # - framework
+    # - cascade : specification of a cascade (None for default, int, name, list of comps, output dict)
+    #
+
+    # Turn whatever form the cascade was provided as into a dict of outputs
+    fallback_used = cascade is None # Record whether or not the fallback cascade was used, to help customize error message
+
+    cascade = sanitize_cascade(framework,cascade)
+    if isinstance(cascade,string_types):
+        outputs = get_cascade_outputs(framework,cascade)
+    else:
+        outputs = cascade
+
+    if len(outputs) < 2:
+        # A 'cascade' with 0 or 1 stages is by definition valid, although it would not be sensible!
+        return True
+
+    # Now, for each cascade stage we need to expand any characteristics into compartments
+    def expand_includes(includes):
+        # Take a list of included comps/characs and replace any characs with their included comps
+        expanded = []
+        for include in includes:
+            if include in framework.characs.index:
+                components = [x.strip() for x in framework.characs.at[include, 'components'].split(',')]
+                expanded += expand_includes(components)
+            else:
+                expanded.append(str(include)) # Use 'str()' to get `'sus'` in the error message instead of  `u'sus'`
+        return expanded
+
+    expanded = sc.odict()
+    for stage,includes in outputs.items():
+        expanded[stage] = expand_includes(includes)
+
+    for i in range(0,len(expanded)-1):
+        if not (set(expanded[i+1]) <= set(expanded[i])):
+            message = ''
+            if fallback_used:
+                message += 'The fallback cascade is not properly nested\n\n'
+            elif isinstance(cascade,string_types):
+                message += 'The cascade "%s" is not properly nested\n\n' % (cascade)
+            else:
+                message += 'The requested cascade is not properly nested\n\n' % (cascade)
+
+            message += 'Stage "%s" appears after stage "%s" so it must contain a subset of the compartments in "%s"\n\n' % (expanded.keys()[i+1],expanded.keys()[i],expanded.keys()[i])
+            message += 'After expansion of any characteristics, the compartments comprising these stages are:\n'
+            message += '"%s" = %s\n' % (expanded.keys()[i],expanded[i])
+            message += '"%s" = %s\n' % (expanded.keys()[i+1],expanded[i+1])
+            message += '\nTo be valid, stage "%s" would need the following compartments added to it: %s' % (expanded.keys()[i],list(set(expanded[i+1])-set(expanded[i])))
+            if fallback_used and not framework.cascades:
+                message += '\n\nNote that the framework did not contain a cascade - in many cases, the characteristics do not form a valid cascade. You will likely need to explicitly define a cascade in the framework file'
+            if fallback_used and framework.cascades:
+                message += '\n\nAlthough the framework fallback cascade was not valid, user-specified cascades do exist. The fallback cascade should only be used if user cascades are not present.'
+            elif isinstance(cascade,string_types):
+                message += '\n\nTo fix this error, please modify the definition of the cascade in the framework file'
+
+            raise InvalidCascade(message)
+
+    return True
 
 
 

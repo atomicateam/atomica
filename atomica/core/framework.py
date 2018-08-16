@@ -481,7 +481,6 @@ class ProjectFramework(object):
         template_file =  os.path.abspath(os.path.join(atomica_path('atomica/core'),'framework_template.xlsx'))
         return AtomicaSpreadsheet(template_file)
 
-
 def sanitize_dataframe(df,required_columns,defaults,valid_content):
     # Take in a DataFrame and sanitize it
     # INPUTS
@@ -522,3 +521,4 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
     df.columns = [x.strip() for x in df.columns]
 
     return df
+

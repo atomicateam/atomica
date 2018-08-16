@@ -1,16 +1,46 @@
 import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
 import sciris.core as sc
+from atomica.ui import InvalidCascade
+import os
 
-# test = 'tb'
-test = 'udt2'
+test = 'tb'
+# test = 'udt2'
 
 torun = [
-"basicplots",
+"validate_cascade"
+# "basicplots",
 #"scenplots",
 #"cascadefromscratch",
 # 'mpld3test'
 ]
+
+
+# Check validation
+if "validate_cascade" in torun:
+    from atomica.core.cascade import validate_cascade
+
+    # Check that all the frameworks have either a valid cascade sheet, or
+    # the fallback cascade is valid
+    fnames = os.listdir('./frameworks')
+    for fname in fnames:
+        print("Validating %s" % (fname))
+        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
+
+        # Validate all of the cascades in the framework
+        if not F.cascades:
+            validate_cascade(F, None)
+        else:
+            for cascade in F.cascades:
+                validate_cascade(F, cascade)
+
+    F = ProjectFramework("./frameworks/framework_" + test + ".xlsx")
+
+    if test == 'tb':
+        try:
+            validate_cascade(F,None) # Try running this on the command line to see the error message
+        except InvalidCascade:
+            print("Correctly raised invalid TB fallback cascade")
 
 # Load a framework and project to get a Result
 F = ProjectFramework("./frameworks/framework_"+test+".xlsx")
