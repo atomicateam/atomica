@@ -18,6 +18,7 @@ Last update: 2018-08-15
         <thead>
         <tr>
           <th>Name</th>
+          <th>Active?</th>          
           <th>Actions</th>
         </tr>
         </thead>
@@ -26,6 +27,9 @@ Last update: 2018-08-15
           <td>
             <b>{{ scenSummary.name }}</b>
           </td>
+          <td>
+            <input type="checkbox" v-model="scenSummary.active"/>
+          </td>          
           <td style="white-space: nowrap">
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
