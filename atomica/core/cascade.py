@@ -348,6 +348,8 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
     else:
         outputs = cascade
 
+    validate_cascade(result.framework, outputs) # Check that the requested cascade is valid
+
     if year is None:
         d = PlotData(result, outputs=outputs, pops=pops)
     else:
@@ -363,10 +365,6 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
                 cascade_vals[output] = d[(result,pop,output)].vals # NB. Might want to return the Series here to retain formatting, units etc.
     t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
 
-    for i in range(0,len(cascade_vals)-1):
-        if np.any(cascade_vals[i+1]>cascade_vals[i]):
-            stages = list(cascade_vals.keys())
-            raise NotAllowedError('Requested cascade was not valid because stage "%s" comes after stage "%s" but has more people' % (stages[i],stages[i+1]))
     return cascade_vals,t
 
 def get_cascade_data(data,framework,cascade,pops=None,year=None):
@@ -387,6 +385,8 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
         outputs = get_cascade_outputs(framework,cascade)
     else:
         outputs = cascade
+
+    validate_cascade(framework, outputs) # Check that the requested cascade is valid
 
     if pops == 'all':
         pops = list(data.pops.keys())

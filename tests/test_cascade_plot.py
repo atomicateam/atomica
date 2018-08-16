@@ -24,6 +24,8 @@ if "validate_cascade" in torun:
     # the fallback cascade is valid
     fnames = os.listdir('./frameworks')
     for fname in fnames:
+        if '_bad' in fname:
+            continue
         print("Validating %s" % (fname))
         F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
 
@@ -34,13 +36,24 @@ if "validate_cascade" in torun:
             for cascade in F.cascades:
                 validate_cascade(F, cascade)
 
-    F = ProjectFramework("./frameworks/framework_" + test + ".xlsx")
 
-    if test == 'tb':
+    F = ProjectFramework("./frameworks/framework_tb.xlsx")
+    try:
+        validate_cascade(F,None) # Try running this on the command line to see the error message
+    except InvalidCascade:
+        print("Correctly raised invalid TB fallback cascade")
+
+    for fname in ["./frameworks/framework_sir_badcascade1.xlsx","./frameworks/framework_sir_badcascade2.xlsx"]:
+        F = ProjectFramework(fname)
         try:
-            validate_cascade(F,None) # Try running this on the command line to see the error message
+            if not F.cascades:
+                validate_cascade(F, None)
+            else:
+                for cascade in F.cascades:
+                    validate_cascade(F, cascade)
         except InvalidCascade:
-            print("Correctly raised invalid TB fallback cascade")
+            print("Correctly raised invalid cascade for %s" % fname)
+
 
 # Load a framework and project to get a Result
 F = ProjectFramework("./frameworks/framework_"+test+".xlsx")
