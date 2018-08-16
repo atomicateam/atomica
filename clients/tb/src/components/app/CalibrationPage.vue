@@ -12,6 +12,12 @@ Last update: 2018-08-15
         <p>No project is loaded.</p>
       </div>
     </div>
+    
+    <div v-else-if="!activeProjectHasData">
+      <div style="font-style:italic">
+        <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
+      </div>
+    </div>
 
     <div v-else>
       <div class="calib-controls">
@@ -230,7 +236,16 @@ Last update: 2018-08-15
           return projectID
         }
       },
-
+      
+      activeProjectHasData() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return false
+        }
+        else {        
+          return this.$store.state.activeProject.project.hasData
+        }
+      }, 
+      
       active_sim_start() {
         if (this.$store.state.activeProject.project === undefined) {
           return ''

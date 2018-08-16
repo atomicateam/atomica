@@ -112,6 +112,7 @@ class ProjectSO(sw.ScirisObject):
                 'userId':        self.owner_uid,
                 'creationTime':  self.proj.created,
                 'updatedTime':   self.proj.modified,
+                'hasData':       self.proj.data is not None,                
                 'n_pops':        n_pops,
                 'sim_start':     self.proj.settings.sim_start,
                 'sim_end':       self.proj.settings.sim_end,
