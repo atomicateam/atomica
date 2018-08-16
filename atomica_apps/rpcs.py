@@ -58,13 +58,13 @@ class ResultSO(sw.ScirisObject):
 
     def __init__(self, result):
         super(ResultSO, self).__init__(result.uid, type_prefix='result', 
-              file_suffix='.res', instance_label=result.name)
+            file_suffix='.res', instance_label=result.name)
         self.result = result
 
 # A ResultPlaceholder can be stored in proj.results instead of a Result
 class ResultPlaceholder(au.NamedItem):
 
-    def __init__(self,result):
+    def __init__(self, result):
         au.NamedItem.__init__(self, result.name)
         self.uid = result.uid
 

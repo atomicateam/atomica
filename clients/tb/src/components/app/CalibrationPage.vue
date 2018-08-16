@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-07-31
+Last update: 2018-08-15
 -->
 
 <template>
@@ -10,6 +10,12 @@ Last update: 2018-07-31
     <div v-if="activeProjectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
+      </div>
+    </div>
+    
+    <div v-else-if="!activeProjectHasData">
+      <div style="font-style:italic">
+        <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
     </div>
 
@@ -188,10 +194,7 @@ Last update: 2018-07-31
       </div>
 
     </modal>
-    
-    <!-- Popup spinner -->
-    <popup-spinner></popup-spinner>
-    
+       
   </div>
 </template>
 
@@ -203,14 +206,9 @@ Last update: 2018-07-31
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
-  import PopupSpinner from './Spinner.vue'
   
   export default {
     name: 'CalibrationPage',
-    
-    components: {
-      PopupSpinner
-    },
     
     data() {
       return {
@@ -238,7 +236,16 @@ Last update: 2018-07-31
           return projectID
         }
       },
-
+      
+      activeProjectHasData() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return false
+        }
+        else {        
+          return this.$store.state.activeProject.project.hasData
+        }
+      }, 
+      
       active_sim_start() {
         if (this.$store.state.activeProject.project === undefined) {
           return ''
@@ -276,7 +283,8 @@ Last update: 2018-07-31
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      } else if (this.$store.state.activeProject.project != undefined) {
+      } else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
         this.viewTable()

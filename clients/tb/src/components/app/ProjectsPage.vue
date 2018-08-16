@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-07-29
+Last update: 2018-08-15
 -->
 
 <template>
@@ -213,9 +213,6 @@ Last update: 2018-07-29
       </div>
     </modal>
     
-    <!-- Popup spinner -->
-    <popup-spinner></popup-spinner>
-    
   </div>
 
 </template>
@@ -226,15 +223,10 @@ var filesaver = require('file-saver')
 import rpcservice from '@/services/rpc-service'
 import status from '@/services/status-service'
 import router from '@/router'
-import PopupSpinner from './Spinner.vue'
   
 export default {
   name: 'ProjectsPage',
   
-  components: {
-    PopupSpinner
-  },
-    
   data() {
     return {
       filterPlaceholder: 'Type here to filter projects', // Placeholder text for table filter box

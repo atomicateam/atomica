@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-07-31
+Last update: 2018-08-15
 -->
 
 <template>
@@ -12,12 +12,19 @@ Last update: 2018-07-31
         <p>No project is loaded.</p>
       </div>
     </div>
-
+    
+    <div v-else-if="!activeProjectHasData">
+      <div style="font-style:italic">
+        <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
+      </div>
+    </div>
+    
     <div v-else>
       <table class="table table-bordered table-hover table-striped" style="width: 100%">
         <thead>
         <tr>
           <th>Name</th>
+          <th>Active?</th>          
           <th>Actions</th>
         </tr>
         </thead>
@@ -26,6 +33,9 @@ Last update: 2018-07-31
           <td>
             <b>{{ scenSummary.name }}</b>
           </td>
+          <td>
+            <input type="checkbox" v-model="scenSummary.active"/>
+          </td>          
           <td style="white-space: nowrap">
             <button class="btn" @click="editScen(scenSummary)">Edit</button>
             <button class="btn" @click="copyScen(scenSummary)">Copy</button>
@@ -87,16 +97,18 @@ Last update: 2018-07-31
              :clickToClose="clickToClose"
              :transition="transition">
 
-        <!--TO_PORT-->
         <div class="dialog-content">
-          <div class="dialog-c-title">
-            Add/edit scenario
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
+          </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
           </div>
           <div class="dialog-c-text">
             Scenario name:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultBudgetScen.name"/><br>
+                   v-model="addEditModal.scenSummary.name"/><br>
             Parameter set:<br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
@@ -112,7 +124,7 @@ Last update: 2018-07-31
             Budget year:<br>
             <input type="text"
                    class="txbox"
-                   v-model="defaultBudgetScen.start_year"/><br>
+                   v-model="addEditModal.scenSummary.start_year"/><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
               <tr>
@@ -121,7 +133,7 @@ Last update: 2018-07-31
               </tr>
               </thead>
               <tbody>
-              <tr v-for="item in defaultBudgetScen.alloc">
+              <tr v-for="item in addEditModal.scenSummary.alloc">
                 <td>
                   {{ item[2] }}
                 </td>
@@ -147,9 +159,6 @@ Last update: 2018-07-31
         </div>
       </modal>
 
-      <!-- Popup spinner -->
-      <popup-spinner></popup-spinner>
-
     </div>
   </div>
 </template>
@@ -163,14 +172,9 @@ Last update: 2018-07-31
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
-  import PopupSpinner from './Spinner.vue'
 
   export default {
     name: 'scenarioPage',
-
-    components: {
-      PopupSpinner
-    },
 
     data() {
       return {
@@ -186,7 +190,12 @@ Last update: 2018-07-31
         newProgsetName: [],
         areShowingPlots: false,
         plotOptions: [],
-        scenariosLoaded: false
+        scenariosLoaded: false, 
+        addEditModal: {
+          scenSummary: {},    
+          origName: '',
+          mode: 'add'
+        }
       }
     },
 
@@ -199,7 +208,16 @@ Last update: 2018-07-31
           return this.$store.state.activeProject.project.id
         }
       },
-
+      
+      activeProjectHasData() {
+        if (this.$store.state.activeProject.project === undefined) {
+          return false
+        }
+        else {        
+          return this.$store.state.activeProject.project.hasData
+        }
+      }, 
+      
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -214,8 +232,8 @@ Last update: 2018-07-31
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      }
-      else { // Otherwise...
+      } else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {
         // Load the scenario summaries of the current project.
         console.log('created() called')
         this.getScenSummaries()
@@ -353,6 +371,9 @@ Last update: 2018-07-31
         rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
+          this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+          this.addEditModal.origName = this.addEditModal.scenSummary.name
+          this.addEditModal.mode = 'add'          
           this.$modal.show('add-budget-scen');
           console.log(this.defaultBudgetScen)
         })
@@ -372,21 +393,35 @@ Last update: 2018-07-31
         // Start indicating progress.
         status.start(this)
         
-        let newScen = this.dcp(this.defaultBudgetScen); // You've got to be kidding me, buster
-        let otherNames = []
+        // Get the new scenario summary from the modal.
+        let newScen = this.dcp(this.addEditModal.scenSummary)
+  
+        // Get the list of all of the current scenario names.
+        let scenNames = []
         this.scenSummaries.forEach(scenSum => {
-          otherNames.push(scenSum.name)
-        });
-        let index = otherNames.indexOf(newScen.name);
-        if (index > -1) {
-          console.log('scenario named '+newScen.name+' exists, overwriting...')
-          this.scenSummaries[index] = newScen
+          scenNames.push(scenSum.name)
+        })
+               
+        // If we are editing an existing scenario...
+        if (this.addEditModal.mode == 'edit') {
+          // Get the index of the original (pre-edited) name
+          let index = scenNames.indexOf(this.addEditModal.origName)
+          if (index > -1) {
+            this.scenSummaries[index].name = newScen.name  // hack to make sure Vue table updated            
+            this.scenSummaries[index] = newScen
+          }
+          else {
+            console.log('Error: a mismatch in editing keys')
+          }            
         }
+        // Else (we are adding a new scenario)...
         else {
-          console.log('scenario named '+newScen.name+' does not exist, creating new...')
+          newScen.name = this.getUniqueName(newScen.name, scenNames)
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
+        console.log(this.scenSummaries)
+        
         rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
@@ -406,6 +441,9 @@ Last update: 2018-07-31
         this.defaultBudgetScen = scenSummary
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
+        this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+        this.addEditModal.origName = this.addEditModal.scenSummary.name         
+        this.addEditModal.mode = 'edit'         
         this.$modal.show('add-budget-scen');
       },
 
