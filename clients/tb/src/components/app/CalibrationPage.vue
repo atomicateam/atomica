@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-15
+Last update: 2018-08-16
 -->
 
 <template>
@@ -27,7 +27,7 @@ Last update: 2018-08-15
           <span v-else>Show</span>
           parameters
         </button>
-        <button class="btn" @click="autoCalibrate(activeProjectID)">Calibrate</button>
+        <button class="btn" @click="autoCalibrate(activeProjectID)">Automatic calibration</button>
 
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
