@@ -202,6 +202,7 @@ Last update: 2018-08-16
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
+  import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
@@ -290,7 +291,7 @@ Last update: 2018-08-16
         this.viewTable()
         this.getPlotOptions()
         this.updateParset()
-        this.sleep(1000)
+        utils.sleep(1000)
           .then(response => {
             this.makeGraphs(this.activeProjectID)
             }
@@ -299,12 +300,6 @@ Last update: 2018-08-16
     },
 
     methods: {
-
-      sleep(time) {
-        // Return a promise that resolves after _time_ milliseconds.
-        console.log('Sleeping for ' + time)
-        return new Promise((resolve) => setTimeout(resolve, time));
-      },
 
       notImplemented(message) {
         status.failurePopup(this, 'Function "' + message + '" not yet implemented')

@@ -3,12 +3,8 @@
 // Last update: 7/3/18 (gchadder3)
 
 import rpcs from '@/services/rpc-service'
+import utils from '@/services/utils'
 
-// sleep() -- sleep for _time_ milliseconds
-function sleep(time) {
-  // Return a promise that resolves after _time_ milliseconds.
-  return new Promise((resolve) => setTimeout(resolve, time));
-}
 
 // getTaskResultWaiting() -- given a task_id string, a waiting time (in 
 // sec.), and a remote task function name and its args, try to launch 
@@ -25,7 +21,7 @@ function getTaskResultWaiting(task_id, waitingtime, func_name, args) {
     rpcs.rpc('launch_task', [task_id, func_name, args])
     .then(response => {
       // Sleep waitingtime seconds.
-      sleep(waitingtime * 1000)
+      utils.sleep(waitingtime * 1000)
       .then(response2 => {
         // Get the result of the task.
         rpcs.rpc('get_task_result', [task_id])
@@ -108,7 +104,7 @@ function pollStep(task_id, timeout, pollinterval, elapsedtime) {
     // Otherwise, we've not run out of time yet, so do a polling step.
     else {
       // Sleep timeout seconds.
-      sleep(pollinterval * 1000)
+      utils.sleep(pollinterval * 1000)
       .then(response => {
         // Check the status of the task.
         rpcs.rpc('check_task', [task_id])
@@ -153,7 +149,6 @@ function pollStep(task_id, timeout, pollinterval, elapsedtime) {
 }
 
 export default {
-  sleep,
   getTaskResultWaiting,
   getTaskResultPolling
 }
