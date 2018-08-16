@@ -313,8 +313,7 @@ Last update: 2018-08-16
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
-        // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID()]) // Get the current user's parsets from the server.
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -329,7 +328,6 @@ Last update: 2018-08-16
           status.succeed(this, '')  // No green notification.
         })
         .catch(error => {
-          // Failure popup.
           status.fail(this, 'Could not update parset')
         })         
       },
@@ -349,10 +347,10 @@ Last update: 2018-08-16
         return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'index') { return par1.index > par2.index ? sortDir: -sortDir}
-            else if (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
+            if      (this.sortColumn === 'index')      { return par1.index     > par2.index     ? sortDir: -sortDir}
+            else if (this.sortColumn === 'parameter')  { return par1.parlabel  > par2.parlabel  ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.poplabel  > par2.poplabel  ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')      { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
           }
         )
       },
@@ -389,12 +387,8 @@ Last update: 2018-08-16
 
       makeGraphs(project_id) {
         console.log('makeGraphs() called')
-        
-        // Start indicating progress.
-        status.start(this)
-        
-        // Go to the server to get the results from the package set.
-        rpcs.rpc('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear])
+        status.start(this) // Start indicating progress.
+        rpcs.rpc('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -418,33 +412,24 @@ Last update: 2018-08-16
               console.log('failled:' + err.message);
             }
           }
-          
-          // Indicate success.
-          status.succeed(this, 'Graphs created')
+          status.succeed(this, 'Graphs created') // Indicate success.
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
-          
-          // Indicate failure.
           status.fail(this, 'Could not make graphs')
         }) 
       },
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
-        
-        // Start indicating progress.
-        status.start(this)
+        status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
-
-        // Go to the server to get the results from the package set.
-        rpcs.rpc('automatic_calibration', [project_id, this.activeParset])
+        rpcs.rpc('automatic_calibration', [project_id, this.activeParset]) // Go to the server to get the results from the package set.
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
           console.log('Rendering ' + n_plots + ' graphs')
-
           for (var index = 0; index <= n_plots; index++) {
             console.log('Rendering plot ' + index)
             var divlabel = 'fig' + index
@@ -464,19 +449,12 @@ Last update: 2018-08-16
               console.log('failled:' + err.message);
             }
           }
-          
-          // Indicate success.
-          status.succeed(this, 'Automatic calibration complete')
+          status.succeed(this, 'Automatic calibration complete') // Indicate success.
         })
         .catch(error => {
-          // Pull out the error message.
-          this.serverresponse = 'There was an error: ' + error.message
-
-          // Set the server error.
-          this.servererror = error.message
-          
-          // Indicate failure.
-          status.fail(this, 'Automatic calibration failed')           
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          status.fail(this, 'Automatic calibration failed')  // Indicate failure.
         })
       },
 
@@ -495,83 +473,55 @@ Last update: 2018-08-16
         console.log('exportResults() called')
         rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
         .catch(error => {
-          // Failure popup.
-          status.failurePopup(this, 'Could not export results')    
+          status.failurePopup(this, 'Could not export results')
         })         
       },
 
       renameParsetModal() {
-        // Open a model dialog for creating a new project
         console.log('renameParsetModal() called');
         this.$modal.show('rename-parset');
       },
 
       renameParset() {
-        // Find the project that matches the UID passed in.
-        let uid = this.$store.state.activeProject.project.id
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
-        
-        // Start indicating progress.
-        status.start(this)
-      
+        status.start(this) // Start indicating progress.
         rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
         .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateParset()
-          
-          // Indicate success.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
+          this.updateParset() // Update the project summaries so the copied program shows up on the list.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not rename parameter set')
+          status.fail(this, 'Could not rename parameter set') // Indicate failure.
         })
       },
 
-      // TO_PORT
-      copyParset() {
-        // Find the project that matches the UID passed in.
-        let uid = this.$store.state.activeProject.project.id
+      copyParset() { // TO_PORT
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('copyParset() called for ' + this.activeParset)
-        
-        // Start indicating progress.
-        status.start(this)
-        
+        status.start(this) // Start indicating progress.
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
         .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateParset()
-          
-          // Indicate success.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
+          this.updateParset() // Update the project summaries so the copied program shows up on the list.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not copy parameter set')
+          status.fail(this, 'Could not copy parameter set') // Indicate failure.
         })
       },
 
-      // TO_PORT
       deleteParset() {
-        // Find the project that matches the UID passed in.
-        let uid = this.$store.state.activeProject.project.id
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('deleteParset() called for ' + this.activeParset)
-        
-        // Start indicating progress.
-        status.start(this)
-        
+        status.start(this) // Start indicating progress.
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
         .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateParset()
-          
-          // Indicate success.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
+          this.updateParset() // Update the project summaries so the copied program shows up on the list.
+          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
+          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
         })
       },
     }
