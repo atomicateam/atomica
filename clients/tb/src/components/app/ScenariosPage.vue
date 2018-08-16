@@ -232,8 +232,8 @@ Last update: 2018-08-15
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      }
-      else if (this.$store.state.activeProject.project != undefined){ // Otherwise...
+      } else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {
         // Load the scenario summaries of the current project.
         console.log('created() called')
         this.getScenSummaries()

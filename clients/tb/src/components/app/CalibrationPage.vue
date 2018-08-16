@@ -283,7 +283,8 @@ Last update: 2018-08-15
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      } else if (this.$store.state.activeProject.project != undefined) {
+      } else if ((this.$store.state.activeProject.project != undefined) && 
+        (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
         this.viewTable()
