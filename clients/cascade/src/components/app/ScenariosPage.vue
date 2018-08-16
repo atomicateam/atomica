@@ -249,7 +249,6 @@ Last update: 2018-08-14
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       placeholders() { return utils.placeholders() },
-
     },
 
     created() {
@@ -274,7 +273,8 @@ Last update: 2018-08-14
 
     methods: {
 
-      makeGraphs() { return utils.makeGraphs(this) },
+      getPlotOptions() { return utils.getPlotOptions(this) },
+      makeGraphs(graphdata) { return utils.makeGraphs(this, graphdata) },
       clearGraphs() { return utils.clearGraphs() },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
@@ -462,17 +462,6 @@ Last update: 2018-08-14
         })
       },
 
-      getPlotOptions() {
-        console.log('getPlotOptions() called')
-        rpcservice.rpcCall('get_supported_plots', [true])
-          .then(response => {
-            this.plotOptions = response.data // Get the parameter values
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
-          })
-      },
-
       toggleShowingPlots() {
         this.areShowingPlots = !this.areShowingPlots
       },
@@ -487,12 +476,11 @@ Last update: 2018-08-14
           // Go to the server to get the results from the package set.
           rpcservice.rpcCall('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.response = response // Pull out the response data.
             this.table = response.data.table
-            this.makeGraphs()
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
+            console.log('There was an error: ' + error.message) // Pull out the error message.
             status.fail(this, 'Could not run scenarios: ' + error.message) // Indicate failure.
           })
         })
@@ -508,13 +496,11 @@ Last update: 2018-08-14
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         rpcservice.rpcCall('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.response = response.data // Pull out the response data.
             this.table = response.data.table
-            this.makeGraphs()
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
+            console.log('There was an error: ' + error.message) // Pull out the error message.
             status.fail(this, 'Could not plot scenarios: ' + error.message) // Indicate failure.
           })
       },

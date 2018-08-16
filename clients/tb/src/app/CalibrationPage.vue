@@ -259,7 +259,8 @@ Last update: 2018-08-16
 
     methods: {
 
-      makeGraphs() { return utils.makeGraphs(this) },
+      getPlotOptions() { return utils.getPlotOptions(this) },
+      makeGraphs(graphdata) { return utils.makeGraphs(this, graphdata) },
       clearGraphs() { return utils.clearGraphs() },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
@@ -319,17 +320,6 @@ Last update: 2018-08-16
         })
       },
 
-      getPlotOptions() {
-        console.log('getPlotOptions() called')
-        rpcs.rpc('get_supported_plots', [true])
-          .then(response => {
-            this.plotOptions = response.data // Get the parameter values
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
-          })
-      },
-
       toggleShowingParams() {
         this.areShowingParameters = !this.areShowingParameters
       },
@@ -344,8 +334,7 @@ Last update: 2018-08-16
         rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
           .then(response => {
             status.succeed(this, 'Simulation run') // Indicate success.
-            this.response = response // Pull out the response data.
-            this.makeGraphs()
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
             console.log(error.message)
@@ -359,8 +348,7 @@ Last update: 2018-08-16
         this.$Progress.start(7000)
         rpcs.rpc('automatic_calibration', [project_id, this.activeParset]) // Go to the server to get the results from the package set.
           .then(response => {
-            this.response = response // Pull out the response data.
-            this.makeGraphs()
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
             console.log(error.message)

@@ -67,10 +67,21 @@ function simEnd(vm) {
   }
 }
 
-function makeGraphs(vm) {
+function getPlotOptions(vm) {
+  console.log('getPlotOptions() called')
+  rpcs.rpc('get_supported_plots', [true])
+    .then(response => {
+    vm.plotOptions = response.data // Get the parameter values
+})
+.catch(error => {
+    status.failurePopup(vm, 'Could not get plot options: ' + error.message)
+})
+}
+
+function makeGraphs(vm, graphdata) {
   console.log('makeGraphs() called')
   status.start(vm) // Start indicating progress.
-  var n_plots = vm.response.data.graphs.length
+  var n_plots = graphdata.length
   console.log('Rendering ' + n_plots + ' graphs')
   for (var index = 0; index <= n_plots; index++) {
     console.log('Rendering plot ' + index)
@@ -80,8 +91,8 @@ function makeGraphs(vm) {
       div.removeChild(div.firstChild);
     }
     try {
-      console.log(vm.response.data.graphs[index]);
-      mpld3.draw_figure(divlabel, vm.response.data.graphs[index], function(fig, element) {
+      console.log(graphdata[index]);
+      mpld3.draw_figure(divlabel, graphdata[index], function(fig, element) {
         fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
         fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
       });
@@ -121,6 +132,7 @@ export default {
   hasData,
   simStart,
   simEnd,
+  getPlotOptions,
   makeGraphs,
   clearGraphs,
   exportResults,
