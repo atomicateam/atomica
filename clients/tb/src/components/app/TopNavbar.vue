@@ -9,8 +9,8 @@ Last update: 2018-07-27
     <div class="container-fluid">
       <div class="navbar-header">
         <div class="logo">
-          <a href="http://cascade.tools">
-            <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
+          <a href="http://tb.tools">
+            <img src="static/img/optima-logo-tb.png" height="50px" vertical-align="middle" alt>
           </a>
         </div>
         <button type="button" class="navbar-toggle" :class="{toggled: $sidebar.showSidebar}" @click="toggleSidebar">
@@ -24,18 +24,13 @@ Last update: 2018-07-27
         <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
         <ul class="nav navbar-nav navbar-main">
           <li class="nav-item">
-            <router-link to="/frameworks">
-              <span>Frameworks</span>
-            </router-link>
-          </li>
-          <li class="nav-item">
             <router-link to="/projects">
               <span>Projects</span>
             </router-link>
           </li>
           <li class="nav-item">
             <router-link to="/calibration">
-              <span>Baseline</span>
+              <span>Calibration</span>
             </router-link>
           </li>
           <li class="nav-item">
