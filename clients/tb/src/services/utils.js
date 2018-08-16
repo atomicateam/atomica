@@ -3,6 +3,7 @@
  */
 
 import rpcs from '@/services/rpc-service'
+import status from '@/services/status-service'
 
 function sleep(time) {
   // Return a promise that resolves after _time_ milliseconds.
@@ -51,6 +52,33 @@ function simEnd(vm) {
   }
 }
 
+function makeGraphs(vm) {
+  console.log('makeGraphs() called')
+  status.start(vm) // Start indicating progress.
+  var n_plots = vm.response.data.graphs.length
+  console.log('Rendering ' + n_plots + ' graphs')
+  for (var index = 0; index <= n_plots; index++) {
+    console.log('Rendering plot ' + index)
+    var divlabel = 'fig' + index
+    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+    while (div.firstChild) {
+      div.removeChild(div.firstChild);
+    }
+    try {
+      console.log(vm.response.data.graphs[index]);
+      mpld3.draw_figure(divlabel, vm.response.data.graphs[index], function(fig, element) {
+        fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
+        fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
+      });
+      vm.haveDrawnGraphs = true
+    }
+    catch (error) {
+      console.log('Making graphs failed: ' + error.message);
+    }
+  }
+  status.succeed(vm, 'Graphs created') // Indicate success.
+}
+
 function clearGraphs() {
   for (var index = 0; index <= 100; index++) {
     console.log('Clearing plot ' + index)
@@ -77,6 +105,7 @@ export default {
   hasData,
   simStart,
   simEnd,
+  makeGraphs,
   clearGraphs,
   exportResults,
 }
