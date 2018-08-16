@@ -131,6 +131,25 @@ function exportResults(vm, project_id) {
 })
 }
 
+
+
+function scaleElem(svg, frac) {
+  var $svg = $(svg);
+  var ratio = $svg.attr('width');
+  var height = $svg.attr('height');
+  $svg.attr('width', width*frac);
+  $svg.attr('height', height*frac);
+}
+
+function scaleFig(frac) {
+  $(elem)
+    .find(".calib-graphs")
+    .find('svg.mpld3-figure')
+    .each(function(i, svg) {
+      scaleElem(svg, frac);
+    });
+}
+
 export default {
   dcp,
   sleep,
@@ -144,4 +163,5 @@ export default {
   makeGraphs,
   clearGraphs,
   exportResults,
+  scaleFig,
 }

@@ -190,9 +190,9 @@ Last update: 2018-08-15
         newProgsetName: [],
         areShowingPlots: false,
         plotOptions: [],
-        scenariosLoaded: false, 
+        scenariosLoaded: false,
         addEditModal: {
-          scenSummary: {},    
+          scenSummary: {},
           origName: '',
           mode: 'add'
         }
@@ -208,16 +208,16 @@ Last update: 2018-08-15
           return this.$store.state.activeProject.project.id
         }
       },
-      
+
       activeProjectHasData() {
         if (this.$store.state.activeProject.project === undefined) {
           return false
         }
-        else {        
+        else {
           return this.$store.state.activeProject.project.hasData
         }
-      }, 
-      
+      },
+
       placeholders() {
         var indices = []
         for (var i = 0; i <= 100; i++) {
@@ -232,7 +232,7 @@ Last update: 2018-08-15
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      } else if ((this.$store.state.activeProject.project != undefined) && 
+      } else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         // Load the scenario summaries of the current project.
         console.log('created() called')
@@ -281,7 +281,7 @@ Last update: 2018-08-15
           this.newParsetName = this.activeParset // WARNING, KLUDGY
           console.log('Parset options: ' + this.parsetOptions)
           console.log('Active parset: ' + this.activeParset)
-                    
+
           // Get the current user's progsets from the server.
           rpcs.rpc('get_progset_info', [this.projectID()])
           .then(response => {
@@ -298,12 +298,12 @@ Last update: 2018-08-15
           })
           .catch(error => {
             // Failure popup.
-            status.failurePopup(this, 'Could not get progset info')    
-          })            
+            status.failurePopup(this, 'Could not get progset info')
+          })
         })
         .catch(error => {
           // Failure popup.
-          status.failurePopup(this, 'Could not get parset info')    
+          status.failurePopup(this, 'Could not get parset info')
         })
       },
 
@@ -318,31 +318,31 @@ Last update: 2018-08-15
         .catch(error => {
           // Failure popup.
           status.failurePopup(this, 'Could not get default budget scenario')
-        })         
+        })
       },
 
       getScenSummaries() {
         console.log('getScenSummaries() called')
-        
+
         // Start indicating progress.
         status.start(this)
-        
+
         // Get the current project's scenario summaries from the server.
         rpcs.rpc('get_scen_info', [this.projectID()])
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
           console.log(this.scenSummaries)
-          
+
           this.scenariosLoaded = true
-          
+
           // Indicate success.
           status.succeed(this, 'Scenarios loaded')
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
-          
+
           // Indicate failure.
           status.fail(this, 'Could not get scenarios: ' + error.message)
         })
@@ -350,10 +350,10 @@ Last update: 2018-08-15
 
       setScenSummaries() {
         console.log('setScenSummaries() called')
-        
+
         // Start indicating progress.
         status.start(this)
-        
+
         rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
@@ -361,8 +361,8 @@ Last update: 2018-08-15
         })
         .catch(error => {
           // Indicate failure.
-          status.fail(this, 'Could not save scenarios') 
-        })        
+          status.fail(this, 'Could not save scenarios')
+        })
       },
 
       addBudgetScenModal() {
@@ -373,14 +373,14 @@ Last update: 2018-08-15
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
           this.addEditModal.origName = this.addEditModal.scenSummary.name
-          this.addEditModal.mode = 'add'          
+          this.addEditModal.mode = 'add'
           this.$modal.show('add-budget-scen');
           console.log(this.defaultBudgetScen)
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
-          
+
            // Failure popup.
           status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
         })
@@ -389,30 +389,30 @@ Last update: 2018-08-15
       addBudgetScen() {
         console.log('addBudgetScen() called')
         this.$modal.hide('add-budget-scen')
-        
+
         // Start indicating progress.
         status.start(this)
-        
+
         // Get the new scenario summary from the modal.
         let newScen = this.dcp(this.addEditModal.scenSummary)
-  
+
         // Get the list of all of the current scenario names.
         let scenNames = []
         this.scenSummaries.forEach(scenSum => {
           scenNames.push(scenSum.name)
         })
-               
+
         // If we are editing an existing scenario...
         if (this.addEditModal.mode == 'edit') {
           // Get the index of the original (pre-edited) name
           let index = scenNames.indexOf(this.addEditModal.origName)
           if (index > -1) {
-            this.scenSummaries[index].name = newScen.name  // hack to make sure Vue table updated            
+            this.scenSummaries[index].name = newScen.name  // hack to make sure Vue table updated
             this.scenSummaries[index] = newScen
           }
           else {
             console.log('Error: a mismatch in editing keys')
-          }            
+          }
         }
         // Else (we are adding a new scenario)...
         else {
@@ -421,7 +421,7 @@ Last update: 2018-08-15
         }
         console.log(newScen)
         console.log(this.scenSummaries)
-        
+
         rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
@@ -429,10 +429,10 @@ Last update: 2018-08-15
         })
         .catch(error => {
           // Indicate failure.
-          status.fail(this, 'Could not add scenario') 
-          
+          status.fail(this, 'Could not add scenario')
+
           // TODO: Should probably fix the corrupted this.scenSummaries.
-        })         
+        })
       },
 
       editScen(scenSummary) {
@@ -442,17 +442,17 @@ Last update: 2018-08-15
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
         this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
-        this.addEditModal.origName = this.addEditModal.scenSummary.name         
-        this.addEditModal.mode = 'edit'         
+        this.addEditModal.origName = this.addEditModal.scenSummary.name
+        this.addEditModal.mode = 'edit'
         this.$modal.show('add-budget-scen');
       },
 
       copyScen(scenSummary) {
         console.log('copyScen() called')
-        
+
         // Start indicating progress.
         status.start(this)
-        
+
         var newScen = this.dcp(scenSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
@@ -467,18 +467,18 @@ Last update: 2018-08-15
         })
         .catch(error => {
           // Indicate failure.
-          status.fail(this, 'Could not copy scenario') 
-          
+          status.fail(this, 'Could not copy scenario')
+
           // TODO: Should probably fix the corrupted this.scenSummaries.
-        })        
+        })
       },
 
       deleteScen(scenSummary) {
         console.log('deleteScen() called')
-        
+
         // Start indicating progress.
         status.start(this)
-        
+
         for(var i = 0; i< this.scenSummaries.length; i++) {
           if(this.scenSummaries[i].name === scenSummary.name) {
             this.scenSummaries.splice(i, 1);
@@ -491,10 +491,10 @@ Last update: 2018-08-15
         })
         .catch(error => {
           // Indicate failure.
-          status.fail(this, 'Could not delete scenario') 
-          
+          status.fail(this, 'Could not delete scenario')
+
           // TODO: Should probably fix the corrupted this.scenSummaries.
-        })        
+        })
       },
 
       getPlotOptions() {
@@ -515,7 +515,7 @@ Last update: 2018-08-15
       runScens() {
         console.log('runScens() called')
         status.start(this)
-        this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
+        this.$Progress.start(7000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
@@ -544,14 +544,14 @@ Last update: 2018-08-15
                 console.log('failled:' + err.message);
               }
             }
-            
+
             // Indicate success.
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            
+
             // Indicate failure.
             status.fail(this, 'Could not make graphs')
           })
@@ -562,10 +562,10 @@ Last update: 2018-08-15
 
           // Set the server error.
           this.servererror = error.message
-          
+
           // Put up a failure notification.
-          status.fail(this, 'Could not make graphs')      
-        })        
+          status.fail(this, 'Could not make graphs')
+        })
       },
 
       reloadGraphs() {
