@@ -33,7 +33,9 @@ python testworkflow.py
 
 ### Initial installation
 * Complete the backend installation instructions above.
+* Ensure `import atomica_apps` works from a Python interpreter in the terminal. If not: (a) check our paths, (b) install any modules that are missing (we will soon have a `requirements.txt` file that solves this problem).
 * Ensure `redis` is installed: https://redis.io/topics/quickstart
+* Ensure `node.js` is installed: https://nodejs.org/en/download/
 * Ensure `npm` is installed: https://www.npmjs.com/get-npm
 * Change into the clients folder: `cd atomica/clients`
 * Install the JavaScript modules: `python install_client.py`
@@ -49,6 +51,7 @@ python testworkflow.py
 * To run optimizations, you will also need Celery: `./start_celery.sh` (Mac/Linux) or `start_celery.cmd` (Windows) in the tool folder.
 * Instead of `python dev_client.py`, which immediately recompiles the client if it detects a change in the source files, you can also run `python build_client.py`, which will compile the client only once. You can then serve it on its "official" port via the usual `python start_server.py` (e.g. `localhost:8094` for `cascade`, as opposed to `localhost:8080` when the client is compiled with `python dev_client.py`).
 * If additional Node.js modules have been added, you will need to rerun `python install_client.py` before building the client. This will usually be the case if and only if the build fails (i.e. `python dev_client.py` gives an error).
+* If the server crashes, the most likely cause is an old project that can't be unpickled. Run `python reset_database.py` to remove broken projects.
 
 
 # Code structure

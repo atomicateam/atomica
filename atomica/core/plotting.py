@@ -14,14 +14,12 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
-import matplotlib
 
 import sciris.core as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, NotFoundError, logger
+from .system import AtomicaException, NotFoundError, logger, NotAllowedError
 from .parser_function import parse_function
-from .utils import NDict
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
 import scipy.interpolate
@@ -81,10 +79,8 @@ class PlotData(object):
     # different views of the same data.
 
     # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
-    def __init__(self, results, outputs=None, pops=None, output_aggregation='sum', pop_aggregation='sum', project=None,
-                 time_aggregation='sum', t_bins=None):
-        # Construct a PlotData instance from a Results object by selecting data and optionally
-        # specifying desired aggregations
+    def __init__(self, results, outputs=None, pops=None, output_aggregation='sum', pop_aggregation='sum', project=None,time_aggregation='sum', t_bins=None):
+        # Construct a PlotData instance from model outputs
         #
         # final_outputs[result][pop][output] = vals
         # where the keys are the aggregated labels (if specified)
@@ -94,8 +90,10 @@ class PlotData(object):
         # outputs = ['vac',{'total':['vac','sus']}]
         #
         #
-        # - results - A Result or a dict of Results with key corresponding
-        #   to name
+        # - results - which results to plot. Can be
+        #               - a Result,
+        #               - a list of Results,
+        #               - a dict/odict of results (the name of the result is taken from the Result, not the dict)
         # - outputs - The name of an output compartment, characteristic, or
         #   parameter, or list of names. Inside a list, a dict can be given to
         #   specify an aggregation e.g. outputs=['sus',{'total':['sus','vac']}]
@@ -133,10 +131,9 @@ class PlotData(object):
         # Validate inputs
         if isinstance(results, sc.odict):
             results = [result for _, result in results.items()]
-        elif isinstance(results, Result):
+        elif not isinstance(results, list):
             results = [results]
-        elif isinstance(results, NDict):
-            results = list(results)
+
 
         result_names = [x.name for x in results]
         if len(set(result_names)) != len(result_names):
@@ -155,17 +152,6 @@ class PlotData(object):
         elif not isinstance(outputs, list):
             outputs = [outputs]
 
-        def expand_dict(x):
-            # If a list contains a dict with multiple keys, expand it into multiple dicts each
-            # with a single key
-            y = list()
-            for v in x:
-                if isinstance(v, dict):
-                    y += [{a: b} for a, b in v.items()]
-                else:
-                    y.append(v)
-            return y
-
         pops = expand_dict(pops)
         outputs = expand_dict(outputs)
 
@@ -174,22 +160,6 @@ class PlotData(object):
         assert output_aggregation in ['sum', 'average', 'weighted']
         assert pop_aggregation in ['sum', 'average', 'weighted']
         assert time_aggregation in ['sum', 'average']
-
-        def extract_labels(input_arrays):
-            # Flatten the input arrays to extract all requested pops and outputs
-            # e.g. ['vac',{'a':['vac','sus']}] -> ['vac','vac','sus'] -> set(['vac','sus'])
-            out = []
-            for x in input_arrays:
-                if isinstance(x, dict):
-                    k = list(x.keys())
-                    assert len(k) == 1, 'Aggregation dict can only have one key'
-                    if isinstance(x[k[0]], string_types):
-                        continue
-                    else:
-                        out += x[k[0]]
-                else:
-                    out.append(x)
-            return set(out)
 
         # First, get all of the pops and outputs requested by flattening the lists
         pops_required = extract_labels(pops)
@@ -253,8 +223,7 @@ class PlotData(object):
                             output_units[output_label] = vars[0].units
                             compsize[output_label] = np.zeros(tvecs[result_label].shape)
                             for link in vars[0].links:
-                                compsize[output_label] += (
-                                    link.source.vals if not link.source.is_junction else link.source.outflow)
+                                compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
                     elif isinstance(vars[0], Compartment) or isinstance(vars[0], Characteristic):
                         data_dict[output_label] = vars[0].vals
@@ -305,8 +274,7 @@ class PlotData(object):
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
                         if isinstance(labels, string_types):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
-                            aggregated_units[
-                                output_name] = 'unknown'  # Also, we don't know what the units of a function are
+                            aggregated_units[output_name] = 'unknown'  # Also, we don't know what the units of a function are
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
@@ -314,21 +282,17 @@ class PlotData(object):
                             logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly not desired.".format(output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
-                            if units[0] in ['', 'fraction', 'proportion', 'probability'] and \
-                                    output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
+                            if units[0] in ['', 'fraction', 'proportion', 'probability'] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
                                 logger.warning("Output '{0}' is not in number units, so output aggregation probably should not be 'sum'.".format(output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
 
                         if output_aggregation == 'sum':
-                            aggregated_outputs[pop_label][output_name] = sum(
-                                data_dict[x] for x in labels)  # Add together all the outputs
+                            aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels)  # Add together all the outputs
                         elif output_aggregation == 'average':
-                            aggregated_outputs[pop_label][output_name] = sum(
-                                data_dict[x] for x in labels)  # Add together all the outputs
+                            aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels)  # Add together all the outputs
                             aggregated_outputs[pop_label][output_name] /= len(labels)
                         elif output_aggregation == 'weighted':
-                            aggregated_outputs[pop_label][output_name] = sum(
-                                data_dict[x] * compsize[x] for x in labels)  # Add together all the outputs
+                            aggregated_outputs[pop_label][output_name] = sum(data_dict[x] * compsize[x] for x in labels)  # Add together all the outputs
                             aggregated_outputs[pop_label][output_name] /= sum([compsize[x] for x in labels])
                     else:
                         aggregated_outputs[pop_label][output] = data_dict[output]
@@ -342,28 +306,21 @@ class PlotData(object):
                         pop_name = list(pop.keys())[0]
                         pop_labels = pop[pop_name]
                         if pop_aggregation == 'sum':
-                            if aggregated_units[output_name] in ['', 'fraction', 'proportion', 'probability'] and len(
-                                    pop_labels) > 1:
+                            if aggregated_units[output_name] in ['', 'fraction', 'proportion', 'probability'] and len(pop_labels) > 1:
                                 logger.warning("Output '{0}' is not in number units, so population aggregation probably should not be 'sum'".format(output_name))
-                            vals = sum(
-                                aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
+                            vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
-                            vals = sum(
-                                aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
+                            vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                             vals /= len(pop_labels)
                         elif pop_aggregation == 'weighted':
-                            vals = sum(aggregated_outputs[x][output_name] * popsize[x] for x in
-                                       pop_labels)  # Add together all the outputs
+                            vals = sum(aggregated_outputs[x][output_name] * popsize[x] for x in pop_labels)  # Add together all the outputs
                             vals /= sum([popsize[x] for x in pop_labels])
                         else:
                             raise AtomicaException('Unknown pop aggregation method')
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name,
-                                                  data_label[output_name], units=aggregated_units[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name,data_label[output_name], units=aggregated_units[output_name]))
                     else:
                         vals = aggregated_outputs[pop][output_name]
-                        self.series.append(
-                            Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name],
-                                   units=aggregated_units[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name],units=aggregated_units[output_name]))
 
         self.results = [x.name for x in
                         results]  # NB. These are lists that thus specify the order in which plotting takes place
@@ -375,58 +332,65 @@ class PlotData(object):
         self.pop_names = {x: (get_full_name(x, project) if project is not None else x) for x in self.pops}
         self.output_names = {x: (get_full_name(x, project) if project is not None else x) for x in self.outputs}
 
+        # Handle time aggregation
         if t_bins is not None:
+            self._time_aggregate(t_bins,time_aggregation)
 
-            # If t_bins is a scalar, expand it into a vector of bin edges
-            if not hasattr(t_bins, '__len__'):
-                # TODO - here is where the code to handle t_bins > sim duration goes
-                if not (self.series[0].tvec[-1] - self.series[0].tvec[0]) % t_bins:
-                    upper = self.series[0].tvec[-1] + t_bins
-                else:
-                    upper = self.series[0].tvec[-1]
-                t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
+    def _time_aggregate(self, t_bins, time_aggregation):
+        # This is an internal method used for time aggregation
+        # It is called by __init__() to time-aggregate model outputs, and by
+        # `.programs()` to time-aggregate spending values
 
-            if isinstance(t_bins, string_types) and t_bins == 'all':
-                t_out = np.zeros((1,))
-                lower = [-np.inf]
-                upper = [np.inf]
+        # If t_bins is a scalar, expand it into a vector of bin edges
+        if not hasattr(t_bins, '__len__'):
+            # TODO - here is where the code to handle t_bins > sim duration goes
+            if not (self.series[0].tvec[-1] - self.series[0].tvec[0]) % t_bins:
+                upper = self.series[0].tvec[-1] + t_bins
             else:
-                lower = t_bins[0:-1]
-                upper = t_bins[1:]
-                if time_aggregation == 'sum':
-                    t_out = upper
-                elif time_aggregation == 'average':
-                    t_out = (lower + upper) / 2.0
-                else:
-                    raise AtomicaException('Unknown time aggregation type')
+                upper = self.series[0].tvec[-1]
+            t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
 
-            for s in self.series:
-                tvec = []
-                vals = []
-                for i, low, high, t in zip(range(len(lower)), lower, upper, t_out):
-                    tvec.append(t)
-                    if (not np.isinf(low) and low < s.tvec[0]) or (not np.isinf(high) and high > s.tvec[-1]):
-                        vals.append(np.nan)
+        if isinstance(t_bins, string_types) and t_bins == 'all':
+            t_out = np.zeros((1,))
+            lower = [-np.inf]
+            upper = [np.inf]
+        else:
+            lower = t_bins[0:-1]
+            upper = t_bins[1:]
+            if time_aggregation == 'sum':
+                t_out = upper
+            elif time_aggregation == 'average':
+                t_out = (lower + upper) / 2.0
+            else:
+                raise AtomicaException('Unknown time aggregation type')
+
+        for s in self.series:
+            tvec = []
+            vals = []
+            for i, low, high, t in zip(range(len(lower)), lower, upper, t_out):
+                tvec.append(t)
+                if (not np.isinf(low) and low < s.tvec[0]) or (not np.isinf(high) and high > s.tvec[-1]):
+                    vals.append(np.nan)
+                else:
+                    if low == high:
+                        flt = s.tvec == low
                     else:
-                        if low == high:
-                            flt = s.tvec == low
-                        else:
-                            flt = (s.tvec >= low) & (s.tvec < high)
+                        flt = (s.tvec >= low) & (s.tvec < high)
 
-                        if time_aggregation == 'sum':
-                            if s.units in ['', 'fraction', 'proportion', 'probability']:
-                                logger.warning("'{0}' is not in number units, so time aggregation probably should not "
-                                               "be 'sum'.".format(s))
-                            vals.append(np.sum(s.vals[flt]))
-                        elif time_aggregation == 'average':
-                            vals.append(np.average(s.vals[flt]))
+                    if time_aggregation == 'sum':
+                        if s.units in ['', 'fraction', 'proportion', 'probability']:
+                            logger.warning("'{0}' is not in number units, so time aggregation probably should not "
+                                           "be 'sum'.".format(s))
+                        vals.append(np.sum(s.vals[flt]))
+                    elif time_aggregation == 'average':
+                        vals.append(np.average(s.vals[flt]))
 
-                s.tvec = np.array(tvec)
-                s.vals = np.array(vals)
-                if isinstance(t_bins, string_types) and t_bins == 'all':
-                    s.t_labels = ['All']
-                else:
-                    s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
+            s.tvec = np.array(tvec)
+            s.vals = np.array(vals)
+            if isinstance(t_bins, string_types) and t_bins == 'all':
+                s.t_labels = ['All']
+            else:
+                s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
 
     def __repr__(self):
         s = "PlotData\n"
@@ -434,6 +398,137 @@ class PlotData(object):
         s += "Pops: {0}\n".format(self.pops)
         s += "Outputs: {0}\n".format(self.outputs)
         return s
+
+    @staticmethod
+    def programs(results,outputs=None,t_bins=None,quantity='spending'):
+        # This constructs a PlotData instance from spending values
+        #
+        # INPUTS
+        # - results - single Result, or list of Results. Technically could plot spending given just a progset and instructions, but
+        #           passing in Results makes it parsimonious with the other plotting functions. This could be relaxed in future, where the 'Result'
+        #           name is actually the name of a progset etc. but unless that's necessary, doing it this way is clearer and more consistent
+        #           otherwise it's too easy to pass in the wrong combination of progset+instructions
+        # - prognames - specification of which programs to plot spending for
+        #     - the name of a single program
+        #     - a list of program names
+        #     - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Output aggregation type is automatically 'sum' for
+        #                              program spending, and NOT permitted for coverages (due to modality interactions)
+        # - t_bins - aggregate over time, using summation for spending and number coverage, and average for fraction/proportion coverage
+        # - quantity - can be 'spending', 'coverage_number', 'coverage_denominator', or 'coverage_fraction'. The 'coverage_denominator' is
+        #              the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_denominator
+
+        # Sanitize the results input
+        if isinstance(results, sc.odict):
+            results = [result for _, result in results.items()]
+        elif isinstance(results, Result):
+            results = [results]
+
+        result_names = [x.name for x in results]
+        if len(set(result_names)) != len(result_names):
+            raise AtomicaException('Results must have different names (in their result.name property)')
+        for result in results:
+            if result.model.progset is None:
+                raise AtomicaException('Tried to plot program spending for result "%s" that did not use programs', result.name)
+
+        if outputs is None:
+            outputs = results[0].model.progset.programs.keys()
+        elif not isinstance(outputs, list):
+            outputs = [outputs]
+
+        outputs = expand_dict(outputs)
+        progs_required = extract_labels(outputs)
+
+        assert quantity in ['spending','coverage_number','coverage_denominator','coverage_fraction']
+        # Make a new PlotData instance
+        # We are using __new__ because this method is to be formally considered an alternate constructor and
+        # thus bears responsibility for ensuring this new instance is initialized correctly
+        plotdata = PlotData.__new__(PlotData)
+        plotdata.series = []
+
+        # Because aggregations always occur within a Result object, loop over results
+        for result in results:
+
+            alloc = result.model.progset.get_alloc(result.model.program_instructions, tvec=result.t)
+
+            if quantity == 'spending':
+                units = '$/year'
+            elif quantity == 'coverage_number':
+                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc) # program coverage based on unit cost and spending
+                units = 'Number of people/year'
+            elif quantity in ['coverage_fraction','coverage_denominator']:
+                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc)  # program coverage based on unit cost and spending
+                # Get the program coverage denominator
+                prop_covered = dict()
+                num_eligible = dict() # This is the coverage denominator, number of people covered by the program
+                for prog in result.model.progset.programs.values(): # For each program
+                    for pop_name in prog.target_pops:
+                        for comp_name in prog.target_comps:
+                            if prog.short not in num_eligible:
+                                num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals.copy()
+                            else:
+                                num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
+                    prop_covered[prog.short] = np.minimum(num_covered[prog.short]/num_eligible[prog.short],np.ones(result.t.shape))
+                if quantity == 'coverage_denominator':
+                    units = 'Number of people'
+                elif quantity == 'coverage_fraction':
+                    units = 'Fraction covered/year'
+            else:
+                raise AtomicaException('Unknown quantity')
+
+            for output in outputs:  # For each final output
+                if isinstance(output, dict): # If this is an aggregation over programs
+                    if quantity == 'spending':
+                        output_name = list(output.keys())[0] # This is the aggregated name
+                        labels = output[output_name] # These are the quantities being aggregated
+
+                        # We only support summation for combining program spending, not averaging
+                        # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
+                        vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
+                        output_name = output_name
+                        data_label = None # No data present for aggregations
+                    else:
+                        raise NotAllowedError('Cannot use program aggregation for anything other than spending yet')
+                else:
+                    if quantity == 'spending':
+                        vals = alloc[output]
+                    elif quantity == 'coverage_number':
+                        vals = num_covered[output]
+                    elif quantity == 'coverage_fraction':
+                        vals = prop_covered[output]
+                    elif quantity == 'coverage_denominator':
+                        vals = num_eligible[output]
+                    else:
+                        raise AtomicaException('Unknown quantity')
+                    output_name = output
+                    data_label = output # Can look up program spending by the program name
+
+                if quantity in ['spending','coverage_number'] and t_bins is not None:
+                    # If we are time-aggregating, then the annual quantities which are going to be summed need to be
+                    # converted back to timestep values - for both spending and number coverage, this is simply multiplicative
+                    vals *= result.dt
+                    units = units.replace('/year','')
+
+                # Accumulate the Series
+                plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units)) # The program should specify the units for its unit cost
+
+        plotdata.results = [x.name for x in results]  # NB. These are lists that thus specify the order in which plotting takes place
+        plotdata.pops = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
+        plotdata.outputs = [list(x.keys())[0] if isinstance(x, dict) else x for x in outputs]
+
+        # Names will be substituted with these at the last minute when plotting for titles/legends
+        plotdata.result_names = {x: x for x in plotdata.results}  # At least for now, no Result name mapping
+        plotdata.pop_names = {FS.DEFAULT_SYMBOL_INAPPLICABLE:FS.DEFAULT_SYMBOL_INAPPLICABLE}
+        plotdata.output_names = {x: (results[0].model.progset.programs[x].label if x in results[0].model.progset.programs else x) for x in plotdata.outputs}
+
+        if t_bins is not None:
+            if quantity in ['spending','coverage_number']:
+                plotdata._time_aggregate(t_bins,'sum')
+            elif quantity in ['coverage_denominator','coverage_fraction']:
+                plotdata._time_aggregate(t_bins,'average')
+            else:
+                raise AtomicaException('Unknown quantity')
+
+        return plotdata
 
     def tvals(self):
         # Return a vector of time values for the PlotData object, if all of the series have the
@@ -795,11 +890,10 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
             offset += result_offset
 
     # If there is only one block per inner group, then use the inner group string as the bar label
-    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and len(
-            set([x for _, x in inner_labels])) > 1:
+    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and len(set([x for _, x in inner_labels])) > 1:
+        ax.set_xticks([x[0] for x in inner_labels])
         ax.set_xticklabels([x[1] for x in inner_labels])
-    elif len(inner_labels) > 1 and len(set(
-            [x for _, x in inner_labels])) > 1:  # Inner group labels are only displayed if there is more than one label
+    elif len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1:  # Inner group labels are only displayed if there is more than one label
         ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
         ax2.set_xticks([x[0] for x in inner_labels])
         ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
@@ -854,7 +948,9 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                 else:
                     ax.set_ylabel('%s' % (plotdata.output_names[output]))
 
-                ax.set_title('%s' % (plotdata.pop_names[pop]))
+                if plotdata.pop_names[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    ax.set_title('%s' % (plotdata.pop_names[pop]))
+
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for result in plotdata.results])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
@@ -920,7 +1016,11 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                 if len(units) == 1 and units[0]:
                     ax.set_ylabel(units[0])
 
-                ax.set_title('%s-%s' % (plotdata.result_names[result], plotdata.pop_names[pop]))
+                if plotdata.pop_names[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    ax.set_title('%s-%s' % (plotdata.result_names[result], plotdata.pop_names[pop]))
+                else:
+                    ax.set_title('%s' % (plotdata.result_names[result]))
+
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for output in plotdata.outputs])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
@@ -1244,3 +1344,35 @@ def nested_loop(inputs, loop_order):
         for i in range(len(item)):
             out[loop_order[i]] = item[i]
         yield out
+
+def expand_dict(x):
+    # If a list contains a dict with multiple keys, expand it into multiple dicts each
+    # with a single key
+    y = list()
+    for v in x:
+        if isinstance(v, dict):
+            y += [{a: b} for a, b in v.items()]
+        else:
+            y.append(v)
+    return y
+
+
+def extract_labels(input_arrays):
+    # Flatten the input arrays to extract all requested pops and outputs
+    # e.g. ['vac',{'a':['vac','sus']}] -> ['vac','vac','sus'] -> set(['vac','sus'])
+    # This is because the workflow for aggregation is
+    #   1 - retrieve all quantities required
+    #   2 - perform all aggregations
+
+    out = []
+    for x in input_arrays:
+        if isinstance(x, dict):
+            k = list(x.keys())
+            assert len(k) == 1, 'Aggregation dict can only have one key'
+            if isinstance(x[k[0]], string_types):
+                continue
+            else:
+                out += x[k[0]]
+        else:
+            out.append(x)
+    return set(out)

@@ -56,15 +56,16 @@ def timeit(method):
 # Make a Result storable by Sciris
 class ResultSO(sw.ScirisObject):
 
-    def __init__(self,result):
-        super(ResultSO, self).__init__(result.uid)
+    def __init__(self, result):
+        super(ResultSO, self).__init__(result.uid, type_prefix='result', 
+              file_suffix='.res', instance_label=result.name)
         self.result = result
 
 # A ResultPlaceholder can be stored in proj.results instead of a Result
 class ResultPlaceholder(au.NamedItem):
 
     def __init__(self,result):
-        au.NamedItem.__init__(self,result.name)
+        au.NamedItem.__init__(self, result.name)
         self.uid = result.uid
 
     def get(self):
@@ -72,7 +73,7 @@ class ResultPlaceholder(au.NamedItem):
         return result_so.result
 
 @timeit
-def store_result_separately(proj,result):
+def store_result_separately(proj, result):
     # Given a result, add a ResultPlaceholder to the project
     # Save both the updated project and the result to the datastore
     result_so = ResultSO(result)
@@ -543,6 +544,13 @@ def create_framework_from_file(filename, user_id=None):
     """
     print(">> create_framework_from_frw_file '%s'" % filename)
     frame = au.ProjectFramework(filename)
+
+    if not frame.cascades:
+        au.validate_cascade(frame, None)
+    else:
+        for cascade in frame.cascades:
+            au.validate_cascade(frame, cascade)
+
     if frame.name is None: 
         frame.name = os.path.basename(filename) # Ensure that it's not None
         if frame.name.endswith('.xlsx'):
@@ -751,12 +759,15 @@ def add_demo_project(user_id, project_name='default'):
 
 
 @register_RPC(call_type='download', validation_type='nonanonymous user')
-def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, data_start, data_end):
+def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, data_start, data_end, tool=None):
     """
     Create a new project.
     """
-    framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
-    frame = framework_record.frame
+    if tool is None: # Optionally select by tool rather than frame
+        framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
+        frame = framework_record.frame
+    else: # Or get a pre-existing one by the tool name
+        frame = au.demo(kind='framework', which=tool)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
@@ -935,15 +946,16 @@ def set_y_factors(project_id, parsetname=-1, y_factors=None, plot_options=None, 
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
     if tool == 'cascade':
-        output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year))
+        if result.framework.cascades:
+            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
+        else:
+            output = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=None) # Plot the fallback cascade - this might not be a valid cascade
     else:
         output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
         unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
         output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
     return output
-
-
 
 
 #%% Plotting
@@ -1390,7 +1402,7 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @register_RPC(validation_type='nonanonymous user')    
-def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None):
+def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
@@ -1398,7 +1410,7 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
         return {'error': 'No scenario selected'}
     proj.results['scenarios'] = results # WARNING, will want to save separately!
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
 #    if saveresults:
@@ -1407,12 +1419,12 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
     return output
     
 @register_RPC(validation_type='nonanonymous user') 
-def plot_scenarios(project_id, plot_options, tool=None, plotyear=None):
+def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None):
     print('Plotting scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['scenarios']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     return output
@@ -1498,15 +1510,27 @@ def set_optim_info(project_id, optim_summaries):
 
 
 @register_RPC(validation_type='nonanonymous user') 
-def plot_optimization(project_id, plot_options, tool=None, plotyear=None):
+def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=None):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['optimization']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     return output
+
+def make_plots(results,outputs=None,cascades=None,budget=None):
+    #
+    # make_plots is a central point for generating three types of plots
+    #
+    # - outputs, which are the plots defined in the 'Plots' sheet of the framework
+    # - cascades, which are defined in the 'Cascades' sheet of the framework
+    # - budget, which is automatic
+    #
+    #
+    print('hello')
+
 
 
 # Deprecated, see equivalent in apptasks.py

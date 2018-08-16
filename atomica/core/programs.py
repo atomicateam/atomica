@@ -951,7 +951,6 @@ class Program(NamedItem):
     def get_unit_cost(self, year=None):
         return self.unit_cost.interpolate(year)
 
-
     def optimizable(self, doprint=False, partial=False):
         '''
         Return whether or not a program can be optimized.

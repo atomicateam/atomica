@@ -108,6 +108,8 @@ class TimeSeries(object):
     def insert(self, t, v):
         # Insert value v at time t maintaining sort order
         # To set the assumption, set t=None
+        v = float(v) # Convert input to float
+
         if t is None:
             self.assumption = v
         elif t in self.t:
