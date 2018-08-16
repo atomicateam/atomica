@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-15
+Last update: 2018-08-16
 -->
 
 <template>
@@ -9,7 +9,7 @@ Last update: 2018-08-15
     <div class="PageSection">
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoProject">Create demo project</button>
+        <button class="btn __blue" @click="addDemoProject">Add demo project</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
