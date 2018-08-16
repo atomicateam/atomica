@@ -9,7 +9,7 @@ Last update: 2018-07-27
     <div class="container-fluid">
       <div class="navbar-header">
         <div class="logo">
-          <a href="http://ocds.co">
+          <a href="http://ocds.co" target="_blank">
             <img src="static/img/optima-logo-tb.png" height="50px" vertical-align="middle" alt>
           </a>
         </div>
@@ -64,7 +64,7 @@ Last update: 2018-07-27
   </nav>
 </template>
 <script>
-  import rpcservice from '@/services/rpc-service'
+  import rpcs from '@/services/rpc-service'
   import userService from '@/services/user-service'
   import router from '@/router'
 
