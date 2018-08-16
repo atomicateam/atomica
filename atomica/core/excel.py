@@ -538,28 +538,77 @@ class TimeDependentValuesEntry(object):
         # That is, the parent object e.g. Databook() is responsible for finding where the TDVE table is,
         # and reading all of the rows associated with it (skipping #ignored rows) and then passing those rows,
         # unparsed, to this function
+        #
+        # 'units', 'uncertainty', and 'constant' are optional - if 'constant' is present then expect
+        # that the column after it contains 'or'
+
         from .structure import TimeSeries # Import here to avoid circular reference
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
         name = vals[0].strip()
-        tvec = np.array(vals[4:],dtype=float)
+
+        lowered_headings = [x.lower() if isinstance(x,string_types) else x for x in vals]
+
+        # We can optionally have units, uncertainty, and constant
+        # nb. finding the index means this is robust to extra empty
+        # columns, a user adding one of the these fields to a single table on a page
+        # might introduce a blank column to all of the other TDVE elements on the page too
+        # so the code below should be able to deal with this
+        if 'units' in lowered_headings:
+            units_index = lowered_headings.index('units')
+        else:
+            units_index = None
+
+        if 'uncertainty' in lowered_headings:
+            uncertainty_index = lowered_headings.index('uncertainty')
+        else:
+            uncertainty_index = None
+
+        if 'constant' in lowered_headings:
+            constant_index = lowered_headings.index('constant')
+        else:
+            constant_index = None
+
+        offset = 1 + (1 if units_index else 0) + (1 if uncertainty_index else 0) + (2 if constant_index else 0) # Index where the time values start
+        tvec = np.array(vals[offset:],dtype=float)
         ts_entries = sc.odict()
 
         # For each TimeSeries that we will instantiate
         for row in rows[1:]:
             vals = [x.value for x in row]
             series_name = vals[0]
-            format = vals[1].lower().strip() if vals[1] else None
-            units = vals[1].lower().strip() if vals[1] else None
-            assumption = vals[2]
-            assert vals[3] == 'OR' # Check row is as expected
-            data = vals[4:]
+
+            if units_index is not None:
+                units = vals[units_index].lower().strip() if vals[units_index] else None
+                format = units
+            else:
+                units = None
+                format = None
+
             ts = TimeSeries(format=format,units=units)
-            if assumption is not None and assumption != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                ts.insert(None,float(assumption))
+
+            if uncertainty_index is not None:
+                sigma = vals[uncertainty_index]
+                if sigma is not None and sigma != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
+                    ts.sigma = float(sigma)
+            else:
+                ts.sigma = None
+
+            if constant_index is not None:
+                constant = vals[constant_index]
+                if constant is not None and constant != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
+                    ts.assumption = float(constant)
+            else:
+                ts.assumption = None
+
+            if constant_index is not None:
+                assert vals[offset - 1] == 'OR'  # Check row is as expected
+
+            data = vals[offset:]
+
             for t,v in zip(tvec,data):
-                if np.isfinite(t) and v is not None: # Ignore any times that are NaN
+                if np.isfinite(t) and v is not None: # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
                     ts.insert(t,v)
             ts_entries[series_name] = ts
 

@@ -86,6 +86,7 @@ class TimeSeries(object):
         self.format = format # TODO - what's the difference between format and units?!
         self.units = units
         self.assumption = None
+        self.sigma = None # Uncertainty value
 
         for tx, vx in zip(t,vals):
             self.insert(tx, vx)
