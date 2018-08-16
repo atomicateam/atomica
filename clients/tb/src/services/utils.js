@@ -7,7 +7,15 @@ function sleep(time) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
+function placeholders() {
+  var indices = []
+  for (var i = 0; i <= 100; i++) {
+    indices.push(i);
+  }
+  return indices;
+}
 
 export default {
-  sleep
+  sleep,
+  placeholders
 }

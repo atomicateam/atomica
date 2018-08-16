@@ -264,17 +264,11 @@ Last update: 2018-08-16
       },
 
       placeholders() {
-        var indices = []
-        for (var i = 0; i <= 100; i++) {
-          indices.push(i);
-        }
-        return indices;
+        return utils.placeholders();
       },
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
-/*        var sortedParList = this.parList;
-        console.log(sortedParList); */
         return sortedParList;
       },
 
@@ -417,7 +411,7 @@ Last update: 2018-08-16
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
           this.servererror = error.message // Set the server error.
-          status.fail(this, 'Could not make graphs')
+          status.fail(this, 'Could not make graphs: ' + error.message)
         }) 
       },
 
