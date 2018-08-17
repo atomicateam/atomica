@@ -38,7 +38,7 @@ if not any([isinstance(h,logging.StreamHandler) and not isinstance(h,logging.Fil
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-from atomica.core.version import version as __version__, versiondate as __versiondate__
+from atomica.version import version as __version__, versiondate as __versiondate__
 logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__)) # Log with the highest level
 logger.critical(datetime.now())
 
