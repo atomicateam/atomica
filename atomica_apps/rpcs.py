@@ -491,7 +491,7 @@ def create_new_framework():
     Create a new framework.
     """
     filename = 'framework_template.xlsx'
-    filepath = au.atomica_path(['atomica','core'])+filename
+    filepath = au.atomica_path('atomica')+filename
     print(">> download_framework %s" % (filepath))
     return filepath # Return the filename
 

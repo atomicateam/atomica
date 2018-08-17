@@ -20,11 +20,11 @@ CLASSIFIERS = [
 ]
 
 setup(
-    name='atomica',
+    name='atomica_apps',
     version=version,
-    author='David J. Kedziora, Robyn M. Stuart, Romesh Abeysuriya, Cliff C. Kerr',
-    author_email='info@optimamodel.com',
-    description='Software package for the optimization of complex Markov chain models',
+    author='Cliff Kerr, George Chadderdon, Vlad-Stefan Harbuz, James Jansson, Romesh Abeysuriya, Robyn Stuart',
+    author_email='info@ocds.co',
+    description='Frontend for Atomica',
     url='http://github.com/optimamodel/atomica',
     keywords=['optima', 'disease'],
     platforms=['OS Independent'],
@@ -32,14 +32,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'six>=1.11.0',
-        'matplotlib>=1.4.2',
-        'numpy>=1.10.1',
-        'decorator>=4.1.2',
-        'dill>=0.2.7.1',
-        'xlsxwriter',
-        'xlrd',
-        'pyparsing',
-        'pandas'
+        'atomica',
+        'sciris'
     ],
 )
