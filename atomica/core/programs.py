@@ -868,7 +868,7 @@ class Program(NamedItem):
         self.target_par_types   = None # List of parameter types targeted by program, should correspond to short names of parameters
         self.target_pops        = None # List of populations targeted by the program
         self.target_comps       = [] # Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend     = TimeSeries(assumption=0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data
+        self.baseline_spend     = TimeSeries(assumption=0.0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data
         self.spend_data         = TimeSeries() if spend_data is None else spend_data # TimeSeries with spending data
         self.unit_cost          = TimeSeries() if unit_cost is None else unit_cost # TimeSeries with unit cost of program
         self.capacity           = TimeSeries() if capacity is None else capacity # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
@@ -978,13 +978,14 @@ class Program(NamedItem):
                 print('Program not optimizable because an exception was encountered: %s' % E.message)
         
         return valid
-        
 
     def has_budget(self):
         return self.spend_data.has_data()
 
     def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False):
         '''Returns number covered for a time/spending vector'''
+        # TODO - implement sampling - might just be replacing 'interpolate' with 'sample'?
+
         num_covered = 0.
 
         # Validate inputs
@@ -997,8 +998,8 @@ class Program(NamedItem):
         unit_cost = promotetoarray(unit_cost)
             
         if capacity is None:
-
-            if self.capacity is not None: capacity = self.capacity.get(sample)
+            if self.capacity is not None:
+                capacity = self.capacity.interpolate(year)
             
         # Use a linear cost function if capacity has not been set
         if capacity is not None:
