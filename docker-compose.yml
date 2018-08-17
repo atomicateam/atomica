@@ -1,22 +1,24 @@
-app:
-  build: .
-  command: python start_server.py
-  environment:
-    - 'REDIS_URL=redis://database:6379/8'
-  ports:
-   - "8080:8080"
-   - "8094:8094"
-  volumes:
-   - .:/code
-  links:
-   - redis
-  logging:
-    driver: gcplogs
+version: '2'
+services:
+  app:
+    build: .
+    command: python start_server.py
+    environment:
+      - 'REDIS_URL=redis://database:6379/8'
+    ports:
+     - "8080:8080"
+     - "8094:8094"
+    volumes:
+     - .:/code
+    links:
+     - redis
+    logging:
+      driver: gcplogs
 
-redis:
-  image: redis
-  container_name: database
-  expose:
-    - 6379
-  logging:
-    driver: gcplogs
+  redis:
+    image: redis
+    container_name: database
+    expose:
+      - 6379
+    logging:
+      driver: gcplogs
