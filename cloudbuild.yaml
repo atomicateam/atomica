@@ -1,4 +1,3 @@
-#cloudbuild.yaml
 steps:
-- name: ‘docker/compose:1.22.0’
-  args: [‘up’, ‘-d’]
+  - name: 'docker/compose:1.22.0'
+    args: ['up', '-d']
