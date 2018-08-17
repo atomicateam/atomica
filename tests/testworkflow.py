@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
 #test = "sir"
-#test = "tb"
-test = "hypertension"
+test = "tb"
+#test = "hypertension"
 #test = "udt"
 #test = "usdt"
 #test = "hiv"
@@ -29,7 +29,7 @@ torun = [
 #"runsim",
 #"plotcascade",
 "makeblankprogbook",
-"writeprogbook",
+#"writeprogbook",
 #"testprograms",
 #"runsim_programs",
 #"makeplots",
@@ -135,9 +135,9 @@ if 'plotcascade' in torun:
 if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
     P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
-    filename = "temp/progbook_"+test+"_blank.xlsx"
+    filename = "temp/progbook_"+test+"_blank_n.xlsx"
     if test == "tb":
-        P.make_progbook(filename, progs=29)
+        P.make_progbook(filename, progs=6)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
     elif test == "udt":
