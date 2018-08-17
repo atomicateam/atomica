@@ -10,15 +10,15 @@ services:
      - "8094:8094"
     volumes:
      - .:/code
-    links:
+    depends_on:
      - redis
     # logging:
     #   driver: gcplogs
 
   redis:
     image: redis
-    container_name: database
-    expose:
-      - 6379
+    container_name: redis
+    ports:
+      - "6379:6379"
     # logging:
     #   driver: gcplogs
