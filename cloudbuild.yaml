@@ -1,6 +1,6 @@
+images: ['gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA']
 steps:
   - name: 'docker/compose:1.22.0'
     args: ['up', '-d']
   - name: 'gcr.io/cloud-builders/docker'
     args: ['tag', 'atomica_app:latest', 'gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA']
-    images: ['gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA']
