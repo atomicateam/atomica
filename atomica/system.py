@@ -13,7 +13,7 @@ logger = logging.getLogger('atomica')
 # Code for determining module installation directory.
 def atomica_path(subdir=None, trailingsep=True):
     """ Returns the parent path of the Atomica module. If subdir is not None, include it in the path. """
-    path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if subdir is not None:
         if not isinstance(subdir, list):
             subdir = [subdir]  # Ensure it's a list.
