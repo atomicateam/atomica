@@ -12,13 +12,13 @@ services:
      - .:/code
     links:
      - redis
-    logging:
-      driver: gcplogs
+    # logging:
+    #   driver: gcplogs
 
   redis:
     image: redis
     container_name: database
     expose:
       - 6379
-    logging:
-      driver: gcplogs
+    # logging:
+    #   driver: gcplogs
