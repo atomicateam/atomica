@@ -1,27 +1,27 @@
 // index.js -- vue-router path configuration code
 //
-// Last update: 2/21/18 (gchadder3)
+// Last update: 8/17/18 (gchadder3)
 
 // Import main things
 import Vue from 'vue'
 import Router from 'vue-router'
-import DashboardLayout from '@/components/app/DashboardLayout.vue'
+import DashboardLayout from '@/app/DashboardLayout.vue'
 
 // App views
-import NotFound from '@/components/generic/NotFoundPage.vue'
-import FrameworksPage from '@/components/app/FrameworksPage'
-import ProjectsPage from '@/components/app/ProjectsPage'
-import CalibrationPage from '@/components/app/CalibrationPage'
-import ScenariosPage from '@/components/app/ScenariosPage'
-import OptimizationsPage from '@/components/app/OptimizationsPage'
-import LoginPage from '@/components/app/LoginPage'
-import MainAdminPage from '@/components/app/MainAdminPage'
-import RegisterPage from '@/components/app/RegisterPage'
-import UserChangeInfoPage from '@/components/app/UserChangeInfoPage'
-import ChangePasswordPage from '@/components/app/ChangePasswordPage'
-import Help from '@/components/app/Help'
-import Contact from '@/components/app/Contact'
-import About from '@/components/app/About'
+import NotFound from '@/app/NotFoundPage.vue'
+import FrameworksPage from '@/app/FrameworksPage'
+import ProjectsPage from '@/app/ProjectsPage'
+import CalibrationPage from '@/app/CalibrationPage'
+import ScenariosPage from '@/app/ScenariosPage'
+import OptimizationsPage from '@/app/OptimizationsPage'
+import LoginPage from '@/app/LoginPage'
+import MainAdminPage from '@/app/MainAdminPage'
+import RegisterPage from '@/app/RegisterPage'
+import UserChangeInfoPage from '@/app/UserChangeInfoPage'
+import ChangePasswordPage from '@/app/ChangePasswordPage'
+import Help from '@/app/Help'
+import Contact from '@/app/Contact'
+import About from '@/app/About'
 
 
 Vue.use(Router);

@@ -1,7 +1,7 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 8/13/18 (gchadder3)
+Last update: 8/17/18 (gchadder3)
 -->
 
 <template>
@@ -91,5 +91,5 @@ export default {
 } */
 
   // Modal dialog styling.
-  @import './assets/sass/_dialogs.scss';
+  @import './sass/_dialogs.scss';
 </style>
