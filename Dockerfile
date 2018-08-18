@@ -9,7 +9,6 @@ RUN apt-get update -qq && apt-get install -yqq gnupg curl libgl1-mesa-glx gcc
 RUN curl -sL https://deb.nodesource.com/setup_9.x | bash
 RUN apt-get install -yqq nodejs
 RUN apt-get clean -y
-
 # Install sciris
 RUN git clone https://github.com/optimamodel/sciris.git
 RUN cd sciris && python setup.py develop
@@ -28,3 +27,5 @@ RUN python install_client.py
 # Install cascade (TODO: add an option for cascade/tb)
 WORKDIR cascade
 RUN python build_client.py
+
+CMD REDIS_URL=redis://10.0.0.3:6379/8 python start_server.py
