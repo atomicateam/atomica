@@ -8,9 +8,9 @@
         -->
     <!-- -->
     <div class="sidebar-wrapper" id="style-3">
-      <div class="logo" style="text-align:center">
-        <a href="http://cascade.tools">
-          <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
+      <div class="logo">
+        <a href="#" class="simple-text">
+            <img src="static/img/optima-inverted-logo-tb.png" width="160px" vertical-align="middle" alt>
         </a>
       </div>
       <slot>

@@ -52,8 +52,7 @@
   .nav {
     li {
       &.active > a {
-        // Overriding the theme system here. This is the logo colour.
-        color: #00267a; // $font-color;
+        color: $font-color;
         opacity: 1;
       }
     }

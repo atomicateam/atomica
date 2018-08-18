@@ -5,7 +5,7 @@ $none: 0 !default;
 $border-thin: 1px !default;
 $border-thick: 2px !default;
 
-$white-color: #000; // #FFFFFF !default;
+$white-color: #FFFFFF !default;
 $white-bg: #FFFFFF !default;
 
 $smoke-bg: #F5F5F5 !default;
@@ -23,7 +23,7 @@ $black-hr: #444444 !default;
 $white-background-color: #FFFFFF !default;
 $black-background-color: #212120 !default; // CK: this is the side panel background color
 // $darkblue-background-color: #35495E !default; // this is the dark blue color from Vue.js branding 
-$darkblue-background-color: #d5dbe5; // #0c2544 !default;
+$darkblue-background-color: #0c2544 !default;
 
 $light-gray: #E3E3E3 !default;
 $medium-gray: #DDDDDD !default;
@@ -190,7 +190,7 @@ $green-navbar: rgba(#4CD964, .98);
 $orange-navbar: rgba(#FF9500, .98);
 $red-navbar: rgba(#FF4C40, .98);
 
-$bg-nude: #fff; // #f8f8f4 !default; // CK: main color!!!!!
+$bg-nude: #f8f8f4 !default; // CK: main color!!!!!
 $bg-primary: #8ECFD5 !default;
 $bg-info: #7CE4FE !default;
 $bg-success: #8EF3C5 !default;
@@ -221,8 +221,7 @@ $select-coordinates: 50% -40px !default;
 
 $padding-zero: 0px !default;
 
-$sidebar-real-width: 210px;
-$sidebar-width: calc(100% - #{$sidebar-real-width}) !default;
+$sidebar-width: calc(100% - 260px) !default;
 $medium-dark-gray: #AAAAAA !default;
 
 //variables used in cards

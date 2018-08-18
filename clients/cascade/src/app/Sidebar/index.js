@@ -4,17 +4,12 @@ const SidebarStore = {
   showSidebar: false,
   sidebarLinks: [
     {
-      name: 'Frameworks',
-      icon: 'ti-ruler-pencil',
-      path: '/frameworks'
-    },
-    {
       name: 'Projects',
       icon: 'ti-view-grid',
       path: '/projects'
     },
     {
-      name: 'Baseline',
+      name: 'Calibration',
       icon: 'ti-ruler-alt-2',
       path: '/calibration'
     },
@@ -32,6 +27,11 @@ const SidebarStore = {
       name: 'Help',
       icon: 'ti-help',
       path: '/help'
+    },
+    {
+      name: 'Contact',
+      icon: 'ti-comment-alt',
+      path: '/contact'
     },
     {
       name: 'About',

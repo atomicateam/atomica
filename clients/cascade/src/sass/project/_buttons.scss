@@ -293,8 +293,7 @@ $disabled-color: #FFF;
   font-size: $font-size-base;
   font-weight: $font-weight-semi;
 
-  padding: $padding-base-vertical $padding-small-horizontal;
-  margin-bottom: 5px;
+  padding: $padding-base-vertical $padding-base-horizontal;
 
   @include btn-styles($default-color, $default-states-color);
   @include transition($fast-transition-time, linear);
