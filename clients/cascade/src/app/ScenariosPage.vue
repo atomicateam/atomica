@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-14
+Last update: 2018-08-18
 -->
 
 <template>
@@ -82,10 +82,6 @@ Last update: 2018-08-14
         <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
 
       </div>
-
-
-
-
 
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
         <div class="calib-params" v-if="areShowingPlots">
@@ -207,7 +203,8 @@ Last update: 2018-08-14
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import rpcservice from '@/services/rpc-service'
+  import utils from '@/services/utils'
+  import rpcs from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
@@ -312,7 +309,7 @@ Last update: 2018-08-14
         this.startYear = this.active_sim_start
         this.endYear = this.active_sim_end
         this.popOptions = this.active_pops
-        this.sleep(1)  // used so that spinners will come up by callback func
+        utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.getScenSummaries()
           this.getDefaultBudgetScen()
@@ -328,13 +325,7 @@ Last update: 2018-08-14
         var output = JSON.parse(JSON.stringify(input))
         return output
       },
-      
-      sleep(time) {
-        // Return a promise that resolves after _time_ milliseconds.
-        console.log('Sleeping for ' + time)
-        return new Promise((resolve) => setTimeout(resolve, time));
-      },
-      
+            
       getUniqueName(fileName, otherNames) {
         let tryName = fileName
         let numAdded = 0
@@ -354,7 +345,7 @@ Last update: 2018-08-14
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID()])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -368,7 +359,7 @@ Last update: 2018-08-14
           console.log('Active parset: ' + this.activeParset)
                     
           // Get the current user's progsets from the server.
-          rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID()])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -394,7 +385,7 @@ Last update: 2018-08-14
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           console.log('This is the default:')
@@ -413,7 +404,7 @@ Last update: 2018-08-14
         status.start(this)
         
         // Get the current project's scenario summaries from the server.
-        rpcservice.rpcCall('get_scen_info', [this.projectID()])
+        rpcs.rpc('get_scen_info', [this.projectID()])
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
@@ -439,7 +430,7 @@ Last update: 2018-08-14
         // Start indicating progress.
         status.start(this)
         
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenarios saved')
@@ -453,7 +444,7 @@ Last update: 2018-08-14
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
-        rpcservice.rpcCall('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID()])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
@@ -507,7 +498,7 @@ Last update: 2018-08-14
         console.log(newScen)
         console.log(this.scenSummaries)        
         
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario added')
@@ -545,7 +536,7 @@ Last update: 2018-08-14
         })
         newScen.name = this.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario copied')
@@ -569,7 +560,7 @@ Last update: 2018-08-14
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario deleted')
@@ -584,7 +575,7 @@ Last update: 2018-08-14
 
       getPlotOptions() {
         console.log('getPlotOptions() called')
-        rpcservice.rpcCall('get_supported_plots', [true])
+        rpcs.rpc('get_supported_plots', [true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
           })
@@ -602,10 +593,10 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcservice.rpcCall('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcservice.rpcCall('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          rpcs.rpc('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -649,7 +640,7 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcs.rpc('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -716,7 +707,7 @@ Last update: 2018-08-14
       exportResults(project_id) {
         console.log('exportResults() called')
         status.start(this)
-        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
           .then(response => {
             // Indicate success.
             status.succeed(this, '')  // No green popup message.

@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-15
+Last update: 2018-08-18
 -->
 
 <template>
@@ -209,7 +209,8 @@ Last update: 2018-08-15
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import rpcservice from '@/services/rpc-service'
+  import utils from '@/services/utils'
+  import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
@@ -313,11 +314,11 @@ Last update: 2018-08-15
         this.popOptions = this.active_pops
         this.viewTable()
         this.getPlotOptions()
-        this.sleep(1)  // used so that spinners will come up by callback func
+        utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.updateParset()
         })
-        this.sleep(1000)
+        utils.sleep(1000)
         .then(response => {
           this.makeGraphs(this.activeProjectID)
         })
@@ -339,12 +340,6 @@ Last update: 2018-08-15
         }
       },
 
-      sleep(time) {
-        // Return a promise that resolves after _time_ milliseconds.
-        console.log('Sleeping for ' + time)
-        return new Promise((resolve) => setTimeout(resolve, time));
-      },
-
       notImplemented(message) {
         status.failurePopup(this, 'Function "' + message + '" not yet implemented')
       },
@@ -358,7 +353,7 @@ Last update: 2018-08-15
         console.log('updateParset() called')
         status.start(this)       
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID()])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -403,7 +398,7 @@ Last update: 2018-08-15
 
       viewTable() {
         console.log('viewTable() called')
-        rpcservice.rpcCall('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
+        rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
         .then(response => {
           this.parList = response.data // Get the parameter values
         })
@@ -414,7 +409,7 @@ Last update: 2018-08-15
 
       getPlotOptions() {
         console.log('getPlotOptions() called')
-        rpcservice.rpcCall('get_supported_plots', [true])
+        rpcs.rpc('get_supported_plots', [true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
           })
@@ -441,7 +436,7 @@ Last update: 2018-08-15
         status.start(this)
         
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, this.activePop, 'cascade'])
+        rpcs.rpc('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, this.activePop, 'cascade'])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -489,7 +484,7 @@ Last update: 2018-08-15
         this.$Progress.start(7000)
 
         // Go to the server to get the results from the package set.
-        rpcservice.rpcCall('automatic_calibration', [project_id, this.activeParset])
+        rpcs.rpc('automatic_calibration', [project_id, this.activeParset])
         .then(response => {
           this.serverresponse = response.data // Pull out the response data.
           var n_plots = response.data.graphs.length
@@ -544,7 +539,7 @@ Last update: 2018-08-15
       exportResults(project_id) {
         console.log('exportResults() called')
         status.start(this)
-        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
         .then(response => {
           // Indicate success.
           status.succeed(this, '')  // No green popup message.        
@@ -570,7 +565,7 @@ Last update: 2018-08-15
         // Start indicating progress.
         status.start(this)
       
-        rpcservice.rpcCall('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
         .then(response => {
           // Update the project summaries so the copied program shows up on the list.
           this.updateParset()
@@ -593,7 +588,7 @@ Last update: 2018-08-15
         // Start indicating progress.
         status.start(this)
         
-        rpcservice.rpcCall('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
         .then(response => {
           // Update the project summaries so the copied program shows up on the list.
           this.updateParset()
@@ -616,7 +611,7 @@ Last update: 2018-08-15
         // Start indicating progress.
         status.start(this)
         
-        rpcservice.rpcCall('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
         .then(response => {
           // Update the project summaries so the copied program shows up on the list.
           this.updateParset()

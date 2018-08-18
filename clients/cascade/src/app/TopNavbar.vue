@@ -1,7 +1,7 @@
 <!--
 Definition of top navigation bar
 
-Last update: 2018-07-27
+Last update: 2018-08-18
 -->
 
 <template>
@@ -69,7 +69,6 @@ Last update: 2018-07-27
   </nav>
 </template>
 <script>
-  import rpcservice from '@/services/rpc-service'
   import userService from '@/services/user-service'
   import router from '@/router'
 

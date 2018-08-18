@@ -1,7 +1,7 @@
 <!--
 User registration page
 
-Last update: 2018-05-28
+Last update: 2018-08-18
 -->
 
 
@@ -79,7 +79,7 @@ Last update: 2018-05-28
 
 
 <script>
-import rpcservice from '@/services/rpc-service'
+import rpcs from '@/services/rpc-service'
 import userservice from '@/services/user-service'
 import router from '@/router'
 
@@ -100,7 +100,7 @@ export default {
 
   computed: {
     getVersionInfo() {
-      rpcservice.rpcCall('get_version_info')
+      rpcs.rpc('get_version_info')
         .then(response => {
           this.version = response.data['version'];
           this.date = response.data['date'];

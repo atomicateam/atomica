@@ -1,7 +1,7 @@
 <!--
 Change the user's password
 
-Last update: 2018-03-25
+Last update: 2018-08-18
 -->
 
 <template>
@@ -37,7 +37,6 @@ Last update: 2018-03-25
 </template>
 
 <script>
-import rpcservice from '@/services/rpc-service'
 import userservice from '@/services/user-service'
 import router from '@/router'
 

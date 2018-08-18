@@ -1,11 +1,11 @@
 <!--
 Help page -- ideally will have mostly in-app help a la HIV
 
-Last update: 2018-03-25
+Last update: 2018-08-18
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
   	<p>We are in the process of writing a user guide.</p>
     <p>For assistance in the meantime, please email <a href="mailto:info@cascade.tools">info@cascade.tools</a>.</p>
   </div>

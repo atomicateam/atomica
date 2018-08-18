@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-14
+Last update: 2018-08-18
 -->
 
 <template>
@@ -89,8 +89,6 @@ Last update: 2018-08-14
           </table>
         </div>
       </div>
-
-
 
       <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}" style="max-width:400px">
         <div class="plotopts-params" v-if="areShowingPlots">
@@ -218,7 +216,8 @@ Last update: 2018-08-14
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import rpcservice from '@/services/rpc-service'
+  import utils from '@/services/utils'
+  import rpcs from '@/services/rpc-service'
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
@@ -327,7 +326,7 @@ Last update: 2018-08-14
       }
       else if ((this.$store.state.activeProject.project != undefined) && 
         (this.$store.state.activeProject.project.hasData) ) {
-        this.sleep(1)  // used so that spinners will come up by callback func
+        utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
           this.startYear = this.active_sim_start
@@ -349,12 +348,6 @@ Last update: 2018-08-14
         return output
       },
       
-      sleep(time) {
-        // Return a promise that resolves after _time_ milliseconds.
-        console.log('Sleeping for ' + time)
-        return new Promise((resolve) => setTimeout(resolve, time));
-      },
-      
       getUniqueName(fileName, otherNames) {
         let tryName = fileName
         let numAdded = 0
@@ -374,7 +367,7 @@ Last update: 2018-08-14
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcservice.rpcCall('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID()])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -388,7 +381,7 @@ Last update: 2018-08-14
           console.log('Active parset: ' + this.activeParset)
           
           // Get the current user's progsets from the server.
-          rpcservice.rpcCall('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID()])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -414,7 +407,7 @@ Last update: 2018-08-14
 
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
-        rpcservice.rpcCall('get_default_optim', [this.projectID()])
+        rpcs.rpc('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           this.resetModal()
@@ -436,7 +429,7 @@ Last update: 2018-08-14
         status.start(this)
         
         // Get the current project's optimization summaries from the server.
-        rpcservice.rpcCall('get_optim_info', [this.projectID()])
+        rpcs.rpc('get_optim_info', [this.projectID()])
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
           
@@ -455,7 +448,7 @@ Last update: 2018-08-14
         // Start indicating progress.
         status.start(this)
         
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimizations saved')
@@ -470,7 +463,7 @@ Last update: 2018-08-14
         // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         this.resetModal()
-        rpcservice.rpcCall('get_default_optim', [this.projectID()])
+        rpcs.rpc('get_default_optim', [this.projectID()])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           this.addEditDialogMode = 'add'
@@ -517,7 +510,7 @@ Last update: 2018-08-14
           this.optimSummaries.push(newOptim)
         }
         
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimization added')
@@ -565,7 +558,7 @@ Last update: 2018-08-14
         })
         newOptim.name = this.getUniqueName(newOptim.name, otherNames)
         this.optimSummaries.push(newOptim)
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Opimization copied')
@@ -590,8 +583,8 @@ Last update: 2018-08-14
             this.optimSummaries.splice(i, 1);
           }
         }
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
-        .then( response => {
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
+        .then(response => {
           // Indicate success.
           status.succeed(this, 'Optimization deleted')
         })
@@ -605,7 +598,7 @@ Last update: 2018-08-14
 
       getPlotOptions() {
         console.log('getPlotOptions() called')
-        rpcservice.rpcCall('get_supported_plots', [true])
+        rpcs.rpc('get_supported_plots', [true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
           })
@@ -624,7 +617,7 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcservice.rpcCall('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
         .then(response => {          
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
@@ -683,7 +676,7 @@ Last update: 2018-08-14
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcservice.rpcCall('plot_optimization', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcs.rpc('plot_optimization', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -751,7 +744,7 @@ Last update: 2018-08-14
       exportResults(project_id) {
         console.log('exportResults() called')
         status.start(this)
-        rpcservice.rpcDownloadCall('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
           .then(response => {
             // Indicate success.
             status.succeed(this, '')  // No green popup message.

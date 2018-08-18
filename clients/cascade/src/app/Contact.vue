@@ -1,11 +1,11 @@
 <!--
 Contact page
 
-Last update: 2018-03-25
+Last update: 2018-08-18
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
   	<p>You can reach us at <a href="mailto:info@cascade.tools">info@cascade.tools</a>.</p>
   </div>
 </template>

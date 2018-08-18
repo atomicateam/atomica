@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-08-15
+Last update: 2018-08-18
 -->
 
 <template>
@@ -156,7 +156,8 @@ Last update: 2018-08-15
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import rpcservice from '@/services/rpc-service'
+  import utils from '@/services/utils'
+  import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
   
@@ -216,7 +217,7 @@ Last update: 2018-08-15
 
       getFrameworkOptions() {
         console.log('getFrameworkOptions() called')
-        rpcservice.rpcCall('get_framework_options') // Get the current user's framework summaries from the server.
+        rpcs.rpc('get_framework_options') // Get the current user's framework summaries from the server.
           .then(response => {
             this.frameworkOptions = response.data // Set the frameworks to what we received.
             this.currentFramework = this.frameworkOptions[0]
@@ -229,7 +230,7 @@ Last update: 2018-08-15
 
       updateFrameworkSummaries() {
         console.log('updateFrameworkSummaries() called')
-        rpcservice.rpcCall('load_current_user_framework_summaries') // Get the current user's framework summaries from the server.
+        rpcs.rpc('load_current_user_framework_summaries') // Get the current user's framework summaries from the server.
         .then(response => {
           this.frameworkSummaries = response.data.frameworks // Set the frameworks to what we received.
           this.frameworkSummaries.forEach(theFrame => { // Preprocess all frameworks.
@@ -249,7 +250,7 @@ Last update: 2018-08-15
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
         status.start(this) // Start indicating progress.
-        rpcservice.rpcCall('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
+        rpcs.rpc('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
         .then(response => {         
           // Update the framework summaries so the new framework shows up on the list.
           this.updateFrameworkSummaries()
@@ -273,7 +274,7 @@ Last update: 2018-08-15
         console.log('createNewFramework() called')
         this.$modal.hide('create-framework')
         status.start(this) // Start indicating progress.
-        rpcservice.rpcDownloadCall('create_new_framework') // Have the server create a new framework.
+        rpcs.download('create_new_framework') // Have the server create a new framework.
         .then(response => {
           status.succeed(this, '')
         })
@@ -284,7 +285,7 @@ Last update: 2018-08-15
 
       uploadFrameworkFromFile() {
         console.log('uploadFrameworkFromFile() called')
-          rpcservice.rpcUploadCall('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
+          rpcs.upload('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
           .then(response => {
             status.start(this) // Start indicating progress.
             this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
@@ -369,7 +370,7 @@ Last update: 2018-08-15
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid) // Find the framework that matches the UID passed in.
         console.log('copyFramework() called for ' + matchFramework.framework.name)
         status.start(this)
-        rpcservice.rpcCall('copy_framework', [uid]) // Have the server copy the framework, giving it a new name.
+        rpcs.rpc('copy_framework', [uid]) // Have the server copy the framework, giving it a new name.
         .then(response => {
           this.updateFrameworkSummaries() // Update the framework summaries so the copied program shows up on the list.
           status.succeed(this, 'Framework "'+matchFramework.framework.name+'" copied')
@@ -388,7 +389,7 @@ Last update: 2018-08-15
           let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
           status.start(this) // Start indicating progress.
-          rpcservice.rpcCall('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
+          rpcs.rpc('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
             this.updateFrameworkSummaries() // Update the framework summaries so the rename shows up on the list.
             frameworkSummary.renaming = '' // Turn off the renaming mode.
@@ -417,7 +418,7 @@ Last update: 2018-08-15
         status.start(this) // Start indicating progress.
       
         // Make the server call to download the framework to a .prj file.
-        rpcservice.rpcDownloadCall('download_framework', [uid])
+        rpcs.download('download_framework', [uid])
         .then(response => {
           status.succeed(this, '')        
         })
@@ -433,7 +434,7 @@ Last update: 2018-08-15
         console.log('downloadDefaults() called for ' + matchFramework.framework.name)
 
         // Make the server call to download the framework to a .prj file.
-        rpcservice.rpcDownloadCall('download_defaults', [uid])
+        rpcs.download('download_defaults', [uid])
         .catch(error => {
           status.failurePopup(this, 'Could not download defaults:' + error.message)     
         })        
@@ -470,7 +471,7 @@ Last update: 2018-08-15
         if (selectFrameworksUIDs.length > 0) {
           status.start(this) // Start indicating progress.         
           
-          rpcservice.rpcCall('delete_frameworks', [selectFrameworksUIDs])
+          rpcs.rpc('delete_frameworks', [selectFrameworksUIDs])
           .then(response => {
             // Get the active framework ID.
 /*            let activeFrameworkId = this.$store.state.activeFramework.framework.id
@@ -506,7 +507,7 @@ Last update: 2018-08-15
         if (selectFrameworksUIDs.length > 0) {
           status.start(this) // Start indicating progress.
           
-          rpcservice.rpcDownloadCall('load_zip_of_frw_files', [selectFrameworksUIDs])
+          rpcs.download('load_zip_of_frw_files', [selectFrameworksUIDs])
           .then(response => {
             status.succeed(this, '')         
           })
