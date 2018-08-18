@@ -41,7 +41,6 @@ import userService from '@/services/user-service'
 
 export default {
   computed: {
-    // Health prior function
     currentUser: () => {
       return userService.currentUser()
     },
