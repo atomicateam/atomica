@@ -285,16 +285,6 @@ Last update: 2018-08-18
 
     methods: {
             
-      getUniqueName(fileName, otherNames) {
-        let tryName = fileName
-        let numAdded = 0
-        while (otherNames.indexOf(tryName) > -1) {
-          numAdded = numAdded + 1
-          tryName = fileName + ' (' + numAdded + ')'
-        }
-        return tryName
-      },
-
       // TO_PORT
       updateSets() {
         console.log('updateSets() called')
@@ -446,7 +436,7 @@ Last update: 2018-08-18
         }
         // Else (we are adding a new scenario)...
         else {
-          newScen.name = this.getUniqueName(newScen.name, scenNames)
+          newScen.name = utils.getUniqueName(newScen.name, scenNames)
           this.scenSummaries.push(newScen)
         }
         console.log(newScen)
@@ -488,7 +478,7 @@ Last update: 2018-08-18
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
         })
-        newScen.name = this.getUniqueName(newScen.name, otherNames)
+        newScen.name = utils.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {

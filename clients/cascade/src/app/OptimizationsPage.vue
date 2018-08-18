@@ -311,17 +311,6 @@ Last update: 2018-08-18
 
     methods: {
       
-      getUniqueName(fileName, otherNames) {
-        let tryName = fileName
-        let numAdded = 0
-        while (otherNames.indexOf(tryName) > -1) {
-          numAdded = numAdded + 1
-          tryName = fileName + ' (' + numAdded + ')'
-        }
-        return tryName
-      },
-
-
       // TO_PORT
       updateSets() {
         console.log('updateSets() called')
@@ -465,7 +454,7 @@ Last update: 2018-08-18
         }
         // Else (we are adding a new optimization)...
         else {
-          newOptim.name = this.getUniqueName(newOptim.name, optimNames)
+          newOptim.name = utils.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
         }
         
@@ -515,7 +504,7 @@ Last update: 2018-08-18
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
         })
-        newOptim.name = this.getUniqueName(newOptim.name, otherNames)
+        newOptim.name = utils.getUniqueName(newOptim.name, otherNames)
         this.optimSummaries.push(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then( response => {
