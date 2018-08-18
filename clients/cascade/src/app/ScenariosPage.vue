@@ -7,13 +7,13 @@ Last update: 2018-08-18
 <template>
   <div>
 
-    <div v-if="activeProjectID ==''">
+    <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
     
-    <div v-else-if="!activeProjectHasData">
+    <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
@@ -79,7 +79,7 @@ Last update: 2018-08-18
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
         <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
+        <button class="btn" @click="exportResults(projectID)">Export data</button>
 
       </div>
 
@@ -240,39 +240,11 @@ Last update: 2018-08-18
     },
 
     computed: {
-      activeProjectID() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let projectID = this.$store.state.activeProject.project.id
-          return projectID
-        }
-      },
-
-      activeProjectHasData() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return false
-        }
-        else {
-          return this.$store.state.activeProject.project.hasData
-        }
-      },
-
-      active_sim_start() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_start
-        }
-      },
-
-      active_sim_end() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_end
-        }
-      },
+      projectID()    { return utils.projectID(this) },
+      hasData()      { return utils.hasData(this) },
+      simStart()     { return utils.simStart(this) },
+      simEnd()       { return utils.simEnd(this) },
+      placeholders() { return utils.placeholders() },
 
       active_pops() {
         if (this.$store.state.activeProject.project === undefined) {
@@ -286,14 +258,6 @@ Last update: 2018-08-18
           return pop_list
         }
       },
-      
-      placeholders() {
-        var indices = []
-        for (var i = 0; i <= 100; i++) {
-          indices.push(i);
-        }
-        return indices;
-      },
 
     },
 
@@ -306,25 +270,20 @@ Last update: 2018-08-18
         (this.$store.state.activeProject.project.hasData) ) {      
         // Load the scenario summaries of the current project.
         console.log('created() called')
-        this.startYear = this.active_sim_start
-        this.endYear = this.active_sim_end
+        this.startYear = this.simStart
+        this.endYear = this.simEnd
         this.popOptions = this.active_pops
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.getScenSummaries()
-          this.getDefaultBudgetScen()
+/*          this.getDefaultBudgetScen()
           this.updateSets()
-          this.getPlotOptions()
+          this.getPlotOptions() */
         })
       }
     },
 
     methods: {
-
-      dcp(input) {
-        var output = JSON.parse(JSON.stringify(input))
-        return output
-      },
             
       getUniqueName(fileName, otherNames) {
         let tryName = fileName
@@ -336,16 +295,11 @@ Last update: 2018-08-18
         return tryName
       },
 
-      projectID() {
-        var id = this.$store.state.activeProject.project.id // Shorten this
-        return id
-      },
-
       // TO_PORT
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -359,7 +313,7 @@ Last update: 2018-08-18
           console.log('Active parset: ' + this.activeParset)
                     
           // Get the current user's progsets from the server.
-          rpcs.rpc('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -385,7 +339,7 @@ Last update: 2018-08-18
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
-        rpcs.rpc('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
           console.log('This is the default:')
@@ -402,9 +356,9 @@ Last update: 2018-08-18
         
         // Start indicating progress.
         status.start(this)
-        
+
         // Get the current project's scenario summaries from the server.
-        rpcs.rpc('get_scen_info', [this.projectID()])
+        rpcs.rpc('get_scen_info', [this.projectID])
         .then(response => {
           this.scenSummaries = response.data // Set the scenarios to what we received.
           console.log('Scenario summaries:')
@@ -430,7 +384,7 @@ Last update: 2018-08-18
         // Start indicating progress.
         status.start(this)
         
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenarios saved')
@@ -444,10 +398,10 @@ Last update: 2018-08-18
       addBudgetScenModal() {
         // Open a model dialog for creating a new project
         console.log('addBudgetScenModal() called');
-        rpcs.rpc('get_default_budget_scen', [this.projectID()])
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
         .then(response => {
           this.defaultBudgetScen = response.data // Set the scenario to what we received.
-          this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+          this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
           this.addEditModal.origName = this.addEditModal.scenSummary.name
           this.addEditModal.mode = 'add'
           this.$modal.show('add-budget-scen');
@@ -470,7 +424,7 @@ Last update: 2018-08-18
         status.start(this)
         
         // Get the new scenario summary from the modal.
-        let newScen = this.dcp(this.addEditModal.scenSummary)
+        let newScen = utils.dcp(this.addEditModal.scenSummary)
   
         // Get the list of all of the current scenario names.
         let scenNames = []
@@ -498,7 +452,7 @@ Last update: 2018-08-18
         console.log(newScen)
         console.log(this.scenSummaries)        
         
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario added')
@@ -517,7 +471,7 @@ Last update: 2018-08-18
         this.defaultBudgetScen = scenSummary
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
-        this.addEditModal.scenSummary = this.dcp(this.defaultBudgetScen)
+        this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
         this.addEditModal.origName = this.addEditModal.scenSummary.name         
         this.addEditModal.mode = 'edit' 
         this.$modal.show('add-budget-scen');
@@ -529,14 +483,14 @@ Last update: 2018-08-18
         // Start indicating progress.
         status.start(this)
         
-        var newScen = this.dcp(scenSummary); // You've got to be kidding me, buster
+        var newScen = utils.dcp(scenSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
         })
         newScen.name = this.getUniqueName(newScen.name, otherNames)
         this.scenSummaries.push(newScen)
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario copied')
@@ -560,7 +514,7 @@ Last update: 2018-08-18
             this.scenSummaries.splice(i, 1);
           }
         }
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Scenario deleted')
@@ -593,10 +547,10 @@ Last update: 2018-08-18
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcs.rpc('set_scen_info', [this.projectID(), this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcs.rpc('run_scenarios', [this.projectID(), this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
@@ -640,7 +594,7 @@ Last update: 2018-08-18
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table

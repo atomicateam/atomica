@@ -7,13 +7,13 @@ Last update: 2018-08-18
 <template>
   <div>
 
-    <div v-if="activeProjectID ==''">
+    <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
     
-    <div v-else-if="!activeProjectHasData">
+    <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
@@ -69,7 +69,7 @@ Last update: 2018-08-18
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <button class="btn" @click="plotOptimization()">Refresh</button>
         <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="exportResults(activeProjectID)">Export data</button>
+        <button class="btn" @click="exportResults(projectID)">Export data</button>
       </div>
 
 
@@ -263,38 +263,14 @@ Last update: 2018-08-18
     },
 
     computed: {
-      activeProjectID() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.id
-        }
-      },
-      
-      activeProjectHasData() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return false
-        }
-        else {        
-          return this.$store.state.activeProject.project.hasData
-        }
-      },
+      projectID()    { return utils.projectID(this) },
+      hasData()      { return utils.hasData(this) },
+      simStart()     { return utils.simStart(this) },
+      simEnd()       { return utils.simEnd(this) },
+      placeholders() { return utils.placeholders() },
 
-      active_sim_start() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_start
-        }
-      },
 
-      active_sim_end() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          return this.$store.state.activeProject.project.sim_end
-        }
-      },
+
 
       active_pops() {
         if (this.$store.state.activeProject.project === undefined) {
@@ -307,14 +283,6 @@ Last update: 2018-08-18
           }
           return pop_list
         }
-      },
-      
-      placeholders() {
-        var indices = []
-        for (var i = 0; i <= 100; i++) {
-          indices.push(i);
-        }
-        return indices;
       },
 
     },
@@ -329,8 +297,8 @@ Last update: 2018-08-18
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
-          this.startYear = this.active_sim_start
-          this.endYear = this.active_sim_end
+          this.startYear = this.simStart
+          this.endYear = this.simEnd
           this.popOptions = this.active_pops
           this.getOptimSummaries()
           this.getDefaultOptim()
@@ -342,11 +310,6 @@ Last update: 2018-08-18
     },
 
     methods: {
-
-      dcp(input) {
-        var output = JSON.parse(JSON.stringify(input))
-        return output
-      },
       
       getUniqueName(fileName, otherNames) {
         let tryName = fileName
@@ -358,16 +321,12 @@ Last update: 2018-08-18
         return tryName
       },
 
-      projectID() {
-        var id = this.$store.state.activeProject.project.id // Shorten this
-        return id
-      },
 
       // TO_PORT
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID()])
+        rpcs.rpc('get_parset_info', [this.projectID])
         .then(response => {
           this.parsetOptions = response.data // Set the scenarios to what we received.
           if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -381,7 +340,7 @@ Last update: 2018-08-18
           console.log('Active parset: ' + this.activeParset)
           
           // Get the current user's progsets from the server.
-          rpcs.rpc('get_progset_info', [this.projectID()])
+          rpcs.rpc('get_progset_info', [this.projectID])
           .then(response => {
             this.progsetOptions = response.data // Set the scenarios to what we received.
             if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -407,7 +366,7 @@ Last update: 2018-08-18
 
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
-        rpcs.rpc('get_default_optim', [this.projectID()])
+        rpcs.rpc('get_default_optim', [this.projectID])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           this.resetModal()
@@ -429,7 +388,7 @@ Last update: 2018-08-18
         status.start(this)
         
         // Get the current project's optimization summaries from the server.
-        rpcs.rpc('get_optim_info', [this.projectID()])
+        rpcs.rpc('get_optim_info', [this.projectID])
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
           
@@ -448,7 +407,7 @@ Last update: 2018-08-18
         // Start indicating progress.
         status.start(this)
         
-        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimizations saved')
@@ -463,7 +422,7 @@ Last update: 2018-08-18
         // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         this.resetModal()
-        rpcs.rpc('get_default_optim', [this.projectID()])
+        rpcs.rpc('get_default_optim', [this.projectID])
         .then(response => {
           this.defaultOptim = response.data // Set the optimization to what we received.
           this.addEditDialogMode = 'add'
@@ -485,7 +444,7 @@ Last update: 2018-08-18
         this.endYear = this.modalOptim.end_year
         
         // Get the optimization summary from the modal.
-        let newOptim = this.dcp(this.modalOptim) // Not sure if dcp is necessary
+        let newOptim = utils.dcp(this.modalOptim) // Not sure if dcp is necessary
         
         // Get the list of all of the current optimization names.
         let optimNames = []
@@ -510,7 +469,7 @@ Last update: 2018-08-18
           this.optimSummaries.push(newOptim)
         }
         
-        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Optimization added')
@@ -531,14 +490,14 @@ Last update: 2018-08-18
 
       resetModal() {
         console.log('resetModal() called')
-        this.modalOptim = this.dcp(this.defaultOptim)
+        this.modalOptim = utils.dcp(this.defaultOptim)
         console.log(this.modalOptim)
       },
 
       editOptim(optimSummary) {
         // Open a model dialog for creating a new project
         console.log('editOptim() called');
-        this.modalOptim = this.dcp(optimSummary)
+        this.modalOptim = utils.dcp(optimSummary)
         console.log('defaultOptim', this.defaultOptim.obj)
         this.addEditDialogMode = 'edit'
         this.addEditDialogOldName = this.modalOptim.name
@@ -551,14 +510,14 @@ Last update: 2018-08-18
         // Start indicating progress.
         status.start(this)
         
-        var newOptim = this.dcp(optimSummary); // You've got to be kidding me, buster
+        var newOptim = utils.dcp(optimSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
         })
         newOptim.name = this.getUniqueName(newOptim.name, otherNames)
         this.optimSummaries.push(newOptim)
-        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then( response => {
           // Indicate success.
           status.succeed(this, 'Opimization copied')
@@ -583,7 +542,7 @@ Last update: 2018-08-18
             this.optimSummaries.splice(i, 1);
           }
         }
-        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {
           // Indicate success.
           status.succeed(this, 'Optimization deleted')
@@ -617,12 +576,12 @@ Last update: 2018-08-18
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
-        rpcs.rpc('set_optim_info', [this.projectID(), this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {          
           // Go to the server to get the results from the package set.
 //            rpcservice.rpcCall('run_optimization',
           taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
-            [this.projectID(), optimSummary.name, this.plotOptions, true, this.endYear, this.activePop])
+            [this.projectID, optimSummary.name, this.plotOptions, true, this.endYear, this.activePop])
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
 //                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
@@ -676,7 +635,7 @@ Last update: 2018-08-18
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_optimization', [this.projectID(), this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.serverresponse = response.data // Pull out the response data.
             this.table = response.data.table
