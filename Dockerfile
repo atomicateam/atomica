@@ -29,4 +29,4 @@ RUN python install_client.py
 WORKDIR cascade
 RUN python build_client.py
 
-CMD REDIS_URL=redis://10.0.0.3:6379/8 supervisord
+CMD PORT=80 REDIS_URL=redis://10.0.0.3:6379/8 supervisord

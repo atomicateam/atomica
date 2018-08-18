@@ -45,7 +45,7 @@ USE_USERS = True
 REGISTER_AUTOACTIVATE = True
 
 # Default server port
-SERVER_PORT = 8093
+SERVER_PORT = int(os.getenv('PORT', 8093))
 
 # Matplotlib backend
 MATPLOTLIB_BACKEND = 'Agg'
