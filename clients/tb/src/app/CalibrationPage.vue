@@ -291,8 +291,8 @@ Last update: 2018-08-16
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
           frac = 1.0/this.figscale
+          this.figscale = 1.0
         }
-        this.figscale = 1.0
         return utils.scaleFigs(frac)
       },
 
