@@ -621,11 +621,6 @@ class ProgramSet(NamedItem):
         [newps.add_program(k,v) for k,v in progs.items()]
         return newps
 
-    def save(self,fname):
-        ''' Shortcut for saving to disk, copied from data.py'''
-        ss = self.to_spreadsheet()
-        ss.save(fname)
-
     def validate(self):
         # Some basic validation checks
         for prog in self.programs.values():
