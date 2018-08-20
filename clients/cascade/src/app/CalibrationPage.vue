@@ -252,7 +252,8 @@ Last update: 2018-08-20
         yearOptions: [],
         popOptions: [],
         calibTime: '30 seconds',
-        calibTimes: ['30 seconds', 'Unlimited']
+        calibTimes: ['30 seconds', 'Unlimited'],
+        figscale: 1.0,
       }
     },
 
@@ -320,8 +321,8 @@ Last update: 2018-08-20
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
           frac = 1.0/this.figscale
+          this.figscale = 1.0
         }
-        this.figscale = 1.0
         return utils.scaleFigs(frac)
       },
       

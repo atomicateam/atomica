@@ -50,8 +50,8 @@ Last update: 2018-08-18
         <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
         <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
 
-        <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlots()">-->
-          <!--<span v-if="areShowingPlots">Hide</span>-->
+        <!--<button class="btn" :disabled="!scenariosLoaded" @click="toggleShowingPlotControls()">-->
+          <!--<span v-if="areShowingPlotControls">Hide</span>-->
           <!--<span v-else>Show</span>-->
           <!--plot controls-->
         <!--</button>-->
@@ -83,8 +83,12 @@ Last update: 2018-08-18
 
       </div>
 
-      <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
-        <div class="calib-params" v-if="areShowingPlots">
+
+
+
+
+      <div class="calib-main" :class="{'calib-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+        <div class="calib-params">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
@@ -225,7 +229,7 @@ Last update: 2018-08-18
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
-        areShowingPlots: false,
+        areShowingPlotControls: false,
         plotOptions: [],
         scenariosLoaded: false,
         table: null,
@@ -528,8 +532,8 @@ Last update: 2018-08-18
           })
       },
 
-      toggleShowingPlots() {
-        this.areShowingPlots = !this.areShowingPlots
+      toggleShowingPlotControls() {
+        this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
       runScens() {
