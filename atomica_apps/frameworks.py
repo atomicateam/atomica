@@ -1,7 +1,7 @@
 '''
 Classes for handling frameworks as Sciris objects
 
-Version: 2018jun04 by cliffk
+Version: 2018aug20
 '''
 
 import os
