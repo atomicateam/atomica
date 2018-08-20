@@ -229,6 +229,7 @@ class Project(object):
 
         tmpprogset = ProgramSet(name=name)
         progset = tmpprogset.from_spreadsheet(spreadsheet=progbook_spreadsheet, project=self)
+        progset.validate()
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')

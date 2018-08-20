@@ -415,7 +415,7 @@ class ProgramSet(NamedItem):
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths,assumption_heading='Assumption',write_units=False,write_uncertainty=True)
 
         apply_widths(sheet,widths)
 
@@ -634,6 +634,13 @@ class ProgramSet(NamedItem):
         ss = self.to_spreadsheet()
         ss.save(fname)
 
+    def validate(self):
+        # Some basic validation checks
+        for prog in self.programs.values():
+            if not prog.target_comps:
+                raise AtomicaException('Program "%s" does not target any compartments' % (prog.name))
+            if not prog.target_pops:
+                raise AtomicaException('Program "%s" does not target any populations' % (prog.name))
 
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc

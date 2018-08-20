@@ -617,7 +617,7 @@ class TimeDependentValuesEntry(object):
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
         return TimeDependentValuesEntry(name,tvec,ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None,widths=None,constant_heading='Constant'):
+    def write(self,worksheet,start_row,formats,references=None,widths=None,assumption_heading='Constant',write_units=True,write_uncertainty=False,write_assumption=True):
         # references is a dict where the key is a string value and the content is a cell
         # Any populations that appear in this dict will have their value replaced by a reference
         # formats should be the dict returned by `excel.standard_formats` when it was called to add
@@ -625,7 +625,7 @@ class TimeDependentValuesEntry(object):
         #
         # widths should be a dict that will store sizing information for some of the columns
         # it is updated in place
-        # - constant_heading : This is the string heading for the 'Constant'/'Assumption' (constant in databook, assumption in progbook)
+        # - assumption_heading : This is the string heading for the 'Constant'/'Assumption' (constant in databook, assumption in progbook)
 
         if not references:
             references = dict()
@@ -635,9 +635,24 @@ class TimeDependentValuesEntry(object):
         # First, assemble and write the headings
         headings = []
         headings.append(self.name)
-        headings.append('Units')
-        headings.append(constant_heading)
-        headings.append('')
+        offset = 1 # This is the column where the time values start
+
+        if write_units:
+            headings.append('Units')
+            units_index = offset # Column to write the units in
+            offset += 1
+
+        if write_uncertainty:
+            headings.append('Uncertainty')
+            uncertainty_index = offset  # Column to write the units in
+            offset += 1
+
+        if write_assumption:
+            headings.append(assumption_heading)
+            headings.append('')
+            constant_index = offset
+            offset += 2
+
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats['bold'])
@@ -656,27 +671,32 @@ class TimeDependentValuesEntry(object):
                 update_widths(widths, 0, row_name)
 
             # Write the units
-            # TODO - change ts.format to ts.units??
-            worksheet.write(current_row,1,row_ts.format.title() if row_ts.format else None)
-            update_widths(widths, 1, row_ts.format.title() if row_ts.format else None)
+            if write_units:
+                worksheet.write(current_row,units_index,row_ts.format.title() if row_ts.format else None)
+                update_widths(widths, units_index, row_ts.format.title() if row_ts.format else None)
 
-            if self.allowed_units: # Add validation if a list of options is specified
-                worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
+                if self.allowed_units: # Add validation if a list of options is specified
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})
+
+            if write_uncertainty:
+                if row_ts.sigma is None:
+                    worksheet.write(current_row,uncertainty_index, row_ts.sigma,formats['unlocked'])
+                else:
+                    worksheet.write(current_row,uncertainty_index,row_ts.sigma,formats['not_required'])
 
             if row_ts.has_data:
                 format = formats['not_required']
             else:
                 format = formats['unlocked']
 
-            # Write the assumption
-            worksheet.write(current_row,2,row_ts.assumption, format)
-
-            # Write the separator between the assumptions and the time values
-            worksheet.write(current_row,3,'OR',formats['center'])
-            update_widths(widths, 3, 'OR')
+            if write_assumption:
+                # Write the assumption
+                worksheet.write(current_row,constant_index,row_ts.assumption, format)
+                # Write the separator between the assumptions and the time values
+                worksheet.write(current_row,constant_index+1,'OR',formats['center'])
+                update_widths(widths, constant_index+1, 'OR')
 
             # Write the time values
-            offset = 4 # This is the column where the time values begin
             content = [None]*len(self.tvec)
 
             for t,v in zip(row_ts.t,row_ts.vals):
