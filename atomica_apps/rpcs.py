@@ -57,7 +57,7 @@ def timeit(method):
 
 
 # Make a Result storable by Sciris
-class ResultSO(sw.ScirisObject):
+class ResultSO(sw.Blob):
 
     def __init__(self, result):
         super(ResultSO, self).__init__(result.uid, type_prefix='result', 
@@ -160,7 +160,7 @@ def save_framework(frame):
     
     # Copy the framework, only save what we want...
     new_framework = sc.dcp(frame)
-    new_framework.modified = sc.today()
+    new_framework.modified = sc.now()
          
     # Create the new framework entry and enter it into the FrameworkCollection.
     # Note: We don't need to pass in framework.uid as a 3rd argument because 
@@ -499,7 +499,7 @@ def upload_frameworkbook(databook_filename, framework_id):
     print(">> upload_frameworkbook '%s'" % databook_filename)
     frame = load_framework(framework_id, raise_exception=True)
     frame.read_from_file(filepath=databook_filename, overwrite=True) # Reset the framework name to a new framework name that is unique.
-    frame.modified = sc.today()
+    frame.modified = sc.now()
     save_framework(frame) # Save the new framework in the DataStore.
     return { 'frameworkId': str(frame.uid) }
 
@@ -513,7 +513,7 @@ def update_framework_from_summary(framework_summary):
     frame_uid = sc.uuid(framework_summary['framework']['id']).hex # Use the summary to set the actual framework, checking to make sure that the framework name is unique.
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
     frame.name = get_unique_name(framework_summary['framework']['name'], other_names=other_names)
-    frame.modified = sc.today() # Set the modified time to now.
+    frame.modified = sc.now() # Set the modified time to now.
     save_framework(frame) # Save the changed framework to the DataStore.
     return None
     
@@ -787,7 +787,7 @@ def upload_databook(databook_filename, project_id):
     print(">> upload_databook '%s'" % databook_filename)
     proj = load_project(project_id, raise_exception=True)
     proj.load_databook(databook_path=databook_filename) 
-    proj.modified = sc.today()
+    proj.modified = sc.now()
     save_project(proj) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
@@ -800,7 +800,7 @@ def upload_progbook(progbook_filename, project_id):
     print(">> upload_progbook '%s'" % progbook_filename)
     proj = load_project(project_id, raise_exception=True)
     proj.load_progbook(progbook_path=progbook_filename) 
-    proj.modified = sc.today()
+    proj.modified = sc.now()
     save_project(proj)
     return { 'projectId': str(proj.uid) }
 
@@ -813,7 +813,7 @@ def update_project_from_summary(project_summary):
     """ 
     proj = load_project(project_summary['project']['id']) # Load the project corresponding with this summary.
     proj.name = project_summary['project']['name'] # Use the summary to set the actual project.
-    proj.modified = sc.today() # Set the modified time to now.
+    proj.modified = sc.now() # Set the modified time to now.
     save_project(proj) # Save the changed project to the DataStore.
     return
 
@@ -1107,7 +1107,7 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
         if not sc.approx(y_factor, 1):
             print('Modified: %s (%s)' % (parname, y_factor))
     
-    proj.modified = sc.today()
+    proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
     cascadeoutput = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
