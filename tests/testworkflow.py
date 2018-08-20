@@ -9,9 +9,9 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.core.optimization import optimize
 
-#test = "sir"
-#test = "tb"
-test = "hypertension"
+# test = "sir"
+test = "tb"
+# test = "hypertension"
 #test = "udt"
 #test = "usdt"
 #test = "hiv"
@@ -28,16 +28,16 @@ torun = [
 #"makeparset",
 #"runsim",
 #"plotcascade",
-"makeblankprogbook",
-"writeprogbook",
+# "makeblankprogbook",
+# "writeprogbook",
 #"testprograms",
 #"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 # "autocalibrate",
-#"parameterscenario",
-#'budgetscenarios',
+# "parameterscenario",
+'budgetscenarios',
 #'optimization',
 # "saveproject",
 # "loadproject",
