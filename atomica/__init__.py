@@ -43,7 +43,7 @@ logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__versi
 logger.critical(datetime.now())
 
 try:
-    import sciris.core as sc
+    import sciris as sc
     atomica_git = sc.gitinfo(__file__)
     logger.critical('git branch: %s (%s)' % (atomica_git['branch'],atomica_git['hash']))
     del atomica_git

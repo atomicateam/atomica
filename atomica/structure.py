@@ -1,6 +1,6 @@
 from .system import AtomicaException
 from bisect import bisect
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 import scipy.interpolate
 
@@ -92,7 +92,7 @@ class TimeSeries(object):
             self.insert(tx, vx)
 
     def __repr__(self):
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     @property

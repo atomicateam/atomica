@@ -6,7 +6,7 @@ Version: 2018mar27
 from .framework import ProjectFramework
 from .project import Project
 from .system import AtomicaException, atomica_path, logger
-import sciris.core as sc
+import sciris as sc
 
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
     """ Make some default programs"""

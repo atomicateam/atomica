@@ -7,7 +7,7 @@ Contains functionality specific to Excel input and output.
 from .system import AtomicaException
 
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-import sciris.core as sc
+import sciris as sc
 import io
 import openpyxl
 from openpyxl.comments import Comment
@@ -109,7 +109,7 @@ class AtomicaSpreadsheet(object):
             self.insert(source)
 
     def __repr__(self):
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     def insert(self, source):
@@ -129,11 +129,11 @@ class AtomicaSpreadsheet(object):
         else:
             filepath = sc.makefilepath(filename=source)
             self.filename = filepath
-            self.load_date = sc.today()
+            self.load_date = sc.now()
             with open(filepath, mode='rb') as f:
                 self.data = f.read()
 
-        self.load_date = sc.today()
+        self.load_date = sc.now()
 
     def save(self, filename=None):
         # This function writes the contents of self.data to a file on disk
@@ -524,7 +524,7 @@ class TimeDependentValuesEntry(object):
         self.allowed_units = allowed_units
 
     def __repr__(self):
-        output= sc.desc(self)
+        output= sc.prepr(self)
         return output
 
     @property

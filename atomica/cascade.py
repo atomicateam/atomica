@@ -2,7 +2,7 @@ from .plotting import plot_legend
 import matplotlib.pyplot as plt
 import numpy as np
 import textwrap
-import sciris.core as sc
+import sciris as sc
 import matplotlib
 from .utils import NDict
 from .results import Result

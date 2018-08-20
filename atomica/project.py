@@ -37,7 +37,7 @@ from .optimization import optimize, OptimInstructions
 from .system import AtomicaException, logger
 from .scenarios import BudgetScenario
 from .utils import NDict
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
 from six import string_types
@@ -53,7 +53,7 @@ class ProjectSettings(object):
 
     def __repr__(self):
         """ Print object """
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     @property
@@ -103,8 +103,8 @@ class Project(object):
         self.uid = sc.uuid()
         self.version = version
         self.gitinfo = sc.gitinfo(__file__)
-        self.created = sc.today()
-        self.modified = sc.today()
+        self.created = sc.now()
+        self.modified = sc.now()
 
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings() # Global settings
@@ -188,7 +188,7 @@ class Project(object):
         self.data = ProjectData.from_spreadsheet(databook_spreadsheet,self.framework)
         self.data.validate(self.framework) # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
         self.databook = sc.dcp(databook_spreadsheet) # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
-        self.modified = sc.today()
+        self.modified = sc.now()
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
         if make_default_parset:
@@ -227,9 +227,33 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
+<<<<<<< HEAD
         tmpprogset = ProgramSet(name=name)
         progset = tmpprogset.from_spreadsheet(spreadsheet=progbook_spreadsheet, project=self)
         progset.validate()
+=======
+        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
+        self.progbook = sc.dcp(progbook_spreadsheet)
+
+        # Check if the populations match - if not, raise an error, if so, add the data
+        if set(progdata['pops']) != set(self.pop_labels):
+            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
+            raise AtomicaException(errormsg)
+        self.progdata = progdata
+
+        self.modified = sc.now()
+
+        if make_default_progset: self.make_progset(name="default")
+        
+
+    def make_progset(self, progdata=None, name="default", verbose=False):
+        '''Make a progset from program spreadsheet data'''
+        
+        if verbose: print('Making ProgramSet')
+        progset = ProgramSet(name=name)
+        if verbose: print('Making program data')
+        progset.make(progdata=progdata, project=self)
+>>>>>>> develop
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')

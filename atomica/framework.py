@@ -8,7 +8,7 @@ import os
 import openpyxl
 from six import string_types
 import pandas as pd
-import sciris.core as sc
+import sciris as sc
 from .system import AtomicaException, NotAllowedError, NotFoundError, logger
 from .excel import read_tables, AtomicaSpreadsheet
 from .structure import FrameworkSettings as FS
@@ -29,8 +29,8 @@ class ProjectFramework(object):
         self.uid = sc.uuid()
         self.version = version
         self.gitinfo = sc.gitinfo(__file__)
-        self.created = sc.today()
-        self.modified = sc.today()
+        self.created = sc.now()
+        self.modified = sc.now()
 
         # Load Framework from disk
         if isinstance(inputs,string_types):
