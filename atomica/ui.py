@@ -3,27 +3,27 @@ _debug = False
 
 # The Atomica "user interface" -- import everything from submodules
 if _debug: print('Importing version...')
-from .core.version import * # No dependencies
+from .version import * # No dependencies
 if _debug: print('Importing system...')
-from .core.system import *  # No dependencies
+from .system import *  # No dependencies
 if _debug: print('Importing structure...')
-from .core.structure import *  # Depends on structure_settings
+from .structure import *  # Depends on structure_settings
 if _debug: print('Importing framework...')
-from .core.framework import *  # Depends on workbook_import
+from .framework import *  # Depends on workbook_import
 if _debug: print('Importing project...')
-from .core.project import *  # Depends on workbook_export
+from .project import *  # Depends on workbook_export
 if _debug: print('Importing calibration...')
-from .core.calibration import * # Depends on ???
+from .calibration import * # Depends on ???
 if _debug: print('Importing scenarios...')
-from .core.scenarios import * # Depends on ???
+from .scenarios import * # Depends on ???
 if _debug: print('Importing defaults...')
-from .core.defaults import * # Depends on ???
+from .defaults import * # Depends on ???
 if _debug: print('Importing plotting...')
-from .core.plotting import * # Depends on...?
+from .plotting import * # Depends on...?
 if _debug: print('Importing program instructions...')
-from .core.programs import ProgramInstructions, ProgramSet # Depends on...?
+from .programs import ProgramInstructions, ProgramSet # Depends on...?
 if _debug: print('Importing optimization...')
-from .core.optimization import *
+from .optimization import *
 if _debug: print('Importing cascade...')
-from .core.cascade import *
+from .cascade import *
 if _debug: print('Done importing Atomica.')

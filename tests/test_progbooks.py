@@ -25,8 +25,15 @@ pset.save('progbook_test4.xlsx')
 # Test making a new one
 pset = au.ProgramSet.new(tvec=np.arange(2015,2018),progs=2,framework=F,data=D)
 pset.save("progbook_test5.xlsx")
-#
-# P = au.Project(framework="./frameworks/framework_tb.xlsx",databook_path="./databooks/databook_tb.xlsx",do_run=False)
-# P.load_progbook("./databooks/progbook_tb.xlsx")
-# instructions = au.ProgramInstructions(start_year=2018)
-# P.run_sim(parset='default',progset='default',progset_instructions=instructions)
+
+P = au.Project(framework="./frameworks/framework_tb.xlsx",databook_path="./databooks/databook_tb.xlsx",do_run=False)
+P.load_progbook("./databooks/progbook_tb.xlsx")
+instructions = au.ProgramInstructions(start_year=2018)
+P.run_sim(parset='default',progset='default',progset_instructions=instructions)
+
+# which = ['tb','sir','udt','hiv','usdt','hypertension']
+# for a in which:
+#     F = au.ProjectFramework("./frameworks/framework_%s.xlsx" % (a))
+#     D = au.ProjectData.from_spreadsheet("./databooks/databook_%s.xlsx" % (a),framework=F)
+#     pset = au.ProgramSet.from_spreadsheet("./databooks/progbook_%s.xlsx" % (a),F,D)
+#     pset.save("./databooks/progbook_%s.xlsx" % (a))

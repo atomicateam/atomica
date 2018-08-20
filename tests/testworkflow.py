@@ -7,7 +7,7 @@ import atomica.ui as au
 import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
-from atomica.core.optimization import optimize
+from atomica.optimization import optimize
 
 #test = "sir"
 test = "tb"
@@ -18,7 +18,6 @@ test = "tb"
 #test = "diabetes"
 #test = "service"
 
-
 torun = [
 #"loadframework",
 #"saveframework",
@@ -28,16 +27,16 @@ torun = [
 #"makeparset",
 #"runsim",
 #"plotcascade",
-"makeblankprogbook",
-#"writeprogbook",
+# "makeblankprogbook",
+# "writeprogbook",
 #"testprograms",
 #"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 # "autocalibrate",
-#"parameterscenario",
-#'budgetscenarios',
+# "parameterscenario",
+'budgetscenarios',
 #'optimization',
 # "saveproject",
 # "loadproject",

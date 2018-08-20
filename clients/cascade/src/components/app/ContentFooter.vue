@@ -15,7 +15,7 @@ Last update: 2018-03-25
         </ul>
       </nav>
       <div class="copyright pull-center">
-        &copy; 2018 by the <a href="http://cascade.tools">Cascade Analysis Working Group</a>
+        &copy; 2018 by the <a href="http://cascade.tools" target="_blank">Cascade Analysis Working Group</a>
       </div>
     </div>
   </footer>

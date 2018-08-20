@@ -3,7 +3,7 @@
 
 from setuptools import setup, find_packages
 
-with open("./atomica/core/version.py", "r") as f:
+with open("./atomica/version.py", "r") as f:
     version_file = {}
     exec(f.read(), version_file)
     version = version_file["version"]
@@ -39,7 +39,6 @@ setup(
         'dill>=0.2.7.1',
         'xlsxwriter',
         'xlrd',
-        # 'PyQt5',
         'pyparsing',
         'pandas'
     ],

@@ -93,7 +93,6 @@ Last update: 2018-08-12
               {{ projectSummary.project.name }}
             </td>
             <td>
-              <!-- TO_PORT TO TB 2018-08-06-->
               <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">
                 <span v-if="projectLoaded(projectSummary.project.id)">Selected</span>
                 <span v-else>Open</span>

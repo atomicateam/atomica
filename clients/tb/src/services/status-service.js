@@ -1,6 +1,6 @@
 // progress-indicator-service.js -- functions for showing progress
 //
-// Last update: 7/28/18 (gchadder3)
+// Last update: 8/12/18 (gchadder3)
 
 // Note: To use these functions, you need to pass in the Vue instance, this. 
 // Also, the caller needs to have imported the Spinner.vue PopupSpinner 
@@ -8,13 +8,13 @@
 
 function start(vueInstance) {
   console.log('Starting progress')
-  vueInstance.$modal.show('popup-spinner') // Bring up a spinner.
+  vueInstance.$spinner.start() // Bring up a spinner. 
   vueInstance.$Progress.start() // Start the loading bar.
 }
 
 function succeed(vueInstance, successMessage) {
   console.log(successMessage)
-  vueInstance.$modal.hide('popup-spinner') // Dispel the spinner.
+  vueInstance.$spinner.stop() // Dispel the spinner.
   vueInstance.$Progress.finish()   // Finish the loading bar.
   if (successMessage != '') { // Success popup.
     vueInstance.$notifications.notify({
@@ -22,14 +22,14 @@ function succeed(vueInstance, successMessage) {
       icon: 'ti-check',
       type: 'success',
       verticalAlign: 'top',
-      horizontalAlign: 'center'
+      horizontalAlign: 'left'
     })
   }  
 }
 
 function fail(vueInstance, failMessage) {
   console.log(failMessage)
-  vueInstance.$modal.hide('popup-spinner') // Dispel the spinner.
+  vueInstance.$spinner.stop() // Dispel the spinner.
   vueInstance.$Progress.fail() // Fail the loading bar.
   if (failMessage != '') {  // Put up a failure notification.
     vueInstance.$notifications.notify({
@@ -37,7 +37,7 @@ function fail(vueInstance, failMessage) {
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
-      horizontalAlign: 'center'
+      horizontalAlign: 'left'
     })
   }  
 }
@@ -49,7 +49,7 @@ function successPopup(vueInstance, successMessage) {
     icon: 'ti-check',
     type: 'success',
     verticalAlign: 'top',
-    horizontalAlign: 'center'
+    horizontalAlign: 'left'
   })        
 }
 
@@ -60,7 +60,7 @@ function failurePopup(vueInstance, failMessage) {
     icon: 'ti-face-sad',
     type: 'warning',
     verticalAlign: 'top',
-    horizontalAlign: 'center'
+    horizontalAlign: 'left'
   })         
 }
 
