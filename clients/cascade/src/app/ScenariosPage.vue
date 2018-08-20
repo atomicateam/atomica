@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-18
+Last update: 2018-08-20
 -->
 
 <template>
@@ -284,8 +284,15 @@ Last update: 2018-08-18
     },
 
     methods: {
-            
-      // TO_PORT
+      clipValidateYearInput() {
+        if (this.endYear > this.simEnd) {
+          this.endYear = this.simEnd
+        }
+        else if (this.endYear < this.simStart) {
+          this.endYear = this.simStart
+        }
+      },
+      
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
@@ -534,6 +541,7 @@ Last update: 2018-08-18
 
       runScens() {
         console.log('runScens() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower        
         // Make sure they're saved first
@@ -581,6 +589,7 @@ Last update: 2018-08-18
 
       plotScenarios() {
         console.log('plotScens() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
