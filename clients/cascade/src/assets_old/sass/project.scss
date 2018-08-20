@@ -1,0 +1,46 @@
+/*!
+
+ =========================================================
+ * Paper Dashboard - v1.1.2
+ =========================================================
+
+ * Product Page: http://www.creative-tim.com/product/paper-dashboard
+ * Copyright 2017 Creative Tim (http://www.creative-tim.com)
+ * Licensed under MIT (https://github.com/creativetimofficial/paper-dashboard/blob/master/LICENSE.md)
+
+ =========================================================
+
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+ */
+
+
+@import "project/variables";
+@import "project/mixins";
+@import 'project/functions';
+@import "project/typography";
+// Core CSS
+@import "project/misc";
+@import "project/sidebar-and-main-panel";
+@import "project/buttons";
+@import "project/inputs";
+@import "project/alerts";
+@import "project/tables";
+@import "project/checkbox-radio";
+@import "project/navbars";
+@import "project/footers";
+@import "project/modal";
+// Fancy Stuff
+@import "project/dropdown";
+@import "project/cards";
+@import "project/chartist";
+@import "project/responsive";
+@import "project/textbox";
+@import "project/tooltips";
+
+
+// Reserved just for code only your mother would love (and even then, not very 
+// much).  I.e., any code in here should probably be implemented later in a 
+// more proper way.
+// see http://csswizardry.com/2013/04/shame-css/ 
+// @import 'main/shame'; nothing yet
