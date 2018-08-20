@@ -429,6 +429,12 @@ class ProgramSet(NamedItem):
                 # For each covout row, we will initialize
                 pop_name = pop_codenames[row[0].value.lower().strip()] # Code name of the population we are working on
                 progs = sc.odict()
+
+                baseline = None
+                cov_interaction = None
+                imp_interaction = None
+                uncertainty = None
+
                 for i,x in enumerate(row[1:]):
                     i = i+1 # Offset of 1 because the loop is over row[1:] not row[0:]
 
@@ -437,24 +443,18 @@ class ProgramSet(NamedItem):
                     elif idx_to_header[i].lower() == 'baseline value':
                         if x.value is not None: # test `is not None` because it might be entered as 0
                             baseline = float(x.value)
-                        else:
-                            baseline = None
                     elif idx_to_header[i].lower() == 'coverage interaction':
                         if x.value:
                             cov_interaction =  x.value.strip().lower() # additive, nested, etc.
-                        else:
-                            cov_interaction = None
                     elif idx_to_header[i].lower() == 'impact interaction':
                         if x.value:
                             imp_interaction =  x.value.strip().lower() # additive, nested, etc.
-                        else:
-                            imp_interaction = None
                     elif idx_to_header[i].lower() == 'uncertainty':
                         if x.value is not None: # test `is not None` because it might be entered as 0
                             uncertainty = float(x.value)
-                        else:
-                            uncertainty = None
                     elif x.value is not None: # If the header isn't empty, then it should be one of the program names
+                        if idx_to_header[i] not in self.programs:
+                            raise AtomicaException('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
@@ -915,6 +915,8 @@ class Covout(object):
         self.sigma = uncertainty
         self.baseline = baseline
         self.progs = sc.odict() if progs is None else progs
+        assert self.cov_interaction in ['additive','random','nested']
+        assert self.imp_interaction in ['best','synergistic']
         return None
     
     def __repr__(self):

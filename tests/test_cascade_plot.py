@@ -5,7 +5,7 @@ from atomica.ui import InvalidCascade
 import os
 
 test = 'tb'
-# test = 'udt2'
+# test = 'udt'
 
 torun = [
 #"basicplots",
@@ -91,15 +91,6 @@ if "basicplots" in torun:
         au.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
         au.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
     elif test == 'udt':
-        startyear = 2016
-        endyear = 2017
-        au.plot_cascade(result, cascade='main', pops='all', year=startyear, data=P.data) # plot 'main' cascade
-        au.plot_cascade(result, cascade='main', pops='all', year=endyear, data=P.data) # plot 'main' cascade
-        au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data) # plot first cascade
-        au.plot_cascade(result, cascade=None, pops='all', year=startyear, data=P.data) # plot default cascade
-        au.plot_cascade(result, cascade=['all_people','all_dx'], pops='all', year=startyear, data=P.data) # plot sequence cascade
-        au.plot_cascade(result, cascade={'Everyone':['all_people'],'Infected':['dx','tx']}, pops='all', year=startyear, data=P.data) # plot dict cascade
-    elif test == 'udt2':
         # No predefined cascades, use the default one
         au.plot_cascade(result, pops='all', year=2016, data=P.data)  # plot default cascade
     else:

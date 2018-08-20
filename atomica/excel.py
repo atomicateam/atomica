@@ -555,24 +555,29 @@ class TimeDependentValuesEntry(object):
         # columns, a user adding one of the these fields to a single table on a page
         # might introduce a blank column to all of the other TDVE elements on the page too
         # so the code below should be able to deal with this
+        offset = 1 # This is the column where the time values start
+
         if 'units' in lowered_headings:
             units_index = lowered_headings.index('units')
+            offset += 1
         else:
             units_index = None
 
         if 'uncertainty' in lowered_headings:
             uncertainty_index = lowered_headings.index('uncertainty')
+            offset += 1
         else:
             uncertainty_index = None
 
         if 'constant' in lowered_headings:
             constant_index = lowered_headings.index('constant')
+            offset += 2
         elif 'assumption' in lowered_headings:
             constant_index = lowered_headings.index('assumption')
+            offset += 2
         else:
             constant_index = None
 
-        offset = 1 + (1 if units_index else 0) + (1 if uncertainty_index else 0) + (2 if constant_index else 0) # Index where the time values start
         tvec = np.array(vals[offset:],dtype=float)
         ts_entries = sc.odict()
 
