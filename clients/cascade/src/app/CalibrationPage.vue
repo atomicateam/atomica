@@ -250,7 +250,7 @@ Last update: 2018-08-20
         activePop: "All",
         plotOptions: [],
         yearOptions: [],
-        popOptions: []
+        popOptions: [],
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited']
       }
