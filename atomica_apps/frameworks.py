@@ -8,6 +8,7 @@ import os
 import atomica.ui as au
 import sciris as sc
 import scirisweb as sw
+import scirisweb.sc_datastore as ds
 
 # The frameworkCollection object for all of the app's frameworks.  Gets initialized by and loaded by init_frameworks().
 frame_collection = None 
@@ -178,6 +179,8 @@ def init_frameworks(app):
     global frame_collection  # need this to allow modification within the module
     
     # Look for an existing FrameworkCollection.
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! getting datastore %s' % sw.data_store)
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! test %s' % ds.data_store)
     frame_collection_uid = sw.data_store.get_uid('frameworkscoll', 'Frameworks Collection')
     
     # Create the frameworks collection object.  Note, that if no match was found, 

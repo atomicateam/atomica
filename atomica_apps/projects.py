@@ -214,8 +214,7 @@ def init_projects(app):
     global proj_collection  # need this to allow modification within the module
     
     # Look for an existing ProjectCollection.
-    proj_collection_uid = sw.data_store.get_uid('projectscoll', 
-        'Projects Collection')
+    proj_collection_uid = sw.data_store.get_uid('projectscoll', 'Projects Collection')
     
     # Create the projects collection object.  Note, that if no match was found, 
     # this will be assigned a new UID.    
@@ -260,8 +259,7 @@ def apptasks_load_projects(config):
     sw.data_store.load()
     
     # Look for an existing ProjectCollection.
-    proj_collection_uid = sw.data_store.get_uid('projectscoll', 
-        'Projects Collection')
+    proj_collection_uid = sw.data_store.get_uid('projectscoll', 'Projects Collection')
     
     # Create the projects collection object.  Note, that if no match was found, 
     # this will be assigned a new UID.    
