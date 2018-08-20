@@ -18,6 +18,7 @@ main webapp script that imports it.
  
 Last update: 2018jun04 (cliffk)
 """
+import os
 
 # A secret key value used by Python Flask.
 SECRET_KEY = 'Pick something unique for your site here'
@@ -32,7 +33,7 @@ USE_DATASTORE = True
 # URL for the Redis database that the web app will use to manage 
 # persistence.  Note that the /N/ number at the end should match the 
 # database number you want to use.  (N=0 is the default Redis database.)
-REDIS_URL = 'redis://localhost:6379/8'
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/8')
 
 # Flag for setting whether we use the users functionality provided by 
 # Sciris in the webapp.
@@ -44,7 +45,7 @@ USE_USERS = True
 REGISTER_AUTOACTIVATE = True
 
 # Default server port
-SERVER_PORT = 8094
+SERVER_PORT = int(os.getenv('PORT', 8094))
 
 # Matplotlib backend
 MATPLOTLIB_BACKEND = 'Agg'
