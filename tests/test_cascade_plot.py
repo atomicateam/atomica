@@ -9,7 +9,7 @@ test = 'tb'
 
 torun = [
 #"basicplots",
-"scenplots",
+#"scenplots",
 "validate_cascade"
 # "basicplots",
 #"scenplots",
@@ -20,7 +20,7 @@ torun = [
 
 # Check validation
 if "validate_cascade" in torun:
-    from atomica.core.cascade import validate_cascade
+    from atomica.cascade import validate_cascade
 
     # Check that all the frameworks have either a valid cascade sheet, or
     # the fallback cascade is valid
@@ -29,7 +29,9 @@ if "validate_cascade" in torun:
         if '_bad' in fname:
             continue
         print("Validating %s" % (fname))
-        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
+        F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
+
+#        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
 
         # Validate all of the cascades in the framework
         if not F.cascades:
