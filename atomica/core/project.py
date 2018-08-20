@@ -229,6 +229,7 @@ class Project(object):
 
         tmpprogset = ProgramSet(name=name)
         progset = tmpprogset.from_spreadsheet(spreadsheet=progbook_spreadsheet, project=self)
+        progset.validate()
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')
@@ -379,9 +380,9 @@ class Project(object):
         if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
-            adjustables = list(self.framework.pars.index[self.framework.pars['Can Calibrate']=='y'])
-            adjustables += list(self.framework.comps.index[self.framework.comps['Can Calibrate']=='y'])
-            adjustables += list(self.framework.characs.index[self.framework.characs['Can Calibrate']=='y'])
+            adjustables = list(self.framework.pars.index[self.framework.pars['can calibrate']=='y'])
+            adjustables += list(self.framework.comps.index[self.framework.comps['can calibrate']=='y'])
+            adjustables += list(self.framework.characs.index[self.framework.characs['can calibrate']=='y'])
         if measurables is None:
             measurables = list(self.framework.comps.index)
             measurables += list(self.framework.characs.index)
@@ -492,7 +493,7 @@ class Project(object):
         json['parset_name']       = -1
         json['progset_name']      = -1
         json['start_year']        = 2018
-        json['end_year']          = 2025
+        json['end_year']          = 2035
         json['budget_factor']     = 2.5
         json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
         json['maxtime']           = 30 # WARNING, default!
@@ -514,7 +515,7 @@ class Project(object):
         json['parset_name']       = -1
         json['progset_name']      = -1
         json['start_year']        = 2018
-        json['end_year']          = 2025
+        json['end_year']          = 2035
         json['budget_factor']     = 2.5
         json['objective_weights'] = {'alive':-1,'ddis':1,'acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
         json['maxtime']           = 30 # WARNING, default!

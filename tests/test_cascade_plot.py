@@ -1,16 +1,61 @@
 import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
 import sciris.core as sc
+from atomica.ui import InvalidCascade
+import os
 
 test = 'tb'
-# test = 'udt'
+# test = 'udt2'
 
 torun = [
 #"basicplots",
 "scenplots",
+"validate_cascade"
+# "basicplots",
+#"scenplots",
 #"cascadefromscratch",
 #'mpld3test'
 ]
+
+
+# Check validation
+if "validate_cascade" in torun:
+    from atomica.core.cascade import validate_cascade
+
+    # Check that all the frameworks have either a valid cascade sheet, or
+    # the fallback cascade is valid
+    fnames = os.listdir('./frameworks')
+    for fname in fnames:
+        if '_bad' in fname:
+            continue
+        print("Validating %s" % (fname))
+        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
+
+        # Validate all of the cascades in the framework
+        if not F.cascades:
+            validate_cascade(F, None)
+        else:
+            for cascade in F.cascades:
+                validate_cascade(F, cascade)
+
+
+    F = ProjectFramework("./frameworks/framework_tb.xlsx")
+    try:
+        validate_cascade(F,None) # Try running this on the command line to see the error message
+    except InvalidCascade:
+        print("Correctly raised invalid TB fallback cascade")
+
+    for fname in ["./frameworks/framework_sir_badcascade1.xlsx","./frameworks/framework_sir_badcascade2.xlsx"]:
+        F = ProjectFramework(fname)
+        try:
+            if not F.cascades:
+                validate_cascade(F, None)
+            else:
+                for cascade in F.cascades:
+                    validate_cascade(F, cascade)
+        except InvalidCascade:
+            print("Correctly raised invalid cascade for %s" % fname)
+
 
 # Load a framework and project to get a Result
 F = ProjectFramework("./frameworks/framework_"+test+".xlsx")
@@ -19,29 +64,50 @@ P.load_databook(databook_path="./databooks/databook_"+test+".xlsx", make_default
 result = P.results[0]
 
 # # Make some plots from plot names and groups in the Framework
-if "basicplots" in torun and test=='tb':
-    result.plot(plot_name='Active DS-TB',project=P)
-    result.plot(plot_name='Active DS-TB',pops='all',project=P)
-    result.plot(plot_group='latency')
+if "basicplots" in torun:
 
-#    # Export limited set of results based on 'Export' column in Framework, or export everything
-    result.export(filename='./temp/export_from_framework_1.xlsx') # Export only the quantities tagged as 'export' in the Framework
-    result.export(filename='./temp/export_from_framework_2.xlsx',plot_names=['Active DS-TB']) # export all cascades but only one plot
-    result.export(filename='./temp/export_from_framework_3.xlsx',plot_names=['Active DS-TB','Active treatment'],cascade_names=[]) # Export two plots and no cascades
+    if test=='tb':
+        result.plot(plot_name='Active DS-TB',project=P)
+        result.plot(plot_name='Active DS-TB',pops='all',project=P)
+        result.plot(plot_group='latency')
 
-    result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
+    #    # Export limited set of results based on 'Export' column in Framework, or export everything
+        result.export(filename='./temp/export_from_framework_1.xlsx') # Export only the quantities tagged as 'export' in the Framework
+        result.export(filename='./temp/export_from_framework_2.xlsx',plot_names=['Active DS-TB']) # export all cascades but only one plot
+        result.export(filename='./temp/export_from_framework_3.xlsx',plot_names=['Active DS-TB','Active treatment'],cascade_names=[]) # Export two plots and no cascades
 
-    # Plot various cascades
-    startyear = 2000 if test=='tb' else 2016
-    endyear = 2030 if test=='tb' else 2017
-    au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='all',year=startyear,data=P.data)
-    au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='all',year=endyear,data=P.data)
-    if test=='tb': 
+        result.export_raw(filename='./temp/export_raw.xlsx') # Export everything
+
+        # Plot various cascades
+        startyear = 2000
+        endyear = 2030
+
+        au.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=startyear, data=P.data)
+        au.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=endyear, data=P.data)
+
         au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='0-4',year=endyear,data=P.data)
         au.plot_cascade(result,cascade='SP treatment',pops='0-4',year=endyear,data=P.data)
 
         au.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
         au.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
+    elif test == 'udt':
+        startyear = 2016
+        endyear = 2017
+        au.plot_cascade(result, cascade='main', pops='all', year=startyear, data=P.data) # plot 'main' cascade
+        au.plot_cascade(result, cascade='main', pops='all', year=endyear, data=P.data) # plot 'main' cascade
+        au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data) # plot first cascade
+        au.plot_cascade(result, cascade=None, pops='all', year=startyear, data=P.data) # plot default cascade
+        au.plot_cascade(result, cascade=['all_people','all_dx'], pops='all', year=startyear, data=P.data) # plot sequence cascade
+        au.plot_cascade(result, cascade={'Everyone':['all_people'],'Infected':['dx','tx']}, pops='all', year=startyear, data=P.data) # plot dict cascade
+    elif test == 'udt2':
+        # No predefined cascades, use the default one
+        au.plot_cascade(result, pops='all', year=2016, data=P.data)  # plot default cascade
+    else:
+        # Plot the first cascade by default
+        startyear = 2016
+        endyear = 2017
+        au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data)
+        au.plot_cascade(result, cascade=0, pops='all', year=endyear, data=P.data)
 
 
 # Do a scenario to get a second set of results
