@@ -38,26 +38,17 @@ if not any([isinstance(h,logging.StreamHandler) and not isinstance(h,logging.Fil
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-import atomica.core.version
-logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (atomica.core.version.version, atomica.core.version.versiondate)) # Log with the highest level
+from atomica.version import version as __version__, versiondate as __versiondate__
+logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__)) # Log with the highest level
 logger.critical(datetime.now())
 
 try:
-    import sciris.core as sc
+    import sciris as sc
     atomica_git = sc.gitinfo(__file__)
     logger.critical('git branch: %s (%s)' % (atomica_git['branch'],atomica_git['hash']))
     del atomica_git
 except:
     pass
-
-# Import app flavors
-try:
-    # from . import apps
-    pass
-except Exception as E:
-    import traceback
-    app_error = traceback.format_exc()
-    logger.error('Could not load apps - see atomica.app_error for details')
 
 # Finally, set default output level to INFO
 logger.setLevel('INFO')

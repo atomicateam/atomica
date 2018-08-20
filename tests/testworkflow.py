@@ -7,14 +7,14 @@ import atomica.ui as au
 import sciris.core as sc
 import pylab as pl
 import matplotlib.pyplot as plt
-from atomica.core.optimization import optimize
+from atomica.optimization import optimize
 
-#test = "sir"
-#test = "tb"
+test = "sir"
+# test = "tb"
 #test = "hypertension"
 #test = "udt"
 #test = "usdt"
-test = "hiv"
+# test = "hiv"
 #test = "diabetes"
 #test = "service"
 
@@ -115,8 +115,8 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
-    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
+    au.plot_cascade(P.results[-1], cascade=0, pops='all', year=2016, data=P.data)
+    au.plot_multi_cascade(P.results[-1],0,year=[2016,2017])
     if forceshow: pl.show()
     
     # Browser test
