@@ -77,7 +77,7 @@ class Result(NamedItem):
 
     def __repr__(self):
         """ Print out useful information when called"""
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     def get_variable(self, pops, name):

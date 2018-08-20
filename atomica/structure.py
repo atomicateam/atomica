@@ -91,7 +91,7 @@ class TimeSeries(object):
             self.insert(tx, vx)
     
     def __repr__(self):
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     @property

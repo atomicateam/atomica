@@ -29,8 +29,8 @@ class ProjectFramework(object):
         self.uid = sc.uuid()
         self.version = version
         self.gitinfo = sc.gitinfo(__file__)
-        self.created = sc.today()
-        self.modified = sc.today()
+        self.created = sc.now()
+        self.modified = sc.now()
 
         # Load Framework from disk
         if isinstance(inputs,string_types):

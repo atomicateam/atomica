@@ -40,7 +40,7 @@ class ProjectData(object):
         self._references = None
     
     def __repr__(self):
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     @property

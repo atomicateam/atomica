@@ -67,7 +67,7 @@ class ProgramSet(NamedItem):
 
     def __repr__(self):
         ''' Print out useful information'''
-        output = sc.desc(self)
+        output = sc.prepr(self)
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
         output += '        Date created: %s\n'    % sc.getdate(self.created)
@@ -597,7 +597,7 @@ class Program(NamedItem):
 
     def __repr__(self):
         ''' Print out useful info'''
-        output = sc.desc(self)
+        output = sc.prepr(self)
         output += '          Program name: %s\n'    % self.short
         output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops

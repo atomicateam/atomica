@@ -493,7 +493,7 @@ class Optimization(NamedItem):
     
     
     def __repr__(self):
-        return sc.desc(self)
+        return sc.prepr(self)
     
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable
