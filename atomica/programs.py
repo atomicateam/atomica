@@ -6,7 +6,6 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-#from sciris import odict, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, checktype, dcp
 import sciris as sc
 from .system import AtomicaException, logger
 from .utils import NamedItem
@@ -51,17 +50,17 @@ class ProgramSet(NamedItem):
         self.tvec = tvec # This is the data tvec that will be used when writing the progset to a spreadsheet
 
         # Programs and effects
-        self.programs       = sc.odict() # Stores the information on the 'targeting' and 'spending data' sheet
-        self.covouts         = sc.odict() # Stores the information on the 'program effects' sheet
+        self.programs   = sc.odict() # Stores the information on the 'targeting' and 'spending data' sheet
+        self.covouts    = sc.odict() # Stores the information on the 'program effects' sheet
 
         # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
-        self.pops = sc.odict()
-        self.comps = sc.odict()
-        self.pars = sc.odict()
+        self.pops       = sc.odict()
+        self.comps      = sc.odict()
+        self.pars       = sc.odict()
 
         # Meta data
-        self.created = sc.today()
-        self.modified = sc.today()
+        self.created    = sc.today()
+        self.modified   = sc.today()
 
         return None
 
@@ -915,7 +914,7 @@ class Covout(object):
         return None
     
     def __repr__(self):
-#        output = prepr(self)
+        output = sc.prepr(self)
         output  = sc.indent('   Parameter: ', self.par)
         output += sc.indent('  Population: ', self.pop)
         output += sc.indent('Baseline val: ', self.baseline)
