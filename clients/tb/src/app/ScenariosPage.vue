@@ -59,7 +59,7 @@ Last update: 2018-08-15
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
-            <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+            <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
           </div>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
@@ -69,15 +69,15 @@ Last update: 2018-08-15
           </div>
         </div>
 
-        <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
+        <div class="calib-main" :class="{'calib-main--full': !areShowingPlotControls}">
           <div class="calib-graphs">
             <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
               <!--mpld3 content goes here-->
             </div>
           </div>
 
-          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
-            <div class="plotopts-params" v-if="areShowingPlots">
+          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+            <div class="plotopts-params">
               <table class="table table-bordered table-hover table-striped" style="width: 100%">
                 <thead>
                 <tr>
@@ -203,7 +203,7 @@ Last update: 2018-08-15
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
-        areShowingPlots: false,
+        areShowingPlotControls: false,
         plotOptions: [],
         scenariosLoaded: false,
         addEditModal: {
@@ -255,8 +255,8 @@ Last update: 2018-08-15
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
           frac = 1.0/this.figscale
+          this.figscale = 1.0
         }
-        this.figscale = 1.0
         return utils.scaleFigs(frac)
       },
 
@@ -438,8 +438,8 @@ Last update: 2018-08-15
           })
       },
 
-      toggleShowingPlots() {
-        this.areShowingPlots = !this.areShowingPlots
+      toggleShowingPlotControls() {
+        this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
       runScens() {
