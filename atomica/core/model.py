@@ -1216,10 +1216,8 @@ class Model(object):
             # Then overwrite with program values
             if do_program_overwrite:
                 for par in pars:
-                    if par.name in prog_vals and par.pop.name in prog_vals[par.name]:
-                        par.vals[ti] = prog_vals[par.name][par.pop.name]
-                    else:
-                        break
+                    if (par.name,par.pop.name) in prog_vals:
+                        par.vals[ti] = prog_vals[(par.name,par.pop.name)]
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:

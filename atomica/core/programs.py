@@ -6,14 +6,13 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-from sciris.core import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+from sciris.core import odict, today, promotetolist, promotetoarray, indent, isnumber, dcp
 import sciris.core as sc
 from .system import AtomicaException, logger
 from .utils import NamedItem
-from numpy.random import uniform
 from numpy import array, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, ProgramEntry, read_tables, TimeDependentValuesEntry
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from six import string_types
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
@@ -49,21 +48,16 @@ class ProgramSet(NamedItem):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
 
+        self.tvec = tvec # This is the data tvec that will be used when writing the progset to a spreadsheet
+
         # Programs and effects
         self.programs       = sc.odict() # Stores the information on the 'targeting' and 'spending data' sheet
         self.covouts         = sc.odict() # Stores the information on the 'program effects' sheet
 
-        self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
-
-        self.tvec = tvec # This is the data tvec that will be used when writing the progset to a spreadsheet
-
-        # Populations, parameters, and compartments 
-        self.pops = sc.odict() # These are all of the pops available based on the ProjectData used to load the ProgramSet
-        self.comps = sc.odict() # These are all of the comps available based on the ProjectFramework used to load the ProgramSet
-        self.pars = sc.odict() # # These are all of the pars available based on the ProjectFramework used to load the ProgramSet
-
-        # TODO - this cache can be deprecated but might be replaced by something else later
-        self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
+        # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
+        self.pops = sc.odict()
+        self.comps = sc.odict()
+        self.pars = sc.odict()
 
         # Meta data
         self.created = today()
@@ -74,6 +68,7 @@ class ProgramSet(NamedItem):
     def prepare_cache(self):
         # This function is called once at the start of model.py, which allows various checks to be
         # performed once at the start of the simulation rather than at every timestep
+        # TODO - deprecate fully if this ends up being unused (it used to do something)
         return
 
     def __repr__(self):
@@ -468,7 +463,7 @@ class ProgramSet(NamedItem):
                 if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
                     self.covouts[(par_name,pop_name)] = Covout(par=par_name,pop=pop_name,cov_interaction= cov_interaction, imp_interaction = imp_interaction, uncertainty=uncertainty,baseline=baseline,progs=progs)
 
-    def _write_effects(self,framework=None):
+    def _write_effects(self):
         # TODO - Use the framework to exclude irrelevant programs and populations
         sheet = self._book.add_worksheet("Program effects")
         widths = dict()
@@ -749,113 +744,23 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
 
-    def get_outcomes(self, coverage=None, year=None):
+    def get_outcomes(self, coverage):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
+        # INPUTS
+        # - coverage : dict with coverage values {prog_name:np.array}
 
-        # Validate inputs
-        if year is None: year = 2018. # TEMPORARY
-        if coverage is None:
-            raise AtomicaException('Please provide coverage to calculate outcomes')
-        if not isinstance(coverage, dict): # Only acceptable format at the moment
-            errormsg = 'Expecting coverage to be a dict, not %s' % type(coverage)
-            raise AtomicaException(errormsg)
         for covkey in coverage.keys(): # Ensure coverage level values are arrays
             coverage[covkey] = promotetoarray(coverage[covkey])
             for item in coverage[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
-        if self._covout_valid_cache is None:
-            self.prepare_cache()
 
         # Initialise output
-        outcomes = odict()
-
-        # Loop over parameter types
-        for par_type in self.target_par_types:
-            outcomes[par_type] = odict()
-
-            relevant_progs = self.relevant_progs[par_type]
-            # Loop over populations relevant for this parameter type
-            for popno, pop in enumerate(relevant_progs.keys()):
-
-                delta, thiscov = odict(), odict()
-                
-                # Loop over the programs that target this parameter/population combo
-                for prog in relevant_progs[pop]:
-                    if not self._covout_valid_cache[(par_type,pop)]:
-                        print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.name))
-                        outcomes[par_type][pop] = None
-                    else:
-                        outcomes[par_type][pop]  = self.covouts[(par_type, pop)].npi_val.get(sample)
-                        thiscov[prog.name]         = coverage[prog.name]
-                        delta[prog.name]           = self.covouts[(par_type, pop)].progs[prog.name].get(sample) - outcomes[par_type][pop]
-                        
-                # Pre-check for additive calc
-                if self.covouts[(par_type, pop)].cov_interaction == 'Additive':
-                    if sum(thiscov[:])>1: 
-                        print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
-                        self.covouts[(par_type, pop)].cov_interaction = 'Random'
-                        
-                # ADDITIVE CALCULATION
-                # NB, if there's only one program targeting this parameter, just do simple additive calc
-                if self.covouts[(par_type, pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
-                    # Outcome += c1*delta_out1 + c2*delta_out2
-                    for prog in relevant_progs[pop]:
-                        if not self._covout_valid_cache[(par_type,pop)]:
-                            print('WARNING: no coverage-outcome parameters defined for program  "%s", population "%s" and parameter "%s". Skipping over... ' % (prog.name, pop, par_type))
-                            outcomes[par_type][pop] = None
-                        else: 
-                            outcomes[par_type][pop] += thiscov[prog.name]*delta[prog.name]
-                        
-                # NESTED CALCULATION
-                elif self.covouts[(par_type, pop)].cov_interaction == 'Nested':
-                    # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
-                    cov,delt = [],[]
-                    for prog in thiscov.keys():
-                        cov.append(thiscov[prog])
-                        delt.append(delta[prog])
-                    cov_tuple = sorted(zip(cov,delt)) # A tuple storing the coverage and delta out, ordered by coverage
-                    for j in range(len(cov_tuple)): # For each entry in here
-                        if j == 0: c1 = cov_tuple[j][0]
-                        else: c1 = cov_tuple[j][0]-cov_tuple[j-1][0]
-                        outcomes[par_type][pop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
-            
-                # RANDOM CALCULATION
-                elif self.covouts[(par_type, pop)].cov_interaction == 'Random':
-                    # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
-
-                    for prog1 in thiscov.keys():
-                        product = ones(thiscov[prog1].shape)
-                        for prog2 in thiscov.keys():
-                            if prog1 != prog2:
-                                product *= (1-thiscov[prog2])
-        
-                        outcomes[par_type][pop] += delta[prog1]*thiscov[prog1]*product 
-
-                    # Recursion over overlap levels
-                    def overlap_calc(indexes,target_depth):
-                        if len(indexes) < target_depth:
-                            accum = 0
-                            for j in range(indexes[-1]+1,len(thiscov)):
-                                accum += overlap_calc(indexes+[j],target_depth)
-                            output = thiscov.values()[indexes[-1]]*accum
-                            return output
-                        else:
-                            output = thiscov.values()[indexes[-1]]* max(delta.values()[0],0)
-                            return output
-
-                    # Iterate over overlap levels
-                    for i in range(2,len(thiscov)): # Iterate over numbers of overlapping programs
-                        for j in range(0,len(thiscov)-1): # Iterate over the index of the first program in the sum
-                            outcomes[par_type][pop] += overlap_calc([j],i)[0]
-
-                    # All programs together
-                    outcomes[par_type][pop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
-
-                else: raise AtomicaException('Unknown reachability type "%s"', self.covouts[(par_type, pop)].cov_interaction)
-        
+        outcomes = dict()
+        for covout in self.covouts.values():
+            outcomes[(covout.par,covout.pop)] = covout.get_outcome(coverage)
         return outcomes
 
 #--------------------------------------------------------------------
@@ -864,27 +769,21 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self, name=None, label=None, baseline_spend=None, spend_data=None, unit_cost=None, coverage=None, capacity=None, target_pops=None, target_pars=None, target_comps=None):
+    def __init__(self, name=None, label=None, target_pops=None, target_pars=None, target_comps=None):
         '''Initialize'''
         NamedItem.__init__(self,name)
-
         assert name is not None, 'You must supply a name for a program'
         self.name               = name # Short name of program
         self.label              = name if label is None else label # Full name of the program
-        self.target_pars        = None # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop} # TODO - remove this, this info is in the Covout
-        self.target_par_types   = None # List of parameter types targeted by program, should correspond to short names of parameters # TODO - remove this, this info is in the Covout
-        self.target_pops        = [] # List of populations targeted by the program
-        self.target_comps       = [] # Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend     = TimeSeries(assumption=0.0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data - currently not exposed in progbook
-        self.spend_data         = TimeSeries() if spend_data is None else spend_data # TimeSeries with spending data
-        self.unit_cost          = TimeSeries() if unit_cost is None else unit_cost # TimeSeries with unit cost of program
-        self.capacity           = TimeSeries() if capacity is None else capacity # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        self.coverage           = TimeSeries() if coverage is None else coverage # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-
-        # Populate the values
-        self.update_targets(target_pops=target_pops, target_pars=target_pars, target_comps=target_comps)
+        self.target_pars        = [] if target_pars is None else target_pars # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop} # TODO - remove this, this info is in the Covout
+        self.target_pops        = [] if target_pops is None else target_pops # List of populations targeted by the program
+        self.target_comps       = [] if target_comps is None else target_comps # Compartments targeted by the program - used for calculating coverage denominators
+        self.baseline_spend     = TimeSeries(assumption=0.0) # A TimeSeries with any baseline spending data - currently not exposed in progbook
+        self.spend_data         = TimeSeries() # TimeSeries with spending data
+        self.unit_cost          = TimeSeries() # TimeSeries with unit cost of program
+        self.capacity           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.coverage           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         return None
-
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -896,57 +795,6 @@ class Program(NamedItem):
         output += ' Targeted compartments: %s\n'    % self.target_comps
         output += '\n'
         return output
-    
-
-    def update_targets(self, target_pops=None, target_pars=None, target_comps=None):
-        ''' Add data to a program, or otherwise update the values. Same syntax as init(). '''
-        
-        def set_target_pars(target_pars=None):
-            ''' Set target parameters'''
-            target_par_keys = ['param', 'pop']
-            target_pars = promotetolist(target_pars) # Let's make sure it's a list before going further
-            target_par_types = []
-            target_pops = []
-            for tp,target_par in enumerate(target_pars):
-                if isinstance(target_par, dict): # It's a dict, as it needs to be
-                    thesekeys = sorted(target_par.keys())
-                    if thesekeys==target_par_keys: # Keys are correct -- main usage case!!
-                        target_pars[tp] = target_par
-                        target_par_types.append(target_par['param'])
-                        target_pops.append(target_par['pop'])
-                    else:
-                        errormsg = 'Keys for a target parameter must be %s, not %s' % (target_par_keys, thesekeys)
-                        raise AtomicaException(errormsg)
-                elif isinstance(target_par, tuple): # It's a list, assume it's in the usual order
-                    if len(target_par)==2:
-                        target_pars[tp] = {'param':target_par[0], 'pop':target_par[1]} # If a list or tuple, assume this order
-                        target_par_types.append(target_par[0])
-                        target_pops.append(target_par[1])
-                    else:
-                        errormsg = 'When supplying a target_par as a list or tuple, it must have length 2, not %s' % len(target_par)
-                        raise AtomicaException(errormsg)
-                else:
-                    errormsg = 'Targetpar must be string, tuple, or dict, not %s' % type(target_par)
-                    raise AtomicaException(errormsg)
-            self.target_pars.extend(target_pars) # Add the new values
-            old_target_pops = self.target_pops
-            old_target_pops.extend(target_pops)
-            self.target_pops = list(set(old_target_pops)) # Add the new values
-            old_target_par_types = self.target_par_types
-            old_target_par_types.extend(target_par_types)
-            self.target_par_types = list(set(old_target_par_types)) # Add the new values
-            return None
-
-        if target_pops  is not None: self.target_pops    = promotetolist(target_pops, 'string') # key(s) for targeted populations
-        if target_pars  is not None: set_target_pars(target_pars) # targeted parameters
-        if target_comps is not None: self.target_comps    = promotetolist(target_comps, 'string') # key(s) for targeted populations
-
-        if self.target_pops is None: self.target_pops = [] # Empty list
-        if self.target_pars is None:
-            self.target_pars = [] # Empty list
-            self.target_par_types = [] # Empty list
-            
-        return None
 
     def get_spend(self, year=None, total=False):
         ''' Convenience function for getting spending data'''
@@ -1080,26 +928,82 @@ class Covout(object):
         output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
         output += '\n'
         return output
-        
-    
-    def add(self, prog=None, val=None):
-        ''' 
-        Accepts either
-        self.add([{'FSW':[0.3,0.1,0.4]}, {'SBCC':[0.1,0.05,0.15]}])
-        or
-        self.add('FSW', 0.3)
-        '''
-        if isinstance(prog, dict):
-            for key,val in prog.items():
-                self.progs[key] = val
-        elif isinstance(prog, (list, tuple)):
-            for key,val in prog:
-                self.progs[key] = val
-        elif isinstance(prog, string_types) and val is not None:
-            self.progs[prog] = val
-        else:
-            errormsg = 'Could not understand prog=%s and val=%s' % (prog, val)
-            raise AtomicaException(errormsg)
-        return None
-            
 
+    def get_outcome(self,coverage):
+        # coverage is a dict with {prog_name:coverage} at least containing all of the
+        # programs in self.progs.
+        # Don't forget that this covout instance is already specific to a (par,pop) combination
+
+        # We have been given the coverage for all programs
+        outcome = self.baseline
+        delta, thiscov = odict(), odict()
+
+        for prog in self.progs:
+            thiscov[prog] = coverage[prog]
+            delta[prog] = self.progs[prog] - outcome # This is the gradient of the outcome going from 0 to 1 coverage
+
+        # Pre-check for additive calc
+        if self.cov_interaction == 'additive':
+            if sum(thiscov[:]) > 1:
+                logger.warning('Coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % (list(self.progs.keys()), [self.par, self.pop], sum(thiscov[:])))
+                self.cov_interaction = 'random'
+
+        # ADDITIVE CALCULATION
+        # NB, if there's only one program targeting this parameter, just do simple additive calc
+        if self.cov_interaction == 'additive' or len(self.progs) == 1:
+            # Outcome += c1*delta_out1 + c2*delta_out2
+            for prog in self.progs:
+                outcome += thiscov[prog] * delta[prog]
+
+        # NESTED CALCULATION
+        elif self.cov_interaction == 'nested':
+            # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
+            cov, delt = [], []
+            for prog in thiscov.keys():
+                cov.append(thiscov[prog])
+                delt.append(delta[prog])
+            cov_tuple = sorted(zip(cov, delt))  # A tuple storing the coverage and delta out, ordered by coverage
+            for j in range(len(cov_tuple)):  # For each entry in here
+                if j == 0:
+                    c1 = cov_tuple[j][0]
+                else:
+                    c1 = cov_tuple[j][0] - cov_tuple[j - 1][0]
+                outcome += c1 * max([ct[1] for ct in cov_tuple[j:]])
+
+                # RANDOM CALCULATION
+        elif self.cov_interaction == 'random':
+            # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
+
+            for prog1 in thiscov.keys():
+                product = ones(thiscov[prog1].shape)
+                for prog2 in thiscov.keys():
+                    if prog1 != prog2:
+                        product *= (1 - thiscov[prog2])
+
+                outcome += delta[prog1] * thiscov[prog1] * product
+
+                # Recursion over overlap levels
+
+            def overlap_calc(indexes, target_depth):
+                if len(indexes) < target_depth:
+                    accum = 0
+                    for j in range(indexes[-1] + 1, len(thiscov)):
+                        accum += overlap_calc(indexes + [j], target_depth)
+                    output = thiscov.values()[indexes[-1]] * accum
+                    return output
+                else:
+                    output = thiscov.values()[indexes[-1]] * max(delta.values()[0], 0)
+                    return output
+
+            # Iterate over overlap levels
+            for i in range(2, len(thiscov)):  # Iterate over numbers of overlapping programs
+                for j in range(0, len(thiscov) - 1):  # Iterate over the index of the first program in the sum
+                    outcome += overlap_calc([j], i)[0]
+
+            # All programs together
+            outcome += prod(array(thiscov.values()), 0) * max([c for c in delta.values()])
+
+        else:
+            raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)
+
+        return outcome
