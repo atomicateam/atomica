@@ -45,21 +45,22 @@ class ProgramInstructions(object):
 
 class ProgramSet(NamedItem):
 
-    def __init__(self, name="default", data_start=None, data_end=None):
+    def __init__(self, name="default",tvec=None):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
 
         # Programs and effects
-        self.programs       = sc.odict()
-        self.covouts         = sc.odict()
+        self.programs       = sc.odict() # Stores the information on the 'targeting' and 'spending data' sheet
+        self.covouts         = sc.odict() # Stores the information on the 'program effects' sheet
+
         self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
 
-        self.tvec = None # This is the data tvec that will be used when writing the progset to a spreadsheet
+        self.tvec = tvec # This is the data tvec that will be used when writing the progset to a spreadsheet
 
         # Populations, parameters, and compartments 
-        self.pops = None # These are all of the pops available based on the ProjectData used to load the ProgramSet
-        self.comps = None # These are all of the comps available based on the ProjectFramework used to load the ProgramSet
-        self.pars = None # # These are all of the pars available based on the ProjectFramework used to load the ProgramSet
+        self.pops = sc.odict() # These are all of the pops available based on the ProjectData used to load the ProgramSet
+        self.comps = sc.odict() # These are all of the comps available based on the ProjectFramework used to load the ProgramSet
+        self.pars = sc.odict() # # These are all of the pars available based on the ProjectFramework used to load the ProgramSet
 
         # TODO - this cache can be deprecated but might be replaced by something else later
         self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
@@ -91,30 +92,90 @@ class ProgramSet(NamedItem):
     # Methods to add/remove things
     #######################################################################################################
 
+    def get_code_name(self,name):
+        if name in self.pars or name in self.comps or name in self.pops or name in self.programs:
+            return name
+
+        for code_name, full_name in self.pops.items():
+            if name == full_name:
+                return code_name
+
+        for code_name, full_name in self.comps.items():
+            if name == full_name:
+                return code_name
+
+        for code_name, full_name in self.pars.items():
+            if name == full_name:
+                return code_name
+
+        for prog in self.programs.values():
+            if name == prog.label:
+                return prog.name
+
+        raise AtomicaException('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
+
     def add_program(self, code_name, full_name):
+        # To add a program, we just need to construct one
+        prog = Program(name=code_name,label=full_name)
+        self.programs[prog.name] = prog
         return
 
-    def remove_program(self, code_name):
+    def remove_program(self, name):
+        # Remove the program from the progs dict
+        code_name = self.get_code_name(name)
+
+        del self.programs[code_name]
+        # Remove affected covouts
+        for par in self.pars:
+            for pop in self.pops:
+                if (par,pop) in self.covouts and code_name in self.covouts.progs:
+                    del self.covouts[(par,pop)].progs[code_name]
         return
 
     def add_pop(self,code_name,full_name):
+        self.pops[code_name] = full_name
         return
 
-    def remove_pop(self,code_name):
+    def remove_pop(self,name):
+        # To remove a pop, we need to remove it from all programs, and also remove all affected covouts
+        code_name = self.get_code_name(name)
+        for prog in self.programs.values():
+            if code_name in prog.target_pops:
+                prog.target_pops.remove(code_name)
+            if (prog.name,code_name) in self.covouts:
+                self.covouts.pop((prog.name,code_name))
+
+        del self.pops[code_name]
         return
 
     def add_comp(self,code_name,full_name):
+        self.comps[code_name] = full_name
         return
 
-    def remove_comp(self,code_name):
+    def remove_comp(self,name):
+        # If we remove a compartment, we need to remove it from every population
+        code_name = self.get_code_name(name)
+        for prog in self.programs.values():
+            if code_name in prog.target_comps:
+                prog.target_comps.remove(code_name)
+        del self.comps[code_name]
         return
 
     def add_par(self,code_name,full_name):
         # add an impact parameter
+        # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
+        # So all we have to do is add it to the list
+        self.pars[code_name] = full_name
         return
 
-    def remove_par(self,code_name):
+    def remove_par(self,name):
         # remove an impact parameter
+        # we need to remove all of the covouts that affect it
+        code_name = self.get_code_name(name)
+        for pop in self.pops:
+            if (code_name,pop) in self.covouts:
+                del self.covouts[(code_name,pop)]
+        del self.pars[code_name]
         return
 
     #######################################################################################################
@@ -124,7 +185,8 @@ class ProgramSet(NamedItem):
     def _set_available(self,framework,data):
         # Given framework and data, set the available pops, comps, and pars
         # noting that these are matched to the framework and data even though
-        # the programs may not reach all of them
+        # the programs may not reach all of them. This gets used during both
+        # from_spreadsheet() and new()
         self.pops = sc.odict()
         for x, v in data.pops.items():
             self.pops[x] = v['label']
@@ -441,16 +503,32 @@ class ProgramSet(NamedItem):
 
                 sheet.write_formula(current_row, 0, self._references[self.pops[pop_name]],value=self.pops[pop_name])
                 update_widths(widths, 0, self.pops[pop_name])
-                sheet.write(current_row, 1, covout.baseline if covout else None)
-                sheet.write(current_row, 2, covout.cov_interaction.title() if covout else None)
+
+                if covout and covout.baseline is not None:
+                    sheet.write(current_row, 1, covout.baseline,self._formats['not_required'])
+                else:
+                    sheet.write(current_row, 1, None, self._formats['unlocked'])
+
+                if covout and covout.cov_interaction is not None:
+                    sheet.write(current_row, 2, covout.cov_interaction,self._formats['not_required'])
+                else:
+                    sheet.write(current_row, 2, None, self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
-                sheet.write(current_row, 3, covout.imp_interaction.title() if covout else None)
+
+                if covout and covout.imp_interaction is not None:
+                    sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
+                else:
+                    sheet.write(current_row, 3, None, self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
-                sheet.write(current_row, 4, covout.sigma if covout else None)
+
+                if covout and covout.sigma is not None:
+                    sheet.write(current_row, 4, covout.sigma,self._formats['not_required'])
+                else:
+                    sheet.write(current_row, 4, None, self._formats['unlocked'])
 
                 for prog in applicable_progs:
                     if covout and prog.name in covout.progs:
-                        sheet.write(current_row, prog_col[prog.name], covout.progs[prog.name],self._formats['unlocked'])
+                        sheet.write(current_row, prog_col[prog.name], covout.progs[prog.name],self._formats['not_required'])
                     else:
                         sheet.write(current_row, prog_col[prog.name], None,self._formats['unlocked'])
                 current_row += 1
@@ -459,77 +537,96 @@ class ProgramSet(NamedItem):
         apply_widths(sheet,widths)
 
     @staticmethod
-    def new(filename, name=None, progs=None, pops=None, comps=None, pars=None, project=None, framework=None, data=None, data_start=None, data_end=None):
+    def new(name=None, tvec=None, progs=None, project=None, framework=None, data=None,pops=None, comps=None, pars=None):
         ''' Generate a new progset with blank data. '''
+        # INPUTS
+        # - name : the name for the progset
+        # - tvec : an np.array() with the time values to write
+        # - progs : This can be
+        #       - A number of progs
+        #       - An odict of {code_name:display name} programs
+        # - project : specify a project to use the project's framework and data to initialize the comps, pars, and pops
+        # - framework : specify a framework to use the framework's comps and pars
+        # - data : specify a data to use the data's pops
+        # - pops : manually specify the populations. Can be
+        #       - A number of pops
+        #       - A list of pop full names (these will need to match a databook when the progset is read in)
+        # - comps : manually specify the compartments. Can be
+        #       - A number of comps
+        #       - A list of comp full names (needs to match framework when the progset is read in)
+        # - pars : manually specify the impact parameters. Can be
+        #       - A number of pars
+        #       - A list of parameter full names (needs to match framework when the progset is read in)
 
-        # Validate and process inputs
+        assert tvec is not None, 'You must specify the time points where data will be entered'
+        # Prepare programs
         if sc.isnumber(progs):
             nprogs = progs
-            progs = []  # Create real program list
+            progs = sc.odict()
             for p in range(nprogs):
-                progs.append({'name': 'Prog %i' % (p + 1), 'label': 'Program %i' % (p + 1)})
+                progs['Prog %i' % (p+1)] = 'Program %i' % (p+1)
+        elif isinstance(progs,dict): # will also match odict
+            pass
         else: 
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
 
-        # Complex checking of framework/data requirements - people can EITHER provide:
-        #  - a number of compartments, a number of populations, and a number of parameters
-        #  - a data and framework 
-        #  - a project containing data and a framework
-        if pops is None or comps is None or pars is None:
-            # Try to get them from the data/framework            
-            if data is None or framework is None:
-                if project is None:
-                    errormsg = 'To initialise a ProgramSet, please supply one of the following sets of inputs: (a) the number of populations and compartments you want, (b) a framework and ProjectData structure, (c) a Project.'
-                    raise AtomicaException(errormsg)
-                else:
-                    data = project.data
-                    framework = project.framework
-                pops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
-                comps = odict()
-                for _,spec in framework.comps.iterrows():
-                    if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
-                        continue
-                    else:
-                        comps[spec.name] = spec['display name']
-                pars = odict() 
-                for _,spec in framework.pars.iterrows():
-                    if spec['is impact']=='y':
-                        pars[spec.name] = spec['display name']
+        # First, assign the data and framework
+        if framework is None and project:
+            framework = project.framework
+        if data is None and project:
+            data = project.data
 
-        else:
-            # Starting totally from scratch with integer arguments: just create lists with empty entries
-            if sc.isnumber(pops):
+        # Assign the pops
+        if pops is None:
+            # Get populations from data
+            pops = odict([(k, v['label']) for k, v in data.pops.iteritems()])
+        elif sc.isnumber(pops):
                 npops = pops
-                pops = []  # Create real pops dict
+                pops = sc.odict()  # Create real pops dict
                 for p in range(npops):
-                    pops.append(('Pop %i' % (p + 1), 'Population %i' % (p + 1)))
-            pops = sc.odict(pops)
-        
-            if sc.isnumber(comps):
-                ncomps = comps
-                comps = []  # Create real compartments list
-                for p in range(ncomps):
-                    comps.append(('Comp %i' % (p + 1), 'Compartment %i' % (p + 1)))
-            comps = sc.odict(comps)
+                    pops['Pop %i' % (p + 1)] = 'Population %i' % (p + 1)
+        else:
+            assert isinstance(pops,dict) # Needs dict input
 
-            if sc.isnumber(pars):
-                npars = pars
-                pars = odict()  # Create real pars list
-                for p in range(npars):
-                    pars.append(('Par %i' % (p + 1), 'Parameter %i' % (p + 1)))
-            pars = sc.odict(pars)
-        
-        if data_start is None or data_end is None:
-            errormsg = 'Please supply a start and end year for program data entry.'
-            raise AtomicaException(errormsg)
-            
-        newps = ProgramSet(name=name, programs=progs, pops=pops, comps=comps, pars=pars, data_start=data_start, data_end=data_end)
+        # Assign the comps
+        if comps is None:
+            # Get comps from framework
+            comps = odict()
+            for _, spec in framework.comps.iterrows():
+                if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
+                    continue
+                else:
+                    comps[spec.name] = spec['display name']
+        elif sc.isnumber(comps):
+            ncomps = comps
+            comps = sc.odict()  # Create real compartments list
+            for p in range(ncomps):
+                comps['Comp %i' % (p + 1)] = 'Compartment %i' % (p + 1)
+        else:
+            assert isinstance(comps,dict) # Needs dict input
+
+        # Assign the comps
+        if pars is None:
+            # Get pars from framework
+            pars = odict()
+            for _, spec in framework.pars.iterrows():
+                if spec['is impact'] == 'y':
+                    pars[spec.name] = spec['display name']
+        elif sc.isnumber(pars):
+            npars = pars
+            pars = sc.odict()  # Create real compartments list
+            for p in range(npars):
+                pars['Par %i' % (p + 1)] = 'Parameter %i' % (p + 1)
+        else:
+            assert isinstance(pars, dict)  # Needs dict input
+
+        newps = ProgramSet(name,tvec)
+        [newps.add_comp(k,v) for k,v in comps.items()]
+        [newps.add_par(k,v) for k,v in pars.items()]
+        [newps.add_pop(k,v) for k,v in pops.items()]
+        [newps.add_program(k,v) for k,v in progs.items()]
         return newps
-            
-        
-
-
 
     def save(self,fname):
         ''' Shortcut for saving to disk, copied from data.py'''
@@ -537,66 +634,6 @@ class ProgramSet(NamedItem):
         ss.save(fname)
 
 
-    #######################################################################################################
-    # Helper methods for data I/O
-    #######################################################################################################
-    def set_content(self, name=None, row_names=None, column_names=None, row_levels=None, data=None,
-                    row_format='general', row_formats=None, validation=None, assumption_properties=None, assumption_data=None, assumption=True):
-        # Set the content
-        if assumption_properties is None:
-            assumption_properties = {'title': None, 'connector': 'OR', 'columns': ['Assumption']}
-        self.assumption_data = assumption_data
-        return sc.odict([("name",            name),
-                         ("row_names",       row_names),
-                         ("column_names",    column_names),
-                         ("row_levels",      row_levels),
-                         ("row_format",      row_format),
-                         ("row_formats",     row_formats),
-                         ("data",            data),
-                         ("validation",      validation),
-                         ("assumption_properties", assumption_properties),
-                         ("assumption_data", assumption_data),
-                         ("assumption",      assumption)])
-
-    def _write_covoutdata(self):
-        # Generate coverage-outcome sheet
-        sheet = self._book.add_worksheet('Program effects')
-        pops = self.allpops
-        pars = self.allpars
-
-        # Set column widths and other initial data
-        widths = {0: 20, 2: 10, 3: 16, 4: 16, 5: 2}
-        current_row = 0
-        row_levels = []
-        for p in pops.values(): row_levels.extend([p])
-        assumption_properties = {'title': 'Value for a person covered by this program alone:','connector': '','columns': self.ref_prog_range}
-
-        # Get data if it exists for writing to file
-        existing_data = []
-        existing_extra = []
-        for par in pars.keys():
-            for pop in pops.keys():
-                npi_val = self.covouts[(par, pop)].npi_val.get() if (par, pop) in self.covouts.keys() else ''
-                cov_interaction = self.covouts[(par, pop)].cov_interaction if (par, pop) in self.covouts.keys() else ''
-                imp_interaction = self.covouts[(par, pop)].imp_interaction if (par, pop) in self.covouts.keys() else ''
-                existing_data.append([npi_val,cov_interaction,imp_interaction])
-                prog_vals = [self.covouts[(par, pop)].progs[prog.name].get() if (par, pop) in self.covouts.keys() and prog.name in self.covouts[(par, pop)].progs.keys() else '' for prog in self.programs.values()]
-                existing_extra.append(prog_vals)
-
-        content = self.set_content(row_names=pars.values(),
-                                   column_names=['Value if none of the programs listed here are targeting this parameter', 'Coverage interation', 'Impact interaction'],
-                                   row_format='general',
-                                   data=existing_data,
-                                   assumption_data=existing_extra,
-                                   assumption_properties=assumption_properties,
-                                   validation={3:["Random","Additive","Nested"],4:["Synergistic","best"]},
-                                   row_levels=row_levels)
-
-        the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = the_range.emit(self._formats, rc_title_align='left', widths=widths)
-        apply_widths(sheet,widths)
-
-        
     def update(self):
         ''' Update (run this is you change something... )'''
 
@@ -972,11 +1009,11 @@ class Program(NamedItem):
         assert name is not None, 'You must supply a name for a program'
         self.name               = name # Short name of program
         self.label              = name if label is None else label # Full name of the program
-        self.target_pars        = None # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop}
-        self.target_par_types   = None # List of parameter types targeted by program, should correspond to short names of parameters
+        self.target_pars        = None # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop} # TODO - remove this, this info is in the Covout
+        self.target_par_types   = None # List of parameter types targeted by program, should correspond to short names of parameters # TODO - remove this, this info is in the Covout
         self.target_pops        = [] # List of populations targeted by the program
         self.target_comps       = [] # Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend     = TimeSeries(assumption=0.0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data
+        self.baseline_spend     = TimeSeries(assumption=0.0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data - currently not exposed in progbook
         self.spend_data         = TimeSeries() if spend_data is None else spend_data # TimeSeries with spending data
         self.unit_cost          = TimeSeries() if unit_cost is None else unit_cost # TimeSeries with unit cost of program
         self.capacity           = TimeSeries() if capacity is None else capacity # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
