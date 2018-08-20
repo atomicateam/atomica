@@ -271,6 +271,10 @@ class ProjectData(object):
         # those quantities all have some data values associated with them
         for df in [framework.comps, framework.characs, framework.pars]:
             for _, spec in df.iterrows():
+
+                if spec.name in self.pops:
+                    raise AtomicaException('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec.name))
+
                 if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
                         raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['display name'],spec.name))

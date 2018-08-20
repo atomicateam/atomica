@@ -8,15 +8,15 @@ Version: 2018jul30
 
 from sciris.core import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
 import sciris.core as sc
-from .system import AtomicaException
+from .system import AtomicaException, logger
 from .utils import NamedItem
 from numpy.random import uniform
 from numpy import array, isnan, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, ProgramEntry
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, ProgramEntry, read_tables, TimeDependentValuesEntry
 from six import string_types
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-import xlrd
+import openpyxl
 import xlsxwriter as xw
 import io
 
@@ -52,7 +52,7 @@ class ProgramSet(NamedItem):
 
         # Programs and effects
         self.programs       = sc.odict()
-        self.covout         = sc.odict()
+        self.covouts         = sc.odict()
         if programs is not None: self.add_programs(programs)
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
@@ -66,10 +66,11 @@ class ProgramSet(NamedItem):
             self.data_years     = sc.inclusiverange(self.data_start,self.data_end+1) # Initialize data years
 
         # Populations, parameters, and compartments 
-        self.allpops        = pops if pops is not None else sc.odict()
-        self.allcomps       = comps if comps is not None else sc.odict()
-        self.allpars        = pars if pars is not None else sc.odict()
+        self.pops = None # These are all of the pops available based on the ProjectData used to load the ProgramSet
+        self.comps = None # These are all of the comps available based on the ProjectFramework used to load the ProgramSet
+        self.pars = None # # These are all of the pars available based on the ProjectFramework used to load the ProgramSet
 
+        # TODO - this cache can be deprecated but might be replaced by something else later
         self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
 
         # Meta data
@@ -78,12 +79,11 @@ class ProgramSet(NamedItem):
 
         return None
 
-
     def prepare_cache(self):
         # This function is called once at the start of model.py, which allows various checks to be
         # performed once at the start of the simulation rather than at every timestep
 
-        self._covout_valid_cache = {k:v.has_pars() for k,v in self.covout.items()}
+        self._covout_valid_cache = {k:v.has_pars() for k,v in self.covouts.items()}
 
     def __repr__(self):
         ''' Print out useful information'''
@@ -100,16 +100,15 @@ class ProgramSet(NamedItem):
     #######################################################################################################
     # Methods for data I/O
     #######################################################################################################
+
     @staticmethod
-    def from_spreadsheet(spreadsheet=None, data=None, framework=None, project=None):
+    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
 
-        self = ProgramSet()
-
         # Check framework/data requirements - people can EITHER provide:
-        #  - a data and framework 
+        #  - a data and framework
         #  - a project containing data and a framework
-        # Try to get them from the data/framework            
+        # Try to get them from the data/framework
         if data is None or framework is None:
             if project is None:
                 errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
@@ -118,115 +117,285 @@ class ProgramSet(NamedItem):
                 data = project.data
                 framework = project.framework
 
+        # Populate the available pops, comps, and pars based on the framework and data provided at this step
+        self = ProgramSet()
+
+        self.pops = sc.odict()
+        for x, v in data.pops.items():
+            self.pops[x] = v['label']
+
+        self.comps = sc.odict()
+        for name, label in zip(framework.comps.index, framework.comps['display name']):
+            self.comps[name] = label
+
+        self.pars = sc.odict()
+        for name, label in zip(framework.pars.index, framework.pars['display name']):
+            self.pars[name] = label
+
         # Create and load spreadsheet
         if isinstance(spreadsheet,string_types):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
-        workbook = xlrd.open_workbook(file_contents=spreadsheet.get_file().read()) # Open workbook
+
+        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
 
         # Load individual sheets
-        metadata = workbook.sheet_by_name('Program targeting') 
-        costdata = workbook.sheet_by_name('Spending data') 
-        effdata = workbook.sheet_by_name('Program effects') 
-        
-        # Initialise programs
-        colindices = []
-        programs = []
-        comp_short_name = lambda x: framework.get_variable(x)[0].name
-        
-        releval_frw_comps = odict()
-        for _,spec in framework.comps.iterrows():
-            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
-                continue
-            else:
-                releval_frw_comps[spec.name] = spec['display name']
-        
-        for row in range(metadata.nrows):
-            thesedata = metadata.row_values(row, start_colx=2) 
-            if row==0: # Get metadata from first row
-                for col in range(2,metadata.ncols):
-                    cell_val = metadata.cell(row, col).value
-                    if cell_val!='': colindices.append(col-1)
-    
-            if row==1: # Get population and compartment data from second row
-                pops = thesedata[3:colindices[1]-2]
-                comps = thesedata[colindices[1]-1:]
-
-                # Check if the populations and compartments match those in the data and framework
-                if set(pops) != set([p['label'] for p in data.pops.values()]):
-                    if set(pops) != set(data.pops.keys()):
-                        errormsg = 'The populations in the program data are not the same as those that were loaded from the databook: "%s" vs "%s"' % (pops, [p['label'] for p in data.pops.values()])
-                        raise AtomicaException(errormsg)
-                else:
-                    self.allpops = odict([(k,v['label']) for k,v in data.pops.iteritems()])
-                if set(comps) != set(releval_frw_comps.values()):
-                    errormsg = 'The compartments in the program data are not the same as those that were loaded from the framework file, differences are "%s"' % (set(comps).symmetric_difference(set(releval_frw_comps.values()) ))
-                    raise AtomicaException(errormsg)
-                else: 
-                    for comp in comps: self.allcomps[comp_short_name(comp)] = comp
-                    
-    
-            else: # Get the program name and targeting data from the rest of the rows 
-                if thesedata[0]: 
-                    p = Program(name=str(thesedata[0]),
-                                label=str(thesedata[1]),
-                                target_comps =[compname for i,compname in enumerate(self.allcomps) if thesedata[colindices[1]-1:][i]])
-                    programs.append(p)
-                    
-        # Add the programs
-        self.add_programs(progs=programs)
-        nprogs=len(programs)
-
-        # Add spending data from the costing datasheet
-        self.data_years = [] # Overwrite data years
-        for col in range(costdata.ncols):
-            thiscell = costdata.cell_value(1,col) # 1 is the 2nd row which is where the year data should be
-            if thiscell=='' and len(self.data_years)>0: #  We've gotten to the end
-                lastdatacol = col # Store this column number
-                break # Quit
-            elif thiscell != '': # More years, keep going
-                self.data_years.append(float(thiscell)) # Add this year
-        assumptioncol = lastdatacol + 1 # Figure out which column the assumptions are in; the "OR" space is in between
-        self.data_start = self.data_years[0]
-        self.data_end = self.data_years[-1]
-    
-        for row in range(costdata.nrows):
-            progname = costdata.cell_value(row, 1) # Get the name of the program
-            if progname != '': # The first column is blank: it's time for the data
-                datatype = costdata.cell_value(row, 2) # Get the type of data -- WARNING, could be improved
-                if datatype=='Total spend':
-                    for col,year in enumerate(self.data_years):
-                        spend = costdata.cell_value(row, col+3)
-                        if spend: self.programs[progname].add_spend(spend=spend, year=year)
-                elif datatype=='Capacity constraints':
-                    for col,year in enumerate(self.data_years):
-                        capacity = costdata.cell_value(row, col+3)
-                        try:
-                            if capacity: self.programs[progname].update(capacity=[capacity], year=year)
-                        except: 
-                            import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-                elif datatype=='Unit cost':
-                    for col,year in enumerate(self.data_years):
-                        unit_cost = costdata.cell_value(row, col+3)
-                        if unit_cost: self.programs[progname].update(unit_cost=[unit_cost], year=year)
-                    
-        # Add program effect data from the program effect datasheet
-        pop_short_name = {v['label']:k for k,v in data.pops.items()} 
-        self.allpars = odict()
-        for row in range(effdata.nrows): # Even though it loops over every row, skip all except the best rows
-            if effdata.cell_value(row, 1)!='': # Data row
-                par_name = comp_short_name(effdata.cell_value(row, 1)) # Get the name of the parameter
-                pop_name = pop_short_name[effdata.cell_value(row, 2)]
-                npi_val = effdata.cell_value(row, 3) if effdata.cell_value(row, 3)!='' else 0.
-                cov_interaction = effdata.cell_value(row, 4) if effdata.cell_value(row, 4)!='' else None
-                imp_interaction = effdata.cell_value(row, 5) if effdata.cell_value(row, 5)!='' else None
-                prog_vals = sc.odict([(pname, pval) for pname,pval in zip(self.programs.keys(),effdata.row_values(row, start_colx=7, end_colx=7+nprogs)) if pval])
-                if par_name not in self.allpars.keys(): self.allpars[par_name] = effdata.cell_value(row, 1)
-                if prog_vals: # There are programmatic effects for this parameter, so we add it
-                    self.add_covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=None, prog=prog_vals)
-                    for pname in prog_vals.keys():
-                        self.programs[pname].update(target_pars=(par_name,pop_name))
+        self._read_targeting(workbook['Program targeting'],framework,data)
+        self._read_spending(workbook['Spending data'])
+        self._read_effects(workbook['Program effects'],framework,data)
 
         return self
+
+    def to_spreadsheet(self):
+        ''' Write the contents of a program set to a spreadsheet. '''
+        f = io.BytesIO()  # Write to this binary stream in memory
+
+        self._book = xw.Workbook(f)
+        self._formats = standard_formats(self._book)
+        self._references = {}  # Reset the references dict
+
+        self._write_targeting()
+        self._write_spending()
+        self._write_effects()
+
+        self._book.close()
+
+        # Dump the file content into a ScirisSpreadsheet
+        spreadsheet = AtomicaSpreadsheet(f)
+
+        # Clear everything
+        f.close()
+        self._book = None
+        self._formats = None
+        self._references = None
+
+        # Return the spreadsheet
+        return spreadsheet
+
+    def save(self,fname):
+        # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
+        ss = self.to_spreadsheet()
+        ss.save(fname)
+
+    def _read_targeting(self,sheet,framework,data):
+        # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
+        # into `self.programs`
+
+        tables = read_tables(sheet)
+        assert len(tables) == 1, 'Targeting page should only contain one table'
+
+        self.programs = sc.odict()
+        sup_header = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][0]]
+        headers = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][1]]
+
+        # Get the indices where the pops and comps start
+        pop_start_idx = sup_header.index('targeted to (populations)')
+        comp_start_idx = sup_header.index('targeted to (compartments)')
+
+        # Check the first two columns are as expected
+        assert headers[0] == 'abbreviation'
+        assert headers[1] == 'display name'
+
+        # Now, prepare the pop and comp lookups
+        pop_idx = dict() # Map table index to pop full name
+        for i in range(pop_start_idx,comp_start_idx):
+            if headers[i]:
+                pop_idx[i] = headers[i]
+
+        comp_idx = dict() # Map table index to comp full name
+        for i in range(comp_start_idx, len(headers)):
+            if headers[i]:
+                comp_idx[i] = headers[i]
+
+        pop_codenames = {v.lower().strip():x for x,v in self.pops.items()}
+        comp_codenames = {v.lower().strip():x for x,v in self.comps.items()}
+
+        for row in tables[0][2:]: # For each program to instantiate
+            target_pops = []
+            target_comps = []
+
+            for i in range(pop_start_idx, comp_start_idx):
+                if row[i].value and isinstance(row[i].value,string_types) and row[i].value.lower().strip() == 'y':
+                    target_pops.append(pop_codenames[pop_idx[i]]) # Append the pop's codename
+
+            for i in range(comp_start_idx, len(headers)):
+                if row[i].value and isinstance(row[i].value,string_types) and row[i].value.lower().strip() == 'y':
+                    target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
+
+            short_name = row[0].value.strip()
+            if short_name.lower() == 'all':
+                raise AtomicaException('A program was named "all", which is a reserved keyword and cannot be used as a program name')
+            long_name = row[1].value.strip()
+
+            self.programs[short_name] = Program(name=short_name,label=long_name,target_pops=target_pops,target_comps=target_comps)
+
+    def _write_targeting(self):
+        sheet = self._book.add_worksheet("Program targeting")
+        widths = dict()
+
+        # Work out the column offset associated with each population label and comp label
+        pop_block_offset = 2 # This is the co
+        sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats['rc_title']['left']['T'])
+        comp_block_offset = 2+len(self.pops)+1
+        sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats['rc_title']['left']['T'])
+
+        pop_offsets = {n:i+pop_block_offset for i,n in enumerate(self.pops.keys())}
+        comp_offsets = {n:i+comp_block_offset for i,n in enumerate(self.pops.keys())}
+
+        # Write the header row
+        sheet.write(1, 0, 'Abbreviation', self._formats["center_bold"])
+        update_widths(widths,0,'Abbreviation')
+        sheet.write(1, 1, 'Full Name', self._formats["center_bold"])
+        update_widths(widths,1,'Abbreviation')
+
+        for pop in self.pops.keys():
+            col = pop_offsets[pop]
+            sheet.write(1, col, pop, self._formats["center_bold"])
+            update_widths(widths, col, pop)
+
+        for comp in self.comps.keys():
+            col = comp_offsets[comp]
+            sheet.write(1, col, comp, self._formats["center_bold"])
+            update_widths(widths, col, comp)
+        #
+        # n_pops = len(self.pops)
+        # n_comps = len(self.comps)
+        #
+        # if boolean_choice:
+        #     content = np.full((len(nodes), len(nodes)), 'N', dtype=object)  # This will also coerce the value to string in preparation for writing
+        # else:
+        #     content = np.full((len(nodes), len(nodes)), '', dtype=object)  # This will also coerce the value to string in preparation for writing
+        #
+        # for interaction, value in entries.items():
+        #     from_node, to_node = interaction
+        #     if not enable_diagonal and from_node == to_node:
+        #         raise AtomicaException('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
+        #     from_idx = nodes.index(from_node)
+        #     to_idx = nodes.index(to_node)
+        #     if boolean_choice:
+        #         value = 'Y' if value else 'N'
+        #     content[from_idx, to_idx] = value
+        #
+        # # Write the content
+        # for from_idx in range(0, len(nodes)):
+        #     for to_idx in range(0, len(nodes)):
+        #         row = start_row + 1 + from_idx
+        #         col = to_idx + 1
+        #         if not enable_diagonal and to_idx == from_idx:  # Disable the diagonal if that's what's desired
+        #             val = FS.DEFAULT_SYMBOL_INAPPLICABLE
+        #             worksheet.write(row, col, val, formats["center"])
+        #             worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["N.A."]})
+        #         else:
+        #             val = content[from_idx, to_idx]
+        #             worksheet.write(row, col, content[from_idx, to_idx], formats["center_unlocked"])
+        #             if boolean_choice:
+        #                 worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
+        #                 worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': formats['unlocked_boolean_true']})
+        #                 worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': formats['unlocked_boolean_false']})
+        #         table_references[(nodes[from_idx], nodes[to_idx])] = xlrc(row, col, True, True)  # Store reference to this interaction
+        #         values_written[table_references[(nodes[from_idx], nodes[to_idx])]] = val
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        # current_row = 0
+        #
+        # # Write descriptions of targeting
+        #
+        #
+        #
+        #
+        #
+        #
+        # # Write populations and compartments for targeting
+        # existing_data = []
+        # for prog in self.programs.values():
+        #     label = prog.label
+        #     name = prog.name
+        #     target_pops = [''] + ['' if pop not in prog.target_pops else 1 for pop in self.allpops.keys()]
+        #     target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
+        #     existing_data.append([name, label] + target_pops + target_comps)
+        #
+        # # Make column names
+        # column_names = ['Short name', 'Long name', ''] + self.allpops.values() + [''] + comps.values()
+        # content = self.set_content(row_names=range(1, len(self.programs) + 1),
+        #                            column_names=column_names,
+        #                            data=existing_data,
+        #                            assumption=False)
+        #
+        # self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
+        # current_row = self.prog_range.emit(self._formats, rc_title_align='left', widths=widths)
+        # self.ref_prog_range = self.prog_range.param_refs()
+        # apply_widths(sheet, widths)
+
+
+    def _read_spending(self,sheet):
+        # Read the spending table and populate the program data
+        tables = read_tables(sheet)
+        for table in tables:
+            tdve = TimeDependentValuesEntry.from_rows(table)
+            prog = self.programs[tdve.name]
+            prog.spend_data = tdve.ts['Total spend']
+            prog.capacity = tdve.ts['Capacity constraints']
+            prog.unit_cost = tdve.ts['Unit cost']
+            prog.coverage = tdve.ts['Coverage']
+
+    def _write_spending(self):
+        sheet = self._book.add_worksheet("Spending data")
+
+    def _read_effects(self,sheet,framework,data):
+        # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
+
+        tables = read_tables(sheet)
+        pop_codenames = {v.lower().strip():x for x,v in self.pops.items()}
+        par_codenames = {v.lower().strip():x for x,v in self.pars.items()}
+
+        self.covouts = sc.odict()
+
+        for table in tables:
+            par_name = par_codenames[table[0][0].value.strip().lower()] # Code name of the parameter we are working with
+            headers = [x.value.strip() if isinstance(x.value,string_types) else x.value for x in table[0]]
+            idx_to_header = {i:h for i,h in enumerate(headers)} # Map index to header
+
+            for row in table[1:]:
+                # For each covout row, we will initialize
+                pop_name = pop_codenames[row[0].value.lower().strip()] # Code name of the population we are working on
+                progs = sc.odict()
+                for i,x in enumerate(row[1:]):
+                    i = i+1 # Offset of 1 because the loop is over row[1:] not row[0:]
+                    if idx_to_header[i].lower() == 'baseline value':
+                        if x.value is not None: # test `is not None` because it might be entered as 0
+                            baseline = float(x.value)
+                        else:
+                            baseline = None
+                    elif idx_to_header[i].lower() == 'coverage interaction':
+                        if x.value:
+                            cov_interaction =  x.value.strip().lower() # additive, nested, etc.
+                        else:
+                            cov_interaction = None
+                    elif idx_to_header[i].lower() == 'impact interaction':
+                        if x.value:
+                            imp_interaction =  x.value.strip().lower() # additive, nested, etc.
+                        else:
+                            imp_interaction = None
+                    elif idx_to_header[i].lower() == 'uncertainty':
+                        if x.value is not None: # test `is not None` because it might be entered as 0
+                            uncertainty = float(x.value)
+                        else:
+                            uncertainty = None
+                    elif x.value is not None: # If the header isn't empty, then it should be one of the program names
+                        progs[idx_to_header[i]] = float(x.value)
+
+                if baseline is not None or progs: # Only instantitate covout objects if they have programs associated with them
+                    self.covouts[(par_name,pop_name)] = Covout(par=par_name,pop=pop_name,cov_interaction= cov_interaction, imp_interaction = imp_interaction, uncertainty=uncertainty,baseline=baseline,progs=progs)
+
+    def _write_effects(self):
+        sheet = self._book.add_worksheet("Program effects")
+
+
 
 
     @staticmethod
@@ -299,21 +468,7 @@ class ProgramSet(NamedItem):
         return newps
             
         
-    def to_spreadsheet(self, filename=None):
-        ''' Write the contents of a program set to a spreadsheet. '''
-        f = io.BytesIO() # Write to this binary stream in memory
 
-        self._book = xw.Workbook(f)
-        self._formats = standard_formats(self._book)
-        self._references = {} # Reset the references dict
-            
-        self._write_targeting()
-        self._write_costcovdata()
-        self._write_covoutdata()
-
-        self._book.close()
-        spreadsheet = AtomicaSpreadsheet(f)
-        return spreadsheet
 
 
     def save(self,fname):
@@ -342,45 +497,6 @@ class ProgramSet(NamedItem):
                          ("assumption_properties", assumption_properties),
                          ("assumption_data", assumption_data),
                          ("assumption",      assumption)])
-
-    
-    def _write_targeting(self):
-        # Generate targeting sheet
-        sheet = self._book.add_worksheet('Program targeting')
-        
-        ## Get other inputs
-        pops = self.allpops
-        comps = self.allcomps
-
-        # Set column widths
-        widths = {1: 5, 2: 30, 3: 30, 4: 2, 5: 11, 5+len(pops): 2, 5+len(pops)+1: 11}
-        current_row = 0
-
-        # Write descriptions of targeting
-        sheet.write(0, 5, "Targeted to (populations)", self._formats['rc_title']['left']['T'])
-        sheet.write(0, 6+len(pops), "Targeted to (compartments)", self._formats['rc_title']['left']['T'])
-
-        # Write populations and compartments for targeting
-        existing_data = []
-        for prog in self.programs.values():
-            label = prog.label
-            name = prog.name
-            target_pops  = [''] + ['' if pop not in prog.target_pops else 1 for pop in self.allpops.keys()]
-            target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
-            existing_data.append([name, label] + target_pops + target_comps)
-
-        # Make column names
-        column_names = ['Short name', 'Long name', ''] + self.allpops.values() + [''] + comps.values()
-        content = self.set_content(row_names=range(1,len(self.programs)+1),
-                                   column_names=column_names,
-                                   data=existing_data,
-                                   assumption=False)
-        
-        self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = self.prog_range.emit(self._formats, rc_title_align='left', widths=widths)
-        self.ref_prog_range = self.prog_range.param_refs()
-        apply_widths(sheet,widths)
-
 
     def _write_costcovdata(self):
         # Generate cost-coverage sheet
@@ -427,11 +543,11 @@ class ProgramSet(NamedItem):
         existing_extra = []
         for par in pars.keys():
             for pop in pops.keys():
-                npi_val = self.covout[(par,pop)].npi_val.get() if (par,pop) in self.covout.keys() else ''
-                cov_interaction = self.covout[(par,pop)].cov_interaction if (par,pop) in self.covout.keys() else ''
-                imp_interaction = self.covout[(par,pop)].imp_interaction if (par,pop) in self.covout.keys() else ''
+                npi_val = self.covouts[(par, pop)].npi_val.get() if (par, pop) in self.covouts.keys() else ''
+                cov_interaction = self.covouts[(par, pop)].cov_interaction if (par, pop) in self.covouts.keys() else ''
+                imp_interaction = self.covouts[(par, pop)].imp_interaction if (par, pop) in self.covouts.keys() else ''
                 existing_data.append([npi_val,cov_interaction,imp_interaction])
-                prog_vals = [self.covout[(par,pop)].progs[prog.name].get() if (par,pop) in self.covout.keys() and prog.name in self.covout[(par,pop)].progs.keys() else '' for prog in self.programs.values() ]
+                prog_vals = [self.covouts[(par, pop)].progs[prog.name].get() if (par, pop) in self.covouts.keys() and prog.name in self.covouts[(par, pop)].progs.keys() else '' for prog in self.programs.values()]
                 existing_extra.append(prog_vals)
 
         content = self.set_content(row_names=pars.values(),
@@ -514,7 +630,7 @@ class ProgramSet(NamedItem):
 
 
     def rm_programs(self, progs=None, die=True):
-        ''' Remove one or more programs from both the list of programs and also from the covout functions '''
+        ''' Remove one or more programs from both the list of programs and also from the covouts functions '''
         if progs is None:
             self.programs = odict() # Remove them all
         progs = promotetolist(progs)
@@ -525,7 +641,7 @@ class ProgramSet(NamedItem):
                 errormsg = 'Could not remove program named %s' % prog
                 if die: raise AtomicaException(errormsg)
                 else: print(errormsg)
-            for co in self.covout.values(): # Remove from coverage-outcome functions too
+            for co in self.covouts.values(): # Remove from coverage-outcome functions too
                 co.progs.pop(prog, None)
         self.update()
         return None
@@ -537,7 +653,7 @@ class ProgramSet(NamedItem):
         if verbose: print('Adding single coverage-outcome parameter for par=%s, pop=%s' % (par, pop))
         if cov_interaction is None: cov_interaction = self.default_cov_interaction
         if imp_interaction is None: imp_interaction = self.default_imp_interaction
-        self.covout[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, prog=prog)
+        self.covouts[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, prog=prog)
         if verbose: print('Done with add_covout().')
         return None
 
@@ -566,7 +682,7 @@ class ProgramSet(NamedItem):
                     if pop in prog_effects[par].keys():
                         # Sanitize inputs
                         if verbose: print('    For population %s' % pop)
-                        npi_val = sanitize(popdata['npi_val'], defaultval=0., label=', '.join([par, pop, 'npi_val']))
+                        npi_val = sanitize(popdata['baseline'], defaultval=0., label=', '.join([par, pop, 'baseline']))
                         self.add_covout(par=par, pop=pop, npi_val=npi_val, prog=prog_effects[par][pop])
         
         return None
@@ -771,19 +887,19 @@ class ProgramSet(NamedItem):
                         print('WARNING: no coverage-outcome function defined for optimizable program  "%s", skipping over... ' % (prog.name))
                         outcomes[par_type][pop] = None
                     else:
-                        outcomes[par_type][pop]  = self.covout[(par_type,pop)].npi_val.get(sample)
+                        outcomes[par_type][pop]  = self.covouts[(par_type, pop)].npi_val.get(sample)
                         thiscov[prog.name]         = coverage[prog.name]
-                        delta[prog.name]           = self.covout[(par_type,pop)].progs[prog.name].get(sample) - outcomes[par_type][pop]
+                        delta[prog.name]           = self.covouts[(par_type, pop)].progs[prog.name].get(sample) - outcomes[par_type][pop]
                         
                 # Pre-check for additive calc
-                if self.covout[(par_type,pop)].cov_interaction == 'Additive':
+                if self.covouts[(par_type, pop)].cov_interaction == 'Additive':
                     if sum(thiscov[:])>1: 
                         print('WARNING: coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % ([p.name for p in relevant_progs[pop]], [par_type, pop], sum(thiscov[:])))
-                        self.covout[(par_type,pop)].cov_interaction = 'Random'
+                        self.covouts[(par_type, pop)].cov_interaction = 'Random'
                         
                 # ADDITIVE CALCULATION
                 # NB, if there's only one program targeting this parameter, just do simple additive calc
-                if self.covout[(par_type,pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
+                if self.covouts[(par_type, pop)].cov_interaction == 'Additive' or len(relevant_progs[pop])==1:
                     # Outcome += c1*delta_out1 + c2*delta_out2
                     for prog in relevant_progs[pop]:
                         if not self._covout_valid_cache[(par_type,pop)]:
@@ -793,7 +909,7 @@ class ProgramSet(NamedItem):
                             outcomes[par_type][pop] += thiscov[prog.name]*delta[prog.name]
                         
                 # NESTED CALCULATION
-                elif self.covout[(par_type,pop)].cov_interaction == 'Nested':
+                elif self.covouts[(par_type, pop)].cov_interaction == 'Nested':
                     # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
                     cov,delt = [],[]
                     for prog in thiscov.keys():
@@ -806,7 +922,7 @@ class ProgramSet(NamedItem):
                         outcomes[par_type][pop] += c1*max([ct[1] for ct in cov_tuple[j:]])                
             
                 # RANDOM CALCULATION
-                elif self.covout[(par_type,pop)].cov_interaction == 'Random':
+                elif self.covouts[(par_type, pop)].cov_interaction == 'Random':
                     # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
 
                     for prog1 in thiscov.keys():
@@ -837,7 +953,7 @@ class ProgramSet(NamedItem):
                     # All programs together
                     outcomes[par_type][pop] += prod(array(thiscov.values()),0)*max([c for c in delta.values()]) 
 
-                else: raise AtomicaException('Unknown reachability type "%s"',self.covout[(par_type,pop)].cov_interaction)
+                else: raise AtomicaException('Unknown reachability type "%s"', self.covouts[(par_type, pop)].cov_interaction)
         
         return outcomes
         
@@ -866,7 +982,7 @@ class Program(NamedItem):
         self.label              = name if label is None else label # Full name of the program
         self.target_pars        = None # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop}
         self.target_par_types   = None # List of parameter types targeted by program, should correspond to short names of parameters
-        self.target_pops        = None # List of populations targeted by the program
+        self.target_pops        = [] # List of populations targeted by the program
         self.target_comps       = [] # Compartments targeted by the program - used for calculating coverage denominators
         self.baseline_spend     = TimeSeries(assumption=0.0) if baseline_spend is None else baseline_spend # A TimeSeries with any baseline spending data
         self.spend_data         = TimeSeries() if spend_data is None else spend_data # TimeSeries with spending data
@@ -1050,30 +1166,28 @@ class Covout(object):
     Example:
     Covout(par='contacts',
            pop='Adults',
-           npi_val=120,
+           baseline=120,
            progs={'Prog1':[15,10,10], 'Prog2':20}
            )
     '''
     
-    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, verbose=False):
-        if verbose: print('Initializing Covout for par=%s, pop=%s, npi_val=%s' % (par, pop, npi_val))
+    def __init__(self, par=None, pop=None, cov_interaction='additive', imp_interaction='best', uncertainty=0.0,baseline=None,progs=None):
+        logger.debug('Initializing Covout for par=%s, pop=%s, baseline=%s' % (par, pop, baseline))
         self.par = par
         self.pop = pop
         self.cov_interaction = cov_interaction
         self.imp_interaction = imp_interaction
-        self.npi_val = Val(npi_val)
-        self.progs = odict()
-        if prog is not None:
-            self.add(prog=prog)
-
+        self.sigma = uncertainty
+        self.baseline = baseline
+        self.progs = sc.odict() if progs is None else progs
         return None
     
     def __repr__(self):
 #        output = desc(self)
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
-        output += indent('     NPI val: ', self.npi_val.get('all'))
-        output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val.get('all')) for key,val in self.progs.items()]))
+        output += indent('Baseline val: ', self.baseline)
+        output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
         output += '\n'
         return output
         
@@ -1087,177 +1201,15 @@ class Covout(object):
         '''
         if isinstance(prog, dict):
             for key,val in prog.items():
-                self.progs[key] = Val(val)
+                self.progs[key] = val
         elif isinstance(prog, (list, tuple)):
             for key,val in prog:
-                self.progs[key] = Val(val)
+                self.progs[key] = val
         elif isinstance(prog, string_types) and val is not None:
-            self.progs[prog] = Val(val)
+            self.progs[prog] = val
         else:
             errormsg = 'Could not understand prog=%s and val=%s' % (prog, val)
             raise AtomicaException(errormsg)
         return None
             
-
-    def has_pars(self, doprint=False):
-        ''' Check whether the object has required parameters'''
-        valid = True # Assume the best
-        tests = {}
-        try:
-            tests['NPI values invalid']         = not(isnumber(self.npi_val.get() ))
-            tests['Program values invalid']     = not(array([isnumber(prog.get()) for prog in self.progs.values()]).any())
-            if any(tests.values()):
-                valid = False # It's looking like it can't be optimized
-                if not valid and doprint:
-                    print('Program not optimizable for the following reasons: %s' % '\n'.join([key for key,val in tests.items() if val]))
-                
-        except Exception as E:
-            valid = False
-            if doprint:
-                print('Program not optimizable because an exception was encountered: %s' % E.message)
-        
-        return valid
-
-
-#--------------------------------------------------------------------
-# Val
-#--------------------------------------------------------------------
-class Val(object):
-    '''
-    A single value including uncertainty
-    
-    Can be set the following ways:
-    v = Val(0.3)
-    v = Val([0.2, 0.4])
-    v = Val([0.3, 0.2, 0.4])
-    v = Val(best=0.3, low=0.2, high=0.4)
-    
-    Can be called the following ways:
-    v() # returns 0.3
-    v('best') # returns 0.3
-    v(what='best') # returns 0.3
-    v('rand') # returns value between low and high (assuming uniform distribution)
-    
-    Can be updated the following ways:
-    v(0.33) # resets best
-    v([0.22, 0.44]) # resets everything
-    v(best=0.33) # resets best
-    
-    '''
-    
-    def __init__(self, best=None, low=None, high=None, dist=None, verbose=False):
-        ''' Allow the object to be initialized, but keep the same infrastructure for updating '''
-        if verbose: print('Initializing Val for best=%s, low=%s, high=%s' % (best, low, high))
-        self.best = None
-        self.low = None
-        self.high = None
-        self.dist = None
-        self.update(best=best, low=low, high=high, dist=dist)
-        return None
-    
-    
-    def __repr__(self):
-        output = desc(self)
-        return output
-    
-    
-    def __call__(self, *args, **kwargs):
-        ''' Convenience function for both update and get '''
-        
-        # If it's None or if the key is a string (e.g. 'best'), get the values:
-        if len(args)+len(kwargs)==0 or 'what' in kwargs or (len(args) and type(args[0])==str):
-            return self.get(*args, **kwargs)
-        else: # Otherwise, try to set the values
-            self.update(*args, **kwargs)
-    
-    def __getitem__(self, *args, **kwargs):
-        ''' Allows you to call e.g. val['best'] instead of val('best') '''
-        return self.get(*args, **kwargs)
-    
-    
-    def update(self, best=None, low=None, high=None, dist=None):
-        ''' Actually set the values -- very convoluted, but should be flexible and work :)'''
-        
-        # Reset these values if already supplied
-        if best is None and self.best is not None: best = self.best
-        if low  is None and self.low  is not None: low  = self.low 
-        if high is None and self.high is not None: high = self.high 
-        if dist is None and self.dist is not None: dist = self.dist
-        
-        # Handle values
-        if best is None: # Best is not supplied, so use high and low, e.g. Val(low=0.2, high=0.4)
-            if low is None or high is None:
-                errormsg = 'If not supplying a best value, you must supply both low and high values'
-                raise AtomicaException(errormsg)
-            else:
-                best = (low+high)/2. # Take the average
-        elif isinstance(best, dict):
-            self.update(**best) # Assume it's a dict of args, e.g. Val({'best':0.3, 'low':0.2, 'high':0.4})
-        else: # Best is supplied
-            best = promotetoarray(best)
-            if len(best)==1: # Only a single value supplied, e.g. Val(0.3)
-                best = best[0] # Convert back to number
-                if low is None: low = best # If these are missing, just replace them with best
-                if high is None: high = best
-            elif len(best)==2: # If length 2, assume high-low supplied, e.g. Val([0.2, 0.4])
-                if low is not None and high is not None:
-                    errormsg = 'If first argument has length 2, you cannot supply high and low values'
-                    raise AtomicaException(errormsg)
-                low = best[0]
-                high = best[1]
-                best = (low+high)/2.
-            elif len(best)==3: # Assume it's called like Val([0.3, 0.2, 0.4])
-                low, best, high = sorted(best) # Allows values to be provided in any order
-            else:
-                errormsg = 'Could not understand input of best=%s, low=%s, high=%s' % (best, low, high)
-                raise AtomicaException(errormsg)
-        
-        # Handle distributions
-        validdists = ['uniform']
-        if dist is None: dist = validdists[0]
-        if dist not in validdists:
-            errormsg = 'Distribution "%s" not valid; choices are: %s' % (dist, validdists)
-            raise AtomicaException(errormsg) 
-        
-        # Store values
-        self.best = float(best)
-        self.low  = float(low)
-        self.high = float(high)
-        self.dist = dist
-        if not low<=best<=high:
-            errormsg = 'Values are out of order (check that low=%s <= best=%s <= high=%s)' % (low, best, high)
-            raise AtomicaException(errormsg) 
-        
-        return None
-    
-    
-    def get(self, what=None, n=1):
-        '''
-        Get the value from this distribution. Examples (with best=0.3, low=0.2, high=0.4):
-        
-        val.get() # returns 0.3
-        val.get('best') # returns 0.3
-        val.get(['low', 'best',' high']) # returns [0.2, 0.3, 0.4]
-        val.get('rand') # returns, say, 0.3664
-        val.get('all') # returns [0.3, 0.2, 0.4]
-        
-        The seed() call should ensure pseudorandomness.
-        '''
-        
-        if what is None or what is 'best': val = self.best# Haha this is funny but works
-        elif what is 'low':                val = self.low
-        elif what is 'high':               val = self.high
-        elif what is 'all':                val = [self.best, self.low, self.high]
-        elif what in ['rand','random']:
-            if self.dist=='uniform':       val = uniform(low=self.low, high=self.high, size=n)
-            else:
-                errormsg = 'Distribution %s is not implemented, sorry' % self.dist
-                raise AtomicaException(errormsg)
-        elif type(what)==list:             val = [self.get(wh) for wh in what]# Allow multiple values to be used
-        else:
-            errormsg = 'Could not understand %s, expecting a valid string (e.g. "best") or list' % what
-            raise AtomicaException(errormsg)
-        return val
-    
-    
 

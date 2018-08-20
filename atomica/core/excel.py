@@ -567,6 +567,8 @@ class TimeDependentValuesEntry(object):
 
         if 'constant' in lowered_headings:
             constant_index = lowered_headings.index('constant')
+        elif 'assumption' in lowered_headings:
+            constant_index = lowered_headings.index('assumption')
         else:
             constant_index = None
 
@@ -615,7 +617,7 @@ class TimeDependentValuesEntry(object):
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
         return TimeDependentValuesEntry(name,tvec,ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None,widths=None):
+    def write(self,worksheet,start_row,formats,references=None,widths=None,constant_heading='Constant'):
         # references is a dict where the key is a string value and the content is a cell
         # Any populations that appear in this dict will have their value replaced by a reference
         # formats should be the dict returned by `excel.standard_formats` when it was called to add
@@ -623,6 +625,7 @@ class TimeDependentValuesEntry(object):
         #
         # widths should be a dict that will store sizing information for some of the columns
         # it is updated in place
+        # - constant_heading : This is the string heading for the 'Constant'/'Assumption' (constant in databook, assumption in progbook)
 
         if not references:
             references = dict()
@@ -633,7 +636,7 @@ class TimeDependentValuesEntry(object):
         headings = []
         headings.append(self.name)
         headings.append('Units')
-        headings.append('Constant')
+        headings.append(constant_heading)
         headings.append('')
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
