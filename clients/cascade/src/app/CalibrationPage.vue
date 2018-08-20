@@ -1,37 +1,47 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-18
+Last update: 2018-08-20
 -->
 
 <template>
-  <div>
-  
+  <div class="SitePage">
+
     <div v-if="projectID ==''">
       <div style="font-style:italic">
         <p>No project is loaded.</p>
       </div>
     </div>
-    
+
     <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
     </div>
-    
+
     <div v-else>
       <div class="calib-controls">
-        <button class="btn __green" @click="makeGraphs(projectID)">Save & run</button>
-        <button class="btn" @click="toggleShowingParams()">
-          <span v-if="areShowingParameters">Hide</span>
-          <span v-else>Show</span>
-          parameters
-        </button>
-        <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
-
+        <div class="controls-box">
+          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+          <button class="btn" @click="toggleShowingParams()">
+            <span v-if="areShowingParameters">Hide</span>
+            <span v-else>Show</span>
+            parameters
+          </button>
+        </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
-        <!--<div style="display: inline-block; padding-left: 100px">-->
+          <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
+          for&nbsp;
+          <select v-model="calibTime">
+            <option v-for='time in calibTimes'>
+              {{ time }}
+            </option>
+          </select>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
             <option v-for='parset in parsetOptions'>
@@ -71,18 +81,26 @@ Last update: 2018-08-18
             </option>
           </select>
         </div>
-
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="exportResults(projectID)">Export data</button>
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <!--<button class="btn" @click="toggleShowingPlots()">-->
-          <!--<span v-if="areShowingPlots">Hide</span>-->
-          <!--<span v-else>Show</span>-->
-          <!--plot controls-->
-        <!--</button>-->
-
       </div>
-    
+
+      <div style="text-align: center">
+        <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="scaleFigs(0.9)">-</button>
+          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+          <button class="btn" @click="scaleFigs(1.1)">+</button>
+        </div>
+      </div>
+
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -164,10 +182,8 @@ Last update: 2018-08-18
           </div>
         </div>
 
-
-
       </div>
-      
+
     </div>
 
     <modal name="rename-parset"
@@ -201,7 +217,7 @@ Last update: 2018-08-18
       </div>
 
     </modal>
-    
+
   </div>
 </template>
 
@@ -214,13 +230,13 @@ Last update: 2018-08-18
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
-  
+
   export default {
     name: 'CalibrationPage',
-    
+
     data() {
       return {
-        serverresponse: 'no response',
+        response: 'no response',
         sortColumn: 'index',
         sortReverse: false,
         parList: [],
@@ -235,6 +251,8 @@ Last update: 2018-08-18
         plotOptions: [],
         yearOptions: [],
         popOptions: []
+        calibTime: '30 seconds',
+        calibTimes: ['30 seconds', 'Unlimited']
       }
     },
 
@@ -271,7 +289,7 @@ Last update: 2018-08-18
       // If we have no user logged in, automatically redirect to the login page.
       if (this.$store.state.currentUser.displayname == undefined) {
         router.push('/login')
-      } else if ((this.$store.state.activeProject.project != undefined) && 
+      } else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
@@ -283,16 +301,28 @@ Last update: 2018-08-18
           this.updateParset()
         })
         utils.sleep(1000)
-        .then(response => {
-          this.makeGraphs(this.projectID)
-        })
+          .then(response => {
+              this.manualCalibration(this.projectID)
+            }
+          );
       }
     },
 
     methods: {
       
-      onSpinnerCancel() {
-        console.log('The user has canceled a spinner!')
+      getPlotOptions()          { return utils.getPlotOptions(this) },
+      clearGraphs()             { return utils.clearGraphs() },
+      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportResults(project_id) { return utils.exportResults(this, project_id) },
+
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+        }
+        this.figscale = 1.0
+        return utils.scaleFigs(frac)
       },
       
       clipValidateYearInput() {
@@ -304,32 +334,26 @@ Last update: 2018-08-18
         }
       },
 
-      notImplemented(message) {
-        status.failurePopup(this, 'Function "' + message + '" not yet implemented')
-      },
-
       updateParset() {
         console.log('updateParset() called')
-        status.start(this)       
-        // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID])
-        .then(response => {
-          this.parsetOptions = response.data // Set the scenarios to what we received.
-          if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-            console.log('Parameter set ' + this.activeParset + ' no longer found')
-            this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-          } else {
-            console.log('Parameter set ' + this.activeParset + ' still found')
-          }
-          this.newParsetName = this.activeParset // WARNING, KLUDGY
-          console.log('Parset options: ' + this.parsetOptions)
-          console.log('Active parset: ' + this.activeParset)
-          status.succeed(this, '')  // No green notification.
-        })
-        .catch(error => {
-          // Failure popup.
-          status.fail(this, 'Could not update parset')
-        })         
+        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
+        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+          .then(response => {
+            this.parsetOptions = response.data // Set the scenarios to what we received.
+            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+              console.log('Parameter set ' + this.activeParset + ' no longer found')
+              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+            } else {
+              console.log('Parameter set ' + this.activeParset + ' still found')
+            }
+            this.newParsetName = this.activeParset // WARNING, KLUDGY
+            console.log('Parset options: ' + this.parsetOptions)
+            console.log('Active parset: ' + this.activeParset)
+            status.succeed(this, '')  // No green notification.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not update parset')
+          })
       },
 
       updateSorting(sortColumn) {
@@ -347,10 +371,10 @@ Last update: 2018-08-18
         return pars.slice(0).sort((par1, par2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'index') { return par1.index > par2.index ? sortDir: -sortDir}
-            else if (this.sortColumn === 'parameter') { return par1.parlabel > par2.parlabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'population') { return par1.poplabel > par2.poplabel ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')   { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
+            if      (this.sortColumn === 'index')      { return par1.index     > par2.index     ? sortDir: -sortDir}
+            else if (this.sortColumn === 'parameter')  { return par1.parlabel  > par2.parlabel  ? sortDir: -sortDir}
+            else if (this.sortColumn === 'population') { return par1.poplabel  > par2.poplabel  ? sortDir: -sortDir}
+            else if (this.sortColumn === 'value')      { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
           }
         )
       },
@@ -358,22 +382,11 @@ Last update: 2018-08-18
       viewTable() {
         console.log('viewTable() called')
         rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
-        .then(response => {
-          this.parList = response.data // Get the parameter values
-        })
-        .catch(error => {
-          status.failurePopup(this, 'Could not load parameters: ' + error.message)
-        })
-      },
-
-      getPlotOptions() {
-        console.log('getPlotOptions() called')
-        rpcs.rpc('get_supported_plots', [true])
           .then(response => {
-            this.plotOptions = response.data // Get the parameter values
+            this.parList = response.data // Get the parameter values
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
+            status.failurePopup(this, 'Could not load parameters: ' + error.message)
           })
       },
 
@@ -385,203 +398,85 @@ Last update: 2018-08-18
         this.areShowingPlots = !this.areShowingPlots
       },
 
-      makeGraphs(project_id) {
-        console.log('makeGraphs() called')
-        
-        // Make sure the end year is sensibly set.
-        this.clipValidateYearInput()
-        
-        // Start indicating progress.
-        status.start(this)
-        
-        // Go to the server to get the results from the package set.
-        rpcs.rpc('set_y_factors', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear, this.activePop, 'cascade'])
-        .then(response => {
-          this.serverresponse = response.data // Pull out the response data.
-          var n_plots = response.data.graphs.length
-          console.log('Rendering ' + n_plots + ' graphs')
-          for (var index = 0; index <= n_plots; index++) {
-            console.log('Rendering plot ' + index)
-            var divlabel = 'fig' + index
-            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-            while (div.firstChild) {
-              div.removeChild(div.firstChild);
-            }
-            try {
-              console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-//                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-              });
-              this.haveDrawnGraphs = true
-            }
-            catch (err) {
-              console.log('failled:' + err.message);
-            }
-          }
-          
-          // Indicate success.
-          status.succeed(this, 'Graphs created')
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          
-          // Indicate failure.
-          status.fail(this, 'Could not make graphs')
-        }) 
+      manualCalibration(project_id) {
+        console.log('manualCalibration() called')
+        status.start(this) // Start indicating progress.
+        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
+          .then(response => {
+            status.succeed(this, 'Simulation run') // Indicate success.
+            this.makeGraphs(response.data.graphs)
+          })
+          .catch(error => {
+            console.log(error.message)
+            status.fail(this, 'Could not run manual calibration: ' + error.message)
+          })
       },
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
-        
-        // Make sure the end year is sensibly set.
-        this.clipValidateYearInput()
-        
-        // Start indicating progress.
-        status.start(this)
+        status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
-
-        // Go to the server to get the results from the package set.
-        rpcs.rpc('automatic_calibration', [project_id, this.activeParset])
-        .then(response => {
-          this.serverresponse = response.data // Pull out the response data.
-          var n_plots = response.data.graphs.length
-          console.log('Rendering ' + n_plots + ' graphs')
-
-          for (var index = 0; index <= n_plots; index++) {
-            console.log('Rendering plot ' + index)
-            var divlabel = 'fig' + index
-            var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-            while (div.firstChild) {
-              div.removeChild(div.firstChild);
-            }
-            try {
-              console.log(response.data.graphs[index]);
-              mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-                fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-              });
-              this.haveDrawnGraphs = true
-            }
-            catch (err) {
-              console.log('failled:' + err.message);
-            }
-          }
-          
-          // Indicate success.
-          status.succeed(this, 'Automatic calibration complete')
-        })
-        .catch(error => {
-          // Pull out the error message.
-          this.serverresponse = 'There was an error: ' + error.message
-
-          // Set the server error.
-          this.servererror = error.message
-          
-          // Indicate failure.
-          status.fail(this, 'Automatic calibration failed')           
-        })
-      },
-
-      clearGraphs() {
-        for (var index = 0; index <= 100; index++) {
-          console.log('Clearing plot ' + index)
-          var divlabel = 'fig' + index
-          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-          while (div.firstChild) {
-            div.removeChild(div.firstChild);
-          }
+        if (this.calibTime === '30 seconds') {
+          let maxtime = 30
+        } else {
+          let maxtime = 9999
         }
-      },
-
-      exportResults(project_id) {
-        console.log('exportResults() called')
-        status.start(this)
-        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
-        .then(response => {
-          // Indicate success.
-          status.succeed(this, '')  // No green popup message.        
-        })      
-        .catch(error => {
-          // Failure.
-          status.fail(this, 'Could not export results')    
-        })         
+        rpcs.rpc('automatic_calibration', [project_id, this.activeParset, maxtime]) // Go to the server to get the results from the package set.
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+          })
+          .catch(error => {
+            console.log(error.message)
+            status.fail(this, 'Could not run automatic calibration: ' + error.message)
+          })
       },
 
       renameParsetModal() {
-        // Open a model dialog for creating a new project
         console.log('renameParsetModal() called');
         this.$modal.show('rename-parset');
       },
 
       renameParset() {
-        // Find the project that matches the UID passed in.
-        let uid = this.$store.state.activeProject.project.id
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
-        
-        // Start indicating progress.
-        status.start(this)
-      
+        status.start(this) // Start indicating progress.
         rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
-        .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateParset()
-          
-          // Indicate success.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed')
-        })
-        .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not rename parameter set')
-        })
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not rename parameter set') // Indicate failure.
+          })
       },
 
-      // TO_PORT
       copyParset() {
-        // Find the project that matches the UID passed in.
-        let uid = this.$store.state.activeProject.project.id
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('copyParset() called for ' + this.activeParset)
-        
-        // Start indicating progress.
-        status.start(this)
-        
+        status.start(this) // Start indicating progress.
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-        .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateParset()
-          
-          // Indicate success.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" copied')
-        })
-        .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not copy parameter set')
-        })
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not copy parameter set') // Indicate failure.
+          })
       },
 
-      // TO_PORT
       deleteParset() {
-        // Find the project that matches the UID passed in.
-        let uid = this.$store.state.activeProject.project.id
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('deleteParset() called for ' + this.activeParset)
-        
-        // Start indicating progress.
-        status.start(this)
-        
+        status.start(this) // Start indicating progress.
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-        .then(response => {
-          // Update the project summaries so the copied program shows up on the list.
-          this.updateParset()
-          
-          // Indicate success.
-          status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted')
-        })
-        .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one')
-        })
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
+          })
       },
     }
   }
@@ -589,51 +484,5 @@ Last update: 2018-08-18
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style>
-  .calib-controls {
-    margin-bottom: 3rem;
-  }
-  .calib-controls .control-group {
-    display: inline-block;
-  }
-  .calib-controls button, .calib-controls .control-group {
-    margin-right: 1rem;
-  }
 
-  .calib-main {
-    display: flex;
-    margin-top: 4rem;
-  }
-  .calib-params {
-    flex: 0 0 30%;
-  }
-  .calib-graphs {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    & > div {
-      flex: 0 0 650px;
-    }
-  }
-
-  .plotopts-main {
-    /*width: 350px;*/
-    /*padding-left: 20px;*/
-    display: flex;
-    /*float: left;*/
-  }
-  .plotopts-main--full {
-    display: block;
-  }
-  .plotopts-params {
-    flex: 1 0 10%;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
-  }
-  .small-button {
-    background: inherit;
-    padding: 0 0 0 0;
-  }
 </style>
