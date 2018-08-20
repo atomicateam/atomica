@@ -6,11 +6,11 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-from sciris.core import odict, today, promotetolist, promotetoarray, indent, isnumber, dcp
+from sciris.core import odict, today, promotetoarray, indent, isnumber, dcp
 import sciris.core as sc
 from .system import AtomicaException, logger
 from .utils import NamedItem
-from numpy import array, isnan, exp, ones, prod, minimum, inf
+from numpy import array, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from six import string_types
