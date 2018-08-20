@@ -4,7 +4,7 @@ main.py -- main module for the webapp.
 Last update: 2018jun04
 """
 
-import sciris.web as sw
+import scirisweb as sw
 from . import frameworks, projects, rpcs
 
 def make_app(which=None):
@@ -17,7 +17,7 @@ def make_app(which=None):
         import apptasks_cascade as apptasks # analysis:ignore
     else:
         raise Exception('"%s" not understood; which must be "tb" or "cascade"' % which)
-    app = sw.ScirisApp(__file__, app_config=config) 	# Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
+    app = sw.ScirisApp(__file__, config=config) 	# Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
     app.add_RPC_dict(rpcs.RPC_dict) # Register the RPCs in the project.py module.
     return app
 

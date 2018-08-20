@@ -1,4 +1,4 @@
-import sciris.core as sc
+import sciris as sc
 from .system import NotAllowedError
 
 class NamedItem(object):
@@ -6,8 +6,8 @@ class NamedItem(object):
         if name is None:
             name = '<unnamed>'
         self.name = name
-        self.created = sc.today()
-        self.modified = sc.today()
+        self.created = sc.now()
+        self.modified = sc.now()
 
     def copy(self, name=None):
         x = sc.dcp(self)
@@ -16,7 +16,7 @@ class NamedItem(object):
         return x
 
     def __repr__(self):
-        return sc.desc(self)
+        return sc.prepr(self)
 
 class NDict(sc.odict):
     def __init__(self, *args, **kwargs):
@@ -32,7 +32,7 @@ class NDict(sc.odict):
         # If it is a NamedItem, then synchronize the name of the object with the specified key
         if isinstance(item,NamedItem):
             item.name = key
-            item.modified = sc.today()
+            item.modified = sc.now()
         return None
     
     def append(self, value):

@@ -1,17 +1,18 @@
 // The Vue build version to load with the `import` command
 // (runtime-only or standalone) has been set in webpack.base.conf with an alias.
 import Vue from 'vue'
-// Plugins
 
+// Plugins
 import Simplert from 'vue2-simplert-plugin' // Simple alert plugin
 require('vue2-simplert-plugin/dist/vue2-simplert-plugin.css')
 import VModal from 'vue-js-modal' // Modal dialogs plugin
 import VueProgressBar from 'vue-progressbar' // Progress bar plugin
 import PopupSpinner from './app/PopupSpinner' // PopupSpinner plugin
-import SideBar from './app/Sidebar' // PopupSpinner plugin
+import SideBar from './app/Sidebar' // SideBar plugin
+import Notifications from './app/NotificationPlugin'
+
 import GlobalComponents from './globalComponents'
 import GlobalDirectives from './globalDirectives'
-import Notifications from './app/NotificationPlugin'
 import App from './App'
 import router from './router'
 import store from './store'
@@ -30,7 +31,6 @@ Vue.use(Notifications);
 Vue.use(SideBar);
 Vue.use(Simplert);
 Vue.use(VModal);
-Vue.use(PopupSpinner);
 Vue.use(VueProgressBar, {
   color: 'rgb(0, 0, 255)',
   failedColor: 'red',
@@ -41,6 +41,7 @@ Vue.use(VueProgressBar, {
     termination: 300
   }       
 });
+Vue.use(PopupSpinner);
 
 // global library setup
 Object.defineProperty(Vue.prototype, '$Chartist', {

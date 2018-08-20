@@ -1,4 +1,4 @@
-import sciris.core as sc
+import sciris as sc
 import xlsxwriter as xw
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 

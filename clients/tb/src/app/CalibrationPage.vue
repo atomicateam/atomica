@@ -413,7 +413,7 @@ Last update: 2018-08-16
           })
       },
 
-      copyParset() { // TO_PORT
+      copyParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('copyParset() called for ' + this.activeParset)
         status.start(this) // Start indicating progress.
