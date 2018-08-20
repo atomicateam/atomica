@@ -4,7 +4,7 @@ Version: 2018mar26
 """
 
 import numpy as np
-import sciris.core as sc
+import sciris as sc
 from .system import AtomicaException, logger
 from .utils import NamedItem
 from .programs import ProgramInstructions

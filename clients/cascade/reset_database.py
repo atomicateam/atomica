@@ -6,7 +6,7 @@ Small script to reset the user database -- WARNING, deletes everything!!!
 Version: 2018jun04
 '''
 
-import sciris.web as sw
+import scirisweb as sw
 import atomica_apps
 import os
 

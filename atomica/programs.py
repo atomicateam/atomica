@@ -6,8 +6,8 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-from sciris.core import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
-import sciris.core as sc
+from sciris import odict, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+import sciris as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform
@@ -55,8 +55,8 @@ class ProgramSet(NamedItem):
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
         self.default_imp_interaction = default_imp_interaction
-        self.created = today()
-        self.modified = today()
+        self.created = sc.now()
+        self.modified = sc.now()
         self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
         return None
 
@@ -67,7 +67,7 @@ class ProgramSet(NamedItem):
 
     def __repr__(self):
         ''' Print out useful information'''
-        output = sc.desc(self)
+        output = sc.prepr(self)
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
         output += '        Date created: %s\n'    % sc.getdate(self.created)
@@ -597,7 +597,7 @@ class Program(NamedItem):
 
     def __repr__(self):
         ''' Print out useful info'''
-        output = sc.desc(self)
+        output = sc.prepr(self)
         output += '          Program name: %s\n'    % self.short
         output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
@@ -960,7 +960,7 @@ class Covout(object):
         return None
     
     def __repr__(self):
-#        output = desc(self)
+#        output = prepr(self)
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
         output += indent('     NPI val: ', self.npi_val.get('all'))
@@ -1048,7 +1048,7 @@ class Val(object):
     
     
     def __repr__(self):
-        output = desc(self)
+        output = prepr(self)
         return output
     
     

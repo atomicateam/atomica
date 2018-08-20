@@ -39,7 +39,7 @@ from .workbook_export import make_progbook
 from .workbook_import import load_progbook
 from .scenarios import BudgetScenario
 from .utils import NDict
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
 from six import string_types
@@ -55,7 +55,7 @@ class ProjectSettings(object):
 
     def __repr__(self):
         """ Print object """
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     @property
@@ -105,8 +105,8 @@ class Project(object):
         self.uid = sc.uuid()
         self.version = version
         self.gitinfo = sc.gitinfo(__file__)
-        self.created = sc.today()
-        self.modified = sc.today()
+        self.created = sc.now()
+        self.modified = sc.now()
 
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings() # Global settings
@@ -190,7 +190,7 @@ class Project(object):
         self.data = ProjectData.from_spreadsheet(databook_spreadsheet,self.framework)
         self.data.validate(self.framework) # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
         self.databook = sc.dcp(databook_spreadsheet) # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
-        self.modified = sc.today()
+        self.modified = sc.now()
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
         if make_default_parset:
@@ -258,7 +258,7 @@ class Project(object):
             raise AtomicaException(errormsg)
         self.progdata = progdata
 
-        self.modified = sc.today()
+        self.modified = sc.now()
 
         if make_default_progset: self.make_progset(name="default")
         

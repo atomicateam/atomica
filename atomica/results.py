@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import sciris.core as sc
+import sciris as sc
 from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
@@ -77,7 +77,7 @@ class Result(NamedItem):
 
     def __repr__(self):
         """ Print out useful information when called"""
-        output = sc.desc(self)
+        output = sc.prepr(self)
         return output
 
     def get_variable(self, pops, name):

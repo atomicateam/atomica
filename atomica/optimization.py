@@ -3,7 +3,7 @@ Functions for running optimizations.
 Version: 2018mar26
 """
 
-import sciris.core as sc
+import sciris as sc
 from .system import AtomicaException, NotAllowedError, logger
 from .utils import NamedItem
 import numpy as np
@@ -493,7 +493,7 @@ class Optimization(NamedItem):
     
     
     def __repr__(self):
-        return sc.desc(self)
+        return sc.prepr(self)
     
     def get_initialization(self,progset,instructions):
         # Return arrays of lower and upper bounds for each adjustable
