@@ -6,15 +6,9 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-<<<<<<< HEAD
-from sciris.core import odict, today, promotetoarray, indent, isnumber, dcp
-import sciris.core as sc
-from .system import AtomicaException, logger
-=======
-from sciris import odict, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+#from sciris import odict, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, checktype, dcp
 import sciris as sc
-from .system import AtomicaException
->>>>>>> develop
+from .system import AtomicaException, logger
 from .utils import NamedItem
 from numpy import array, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
@@ -39,7 +33,7 @@ class ProgramInstructions(object):
         if alloc:
             for prog_name,spending in alloc.items():
                 if isinstance(spending,TimeSeries):
-                    self.alloc[prog_name] = dcp(spending)
+                    self.alloc[prog_name] = sc.dcp(spending)
                 else:
                     # Assume it is just a single number
                     self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
@@ -65,27 +59,10 @@ class ProgramSet(NamedItem):
         self.comps = sc.odict()
         self.pars = sc.odict()
 
-<<<<<<< HEAD
         # Meta data
-        self.created = today()
-        self.modified = today()
+        self.created = sc.today()
+        self.modified = sc.today()
 
-=======
-    def __init__(self, name="default", programs=None, covouts=None, default_cov_interaction="Additive", default_imp_interaction="best"):
-        """ Class to hold all programs and programmatic effects. """
-        NamedItem.__init__(self,name)
-        self.programs   = sc.odict()
-        self.covout     = sc.odict()
-        self._covout_valid_cache = None # This will cache whether a Covout can be used - this is populated at the start of model.py
-
-        if programs is not None: self.add_programs(programs)
-        if covouts is not None:  self.add_covouts(covouts)
-        self.default_cov_interaction = default_cov_interaction
-        self.default_imp_interaction = default_imp_interaction
-        self.created = sc.now()
-        self.modified = sc.now()
-        self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
->>>>>>> develop
         return None
 
     def prepare_cache(self):
@@ -96,19 +73,11 @@ class ProgramSet(NamedItem):
 
     def __repr__(self):
         ''' Print out useful information'''
-<<<<<<< HEAD
-        output = sc.desc(self)
-        output += '    Program set name: %s\n' % self.name
-        output += '            Programs: %s\n' % [prog for prog in self.programs]
-        output += '        Date created: %s\n' % sc.getdate(self.created)
-        output += '       Date modified: %s\n' % sc.getdate(self.modified)
-=======
         output = sc.prepr(self)
         output += '    Program set name: %s\n'    % self.name
         output += '            Programs: %s\n'    % [prog for prog in self.programs]
         output += '        Date created: %s\n'    % sc.getdate(self.created)
         output += '       Date modified: %s\n'    % sc.getdate(self.modified)
->>>>>>> develop
         output += '============================================================\n'
 
         return output
@@ -604,7 +573,7 @@ class ProgramSet(NamedItem):
         # Assign the pops
         if pops is None:
             # Get populations from data
-            pops = odict([(k, v['label']) for k, v in data.pops.iteritems()])
+            pops = sc.odict([(k, v['label']) for k, v in data.pops.iteritems()])
         elif sc.isnumber(pops):
                 npops = pops
                 pops = sc.odict()  # Create real pops dict
@@ -616,7 +585,7 @@ class ProgramSet(NamedItem):
         # Assign the comps
         if comps is None:
             # Get comps from framework
-            comps = odict()
+            comps = sc.odict()
             for _, spec in framework.comps.iterrows():
                 if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
                     continue
@@ -633,7 +602,7 @@ class ProgramSet(NamedItem):
         # Assign the comps
         if pars is None:
             # Get pars from framework
-            pars = odict()
+            pars = sc.odict()
             for _, spec in framework.pars.iterrows():
                 if spec['is impact'] == 'y':
                     pars[spec.name] = spec['display name']
@@ -699,10 +668,10 @@ class ProgramSet(NamedItem):
     def get_budgets(self, year=None, optimizable=None):
         ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
-        default_budget = odict() # Initialise outputs
+        default_budget = sc.odict() # Initialise outputs
 
         # Validate inputs
-        if year is not None: year = promotetoarray(year)
+        if year is not None: year = sc.promotetoarray(year)
         if optimizable is None: optimizable = False # Return only optimizable indices
 
         # Get cost data for each program 
@@ -714,10 +683,10 @@ class ProgramSet(NamedItem):
     def get_num_covered(self, year=None, alloc=None):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
         
-        num_covered = odict() # Initialise outputs
+        num_covered = sc.odict() # Initialise outputs
 
         # Validate inputs
-        if year is not None: year = promotetoarray(year)
+        if year is not None: year = sc.promotetoarray(year)
 
         # Get cost data for each program 
         for prog in self.programs.values():
@@ -736,7 +705,7 @@ class ProgramSet(NamedItem):
         # INPUT
         # denominator - dict of denominator values keyed by program name
         # alloc - dict of spending values (arrays) keyed by program name (same thing returned by self.get_alloc)
-        prop_covered = odict() # Initialise outputs
+        prop_covered = sc.odict() # Initialise outputs
 
         # Make sure that denominator has been supplied
         if denominator is None:
@@ -774,7 +743,7 @@ class ProgramSet(NamedItem):
         # - coverage : dict with coverage values {prog_name:np.array}
 
         for covkey in coverage.keys(): # Ensure coverage level values are arrays
-            coverage[covkey] = promotetoarray(coverage[covkey])
+            coverage[covkey] = sc.promotetoarray(coverage[covkey])
             for item in coverage[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
@@ -810,13 +779,8 @@ class Program(NamedItem):
 
     def __repr__(self):
         ''' Print out useful info'''
-<<<<<<< HEAD
-        output = sc.desc(self)
-        output += '          Program name: %s\n'    % self.name
-=======
         output = sc.prepr(self)
         output += '          Program name: %s\n'    % self.short
->>>>>>> develop
         output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
         output += '   Targeted parameters: %s\n'    % self.target_pars
@@ -847,7 +811,7 @@ class Program(NamedItem):
         try:
             tests['target_pops invalid'] = len(self.target_pops)<1
             tests['target_pars invalid'] = len(self.target_pars)<1
-            tests['unit_cost invalid']   = not(isnumber(self.get_unit_cost()))
+            tests['unit_cost invalid']   = not(sc.isnumber(self.get_unit_cost()))
             tests['capacity invalid']   = self.capacity is None
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized
@@ -874,11 +838,11 @@ class Program(NamedItem):
         # Validate inputs
         if budget is None:
             budget = self.spend_data.interpolate(year)
-        budget = promotetoarray(budget)
+        budget = sc.promotetoarray(budget)
                 
         if unit_cost is None:
             unit_cost = self.unit_cost.interpolate(year)
-        unit_cost = promotetoarray(unit_cost)
+        unit_cost = sc.promotetoarray(unit_cost)
             
         if capacity is None and self.capacity.has_data:
             capacity = self.capacity.interpolate(year)
@@ -952,10 +916,10 @@ class Covout(object):
     
     def __repr__(self):
 #        output = prepr(self)
-        output  = indent('   Parameter: ', self.par)
-        output += indent('  Population: ', self.pop)
-        output += indent('Baseline val: ', self.baseline)
-        output += indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
+        output  = sc.indent('   Parameter: ', self.par)
+        output += sc.indent('  Population: ', self.pop)
+        output += sc.indent('Baseline val: ', self.baseline)
+        output += sc.indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
         output += '\n'
         return output
 
@@ -966,7 +930,7 @@ class Covout(object):
 
         # We have been given the coverage for all programs
         outcome = self.baseline
-        delta, thiscov = odict(), odict()
+        delta, thiscov = sc.odict(), sc.odict()
 
         for prog in self.progs:
             thiscov[prog] = coverage[prog]
@@ -1033,144 +997,6 @@ class Covout(object):
             # All programs together
             outcome += prod(array(thiscov.values()), 0) * max([c for c in delta.values()])
 
-<<<<<<< HEAD
-=======
-#--------------------------------------------------------------------
-# Val
-#--------------------------------------------------------------------
-class Val(object):
-    '''
-    A single value including uncertainty
-    
-    Can be set the following ways:
-    v = Val(0.3)
-    v = Val([0.2, 0.4])
-    v = Val([0.3, 0.2, 0.4])
-    v = Val(best=0.3, low=0.2, high=0.4)
-    
-    Can be called the following ways:
-    v() # returns 0.3
-    v('best') # returns 0.3
-    v(what='best') # returns 0.3
-    v('rand') # returns value between low and high (assuming uniform distribution)
-    
-    Can be updated the following ways:
-    v(0.33) # resets best
-    v([0.22, 0.44]) # resets everything
-    v(best=0.33) # resets best
-    
-    '''
-    
-    def __init__(self, best=None, low=None, high=None, dist=None, verbose=False):
-        ''' Allow the object to be initialized, but keep the same infrastructure for updating '''
-        if verbose: print('Initializing Val for best=%s, low=%s, high=%s' % (best, low, high))
-        self.best = None
-        self.low = None
-        self.high = None
-        self.dist = None
-        self.update(best=best, low=low, high=high, dist=dist)
-        return None
-    
-    
-    def __repr__(self):
-        output = prepr(self)
-        return output
-    
-    
-    def __call__(self, *args, **kwargs):
-        ''' Convenience function for both update and get '''
-        
-        # If it's None or if the key is a string (e.g. 'best'), get the values:
-        if len(args)+len(kwargs)==0 or 'what' in kwargs or (len(args) and type(args[0])==str):
-            return self.get(*args, **kwargs)
-        else: # Otherwise, try to set the values
-            self.update(*args, **kwargs)
-    
-    def __getitem__(self, *args, **kwargs):
-        ''' Allows you to call e.g. val['best'] instead of val('best') '''
-        return self.get(*args, **kwargs)
-    
-    
-    def update(self, best=None, low=None, high=None, dist=None):
-        ''' Actually set the values -- very convoluted, but should be flexible and work :)'''
-        
-        # Reset these values if already supplied
-        if best is None and self.best is not None: best = self.best
-        if low  is None and self.low  is not None: low  = self.low 
-        if high is None and self.high is not None: high = self.high 
-        if dist is None and self.dist is not None: dist = self.dist
-        
-        # Handle values
-        if best is None: # Best is not supplied, so use high and low, e.g. Val(low=0.2, high=0.4)
-            if low is None or high is None:
-                errormsg = 'If not supplying a best value, you must supply both low and high values'
-                raise AtomicaException(errormsg)
-            else:
-                best = (low+high)/2. # Take the average
-        elif isinstance(best, dict):
-            self.update(**best) # Assume it's a dict of args, e.g. Val({'best':0.3, 'low':0.2, 'high':0.4})
-        else: # Best is supplied
-            best = promotetoarray(best)
-            if len(best)==1: # Only a single value supplied, e.g. Val(0.3)
-                best = best[0] # Convert back to number
-                if low is None: low = best # If these are missing, just replace them with best
-                if high is None: high = best
-            elif len(best)==2: # If length 2, assume high-low supplied, e.g. Val([0.2, 0.4])
-                if low is not None and high is not None:
-                    errormsg = 'If first argument has length 2, you cannot supply high and low values'
-                    raise AtomicaException(errormsg)
-                low = best[0]
-                high = best[1]
-                best = (low+high)/2.
-            elif len(best)==3: # Assume it's called like Val([0.3, 0.2, 0.4])
-                low, best, high = sorted(best) # Allows values to be provided in any order
-            else:
-                errormsg = 'Could not understand input of best=%s, low=%s, high=%s' % (best, low, high)
-                raise AtomicaException(errormsg)
-        
-        # Handle distributions
-        validdists = ['uniform']
-        if dist is None: dist = validdists[0]
-        if dist not in validdists:
-            errormsg = 'Distribution "%s" not valid; choices are: %s' % (dist, validdists)
-            raise AtomicaException(errormsg) 
-        
-        # Store values
-        self.best = float(best)
-        self.low  = float(low)
-        self.high = float(high)
-        self.dist = dist
-        if not low<=best<=high:
-            errormsg = 'Values are out of order (check that low=%s <= best=%s <= high=%s)' % (low, best, high)
-            raise AtomicaException(errormsg) 
-        
-        return None
-    
-    
-    def get(self, what=None, n=1):
-        '''
-        Get the value from this distribution. Examples (with best=0.3, low=0.2, high=0.4):
-        
-        val.get() # returns 0.3
-        val.get('best') # returns 0.3
-        val.get(['low', 'best',' high']) # returns [0.2, 0.3, 0.4]
-        val.get('rand') # returns, say, 0.3664
-        val.get('all') # returns [0.3, 0.2, 0.4]
-        
-        The seed() call should ensure pseudorandomness.
-        '''
-        
-        if what is None or what is 'best': val = self.best# Haha this is funny but works
-        elif what is 'low':                val = self.low
-        elif what is 'high':               val = self.high
-        elif what is 'all':                val = [self.best, self.low, self.high]
-        elif what in ['rand','random']:
-            if self.dist=='uniform':       val = uniform(low=self.low, high=self.high, size=n)
-            else:
-                errormsg = 'Distribution %s is not implemented, sorry' % self.dist
-                raise AtomicaException(errormsg)
-        elif type(what)==list:             val = [self.get(wh) for wh in what]# Allow multiple values to be used
->>>>>>> develop
         else:
             raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)
 
