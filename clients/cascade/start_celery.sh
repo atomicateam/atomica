@@ -1,2 +1,2 @@
 #!/bin/bash
-celery worker -A atomica_apps.apptasks_cascade -l info
+celery worker -A atomica_apps.apptasks_cascade -l info $@

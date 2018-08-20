@@ -134,20 +134,22 @@ function exportResults(vm, project_id) {
 
 
 function scaleElem(svg, frac) {
-  console.log('Scaling element!')
-  console.log(svg)
-  var width  = svg.getAttribute("width");
-  var height = svg.getAttribute("height");
-  svg.setAttribute("width",  width*frac);
-  svg.setAttribute("height", height*frac);
+  // It might ultimately be better to redraw the graph, but this works
+  var width  = svg.getAttribute("width")
+  var height = svg.getAttribute("height")
+  var viewBox = svg.getAttribute("viewBox")
+  if (!viewBox) {
+    svg.setAttribute("viewBox",  '0 0 ' + width + ' ' + height)
+  }
+  // if this causes the image to look weird, you may want to look at "preserveAspectRatio" attribute
+  svg.setAttribute("width",  width*frac)
+  svg.setAttribute("height", height*frac)
 }
 
 function scaleFigs(frac) {
-  console.log('scaleFigs() called')
   var graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
-  console.log('Found ' + graphs.length + ' graphs')
   for (var g = 0; g < graphs.length; g++) {
-    scaleElem(graphs[g], frac);
+    scaleElem(graphs[g], frac)
   }
 }
 

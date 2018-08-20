@@ -90,8 +90,10 @@ Last update: 2018-08-18
         </div>
       </div>
 
-      <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}" style="max-width:400px">
-        <div class="plotopts-params" v-if="areShowingPlots">
+
+
+      <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" style="max-width:400px" v-if="areShowingPlotControls">
+        <div class="plotopts-params">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
@@ -252,7 +254,7 @@ Last update: 2018-08-18
         newParsetName:  [],
         newProgsetName: [],
         graphData: [],
-        areShowingPlots: false,
+        areShowingPlotControls: false,
         plotOptions: [],
         table: null,
         activePop: "All",
