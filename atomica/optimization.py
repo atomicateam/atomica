@@ -3,7 +3,7 @@ Functions for running optimizations.
 Version: 2018mar26
 """
 
-import sciris.core as sc
+import sciris as sc
 from .system import AtomicaException, NotAllowedError, logger
 from .utils import NamedItem
 import numpy as np

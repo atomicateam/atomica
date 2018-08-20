@@ -1,6 +1,6 @@
 from .system import AtomicaException
 from bisect import bisect
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 import scipy.interpolate
 

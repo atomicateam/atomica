@@ -1,6 +1,6 @@
 import numpy as np
 import xlrd
-import sciris.core as sc
+import sciris as sc
 
 from .system import AtomicaException
 

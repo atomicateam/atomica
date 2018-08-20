@@ -15,7 +15,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
-import sciris.core as sc
+import sciris as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
 from .system import AtomicaException, NotFoundError, logger, NotAllowedError

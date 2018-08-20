@@ -39,7 +39,7 @@ from .workbook_export import make_progbook
 from .workbook_import import load_progbook
 from .scenarios import BudgetScenario
 from .utils import NDict
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
 from six import string_types

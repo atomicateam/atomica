@@ -5,7 +5,7 @@ from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
 from collections import defaultdict
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
 from six import string_types

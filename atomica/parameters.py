@@ -1,7 +1,7 @@
 # Imports
 
 import numpy as np
-import sciris.core as sc
+import sciris as sc
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
 from .system import AtomicaException, logger

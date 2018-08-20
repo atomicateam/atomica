@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import sciris.core as sc
+import sciris as sc
 from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast

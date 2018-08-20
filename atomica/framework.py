@@ -8,7 +8,7 @@ import os
 import openpyxl
 from six import string_types
 import pandas as pd
-import sciris.core as sc
+import sciris as sc
 from .system import AtomicaException, NotAllowedError, NotFoundError, logger
 from .excel import read_tables, AtomicaSpreadsheet
 from .structure import FrameworkSettings as FS

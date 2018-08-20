@@ -6,8 +6,8 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-from sciris.core import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
-import sciris.core as sc
+from sciris import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+import sciris as sc
 from .system import AtomicaException
 from .utils import NamedItem
 from numpy.random import uniform

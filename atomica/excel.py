@@ -7,7 +7,7 @@ Contains functionality specific to Excel input and output.
 from .system import AtomicaException
 
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-import sciris.core as sc
+import sciris as sc
 import io
 import openpyxl
 from openpyxl.comments import Comment

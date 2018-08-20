@@ -5,7 +5,7 @@ Sets out a structure to store context-specific databook-imported values relating
 """
 
 from .structure import TimeSeries
-import sciris.core as sc
+import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
