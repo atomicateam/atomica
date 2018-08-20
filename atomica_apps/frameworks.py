@@ -135,7 +135,7 @@ class FrameworkCollection(sw.BlobDict):
             else:
                 frameworks_info = []
                 for uid in self.ds_uuid_set:
-                    obj = sw.globalvars.data_store.retrieve(uid)
+                    obj = sw.gv.data_store.retrieve(uid)
                     if obj.owner_uid == valid_uuid:
                         frameworks_info.append(obj.get_user_front_end_repr())
                 return frameworks_info
@@ -161,7 +161,7 @@ class FrameworkCollection(sw.BlobDict):
             else:
                 framework_entries = []
                 for uid in self.ds_uuid_set:
-                    obj = sw.globalvars.data_store.retrieve(uid)
+                    obj = sw.gv.data_store.retrieve(uid)
                     if obj.owner_uid == valid_uuid:
                         framework_entries.append(obj)
                 return framework_entries
@@ -179,9 +179,9 @@ def init_frameworks(app):
     global frame_collection  # need this to allow modification within the module
     
     # Look for an existing FrameworkCollection.
-    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! getting datastore %s' % sw.globalvars.data_store)
-    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! test %s' % ds.globalvars.data_store)
-    frame_collection_uid = sw.globalvars.data_store.get_uid('frameworkscoll', 'Frameworks Collection')
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! getting datastore %s' % sw.gv.data_store)
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! test %s' % ds.gv.data_store)
+    frame_collection_uid = sw.gv.data_store.get_uid('frameworkscoll', 'Frameworks Collection')
     
     # Create the frameworks collection object.  Note, that if no match was found, 
     # this will be assigned a new UID.    
