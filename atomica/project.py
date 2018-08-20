@@ -213,7 +213,7 @@ class Project(object):
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
         if data_start is None:  data_start = self.data.tvec[0]
         if data_end is None:    data_end= self.data.tvec[-1]
-        progset = ProgramSet.new(full_path, project=self, progs=progs, data_start=data_start, data_end=data_end)
+        progset = ProgramSet.new(tvec=np.arange(data_start, data_end+1), progs=progs, framework=self.framework, data=self.data)
         progset.save(full_path)
 
 
@@ -227,9 +227,10 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-        tmpprogset = ProgramSet(name=name)
-        progset = tmpprogset.from_spreadsheet(spreadsheet=progbook_spreadsheet, project=self)
+        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework,data=self.data)
         progset.validate()
+        self.progbook = sc.dcp(progbook_spreadsheet) # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
+
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')
