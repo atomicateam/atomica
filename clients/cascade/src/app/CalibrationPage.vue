@@ -76,7 +76,7 @@ Last update: 2018-08-20
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
           <select v-model="activePop">
-            <option v-for='pop in active_pops'>
+            <option v-for='pop in activePops'>
               {{ pop }}
             </option>
           </select>
@@ -262,22 +262,8 @@ Last update: 2018-08-20
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
+      activePops()   { return utils.activePops(this) },      
       placeholders() { return utils.placeholders() },
-
-
-      active_pops() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let pop_pairs = this.$store.state.activeProject.project.pops
-          let pop_list = ["All"]
-          for(let i = 0; i < pop_pairs.length; ++i) {
-            pop_list.push(pop_pairs[i][1]);
-          }
-          return pop_list
-        }
-      },
-
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
@@ -294,7 +280,7 @@ Last update: 2018-08-20
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
-        this.popOptions = this.active_pops
+        this.popOptions = this.activePops
         this.viewTable()
         this.getPlotOptions()
         utils.sleep(1)  // used so that spinners will come up by callback func
