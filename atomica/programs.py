@@ -6,7 +6,7 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-from sciris import odict, today, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+from sciris import odict, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
 import sciris as sc
 from .system import AtomicaException
 from .utils import NamedItem
@@ -55,8 +55,8 @@ class ProgramSet(NamedItem):
         if covouts is not None:  self.add_covouts(covouts)
         self.default_cov_interaction = default_cov_interaction
         self.default_imp_interaction = default_imp_interaction
-        self.created = today()
-        self.modified = today()
+        self.created = sc.now()
+        self.modified = sc.now()
         self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
         return None
 
