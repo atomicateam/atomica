@@ -72,7 +72,7 @@ class ResultPlaceholder(au.NamedItem):
         self.uid = result.uid
 
     def get(self):
-        result_so = sw.data_store.retrieve(self.uid)
+        result_so = sw.globalvars.data_store.retrieve(self.uid)
         return result_so.result
 
 @timeit
@@ -441,7 +441,7 @@ def download_framework(framework_id):
     file, minus results, and pass the full path of this file back.
     """
     frame = load_framework(framework_id, raise_exception=True) # Load the framework with the matching UID.
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % frame.name # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     frame.save(full_file_name) # Write the object to a Gzip string pickle file.
@@ -455,7 +455,7 @@ def load_zip_of_frw_files(framework_ids):
     Given a list of framework UIDs, make a .zip file containing all of these 
     frameworks as .frw files, and return the full path to this file.
     """
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     frws = [load_framework_record(id).save_as_file(dirname) for id in framework_ids] # Build a list of frw.FrameworkSO objects for each of the selected frameworks, saving each of them in separate .frw files.
     zip_fname = 'Frameworks %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
@@ -657,7 +657,7 @@ def download_project(project_id):
     file, minus results, and pass the full path of this file back.
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.prj' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     sc.saveobj(full_file_name, proj) # Write the object to a Gzip string pickle file.
@@ -671,7 +671,7 @@ def download_framework_from_project(project_id):
     Download the framework Excel file from a project
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_framework.xlsx' % proj.name
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     proj.framework.save(full_file_name)
@@ -685,7 +685,7 @@ def download_databook(project_id):
     Download databook
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     proj.databook.save(full_file_name)
@@ -697,7 +697,7 @@ def download_databook(project_id):
 def download_progbook(project_id):
     """ Download program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     proj.progbook.save(full_file_name)
@@ -709,7 +709,7 @@ def download_progbook(project_id):
 def create_progbook(project_id, num_progs):
     """ Create program book """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
@@ -724,7 +724,7 @@ def load_zip_of_prj_files(project_ids):
     Given a list of project UIDs, make a .zip file containing all of these 
     projects as .prj files, and return the full path to this file.
     """
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     prjs = [load_project_record(id).save_as_file(dirname) for id in project_ids] # Build a list of prj.ProjectSO objects for each of the selected projects, saving each of them in separate .prj files.
     zip_fname = 'Projects %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = os.path.join(dirname, sc.sanitizefilename(zip_fname))
@@ -769,7 +769,7 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
-    dirname = sw.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     data = proj.create_databook(databook_path=full_file_name, **args) # Return the databook
@@ -1165,7 +1165,7 @@ def export_results(project_id, resultset=-1):
         print('Getting actual result...')
         result = result.get()
     
-    dirname = sw.downloads_dir.dir_path 
+    dirname = sw.globalvars.downloads_dir.dir_path 
     file_name = '%s.xlsx' % result.name 
     full_file_name = os.path.join(dirname, file_name)
     result.export(full_file_name)

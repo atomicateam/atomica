@@ -168,7 +168,7 @@ class ProjectCollection(sw.BlobDict):
             else:
                 projects_info = []
                 for uid in self.ds_uuid_set:
-                    obj = sw.gv.data_store.retrieve(uid)
+                    obj = sw.globalvars.data_store.retrieve(uid)
                     if obj.owner_uid == valid_uuid:
                         projects_info.append(obj.get_user_front_end_repr())
                 return projects_info
@@ -196,7 +196,7 @@ class ProjectCollection(sw.BlobDict):
             else:
                 project_entries = []
                 for uid in self.ds_uuid_set:
-                    obj = sw.gv.data_store.retrieve(uid)
+                    obj = sw.globalvars.data_store.retrieve(uid)
                     if obj.owner_uid == valid_uuid:
                         project_entries.append(obj)
                 return project_entries
@@ -214,7 +214,7 @@ def init_projects(app):
     global proj_collection  # need this to allow modification within the module
     
     # Look for an existing ProjectCollection.
-    proj_collection_uid = sw.gv.data_store.get_uid('projectscoll', 'Projects Collection')
+    proj_collection_uid = sw.globalvars.data_store.get_uid('projectscoll', 'Projects Collection')
     
     # Create the projects collection object.  Note, that if no match was found, 
     # this will be assigned a new UID.    
@@ -253,13 +253,13 @@ def apptasks_load_projects(config):
     # from the datastore.py module that the server code will.
     
     # Create the DataStore object, setting up Redis.
-    sw.gv.data_store = sw.DataStore(redis_db_URL=config.REDIS_URL)
+    sw.globalvars.data_store = sw.DataStore(redis_db_URL=config.REDIS_URL)
     
     # Load the DataStore state from disk.
-    sw.gv.data_store.load()
+    sw.globalvars.data_store.load()
     
     # Look for an existing ProjectCollection.
-    proj_collection_uid = sw.gv.data_store.get_uid('projectscoll', 'Projects Collection')
+    proj_collection_uid = sw.globalvars.data_store.get_uid('projectscoll', 'Projects Collection')
     
     # Create the projects collection object.  Note, that if no match was found, 
     # this will be assigned a new UID.    
