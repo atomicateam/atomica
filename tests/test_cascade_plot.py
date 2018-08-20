@@ -8,8 +8,8 @@ test = 'tb'
 # test = 'udt'
 
 torun = [
-#"basicplots",
-#"scenplots",
+"basicplots",
+"scenplots",
 "validate_cascade"
 # "basicplots",
 #"scenplots",
@@ -134,11 +134,13 @@ if "scenplots" in torun:
     startyear = 2018 if test=='tb' else 2016
     endyear = 2020 if test=='tb' else 2017
 
-    au.plot_multi_cascade([par_results,scen_results],'main',year=startyear)
-    au.plot_multi_cascade([par_results],'main',year=[startyear,endyear])
-    if test=='tb': au.plot_multi_cascade([par_results],'secondary',year=[startyear,endyear])
-    au.plot_multi_cascade([par_results,scen_results],cascade='main',pops='all',year=[startyear,endyear])
-    #au.plot_multi_cascade([par_results,scen_results],cascade=cascade,pops='all',year=2030)
+    au.plot_multi_cascade([par_results,scen_results],None,year=startyear)
+    au.plot_multi_cascade([par_results],None,year=[startyear,endyear])
+    if test=='tb':
+        au.plot_multi_cascade([par_results,scen_results],cascade=0,pops='all',year=[startyear,endyear])
+        au.plot_multi_cascade([par_results],cascade=1,year=[startyear,endyear])
+        #au.plot_multi_cascade([par_results,scen_results],cascade=None,pops='all',year=2030)
+
 
 
 

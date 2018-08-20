@@ -992,6 +992,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
 
             for fig in figs:
                 graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1058,6 +1059,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
             else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
             for fig in figs:
                 graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1069,6 +1071,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     years = sc.promotetolist(year)
     for y in range(len(years)):
         years[y] = float(years[y]) # Ensure it's a float
+
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
 
     ax = fig.get_axes()[0]
@@ -1084,7 +1087,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
 
 @timeit
 @RPC()  
-def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None):
+def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None,cascade=None):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -1110,7 +1113,7 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
     proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    cascadeoutput = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=0) # Plot the first cascade
+    cascadeoutput = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=cascade)
     if tool == 'cascade':
         return cascadeoutput
     else:
@@ -1399,7 +1402,7 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @RPC()    
-def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None):
+def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
@@ -1407,7 +1410,7 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
         return {'error': 'No scenario selected'}
     proj.results['scenarios'] = results # WARNING, will want to save separately!
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
 #    if saveresults:
@@ -1416,12 +1419,12 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
     return output
     
 @RPC() 
-def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None):
+def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None,cascade=None):
     print('Plotting scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['scenarios']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     return output
@@ -1507,12 +1510,12 @@ def set_optim_info(project_id, optim_summaries):
 
 
 @RPC() 
-def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=None):
+def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=None,cascade=None):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['optimization']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     return output

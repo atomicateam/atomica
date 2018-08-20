@@ -59,8 +59,8 @@ class ProgramSet(NamedItem):
         self.pars       = sc.odict()
 
         # Meta data
-        self.created    = sc.today()
-        self.modified   = sc.today()
+        self.created    = sc.now()
+        self.modified   = sc.now()
 
         return None
 
