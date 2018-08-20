@@ -92,6 +92,8 @@ class ProgramSet(NamedItem):
     #######################################################################################################
 
     def get_code_name(self,name):
+        # This function returns a code name given either a full name or a code name
+        # This allows pops/comps/pars/progs to be removed by full name or code name
         if name in self.pars or name in self.comps or name in self.pops or name in self.programs:
             return name
 
@@ -669,7 +671,6 @@ class ProgramSet(NamedItem):
                         alloc[prog.name] = prog.get_spend(tvec)
                 return alloc
 
-
     def get_budgets(self, year=None, optimizable=None):
         ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
         
@@ -684,7 +685,6 @@ class ProgramSet(NamedItem):
             default_budget[prog.name] = prog.get_spend(year)
 
         return default_budget
-
 
     def get_num_covered(self, year=None, alloc=None):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
@@ -704,7 +704,6 @@ class ProgramSet(NamedItem):
             num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending)
 
         return num_covered
-
 
     def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
         '''Returns proportion covered for a time/spending vector and denominator.
@@ -731,7 +730,6 @@ class ProgramSet(NamedItem):
             
         return prop_covered
 
-
     def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
         '''Returns proportion OR number covered for a time/spending vector.'''
         
@@ -743,7 +741,6 @@ class ProgramSet(NamedItem):
             return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
-
 
     def get_outcomes(self, coverage=None, year=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
