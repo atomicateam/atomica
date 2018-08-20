@@ -266,10 +266,7 @@ class ProgramSet(NamedItem):
     def _read_targeting(self,sheet):
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
-
-        tables = read_tables(sheet)
-        assert len(tables) == 1, 'Targeting page should only contain one table'
-
+        tables = read_tables(sheet) # NB. only the first table will be read, so there can be other tables for comments on the first page
         self.programs = sc.odict()
         sup_header = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][0]]
         headers = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][1]]
