@@ -20,7 +20,6 @@ import openpyxl
 import xlsxwriter as xw
 import io
 
-
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
@@ -46,24 +45,16 @@ class ProgramInstructions(object):
 
 class ProgramSet(NamedItem):
 
-    def __init__(self, name="default", programs=None, covouts=None, pops=None, comps=None, pars=None, data_start=None, data_end=None, default_cov_interaction="Additive", default_imp_interaction="best"):
+    def __init__(self, name="default", data_start=None, data_end=None):
         """ Class to hold all programs and programmatic effects. """
         NamedItem.__init__(self,name)
 
         # Programs and effects
         self.programs       = sc.odict()
         self.covouts         = sc.odict()
-        if programs is not None: self.add_programs(programs)
-        if covouts is not None:  self.add_covouts(covouts)
-        self.default_cov_interaction = default_cov_interaction
-        self.default_imp_interaction = default_imp_interaction
         self.relevant_progs = dict()    # This dictionary will store programs per parameters they target.
 
-        # Data years
-        self.data_start     = data_start
-        self.data_end       = data_end
-        if self.data_start is not None and self.data_end is not None:
-            self.data_years     = sc.inclusiverange(self.data_start,self.data_end+1) # Initialize data years
+        self.tvec = None # This is the data tvec that will be used when writing the progset to a spreadsheet
 
         # Populations, parameters, and compartments 
         self.pops = None # These are all of the pops available based on the ProjectData used to load the ProgramSet
@@ -88,14 +79,43 @@ class ProgramSet(NamedItem):
     def __repr__(self):
         ''' Print out useful information'''
         output = sc.desc(self)
-        output += '    Program set name: %s\n'    % self.name
-        output += '            Programs: %s\n'    % [prog for prog in self.programs]
-        output += '        Date created: %s\n'    % sc.getdate(self.created)
-        output += '       Date modified: %s\n'    % sc.getdate(self.modified)
+        output += '    Program set name: %s\n' % self.name
+        output += '            Programs: %s\n' % [prog for prog in self.programs]
+        output += '        Date created: %s\n' % sc.getdate(self.created)
+        output += '       Date modified: %s\n' % sc.getdate(self.modified)
         output += '============================================================\n'
-        
+
         return output
 
+    #######################################################################################################
+    # Methods to add/remove things
+    #######################################################################################################
+
+    def add_program(self, code_name, full_name):
+        return
+
+    def remove_program(self, code_name):
+        return
+
+    def add_pop(self,code_name,full_name):
+        return
+
+    def remove_pop(self,code_name):
+        return
+
+    def add_comp(self,code_name,full_name):
+        return
+
+    def remove_comp(self,code_name):
+        return
+
+    def add_par(self,code_name,full_name):
+        # add an impact parameter
+        return
+
+    def remove_par(self,code_name):
+        # remove an impact parameter
+        return
 
     #######################################################################################################
     # Methods for data I/O
@@ -148,9 +168,9 @@ class ProgramSet(NamedItem):
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
 
         # Load individual sheets
-        self._read_targeting(workbook['Program targeting'],framework,data)
+        self._read_targeting(workbook['Program targeting'])
         self._read_spending(workbook['Spending data'])
-        self._read_effects(workbook['Program effects'],framework,data)
+        self._read_effects(workbook['Program effects'])
 
         return self
 
@@ -185,7 +205,7 @@ class ProgramSet(NamedItem):
         ss = self.to_spreadsheet()
         ss.save(fname)
 
-    def _read_targeting(self,sheet,framework,data):
+    def _read_targeting(self,sheet):
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
 
@@ -253,23 +273,27 @@ class ProgramSet(NamedItem):
         # Write the header row
         sheet.write(1, 0, 'Abbreviation', self._formats["center_bold"])
         update_widths(widths,0,'Abbreviation')
-        sheet.write(1, 1, 'Full Name', self._formats["center_bold"])
+        sheet.write(1, 1, 'Display name', self._formats["center_bold"])
         update_widths(widths,1,'Abbreviation')
         for pop,full_name in self.pops.items():
             col = pop_col[pop]
             sheet.write(1, col, full_name, self._formats['rc_title']['left']['T'])
+            self._references[full_name] = "='%s'!%s" % (sheet.name,xlrc(1,col,True,True))
             widths[col] = 12 # Wrap population names
 
         for comp,full_name in self.comps.items():
             col = comp_col[comp]
             sheet.write(1, col, full_name, self._formats['rc_title']['left']['T'])
+            self._references[full_name] = "='%s'!%s" % (sheet.name,xlrc(1, col,True,True))
             widths[col] = 12 # Wrap compartment names
 
         row = 2
         for prog in self.programs.values():
             sheet.write(row, 0, prog.name)
+            self._references[prog.name] = "='%s'!%s" % (sheet.name,xlrc(row, 0,True,True))
             update_widths(widths, 0, prog.name)
             sheet.write(row, 1, prog.label)
+            self._references[prog.label] = "='%s'!%s" % (sheet.name,xlrc(row, 1,True,True))
             update_widths(widths, 1, prog.label)
 
             for pop in self.pops:
@@ -296,10 +320,10 @@ class ProgramSet(NamedItem):
 
         apply_widths(sheet,widths)
 
-
     def _read_spending(self,sheet):
         # Read the spending table and populate the program data
         tables = read_tables(sheet)
+        times = set()
         for table in tables:
             tdve = TimeDependentValuesEntry.from_rows(table)
             prog = self.programs[tdve.name]
@@ -307,11 +331,32 @@ class ProgramSet(NamedItem):
             prog.capacity = tdve.ts['Capacity constraints']
             prog.unit_cost = tdve.ts['Unit cost']
             prog.coverage = tdve.ts['Coverage']
+            times.update(set(tdve.tvec))
+        self.tvec = array(sorted(list(times)))
 
     def _write_spending(self):
         sheet = self._book.add_worksheet("Spending data")
+        widths = dict()
+        next_row = 0
 
-    def _read_effects(self,sheet,framework,data):
+
+        for prog in self.programs.values():
+            # Make a TDVE table for
+            tdve = TimeDependentValuesEntry(prog.name,self.tvec)
+            prog = self.programs[tdve.name]
+            tdve.ts['Total spend'] = prog.spend_data
+            tdve.ts['Capacity constraints'] = prog.capacity
+            tdve.ts['Unit cost'] = prog.unit_cost
+            tdve.ts['Coverage'] = prog.coverage
+
+            # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
+            # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
+            # will just be an empty cell in the spreadsheet
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths)
+
+        apply_widths(sheet,widths)
+
+    def _read_effects(self,sheet):
         # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
 
         tables = read_tables(sheet)
@@ -331,7 +376,10 @@ class ProgramSet(NamedItem):
                 progs = sc.odict()
                 for i,x in enumerate(row[1:]):
                     i = i+1 # Offset of 1 because the loop is over row[1:] not row[0:]
-                    if idx_to_header[i].lower() == 'baseline value':
+
+                    if idx_to_header[i] is None: # If the header row had a blank cell, ignore everything in that column - we don't know what it is otherwise
+                        continue
+                    elif idx_to_header[i].lower() == 'baseline value':
                         if x.value is not None: # test `is not None` because it might be entered as 0
                             baseline = float(x.value)
                         else:
@@ -354,14 +402,61 @@ class ProgramSet(NamedItem):
                     elif x.value is not None: # If the header isn't empty, then it should be one of the program names
                         progs[idx_to_header[i]] = float(x.value)
 
-                if baseline is not None or progs: # Only instantitate covout objects if they have programs associated with them
+                if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
                     self.covouts[(par_name,pop_name)] = Covout(par=par_name,pop=pop_name,cov_interaction= cov_interaction, imp_interaction = imp_interaction, uncertainty=uncertainty,baseline=baseline,progs=progs)
 
-    def _write_effects(self):
+    def _write_effects(self,framework=None):
+        # TODO - Use the framework to exclude irrelevant programs and populations
         sheet = self._book.add_worksheet("Program effects")
+        widths = dict()
 
+        current_row = 0
 
+        for par_name,par_label in self.pars.items():
+            sheet.write(current_row, 0, par_label, self._formats['rc_title']['left']['F'])
+            update_widths(widths,0,par_label)
 
+            for i,s in enumerate(['Baseline value','Coverage interaction','Impact interaction','Uncertainty']):
+                sheet.write(current_row, 1+i, s, self._formats['rc_title']['left']['T'])
+                widths[1+i] = 12 # Fixed width, wrapping
+            sheet.write_comment(xlrc(current_row,1), 'In this column, enter the baseline value for "%s" if none of the programs reach this parameter (e.g., if the coverage is 0)' % (par_label))
+
+            applicable_progs = self.programs.values() # All programs - could filter this later on
+            prog_col = {p.name:i+6 for i,p in enumerate(applicable_progs)} # add any extra padding columns to the indices here too
+
+            for prog in applicable_progs:
+                sheet.write_formula(current_row, prog_col[prog.name], self._references[prog.name], self._formats['center_bold'],value=prog.name)
+                update_widths(widths, prog_col[prog.name], prog.name)
+            current_row += 1
+
+            applicable_covouts = {x.pop:x for x in self.covouts.values() if x.par == par_name}
+            applicable_pops = self.pops.keys() # All pops - could filter these (by both program coverage and covouts)
+
+            for pop_name in applicable_pops:
+
+                if pop_name not in applicable_covouts: # There is currently no covout
+                    covout = None
+                else:
+                    covout = applicable_covouts[pop_name]
+
+                sheet.write_formula(current_row, 0, self._references[self.pops[pop_name]],value=self.pops[pop_name])
+                update_widths(widths, 0, self.pops[pop_name])
+                sheet.write(current_row, 1, covout.baseline if covout else None)
+                sheet.write(current_row, 2, covout.cov_interaction.title() if covout else None)
+                sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
+                sheet.write(current_row, 3, covout.imp_interaction.title() if covout else None)
+                sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
+                sheet.write(current_row, 4, covout.sigma if covout else None)
+
+                for prog in applicable_progs:
+                    if covout and prog.name in covout.progs:
+                        sheet.write(current_row, prog_col[prog.name], covout.progs[prog.name],self._formats['unlocked'])
+                    else:
+                        sheet.write(current_row, prog_col[prog.name], None,self._formats['unlocked'])
+                current_row += 1
+            current_row += 1
+
+        apply_widths(sheet,widths)
 
     @staticmethod
     def new(filename, name=None, progs=None, pops=None, comps=None, pars=None, project=None, framework=None, data=None, data_start=None, data_end=None):
@@ -462,33 +557,6 @@ class ProgramSet(NamedItem):
                          ("assumption_properties", assumption_properties),
                          ("assumption_data", assumption_data),
                          ("assumption",      assumption)])
-
-    def _write_costcovdata(self):
-        # Generate cost-coverage sheet
-        widths = dict()
-        sheet = self._book.add_worksheet('Spending data')
-
-        # Get data
-        existing_data = []
-        for prog in self.programs.values():
-            spend = [prog.spend_data.findrow(year)[1] if prog.spend_data and prog.spend_data.findrow(year) is not None else '' for year in self.data_years]
-            capacity = [prog.capacity.findrow(year)[1] if prog.capacity and prog.capacity.findrow(year) is not None else '' for year in self.data_years]
-            unit_cost = [prog.unit_cost.findrow(year)[1] if prog.unit_cost and prog.unit_cost.findrow(year) is not None else '' for year in self.data_years]
-            existing_data.extend([spend,capacity,unit_cost])
-            
-        current_row = 0
-        sheet.set_column('C:C', 20)
-        row_levels = ['Total spend', 'Capacity constraints', 'Unit cost']
-        content = self.set_content(row_names=self.ref_prog_range,
-                                   column_names=range(int(self.data_start), int(self.data_end + 1)),
-                                   row_formats=['general']*5,
-                                   data=existing_data,
-                                   row_levels=row_levels)
-
-        the_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        current_row = the_range.emit(self._formats, widths=widths)
-        apply_widths(sheet,widths)
-
 
     def _write_covoutdata(self):
         # Generate coverage-outcome sheet
@@ -609,47 +677,6 @@ class ProgramSet(NamedItem):
             for co in self.covouts.values(): # Remove from coverage-outcome functions too
                 co.progs.pop(prog, None)
         self.update()
-        return None
-
-
-    def add_covout(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, npi_val=None, max_val=None, prog=None, verbose=False):
-        ''' add a single coverage-outcome parameter '''
-        # Process inputs
-        if verbose: print('Adding single coverage-outcome parameter for par=%s, pop=%s' % (par, pop))
-        if cov_interaction is None: cov_interaction = self.default_cov_interaction
-        if imp_interaction is None: imp_interaction = self.default_imp_interaction
-        self.covouts[(par, pop)] = Covout(par=par, pop=pop, cov_interaction=cov_interaction, imp_interaction=imp_interaction, npi_val=npi_val, max_val=max_val, prog=prog)
-        if verbose: print('Done with add_covout().')
-        return None
-
-
-    def add_covouts(self, covouts=None, prog_effects=None, pop_short_name=None, verbose=False):
-        '''
-        Add an odict of coverage-outcome parameters. Note, assumes a specific structure, as follows:
-        covouts[parname][popname] = odict()
-        '''
-        # Process inputs
-        if verbose: print('Adding coverage-outcome effects')
-        if covouts is not None:
-            if isinstance(covouts, list) or isinstance(covouts,type(array([]))):
-                errormsg = 'Expecting a dictionary with specific structure, not a list'
-                raise AtomicaException(errormsg)
-        else:
-            errormsg = 'Covout list not supplied.'
-            raise AtomicaException(errormsg)
-            
-            
-        for par,pardata in covouts.iteritems():
-            if verbose: print('  Adding coverage-outcome effect for parameter %s' % par)
-            if par in prog_effects.keys():
-                for pop,popdata in covouts[par].iteritems():
-                    pop = pop_short_name[pop]
-                    if pop in prog_effects[par].keys():
-                        # Sanitize inputs
-                        if verbose: print('    For population %s' % pop)
-                        npi_val = sanitize(popdata['baseline'], defaultval=0., label=', '.join([par, pop, 'baseline']))
-                        self.add_covout(par=par, pop=pop, npi_val=npi_val, prog=prog_effects[par][pop])
-        
         return None
 
 
@@ -1136,12 +1163,12 @@ class Covout(object):
            )
     '''
     
-    def __init__(self, par=None, pop=None, cov_interaction='additive', imp_interaction='best', uncertainty=0.0,baseline=None,progs=None):
+    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, uncertainty=0.0,baseline=None,progs=None):
         logger.debug('Initializing Covout for par=%s, pop=%s, baseline=%s' % (par, pop, baseline))
         self.par = par
         self.pop = pop
-        self.cov_interaction = cov_interaction
-        self.imp_interaction = imp_interaction
+        self.cov_interaction = cov_interaction if cov_interaction is not None else 'additive'
+        self.imp_interaction = imp_interaction if imp_interaction is not None else 'best'
         self.sigma = uncertainty
         self.baseline = baseline
         self.progs = sc.odict() if progs is None else progs
