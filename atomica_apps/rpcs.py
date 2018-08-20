@@ -1433,7 +1433,7 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
 
 
 def py_to_js_optim(py_optim, project=None):
-    js_optim = sw.json_sanitize_result(py_optim.json)
+    js_optim = sw.sanitize_json(py_optim.json)
     for prog_name in js_optim['prog_spending']:
         prog_label = project.progset().programs[prog_name].label
         this_prog = js_optim['prog_spending'][prog_name]
