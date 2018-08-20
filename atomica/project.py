@@ -227,33 +227,9 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-<<<<<<< HEAD
         tmpprogset = ProgramSet(name=name)
         progset = tmpprogset.from_spreadsheet(spreadsheet=progbook_spreadsheet, project=self)
         progset.validate()
-=======
-        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
-        self.progbook = sc.dcp(progbook_spreadsheet)
-
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.pop_labels):
-            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
-            raise AtomicaException(errormsg)
-        self.progdata = progdata
-
-        self.modified = sc.now()
-
-        if make_default_progset: self.make_progset(name="default")
-        
-
-    def make_progset(self, progdata=None, name="default", verbose=False):
-        '''Make a progset from program spreadsheet data'''
-        
-        if verbose: print('Making ProgramSet')
-        progset = ProgramSet(name=name)
-        if verbose: print('Making program data')
-        progset.make(progdata=progdata, project=self)
->>>>>>> develop
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')
