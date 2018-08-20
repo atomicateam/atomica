@@ -74,8 +74,7 @@ class ProgramSet(NamedItem):
     def prepare_cache(self):
         # This function is called once at the start of model.py, which allows various checks to be
         # performed once at the start of the simulation rather than at every timestep
-
-        self._covout_valid_cache = {k:v.has_pars() for k,v in self.covouts.items()}
+        return
 
     def __repr__(self):
         ''' Print out useful information'''
@@ -634,137 +633,6 @@ class ProgramSet(NamedItem):
         ss.save(fname)
 
 
-    def update(self):
-        ''' Update (run this is you change something... )'''
-
-        def set_target_pars(self):
-            '''Update model parameters targeted by some program in the response'''
-            self.target_pars = []
-            if self.programs:
-                for prog in self.programs.values():
-                    for pop in prog.target_pars: self.target_pars.append(pop)
-        
-        def set_target_par_types(self):
-            '''Update model parameter types targeted by some program in the response'''
-            self.target_par_types = []
-            if self.programs:
-                for prog in self.programs.values():
-                    for par_type in prog.target_par_types: self.target_par_types.append(par_type)
-                self.target_par_types = list(set(self.target_par_types))
-    
-        def set_target_pops(self):
-            '''Update populations targeted by some program in the response'''
-            self.target_pops = []
-            if self.programs:
-                for prog in self.programs.values():
-                    for pop in prog.target_pops: self.target_pops.append(pop)
-                self.target_pops = list(set(self.target_pops))
-    
-        set_target_pars(self)
-        set_target_par_types(self)
-        set_target_pops(self)
-
-        # Pre-build a dictionary of programs targeted by parameters.
-        self.relevant_progs = dict()
-        for par_type in self.target_par_types:
-            self.relevant_progs[par_type] = self.progs_by_target_par(par_type)
-        return None
-
-
-    #######################################################################################################
-    # Methods to add or remove programs, populations, parameters
-    #######################################################################################################        
-    def add_programs(self, progs=None, replace=False):
-        ''' Add a list of programs '''
-        
-        # Process programs
-        if progs is not None:
-            progs = sc.promotetolist(progs)
-        else:
-            errormsg = 'Programs to add should not be None'
-            raise AtomicaException(errormsg)
-        if replace:
-            self.programs = sc.odict()
-        for prog in progs:
-            if isinstance(prog, dict):
-                prog = Program(**prog)
-            if type(prog)!=Program:
-                errormsg = 'Programs to add must be either dicts or program objects, not %s' % type(prog)
-                raise AtomicaException(errormsg)
-            
-            # Save it
-            self.programs[prog.name] = prog
-
-        self.update()
-        return None
-
-
-    def rm_programs(self, progs=None, die=True):
-        ''' Remove one or more programs from both the list of programs and also from the covouts functions '''
-        if progs is None:
-            self.programs = odict() # Remove them all
-        progs = promotetolist(progs)
-        for prog in progs:
-            try:
-                self.programs.pop[prog]
-            except:
-                errormsg = 'Could not remove program named %s' % prog
-                if die: raise AtomicaException(errormsg)
-                else: print(errormsg)
-            for co in self.covouts.values(): # Remove from coverage-outcome functions too
-                co.progs.pop(prog, None)
-        self.update()
-        return None
-
-
-    def progs_by_target_pop(self, filter_pop=None):
-        '''Return a dictionary with:
-             keys: all populations targeted by programs
-             values: programs targeting that population '''
-        progs_by_target_pop = odict()
-        for prog in self.programs.values():
-            target_pops = prog.target_pops if prog.target_pops else None
-            if target_pops:
-                for pop in target_pops:
-                    if pop not in progs_by_target_pop: progs_by_target_pop[pop] = []
-                    progs_by_target_pop[pop].append(prog)
-        if filter_pop: return progs_by_target_pop[filter_pop]
-        else: return progs_by_target_pop
-
-
-    def progs_by_target_par_type(self, filter_par_type=None):
-        '''Return a dictionary with:
-             keys: all parameter types targeted by programs
-             values: programs targeting that population '''
-        progs_by_target_par_type = odict()
-        for prog in self.programs.values():
-            target_par_types = prog.target_par_types if prog.target_par_types else None
-            if target_par_types:
-                for par_type in target_par_types:
-                    if par_type not in progs_by_target_par_type: progs_by_target_par_type[par_type] = []
-                    progs_by_target_par_type[par_type].append(prog)
-        if filter_par_type: return progs_by_target_par_type[filter_par_type]
-        else: return progs_by_target_par_type
-
-
-    def progs_by_target_par(self, filter_par_type=None):
-        '''Return a dictionary with:
-             keys: all parameters targeted by programs
-             values: programs targeting that population '''
-        progs_by_target_par = odict()
-        for par_type in self.target_par_types:
-            progs_by_target_par[par_type] = odict()
-            for prog in self.progs_by_target_par_type(par_type):
-                target_pars = prog.target_pars if prog.target_pars else None
-                for target_par in target_pars:
-                    if par_type == target_par['param']:
-                        if target_par['pop'] not in progs_by_target_par[par_type]: progs_by_target_par[par_type][target_par['pop']] = []
-                        progs_by_target_par[par_type][target_par['pop']].append(prog)
-            progs_by_target_par[par_type] = progs_by_target_par[par_type]
-        if filter_par_type: return progs_by_target_par[filter_par_type]
-        else: return progs_by_target_par
-
-
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
     #######################################################################################################        
@@ -818,14 +686,13 @@ class ProgramSet(NamedItem):
         return default_budget
 
 
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, alloc=None, sample='best', optimizable=None):
-        ''' Extract the number covered if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+    def get_num_covered(self, year=None, alloc=None):
+        ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
         
         num_covered = odict() # Initialise outputs
 
         # Validate inputs
         if year is not None: year = promotetoarray(year)
-        if optimizable is None: optimizable = False # Return only optimizable indices
 
         # Get cost data for each program 
         for prog in self.programs.values():
@@ -834,7 +701,7 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
+            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending)
 
         return num_covered
 
@@ -878,8 +745,9 @@ class ProgramSet(NamedItem):
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
 
 
-    def get_outcomes(self, coverage=None, year=None, sample='best'):
+    def get_outcomes(self, coverage=None, year=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
+        # TODO - add sampling back in once we've decided how to do it
 
         # Validate inputs
         if year is None: year = 2018. # TEMPORARY
@@ -985,16 +853,6 @@ class ProgramSet(NamedItem):
                 else: raise AtomicaException('Unknown reachability type "%s"', self.covouts[(par_type, pop)].cov_interaction)
         
         return outcomes
-        
-        
-    def export(self):
-        '''Export progset data to a progbook'''
-        pass
-
-    def reconcile(self):
-        '''Reconcile parameters'''
-        pass
-
 
 #--------------------------------------------------------------------
 # Program class
@@ -1142,9 +1000,8 @@ class Program(NamedItem):
             unit_cost = self.unit_cost.interpolate(year)
         unit_cost = promotetoarray(unit_cost)
             
-        if capacity is None:
-            if self.capacity is not None:
-                capacity = self.capacity.interpolate(year)
+        if capacity is None and self.capacity.has_data:
+            capacity = self.capacity.interpolate(year)
             
         # Use a linear cost function if capacity has not been set
         if capacity is not None:
