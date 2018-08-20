@@ -95,7 +95,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
-            P.demo_optimization() # Add optimization example
+            P.demo_tb_optimization() # Add optimization example
             if verbose: print('Done!')
 
     elif which=='service':
