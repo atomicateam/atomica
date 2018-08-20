@@ -6,7 +6,7 @@ set of programs, respectively.
 Version: 2018jul30
 """
 
-from sciris import odict, today, desc, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
+from sciris import odict, today, prepr, promotetolist, promotetoarray, indent, isnumber, sanitize, dataframe, checktype, dcp
 import sciris as sc
 from .system import AtomicaException
 from .utils import NamedItem
@@ -960,7 +960,7 @@ class Covout(object):
         return None
     
     def __repr__(self):
-#        output = desc(self)
+#        output = prepr(self)
         output  = indent('   Parameter: ', self.par)
         output += indent('  Population: ', self.pop)
         output += indent('     NPI val: ', self.npi_val.get('all'))
@@ -1048,7 +1048,7 @@ class Val(object):
     
     
     def __repr__(self):
-        output = desc(self)
+        output = prepr(self)
         return output
     
     
