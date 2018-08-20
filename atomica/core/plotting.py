@@ -914,7 +914,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     return figs
 
 
-def plot_series(plotdata, plot_type='line', axis=None, data=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -922,7 +922,12 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
     # - plot_type - 'line', 'stacked', or 'proportion' (stacked, normalized to 1)
     # - data - Draw scatter points for data wherever the output label matches
     #   a data label. Only draws data if the plot_type is 'line'
+
     global settings
+    if legend_mode is not None: 
+        settings['legend_mode'] = legend_mode
+    if lw is None:
+        lw = 3
     
     if axis is None: axis = 'outputs'
 
@@ -962,7 +967,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None):
                 else:
                     for i,result in enumerate(plotdata.results):
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
-                                color=plotdata[result, pop, output].color, label=plotdata.result_names[result])
+                                color=plotdata[result, pop, output].color, label=plotdata.result_names[result], lw=lw)
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
