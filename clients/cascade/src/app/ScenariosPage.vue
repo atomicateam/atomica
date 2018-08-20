@@ -276,9 +276,9 @@ Last update: 2018-08-18
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           this.getScenSummaries()
-/*          this.getDefaultBudgetScen()
+          this.getDefaultBudgetScen()
           this.updateSets()
-          this.getPlotOptions() */
+          this.getPlotOptions()
         })
       }
     },
