@@ -101,6 +101,26 @@ class ProgramSet(NamedItem):
     # Methods for data I/O
     #######################################################################################################
 
+    def _set_available(self,framework,data):
+        # Given framework and data, set the available pops, comps, and pars
+        # noting that these are matched to the framework and data even though
+        # the programs may not reach all of them
+        self.pops = sc.odict()
+        for x, v in data.pops.items():
+            self.pops[x] = v['label']
+
+        self.comps = sc.odict()
+        for _, spec in framework.comps.iterrows():
+            if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
+                continue
+            else:
+                self.comps[spec.name] = spec['display name']
+
+        self.pars = sc.odict()
+        for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'],framework.pars['is impact']):
+            if is_impact == 'y':
+                self.pars[name] = label
+
     @staticmethod
     def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
@@ -119,18 +139,7 @@ class ProgramSet(NamedItem):
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
         self = ProgramSet()
-
-        self.pops = sc.odict()
-        for x, v in data.pops.items():
-            self.pops[x] = v['label']
-
-        self.comps = sc.odict()
-        for name, label in zip(framework.comps.index, framework.comps['display name']):
-            self.comps[name] = label
-
-        self.pars = sc.odict()
-        for name, label in zip(framework.pars.index, framework.pars['display name']):
-            self.pars[name] = label
+        self._set_available(framework,data)
 
         # Create and load spreadsheet
         if isinstance(spreadsheet,string_types):
@@ -234,102 +243,58 @@ class ProgramSet(NamedItem):
 
         # Work out the column offset associated with each population label and comp label
         pop_block_offset = 2 # This is the co
-        sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats['rc_title']['left']['T'])
+        sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats['rc_title']['left']['F'])
         comp_block_offset = 2+len(self.pops)+1
-        sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats['rc_title']['left']['T'])
+        sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats['rc_title']['left']['F'])
 
-        pop_offsets = {n:i+pop_block_offset for i,n in enumerate(self.pops.keys())}
-        comp_offsets = {n:i+comp_block_offset for i,n in enumerate(self.pops.keys())}
+        pop_col = {n:i+pop_block_offset for i,n in enumerate(self.pops.keys())}
+        comp_col = {n:i+comp_block_offset for i,n in enumerate(self.comps.keys())}
 
         # Write the header row
         sheet.write(1, 0, 'Abbreviation', self._formats["center_bold"])
         update_widths(widths,0,'Abbreviation')
         sheet.write(1, 1, 'Full Name', self._formats["center_bold"])
         update_widths(widths,1,'Abbreviation')
+        for pop,full_name in self.pops.items():
+            col = pop_col[pop]
+            sheet.write(1, col, full_name, self._formats['rc_title']['left']['T'])
+            widths[col] = 12 # Wrap population names
 
-        for pop in self.pops.keys():
-            col = pop_offsets[pop]
-            sheet.write(1, col, pop, self._formats["center_bold"])
-            update_widths(widths, col, pop)
+        for comp,full_name in self.comps.items():
+            col = comp_col[comp]
+            sheet.write(1, col, full_name, self._formats['rc_title']['left']['T'])
+            widths[col] = 12 # Wrap compartment names
 
-        for comp in self.comps.keys():
-            col = comp_offsets[comp]
-            sheet.write(1, col, comp, self._formats["center_bold"])
-            update_widths(widths, col, comp)
-        #
-        # n_pops = len(self.pops)
-        # n_comps = len(self.comps)
-        #
-        # if boolean_choice:
-        #     content = np.full((len(nodes), len(nodes)), 'N', dtype=object)  # This will also coerce the value to string in preparation for writing
-        # else:
-        #     content = np.full((len(nodes), len(nodes)), '', dtype=object)  # This will also coerce the value to string in preparation for writing
-        #
-        # for interaction, value in entries.items():
-        #     from_node, to_node = interaction
-        #     if not enable_diagonal and from_node == to_node:
-        #         raise AtomicaException('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
-        #     from_idx = nodes.index(from_node)
-        #     to_idx = nodes.index(to_node)
-        #     if boolean_choice:
-        #         value = 'Y' if value else 'N'
-        #     content[from_idx, to_idx] = value
-        #
-        # # Write the content
-        # for from_idx in range(0, len(nodes)):
-        #     for to_idx in range(0, len(nodes)):
-        #         row = start_row + 1 + from_idx
-        #         col = to_idx + 1
-        #         if not enable_diagonal and to_idx == from_idx:  # Disable the diagonal if that's what's desired
-        #             val = FS.DEFAULT_SYMBOL_INAPPLICABLE
-        #             worksheet.write(row, col, val, formats["center"])
-        #             worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["N.A."]})
-        #         else:
-        #             val = content[from_idx, to_idx]
-        #             worksheet.write(row, col, content[from_idx, to_idx], formats["center_unlocked"])
-        #             if boolean_choice:
-        #                 worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
-        #                 worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': formats['unlocked_boolean_true']})
-        #                 worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': formats['unlocked_boolean_false']})
-        #         table_references[(nodes[from_idx], nodes[to_idx])] = xlrc(row, col, True, True)  # Store reference to this interaction
-        #         values_written[table_references[(nodes[from_idx], nodes[to_idx])]] = val
-        #
-        #
-        #
-        #
-        #
-        #
-        #
-        #
-        # current_row = 0
-        #
-        # # Write descriptions of targeting
-        #
-        #
-        #
-        #
-        #
-        #
-        # # Write populations and compartments for targeting
-        # existing_data = []
-        # for prog in self.programs.values():
-        #     label = prog.label
-        #     name = prog.name
-        #     target_pops = [''] + ['' if pop not in prog.target_pops else 1 for pop in self.allpops.keys()]
-        #     target_comps = [''] + ['' if comp not in prog.target_comps else 1 for comp in comps]
-        #     existing_data.append([name, label] + target_pops + target_comps)
-        #
-        # # Make column names
-        # column_names = ['Short name', 'Long name', ''] + self.allpops.values() + [''] + comps.values()
-        # content = self.set_content(row_names=range(1, len(self.programs) + 1),
-        #                            column_names=column_names,
-        #                            data=existing_data,
-        #                            assumption=False)
-        #
-        # self.prog_range = ProgramEntry(sheet=sheet, first_row=current_row, content=content)
-        # current_row = self.prog_range.emit(self._formats, rc_title_align='left', widths=widths)
-        # self.ref_prog_range = self.prog_range.param_refs()
-        # apply_widths(sheet, widths)
+        row = 2
+        for prog in self.programs.values():
+            sheet.write(row, 0, prog.name)
+            update_widths(widths, 0, prog.name)
+            sheet.write(row, 1, prog.label)
+            update_widths(widths, 1, prog.label)
+
+            for pop in self.pops:
+                col = pop_col[pop]
+                if pop in prog.target_pops:
+                    sheet.write(row,col, 'Y', self._formats["center"])
+                else:
+                    sheet.write(row,col, 'N', self._formats["center"])
+                sheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
+                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
+                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
+
+            for comp in self.comps:
+                col = comp_col[comp]
+                if comp in prog.target_comps:
+                    sheet.write(row,col, 'Y', self._formats["center"])
+                else:
+                    sheet.write(row,col, 'N', self._formats["center"])
+                sheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
+                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
+                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
+
+            row += 1
+
+        apply_widths(sheet,widths)
 
 
     def _read_spending(self,sheet):
