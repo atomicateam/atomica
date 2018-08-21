@@ -5,20 +5,22 @@ from atomica.ui import InvalidCascade
 import os
 
 test = 'tb'
-# test = 'udt2'
+# test = 'udt'
 
 torun = [
+"basicplots",
+"scenplots",
 "validate_cascade"
 # "basicplots",
 #"scenplots",
 #"cascadefromscratch",
-# 'mpld3test'
+#'mpld3test'
 ]
 
 
 # Check validation
 if "validate_cascade" in torun:
-    from atomica.core.cascade import validate_cascade
+    from atomica.cascade import validate_cascade
 
     # Check that all the frameworks have either a valid cascade sheet, or
     # the fallback cascade is valid
@@ -27,7 +29,9 @@ if "validate_cascade" in torun:
         if '_bad' in fname:
             continue
         print("Validating %s" % (fname))
-        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
+        F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
+
+#        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
 
         # Validate all of the cascades in the framework
         if not F.cascades:
@@ -89,15 +93,6 @@ if "basicplots" in torun:
         au.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
         au.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
     elif test == 'udt':
-        startyear = 2016
-        endyear = 2017
-        au.plot_cascade(result, cascade='main', pops='all', year=startyear, data=P.data) # plot 'main' cascade
-        au.plot_cascade(result, cascade='main', pops='all', year=endyear, data=P.data) # plot 'main' cascade
-        au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data) # plot first cascade
-        au.plot_cascade(result, cascade=None, pops='all', year=startyear, data=P.data) # plot default cascade
-        au.plot_cascade(result, cascade=['all_people','all_dx'], pops='all', year=startyear, data=P.data) # plot sequence cascade
-        au.plot_cascade(result, cascade={'Everyone':['all_people'],'Infected':['dx','tx']}, pops='all', year=startyear, data=P.data) # plot dict cascade
-    elif test == 'udt2':
         # No predefined cascades, use the default one
         au.plot_cascade(result, pops='all', year=2016, data=P.data)  # plot default cascade
     else:
@@ -139,11 +134,13 @@ if "scenplots" in torun:
     startyear = 2018 if test=='tb' else 2016
     endyear = 2020 if test=='tb' else 2017
 
-    au.plot_multi_cascade([par_results,scen_results],'main',year=startyear)
-    au.plot_multi_cascade([par_results],'main',year=[startyear,endyear])
-    if test=='tb': au.plot_multi_cascade([par_results],'secondary',year=[startyear,endyear])
-    au.plot_multi_cascade([par_results,scen_results],cascade='main',pops='all',year=[startyear,endyear])
-    #au.plot_multi_cascade([par_results,scen_results],cascade=cascade,pops='all',year=2030)
+    au.plot_multi_cascade([par_results,scen_results],None,year=startyear)
+    au.plot_multi_cascade([par_results],None,year=[startyear,endyear])
+    if test=='tb':
+        au.plot_multi_cascade([par_results,scen_results],cascade=0,pops='all',year=[startyear,endyear])
+        au.plot_multi_cascade([par_results],cascade=1,year=[startyear,endyear])
+        #au.plot_multi_cascade([par_results,scen_results],cascade=None,pops='all',year=2030)
+
 
 
 

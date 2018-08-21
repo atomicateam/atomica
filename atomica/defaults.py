@@ -47,7 +47,7 @@ def default_framework(which=None, show_options=False):
     return F
 
 
-def default_project(which=None, do_run=True, verbose=False, show_options=False, **kwargs):
+def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_options=False, **kwargs):
     """
     Options for easily creating default projects based on different spreadsheets, including
     program information -- useful for testing
@@ -81,7 +81,7 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
 
         framework_file = atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", make_default_progset=True, blh_effects=False)
+        if addprogs: P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", blh_effects=False)
 
     elif which=='tb':
         logger.info("Creating a TB epidemic project with programs...")
@@ -89,25 +89,30 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         framework_file = atomica_path(['tests','frameworks'])+'framework_tb.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run)
-        if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_tb.xlsx", make_default_progset=True, blh_effects=False)
-        if verbose: print('Creating scenarios')
-        P.demo_scenarios() # Add example scenarios
-        if verbose: print('Creating optimizations')
-        P.demo_tb_optimization() # Add optimization example
-        if verbose: print('Done!')
-    
+        if addprogs:
+            if verbose: print('Loading progbook')
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            if verbose: print('Creating scenarios')
+            P.demo_scenarios() # Add example scenarios
+            if verbose: print('Creating optimizations')
+            P.demo_tb_optimization() # Add optimization example
+            if verbose: print('Done!')
+
     elif which=='service':
         logger.info("Creating a disease-agnostic 5-stage service delivery cascade project...")
         
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+        if addprogs: 
+            if verbose: print('Progbook not implemented')
 
     elif which=='diabetes':
         logger.info("Creating a diabetes cascade project...")
         
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
+        if addprogs: 
+            if verbose: print('Progbook not implemented')
 
     elif which=='udt':
         logger.info("Creating a generic 3-stage disease cascade project...")
@@ -116,13 +121,14 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
-        if verbose: print('Creating scenarios')
-        P.demo_scenarios() # Add example scenarios
-        if verbose: print('Creating optimizations')
-        P.demo_optimization() # Add optimization example
-        if verbose: print('Done!')
+        if addprogs: 
+            if verbose: print('Loading progbook')
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            if verbose: print('Creating scenarios')
+            P.demo_scenarios() # Add example scenarios
+            if verbose: print('Creating optimizations')
+            P.demo_optimization() # Add optimization example
+            if verbose: print('Done!')
 
     elif which=='usdt':
         logger.info("Creating a generic 4-stage disease cascade project...")
@@ -131,13 +137,14 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
-        if verbose: print('Creating scenarios')
-        P.demo_scenarios() # Add example scenarios
-        if verbose: print('Creating optimizations')
-        P.demo_optimization() # Add optimization example
-        if verbose: print('Done!')
+        if addprogs: 
+            if verbose: print('Loading progbook')
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            if verbose: print('Creating scenarios')
+            P.demo_scenarios() # Add example scenarios
+            if verbose: print('Creating optimizations')
+            P.demo_optimization() # Add optimization example
+            if verbose: print('Done!')
 
     elif which=='hypertension':
         logger.info("Creating a hypertension cascade project based on Malawi...")
@@ -146,13 +153,14 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
-        if verbose: print('Creating scenarios')
-        P.demo_scenarios() # Add example scenarios
-        if verbose: print('Creating optimizations')
-        P.demo_optimization() # Add optimization example
-        if verbose: print('Done!')
+        if addprogs: 
+            if verbose: print('Loading progbook')
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            if verbose: print('Creating scenarios')
+            P.demo_scenarios() # Add example scenarios
+            if verbose: print('Creating optimizations')
+            P.demo_optimization() # Add optimization example
+            if verbose: print('Done!')
 
     elif which=='hiv':
         logger.info("Creating an HIV cascade project...")
@@ -161,13 +169,14 @@ def default_project(which=None, do_run=True, verbose=False, show_options=False, 
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", make_default_progset=True, blh_effects=False)
-        if verbose: print('Creating scenarios')
-        P.demo_scenarios() # Add example scenarios
-        if verbose: print('Creating optimizations')
-        P.demo_optimization() # Add optimization example
-        if verbose: print('Done!')
+        if addprogs: 
+            if verbose: print('Loading progbook')
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            if verbose: print('Creating scenarios')
+            P.demo_scenarios() # Add example scenarios
+            if verbose: print('Creating optimizations')
+            P.demo_optimization() # Add optimization example
+            if verbose: print('Done!')
 
     else:
         raise AtomicaException("Default project type '{0}' not understood; choices are 'sir', 'tb'.".format(which))

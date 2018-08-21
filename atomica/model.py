@@ -831,11 +831,11 @@ class Model(object):
             self._program_cache['comps'] = {}
             self._program_cache['pars'] = {}
             for prog in self.progset.programs.values():
-                self._program_cache['comps'][prog.short] = []
+                self._program_cache['comps'][prog.name] = []
 
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
-                        self._program_cache['comps'][prog.short].append(self.get_pop(pop_name).get_comp(comp_name))
+                        self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
             for target_par in prog.target_pars:
                 if target_par['param'] not in self._program_cache['pars']:
@@ -1216,10 +1216,8 @@ class Model(object):
             # Then overwrite with program values
             if do_program_overwrite:
                 for par in pars:
-                    if par.name in prog_vals and par.pop.name in prog_vals[par.name]:
-                        par.vals[ti] = prog_vals[par.name][par.pop.name]
-                    else:
-                        break
+                    if (par.name,par.pop.name) in prog_vals:
+                        par.vals[ti] = prog_vals[(par.name,par.pop.name)]
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
