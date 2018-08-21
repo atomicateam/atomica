@@ -32,7 +32,8 @@ if not any([isinstance(h,logging.StreamHandler) and not isinstance(h,logging.Fil
     h2 = logging.StreamHandler(sys.stderr)
     # h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
     h1.setLevel(0) # Handle all
-    h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x,logRecord: logRecord.levelno < logging.WARNING})()) # Display anything less than a warning
+    warning_level = logging.WARNING
+    h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x,logRecord: logRecord.levelno < warning_level})()) # Display anything less than a warning
     h2.setLevel(logging.WARNING)
     
     logger.addHandler(h1)
