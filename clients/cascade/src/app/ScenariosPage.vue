@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-20
+Last update: 2018-08-21
 -->
 
 <template>
@@ -667,31 +667,6 @@ Last update: 2018-08-20
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  .calib-controls {
-    margin-bottom: 3rem;
-  }
-  .calib-controls .control-group {
-    display: inline-block;
-  }
-  .calib-controls button, .calib-controls .control-group {
-    margin-right: 1rem;
-  }
-
-  .calib-main {
-    margin-top: 4rem;
-  }
-  .calib-params {
-    flex: 0 0 30%;
-  }
-  .calib-graphs {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    & > * {
-      flex: 0 0 650px;
-    }
-  }
-
   /*
   HACK: The purpose of this code is to get things to line up a bit until
   we have a proper layout. Using fixed pixel widths is terrible and we
@@ -703,7 +678,7 @@ Last update: 2018-08-20
     font-weight: bold;
   }
   .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
-    color: black; /* To match graph */
+    color: black;  /* To match graph */
     font-family: Helvetica, sans-serif; /* To match graph */
   }
   .calib-tables table, .calib-tables tr, .calib-tables td {
@@ -717,28 +692,6 @@ Last update: 2018-08-20
   .calib-tables table td:nth-child(1) {
     width: 192px; /* Header column */
     padding-right: 11px;
-  }
-
-  .plotopts-main {
-    /*width: 350px;*/
-    /*padding-left: 20px;*/
-    display: flex;
-    /*float: left;*/
-  }
-  .plotopts-main--full {
-    display: block;
-  }
-  .plotopts-params {
-    flex: 1 0 10%;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
-  }
-  .small-button {
-    background: inherit;
-    padding: 0 0 0 0;
   }
 </style>
 

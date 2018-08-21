@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-20
+Last update: 2018-08-21
 -->
 
 <template>
@@ -705,14 +705,6 @@ Last update: 2018-08-20
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  .calib-graphs {
-    display: flex;
-    flex-wrap: wrap;
-    & > * {
-      flex: 0 0 650px;
-    }
-  }
-
   /*
   HACK: The purpose of this code is to get things to line up a bit until
   we have a proper layout. Using fixed pixel widths is terrible and we
@@ -738,10 +730,5 @@ Last update: 2018-08-20
   .calib-tables table td:nth-child(1) {
     width: 192px; /* Header column */
     padding-right: 11px;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
   }
 </style>
