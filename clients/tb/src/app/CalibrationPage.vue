@@ -445,6 +445,6 @@ Last update: 2018-08-16
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
 
 </style>

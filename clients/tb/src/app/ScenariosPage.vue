@@ -485,7 +485,7 @@ Last update: 2018-08-15
 
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
 
 </style>
 

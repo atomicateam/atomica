@@ -104,6 +104,7 @@ Last update: 2018-08-20
             </tbody>
           </table>
         </div>
+        
         <div class="calib-figures">
           <div class="calib-graphs">
             <div v-for="index in placeholders" :id="'fig'+index">
@@ -120,6 +121,7 @@ Last update: 2018-08-20
             </table>
           </div>
         </div>
+        
       </div>
 
       <modal name="add-budget-scen"
@@ -664,7 +666,7 @@ Last update: 2018-08-20
 
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
   .calib-controls {
     margin-bottom: 3rem;
   }
