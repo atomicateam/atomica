@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from atomica.optimization import optimize
 
 #test = "sir"
-test = "tb"
-#test = "hypertension"
+#test = "tb"
+test = "hypertension"
 #test = "udt"
 #test = "usdt"
 #test = "hiv"
@@ -19,24 +19,24 @@ test = "tb"
 #test = "service"
 
 torun = [
-# "loadframework",
+#"loadframework",
 # "saveframework",
 # "makedatabook",
 # "makeproject",
 # "loaddatabook",
 # "makeparset",
-# "runsim",
+#"runsim",
 #"plotcascade",
 # "makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 # "autocalibrate",
 # "parameterscenario",
-'budgetscenarios',
+#'budgetscenarios',
 #'optimization',
 # "saveproject",
 # "loadproject",
@@ -285,7 +285,7 @@ if "runsim_programs" in torun:
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2020])
 
     elif test == 'hiv':
         scen1alloc = {'Testing - clinics': 1500000}
