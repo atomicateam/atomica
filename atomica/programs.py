@@ -937,32 +937,30 @@ class Covout(object):
 
         # We have been given the coverage for all programs
         outcome = self.baseline
-        delta, thiscov = sc.odict(), sc.odict()
-
-        for prog in self.progs:
-            thiscov[prog] = coverage[prog]
-            delta[prog] = self.progs[prog] - outcome # This is the gradient of the outcome going from 0 to 1 coverage
 
         # Pre-check for additive calc
         if self.cov_interaction == 'additive':
-            if sum(thiscov[:]) > 1:
-                logger.warning('Coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % (list(self.progs.keys()), [self.par, self.pop], sum(thiscov[:])))
+            total_coverage = 0.0
+            for prog in self.progs:
+                total_coverage += coverage[prog]
+            if total_coverage > 1:
+                logger.warning('Coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % (list(self.progs.keys()), [self.par, self.pop], total_coverage))
                 self.cov_interaction = 'random'
 
         # ADDITIVE CALCULATION
         # NB, if there's only one program targeting this parameter, just do simple additive calc
         if self.cov_interaction == 'additive' or len(self.progs) == 1:
             # Outcome += c1*delta_out1 + c2*delta_out2
-            for prog in self.progs:
-                outcome += thiscov[prog] * delta[prog]
+            for prog,prog_outcome in self.progs.items():
+                outcome += coverage[prog] * (prog_outcome - self.baseline)
 
         # NESTED CALCULATION
         elif self.cov_interaction == 'nested':
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
             cov, delt = [], []
-            for prog in thiscov.keys():
-                cov.append(thiscov[prog])
-                delt.append(delta[prog])
+            for prog,prog_outcome in self.progs.items():
+                cov.append(coverage[prog])
+                delt.append(prog_outcome - self.baseline)
             cov_tuple = sorted(zip(cov, delt))  # A tuple storing the coverage and delta out, ordered by coverage
             for j in range(len(cov_tuple)):  # For each entry in here
                 if j == 0:
@@ -971,38 +969,42 @@ class Covout(object):
                     c1 = cov_tuple[j][0] - cov_tuple[j - 1][0]
                 outcome += c1 * max([ct[1] for ct in cov_tuple[j:]])
 
-                # RANDOM CALCULATION
+        # RANDOM CALCULATION
         elif self.cov_interaction == 'random':
             # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
 
-            for prog1 in thiscov.keys():
-                product = ones(thiscov[prog1].shape)
-                for prog2 in thiscov.keys():
-                    if prog1 != prog2:
-                        product *= (1 - thiscov[prog2])
+            cov, delt = [], []
+            for prog,prog_outcome in self.progs.items():
+                cov.append(coverage[prog])
+                delt.append(prog_outcome - self.baseline)
 
-                outcome += delta[prog1] * thiscov[prog1] * product
-
-                # Recursion over overlap levels
-
+            # Recursion over overlap levels
             def overlap_calc(indexes, target_depth):
                 if len(indexes) < target_depth:
-                    accum = 0
-                    for j in range(indexes[-1] + 1, len(thiscov)):
-                        accum += overlap_calc(indexes + [j], target_depth)
-                    output = thiscov.values()[indexes[-1]] * accum
+                    output = 0.0
+                    for j in range(indexes[-1] + 1, len(cov)):
+                        output += overlap_calc(indexes + [j], target_depth)
                     return output
                 else:
-                    output = thiscov.values()[indexes[-1]] * max(delta.values()[0], 0)
+                    output = 1.0
+                    ptr = 0 # Use instead of testing 'i in indexes' to avoid O(N) search
+                    for i in range(0,len(cov)):
+                        if ptr < len(indexes) and indexes[ptr] == i: # if program is covered
+                            ptr += 1
+                            output *= cov[i]
+                        else:
+                            output *= (1-cov[i])
+
+                    output *= max([delt[x] for x in indexes], key=abs)
                     return output
 
             # Iterate over overlap levels
-            for i in range(2, len(thiscov)):  # Iterate over numbers of overlapping programs
-                for j in range(0, len(thiscov) - 1):  # Iterate over the index of the first program in the sum
-                    outcome += overlap_calc([j], i)[0]
+            for i in range(1, len(cov)):  # Iterate over numbers of overlapping programs
+                for j in range(0, len(cov)):  # Iterate over the index of the first program in the sum
+                    outcome += overlap_calc([j], i)
 
             # All programs together
-            outcome += prod(array(thiscov.values()), 0) * max([c for c in delta.values()])
+            outcome += prod(array(cov), 0) * max([c for c in delt])
 
         else:
             raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)

@@ -19,13 +19,13 @@ test = "tb"
 #test = "service"
 
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
+# "loadframework",
+# "saveframework",
+# "makedatabook",
+# "makeproject",
+# "loaddatabook",
+# "makeparset",
+# "runsim",
 #"plotcascade",
 # "makeblankprogbook",
 # "writeprogbook",
