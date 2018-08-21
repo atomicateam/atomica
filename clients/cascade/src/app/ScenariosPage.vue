@@ -82,7 +82,7 @@ Last update: 2018-08-21
         <button class="btn" @click="exportResults(projectID)">Export data</button>
 
       </div>
-
+      
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
         <div class="calib-params" v-if="areShowingPlots">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -105,23 +105,21 @@ Last update: 2018-08-21
           </table>
         </div>
         
-        <div class="calib-figures">
-          <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index">
-              <!--mpld3 content goes here-->
-            </div>
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index">
+            <!--mpld3 content goes here-->
           </div>
-          <div class="calib-tables" v-if="table">
-            <span>Losses</span>
-            <table>
-              <tr v-for="(label, index) in table.labels">
-                <td>{{label}}</td>
-                <td v-for="text in table.text[index]">{{text}}</td>
-              </tr>
-            </table>
-          </div>
-        </div>
-        
+        </div>       
+      </div>
+      
+      <div class="calib-tables" v-if="table">
+        <span>Losses</span>
+        <table>
+          <tr v-for="(label, index) in table.labels">
+            <td>{{label}}</td>
+            <td v-for="text in table.text[index]">{{text}}</td>
+          </tr>
+        </table>
       </div>
 
       <modal name="add-budget-scen"
@@ -678,7 +676,7 @@ Last update: 2018-08-21
     font-weight: bold;
   }
   .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
-    color: black;  /* To match graph */
+    color: black; /* To match graph */
     font-family: Helvetica, sans-serif; /* To match graph */
   }
   .calib-tables table, .calib-tables tr, .calib-tables td {
