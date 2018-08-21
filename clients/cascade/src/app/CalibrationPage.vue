@@ -159,8 +159,8 @@ Last update: 2018-08-20
           </div>
         </div>
 
-        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
-          <div class="plotopts-params" v-if="areShowingPlots">
+        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}" v-if="areShowingPlots">
+          <div class="plotopts-params">
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
               <tr>
