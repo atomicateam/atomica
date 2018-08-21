@@ -34,7 +34,7 @@ from .parameters import ParameterSet
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
 from .optimization import optimize, OptimInstructions
-from .system import AtomicaException, logger
+from .system import logger
 from .scenarios import BudgetScenario
 from .utils import NDict
 import sciris as sc
