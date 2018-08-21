@@ -54,7 +54,8 @@ def standard_formats(workbook):
     formats['white_bg'] = workbook.add_format({'bg_color': '#FFFFFF','border': 1,'border_color': '#CCCCCC'})
     formats['ignored'] = workbook.add_format({'pattern': 14}) # Hatched with diagonal lines - this represents a cell whose value will not be used in the model run (e.g., an assumption that also has time-specific points)
     formats['warning'] = workbook.add_format({'bg_color': '#FF0000'})
-    formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'})
+    formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'}) # hatched, with red background
+    formats['ignored_not_required'] = workbook.add_format({'pattern': 14,'bg_color': '#EEEEEE','border': 1,'border_color': '#CCCCCC'}) # hatched, with grey background
 
     return formats
 

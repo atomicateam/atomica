@@ -342,6 +342,7 @@ class ProgramSet(NamedItem):
             widths[col] = 12 # Wrap compartment names
 
         row = 2
+        self._references['reach_pop'] = dict() # This is storing cells e.g. self._references['reach_pop'][('BCG','0-4')]='$A$4' so that conditional formatting can be done
         for prog in self.programs.values():
             sheet.write(row, 0, prog.name)
             self._references[prog.name] = "='%s'!%s" % (sheet.name,xlrc(row, 0,True,True))
@@ -356,9 +357,10 @@ class ProgramSet(NamedItem):
                     sheet.write(row,col, 'Y', self._formats["center"])
                 else:
                     sheet.write(row,col, 'N', self._formats["center"])
+                self._references['reach_pop'][(prog.name,pop)] = "'%s'!%s" % (sheet.name,xlrc(row,col,True,True))
                 sheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
                 sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
-                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
+                # sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
 
             for comp in self.comps:
                 col = comp_col[comp]
@@ -368,7 +370,7 @@ class ProgramSet(NamedItem):
                     sheet.write(row,col, 'N', self._formats["center"])
                 sheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
                 sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
-                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
+                # sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
 
             row += 1
 
@@ -523,7 +525,13 @@ class ProgramSet(NamedItem):
                         sheet.write(current_row, prog_col[prog.name], covout.progs[prog.name],self._formats['not_required'])
                     else:
                         sheet.write(current_row, prog_col[prog.name], None,self._formats['unlocked'])
+
+                    fcn_pop_not_reached = '%s<>"Y"' % (self._references['reach_pop'][(prog.name, pop_name)])  # Excel formula returns FALSE if pop was 'N' (or blank)
+                    sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_pop_not_reached, xlrc(current_row, prog_col[prog.name])), 'format': self._formats['ignored_warning']})
+                    sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria':  '=' + fcn_pop_not_reached, 'format': self._formats['ignored_not_required']})
+
                 current_row += 1
+
             current_row += 1
 
         apply_widths(sheet,widths)
