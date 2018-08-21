@@ -987,10 +987,8 @@ class Covout(object):
                     return output
                 else:
                     output = 1.0
-                    ptr = 0 # Use instead of testing 'i in indexes' to avoid O(N) search
                     for i in range(0,len(cov)):
-                        if ptr < len(indexes) and indexes[ptr] == i: # if program is covered
-                            ptr += 1
+                        if i in indexes:
                             output *= cov[i]
                         else:
                             output *= (1-cov[i])
