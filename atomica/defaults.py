@@ -81,6 +81,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
 
         framework_file = atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run)
+        P.settings.sim_dt = 1.0
         if addprogs: P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", blh_effects=False)
 
     elif which=='tb':
@@ -103,7 +104,8 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if addprogs: 
+        P.settings.sim_dt = 1.0
+        if addprogs:
             if verbose: print('Progbook not implemented')
 
     elif which=='diabetes':
@@ -111,7 +113,8 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if addprogs: 
+        P.settings.sim_dt = 1.0
+        if addprogs:
             if verbose: print('Progbook not implemented')
 
     elif which=='udt':
@@ -121,7 +124,8 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if addprogs: 
+        P.settings.sim_dt = 1.0
+        if addprogs:
             if verbose: print('Loading progbook')
             P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
             if verbose: print('Creating scenarios')
@@ -137,7 +141,8 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if addprogs: 
+        P.settings.sim_dt = 1.0
+        if addprogs:
             if verbose: print('Loading progbook')
             P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
             if verbose: print('Creating scenarios')
@@ -153,7 +158,8 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if addprogs: 
+        P.settings.sim_dt = 1.0
+        if addprogs:
             if verbose: print('Loading progbook')
             P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
             if verbose: print('Creating scenarios')
@@ -169,7 +175,8 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
-        if addprogs: 
+        P.settings.sim_dt = 1.0
+        if addprogs:
             if verbose: print('Loading progbook')
             P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
             if verbose: print('Creating scenarios')
