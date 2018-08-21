@@ -30,7 +30,7 @@ torun = [
 # "makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-"runsim_programs",
+#"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
