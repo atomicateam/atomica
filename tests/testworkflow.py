@@ -4,7 +4,7 @@ Version:
 
 import os
 import atomica.ui as au
-import sciris.core as sc
+import sciris as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
