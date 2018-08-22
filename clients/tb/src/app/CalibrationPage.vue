@@ -296,7 +296,22 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-
+      
+      clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
+        if (this.endYear > this.simEnd) {
+          this.endYear = this.simEnd
+        }
+        else if (this.endYear < this.simStart) {
+          this.endYear = this.simStart
+        }
+      },
+      
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
@@ -363,6 +378,7 @@ Last update: 2018-08-22
 
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, 
           this.startYear, this.endYear]) // Go to the server to get the results from the package set.
@@ -378,6 +394,7 @@ Last update: 2018-08-22
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {

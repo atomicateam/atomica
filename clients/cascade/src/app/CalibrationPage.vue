@@ -358,6 +358,7 @@ Last update: 2018-08-22
 
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this) // Start indicating progress.
         rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,       
           this.startYear, this.endYear, this.activePop]) // Go to the server to get the results from the package set.
@@ -373,6 +374,7 @@ Last update: 2018-08-22
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {

@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-15
+Last update: 2018-08-22
 -->
 
 <template>
@@ -230,6 +230,8 @@ Last update: 2018-08-15
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        startYear: 0,
+        endYear: 0,         
         graphData: [],
         areShowingPlotControls: false,
         plotOptions: [],
@@ -283,7 +285,22 @@ Last update: 2018-08-15
         }
         return utils.scaleFigs(frac)
       },
-
+      
+      clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
+        if (this.endYear > this.simEnd) {
+          this.endYear = this.simEnd
+        }
+        else if (this.endYear < this.simStart) {
+          this.endYear = this.simStart
+        }
+      },
+      
       updateSets() {
         console.log('updateSets() called')
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
@@ -457,6 +474,7 @@ Last update: 2018-08-15
 
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim)
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
