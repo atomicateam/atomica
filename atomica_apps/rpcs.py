@@ -1083,7 +1083,43 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs, 'table':table}
-    
+
+def get_budget_plot(results=None, year=None):
+    # INPUTS
+    # - results : A Result object, or list of Result objects
+    # - year : A year, or array of years
+    #
+    # OUTPUTS
+    # - mpld3 graphs array with two figures, first entry is a bar graph of the budgets, the second
+    #   is the legend (typically for TB there are many many entries)
+    #
+    # Stacked bar graph, for different times
+    d = au.PlotData.programs(results)
+    d.interpolate(year)
+    figs = au.plot_bars(d, stack_outputs='all',legend_mode='separate',outer='times',show_all_labels=True)
+
+    ax = figs[0].axes[0]
+    ax.set_ylabel('Spending ($/year)')
+
+    # The legend is too big for the figure. Saving figures is fine because
+    # matplotlib's `savefig` has `bbox_inches='tight'` which expands the figure
+    # to include all the contents. Doesn't seem to be anything like that for a
+    # figure window. So this is a bit TB specific here - it should be done
+    # as part of generating the legend figure
+    figs[1].set_figheight(8.9)
+    figs[1].set_figwidth(8.7)
+
+    graphs = []
+    for fig in figs:
+        ax = fig.get_axes()[0]
+        ax.set_facecolor('none')
+        fig.tight_layout(rect=[0.05, 0.05, 0.9, 0.95])
+        mpld3.plugins.connect(fig, CursorPosition())
+        graph_dict = mpld3.fig_to_dict(fig)
+        graphs.append(graph_dict)
+        # pl.close(fig)
+        print('Budget plot succeeded')
+        return {'graphs': graphs}
 
 @timeit
 @RPC()  

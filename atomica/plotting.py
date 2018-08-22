@@ -463,11 +463,11 @@ class PlotData(object):
                 for prog in result.model.progset.programs.values(): # For each program
                     for pop_name in prog.target_pops:
                         for comp_name in prog.target_comps:
-                            if prog.short not in num_eligible:
-                                num_eligible[prog.short] = result.get_variable(pop_name,comp_name)[0].vals.copy()
+                            if prog.name not in num_eligible:
+                                num_eligible[prog.name] = result.get_variable(pop_name,comp_name)[0].vals.copy()
                             else:
-                                num_eligible[prog.short] += result.get_variable(pop_name,comp_name)[0].vals
-                    prop_covered[prog.short] = np.minimum(num_covered[prog.short]/num_eligible[prog.short],np.ones(result.t.shape))
+                                num_eligible[prog.name] += result.get_variable(pop_name,comp_name)[0].vals
+                    prop_covered[prog.name] = np.minimum(num_covered[prog.name]/num_eligible[prog.name],np.ones(result.t.shape))
                 if quantity == 'coverage_denominator':
                     units = 'Number of people'
                 elif quantity == 'coverage_fraction':
@@ -647,7 +647,7 @@ class Series(object):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
-def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
+def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times',legend_mode=None,show_all_labels=False):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
     # pops and outputs but we never want to stack results. At least for now. 
@@ -656,7 +656,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     #   the number of values is the number of bars - could be time, or could be results?
     # - As many sets as there are ungrouped bars
     # xlabels refers to labels within a block (i.e. they will be repeated for multiple times and results)
+    #
+    # INPUTS
+    # - show_all_labels: If True, then inner/outer labels will be shown even if there is only one
     global settings
+    if legend_mode is None:
+        legend_mode = settings['legend_mode']
 
     assert outer in ['times', 'results'], 'Supported outer groups are "times" or "results"'
 
@@ -832,7 +837,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
                         color_legend[series.color] = [(pop, output)]
                     y0 += y
 
-            block_labels.append((base_offset + block_offset + width / 2, bar_label))
+            block_labels.append((base_offset + block_offset + width / 2., bar_label))
 
             block_offset += width + gaps[0]
 
@@ -859,7 +864,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
     # Set axes now, because we need block_offset and base_offset after the loop
     ax.autoscale()
     ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
-    fig.set_figwidth(1.75 * (block_offset + base_offset))
+    fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
     ax.set_ylim(ymin=0)
     _turn_off_border(ax)
     set_ytick_format(ax, "km")
@@ -876,13 +881,13 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
     # Outer group labels are only displayed if there is more than one group
-    if outer == 'times' and len(tvals) > 1:
+    if outer == 'times' and (show_all_labels or len(tvals) > 1):
         offset = 0.0
         for t in t_labels:
             ax.text(offset + (tval_offset - gaps[1] - gaps[2]) / 2, 1, t, transform=ax.get_xaxis_transform(),
                     verticalalignment='bottom', horizontalalignment='center')
             offset += tval_offset
-    elif outer == 'results' and len(plotdata.results) > 1:
+    elif outer == 'results' and (show_all_labels or len(plotdata.results) > 1):
         offset = 0.0
         for r in plotdata.results:
             ax.text(offset + (result_offset - gaps[1] - gaps[2]) / 2, 1, plotdata.result_names[r],
@@ -890,10 +895,10 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
             offset += result_offset
 
     # If there is only one block per inner group, then use the inner group string as the bar label
-    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and len(set([x for _, x in inner_labels])) > 1:
+    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and (show_all_labels or len(set([x for _, x in inner_labels])) > 1):
         ax.set_xticks([x[0] for x in inner_labels])
         ax.set_xticklabels([x[1] for x in inner_labels])
-    elif len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1:  # Inner group labels are only displayed if there is more than one label
+    elif show_all_labels or (len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1):  # Inner group labels are only displayed if there is more than one label
         ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
         ax2.set_xticks([x[0] for x in inner_labels])
         ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
@@ -905,10 +910,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times'):
         ax2.spines['bottom'].set_visible(False)
         ax2.tick_params(axis=u'both', which=u'both', length=0)
 
+    fig.tight_layout() # Do a final resizing
+
     # Do the legend last, so repositioning the axes works properly
-    if settings['legend_mode'] == 'separate':
+    if legend_mode == 'separate':
         figs.append(render_separate_legend(ax, plot_type='bar', handles=legend_patches))
-    elif settings['legend_mode'] == 'together':
+    elif legend_mode == 'together':
         render_legend(ax, plot_type='bar', handles=legend_patches)
 
     return figs
@@ -922,10 +929,13 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     # - plot_type - 'line', 'stacked', or 'proportion' (stacked, normalized to 1)
     # - data - Draw scatter points for data wherever the output label matches
     #   a data label. Only draws data if the plot_type is 'line'
+    # - legend_mode - override the default legend mode in settings
+    # - lw - Change the line width
 
     global settings
-    if legend_mode is not None: 
-        settings['legend_mode'] = legend_mode
+    if legend_mode is None:
+        legend_mode = settings['legend_mode']
+
     if lw is None:
         lw = 3
     
@@ -971,7 +981,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if settings['legend_mode'] == 'together':
+                if legend_mode == 'together':
                     render_legend(ax, plot_type)
 
     elif axis == 'pops':
@@ -1001,11 +1011,11 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 else:
                     for pop in plotdata.pops:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
-                                color=plotdata[result, pop, output].color, label=plotdata.pop_names[pop])
+                                color=plotdata[result, pop, output].color, label=plotdata.pop_names[pop], lw=lw)
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if settings['legend_mode'] == 'together':
+                if legend_mode == 'together':
                     render_legend(ax, plot_type)
 
     elif axis == 'outputs':
@@ -1037,16 +1047,16 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 else:
                     for output in plotdata.outputs:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
-                                color=plotdata[result, pop, output].color, label=plotdata.output_names[output])
+                                color=plotdata[result, pop, output].color, label=plotdata.output_names[output], lw=lw)
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if settings['legend_mode'] == 'together':
+                if legend_mode == 'together':
                     render_legend(ax, plot_type)
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
-    if settings['legend_mode'] == 'separate':
+    if legend_mode == 'separate':
         figs.append(render_separate_legend(ax, plot_type))
 
     return figs
