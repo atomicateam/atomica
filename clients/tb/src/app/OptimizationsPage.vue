@@ -52,7 +52,7 @@ Last update: 2018-08-22
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
-            <button class="btn" @click="plotOptimization()">Refresh graphs</button>
+<!--            <button class="btn" @click="plotOptimization()">Refresh graphs</button> -->
             <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
           </div>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -504,6 +504,7 @@ Last update: 2018-08-22
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
+        // TODO: This is failing on the server side, and will need to be debugged.
         rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions], 
           {tool:'tb', plotyear:this.endYear})
           .then(response => {
