@@ -72,7 +72,24 @@ Last update: 2018-08-21
         <button class="btn" @click="exportResults(projectID)">Export data</button>
       </div>
 
-
+      <div style="text-align: center">
+        <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="scaleFigs(0.9)">-</button>
+          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+          <button class="btn" @click="scaleFigs(1.1)">+</button>
+        </div>
+      </div>
+      
       <div class="calib-figures">
         <div class="calib-graphs">
           <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
@@ -89,8 +106,6 @@ Last update: 2018-08-21
           </table>
         </div>
       </div>
-
-
 
       <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" style="max-width:400px" v-if="areShowingPlotControls">
         <div class="plotopts-params">
@@ -261,6 +276,7 @@ Last update: 2018-08-21
         endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
+        figscale: 1.0,
       }
     },
 

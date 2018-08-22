@@ -83,6 +83,24 @@ Last update: 2018-08-21
 
       </div>
       
+      <div style="text-align: center">
+        <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="scaleFigs(0.9)">-</button>
+          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+          <button class="btn" @click="scaleFigs(1.1)">+</button>
+        </div>
+      </div>
+      
       <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
         <div class="calib-params" v-if="areShowingPlots">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -235,7 +253,8 @@ Last update: 2018-08-21
           scenSummary: {},    
           origName: '',
           mode: 'add'
-        }
+        },
+        figscale: 1.0,
       }
     },
 

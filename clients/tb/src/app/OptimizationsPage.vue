@@ -243,7 +243,8 @@ Last update: 2018-08-15
           },
           origName: '',
           mode: 'add'
-        }
+        },
+        figscale: 1.0,
       }
     },
 

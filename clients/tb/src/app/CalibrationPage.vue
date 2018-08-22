@@ -242,7 +242,8 @@ Last update: 2018-08-16
         endYear: 0,
         plotOptions: [],
         calibTime: '30 seconds',
-        calibTimes: ['30 seconds', 'Unlimited']
+        calibTimes: ['30 seconds', 'Unlimited'],
+        figscale: 1.0,
       }
     },
 
