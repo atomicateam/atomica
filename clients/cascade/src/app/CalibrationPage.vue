@@ -359,7 +359,8 @@ Last update: 2018-08-22
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,       
+          this.startYear, this.endYear, this.activePop]) // Go to the server to get the results from the package set.
           .then(response => {
             status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)

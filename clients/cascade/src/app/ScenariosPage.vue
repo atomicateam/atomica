@@ -529,7 +529,8 @@ Last update: 2018-08-22
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
         .then(response => {
           // Go to the server to get the results from the package set.
-          rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], 
+            {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {           
             this.makeGraphs(response.data.graphs)
             this.table = response.data.table
@@ -554,7 +555,8 @@ Last update: 2018-08-22
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], 
+          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs)
             this.table = response.data.table
