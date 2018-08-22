@@ -345,6 +345,9 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
 
     if pops is None: pops = 'all'
 
+    # Sanitize the cascade inputs
+    cascade = sanitize_cascade(result.framework, cascade)
+
     if isinstance(cascade,string_types):
         outputs = get_cascade_outputs(result.framework,cascade)
     else:

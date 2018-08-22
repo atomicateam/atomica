@@ -13,26 +13,26 @@ logger = logging.getLogger()
 # logger.setLevel('DEBUG')
 
 import atomica.ui as au
-import sciris.core as sc
+import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
-#test='sir'
+# test='sir'
 #test='udt'
 test='hiv'
 #test='hypertension'
 #test='usdt'
 
 torun = [
-"standard",
-"standard_mindeaths",
-"delayed",
-"gradual",
-'mixed',
-'parametric_paired',
-"money",
+# "standard",
+# "standard_mindeaths",
+# "delayed",
+# "gradual",
+# 'mixed',
+# 'parametric_paired',
+# "money",
 'cascade_final_stage',
 #'cascade-conversions'
 ]
@@ -40,7 +40,7 @@ torun = [
 # Load the SIR demo and associated programs
 P = au.demo(which=test,do_plot=0)
 filename = "databooks/progbook_"+test+".xlsx"
-P.load_progbook(progbook_path=filename, make_default_progset=True)
+P.load_progbook(progbook_path=filename)
 
 def run_optimization(proj,optimization,instructions):
     unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
@@ -291,7 +291,7 @@ if 'cascade_final_stage' in torun:
     
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeFinalStage('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = au.MaximizeCascadeStage('main', [2030], pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
     
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
@@ -313,7 +313,7 @@ if 'cascade_final_stage' in torun:
         adjustments.append(au.SpendingAdjustment('Adherence',2016,'abs',0.))
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeFinalStage('main',[2017],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = au.MaximizeCascadeStage('main', [2017], pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
@@ -335,7 +335,7 @@ if 'cascade_final_stage' in torun:
         adjustments.append(au.SpendingAdjustment('Adherence',2016,'abs',0.))
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeFinalStage('main',[2017],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = au.MaximizeCascadeStage('main', [2017], pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
@@ -360,7 +360,7 @@ if 'cascade_final_stage' in torun:
 
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeFinalStage('main',[2017],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = au.MaximizeCascadeStage(None, [2017,2018], pop_names='all',cascade_stage=['Currently treated','Virally suppressed']) # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")

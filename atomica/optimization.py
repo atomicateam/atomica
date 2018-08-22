@@ -238,16 +238,31 @@ class AtLeastMeasurable(Measurable):
         self.threshold = threshold
         self.fcn = lambda x: np.inf if x<threshold else 0.0
 
-class MaximizeCascadeFinalStage(Measurable):
-    # This Measurable will maximize the number of people in the final cascade stage, whatever that stage is
-    # e.g. `measurable = MaximizeCascadeFinalStage('main',2020)
+class MaximizeCascadeStage(Measurable):
+    # This Measurable will maximize the number of people in a cascade stage, whatever that stage is
+    # e.g. `measurable = MaximizeCascadeStage('main',2020)
     # If multiple years are provided, they will be summed over
     # Could add option to weight specific years later on, if desired
-    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0):
-        # pop_names can be a single pop name (including all), or a list of pop names
+
+    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0,cascade_stage=-1):
+        # Instantiate thpop_names can be a single pop name (including all), or a list of pop names
         # aggregations are supported by setting pop_names to a dict e.g.
         # pop_names = {'foo':['0-4','5-14']}
+        #
+        # The cascade name is passed to `get_cascade_vals` so any cascade can be passed in
+        # Usually this would be 'None' (fallback cascade, or first cascade) or the name of a
+        # cascade
+        #
+        # - t : Can be a single time or array of times (as supposed by get_cascade_vals)
+        # - cascade_stage specifies which stage(s) to include. It can be
+        #   - An integer indexing the `cascade_vals` dict e.g. -1 is the last stage
+        #   - The name of a cascade stage
+        #   - A list of integers and/or names to include multiple stages
+
         Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        if not isinstance(cascade_stage,list):
+            cascade_stage = [cascade_stage]
+        self.cascade_stage = cascade_stage
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
@@ -256,7 +271,8 @@ class MaximizeCascadeFinalStage(Measurable):
         val = 0
         for pop_name in self.pop_names:
             cascade_vals = get_cascade_vals(result,self.measurable_name, pop_name, self.t)
-            val += np.sum(cascade_vals[0][-1]) # The sum of final cascade stage values
+            for stage in self.cascade_stage:
+                val += np.sum(cascade_vals[0][stage]) # The sum of final cascade stage values
         return val
 
 class MaximizeCascadeConversionRate(Measurable):
@@ -447,7 +463,7 @@ class OptimInstructions(NamedItem):
         for mname,mweight in objective_weights.items():
 
             if mname == 'finalstage' and mweight:
-                measurables = MaximizeCascadeFinalStage(cascade_to_use,[end_year],pop_names='all')
+                measurables = MaximizeCascadeStage(cascade_to_use, [end_year], pop_names='all',cascade_stage=-1)
                 break
             elif mname == 'conversion' and mweight:
                 measurables = MaximizeCascadeConversionRate(cascade_to_use,[end_year],pop_names='all')
