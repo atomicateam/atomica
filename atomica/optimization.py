@@ -398,7 +398,8 @@ class TotalSpendConstraint(Constraint):
                 bounds.append(hard_constraints['bounds'][t][prog])
 
             x0_array = np.array(x0.values()).ravel()
-            res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array) ** 2)), x0_array, bounds=bounds,constraints=LinearConstraint)
+            x0_array_scaled = x0_array/sum(x0_array)*total_spend # Multiplicative rescaling to match the total spend
+            res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array_scaled) ** 2)), x0_array_scaled, bounds=bounds,constraints=LinearConstraint,options={'maxiter':500})
 
             if not res['success']:
                 logger.error('TotalSpendConstraint failed - how to handle this is yet to be determined')
