@@ -278,6 +278,15 @@ Last update: 2018-08-21
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+          this.figscale = 1.0
+        }
+        return utils.scaleFigs(frac)
+      },
+      
       clipValidateYearInput() {
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
@@ -532,29 +541,9 @@ Last update: 2018-08-21
         .then(response => {
           // Go to the server to get the results from the package set.
           rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
-          .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
+          .then(response => {           
+            this.makeGraphs(response.data.graphs)
             this.table = response.data.table
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('Graph failed:' + err.message);
-              }
-            }
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
@@ -578,28 +567,8 @@ Last update: 2018-08-21
         // Make sure they're saved first
         rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
+            this.makeGraphs(response.data.graphs)
             this.table = response.data.table
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('Graph failed:' + err.message);
-              }
-            }
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {

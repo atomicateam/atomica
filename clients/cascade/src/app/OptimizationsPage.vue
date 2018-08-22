@@ -303,6 +303,15 @@ Last update: 2018-08-21
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+          this.figscale = 1.0
+        }
+        return utils.scaleFigs(frac)
+      },
+      
       clipValidateYearInput() {
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
@@ -562,30 +571,8 @@ Last update: 2018-08-21
           taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
             [this.projectID, optimSummary.name, this.plotOptions, true, this.endYear, this.activePop])
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
-//                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+            this.makeGraphs(response.data.result.graphs)
             this.table = response.data.result.table
-            this.graphData = response.data.result.graphs // Pull out the response data (use with task).
-            var n_plots = this.graphData.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(this.graphData[index]);
-                mpld3.draw_figure(divlabel, this.graphData[index], function(fig, element) {
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
-            }
             
             // Indicate success.
             status.succeed(this, 'Graphs created')
@@ -617,28 +604,8 @@ Last update: 2018-08-21
         // Make sure they're saved first
         rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
+            this.makeGraphs(response.data.graphs)
             this.table = response.data.table
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('Graph failed:' + err.message);
-              }
-            }
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
