@@ -1117,7 +1117,7 @@ def get_budget_plot(results=None, year=None):
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
         graphs.append(graph_dict)
-        # pl.close(fig)
+        pl.close(fig)
         print('Budget plot succeeded')
         return {'graphs': graphs}
 
