@@ -111,7 +111,7 @@ class ProjectData(object):
         # transfers - Can be a number, or an odict with names and labels
         # interactions - Can be a number, or an odict with names and labels
 
-        if not isinstance(pops,dict):
+        if sc.isnumber(pops):
             new_pops = sc.odict()
             for i in range(0,pops):
                 new_pops['pop_%d' % (i)] = 'Population %d' % (i)
@@ -121,7 +121,7 @@ class ProjectData(object):
         if not new_pops:
             raise AtomicaException('A new databook must have at least 1 population')
 
-        if not isinstance(transfers,dict):
+        if sc.isnumber(transfers):
             new_transfers = sc.odict()
             for i in range(0,transfers):
                 new_transfers['transfer_%d' % (i)] = 'Transfer %d' % (i)
@@ -271,6 +271,10 @@ class ProjectData(object):
         # those quantities all have some data values associated with them
         for df in [framework.comps, framework.characs, framework.pars]:
             for _, spec in df.iterrows():
+
+                if spec.name in self.pops:
+                    raise AtomicaException('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec.name))
+
                 if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
                         raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['display name'],spec.name))
@@ -535,9 +539,5 @@ class ProjectData(object):
 
         for sheet_name in self.tdve_pages.keys():
             apply_widths(self._book.get_worksheet_by_name(sheet_name),widths)
-
-
-
-
 
 

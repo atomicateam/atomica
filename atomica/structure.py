@@ -74,7 +74,7 @@ class FrameworkSettings(object):
 #     return value
 
 class TimeSeries(object):
-    def __init__(self, t=None, vals=None, format=None, units=None):
+    def __init__(self, t=None, vals=None, format=None, units=None,assumption=None):
 
         t = sc.promotetoarray(t) if t is not None else list()
         vals = sc.promotetoarray(vals) if vals is not None else list()
@@ -83,13 +83,14 @@ class TimeSeries(object):
 
         self.t = []
         self.vals = []
-        self.format = format # TODO - what's the difference between format and units?!
+        self.format = format # TODO - differentiate between format and unit. The format specifies how to scale, while the unit specifies the dimensions. For example, format='number' but unit='Number of people'
         self.units = units
-        self.assumption = None
+        self.assumption = assumption
+        self.sigma = None # Uncertainty value
 
         for tx, vx in zip(t,vals):
             self.insert(tx, vx)
-    
+
     def __repr__(self):
         output = sc.prepr(self)
         return output
@@ -184,3 +185,9 @@ class TimeSeries(object):
             v2[t2>t1[-1]] = v1[-1]
             return v2
 
+    def sample(self,t2):
+        # This method might sample from the TimeSeries for the given years
+        # e.g. `ts.interpolate([2011,2012])` would give the values without uncertainty
+        # while `ts.sample([2011,2012])` would perturb the values depending on sigma
+        # (and perhaps some other distribution information too)
+        raise NotImplementedError()

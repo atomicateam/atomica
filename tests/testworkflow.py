@@ -4,38 +4,38 @@ Version:
 
 import os
 import atomica.ui as au
-import sciris.core as sc
+import sciris as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
 
-test = "sir"
-# test = "tb"
-#test = "hypertension"
+#test = "sir"
+#test = "tb"
+test = "hypertension"
 #test = "udt"
 #test = "usdt"
-# test = "hiv"
+#test = "hiv"
 #test = "diabetes"
 #test = "service"
 
-
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-"plotcascade",
-"makeprogramspreadsheet",
-"testprograms",
+#"loadframework",
+# "saveframework",
+# "makedatabook",
+# "makeproject",
+# "loaddatabook",
+# "makeparset",
+#"runsim",
+#"plotcascade",
+# "makeblankprogbook",
+# "writeprogbook",
+#"testprograms",
 "runsim_programs",
-"makeplots",
-"export",
+#"makeplots",
+#"export",
 # "manualcalibrate",
 # "autocalibrate",
-#"parameterscenario",
+# "parameterscenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -115,8 +115,13 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade=0, pops='all', year=2016, data=P.data)
-    au.plot_multi_cascade(P.results[-1],0,year=[2016,2017])
+#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='m_urban', year=2016)
+    au.plot_cascade(P.results[-1], cascade='main', pops='f_urban', year=2016)
+#    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
     if forceshow: pl.show()
     
     # Browser test
@@ -126,12 +131,12 @@ if 'plotcascade' in torun:
         fig = pl.gcf()
         sqs.browser(fig)
     
-if "makeprogramspreadsheet" in torun:
+if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    P = au.demo(which=test, do_plot=0, do_run=False)
-    filename = "temp/progbook_"+test+"_blank.xlsx"
+    P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
+    filename = "temp/progbook_"+test+"_blank_n.xlsx"
     if test == "tb":
-        P.make_progbook(filename, progs=29)
+        P.make_progbook(filename, progs=6)
     elif test == "diabetes":
         P.make_progbook(filename, progs=14)
     elif test == "udt":
@@ -142,6 +147,14 @@ if "makeprogramspreadsheet" in torun:
         P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
+
+
+if "writeprogbook" in torun:
+    print('\n\n\nExporting programs spreadsheet ... ')
+    P = au.demo(which=test, do_plot=0, do_run=False)
+    filename = "temp/progbook_"+test+"_export.xlsx"
+    if test in ["sir","tb","udt","usdt","hiv","hypertension"]:
+        P.progsets[0].save(filename)
 
 
 if "testprograms" in torun:
@@ -236,19 +249,19 @@ if "runsim_programs" in torun:
     elif test == 'udt':
         scen1alloc = {'Testing - pharmacies': 70000}
         scen2alloc = {'Testing - clinics': 120000}
-        scen3alloc = {'Testing - clinics': 50000}
-        scen4alloc = {'Testing - clinics': 40000}
+        scen3alloc = {'Testing - outreach': 50000}
+        scen4alloc = {'Adherence': 40000}
         bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
         scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
         scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
         scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
 
-        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
-        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
-        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="scen2")
-        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="scen3")
-        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="scen4")
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="Baseline")
+        scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="Scale up pharmacies")
+        scen2results = P.run_sim(parset="default", progset='default',progset_instructions=scen2_instructions,result_name="Scale up clinics")
+        scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="Scale up outreach")
+        scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="Scale up adherence")
 
         au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
 
@@ -272,7 +285,7 @@ if "runsim_programs" in torun:
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2020])
 
     elif test == 'hiv':
         scen1alloc = {'Testing - clinics': 1500000}

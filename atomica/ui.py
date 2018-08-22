@@ -8,8 +8,6 @@ if _debug: print('Importing system...')
 from .system import *  # No dependencies
 if _debug: print('Importing structure...')
 from .structure import *  # Depends on structure_settings
-if _debug: print('Importing workbook export...')
-from .workbook_export import *  # Depends on workbook_utils
 if _debug: print('Importing framework...')
 from .framework import *  # Depends on workbook_import
 if _debug: print('Importing project...')

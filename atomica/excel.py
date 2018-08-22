@@ -21,20 +21,12 @@ def standard_formats(workbook):
     # for use when writing within the workbook
 
     """ the formats used in the spreadsheet """
-    darkgray = '#413839'
+#    darkgray = '#413839'
     originalblue = '#18C1FF'
     optionalorange = '#FFA500'
     BG_COLOR = originalblue
     OPT_COLOR = optionalorange
     BORDER_COLOR = 'white'
-
-    PERCENTAGE = 'percentage'
-    RATE = 'rate'
-    DECIMAL = 'decimal'
-    SCIENTIFIC = 'scientific'
-    NUMBER = 'number'
-    GENERAL = 'general'
-    OPTIONAL = 'optional'
 
     formats = {}
 
@@ -53,19 +45,7 @@ def standard_formats(workbook):
     # Unlocked formats
     formats['unlocked'] = workbook.add_format({'locked': 0, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
     formats['center_unlocked'] = workbook.add_format({'align': 'center','locked': 0, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['percentage'] = workbook.add_format({'locked': 0, 'num_format': 0x09, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['rate'] = workbook.add_format({'locked': 0, 'num_format': 0x09, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['decimal'] = workbook.add_format({'locked': 0, 'num_format': 0x0a, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['scientific'] = workbook.add_format({'locked': 0, 'num_format': 0x0b, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['number'] = workbook.add_format({'locked': 0, 'num_format': 0x04, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
     formats['general'] = workbook.add_format({'locked': 0, 'num_format': 0x00, 'bg_color': BG_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['optional'] = workbook.add_format({'locked': 0, 'num_format': 0x00, 'bg_color': OPT_COLOR, 'border': 1,'border_color': BORDER_COLOR})
-    formats['info_header'] = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'color': '#D5AA1D', 'fg_color': '#0E0655', 'font_size': 20})
-    formats['grey'] = workbook.add_format({'fg_color': '#EEEEEE', 'text_wrap': True})
-    formats['orange'] = workbook.add_format({'fg_color': '#FFC65E', 'text_wrap': True})
-    formats['info_url'] = workbook.add_format({'fg_color': '#EEEEEE', 'text_wrap': True, 'color': 'blue', 'align': 'center'})
-    formats['grey_bold'] = workbook.add_format({'fg_color': '#EEEEEE', 'bold': True})
-    formats['merge_format'] = workbook.add_format({'bold': 1, 'align': 'center', 'text_wrap': True})
 
     # Conditional formats
     formats['unlocked_boolean_true'] = workbook.add_format({'bg_color': OPT_COLOR})
@@ -74,13 +54,16 @@ def standard_formats(workbook):
     formats['white_bg'] = workbook.add_format({'bg_color': '#FFFFFF','border': 1,'border_color': '#CCCCCC'})
     formats['ignored'] = workbook.add_format({'pattern': 14}) # Hatched with diagonal lines - this represents a cell whose value will not be used in the model run (e.g., an assumption that also has time-specific points)
     formats['warning'] = workbook.add_format({'bg_color': '#FF0000'})
-    formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'})
+    formats['ignored_warning'] = workbook.add_format({'pattern': 14,'bg_color': '#FF0000'}) # hatched, with red background
+    formats['ignored_not_required'] = workbook.add_format({'pattern': 14,'bg_color': '#EEEEEE','border': 1,'border_color': '#CCCCCC'}) # hatched, with grey background
 
     return formats
+
 
 def apply_widths(worksheet,width_dict):
     for idx,width in width_dict.items():
         worksheet.set_column(idx, idx, width*1.1 + 1)
+
 
 def update_widths(width_dict,column_index,contents):
     # Keep track of the maximum length of the contents in a column
@@ -96,6 +79,7 @@ def update_widths(width_dict,column_index,contents):
         width_dict[column_index] = len(contents)
     else:
         width_dict[column_index] = max(width_dict[column_index],len(contents))
+
 
 class AtomicaSpreadsheet(object):
     ''' A class for reading and writing data in binary format, so a project contains the spreadsheet loaded '''
@@ -239,6 +223,7 @@ def read_tables(worksheet):
 
     return tables
 
+
 def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False,widths=None):
     # This function writes a matrix
     # It gets used for
@@ -263,7 +248,6 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
     values_written = {}
 
     # Write the headers
-    max_length = max([len(x) for x in nodes])
     for i,node in enumerate(nodes):
         worksheet.write_formula(start_row+i+1, 0  , references[node], formats['center_bold'],value=node)
         update_widths(widths,0,node)
@@ -308,6 +292,7 @@ def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enab
 
     next_row = start_row + 1 + len(nodes) + 1
     return next_row,table_references,values_written
+
 
 class TimeDependentConnections(object):
     # A TimeDependentConnection structure is suitable when there are time dependent interactions between two quantities
@@ -509,6 +494,7 @@ class TimeDependentConnections(object):
 
         return current_row
 
+
 class TimeDependentValuesEntry(object):
     """
     Template table requesting time-dependent values, with each instantiation iterating over an item type.
@@ -553,35 +539,91 @@ class TimeDependentValuesEntry(object):
         # That is, the parent object e.g. Databook() is responsible for finding where the TDVE table is,
         # and reading all of the rows associated with it (skipping #ignored rows) and then passing those rows,
         # unparsed, to this function
+        #
+        # 'units', 'uncertainty', and 'constant' are optional - if 'constant' is present then expect
+        # that the column after it contains 'or'
+
         from .structure import TimeSeries # Import here to avoid circular reference
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
         name = vals[0].strip()
-        tvec = np.array(vals[4:],dtype=float)
+
+        lowered_headings = [x.lower() if isinstance(x,string_types) else x for x in vals]
+
+        # We can optionally have units, uncertainty, and constant
+        # nb. finding the index means this is robust to extra empty
+        # columns, a user adding one of the these fields to a single table on a page
+        # might introduce a blank column to all of the other TDVE elements on the page too
+        # so the code below should be able to deal with this
+        offset = 1 # This is the column where the time values start
+
+        if 'units' in lowered_headings:
+            units_index = lowered_headings.index('units')
+            offset += 1
+        else:
+            units_index = None
+
+        if 'uncertainty' in lowered_headings:
+            uncertainty_index = lowered_headings.index('uncertainty')
+            offset += 1
+        else:
+            uncertainty_index = None
+
+        if 'constant' in lowered_headings:
+            constant_index = lowered_headings.index('constant')
+            offset += 2
+        elif 'assumption' in lowered_headings:
+            constant_index = lowered_headings.index('assumption')
+            offset += 2
+        else:
+            constant_index = None
+
+        tvec = np.array(vals[offset:],dtype=float)
         ts_entries = sc.odict()
 
         # For each TimeSeries that we will instantiate
         for row in rows[1:]:
             vals = [x.value for x in row]
             series_name = vals[0]
-            format = vals[1].lower().strip() if vals[1] else None
-            units = vals[1].lower().strip() if vals[1] else None
-            assumption = vals[2]
-            assert vals[3] == 'OR' # Check row is as expected
-            data = vals[4:]
+
+            if units_index is not None:
+                units = vals[units_index].lower().strip() if vals[units_index] else None
+                format = units
+            else:
+                units = None
+                format = None
+
             ts = TimeSeries(format=format,units=units)
-            if assumption is not None and assumption != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                ts.insert(None,assumption)
+
+            if uncertainty_index is not None:
+                sigma = vals[uncertainty_index]
+                if sigma is not None and sigma != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
+                    ts.sigma = float(sigma)
+            else:
+                ts.sigma = None
+
+            if constant_index is not None:
+                constant = vals[constant_index]
+                if constant is not None and constant != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
+                    ts.assumption = float(constant)
+            else:
+                ts.assumption = None
+
+            if constant_index is not None:
+                assert vals[offset - 1] == 'OR'  # Check row is as expected
+
+            data = vals[offset:]
+
             for t,v in zip(tvec,data):
-                if np.isfinite(t) and v is not None: # Ignore any times that are NaN
+                if np.isfinite(t) and v is not None: # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
                     ts.insert(t,v)
             ts_entries[series_name] = ts
 
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
         return TimeDependentValuesEntry(name,tvec,ts_entries)
 
-    def write(self,worksheet,start_row,formats,references=None,widths=None):
+    def write(self,worksheet,start_row,formats,references=None,widths=None,assumption_heading='Constant',write_units=True,write_uncertainty=False,write_assumption=True):
         # references is a dict where the key is a string value and the content is a cell
         # Any populations that appear in this dict will have their value replaced by a reference
         # formats should be the dict returned by `excel.standard_formats` when it was called to add
@@ -589,6 +631,7 @@ class TimeDependentValuesEntry(object):
         #
         # widths should be a dict that will store sizing information for some of the columns
         # it is updated in place
+        # - assumption_heading : This is the string heading for the 'Constant'/'Assumption' (constant in databook, assumption in progbook)
 
         if not references:
             references = dict()
@@ -598,51 +641,71 @@ class TimeDependentValuesEntry(object):
         # First, assemble and write the headings
         headings = []
         headings.append(self.name)
-        headings.append('Units')
-        headings.append('Constant')
-        headings.append('')
+        offset = 1 # This is the column where the time values start
+
+        if write_units:
+            headings.append('Units')
+            units_index = offset # Column to write the units in
+            offset += 1
+
+        if write_uncertainty:
+            headings.append('Uncertainty')
+            uncertainty_index = offset  # Column to write the units in
+            offset += 1
+
+        if write_assumption:
+            headings.append(assumption_heading)
+            headings.append('')
+            constant_index = offset
+            offset += 2
+
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
-            worksheet.write(current_row, i, entry, formats['center_bold'])
+            worksheet.write(current_row, i, entry, formats['bold'])
             update_widths(widths,i,entry)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
-        for pop_name, pop_ts in self.ts.items():
+        for row_name, row_ts in self.ts.items():
             current_row += 1
 
             # Write the name
-            if pop_name in references:
-                worksheet.write_formula(current_row, 0, references[pop_name], formats['center_bold'],value=pop_name)
-                update_widths(widths, 0, pop_name)
+            if row_name in references:
+                worksheet.write_formula(current_row, 0, references[row_name], formats['center_bold'],value=row_name)
+                update_widths(widths, 0, row_name)
             else:
-                worksheet.write_string(current_row, 0, pop_name, formats['center_bold'])
-                update_widths(widths, 0, pop_name)
+                worksheet.write_string(current_row, 0, row_name, formats['center_bold'])
+                update_widths(widths, 0, row_name)
 
             # Write the units
-            # TODO - change ts.format to ts.units??
-            worksheet.write(current_row,1,pop_ts.format.title() if pop_ts.format else None)
-            update_widths(widths, 1, pop_ts.format.title() if pop_ts.format else None)
+            if write_units:
+                worksheet.write(current_row,units_index,row_ts.format.title() if row_ts.format else None)
+                update_widths(widths, units_index, row_ts.format.title() if row_ts.format else None)
 
-            if self.allowed_units: # Add validation if a list of options is specified
-                worksheet.data_validation(xlrc(current_row, 1),{"validate": "list", "source": self.allowed_units})
+                if self.allowed_units: # Add validation if a list of options is specified
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})
 
-            if pop_ts.has_data:
+            if write_uncertainty:
+                if row_ts.sigma is None:
+                    worksheet.write(current_row,uncertainty_index, row_ts.sigma,formats['unlocked'])
+                else:
+                    worksheet.write(current_row,uncertainty_index,row_ts.sigma,formats['not_required'])
+
+            if row_ts.has_data:
                 format = formats['not_required']
             else:
                 format = formats['unlocked']
 
-            # Write the assumption
-            worksheet.write(current_row,2,pop_ts.assumption, format)
-
-            # Write the separator between the assumptions and the time values
-            worksheet.write(current_row,3,'OR',formats['center'])
-            update_widths(widths, 3, 'OR')
+            if write_assumption:
+                # Write the assumption
+                worksheet.write(current_row,constant_index,row_ts.assumption, format)
+                # Write the separator between the assumptions and the time values
+                worksheet.write(current_row,constant_index+1,'OR',formats['center'])
+                update_widths(widths, constant_index+1, 'OR')
 
             # Write the time values
-            offset = 4 # This is the column where the time values begin
             content = [None]*len(self.tvec)
 
-            for t,v in zip(pop_ts.t,pop_ts.vals):
+            for t,v in zip(row_ts.t,row_ts.vals):
                 idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec
                 content[idx] = v
 

@@ -34,9 +34,7 @@ from .parameters import ParameterSet
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario
 from .optimization import optimize, OptimInstructions
-from .system import AtomicaException, logger
-from .workbook_export import make_progbook
-from .workbook_import import load_progbook
+from .system import logger
 from .scenarios import BudgetScenario
 from .utils import NDict
 import sciris as sc
@@ -201,100 +199,42 @@ class Project(object):
                                "despite no request to create a default parameter set.")
             self.run_sim(parset="default")
 
+
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
         self.parsets.append(ParameterSet(name))
         self.parsets[name].make_pars(self.framework, self.data)
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, blh_effects=False):
-        ''' Make a programs databook'''
 
-        # Check imports
-        if progs is None:
-            errormsg = 'Please specify programs for making a program book.'
-            raise AtomicaException(errormsg)
-
+    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+        ''' Make a blank program databook'''
         ## Get filepath
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
-
-        ## Get other inputs
-        F = self.framework
-        comps = []
-        for _,spec in F.comps.iterrows():
-            if spec['is source']=='y' or spec['is sink']=='y' or spec['is junction']=='y':
-                continue
-            else:
-                comps.append(spec.name)
-
-        # TODO: Think about whether the following makes sense.
-        parlist = [] 
-        for _,spec in F.pars.iterrows():
-            if spec['is impact']=='y':
-                parlist.append((spec.name,spec['display name']))
-        pars = sc.odict(parlist)
+        if data_start is None:  data_start = self.data.tvec[0]
+        if data_end is None:    data_end= self.data.tvec[-1]
+        progset = ProgramSet.new(tvec=np.arange(data_start, data_end+1), progs=progs, framework=self.framework, data=self.data)
+        progset.save(full_path)
 
 
-        make_progbook(full_path, pops=self.pop_labels, comps=comps, progs=progs, pars=pars, data_start=None, data_end=None, blh_effects=blh_effects)
-        
-
-
-    def load_progbook(self, progbook_path=None, make_default_progset=True, blh_effects=False):
+    def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
         ''' Load a programs databook'''
-        
-        ## Load spreadsheet and update metadata
+        if verbose: print('Making ProgramSet')
+        if verbose: print('Uploading program data')
         if isinstance(progbook_path,string_types):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
 
-        progdata = load_progbook(progbook_spreadsheet, blh_effects=blh_effects)
-        self.progbook = sc.dcp(progbook_spreadsheet)
+        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework,data=self.data)
+        progset.validate()
+        self.progbook = sc.dcp(progbook_spreadsheet) # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
 
-        # Check if the populations match - if not, raise an error, if so, add the data
-        if set(progdata['pops']) != set(self.pop_labels):
-            errormsg = 'The populations in the programs databook are not the same as those that were loaded from the epi databook: "%s" vs "%s"' % (progdata['pops'], set(self.pop_labels))
-            raise AtomicaException(errormsg)
-        self.progdata = progdata
-
-        self.modified = sc.now()
-
-        if make_default_progset: self.make_progset(name="default")
-        
-
-    def make_progset(self, progdata=None, name="default", verbose=False):
-        '''Make a progset from program spreadsheet data'''
-        
-        if verbose: print('Making ProgramSet')
-        progset = ProgramSet(name=name)
-        if verbose: print('Making program data')
-        progset.make(progdata=progdata, project=self)
         if verbose: print('Updating program sets')
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')
 
-#    def makedefaults(self, name=None, scenname=None, overwrite=False):
-#        ''' When creating a project, create a default program set, scenario, and optimization to begin with '''
-#
-#        # Handle inputs
-#        if name is None: name = 'default'
-#        if scenname is None: scenname = 'default'
-#
-#        # Make default progset, scenarios and optimizations
-#        if overwrite or name not in self.progsets:
-#            progset = Programset(name=name, project=self)
-#            self.addprogset(progset)
-#
-#        if overwrite or scenname not in self.scens:
-#            scenlist = [Parscen(name=scenname, parsetname=name,pars=[])]
-#            self.addscens(scenlist)
-#
-#        if overwrite or name not in self.optims:
-#            optim = Optim(project=self, name=name)
-#            self.addoptim(optim)
-#
-#        return None
         
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if json is not None:
