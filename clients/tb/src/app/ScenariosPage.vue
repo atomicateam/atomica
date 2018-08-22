@@ -59,6 +59,7 @@ Last update: 2018-08-22
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
+            <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh graphs</button>
             <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
           </div>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -490,7 +491,7 @@ Last update: 2018-08-22
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], 
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          {tool:'tb', plotyear:this.endYear})
           .then(response => {
             this.makeGraphs(response.data.graphs)
             status.succeed(this, 'Graphs created')

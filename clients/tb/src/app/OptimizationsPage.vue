@@ -52,6 +52,7 @@ Last update: 2018-08-22
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
+            <button class="btn" @click="plotOptimization()">Refresh graphs</button>
             <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
           </div>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -496,6 +497,26 @@ Last update: 2018-08-22
             status.fail(this, 'Could not set optimization info: ' + error.message)
           })
       },
+      
+      plotOptimization() {
+        console.log('plotOptimization() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
+        status.start(this)
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        // Make sure they're saved first
+        rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions], 
+          {tool:'tb', plotyear:this.endYear})
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            status.fail(this, 'Could not make graphs') // Indicate failure.
+          })
+      },     
+      
     }
   }
 </script>
