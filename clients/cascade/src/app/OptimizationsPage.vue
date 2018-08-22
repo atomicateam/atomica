@@ -75,7 +75,7 @@ Last update: 2018-08-21
 
       <div class="calib-figures">
         <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
             <!--mpld3 content goes here-->
           </div>
         </div>
@@ -296,6 +296,13 @@ Last update: 2018-08-21
     },
 
     methods: {
+      
+      getPlotOptions()          { return utils.getPlotOptions(this) },
+      clearGraphs()             { return utils.clearGraphs() },
+      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      
       clipValidateYearInput() {
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
@@ -537,17 +544,6 @@ Last update: 2018-08-21
         })        
       },
 
-      getPlotOptions() {
-        console.log('getPlotOptions() called')
-        rpcs.rpc('get_supported_plots', [true])
-          .then(response => {
-            this.plotOptions = response.data // Get the parameter values
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
-          })
-      },
-
       toggleShowingPlots() {
         this.areShowingPlots = !this.areShowingPlots
       },
@@ -669,33 +665,6 @@ Last update: 2018-08-21
             console.log('failled:' + err.message);
           }
         }
-      },
-
-      clearGraphs() {
-        console.log('Clear graphs')
-        this.graphData = []
-        for (var index = 0; index <= 100; index++) {
-          console.log('Clearing plot ' + index)
-          var divlabel = 'fig' + index
-          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-          while (div.firstChild) {
-            div.removeChild(div.firstChild);
-          }
-        }
-      },
-
-      exportResults(project_id) {
-        console.log('exportResults() called')
-        status.start(this)
-        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
-          .then(response => {
-            // Indicate success.
-            status.succeed(this, '')  // No green popup message.
-          })
-          .catch(error => {
-            // Failure.
-            status.fail(this, 'Could not export results')
-          })
       },
 
     }
