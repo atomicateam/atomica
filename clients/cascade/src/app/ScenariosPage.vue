@@ -292,7 +292,7 @@ Last update: 2018-08-21
     methods: {
       
       getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { return utils.clearGraphs() },
+      clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
