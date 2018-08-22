@@ -597,24 +597,6 @@ Last update: 2018-08-21
           })
       },
 
-      reloadGraphs() {
-        console.log('Reload graphs')
-        let n_plots = this.graphData.length
-        console.log('Rendering ' + n_plots + ' graphs')
-        for (let index = 0; index <= n_plots; index++) {
-          console.log('Rendering plot ' + index)
-          var divlabel = 'fig' + index
-          try {
-            mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-              fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-            });
-          }
-          catch (err) {
-            console.log('failled:' + err.message);
-          }
-        }
-      },
-
     }
   }
 </script>
