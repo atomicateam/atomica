@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-21
+Last update: 2018-08-22
 -->
 
 <template>
@@ -66,10 +66,6 @@ Last update: 2018-08-21
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="plotOptimization()">Refresh</button>
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="exportResults(projectID)">Export data</button>
       </div>
 
       <div style="text-align: center">
@@ -80,7 +76,7 @@ Last update: 2018-08-21
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
           <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+          <button class="btn" @click="plotOptimization()">Refresh graphs</button>
         </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -106,30 +102,6 @@ Last update: 2018-08-21
           </table>
         </div>
       </div>
-
-      <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" style="max-width:400px" v-if="areShowingPlotControls">
-        <div class="plotopts-params">
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
-            <thead>
-            <tr>
-              <th>Plot</th>
-              <th>Active</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="item in plotOptions">
-              <td>
-                {{ item.plot_name }}
-              </td>
-              <td style="text-align: center">
-                <input type="checkbox" v-model="item.active"/>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
 
       <modal name="add-optim"
              height="auto"
@@ -269,7 +241,6 @@ Last update: 2018-08-21
         newParsetName:  [],
         newProgsetName: [],
         graphData: [],
-        areShowingPlotControls: false,
         plotOptions: [],
         table: null,
         activePop: "All",

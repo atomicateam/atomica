@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-21
+Last update: 2018-08-22
 -->
 
 <template>
@@ -76,10 +76,6 @@ Last update: 2018-08-21
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh</button>
-        <button class="btn" :disabled="!scenariosLoaded" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="exportResults(projectID)">Export data</button>
 
       </div>
       
@@ -91,7 +87,7 @@ Last update: 2018-08-21
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
           <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
+          <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh graphs</button>
         </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -101,28 +97,7 @@ Last update: 2018-08-21
         </div>
       </div>
       
-      <div class="calib-main" :class="{'calib-main--full': !areShowingPlots}">
-        <div class="calib-params" v-if="areShowingPlots">
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
-            <thead>
-            <tr>
-              <th>Plot</th>
-              <th>Active</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="item in plotOptions">
-              <td>
-                {{ item.plot_name }}
-              </td>
-              <td style="text-align: center">
-                <input type="checkbox" v-model="item.active"/>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-        
+      <div class="calib-main" :class="{'calib-main--full': true}">       
         <div class="calib-graphs">
           <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
             <!--mpld3 content goes here-->
@@ -243,7 +218,6 @@ Last update: 2018-08-21
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
-        areShowingPlots: false,
         plotOptions: [],
         scenariosLoaded: false,
         table: null,
@@ -544,10 +518,6 @@ Last update: 2018-08-21
           
           // TODO: Should probably fix the corrupted this.scenSummaries.
         })        
-      },
-
-      toggleShowingPlots() {
-        this.areShowingPlots = !this.areShowingPlots
       },
 
       runScens() {
