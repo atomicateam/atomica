@@ -1,15 +1,11 @@
 # Make demo project and default budget run
 import atomica.ui as au
-import matplotlib.pyplot as plt
-import numpy as np
-import sciris.core as sc
-from IPython.display import display, HTML
-
 import sys
-sys.path.append(au.atomica_path())
-from atomica_apps.rpcs import make_plots
 
-P = au.demo(which='tb')
+sys.path.append(au.atomica_path())
+from atomica_apps.rpcs import get_budget_plot
+
+P = au.demo(which='tb',do_run=False)
 instructions = au.ProgramInstructions()
 result1 = P.run_sim(P.parsets[0],P.progsets[0],progset_instructions=instructions,result_name='Default budget')
 
@@ -23,9 +19,7 @@ alloc = {'ACF-PLHIV': au.TimeSeries([2018,2030],[2e8,1.5e8]),'BCG': au.TimeSerie
 instructions = au.ProgramInstructions(alloc=alloc,start_year=2018)
 result3 = P.run_sim(P.parsets[0],P.progsets[0],progset_instructions=instructions,result_name='Time-varying budget')
 
-
-
-results=[result1,result2, which=['cascade', 'budget', ['pd_div:flow','nd_div:flow']]
-
-
-make_plots()
+figs = get_budget_plot(result1,2018)
+figs = get_budget_plot(result1,[2018,2019])
+figs = get_budget_plot([result1,result2],2018)
+figs = get_budget_plot([result1,result2],[2018,2019])

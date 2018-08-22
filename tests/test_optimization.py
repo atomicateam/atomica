@@ -33,8 +33,9 @@ torun = [
 # 'mixed',
 # 'parametric_paired',
 # "money",
-'cascade_final_stage',
-#'cascade-conversions'
+# 'cascade_final_stage',
+'cascade_multi_stage',
+ #'cascade-conversions'
 ]
 
 # Load the SIR demo and associated programs
@@ -360,7 +361,7 @@ if 'cascade_final_stage' in torun:
 
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeStage(None, [2017,2018], pop_names='all',cascade_stage=['Currently treated','Virally suppressed']) # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = au.MaximizeCascadeStage(None, [2017], pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default',adjustments=adjustments, measurables=measurables)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
@@ -374,6 +375,33 @@ if 'cascade_final_stage' in torun:
         au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='females',year=2017)
         au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='males',year=2017)
 
+if 'cascade_multi_stage' in torun:
+    if test == 'hiv':
+        instructions = au.ProgramInstructions(start_year=2016)  # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Testing - clinics', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Testing - outreach', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Same-day initiation counselling', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Classic initiation counselling', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Client tracing', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Advanced adherence support', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Whatsapp adherence support', 2016, 'abs', 0.))
+
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeStage(None, [2017, 2018], pop_names='all', cascade_stage=['Currently treated', 'Virally suppressed'])  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+
+        #        for adjustable in adjustments:
+        #            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2017))) # TODO - add time to alloc
+
+        au.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='all', year=2017)
+        au.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='females', year=2017)
+        au.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='males', year=2017)
 
 if 'cascade-conversions' in torun:
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
