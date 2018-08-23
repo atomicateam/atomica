@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-18
+Last update: 2018-08-22
 -->
 
 <template>
@@ -61,60 +61,55 @@ Last update: 2018-08-18
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
           <select v-model="activePop">
-            <option v-for='pop in active_pops'>
+            <option v-for='pop in activePops'>
               {{ pop }}
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button class="btn" @click="plotOptimization()">Refresh</button>
-        <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        <button class="btn" @click="exportResults(projectID)">Export data</button>
       </div>
 
-
+      <div style="text-align: center">
+        <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          <button class="btn" @click="plotOptimization()">Refresh graphs</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="scaleFigs(0.9)">-</button>
+          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+          <button class="btn" @click="scaleFigs(1.1)">+</button>
+        </div>
+      </div>
+      
       <div class="calib-figures">
         <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
             <!--mpld3 content goes here-->
           </div>
         </div>
         <div class="calib-tables" v-if="table">
-          <span>Losses</span>
-          <table>
-            <tr v-for="(label, index) in table.labels">
-              <td>{{label}}</td>
-              <td v-for="text in table.text[index]">{{text}}</td>
-            </tr>
-          </table>
-        </div>
-      </div>
-
-
-
-      <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" style="max-width:400px" v-if="areShowingPlotControls">
-        <div class="plotopts-params">
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <h3>Cascade Stage Losses</h3>
+          <table class="table table-striped">
             <thead>
             <tr>
-              <th>Plot</th>
-              <th>Active</th>
+              <th></th>
+              <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
             </tr>
             </thead>
-            <tbody>
-            <tr v-for="item in plotOptions">
-              <td>
-                {{ item.plot_name }}
-              </td>
-              <td style="text-align: center">
-                <input type="checkbox" v-model="item.active"/>
-              </td>
+            <tbody>            
+            <tr v-for="(label, index) in table.rowlabels">
+              <td>{{label}}</td>
+              <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
             </tr>
             </tbody>
           </table>
         </div>
       </div>
-
 
       <modal name="add-optim"
              height="auto"
@@ -142,12 +137,6 @@ Last update: 2018-08-18
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
                 {{ parset }}
-              </option>
-            </select><br><br>
-            Program set:<br>
-            <select v-model="progsetOptions[0]">
-              <option v-for='progset in progsetOptions'>
-                {{ progset }}
               </option>
             </select><br><br>
             Maximum time to run optimization (s):<br>
@@ -254,13 +243,13 @@ Last update: 2018-08-18
         newParsetName:  [],
         newProgsetName: [],
         graphData: [],
-        areShowingPlotControls: false,
         plotOptions: [],
         table: null,
         activePop: "All",
         endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
+        figscale: 1.0,
       }
     },
 
@@ -269,24 +258,8 @@ Last update: 2018-08-18
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
+      activePops()   { return utils.activePops(this) },       
       placeholders() { return utils.placeholders() },
-
-
-
-
-      active_pops() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let pop_pairs = this.$store.state.activeProject.project.pops
-          let pop_list = ["All"]
-          for(let i = 0; i < pop_pairs.length; ++i) {
-            pop_list.push(pop_pairs[i][1]);
-          }
-          return pop_list
-        }
-      },
-
     },
 
     created() {
@@ -301,7 +274,7 @@ Last update: 2018-08-18
           // Load the optimization summaries of the current project.
           this.startYear = this.simStart
           this.endYear = this.simEnd
-          this.popOptions = this.active_pops
+          this.popOptions = this.activePops
           this.getOptimSummaries()
           this.getDefaultOptim()
           this.resetModal()
@@ -313,7 +286,30 @@ Last update: 2018-08-18
 
     methods: {
       
-      // TO_PORT
+      getPlotOptions()          { return utils.getPlotOptions(this) },
+      clearGraphs()             { this.table = null; return utils.clearGraphs() },
+      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+          this.figscale = 1.0
+        }
+        return utils.scaleFigs(frac)
+      },
+      
+      clipValidateYearInput() {
+        if (this.endYear > this.simEnd) {
+          this.endYear = this.simEnd
+        }
+        else if (this.endYear < this.simStart) {
+          this.endYear = this.simStart
+        }
+      },
+      
       updateSets() {
         console.log('updateSets() called')
         // Get the current user's parsets from the server.
@@ -546,23 +542,13 @@ Last update: 2018-08-18
         })        
       },
 
-      getPlotOptions() {
-        console.log('getPlotOptions() called')
-        rpcs.rpc('get_supported_plots', [true])
-          .then(response => {
-            this.plotOptions = response.data // Get the parameter values
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
-          })
-      },
-
       toggleShowingPlots() {
         this.areShowingPlots = !this.areShowingPlots
       },
 
       runOptim(optimSummary) {
         console.log('runOptim() called for '+this.currentOptim)
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
         // Start indicating progress.
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
@@ -574,30 +560,8 @@ Last update: 2018-08-18
           taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
             [this.projectID, optimSummary.name, this.plotOptions, true, this.endYear, this.activePop])
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
-//                this.graphData = response.data.graphs // Pull out the response data (use with the rpcCall).
+            this.makeGraphs(response.data.result.graphs)
             this.table = response.data.result.table
-            this.graphData = response.data.result.graphs // Pull out the response data (use with task).
-            var n_plots = this.graphData.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(this.graphData[index]);
-                mpld3.draw_figure(divlabel, this.graphData[index], function(fig, element) {
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('failled:' + err.message);
-              }
-            }
             
             // Indicate success.
             status.succeed(this, 'Graphs created')
@@ -623,85 +587,21 @@ Last update: 2018-08-18
 
       plotOptimization() {
         console.log('plotOptimization() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions], 
+          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.serverresponse = response.data // Pull out the response data.
+            this.makeGraphs(response.data.graphs)
             this.table = response.data.table
-            var n_plots = response.data.graphs.length
-            console.log('Rendering ' + n_plots + ' graphs')
-            for (var index = 0; index <= n_plots; index++) {
-              console.log('Rendering plot ' + index)
-              var divlabel = 'fig' + index
-              var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-              while (div.firstChild) {
-                div.removeChild(div.firstChild);
-              }
-              try {
-                console.log(response.data.graphs[index]);
-                mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-                  fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-                });
-                this.haveDrawnGraphs = true
-              }
-              catch (err) {
-                console.log('Graph failed:' + err.message);
-              }
-            }
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
             status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
-      },
-
-      reloadGraphs() {
-        console.log('Reload graphs')
-        let n_plots = this.graphData.length
-        console.log('Rendering ' + n_plots + ' graphs')
-        for (let index = 0; index <= n_plots; index++) {
-          console.log('Rendering plot ' + index)
-          var divlabel = 'fig' + index
-          try {
-            mpld3.draw_figure(divlabel, response.data.graphs[index], function(fig, element) {
-              fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-              fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-            });
-          }
-          catch (err) {
-            console.log('failled:' + err.message);
-          }
-        }
-      },
-
-      clearGraphs() {
-        console.log('Clear graphs')
-        this.graphData = []
-        for (var index = 0; index <= 100; index++) {
-          console.log('Clearing plot ' + index)
-          var divlabel = 'fig' + index
-          var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-          while (div.firstChild) {
-            div.removeChild(div.firstChild);
-          }
-        }
-      },
-
-      exportResults(project_id) {
-        console.log('exportResults() called')
-        status.start(this)
-        rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
-          .then(response => {
-            // Indicate success.
-            status.succeed(this, '')  // No green popup message.
-          })
-          .catch(error => {
-            // Failure.
-            status.fail(this, 'Could not export results')
           })
       },
 
@@ -712,28 +612,20 @@ Last update: 2018-08-18
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  .calib-graphs {
-    display: flex;
-    flex-wrap: wrap;
-    & > * {
-      flex: 0 0 650px;
-    }
-  }
-
   /*
   HACK: The purpose of this code is to get things to line up a bit until
   we have a proper layout. Using fixed pixel widths is terrible and we
   shouldn't do it in other places.
   */
-  .calib-tables span {
+/*  .calib-tables span {
     display: block;
     margin-bottom: 1rem;
     font-weight: bold;
   }
   .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
-    color: black; /* To match graph */
-    font-family: Helvetica, sans-serif; /* To match graph */
-  }
+    color: black; */ /* To match graph */
+/*    font-family: Helvetica, sans-serif; */ /* To match graph */
+/*  }
   .calib-tables table, .calib-tables tr, .calib-tables td {
     border: 2px solid #ddd;
   }
@@ -743,12 +635,7 @@ Last update: 2018-08-18
     text-align: right;
   }
   .calib-tables table td:nth-child(1) {
-    width: 192px; /* Header column */
-    padding-right: 11px;
-  }
-  .controls-box {
-    border: 2px solid #ddd;
-    padding: 7px;
-    display: inline-block;
-  }
+    width: 192px; */ /* Header column */
+/*    padding-right: 11px;
+  } */
 </style>

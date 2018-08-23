@@ -611,7 +611,7 @@ class TimeDependentValuesEntry(object):
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1] == 'OR'  # Check row is as expected
+                assert vals[offset - 1] == 'OR', 'Error with validating row in TDVE table "%s"' % (name)  # Check row is as expected
 
             data = vals[offset:]
 
@@ -678,8 +678,16 @@ class TimeDependentValuesEntry(object):
 
             # Write the units
             if write_units:
-                worksheet.write(current_row,units_index,row_ts.format.title() if row_ts.format else None)
-                update_widths(widths, units_index, row_ts.format.title() if row_ts.format else None)
+
+                if row_ts.format:
+                    if row_ts.format.lower().strip() in FS.STANDARD_UNITS: # Preserve case if nonstandard unit
+                        unit = row_ts.format.title().strip()
+                    else:
+                        unit = row_ts.format.strip()
+                    worksheet.write(current_row,units_index,unit)
+                    update_widths(widths, units_index, unit)
+                else:
+                    worksheet.write(current_row,units_index,FS.DEFAULT_SYMBOL_INAPPLICABLE)
 
                 if self.allowed_units: # Add validation if a list of options is specified
                     worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})

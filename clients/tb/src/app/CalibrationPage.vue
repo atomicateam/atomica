@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-16
+Last update: 2018-08-22
 -->
 
 <template>
@@ -242,7 +242,8 @@ Last update: 2018-08-16
         endYear: 0,
         plotOptions: [],
         calibTime: '30 seconds',
-        calibTimes: ['30 seconds', 'Unlimited']
+        calibTimes: ['30 seconds', 'Unlimited'],
+        figscale: 1.0,
       }
     },
 
@@ -295,7 +296,22 @@ Last update: 2018-08-16
         }
         return utils.scaleFigs(frac)
       },
-
+      
+      clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
+        if (this.endYear > this.simEnd) {
+          this.endYear = this.simEnd
+        }
+        else if (this.endYear < this.simStart) {
+          this.endYear = this.simStart
+        }
+      },
+      
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
@@ -362,8 +378,10 @@ Last update: 2018-08-16
 
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, 
+          this.startYear, this.endYear]) // Go to the server to get the results from the package set.
           .then(response => {
             status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
@@ -376,6 +394,7 @@ Last update: 2018-08-16
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
@@ -445,6 +464,6 @@ Last update: 2018-08-16
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
 
 </style>

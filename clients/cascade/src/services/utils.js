@@ -67,6 +67,19 @@ function simEnd(vm) {
   }
 }
 
+function activePops(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  } else {
+    let pop_pairs = vm.$store.state.activeProject.project.pops
+    let pop_list = ["All"]
+    for(let i = 0; i < pop_pairs.length; ++i) {
+      pop_list.push(pop_pairs[i][1]);
+    }
+    return pop_list
+  }
+}
+      
 function getPlotOptions(vm) {
   console.log('getPlotOptions() called')
   rpcs.rpc('get_supported_plots', [true])
@@ -132,6 +145,26 @@ function exportResults(vm, project_id) {
 }
 
 
+//
+// Graphs DOM functions
+//
+
+function showBrowserWindowSize() {
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var ow = window.outerWidth; //including toolbars and status bar etc.
+  var oh = window.outerHeight;
+  console.log('Browser window size:')
+  console.log('Inner width: ', w)
+  console.log('Inner height: ', h)
+  console.log('Outer width: ', ow)
+  console.log('Outer height: ', oh)
+  window.alert('Browser window size:\n'+ 
+    'Inner width: ' + w + '\n' +
+    'Inner height: ' + h + '\n' +
+    'Outer width: ' + ow + '\n' +
+    'Outer height: ' + oh + '\n')
+}
 
 function scaleElem(svg, frac) {
   // It might ultimately be better to redraw the graph, but this works
@@ -162,9 +195,11 @@ export default {
   hasData,
   simStart,
   simEnd,
+  activePops,
   getPlotOptions,
   makeGraphs,
   clearGraphs,
   exportResults,
   scaleFigs,
+  showBrowserWindowSize,
 }
