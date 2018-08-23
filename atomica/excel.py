@@ -611,7 +611,7 @@ class TimeDependentValuesEntry(object):
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1] == 'OR'  # Check row is as expected
+                assert vals[offset - 1] == 'OR', 'Error with validating row in TDVE table "%s"' % (name)  # Check row is as expected
 
             data = vals[offset:]
 
