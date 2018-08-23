@@ -7,7 +7,7 @@ Last update: 2018-08-23
 <template>
   <div>
     <div class="PageSection">
-      <help-link :ref="create-projects" :label="'Create projects'"></help-link>
+      <help-link reflink="create-projects" label="Create projects"></help-link>
       
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
@@ -22,7 +22,9 @@ Last update: 2018-08-23
     <div class="PageSection"
          v-if="projectSummaries.length > 0">
       <!--<h2>Manage projects</h2>-->
-
+      
+      <help-link reflink="manage-projects" label="Manage projects"></help-link>
+      
       <input type="text"
              class="txbox"
              style="margin-bottom: 20px"

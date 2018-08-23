@@ -6,12 +6,12 @@ Last update: 2018-08-23
 
 <template>
   <div>
-    <p>
+    <h5>
       {{ label }} 
-      <span @click="openLink(ref)">
+      <span @click="openLink(reflink)">
         <i class="fas fa-book"  style="{ margin-left: 0.5em; color: #29abe2; font-size: 14px }"></i>
       </span>
-    </p>
+    </h5>
   </div>
 </template>
 
@@ -20,7 +20,7 @@ Last update: 2018-08-23
     name: 'HelpLink',
     
     props: {
-      ref: {
+      reflink: {
         type: String,
         default: 'create-projects'
       }, 
@@ -35,7 +35,8 @@ Last update: 2018-08-23
       return {
         baseURL: 'https://docs.google.com/document/d/1x4Kb3hyB8NwVziE95UhT6bXpO1uRDFxJlN8QxvrLgvg/edit#heading=', 
         linkMap: {
-          'create-projects': 'h.wohgolfxe9ko'
+          'create-projects': 'h.wohgolfxe9ko', 
+          'manage-projects': 'h.fcnvzbrouon2'
         }
       }
     },
