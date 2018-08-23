@@ -19,6 +19,8 @@ class FrameworkSettings(object):
     QUANTITY_TYPE_NUMBER = "number"
     QUANTITY_TYPE_FRACTION = "fraction"
     QUANTITY_TYPE_PROPORTION = "proportion"
+    STANDARD_UNITS = [QUANTITY_TYPE_PROBABILITY,QUANTITY_TYPE_DURATION,QUANTITY_TYPE_NUMBER,QUANTITY_TYPE_FRACTION,QUANTITY_TYPE_PROPORTION]
+
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
 
     RESERVED_KEYWORDS = ['t','flow','all','dt'] # A code_name in the framework cannot be equal to one of these values

@@ -16,6 +16,11 @@ P.settings.update_time_vector(end=2005,dt=0.02)
 P.load_databook(databook_path=D_path, make_default_parset=True, do_run=True)
 r = P.results[0]
 
+
+d = PlotData(r,outputs=['seasonal_max'],project=P)
+plot_series(d)
+plt.title('Seasonal rainfall')
+
 d = PlotData(r,outputs=['seasonal_jan','seasonal_jun'],project=P)
 plot_series(d)
 plt.title('Seasonal rainfall')
