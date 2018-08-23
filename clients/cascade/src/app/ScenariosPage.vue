@@ -106,7 +106,7 @@ Last update: 2018-08-22
       </div>
       
       <div class="calib-tables" v-if="table">
-        <h3>Cascade Stage Losses</h3>
+        <h4>Cascade stage losses</h4>
         <table class="table table-striped">
           <thead>
           <tr>
