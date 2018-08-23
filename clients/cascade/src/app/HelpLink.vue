@@ -5,7 +5,14 @@ Last update: 2018-08-23
 -->
 
 <template>
-  <h4 @click="openLink(ref)">{{ label }}</h4>
+  <div>
+    <p>
+      {{ label }} 
+      <span @click="openLink(ref)">
+        <i class="fas fa-book"  style="{ margin-left: 0.5em; color: #29abe2; font-size: 14px }"></i>
+      </span>
+    </p>
+  </div>
 </template>
 
 <script>
