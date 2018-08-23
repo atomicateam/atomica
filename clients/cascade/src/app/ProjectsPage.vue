@@ -1,13 +1,14 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-18
+Last update: 2018-08-23
 -->
 
 <template>
   <div>
     <div class="PageSection">
-
+      <help-link reflink="create-projects" label="Create projects"></help-link>
+      
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
         &nbsp; &nbsp;
@@ -21,7 +22,9 @@ Last update: 2018-08-18
     <div class="PageSection"
          v-if="projectSummaries.length > 0">
       <!--<h2>Manage projects</h2>-->
-
+      
+      <help-link reflink="manage-projects" label="Manage projects"></help-link>
+      
       <input type="text"
              class="txbox"
              style="margin-bottom: 20px"
@@ -288,9 +291,14 @@ import utils from '@/services/utils'
 import rpcs from '@/services/rpc-service'
 import status from '@/services/status-service'
 import router from '@/router'
+import HelpLink from '@/app/HelpLink.vue'
   
 export default {
   name: 'ProjectsPage',
+ 
+  components: {
+    HelpLink
+  }, 
   
   data() {
     return {
@@ -334,6 +342,20 @@ export default {
   },
 
   methods: {
+    
+/*    openThang(thangLink) {
+      let scrh = screen.height
+      let scrw = screen.width
+      let h = scrh * 0.8  // Height of window
+      let w = scrw * 0.6  // Width of window
+      let t = scrh * 0.1  // Position from top of screen -- centered
+      let l = scrw * 0.37 // Position from left of screen -- almost all the way right      
+      let newWindow = window.open(thangLink, 
+        'Reference manual', 'width=' + w + ', height=' + h + ', top=' + t + ',left=' + l)
+      if (window.focus) {
+        newWindow.focus()
+      }        
+    }, */
 
     beforeOpen (event) {
       console.log(event)

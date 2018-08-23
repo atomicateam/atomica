@@ -298,7 +298,8 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
         plt.table(cellText=cell_text,rowLabels=row_labels,rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
         return fig
     else:
-        table = {'text':cell_text, 'labels':row_labels}
+        col_labels = [k for k in cascade_vals[0].keys()]
+        table = {'text':cell_text, 'rowlabels':row_labels, 'collabels':col_labels}
         return fig,table
 
 def get_cascade_outputs(framework,cascade_name):
