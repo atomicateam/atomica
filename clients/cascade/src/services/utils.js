@@ -67,6 +67,19 @@ function simEnd(vm) {
   }
 }
 
+function activePops(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  } else {
+    let pop_pairs = vm.$store.state.activeProject.project.pops
+    let pop_list = ["All"]
+    for(let i = 0; i < pop_pairs.length; ++i) {
+      pop_list.push(pop_pairs[i][1]);
+    }
+    return pop_list
+  }
+}
+      
 function getPlotOptions(vm) {
   console.log('getPlotOptions() called')
   rpcs.rpc('get_supported_plots', [true])
@@ -162,6 +175,7 @@ export default {
   hasData,
   simStart,
   simEnd,
+  activePops,
   getPlotOptions,
   makeGraphs,
   clearGraphs,

@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-15
+Last update: 2018-08-22
 -->
 
 <template>
@@ -59,6 +59,7 @@ Last update: 2018-08-15
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
+            <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh graphs</button>
             <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
           </div>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -203,6 +204,8 @@ Last update: 2018-08-15
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        startYear: 0,
+        endYear: 0,        
         areShowingPlotControls: false,
         plotOptions: [],
         scenariosLoaded: false,
@@ -259,7 +262,22 @@ Last update: 2018-08-15
         }
         return utils.scaleFigs(frac)
       },
-
+      
+      clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
+        if (this.endYear > this.simEnd) {
+          this.endYear = this.simEnd
+        }
+        else if (this.endYear < this.simStart) {
+          this.endYear = this.simStart
+        }
+      },
+      
       updateSets() {
         console.log('updateSets() called')
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
@@ -444,6 +462,7 @@ Last update: 2018-08-15
 
       runScens() {
         console.log('runScens() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(7000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
@@ -467,25 +486,29 @@ Last update: 2018-08-15
 
       plotScenarios() {
         console.log('plotScens() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        rpcservice.rpcCall('plot_scenarios', [this.projectID, this.plotOptions], {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        // Make sure they're saved first
+        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], 
+          {tool:'tb', plotyear:this.endYear})
           .then(response => {
-            this.table = response.data.table
             this.makeGraphs(response.data.graphs)
+            status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            console.log('There was an error: ' + error.message) // Pull out the error message.
-            status.fail(this, 'Could not plot scenarios: ' + error.message) // Indicate failure.
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            status.fail(this, 'Could not make graphs') // Indicate failure.
           })
-      },
+      },      
     }
   }
 </script>
 
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
 
 </style>
 

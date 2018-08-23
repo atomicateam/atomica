@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-20
+Last update: 2018-08-22
 -->
 
 <template>
@@ -76,7 +76,7 @@ Last update: 2018-08-20
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
           <select v-model="activePop">
-            <option v-for='pop in active_pops'>
+            <option v-for='pop in activePops'>
               {{ pop }}
             </option>
           </select>
@@ -91,7 +91,6 @@ Last update: 2018-08-20
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
           <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlots()"><span v-if="areShowingPlots">Hide</span><span v-else>Show</span> plot controls</button>
         </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
@@ -158,30 +157,7 @@ Last update: 2018-08-20
             <!--mpld3 content goes here-->
           </div>
         </div>
-
-        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlots}">
-          <div class="plotopts-params" v-if="areShowingPlots">
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Plot</th>
-                <th>Active</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="item in plotOptions">
-                <td>
-                  {{ item.plot_name }}
-                </td>
-                <td style="text-align: center">
-                  <input type="checkbox" v-model="item.active"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+        
       </div>
 
     </div>
@@ -241,7 +217,6 @@ Last update: 2018-08-20
         sortReverse: false,
         parList: [],
         areShowingParameters: false,
-        areShowingPlots: false,
         activeParset: -1,
         parsetOptions: [],
         newParsetName: [],
@@ -262,22 +237,8 @@ Last update: 2018-08-20
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
+      activePops()   { return utils.activePops(this) },      
       placeholders() { return utils.placeholders() },
-
-
-      active_pops() {
-        if (this.$store.state.activeProject.project === undefined) {
-          return ''
-        } else {
-          let pop_pairs = this.$store.state.activeProject.project.pops
-          let pop_list = ["All"]
-          for(let i = 0; i < pop_pairs.length; ++i) {
-            pop_list.push(pop_pairs[i][1]);
-          }
-          return pop_list
-        }
-      },
-
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
@@ -294,7 +255,7 @@ Last update: 2018-08-20
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
-        this.popOptions = this.active_pops
+        this.popOptions = this.activePops
         this.viewTable()
         this.getPlotOptions()
         utils.sleep(1)  // used so that spinners will come up by callback func
@@ -395,14 +356,12 @@ Last update: 2018-08-20
         this.areShowingParameters = !this.areShowingParameters
       },
 
-      toggleShowingPlots() {
-        this.areShowingPlots = !this.areShowingPlots
-      },
-
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, this.startYear, this.endYear]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,       
+          this.startYear, this.endYear, this.activePop]) // Go to the server to get the results from the package set.
           .then(response => {
             status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
@@ -415,6 +374,7 @@ Last update: 2018-08-20
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
@@ -484,6 +444,6 @@ Last update: 2018-08-20
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style>
+<style scoped>
 
 </style>
