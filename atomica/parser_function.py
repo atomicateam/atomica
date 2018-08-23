@@ -2,7 +2,16 @@ import ast
 import numpy as np
 
 # Only calls to functions in the dict below will be permitted
-supported_functions = {'max':max,'exp': np.exp, 'floor': np.floor, 'SRC_POP_AVG': None, 'TGT_POP_AVG': None}
+supported_functions = {
+    'max':max,
+    'exp': np.exp,
+    'floor': np.floor,
+    'SRC_POP_AVG': None,
+    'TGT_POP_AVG': None,
+    'pi':np.pi,
+    'cos':np.cos,
+    'sin':np.sin,
+    }
 
 
 def parse_function(fcn_str):

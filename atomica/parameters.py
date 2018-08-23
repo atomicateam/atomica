@@ -196,7 +196,13 @@ class ParameterSet(NamedItem):
                 tvec, yvec = ts.get_arrays()
                 self.pars[item_group][-1].t[pop_name] = tvec
                 self.pars[item_group][-1].y[pop_name] = yvec
-                self.pars[item_group][-1].y_format[pop_name] = ts.format.lower().strip() if ts.format is not None else None
+                if ts.format is not None and ts.format.upper().strip() != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    if ts.format.lower().strip() in FS.STANDARD_UNITS:
+                        self.pars[item_group][-1].y_format[pop_name] = ts.format.lower().strip()
+                    else:
+                        self.pars[item_group][-1].y_format[pop_name] = ts.format.strip() # Preserve the case if it's not a standard unit
+                else:
+                    self.pars[item_group][-1].y_format[pop_name] = None
                 self.pars[item_group][-1].y_factor[pop_name] = 1.0
 
         # We have just created Parameter objects for every parameter in the databook
