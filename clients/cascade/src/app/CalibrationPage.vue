@@ -81,24 +81,27 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
+
+        <div style="text-align: center">
+          <div class="controls-box">
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="controls-box">
+            <button class="btn" @click="clearGraphs()">Clear graphs</button>
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="controls-box">
+            <button class="btn" @click="scaleFigs(0.9)">-</button>
+            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+            <button class="btn" @click="scaleFigs(1.1)">+</button>
+          </div>
+        </div>
+
       </div>
 
-      <div style="text-align: center">
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="clearGraphs()">Clear graphs</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="scaleFigs(0.9)">-</button>
-          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-          <button class="btn" @click="scaleFigs(1.1)">+</button>
-        </div>
-      </div>
+
 
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
