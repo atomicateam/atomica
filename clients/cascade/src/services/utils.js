@@ -145,6 +145,26 @@ function exportResults(vm, project_id) {
 }
 
 
+//
+// Graphs DOM functions
+//
+
+function showBrowserWindowSize() {
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var ow = window.outerWidth; //including toolbars and status bar etc.
+  var oh = window.outerHeight;
+  console.log('Browser window size:')
+  console.log('Inner width: ', w)
+  console.log('Inner height: ', h)
+  console.log('Outer width: ', ow)
+  console.log('Outer height: ', oh)
+  window.alert('Browser window size:\n'+ 
+    'Inner width: ' + w + '\n' +
+    'Inner height: ' + h + '\n' +
+    'Outer width: ' + ow + '\n' +
+    'Outer height: ' + oh + '\n')
+}
 
 function scaleElem(svg, frac) {
   // It might ultimately be better to redraw the graph, but this works
@@ -181,4 +201,5 @@ export default {
   clearGraphs,
   exportResults,
   scaleFigs,
+  showBrowserWindowSize,
 }

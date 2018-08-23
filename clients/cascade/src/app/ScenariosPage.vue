@@ -241,7 +241,8 @@ Last update: 2018-08-22
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project != undefined) && 
-        (this.$store.state.activeProject.project.hasData) ) {      
+        (this.$store.state.activeProject.project.hasData) ) {   
+        utils.showBrowserWindowSize()        
         // Load the scenario summaries of the current project.
         console.log('created() called')
         this.startYear = this.simStart
