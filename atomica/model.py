@@ -916,12 +916,11 @@ class Model(object):
                 par = pop.get_par(cascade_par.name)  # Find the parameter with the requested name
                 # If parameter has an f-stack then vals will be calculated during/after integration.
                 # This is opposed to values being supplied from databook.
+                par.units = cascade_par.y_format[pop_name]
                 par.scale_factor = cascade_par.y_factor[pop_name]
                 if not par.fcn_str:
                     par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
                     par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
-                if par.links:
-                    par.units = cascade_par.y_format[pop_name]
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
