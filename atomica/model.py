@@ -317,7 +317,7 @@ class Parameter(Variable):
         deps = {}
         interactions = set(framework.interactions.index)
         for dep_name in dep_list:
-            if not dep_name in interactions: # There are no integration variables associated with the interactions, as they are treated as a special matrix
+            if not (dep_name in interactions or dep_name in ['t','dt']): # There are no integration variables associated with the interactions, as they are treated as a special matrix
                 deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
@@ -384,6 +384,8 @@ class Parameter(Variable):
                 else:
                     dep_vals[dep_name] += dep.vals[[ti]]
 
+        dep_vals['t'] = self.t[[ti]]
+        dep_vals['dt'] = self.dt
         self.vals[ti] = self.scale_factor*self._fcn(**dep_vals)
 
     def source_popsize(self, ti):
