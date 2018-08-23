@@ -271,8 +271,8 @@ class MaximizeCascadeStage(Measurable):
         val = 0
         for pop_name in self.pop_names:
             cascade_vals = get_cascade_vals(result,self.measurable_name, pop_name, self.t)
-            for stage in self.cascade_stage:
-                val += np.sum(cascade_vals[0][stage]) # The sum of final cascade stage values
+            for stage in self.cascade_stage: # Loop over included stages
+                val += np.sum(cascade_vals[0][stage]) # Add the values from the stage, summed over time
         return val
 
 class MaximizeCascadeConversionRate(Measurable):
