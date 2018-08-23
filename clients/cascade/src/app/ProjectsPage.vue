@@ -7,7 +7,7 @@ Last update: 2018-08-23
 <template>
   <div>
     <div class="PageSection">
-      <help-link reflink="create-projects" label="Create projects"></help-link>
+      <help reflink="create-projects" label="Create projects"></help>
       
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
@@ -23,7 +23,7 @@ Last update: 2018-08-23
          v-if="projectSummaries.length > 0">
       <!--<h2>Manage projects</h2>-->
       
-      <help-link reflink="manage-projects" label="Manage projects"></help-link>
+      <help reflink="manage-projects" label="Manage projects"></help>
       
       <input type="text"
              class="txbox"
@@ -291,13 +291,13 @@ import utils from '@/services/utils'
 import rpcs from '@/services/rpc-service'
 import status from '@/services/status-service'
 import router from '@/router'
-import HelpLink from '@/app/HelpLink.vue'
+import help from '@/app/HelpLink.vue'
   
 export default {
   name: 'ProjectsPage',
  
   components: {
-    HelpLink
+    help
   }, 
   
   data() {
