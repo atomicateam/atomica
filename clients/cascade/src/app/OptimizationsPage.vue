@@ -93,12 +93,20 @@ Last update: 2018-08-22
           </div>
         </div>
         <div class="calib-tables" v-if="table">
-          <span>Losses</span>
-          <table>
-            <tr v-for="(label, index) in table.labels">
-              <td>{{label}}</td>
-              <td v-for="text in table.text[index]">{{text}}</td>
+          <h3>Cascade Stage Losses</h3>
+          <table class="table table-striped">
+            <thead>
+            <tr>
+              <th></th>
+              <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
             </tr>
+            </thead>
+            <tbody>            
+            <tr v-for="(label, index) in table.rowlabels">
+              <td>{{label}}</td>
+              <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+            </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -609,15 +617,15 @@ Last update: 2018-08-22
   we have a proper layout. Using fixed pixel widths is terrible and we
   shouldn't do it in other places.
   */
-  .calib-tables span {
+/*  .calib-tables span {
     display: block;
     margin-bottom: 1rem;
     font-weight: bold;
   }
   .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
-    color: black; /* To match graph */
-    font-family: Helvetica, sans-serif; /* To match graph */
-  }
+    color: black; */ /* To match graph */
+/*    font-family: Helvetica, sans-serif; */ /* To match graph */
+/*  }
   .calib-tables table, .calib-tables tr, .calib-tables td {
     border: 2px solid #ddd;
   }
@@ -627,7 +635,7 @@ Last update: 2018-08-22
     text-align: right;
   }
   .calib-tables table td:nth-child(1) {
-    width: 192px; /* Header column */
-    padding-right: 11px;
-  }
+    width: 192px; */ /* Header column */
+/*    padding-right: 11px;
+  } */
 </style>
