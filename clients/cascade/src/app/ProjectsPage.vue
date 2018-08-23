@@ -7,9 +7,7 @@ Last update: 2018-08-23
 <template>
   <div>
     <div class="PageSection">
-
-<!--      <button class="btn" @click="openThang('https://docs.google.com/document/d/1x4Kb3hyB8NwVziE95UhT6bXpO1uRDFxJlN8QxvrLgvg/edit#heading=h.wohgolfxe9ko')">Create projects</button> -->
-      <help-link></help-link>
+      <help-link :ref="create-projects" :label="'Create projects'"></help-link>
       
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
