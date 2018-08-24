@@ -6,21 +6,24 @@ Last update: 2018-08-18
 
 <template>
   <div>
-    <div class="PageSection">
+    <!--<div class="PageSection">-->
+      <div class="card">
+        <help reflink="create-frameworks" label="Create frameworks"></help>
 
-      <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
-        &nbsp; &nbsp;
-        <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>
-        &nbsp; &nbsp;
-        <button class="btn __blue" @click="uploadFrameworkFromFile">Upload framework from file</button>
-        &nbsp; &nbsp;
-      </div>
-    </div>
+        <div class="ControlsRow">
+          <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
+          &nbsp; &nbsp;
+          <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>
+          &nbsp; &nbsp;
+          <button class="btn __blue" @click="uploadFrameworkFromFile">Upload framework from file</button>
+          &nbsp; &nbsp;
+        </div>
+      <!--</div>-->
+    </div><br>
 
-    <div class="PageSection"
+    <div class="card"
          v-if="frameworkSummaries.length > 0">
-      <!--<h2>Manage frameworks</h2>-->
+      <help reflink="manage-frameworks" label="Manage frameworks"></help>
 
       <input type="text"
              class="txbox"
@@ -193,9 +196,14 @@ Last update: 2018-08-18
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
+  import help from '@/app/HelpLink.vue'
   
   export default {
     name: 'FrameworksPage',
+
+    components: {
+      help
+    },
     
     data() {
       return {

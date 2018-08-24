@@ -28,7 +28,7 @@ $table-bg-active:                    $table-bg-hover;
   }
   > thead > tr > th {
     border-bottom-width: 0;
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: bold; // $font-weight-light;
     background-color: $cascade-blue;//#666;//#1e749f;
     color:#fff;
@@ -145,7 +145,7 @@ $table-bg-active:                    $table-bg-hover;
   > thead > tr > td,
   > tbody > tr > td,
   > tfoot > tr > td {
-    padding: 3px 0px 6px 6px;
+    padding: 3px 6px 6px 6px;
   }
   > tbody > tr:nth-child(odd) {
     > td,
