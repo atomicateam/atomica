@@ -20,47 +20,52 @@ Last update: 2018-08-22
     </div>
 
     <div v-else>
-      <div class="calib-controls">
-        <div class="controls-box">
-          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
-          <button class="btn" @click="toggleShowingParams()">
-            <span v-if="areShowingParameters">Hide</span>
-            <span v-else>Show</span>
-            parameters
-          </button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
-          for&nbsp;
-          <select v-model="calibTime">
-            <option v-for='time in calibTimes'>
-              {{ time }}
-            </option>
-          </select>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br><br><br><br>sldksdlksldsdl<br><br><br><br>
-        <div class="controls-box">
-          <!--<div style="display: inline-block; padding-left: 100px">-->
-          <b>Parameter set: &nbsp;</b>
-          <select v-model="activeParset">
-            <option v-for='parset in parsetOptions'>
-              {{ parset }}
-            </option>
-          </select>
-          &nbsp;
-          <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
-            <i class="ti-pencil"></i>
-          </button>
-          <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
-            <i class="ti-files"></i>
-          </button>
-          <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
-            <i class="ti-trash"></i>
-          </button>
-        </div>
+      <div class="card">
+        <help reflink="calibration" label="Calibration"></help>
+        <!--<div class="calib-controls">-->
+          <div class="controls-box">
+            <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+            <button class="btn" @click="toggleShowingParams()">
+              <span v-if="areShowingParameters">Hide</span>
+              <span v-else>Show</span>
+              parameters
+            </button>
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="controls-box">
+            <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
+            for&nbsp;
+            <select v-model="calibTime">
+              <option v-for='time in calibTimes'>
+                {{ time }}
+              </option>
+            </select>
+          </div>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="controls-box">
+            <!--<div style="display: inline-block; padding-left: 100px">-->
+            <b>Parameter set: &nbsp;</b>
+            <select v-model="activeParset">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select>
+            &nbsp;
+            <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
+              <i class="ti-pencil"></i>
+            </button>
+            <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
+              <i class="ti-files"></i>
+            </button>
+            <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
+              <i class="ti-trash"></i>
+            </button>
+          </div>
+        <!--</div>-->
+      </div>
 
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+      <div class="card">
+        <help reflink="plot-controls" label="Plot controls"></help>
         <div class="controls-box">
           <!--<b>Start year: &nbsp;</b>-->
           <!--<input type="text"-->
@@ -73,7 +78,7 @@ Last update: 2018-08-22
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;<br>
+          &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
           <select v-model="activePop">
             <option v-for='pop in activePops'>
@@ -81,23 +86,19 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-        <br>
-        <div style="text-align: center">
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           <div class="controls-box">
             <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
           </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
-          <div class="controls-box">
-            <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
-          <div class="controls-box">
-            <button class="btn" @click="scaleFigs(0.9)">-</button>
-            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-            <button class="btn" @click="scaleFigs(1.1)">+</button>
-          </div>
-        </div>
+          <!--<div class="controls-box">-->
+            <!--<button class="btn" @click="clearGraphs()">Clear graphs</button>-->
+          <!--</div>-->
+          <!--<div class="controls-box">-->
+            <!--<button class="btn" @click="scaleFigs(0.9)">-</button>-->
+            <!--<button class="btn" @click="scaleFigs(1.0)">Scale</button>-->
+            <!--<button class="btn" @click="scaleFigs(1.1)">+</button>-->
+          <!--</div>-->
 
       </div>
 
@@ -105,15 +106,16 @@ Last update: 2018-08-22
 
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
         <div class="calib-params" v-if="areShowingParameters">
+          <div class="card">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th @click="updateSorting('index')" class="sortable">
-                No.
-                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
+              <!--<th @click="updateSorting('index')" class="sortable">-->
+                <!--No.-->
+                <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
+                <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
+                <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
+              <!--</th>-->
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -136,9 +138,9 @@ Last update: 2018-08-22
             </thead>
             <tbody>
             <tr v-for="par in sortedPars">
-              <td>
-                {{par.index}}
-              </td>
+              <!--<td>-->
+                <!--{{par.index}}-->
+              <!--</td>-->
               <td>
                 {{par.parlabel}}
               </td>
@@ -154,10 +156,13 @@ Last update: 2018-08-22
             </tbody>
           </table>
         </div>
+        </div>
 
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+        <div class="card">
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
           </div>
         </div>
         
@@ -209,9 +214,14 @@ Last update: 2018-08-22
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
+  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'CalibrationPage',
+
+    components: {
+      help
+    },
 
     data() {
       return {
