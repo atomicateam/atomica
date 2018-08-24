@@ -48,8 +48,9 @@ Last update: 2018-08-22
           <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
-<br>
-      <div class="card">
+
+      <!--<div class="card" style="min-width:400px">        &lt;!&ndash;style="position:fixed; top:200px; left:0px; min-width:400px">&ndash;&gt;-->
+      <drop-down title="Plot controls">
         <help reflink="plot-controls" label="Plot controls"></help>
         <div class="controls-box">
           <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
@@ -70,7 +71,10 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-      </div>
+      </drop-down>
+    <!--</div>-->
+
+
 
       <div class="card">
         <div class="calib-figures">
