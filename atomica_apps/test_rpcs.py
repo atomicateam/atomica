@@ -24,8 +24,8 @@ if 'get_cascade_plot' in torun:
         'results':results, 
         'pops':   'All', 
         'year':   2030, 
-        'cascade':None, 
-        'optim':  True
+        'cascade': None, 
+        'plot_budget': True
         }
     output = aa.rpcs.get_cascade_plot(proj, **args)
     print('Output:')

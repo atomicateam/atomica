@@ -4,7 +4,7 @@ $disabled-color: #FFF;
 
 .btn {
   @extend .btn.__m;
-  @extend .btn.__medium-blue;
+  @extend .btn.__blue;
   border-radius: 2px;
   border-style: solid;
   border-width: 1px;
@@ -13,6 +13,10 @@ $disabled-color: #FFF;
   text-align: center;
   text-decoration: none;
   user-select: none;
+
+  background: $cascade-blue; // #00aeef;
+  border-color: $cascade-blue; // #01A1DD;
+  color: #FFF;
 
   &:focus {
     box-shadow: 0 0 6px 2px rgba($color-yellow, 0.7);
@@ -53,103 +57,9 @@ $disabled-color: #FFF;
 
   // ### Colours
 
-  &.__white {
-    background: #FFF;
-    border-color: #999999;
-    color: #404446;
-    
-    &:disabled {
-      background: $disabled-background;
-      border-color: $disabled-border-color;
-      color: $disabled-color;      
-    }
-    
-    &:hover:not(:disabled) {
-      background: #f5f5f5;
-    }
-
-    &.__active,
-    &:active:not(:disabled) {
-      background: #f5f5f5;
-    }
-
-    &.__active,
-    &.__active:hover {
-      background: #fff6d5;
-    }
-  }
-
-  &.__light-blue {
-    background: #EEF9FF;
-    border-color: #C7DDEA;
-    color: #53646F;
-    
-    &:disabled {
-      background: $disabled-background;
-      border-color: $disabled-border-color;
-      color: $disabled-color;      
-    }
-    
-    &:hover:not(:disabled) {
-      background: #BEDFF4;
-      border-color: #9DC6DF;
-      color: #3F4D55;
-    }
-
-    &.__active,
-    &:active:not(:disabled) {
-      background: #AFD8F2;
-      border-color: #9DC6DF;
-      color: #3F4D55;
-    }
-
-    &.__active,
-    &.__active:hover {
-      background: #AFD8F2;
-      color: #3F4D55;
-    }
-  }
-
-
-  &.__medium-blue {
-    background: #d2e6ff;
-    border-color: #9DC6DF;
-    color: #000;
-    
-    &:disabled {
-      background: $disabled-background;
-      border-color: $disabled-border-color;
-      color: $disabled-color;      
-    }
-    
-/*    &:disabled {
-      color: #708897
-    } */
-    
-    &:hover:not(:disabled) {
-      background: #96b4c9; // CK: blue button hover color
-      border-color: #9DC6DF;
-      color: #000;
-    }
-
-    &.__active,
-    &:active:not(:disabled) {
-      background: #a3c7e0;
-      border-color: #9DC6DF;
-      color: #000;
-    }
-
-    &.__active,
-    &.__active:hover {
-      background: #AFD8F2;
-      color: #000;
-    }
-  }
-
-
   &.__blue {
-    background: #00aeef;
-    border-color: #01A1DD;
+    background: $cascade-blue; // #00aeef;
+    border-color: $cascade-blue; // #01A1DD;
     color: #FFF;
     
     &:disabled {
@@ -289,13 +199,14 @@ $disabled-color: #FFF;
   border-radius: $border-radius-btn-base;
   box-sizing: border-box;
   border-width: 0; // $border-thin; // CK: border width
-  background-color: $button-bg; // CK: button color
+  color: #fff;
+  //background-color: $button-bg; // CK: button color
   font-size: $font-size-base;
   font-weight: $font-weight-semi;
 
   padding: $padding-base-vertical $padding-base-horizontal;
 
-  @include btn-styles($default-color, $default-states-color);
+  //@include btn-styles($default-color, $default-states-color);
   @include transition($fast-transition-time, linear);
   
   &:disabled {
@@ -330,27 +241,27 @@ $disabled-color: #FFF;
 // Apply the mixin to the buttons
 //.btn-default { @include btn-styles($default-color, $default-states-color); }
 .navbar .navbar-nav > li > a.btn-primary, .btn-primary {
-  @include btn-styles($primary-color, $primary-states-color);
+  //@include btn-styles($primary-color, $primary-states-color);
 }
 
 .navbar .navbar-nav > li > a.btn-success, .btn-success {
-  @include btn-styles($success-color, $success-states-color);
+  //@include btn-styles($success-color, $success-states-color);
 }
 
 .navbar .navbar-nav > li > a.btn-info, .btn-info {
-  @include btn-styles($info-color, $info-states-color);
+  //@include btn-styles($info-color, $info-states-color);
 }
 
 .navbar .navbar-nav > li > a.btn-warning, .btn-warning {
-  @include btn-styles($warning-color, $warning-states-color);
+  //@include btn-styles($warning-color, $warning-states-color);
 }
 
 .navbar .navbar-nav > li > a.btn-danger, .btn-danger {
-  @include btn-styles($danger-color, $danger-states-color);
+  //@include btn-styles($danger-color, $danger-states-color);
 }
 
 .btn-neutral {
-  @include btn-styles($white-color, $white-color);
+  //@include btn-styles($white-color, $white-color);
 
   &:hover,
   &:focus {
@@ -396,16 +307,16 @@ $disabled-color: #FFF;
 }
 
 .btn-lg {
-  @include btn-size($padding-large-vertical, $padding-large-horizontal, $font-size-large, $border-radius-btn-large, $line-height-small);
+  //@include btn-size($padding-large-vertical, $padding-large-horizontal, $font-size-large, $border-radius-btn-large, $line-height-small);
   font-weight: $font-weight-normal;
 }
 
 .btn-sm {
-  @include btn-size($padding-small-vertical, $padding-small-horizontal, $font-size-small, $border-radius-btn-small, $line-height-small);
+  //@include btn-size($padding-small-vertical, $padding-small-horizontal, $font-size-small, $border-radius-btn-small, $line-height-small);
 }
 
 .btn-xs {
-  @include btn-size($padding-xs-vertical, $padding-xs-horizontal, $font-size-xs, $border-radius-btn-small, $line-height-small);
+  //@include btn-size($padding-xs-vertical, $padding-xs-horizontal, $font-size-xs, $border-radius-btn-small, $line-height-small);
 }
 
 .btn-wd {

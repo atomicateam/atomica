@@ -290,12 +290,13 @@ $disabled-color: #FFF;
   box-sizing: border-box;
   border-width: 0; // $border-thin; // CK: border width
   background-color: $button-bg; // CK: button color
+  color:#fff;
   font-size: $font-size-base;
   font-weight: $font-weight-semi;
 
   padding: $padding-base-vertical $padding-base-horizontal;
 
-  @include btn-styles($default-color, $default-states-color);
+  //@include btn-styles($default-color, $default-states-color);
   @include transition($fast-transition-time, linear);
   
   &:disabled {
@@ -330,7 +331,7 @@ $disabled-color: #FFF;
 // Apply the mixin to the buttons
 //.btn-default { @include btn-styles($default-color, $default-states-color); }
 .navbar .navbar-nav > li > a.btn-primary, .btn-primary {
-  @include btn-styles($primary-color, $primary-states-color);
+  //@include btn-styles($primary-color, $primary-states-color);
 }
 
 .navbar .navbar-nav > li > a.btn-success, .btn-success {

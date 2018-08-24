@@ -49,20 +49,8 @@ Last update: 2018-08-23
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th>Project actions</th>
-            <th @click="updateSorting('creationTime')" class="sortable">
-              Created on
-              <span v-show="sortColumn == 'creationTime' && !sortReverse">
-                <i class="fas fa-caret-down"></i>
-              </span>
-              <span v-show="sortColumn == 'creationTime' && sortReverse">
-                <i class="fas fa-caret-up"></i>
-              </span>
-              <span v-show="sortColumn != 'creationTime'">
-                <i class="fas fa-caret-up" style="visibility: hidden"></i>
-              </span>
-            </th>
-            <th @click="updateSorting('updatedTime')" class="sortable">
+            <th style="text-align:left">Project actions</th>
+            <th @click="updateSorting('updatedTime')" class="sortable" style="text-align:left">
               Last modified
               <span v-show="sortColumn == 'updatedTime' && !sortReverse">
                 <i class="fas fa-caret-down"></i>
@@ -74,10 +62,10 @@ Last update: 2018-08-23
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th style="text-align:center">Framework</th>
+            <th style="text-align:left">Framework</th>
             <!--<th style="text-align:center">Populations</th>-->
-            <th style="text-align:center">Databook</th>
-            <th style="text-align:center">Program book</th>
+            <th style="text-align:left">Databook</th>
+            <th style="text-align:left">Program book</th>
           </tr>
         </thead>
         <tbody>
@@ -95,10 +83,9 @@ Last update: 2018-08-23
             <td v-else>
               {{ projectSummary.project.name }}
             </td>
-            <td>
+            <td style="text-align:left">
               <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">
-                <span v-if="projectLoaded(projectSummary.project.id)">Selected</span>
-                <span v-else>Open</span>
+                <span>Open</span>
               </button>
               <button class="btn" @click="renameProject(projectSummary)" data-tooltip="Rename">
                 <i class="ti-pencil"></i>
@@ -110,19 +97,20 @@ Last update: 2018-08-23
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td>{{ projectSummary.project.creationTime.toUTCString() }}</td>
-            <td>{{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime.toUTCString():
+            <td style="text-align:left">
+              {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
-            <td style="text-align:right">
-              {{ projectSummary.project.framework }}
+            <td style="text-align:left">
               <button class="btn" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
+              &nbsp;
+              {{ projectSummary.project.framework }}
             </td>
             <!--<td style="text-align:center">-->
               <!--{{ projectSummary.project.n_pops }}-->
             <!--</td>-->
-            <td style="text-align:center">
+            <td style="text-align:left">
               <button class="btn __blue" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
               </button>
@@ -130,8 +118,8 @@ Last update: 2018-08-23
                 <i class="ti-download"></i>
               </button>
             </td>
-            <td style="white-space: nowrap; text-align:center">
-              <button class="btn __green" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
+            <td style="white-space: nowrap; text-align:left">
+              <button class="btn" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
                 <i class="ti-plus"></i>
               </button>
               <button class="btn __blue" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
@@ -438,8 +426,8 @@ export default {
         this.projectSummaries.forEach(theProj => { // Preprocess all projects.
           theProj.selected = false // Set to not selected.
           theProj.renaming = '' // Set to not being renamed.
-          theProj.project.creationTime = new Date(theProj.project.creationTime) // Extract actual Date objects from the strings.
-          theProj.project.updatedTime = new Date(theProj.project.updatedTime)
+//          theProj.project.creationTime = new Date(theProj.project.creationTime) // Extract actual Date objects from the strings.
+//          theProj.project.updatedTime = new Date(theProj.project.updatedTime)
           if (theProj.project.creationTime >= lastCreationTime) { // Update the last creation time and ID if what se see is later.
             lastCreationTime = theProj.project.creationTime
             lastCreatedID = theProj.project.id

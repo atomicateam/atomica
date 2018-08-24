@@ -14,7 +14,6 @@ import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
-import json
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
@@ -1068,7 +1067,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, optim=False):
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     figs = []
     graphs = []
     years = sc.promotetolist(year)
@@ -1078,7 +1077,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, opt
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
     figs.append(fig)
     
-    if optim:
+    if plot_budget:
         d = au.PlotData.programs(results)
         d.interpolate(year)
         budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False)
@@ -1102,9 +1101,9 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, opt
         fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = json.dumps(sw.sanitize_json(graph_dict)) # This shouldn't be necessary, but it is...
+        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
         graphs.append(graph_dict)
-#        pl.close(fig)
+        pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs, 'table':table}
 
