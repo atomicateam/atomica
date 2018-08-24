@@ -81,7 +81,12 @@ Last update: 2018-08-23
                      v-model="projectSummary.renaming"/>
             </td>
             <td v-else>
-              {{ projectSummary.project.name }}
+              <div v-if="projectLoaded(projectSummary.project.id)">
+                <b>{{ projectSummary.project.name }}</b>
+              </div>
+              <div v-else>
+                {{ projectSummary.project.name }}
+              </div>
             </td>
             <td style="text-align:left">
               <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">

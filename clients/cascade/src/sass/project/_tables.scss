@@ -1,8 +1,8 @@
-$line-height-base:        1.428571429; // 20/14
+$line-height-base:        0.8; // 1.428571429; // 20/14
 $line-height-computed:    floor((14px * $line-height-base)); // ~20px
 
-$table-cell-padding:                 8px;
-$table-condensed-cell-padding:       5px;
+$table-cell-padding:                 0px;
+$table-condensed-cell-padding:       0px;
 
 $table-bg:                           transparent; // overall background-color
 $table-bg-accent:                    #efeff4; // for striping
@@ -66,24 +66,12 @@ $table-bg-active:                    $table-bg-hover;
   > thead > tr > td,
   > tbody > tr > td,
   > tfoot > tr > td {
-    padding: 12px;
+    //padding: 12px;
     vertical-align: middle;
   }
 
   .th-description {
     max-width: 150px;
-  }
-  .td-price {
-    font-size: 26px;
-    font-weight: $font-weight-light;
-    margin-top: 5px;
-    text-align: right;
-  }
-  .td-total {
-    font-weight: $font-weight-bold;
-    font-size: $font-size-h5;
-    padding-top: 20px;
-    text-align: right;
   }
 
   .td-actions .btn {
@@ -105,21 +93,6 @@ $table-bg-active:                    $table-bg-hover;
     }
   }
 
-  // for spreadsheet data
-  > tfoot.__condensed {
-    border: 0;
-    margin-top: 12px;
-
-    tr {
-      border: 0;
-    }
-
-    th, td {
-      border: 0;
-      padding: 2px 8px;;
-    }
-  }
-
   th.sortable {
     white-space: nowrap;
   }
@@ -129,19 +102,6 @@ $table-bg-active:                    $table-bg-hover;
     cursor: pointer;
   }
 
-  // // Condensed table w/ half padding
-  // .table-condensed {
-  //   > thead,
-  //   > tbody,
-  //   > tfoot {
-  //     > tr {
-  //       > th,
-  //       > td {
-  //         padding: $table-condensed-cell-padding;
-  //       }
-  //     }
-  //   }
-  // }
 
   // Bordered version
   //
@@ -183,7 +143,7 @@ $table-bg-active:                    $table-bg-hover;
   > thead > tr > td,
   > tbody > tr > td,
   > tfoot > tr > td {
-    padding: 15px 8px;
+    padding: 3px 0px 6px 6px;
   }
   > tbody > tr:nth-child(odd) {
     > td,
@@ -191,11 +151,11 @@ $table-bg-active:                    $table-bg-hover;
       background-color: $table-bg-accent;
     }
   }
-  tr.highlighted {
-    > td {
-      background-color: #80ffaa !important;
-    }
-  }
+  //tr.highlighted {
+  //  > td {
+  //    background-color: #80ffaa !important;
+  //  }
+  //}
 }
 
 // Hover effect
