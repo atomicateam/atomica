@@ -51,13 +51,13 @@ Last update: 2018-08-22
               </option>
             </select>
             &nbsp;
-            <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
+            <button class="btn btn-icon" @click="renameParsetModal()" data-tooltip="Rename">
               <i class="ti-pencil"></i>
             </button>
-            <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
+            <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy">
               <i class="ti-files"></i>
             </button>
-            <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
+            <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete">
               <i class="ti-trash"></i>
             </button>
           </div>
@@ -67,12 +67,18 @@ Last update: 2018-08-22
       <div class="card">
         <help reflink="plot-controls" label="Plot controls"></help>
         <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <div class="controls-box">
           <!--<b>Start year: &nbsp;</b>-->
           <!--<input type="text"-->
                  <!--class="txbox"-->
                  <!--v-model="startYear"-->
                  <!--style="display: inline-block; width:70px"/>-->
           <!--&nbsp;&nbsp;&nbsp;-->
+
           <b>Year: &nbsp;</b>
           <input type="text"
                  class="txbox"
@@ -86,11 +92,8 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
-          </div>
+
+
           <!--<div class="controls-box">-->
             <!--<button class="btn" @click="clearGraphs()">Clear graphs</button>-->
           <!--</div>-->

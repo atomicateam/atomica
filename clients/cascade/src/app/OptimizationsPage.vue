@@ -12,47 +12,51 @@ Last update: 2018-08-22
         <p>No project is loaded.</p>
       </div>
     </div>
-    
+
     <div v-else-if="!hasData">
       <div style="font-style:italic">
         <p>Data not yet uploaded for the project.  Please upload a databook in the Projects page.</p>
       </div>
     </div>
-    
-    <div v-else>
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="optimSummary in optimSummaries">
-          <td>
-            <b>{{ optimSummary.name }}</b>
-          </td>
-          <td style="white-space: nowrap">
-            <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
-            <button class="btn" @click="editOptim(optimSummary)">Edit</button>
-            <button class="btn" @click="copyOptim(optimSummary)">Copy</button>
-            <button class="btn" @click="deleteOptim(optimSummary)">Delete</button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
 
-      <div>
-        <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
-        &nbsp;&nbsp;&nbsp;
+    <div v-else>
+      <div class="card">
+        <help reflink="optimizations" label="Define optimizations"></help>
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="optimSummary in optimSummaries">
+            <td>
+              <b>{{ optimSummary.name }}</b>
+            </td>
+            <td style="white-space: nowrap">
+              <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
+              <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+
+        <div>
+          <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
+        </div>
+      </div>
+<br>
+      <div class="card">
+        <help reflink="plot-controls" label="Plot controls"></help>
+        <div class="controls-box">
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+        </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <div class="controls-box">
-          <!--<b>Start year: &nbsp;</b>-->
-          <!--<input type="text"-->
-          <!--class="txbox"-->
-          <!--v-model="startYear"-->
-          <!--style="display: inline-block; width:70px"/>-->
-          <!--&nbsp;&nbsp;&nbsp;-->
           <b>Year: &nbsp;</b>
           <input type="text"
                  class="txbox"
@@ -68,46 +72,30 @@ Last update: 2018-08-22
         </div>
       </div>
 
-      <div style="text-align: center">
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="plotOptimization()">Refresh graphs</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="scaleFigs(0.9)">-</button>
-          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-          <button class="btn" @click="scaleFigs(1.1)">+</button>
-        </div>
-      </div>
-      
-      <div class="calib-figures">
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+      <div class="card">
+        <div class="calib-figures">
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
           </div>
-        </div>
-        <div class="calib-tables" v-if="table">
-          <h3>Cascade stage losses</h3>
-          <table class="table table-striped">
-            <thead>
-            <tr>
-              <th></th>
-              <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-            </tr>
-            </thead>
-            <tbody>            
-            <tr v-for="(label, index) in table.rowlabels">
-              <td>{{label}}</td>
-              <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-            </tr>
-            </tbody>
-          </table>
+          <div class="calib-tables" v-if="table">
+            <h3>Cascade stage losses</h3>
+            <table class="table table-striped">
+              <thead>
+              <tr>
+                <th></th>
+                <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(label, index) in table.rowlabels">
+                <td>{{label}}</td>
+                <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -213,9 +201,14 @@ Last update: 2018-08-22
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
+  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'OptimizationPage',
+
+    components: {
+      help
+    },
 
     data() {
       return {
