@@ -11,7 +11,7 @@ Last update: 2018-08-18
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
         &nbsp; &nbsp;
-        <button class="btn __blue" @click="createNewFramework">Create new framework</button>
+        <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadFrameworkFromFile">Upload framework from file</button>
         &nbsp; &nbsp;
@@ -114,6 +114,7 @@ Last update: 2018-08-18
       </div>
     </div>
 
+
     <modal name="demo-framework"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
@@ -148,6 +149,38 @@ Last update: 2018-08-18
         </div>
       </div>
     </modal>
+
+
+    <modal name="create-framework"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="20"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create new framework
+        </div>
+        <div style="text-align:justify">
+
+          <br>
+          <b>Framework type</b><br>
+          <input type="radio" v-model="advancedFramework" value="0">&nbsp;Standard framework<br>
+          <input type="radio" v-model="advancedFramework" value="1">&nbsp;Advanced framework<br>
+          <br>
+          <button @click="createNewFramework()" class='btn __green' style="display:inline-block">
+            Create framework
+          </button>
+
+          <button @click="$modal.hide('create-framework')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </modal>
     
   </div>
 
@@ -175,7 +208,8 @@ Last update: 2018-08-18
         frame_name: 'New framework', // For creating a new framework: number of populations
         num_comps: 5, // For creating a new framework: number of populations
         frameworkOptions: [],
-        currentFramework: ''
+        currentFramework: '',
+        advancedFramework: 0
       }
     },
 
@@ -270,11 +304,17 @@ Last update: 2018-08-18
         this.$modal.show('demo-framework');
       },
 
+      createNewFrameworkModal() {
+        // Open a model dialog for creating a new framework
+        console.log('addNewFrameworkModal() called');
+        this.$modal.show('create-framework');
+      },
+
       createNewFramework() {
         console.log('createNewFramework() called')
         this.$modal.hide('create-framework')
         status.start(this) // Start indicating progress.
-        rpcs.download('create_new_framework') // Have the server create a new framework.
+        rpcs.download('create_new_framework', [this.advancedFramework]) // Have the server create a new framework.
         .then(response => {
           status.succeed(this, '')
         })

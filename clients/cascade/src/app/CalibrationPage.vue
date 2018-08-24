@@ -39,7 +39,7 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br><br><br><br>sldksdlksldsdl<br><br><br><br>
         <div class="controls-box">
           <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
@@ -60,7 +60,7 @@ Last update: 2018-08-22
           </button>
         </div>
 
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
         <div class="controls-box">
           <!--<b>Start year: &nbsp;</b>-->
           <!--<input type="text"-->
@@ -73,7 +73,7 @@ Last update: 2018-08-22
                  class="txbox"
                  v-model="endYear"
                  style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;
+          &nbsp;&nbsp;&nbsp;<br>
           <b>Population: &nbsp;</b>
           <select v-model="activePop">
             <option v-for='pop in activePops'>
@@ -81,17 +81,17 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-
+        <br>
         <div style="text-align: center">
           <div class="controls-box">
             <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
           </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
           <div class="controls-box">
             <button class="btn" @click="clearGraphs()">Clear graphs</button>
           </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
           <div class="controls-box">
             <button class="btn" @click="scaleFigs(0.9)">-</button>
             <button class="btn" @click="scaleFigs(1.0)">Scale</button>
