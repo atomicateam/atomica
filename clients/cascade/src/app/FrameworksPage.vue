@@ -154,13 +154,13 @@ Last update: 2018-08-18
     <modal name="create-framework"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
-           :width="20"
+           :width="300"
            :pivot-y="0.3"
            :adaptive="true"
            :clickToClose="clickToClose"
            :transition="transition">
 
-      <div class="dialog-content">
+      <div class="dialog-content" style="padding-left:30px">
         <div class="dialog-c-title">
           Create new framework
         </div>
@@ -311,7 +311,7 @@ Last update: 2018-08-18
       },
 
       createNewFramework() {
-        console.log('createNewFramework() called')
+        console.log('createNewFramework() called with advanced=' + this.advancedFramework)
         this.$modal.hide('create-framework')
         status.start(this) // Start indicating progress.
         rpcs.download('create_new_framework', [this.advancedFramework]) // Have the server create a new framework.

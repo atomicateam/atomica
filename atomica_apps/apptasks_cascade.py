@@ -38,7 +38,7 @@ def run_cascade_optimization(project_id, optim_name, plot_options=None, saveresu
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name)
     proj.results['optimization'] = results # WARNING, will want to save separately!
-    output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
+    output = get_cascade_plot(proj, results, year=plotyear, pops=pops, cascade=cascade, optim=True)
 #    if saveresults:
     print('Saving project...')
     save_project(proj)    
