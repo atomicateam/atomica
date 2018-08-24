@@ -14,6 +14,7 @@ import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
+import json
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
@@ -1080,7 +1081,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, opt
     if optim:
         d = au.PlotData.programs(results)
         d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all',legend_mode='separate',outer='times',show_all_labels=True)
+        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False)
         
         ax = budgetfigs[0].axes[0]
         ax.set_ylabel('Spending ($/year)')
@@ -1090,8 +1091,8 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, opt
         # to include all the contents. Doesn't seem to be anything like that for a
         # figure window. So this is a bit TB specific here - it should be done
         # as part of generating the legend figure
-        budgetfigs[1].set_figheight(8.9)
-        budgetfigs[1].set_figwidth(8.7)
+#        budgetfigs[1].set_figheight(8.9)
+#        budgetfigs[1].set_figwidth(8.7)
         
         figs += budgetfigs
     
@@ -1101,9 +1102,9 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, opt
         fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        graph_dict = json.dumps(sw.sanitize_json(graph_dict)) # This shouldn't be necessary, but it is...
         graphs.append(graph_dict)
-        pl.close(fig)
+#        pl.close(fig)
     print('Cascade plot succeeded')
     return {'graphs':graphs, 'table':table}
 
