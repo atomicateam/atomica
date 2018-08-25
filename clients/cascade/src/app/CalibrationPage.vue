@@ -188,7 +188,7 @@ Last update: 2018-08-22
           New name:<br>
           <input type="text"
                  class="txbox"
-                 v-model="newParsetName"/><br>
+                 v-model="activeParset"/><br>
         </div>
         <div style="text-align:justify">
           <button @click="renameParset()" class='btn __green' style="display:inline-block">
@@ -233,7 +233,7 @@ Last update: 2018-08-22
         areShowingParameters: false,
         activeParset: -1,
         parsetOptions: [],
-        newParsetName: [],
+        origParsetName: [],
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
@@ -327,7 +327,6 @@ Last update: 2018-08-22
             } else {
               console.log('Parameter set ' + this.activeParset + ' still found')
             }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
             status.succeed(this, '')  // No green notification.
@@ -413,6 +412,7 @@ Last update: 2018-08-22
 
       renameParsetModal() {
         console.log('renameParsetModal() called');
+        this.origParsetName = this.activeParset // Store this before it gets overwritten
         this.$modal.show('rename-parset');
       },
 
@@ -421,10 +421,9 @@ Last update: 2018-08-22
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
         status.start(this) // Start indicating progress.
-        rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
-            this.activeParset = this.newParsetName
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
