@@ -22,50 +22,54 @@ Last update: 2018-08-22
     <div v-else>
       <div class="card">
         <help reflink="scenarios" label="Define scenarios"></help>
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>Active?</th>
-          <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="scenSummary in scenSummaries">
-          <td>
-            <b>{{ scenSummary.name }}</b>
-          </td>
-          <td style="text-align: center">
-            <input type="checkbox" v-model="scenSummary.active"/>
-          </td>
-          <td style="white-space: nowrap">
-            <button class="btn btn-icon" @click="editScen(scenSummary)"><i class="ti-pencil"></i></button>
-            <button class="btn btn-icon" @click="copyScen(scenSummary)"><i class="ti-files"></i></button>
-            <button class="btn btn-icon" @click="deleteScen(scenSummary)"><i class="ti-trash"></i></button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Active?</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="scenSummary in scenSummaries">
+            <td>
+              <b>{{ scenSummary.name }}</b>
+            </td>
+            <td style="text-align: center">
+              <input type="checkbox" v-model="scenSummary.active"/>
+            </td>
+            <td style="white-space: nowrap">
+              <button class="btn btn-icon" @click="editScen(scenSummary)"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyScen(scenSummary)"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteScen(scenSummary)"><i class="ti-trash"></i></button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
 
-      <div>
-        <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
-        <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+        <div>
+          <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+        </div>
       </div>
     </div>
-<br>
-      <div class="card">
-        <help reflink="plot-controls" label="Plot controls"></help>
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
+
+    <div class="card">
+      <div class="calib-title">
+        <h5> Result plots </h5>
+        <div>
+          <!--<b>Start year: &nbsp;</b>-->
+          <!--<input type="text"-->
+                <!--class="txbox"-->
+                <!--v-model="startYear"-->
+                <!--style="display: inline-block; width:70px"/>-->
+          <!--&nbsp;&nbsp;&nbsp;-->
+
           <b>Year: &nbsp;</b>
           <input type="text"
-                 class="txbox"
-                 v-model="endYear"
-                 style="display: inline-block; width:70px"/>
+                class="txbox"
+                v-model="endYear"
+                style="display: inline-block; width:70px"/>
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
           <select v-model="activePop">
@@ -73,12 +77,20 @@ Last update: 2018-08-22
               {{ pop }}
             </option>
           </select>
+          &nbsp;&nbsp;&nbsp;
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+          <!-- <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+            <i class="ti-download"></i>
+          </button>
+          <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Settings">
+            <i class="ti-settings"></i>
+          </button>
+          <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+            <i class="ti-zoom-in"></i>
+          </button> -->
         </div>
       </div>
-
-    </div>
-
-    <div class="card">
       <div class="calib-main" :class="{'calib-main--full': true}">
         <div class="calib-graphs">
           <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
