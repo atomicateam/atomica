@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-22
+Last update: 2018-08-24
 -->
 
 <template>
@@ -24,6 +24,7 @@ Last update: 2018-08-22
         <thead>
         <tr>
           <th>Name</th>
+          <th>Status</th>
           <th>Actions</th>
         </tr>
         </thead>
@@ -32,8 +33,13 @@ Last update: 2018-08-22
           <td>
             <b>{{ optimSummary.name }}</b>
           </td>
+          <td>
+            --
+          </td>
           <td style="white-space: nowrap">
             <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
+            <button class="btn __red" @click="cancelRun(optimSummary)">Cancel</button>
+            <button class="btn">Plot results</button>
             <button class="btn" @click="editOptim(optimSummary)">Edit</button>
             <button class="btn" @click="copyOptim(optimSummary)">Copy</button>
             <button class="btn" @click="deleteOptim(optimSummary)">Delete</button>
@@ -583,6 +589,12 @@ Last update: 2018-08-22
           // Indicate failure.
           status.fail(this, 'Could not make graphs: ' + error.message)
         })        
+      },
+      
+      cancelRun(optimSummary) {
+        console.log('cancelRun() called for '+this.currentOptim)
+        var task_id = 'run_cascade_optimization'
+        rpcs.rpc('delete_task', [task_id])
       },
 
       plotOptimization() {
