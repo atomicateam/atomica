@@ -65,26 +65,6 @@ Last update: 2018-08-22
       </div>
 
       <div class="card">
-        <help reflink="plot-controls" label="Plot controls"></help>
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <!--<div class="controls-box">-->
-            <!--<button class="btn" @click="clearGraphs()">Clear graphs</button>-->
-          <!--</div>-->
-          <!--<div class="controls-box">-->
-            <!--<button class="btn" @click="scaleFigs(0.9)">-</button>-->
-            <!--<button class="btn" @click="scaleFigs(1.0)">Scale</button>-->
-            <!--<button class="btn" @click="scaleFigs(1.1)">+</button>-->
-          <!--</div>-->
-
-      </div>
-
-
-
-      <div class="card">
         <div class="calib-title">
           <h5> Result plots </h5>
           <div>
@@ -108,7 +88,9 @@ Last update: 2018-08-22
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <!-- <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
               <i class="ti-download"></i>
             </button>
             <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Settings">
@@ -116,7 +98,7 @@ Last update: 2018-08-22
             </button>
             <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
               <i class="ti-zoom-in"></i>
-            </button>
+            </button> -->
           </div>
         </div>
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
