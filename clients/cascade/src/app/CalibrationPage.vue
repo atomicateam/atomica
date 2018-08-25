@@ -31,7 +31,7 @@ Last update: 2018-08-22
             parameters
           </button>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;
         <div class="controls-box">
           <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
           for&nbsp;
@@ -41,7 +41,7 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;
         <div class="controls-box">
           <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
@@ -59,6 +59,12 @@ Last update: 2018-08-22
           </button>
           <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete">
             <i class="ti-trash"></i>
+          </button>
+          <button class="btn btn-icon" @click="downloadParset()" data-tooltip="Download">
+            <i class="ti-download"></i>
+          </button>
+          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload">
+            <i class="ti-upload"></i>
           </button>
           &nbsp;
           <button class="btn" @click="notImplemented()">
@@ -418,6 +424,7 @@ Last update: 2018-08-22
         rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = this.newParsetName
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
@@ -432,6 +439,7 @@ Last update: 2018-08-22
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
           .catch(error => {
@@ -450,6 +458,34 @@ Last update: 2018-08-22
           })
           .catch(error => {
             status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
+          })
+      },
+
+      downloadParset() {
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
+        console.log('downloadParset() called for ' + this.activeParset)
+        status.start(this) // Start indicating progress.
+        rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => { // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not download parameter set: ' + error.message)
+          })
+      },
+
+      uploadParset() {
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
+        console.log('uploadParset() called')
+        status.start(this) // Start indicating progress.
+        rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = response.data
+            status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
+          })
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not upload parameter set: ' + error.message)
           })
       },
     }
