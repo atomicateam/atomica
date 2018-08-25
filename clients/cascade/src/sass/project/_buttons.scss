@@ -21,6 +21,7 @@ $disabled-color: #FFF;
   &:focus {
     box-shadow: 0 0 6px 2px rgba($color-yellow, 0.7);
     outline: 0;
+    color: #FFF;
   }
 
   &:disabled {
@@ -151,45 +152,6 @@ $disabled-color: #FFF;
       color: #FFF;
     }
   }
-
-  &.__black {
-    background: #000;
-    border-color: #000;
-    color: #FFF;
-    
-    &:disabled {
-      background: $disabled-background;
-      border-color: $disabled-border-color;
-      color: $disabled-color;      
-    }
-    
-    &:hover:not(:disabled) {
-      background: #555555;
-      border-color: #555555;
-      color: #FFF;
-    }
-
-    &.__active,
-    &:active:not(:disabled) {
-      background: #999999;
-      border-color: #999999;
-      color: #FFF;
-    }
-
-    &.__active,
-    &.__active:hover {
-      background: lighten(#bbbbbb, 5%);
-      border-color: #bbbbbb;
-      color: #FFF;
-    }
-  }
-
-  // ### Misc.
-
-  &.__block {
-    display: block;
-    width: 100%;
-  }
 }
 
 
@@ -265,14 +227,14 @@ $disabled-color: #FFF;
 
   &:hover,
   &:focus {
-    color: $default-color;
+    color: #ff0;
   }
 
   &:active,
   &.active,
   .open > &.dropdown-toggle {
     background-color: $white-color;
-    color: $default-color;
+    color: #f0f;
   }
 
   &.btn-fill {
@@ -280,7 +242,7 @@ $disabled-color: #FFF;
   }
   &.btn-fill:hover,
   &.btn-fill:focus {
-    color: $default-states-color;
+    color: #0ff;
   }
 
   &.btn-simple:active,
