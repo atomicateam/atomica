@@ -71,29 +71,6 @@ Last update: 2018-08-22
           <button class="btn" @click="exportResults(projectID)">Export data</button>
         </div>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <!--<b>Start year: &nbsp;</b>-->
-          <!--<input type="text"-->
-                 <!--class="txbox"-->
-                 <!--v-model="startYear"-->
-                 <!--style="display: inline-block; width:70px"/>-->
-          <!--&nbsp;&nbsp;&nbsp;-->
-
-          <b>Year: &nbsp;</b>
-          <input type="text"
-                 class="txbox"
-                 v-model="endYear"
-                 style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;
-          <b>Population: &nbsp;</b>
-          <select v-model="activePop">
-            <option v-for='pop in activePops'>
-              {{ pop }}
-            </option>
-          </select>
-        </div>
-
-
           <!--<div class="controls-box">-->
             <!--<button class="btn" @click="clearGraphs()">Clear graphs</button>-->
           <!--</div>-->
@@ -107,9 +84,45 @@ Last update: 2018-08-22
 
 
 
+      <div class="card">
+        <div class="calib-title">
+          <h5> Result plots </h5>
+          <div>
+            <!--<b>Start year: &nbsp;</b>-->
+            <!--<input type="text"-->
+                  <!--class="txbox"-->
+                  <!--v-model="startYear"-->
+                  <!--style="display: inline-block; width:70px"/>-->
+            <!--&nbsp;&nbsp;&nbsp;-->
+
+            <b>Year: &nbsp;</b>
+            <input type="text"
+                  class="txbox"
+                  v-model="endYear"
+                  style="display: inline-block; width:70px"/>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+              <i class="ti-download"></i>
+            </button>
+            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Settings">
+              <i class="ti-settings"></i>
+            </button>
+            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+              <i class="ti-zoom-in"></i>
+            </button>
+          </div>
+        </div>
       <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
+        
+
         <div class="calib-params" v-if="areShowingParameters">
-          <div class="card">
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
@@ -159,14 +172,13 @@ Last update: 2018-08-22
             </tbody>
           </table>
         </div>
+
+        <div class="calib-graphs">
+          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+            <!--mpld3 content goes here-->
+          </div>
         </div>
 
-        <div class="card">
-          <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
-            </div>
-          </div>
         </div>
         
       </div>
@@ -457,6 +469,7 @@ Last update: 2018-08-22
       },
     }
   }
+
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
