@@ -131,6 +131,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
 
     barcolor  = (0.00, 0.15, 0.48) # Cascade color -- array([0,38,122])/255.
     diffcolor = (0.85, 0.89, 1.00) # (0.74, 0.82, 1.00) # Original: (0.93,0.93,0.93)
+    losscolor = (0,0,0) # (0.8,0.2,0.2)
 
     cascade, pops, year = sanitize_cascade_inputs(result=result, cascade=cascade, pops=pops, year=year)
 
@@ -198,7 +199,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     loss = np.diff(cascade_array)
     for i,val in enumerate(loss):
 
-        plt.text(i, -data_yrange[0]*0.02, 'Loss: %s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
+        plt.text(i, -data_yrange[0]*0.02, 'Loss: %s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top', horizontalalignment='center', color=losscolor)
 
     pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')

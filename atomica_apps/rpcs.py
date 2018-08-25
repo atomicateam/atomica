@@ -1058,6 +1058,9 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
 @RPC()
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
+    
+    if results is None: results = proj.results[-1]
+    
     figs = []
     graphs = []
     years = sc.promotetolist(year)
