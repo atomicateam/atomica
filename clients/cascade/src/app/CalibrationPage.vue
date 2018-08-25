@@ -64,7 +64,7 @@ Last update: 2018-08-22
         <!--</div>-->
       </div>
 
-      <div class="card">
+      <div class="card full-width-card">
         <div class="calib-title">
           <h5> Result plots </h5>
           <div>
