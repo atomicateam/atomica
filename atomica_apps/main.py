@@ -25,7 +25,7 @@ def run(which=None):
     app = make_app(which=which) # Make the app
     frameworks.init_frameworks(app) # Initialize the frameworks.
     projects.init_projects(app) # Initialize the projects.
-    app.run_server() # Run the client page with Flask and a Twisted server.
+    app.run() # Run the client page with Flask and a Twisted server.
     return None
 
 if __name__ == '__main__':

@@ -135,18 +135,6 @@ def load_framework_summary_from_framework_record(framework_record):
     # Return the built framework summary.
     return framework_record.get_user_front_end_repr()
   
-def load_current_user_framework_summaries2():
-    """
-    Return framework summaries for all frameworks the user has to the client. -- WARNING, fix!
-    """ 
-    
-    # Get the frw.FrameworkSO entries matching the user UID.
-    framework_entries = frw.frame_collection.get_framework_entries_by_user(current_user.get_id())
-    
-    # Grab a list of framework summaries from the list of frw.FrameworkSO objects we 
-    # just got.
-    return {'frameworks': map(load_framework_summary_from_framework_record, 
-        framework_entries)}
                 
 def save_framework(frame):
     """
@@ -247,19 +235,7 @@ def load_project_summary_from_project_record(project_record):
     # Return the built project summary.
     return project_record.get_user_front_end_repr()
 
-@timeit
-def load_current_user_project_summaries2():
-    """
-    Return project summaries for all projects the user has to the client.
-    """ 
-    
-    # Get the prj.ProjectSO entries matching the user UID.
-    project_entries = prj.proj_collection.get_project_entries_by_user(current_user.get_id())
-    
-    # Grab a list of project summaries from the list of prj.ProjectSO objects we 
-    # just got.
-    return {'projects': map(load_project_summary_from_project_record, 
-        project_entries)}
+
 
 @timeit
 def get_unique_name(name, other_names=None):
@@ -271,7 +247,7 @@ def get_unique_name(name, other_names=None):
     # If no list of other_names is passed in, load up a list with all of the 
     # names from the project summaries.
     if other_names is None:
-        other_names = [p['project']['name'] for p in load_current_user_project_summaries2()['projects']]
+        other_names = [p['project']['name'] for p in load_current_user_project_summaries()['projects']]
       
     # Start with the passed in name.
     i = 0
@@ -398,10 +374,15 @@ def load_framework_summary(framework_id):
 @RPC()
 def load_current_user_framework_summaries():
     """
-    Return framework summaries for all frameworks the user has to the client.
+    Return framework summaries for all frameworks the user has to the client. -- WARNING, fix!
     """ 
     
-    return load_current_user_framework_summaries2()
+    # Get the frw.FrameworkSO entries matching the user UID.
+    framework_entries = frw.frame_collection.get_framework_entries_by_user(current_user.get_id())
+    
+    # Grab a list of framework summaries from the list of frw.FrameworkSO objects we 
+    # just got.
+    return {'frameworks': map(load_framework_summary_from_framework_record, framework_entries)}
 
 
 @RPC()                
@@ -471,7 +452,7 @@ def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
     """
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']]
     new_frame_name = get_unique_name(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
     frame = au.demo(kind='framework', which=framework_name)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
@@ -481,11 +462,12 @@ def add_demo_framework(user_id, framework_name):
 
 
 @RPC(call_type='download')
-def create_new_framework():
+def create_new_framework(advanced=False):
     """
     Create a new framework.
     """
-    filename = 'framework_template.xlsx'
+    if advanced: filename = 'framework_template_advanced.xlsx'
+    else:        filename = 'framework_template.xlsx'
     filepath = au.atomica_path('atomica')+filename
     print(">> download_framework %s" % (filepath))
     return filepath # Return the filename
@@ -511,7 +493,7 @@ def update_framework_from_summary(framework_summary):
     """ 
     frame = load_framework(framework_summary['framework']['id']) # Load the framework corresponding with this summary.
     frame_uid = sc.uuid(framework_summary['framework']['id']).hex # Use the summary to set the actual framework, checking to make sure that the framework name is unique.
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
     frame.name = get_unique_name(framework_summary['framework']['name'], other_names=other_names)
     frame.modified = sc.now() # Set the modified time to now.
     save_framework(frame) # Save the changed framework to the DataStore.
@@ -525,7 +507,7 @@ def copy_framework(framework_id):
     framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
     frame = framework_record.frame
     new_framework = sc.dcp(frame) # Make a copy of the framework loaded in to work with.
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Just change the framework name, and we have the new version of the Framework object to be saved as a copy
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']] # Just change the framework name, and we have the new version of the Framework object to be saved as a copy
     new_framework.name = get_unique_name(frame.name, other_names=other_names)
     user_id = current_user.get_id()  # Set the user UID for the new frameworks record to be the current user.
     print(">> copy_framework %s" % (new_framework.name))  # Display the call information.
@@ -552,7 +534,7 @@ def create_framework_from_file(filename, user_id=None):
         frame.name = os.path.basename(filename) # Ensure that it's not None
         if frame.name.endswith('.xlsx'):
             frame.name = frame.name[:-5]
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Reset the framework name to a new framework name that is unique.
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']] # Reset the framework name to a new framework name that is unique.
     frame.name = get_unique_name(frame.name, other_names=other_names)
     save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
     print('Created new framework:')
@@ -611,13 +593,21 @@ def load_project_summary(project_id):
     return load_project_summary_from_project_record(project_entry)
 
 
+@timeit
 @RPC()
 def load_current_user_project_summaries():
     """
     Return project summaries for all projects the user has to the client.
     """ 
     
-    return load_current_user_project_summaries2()
+    # Get the prj.ProjectSO entries matching the user UID.
+    project_entries = prj.proj_collection.get_project_entries_by_user(current_user.get_id())
+    
+    # Grab a list of project summaries from the list of prj.ProjectSO objects we 
+    # just got.
+    return {'projects': map(load_project_summary_from_project_record, 
+        project_entries)}
+
 
 
 @RPC()
@@ -1066,60 +1056,48 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
+@RPC()
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
+    figs = []
     graphs = []
     years = sc.promotetolist(year)
     for y in range(len(years)):
         years[y] = float(years[y]) # Ensure it's a float
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
-
-    ax = fig.get_axes()[0]
-    ax.set_facecolor('none')
-    fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
-    mpld3.plugins.connect(fig, CursorPosition())
-    graph_dict = mpld3.fig_to_dict(fig)
-    graphs.append(graph_dict)
-    pl.close(fig)
-    print('Cascade plot succeeded')
-    return {'graphs':graphs, 'table':table}
-
-def get_budget_plot(results=None, year=None):
-    # INPUTS
-    # - results : A Result object, or list of Result objects
-    # - year : A year, or array of years
-    #
-    # OUTPUTS
-    # - mpld3 graphs array with two figures, first entry is a bar graph of the budgets, the second
-    #   is the legend (typically for TB there are many many entries)
-    #
-    # Stacked bar graph, for different times
-    d = au.PlotData.programs(results)
-    d.interpolate(year)
-    figs = au.plot_bars(d, stack_outputs='all',legend_mode='separate',outer='times',show_all_labels=True)
-
-    ax = figs[0].axes[0]
-    ax.set_ylabel('Spending ($/year)')
-
-    # The legend is too big for the figure. Saving figures is fine because
-    # matplotlib's `savefig` has `bbox_inches='tight'` which expands the figure
-    # to include all the contents. Doesn't seem to be anything like that for a
-    # figure window. So this is a bit TB specific here - it should be done
-    # as part of generating the legend figure
-    figs[1].set_figheight(8.9)
-    figs[1].set_figwidth(8.7)
-
-    graphs = []
+    figs.append(fig)
+    
+    if plot_budget:
+        d = au.PlotData.programs(results)
+        d.interpolate(year)
+        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False)
+        
+        ax = budgetfigs[0].axes[0]
+        ax.set_ylabel('Spending ($/year)')
+    
+        # The legend is too big for the figure. Saving figures is fine because
+        # matplotlib's `savefig` has `bbox_inches='tight'` which expands the figure
+        # to include all the contents. Doesn't seem to be anything like that for a
+        # figure window. So this is a bit TB specific here - it should be done
+        # as part of generating the legend figure
+#        budgetfigs[1].set_figheight(8.9)
+#        budgetfigs[1].set_figwidth(8.7)
+        
+        figs += budgetfigs
+    
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-        fig.tight_layout(rect=[0.05, 0.05, 0.9, 0.95])
+        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
+        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
         graphs.append(graph_dict)
         pl.close(fig)
-        print('Budget plot succeeded')
-        return {'graphs': graphs}
+    print('Cascade plot succeeded')
+    return {'graphs':graphs, 'table':table}
+
+
 
 @timeit
 @RPC()  
@@ -1551,7 +1529,7 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['optimization']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
+        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade, optim=True)
     else: # For Optima TB
         output = get_plots(proj, results, plot_options=plot_options)
     return output
