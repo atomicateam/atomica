@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-24
+Last update: 2018-08-25
 -->
 
 <template>
@@ -26,6 +26,7 @@ Last update: 2018-08-24
           <thead>
           <tr>
             <th>Name</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -34,10 +35,13 @@ Last update: 2018-08-24
             <td>
               <b>{{ optimSummary.name }}</b>
             </td>
+            <td>
+              --
+            </td>
             <td style="white-space: nowrap">
               <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
               <button class="btn __red" @click="cancelRun(optimSummary)">Cancel</button>
-              <button class="btn">Plot results</button>
+              <button class="btn" @click="plotOptimization">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
