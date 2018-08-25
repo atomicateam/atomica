@@ -49,34 +49,43 @@ Last update: 2018-08-22
         </div>
       </div>
 
-      <!--<div class="card" style="min-width:400px">        &lt;!&ndash;style="position:fixed; top:200px; left:0px; min-width:400px">&ndash;&gt;-->
-      <drop-down title="Plot controls">
-        <help reflink="plot-controls" label="Plot controls"></help>
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
+      <div class="card full-width-card">
+        <div class="calib-title">
+          <h5> Result plots </h5>
+          <div>
+            <!--<b>Start year: &nbsp;</b>-->
+            <!--<input type="text"-->
+                  <!--class="txbox"-->
+                  <!--v-model="startYear"-->
+                  <!--style="display: inline-block; width:70px"/>-->
+            <!--&nbsp;&nbsp;&nbsp;-->
+
+            <b>Year: &nbsp;</b>
+            <input type="text"
+                  class="txbox"
+                  v-model="endYear"
+                  style="display: inline-block; width:70px"/>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <!-- <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+              <i class="ti-download"></i>
+            </button>
+            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Settings">
+              <i class="ti-settings"></i>
+            </button>
+            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
+              <i class="ti-zoom-in"></i>
+            </button> -->
+          </div>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <b>Year: &nbsp;</b>
-          <input type="text"
-                 class="txbox"
-                 v-model="endYear"
-                 style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;
-          <b>Population: &nbsp;</b>
-          <select v-model="activePop">
-            <option v-for='pop in activePops'>
-              {{ pop }}
-            </option>
-          </select>
-        </div>
-      </drop-down>
-    <!--</div>-->
-
-
-
-      <div class="card">
         <div class="calib-figures">
           <div class="calib-graphs">
             <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
