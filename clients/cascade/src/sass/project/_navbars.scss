@@ -107,7 +107,7 @@
     > .active > a:not(.btn):focus,
     > li > a:not(.btn):hover,
     > li > a:not(.btn):focus {
-      background: #144e6b;
+      background: $cascade-blue;//#144e6b;
       color: white;
       @include opacity(1);
     }
