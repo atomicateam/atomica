@@ -100,7 +100,7 @@ Last update: 2018-08-22
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="notImplemented()">Export graphs</button>
+            <button class="btn" @click="exportGraphs()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
 
           </div>
@@ -297,7 +297,7 @@ Last update: 2018-08-22
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
 
       scaleFigs(frac) {
@@ -307,10 +307,6 @@ Last update: 2018-08-22
           this.figscale = 1.0
         }
         return utils.scaleFigs(frac)
-      },
-
-      notImplemented() {
-        status.fail(this, 'Sorry, this feature is not yet implemented')
       },
 
       clipValidateYearInput() {
@@ -395,6 +391,34 @@ Last update: 2018-08-22
             console.log(error.message)
             status.fail(this, 'Could not run manual calibration: ' + error.message)
           })
+      },
+
+      plotCalibration(project_id, export_graphs) {
+        console.log('exportGraphs() called')
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
+        status.start(this) // Start indicating progress.
+        if (export_graphs) {
+          rpcs.download('plot_calibration_graphs', [project_id, this.activeParset, this.parList, this.plotOptions,
+            this.startYear, this.endYear, this.activePop, export_graphs]) // Go to the server to get the results from the package set.
+            .then(response => {
+              status.succeed(this, '')
+            })
+            .catch(error => {
+              console.log(error.message)
+              status.fail(this, 'Could not download graphs: ' + error.message)
+            })
+        } else {
+          rpcs.rpc('plot_calibration_graphs', [project_id, this.activeParset, this.parList, this.plotOptions,
+            this.startYear, this.endYear, this.activePop, export_graphs]) // Go to the server to get the results from the package set.
+            .then(response => {
+              status.succeed(this, 'Simulation run') // Indicate success.
+              this.makeGraphs(response.data.graphs)
+            })
+            .catch(error => {
+              console.log(error.message)
+              status.fail(this, 'Could not run manual calibration: ' + error.message)
+            })
+        }
       },
 
       autoCalibrate(project_id) {
