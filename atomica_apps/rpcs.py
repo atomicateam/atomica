@@ -1122,8 +1122,8 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
 
-
-    return {'graphs':graphs}
+    output = {'graphs':graphs}
+    return output,figs
 
 
 #@RPC(call_type='download')
@@ -1192,7 +1192,8 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-    return {'graphs':graphs}
+    output = {'graphs':graphs}
+    return output, figs
 
 
 @RPC()
@@ -1236,8 +1237,10 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
         graphs.append(graph_dict)
         pl.close(fig)
+        
+    output = {'graphs':graphs, 'table':table}
     print('Cascade plot succeeded')
-    return {'graphs':graphs, 'table':table}
+    return output, figs
 
 
 
@@ -1464,9 +1467,9 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
         return {'error': 'No scenario selected'}
     proj.results['scenarios'] = results # WARNING, will want to save separately!
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
+        output,figs = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
     else: # For Optima TB
-        output = get_plots(proj, results, plot_options=plot_options)
+        output,figs = get_plots(proj, results, plot_options=plot_options)
 #    if saveresults:
     print('Saving project...')
     save_project(proj)    
@@ -1478,9 +1481,9 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['scenarios']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
+        output,figs = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
     else: # For Optima TB
-        output = get_plots(proj, results, plot_options=plot_options)
+        output,figs = get_plots(proj, results, plot_options=plot_options)
     return output
 
 
@@ -1569,31 +1572,8 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['optimization']
     if tool == 'cascade': # For Cascade Tool
-        output = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade, optim=True)
+        output,figs = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade, optim=True)
     else: # For Optima TB
-        output = get_plots(proj, results, plot_options=plot_options)
+        output,figs = get_plots(proj, results, plot_options=plot_options)
     return output
 
-def make_plots(results,outputs=None,cascades=None,budget=None):
-    #
-    # make_plots is a central point for generating three types of plots
-    #
-    # - outputs, which are the plots defined in the 'Plots' sheet of the framework
-    # - cascades, which are defined in the 'Cascades' sheet of the framework
-    # - budget, which is automatic
-    #
-    #
-    print('hello')
-
-
-
-# Deprecated, see equivalent in apptasks.py
-#@RPC()    
-#def run_optimization(project_id, optim_name):
-#    print('Running optimization...')
-#    proj = load_project(project_id, raise_exception=True)
-#    results = proj.run_optimization(optim_name)
-#    output = get_plots(proj, results) # outputs=['alive','ddis']
-#    print('Saving project...')
-#    save_project(proj)    
-#    return output

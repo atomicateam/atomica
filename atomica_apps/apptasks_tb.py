@@ -32,7 +32,7 @@ def run_optimization(project_id, optim_name, plot_options=None, maxtime=None, sa
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name, maxtime=maxtime)
-    output = get_plots(proj, results, plot_options=plot_options) # outputs=['alive','ddis']
+    output,figs = get_plots(proj, results, plot_options=plot_options) # outputs=['alive','ddis']
     if saveresults:
         print('Saving project...')
         save_project(proj)    
