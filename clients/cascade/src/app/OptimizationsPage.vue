@@ -35,7 +35,8 @@ Last update: 2018-08-22
               <b>{{ optimSummary.name }}</b>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
+              <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
+              <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
@@ -68,13 +69,17 @@ Last update: 2018-08-22
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="scaleFigs(0.9)" data-tooltip="Zoom out">-</button>
+            <button class="btn" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="exportGraphs()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
 
           </div>
         </div>
 
-        <div class="calib-figures">
+        <div class="calib-main" :class="{'calib-main--full': !areShowingPlotControls}">
           <div class="calib-graphs">
             <div class="featured-graphs">
               <div :id="'fig0'">
@@ -222,7 +227,7 @@ Last update: 2018-08-22
 
     data() {
       return {
-        serverresponse: 'no response',
+        response: 'no response',
         optimSummaries: [],
         defaultOptim: {
           // set stuff here to avoid render errors before things are loaded
@@ -245,6 +250,8 @@ Last update: 2018-08-22
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        startYear: 0,
+        endYear: 0,         
         graphData: [],
         plotOptions: [],
         table: null,
@@ -267,8 +274,7 @@ Last update: 2018-08-22
     },
 
     created() {
-      // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
+      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project != undefined) &&
@@ -305,8 +311,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-
+      
       clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -314,11 +326,10 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-
+      
       updateSets() {
         console.log('updateSets() called')
-        // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID])
+        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -330,9 +341,7 @@ Last update: 2018-08-22
             this.newParsetName = this.activeParset // WARNING, KLUDGY
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-
-            // Get the current user's progsets from the server.
-            rpcs.rpc('get_progset_info', [this.projectID])
+            rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
               .then(response => {
                 this.progsetOptions = response.data // Set the scenarios to what we received.
                 if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -346,12 +355,10 @@ Last update: 2018-08-22
                 console.log('Active progset: ' + this.activeProgset)
               })
               .catch(error => {
-                // Failure popup.
                 status.failurePopup(this, 'Could not get progset info')
               })
           })
           .catch(error => {
-            // Failure popup.
             status.failurePopup(this, 'Could not get parset info')
           })
       },
@@ -361,57 +368,40 @@ Last update: 2018-08-22
         rpcs.rpc('get_default_optim', [this.projectID])
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
-            this.resetModal()
             console.log('This is the default:')
             console.log(this.defaultOptim);
           })
           .catch(error => {
-            // Failure popup.
             status.failurePopup(this, 'Could not get default optimization')
           })
       },
 
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
-
-        // Start indicating progress.
-        // Note: For some reason, the popup spinner doesn't work from inside created() 
-        // so it doesn't show up here.         
         status.start(this)
-
-        // Get the current project's optimization summaries from the server.
-        rpcs.rpc('get_optim_info', [this.projectID])
+        rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
           .then(response => {
             this.optimSummaries = response.data // Set the optimizations to what we received.
-
-            // Indicate success.
             status.succeed(this, 'Optimizations loaded')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not load optimizations')
           })
       },
 
       setOptimSummaries() {
         console.log('setOptimSummaries() called')
-
-        // Start indicating progress.
         status.start(this)
-
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Optimizations saved')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not save optimizations')
           })
       },
 
-      addOptimModal() {
-        // Open a model dialog for creating a new project
+      addOptimModal() { // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         this.resetModal()
         rpcs.rpc('get_default_optim', [this.projectID])
@@ -498,10 +488,7 @@ Last update: 2018-08-22
 
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
-
-        // Start indicating progress.
         status.start(this)
-
         var newOptim = utils.dcp(optimSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
@@ -511,39 +498,27 @@ Last update: 2018-08-22
         this.optimSummaries.push(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Opimization copied')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not copy optimization')
-
-            // TODO: Should probably fix the corrupted this.optimSummaries.
           })
       },
 
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
-
-        // Start indicating progress.
         status.start(this)
-
         for(var i = 0; i< this.optimSummaries.length; i++) {
-          console.log('Trying ' + this.optimSummaries[i].name + ' vs ' + optimSummary.name)
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
           }
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then(response => {
-            // Indicate success.
             status.succeed(this, 'Optimization deleted')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not delete optimization')
-
-            // TODO: Should probably fix the corrupted this.optimSummaries.
           })
       },
 

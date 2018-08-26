@@ -5,7 +5,7 @@ Last update: 2018-08-22
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -20,30 +20,37 @@ Last update: 2018-08-22
     </div>
 
     <div v-else>
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="optimSummary in optimSummaries">
-          <td>
-            <b>{{ optimSummary.name }}</b>
-          </td>
-          <td style="white-space: nowrap">
-            <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
-            <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
-            <button class="btn" @click="editOptim(optimSummary)">Edit</button>
-            <button class="btn" @click="copyOptim(optimSummary)">Copy</button>
-            <button class="btn" @click="deleteOptim(optimSummary)">Delete</button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+      <div class="card">
+        <help reflink="optimizations" label="Define optimizations"></help>
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="optimSummary in optimSummaries">
+            <td>
+              <b>{{ optimSummary.name }}</b>
+            </td>
+            <td style="white-space: nowrap">
+              <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
+              <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
+              <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
 
-      <div>
+        <div>
+          <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
+        </div>
+      </div>
+
+      <div class="card full-width-card">
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
@@ -104,15 +111,15 @@ Last update: 2018-08-22
       </div>
     </div>
 
-    <modal name="add-optim"
-           height="auto"
-           :scrollable="true"
-           :width="900"
-           :classes="['v--modal', 'vue-dialog']"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
+      <modal name="add-optim"
+             height="auto"
+             :scrollable="true"
+             :width="900"
+             :classes="['v--modal', 'vue-dialog']"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
 
       <div class="dialog-content">
         <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
@@ -237,6 +244,13 @@ Last update: 2018-08-22
             finalstage: 1
           }
         },
+        modalOptim: {
+          // set stuff here to avoid render errors before things are loaded
+          objective_weights: {
+            conversion: 0,
+            finalstage: 1
+          }
+        },
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -269,25 +283,38 @@ Last update: 2018-08-22
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
+      simYears()     { return utils.simYears(this) },
+      activePops()   { return utils.activePops(this) },
       placeholders() { return utils.placeholders() },
     },
 
     created() {
       if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
-      } else if ((this.projectID != '') && (this.hasData) ) {
-        this.getOptimSummaries() // Load the optimization summaries of the current project.
-        this.getDefaultOptim()
-        this.updateSets()
-        this.getPlotOptions()
+      }
+      else if ((this.$store.state.activeProject.project != undefined) &&
+        (this.$store.state.activeProject.project.hasData) ) {
+        utils.sleep(1)  // used so that spinners will come up by callback func
+          .then(response => {
+            // Load the optimization summaries of the current project.
+            this.startYear = this.simStart
+            this.endYear = this.simEnd
+            this.popOptions = this.activePops
+            this.getOptimSummaries()
+            this.getDefaultOptim()
+            this.resetModal()
+            this.updateSets()
+            this.getPlotOptions()
+          })
       }
     },
 
     methods: {
 
       getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { return utils.clearGraphs() },
+      clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
+      exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
 
@@ -474,7 +501,7 @@ Last update: 2018-08-22
           }
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then( response => {
+          .then(response => {
             status.succeed(this, 'Optimization deleted')
           })
           .catch(error => {
