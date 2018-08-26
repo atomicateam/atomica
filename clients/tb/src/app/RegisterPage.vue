@@ -1,17 +1,19 @@
 <!--
 User registration page
 
-Last update: 2018-05-28
+Last update: 2018-08-26
 -->
 
 
 <template>
-  <div class="SitePage" style="background-color:#f8f8f4; position:fixed; min-height:100%; min-width:100%; padding:0 0 0 0" v-model="getVersionInfo"> <!-- Should match _variables.scss:$bg-nude -->
+  <div style="background-color:#f8f8f4; position:fixed; min-height:100%; min-width:100%; padding:0 0 0 0" v-model="getVersionInfo"> <!-- Should match _variables.scss:$bg-nude -->
     <div style="background-color:#0c2544; position:absolute; height:100%; width:260px">
       <div class="logo">
         <div class="simple-text" style="font-size:20px; color:#fff; font-weight:bold; padding:20px">
           <span style="padding-left:10px">
-            <img src="static/img/optima-inverted-logo-tb.png" width="160px" vertical-align="middle" alt>
+            <a href="http://ocds.co" target="_blank">
+              <img src="static/img/optima-inverted-logo-tb.png" width="160px" vertical-align="middle" alt>
+            </a>
           </span>
           <br/><br/>
           <div style="font-size:14px; font-weight:normal">

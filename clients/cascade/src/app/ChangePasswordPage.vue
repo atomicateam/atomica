@@ -1,7 +1,7 @@
 <!--
 Change the user's password
 
-Last update: 2018-08-18
+Last update: 2018-08-26
 -->
 
 <template>

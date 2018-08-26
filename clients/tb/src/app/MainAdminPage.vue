@@ -1,11 +1,11 @@
 <!--
 Admin page
 
-Last update: 2018-05-28
+Last update: 2018-08-18
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
     <h2>Users</h2>
     <table v-if="usersList[0] != undefined">
       <tr>
@@ -38,7 +38,6 @@ Last update: 2018-05-28
 </template>
 
 <script>
-import rpcs from '@/services/rpc-service'
 import userservice from '@/services/user-service'
 import router from '@/router'
 

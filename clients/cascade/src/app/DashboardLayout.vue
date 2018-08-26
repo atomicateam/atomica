@@ -1,7 +1,7 @@
 <!--
 Definition of the dashboard itself
 
-Last update: 2018-03-25
+Last update: 2018-08-16
 -->
 
 <template>

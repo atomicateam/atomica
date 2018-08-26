@@ -70,9 +70,37 @@ function simEnd(vm) {
   }
 }
 
+function simYears(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return []
+  } else {
+    var sim_start = vm.$store.state.activeProject.project.sim_start
+    var sim_end = vm.$store.state.activeProject.project.sim_end
+    var years = []
+    for (var i = sim_start; i <= sim_end; i++) {
+      years.push(i);
+    }
+    console.log('sim years: ' + years)
+    return years;
+  }
+}
+
+function activePops(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  } else {
+    let pop_pairs = vm.$store.state.activeProject.project.pops
+    let pop_list = ["All"]
+    for(let i = 0; i < pop_pairs.length; ++i) {
+      pop_list.push(pop_pairs[i][1]);
+    }
+    return pop_list
+  }
+}
+      
 function getPlotOptions(vm) {
   console.log('getPlotOptions() called')
-  var project_id = projectID(vm)
+  let project_id = projectID(vm)
   rpcs.rpc('get_supported_plots', [project_id, true])
     .then(response => {
     vm.plotOptions = response.data // Get the parameter values
@@ -119,11 +147,11 @@ function clearGraphs() {
   }
 }
 
-function exportGraphs(vm, project_id) {
-  console.log('exportResults() called')
-  rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+function exportGraphs(vm) {
+  console.log('exportGraphs() called')
+  rpcs.download('download_graphs', []) // Make the server call to download the framework to a .prj file.
     .catch(error => {
-    status.failurePopup(vm, 'Could not export results')
+    status.failurePopup(vm, 'Could not download graphs')
 })
 }
 
@@ -136,6 +164,26 @@ function exportResults(vm, project_id) {
 }
 
 
+//
+// Graphs DOM functions
+//
+
+function showBrowserWindowSize() {
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var ow = window.outerWidth; //including toolbars and status bar etc.
+  var oh = window.outerHeight;
+  console.log('Browser window size:')
+  console.log('Inner width: ', w)
+  console.log('Inner height: ', h)
+  console.log('Outer width: ', ow)
+  console.log('Outer height: ', oh)
+  window.alert('Browser window size:\n'+ 
+    'Inner width: ' + w + '\n' +
+    'Inner height: ' + h + '\n' +
+    'Outer width: ' + ow + '\n' +
+    'Outer height: ' + oh + '\n')
+}
 
 function scaleElem(svg, frac) {
   // It might ultimately be better to redraw the graph, but this works
@@ -166,9 +214,13 @@ export default {
   hasData,
   simStart,
   simEnd,
+  simYears,
+  activePops,
   getPlotOptions,
   makeGraphs,
   clearGraphs,
+  exportGraphs,
   exportResults,
   scaleFigs,
+  showBrowserWindowSize,
 }
