@@ -135,18 +135,6 @@ def load_framework_summary_from_framework_record(framework_record):
     # Return the built framework summary.
     return framework_record.get_user_front_end_repr()
   
-def load_current_user_framework_summaries2():
-    """
-    Return framework summaries for all frameworks the user has to the client. -- WARNING, fix!
-    """ 
-    
-    # Get the frw.FrameworkSO entries matching the user UID.
-    framework_entries = frw.frame_collection.get_framework_entries_by_user(current_user.get_id())
-    
-    # Grab a list of framework summaries from the list of frw.FrameworkSO objects we 
-    # just got.
-    return {'frameworks': map(load_framework_summary_from_framework_record, 
-        framework_entries)}
                 
 def save_framework(frame):
     """
@@ -247,19 +235,7 @@ def load_project_summary_from_project_record(project_record):
     # Return the built project summary.
     return project_record.get_user_front_end_repr()
 
-@timeit
-def load_current_user_project_summaries2():
-    """
-    Return project summaries for all projects the user has to the client.
-    """ 
-    
-    # Get the prj.ProjectSO entries matching the user UID.
-    project_entries = prj.proj_collection.get_project_entries_by_user(current_user.get_id())
-    
-    # Grab a list of project summaries from the list of prj.ProjectSO objects we 
-    # just got.
-    return {'projects': map(load_project_summary_from_project_record, 
-        project_entries)}
+
 
 @timeit
 def get_unique_name(name, other_names=None):
@@ -271,7 +247,7 @@ def get_unique_name(name, other_names=None):
     # If no list of other_names is passed in, load up a list with all of the 
     # names from the project summaries.
     if other_names is None:
-        other_names = [p['project']['name'] for p in load_current_user_project_summaries2()['projects']]
+        other_names = [p['project']['name'] for p in load_current_user_project_summaries()['projects']]
       
     # Start with the passed in name.
     i = 0
@@ -398,10 +374,15 @@ def load_framework_summary(framework_id):
 @RPC()
 def load_current_user_framework_summaries():
     """
-    Return framework summaries for all frameworks the user has to the client.
+    Return framework summaries for all frameworks the user has to the client. -- WARNING, fix!
     """ 
     
-    return load_current_user_framework_summaries2()
+    # Get the frw.FrameworkSO entries matching the user UID.
+    framework_entries = frw.frame_collection.get_framework_entries_by_user(current_user.get_id())
+    
+    # Grab a list of framework summaries from the list of frw.FrameworkSO objects we 
+    # just got.
+    return {'frameworks': map(load_framework_summary_from_framework_record, framework_entries)}
 
 
 @RPC()                
@@ -471,8 +452,8 @@ def add_demo_framework(user_id, framework_name):
     """
     Add a demo framework
     """
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']]
-    new_frame_name = get_unique_name(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']]
+    new_frame_name = sc.unqiuename(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
     frame = au.demo(kind='framework', which=framework_name)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
     print(">> add_demo_framework %s" % (frame.name))    
@@ -512,8 +493,8 @@ def update_framework_from_summary(framework_summary):
     """ 
     frame = load_framework(framework_summary['framework']['id']) # Load the framework corresponding with this summary.
     frame_uid = sc.uuid(framework_summary['framework']['id']).hex # Use the summary to set the actual framework, checking to make sure that the framework name is unique.
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
-    frame.name = get_unique_name(framework_summary['framework']['name'], other_names=other_names)
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks'] if (frw['framework']['id'].hex != frame_uid)]
+    frame.name = sc.uniquename(framework_summary['framework']['name'], namelist=other_names)
     frame.modified = sc.now() # Set the modified time to now.
     save_framework(frame) # Save the changed framework to the DataStore.
     return None
@@ -526,8 +507,8 @@ def copy_framework(framework_id):
     framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
     frame = framework_record.frame
     new_framework = sc.dcp(frame) # Make a copy of the framework loaded in to work with.
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Just change the framework name, and we have the new version of the Framework object to be saved as a copy
-    new_framework.name = get_unique_name(frame.name, other_names=other_names)
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']] # Just change the framework name, and we have the new version of the Framework object to be saved as a copy
+    new_framework.name = sc.uniquename(frame.name, namelist=other_names)
     user_id = current_user.get_id()  # Set the user UID for the new frameworks record to be the current user.
     print(">> copy_framework %s" % (new_framework.name))  # Display the call information.
     save_framework_as_new(new_framework, user_id) # Save a DataStore frameworks record for the copy framework.
@@ -553,8 +534,8 @@ def create_framework_from_file(filename, user_id=None):
         frame.name = os.path.basename(filename) # Ensure that it's not None
         if frame.name.endswith('.xlsx'):
             frame.name = frame.name[:-5]
-    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries2()['frameworks']] # Reset the framework name to a new framework name that is unique.
-    frame.name = get_unique_name(frame.name, other_names=other_names)
+    other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']] # Reset the framework name to a new framework name that is unique.
+    frame.name = sc.uniquename(frame.name, namelist=other_names)
     save_framework_as_new(frame, user_id) # Save the new framework in the DataStore.
     print('Created new framework:')
     print(frame)
@@ -612,13 +593,21 @@ def load_project_summary(project_id):
     return load_project_summary_from_project_record(project_entry)
 
 
+@timeit
 @RPC()
 def load_current_user_project_summaries():
     """
     Return project summaries for all projects the user has to the client.
     """ 
     
-    return load_current_user_project_summaries2()
+    # Get the prj.ProjectSO entries matching the user UID.
+    project_entries = prj.proj_collection.get_project_entries_by_user(current_user.get_id())
+    
+    # Grab a list of project summaries from the list of prj.ProjectSO objects we 
+    # just got.
+    return {'projects': map(load_project_summary_from_project_record, 
+        project_entries)}
+
 
 
 @RPC()
@@ -1067,7 +1056,11 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return {'graphs':graphs}
 
 
+@RPC()
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
+    
+    if results is None: results = proj.results[-1]
+    
     figs = []
     graphs = []
     years = sc.promotetolist(year)
@@ -1228,13 +1221,13 @@ def copy_parset(project_id, parsetname=None):
     print('Copying parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     print('Number of parsets before copy: %s' % len(proj.parsets))
-    new_name = get_unique_name(parsetname, other_names=proj.parsets.keys())
+    new_name = sc.uniquename(parsetname, namelist=proj.parsets.keys())
     print('Old name: %s; new name: %s' % (parsetname, new_name))
     proj.parsets[new_name] = sc.dcp(proj.parsets[parsetname])
     print('Number of parsets after copy: %s' % len(proj.parsets))
     print('Saving project...')
     save_project(proj)
-    return None
+    return new_name
 
 
 @RPC() 
@@ -1250,6 +1243,39 @@ def delete_parset(project_id, parsetname=None):
     print('Saving project...')
     save_project(proj)
     return None
+
+
+@RPC(call_type='download')   
+def download_parset(project_id, parsetname=None):
+    """
+    For the passed in project UID, get the Project on the server, save it in a 
+    file, minus results, and pass the full path of this file back.
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    parset = proj.parsets[parsetname]
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s - %s.par' % (proj.name, parsetname) # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    sc.saveobj(full_file_name, parset) # Write the object to a Gzip string pickle file.
+    print(">> download_parset %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+    
+    
+@RPC(call_type='upload')   
+def upload_parset(parset_filename, project_id):
+    """
+    For the passed in project UID, get the Project on the server, save it in a 
+    file, minus results, and pass the full path of this file back.
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    parset = sc.loadobj(parset_filename)
+    parsetname = sc.uniquename(parset.name, namelist=proj.parsets.keys())
+    parset.name = parsetname # Reset the name
+    proj.parsets[parsetname] = parset
+    proj.modified = sc.now()
+    save_project(proj) # Save the new project in the DataStore.
+    return parsetname # Return the new project UID in the return message.
+
 
 ##################################################################################
 #%% Progset functions and RPCs
@@ -1278,7 +1304,7 @@ def copy_progset(project_id, progsetname=None):
     print('Copying progset %s...' % progsetname)
     proj = load_project(project_id, raise_exception=True)
     print('Number of progsets before copy: %s' % len(proj.progsets))
-    new_name = get_unique_name(progsetname, other_names=proj.progsets.keys())
+    new_name = sc.uniquename(progsetname, namelist=proj.progsets.keys())
     print('Old name: %s; new name: %s' % (progsetname, new_name))
     proj.progsets[new_name] = sc.dcp(proj.progsets[progsetname])
     print('Number of progsets after copy: %s' % len(proj.progsets))
