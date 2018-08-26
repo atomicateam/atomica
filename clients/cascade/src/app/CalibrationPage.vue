@@ -381,8 +381,9 @@ Last update: 2018-08-22
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,
-          this.startYear, this.endYear, this.activePop]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+          'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+        ) // Go to the server to get the results from the package set.
           .then(response => {
             status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
@@ -391,34 +392,6 @@ Last update: 2018-08-22
             console.log(error.message)
             status.fail(this, 'Could not run manual calibration: ' + error.message)
           })
-      },
-
-      plotCalibration(project_id, export_graphs) {
-        console.log('exportGraphs() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
-        status.start(this) // Start indicating progress.
-        if (export_graphs) {
-          rpcs.download('plot_calibration_graphs', [project_id, this.activeParset, this.parList, this.plotOptions,
-            this.startYear, this.endYear, this.activePop, export_graphs]) // Go to the server to get the results from the package set.
-            .then(response => {
-              status.succeed(this, '')
-            })
-            .catch(error => {
-              console.log(error.message)
-              status.fail(this, 'Could not download graphs: ' + error.message)
-            })
-        } else {
-          rpcs.rpc('plot_calibration_graphs', [project_id, this.activeParset, this.parList, this.plotOptions,
-            this.startYear, this.endYear, this.activePop, export_graphs]) // Go to the server to get the results from the package set.
-            .then(response => {
-              status.succeed(this, 'Simulation run') // Indicate success.
-              this.makeGraphs(response.data.graphs)
-            })
-            .catch(error => {
-              console.log(error.message)
-              status.fail(this, 'Could not run manual calibration: ' + error.message)
-            })
-        }
       },
 
       autoCalibrate(project_id) {
@@ -431,7 +404,9 @@ Last update: 2018-08-22
         } else {
           let maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration', [project_id, this.activeParset, maxtime]) // Go to the server to get the results from the package set.
+        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'y_factors':this.parList,
+          'plot_options':this.plotOptions, 'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+        ) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs)
           })

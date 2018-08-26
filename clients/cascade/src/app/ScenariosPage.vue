@@ -320,12 +320,12 @@ Last update: 2018-08-22
               })
               .catch(error => {
                 // Failure popup.
-                status.failurePopup(this, 'Could not get progset info')
+                status.failurePopup(this, 'Could not get progset info: ' + error.message)
               })
           })
           .catch(error => {
             // Failure popup.
-            status.failurePopup(this, 'Could not get parset info')
+            status.failurePopup(this, 'Could not get parset info: ' + error.message)
           })
       },
 
@@ -339,7 +339,7 @@ Last update: 2018-08-22
           })
           .catch(error => {
             // Failure popup.
-            status.failurePopup(this, 'Could not get default budget scenario')
+            status.failurePopup(this, 'Could not get default budget scenario: ' + error.message)
           })
       },
 
@@ -355,10 +355,7 @@ Last update: 2018-08-22
             this.scenSummaries = response.data // Set the scenarios to what we received.
             console.log('Scenario summaries:')
             console.log(this.scenSummaries)
-
             this.scenariosLoaded = true
-
-            // Indicate success.
             status.succeed(this, 'Scenarios loaded')
           })
           .catch(error => {
@@ -372,17 +369,12 @@ Last update: 2018-08-22
 
       setScenSummaries() {
         console.log('setScenSummaries() called')
-
-        // Start indicating progress.
         status.start(this)
-
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Scenarios saved')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not save scenarios')
           })
       },
@@ -402,8 +394,6 @@ Last update: 2018-08-22
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-
-            // Failure popup.
             status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
           })
       },
@@ -443,17 +433,12 @@ Last update: 2018-08-22
         }
         console.log(newScen)
         console.log(this.scenSummaries)
-
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Scenario added')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not add scenario')
-
-            // TODO: Should probably fix the corrupted this.scenSummaries.
+            status.fail(this, 'Could not add scenario: ' + error.message)
           })
       },
 
@@ -471,10 +456,7 @@ Last update: 2018-08-22
 
       copyScen(scenSummary) {
         console.log('copyScen() called')
-
-        // Start indicating progress.
         status.start(this)
-
         var newScen = utils.dcp(scenSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
@@ -484,23 +466,16 @@ Last update: 2018-08-22
         this.scenSummaries.push(newScen)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Scenario copied')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not copy scenario')
-
-            // TODO: Should probably fix the corrupted this.scenSummaries.
+            status.fail(this, 'Could not copy scenario: ' + error.message)
           })
       },
 
       deleteScen(scenSummary) {
         console.log('deleteScen() called')
-
-        // Start indicating progress.
         status.start(this)
-
         for(var i = 0; i< this.scenSummaries.length; i++) {
           if(this.scenSummaries[i].name === scenSummary.name) {
             this.scenSummaries.splice(i, 1);
@@ -508,14 +483,10 @@ Last update: 2018-08-22
         }
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Scenario deleted')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not delete scenario')
-
-            // TODO: Should probably fix the corrupted this.scenSummaries.
+            status.fail(this, 'Could not delete scenario: ' + error.message)
           })
       },
 
