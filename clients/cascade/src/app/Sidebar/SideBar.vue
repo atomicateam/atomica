@@ -1,16 +1,16 @@
 <template>
   <div :class="sidebarClasses"
-       :data-background-color="activeColor"
+       :data-background-color="backgroundColor"
        :data-active-color="activeColor">
     <!--
             Tip 1: you can change the color of the sidebar's background using: data-background-color="white | black | darkblue"
             Tip 2: you can change the color of the active button using the data-active-color="primary | info | success | warning | danger"
         -->
     <!-- -->
-    <div class="sidebar-wrapper" id="style-3" style="background-color: #ff0">
+    <div class="sidebar-wrapper" id="style-3">
       <div class="logo">
         <a href="#" class="simple-text">
-            <img src="static/img/optima-inverted-logo-tb.png" width="160px" vertical-align="middle" alt>
+            <img src="static/img/cascade-logo-white.png" width="160px" vertical-align="middle" alt>
         </a>
       </div>
       <slot>
