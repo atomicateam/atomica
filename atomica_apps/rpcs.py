@@ -1080,7 +1080,11 @@ def get_supported_plots(project_id, only_keys=False):
         return supported_plots
 
 
-def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None, figsize=None):
+def savefigs(allfigs):
+    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=sw.globalvars.downloads_dir.dir_path)
+    return filepath
+
+def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None, figsize=None, dosave=True):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
     supported_plots = supported_plots_func(proj.framework)
     if plot_names is None: 
@@ -1094,6 +1098,7 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     graphs = []
+    allfigs = []
     for output in outputs:
         try:
             if isinstance(output.values()[0],list):
@@ -1117,17 +1122,23 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
 
             for fig in figs:
                 graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                allfigs.append(fig)
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-
+    if dosave:
+        savefigs(allfigs)
     output = {'graphs':graphs}
-    return output,figs
+    return output
 
 
-#@RPC(call_type='download')
-#def export_calibration_graphs():
+@RPC(call_type='download')
+def download_calibration_graphs():
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    return full_file_name
     
 
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
@@ -1152,7 +1163,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     return graph_dict
     
     
-def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None, figsize=None):
+def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None, figsize=None, dosave=True):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func(proj.framework) 
     if plot_names is None: 
@@ -1165,6 +1176,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
+    allfigs = []
     graphs = []
     data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
     for output in outputs:
@@ -1188,15 +1200,15 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
             else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
             for fig in figs:
                 graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                allfigs.apend(fig)
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
     output = {'graphs':graphs}
-    return output, figs
+    return output,allfigs
 
 
-@RPC()
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
     if results is None: results = proj.results[-1]
@@ -1240,7 +1252,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         
     output = {'graphs':graphs, 'table':table}
     print('Cascade plot succeeded')
-    return output, figs
+    return output,figs
 
 
 

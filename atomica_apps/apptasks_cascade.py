@@ -33,7 +33,6 @@ celery_instance = sw.make_celery_instance(config=config)
 def run_cascade_optimization(project_id, optim_name, plot_options=None, saveresults=False, plotyear=None, pops=None,cascade=None):
     # Load the projects from the DataStore.
     prj.apptasks_load_projects(config)
-    
     print('Running optimization...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name)
