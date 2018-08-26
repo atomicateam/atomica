@@ -22,13 +22,18 @@
   overflow-y: scroll;
 }
 .calib-graphs {
-  flex: 1;
-  display: flex;
   max-height:80vh;
   overflow-y: scroll;
-  flex-wrap: wrap;
-  & > div {
-    flex: 0 0 200px;
+  .featured-graphs {
+
+  }
+  .other-graphs {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    .calib-graph {
+      flex: 0 0 200px;
+    }
   }
 }
 .plotopts-main {
