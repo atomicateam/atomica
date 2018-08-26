@@ -51,22 +51,28 @@ Last update: 2018-08-22
           <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
-        <div style="text-align: center">
-          <div class="controls-box">
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+        
+        
+        <div class="calib-title">
+          <help reflink="results-plots" label="Results"></help>
+          <div>
+            <button class="btn" @click="scaleFigs(0.9)" data-tooltip="Zoom out">-</button>
+            <button class="btn" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="notImplemented()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <button class="btn" @click="clearGraphs()">Clear graphs</button>
-            <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh graphs</button>
-            <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <button class="btn" @click="scaleFigs(0.9)">-</button>
-            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-            <button class="btn" @click="scaleFigs(1.1)">+</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" v-if="plotScenarios" :disabled="!scenariosLoaded" @click="plotScenarios()" data-tooltip="Refresh graphs">
+              <i class="ti-reload"></i>
+            </button>
+            <button class="btn" @click="clearGraphs()" data-tooltip="Clear graphs">
+              <i class="ti-close"></i>
+            </button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="toggleShowingPlotControls()" data-tooltip="Toggle plot selectors">
+              <i class="ti-settings"></i>
+            </button>
           </div>
         </div>
 
