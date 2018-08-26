@@ -1475,18 +1475,23 @@ def sanitize(vals, skip=False, forcefloat=False):
     
 
 @RPC()    
-def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None):
+def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     proj.results['scenarios'] = results # WARNING, will want to save separately!
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
     if tool == 'cascade': # For Cascade Tool
-        output,figs = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
+        output = cascadeoutput
+        allfigs = cascadefigs
     else: # For Optima TB
-        output,figs = get_plots(proj, results, plot_options=plot_options)
-#    if saveresults:
+        output,allfigs = get_plots(proj, results, plot_options=plot_options)
+        output['graphs'] = cascadeoutput['graphs'] + output['graphs']
+        allfigs = cascadefigs + allfigs
+    if dosave:
+        savefigs(allfigs)
     print('Saving project...')
     save_project(proj)    
     return output
