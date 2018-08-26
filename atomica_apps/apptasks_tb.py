@@ -1,15 +1,16 @@
 """
 apptasks.py -- The Celery tasks module for this webapp
     
-Last update: 7/16/18 (gchadder3)
+Last update: 2018aug26
 """
 
 from . import config_tb as config
 import matplotlib.pyplot as ppl
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
-from . import projects as prj
-from .rpcs import load_project, save_project, get_plots
 import scirisweb as sw
+from . import projects as prj
+from . import rpcs
+
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
@@ -25,17 +26,16 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 #    return 'here be dummy result'
 
 @async_task
-def run_optimization(project_id, optim_name, plot_options=None, maxtime=None, saveresults=False):
+def run_cascade_optimization(project_id, optim_name, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
     # Load the projects from the DataStore.
     prj.apptasks_load_projects(config)
-    
     print('Running optimization...')
-    proj = load_project(project_id, raise_exception=True)
+    proj = rpcs.load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name, maxtime=maxtime)
-    output,figs = get_plots(proj, results, plot_options=plot_options) # outputs=['alive','ddis']
-    if saveresults:
-        print('Saving project...')
-        save_project(proj)    
+    proj.results['optimization'] = results # WARNING, will want to save separately!
+    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    print('Saving project...')
+    rpcs.save_project(proj)    
     return output
 
 

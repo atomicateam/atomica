@@ -1140,8 +1140,8 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     return output,allfigs
 
 
-def process_plots(proj, results, tool=None, plotyear=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False):
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=plotyear, pops=pops,cascade=cascade)
+def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False):
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops,cascade=cascade)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
