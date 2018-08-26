@@ -73,7 +73,7 @@ Last update: 2018-08-22
             </option>
           </select>
           &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="notImplemented()">Export graphs</button>
+          <button class="btn" @click="exportGraphs()">Export graphs</button>
           <button class="btn" @click="exportResults(projectID)">Export data</button>
 
         </div>
@@ -267,7 +267,7 @@ Last update: 2018-08-22
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
 
       scaleFigs(frac) {

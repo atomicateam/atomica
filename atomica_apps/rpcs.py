@@ -1084,6 +1084,15 @@ def savefigs(allfigs):
     filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=sw.globalvars.downloads_dir.dir_path)
     return filepath
 
+
+@RPC(call_type='download')
+def download_graphs():
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    return full_file_name
+
+
 def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None, figsize=None, dosave=True):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
     supported_plots = supported_plots_func(proj.framework)
@@ -1127,19 +1136,10 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-    if dosave:
-        savefigs(allfigs)
     output = {'graphs':graphs}
-    return output
+    return output,allfigs
 
 
-@RPC(call_type='download')
-def download_calibration_graphs():
-    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    return full_file_name
-    
 
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
     if figsize is None: figsize = (5,3)
@@ -1258,7 +1258,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 
 @timeit
 @RPC()  
-def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None,cascade=None):
+def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None,cascade=None, dosave=True):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -1284,16 +1284,20 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
     proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     store_result_separately(proj, result)
-    cascadeoutput = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=cascade)
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=cascade)
     if tool == 'cascade':
-        return cascadeoutput
+        output = cascadeoutput
+        allfigs = cascadefigs
     else:
-        output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
+        output,stackedfigs = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
         # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-        unstacked_output = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
+        unstacked_output,unstackedfigs = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
         output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
         output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-        return output
+        allfigs = cascadefigs + [x for t in zip(stackedfigs, unstackedfigs) for x in t]
+    if dosave:
+        savefigs(allfigs)
+    return output
     
     
     

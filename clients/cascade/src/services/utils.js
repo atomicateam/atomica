@@ -146,11 +146,11 @@ function clearGraphs() {
   }
 }
 
-function exportGraphs(vm, project_id) {
-  console.log('exportResults() called')
-  rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+function exportGraphs(vm) {
+  console.log('exportGraphs() called')
+  rpcs.download('download_graphs', []) // Make the server call to download the framework to a .prj file.
     .catch(error => {
-    status.failurePopup(vm, 'Could not export results')
+    status.failurePopup(vm, 'Could not download graphs')
 })
 }
 
@@ -218,6 +218,7 @@ export default {
   getPlotOptions,
   makeGraphs,
   clearGraphs,
+  exportGraphs,
   exportResults,
   scaleFigs,
   showBrowserWindowSize,
