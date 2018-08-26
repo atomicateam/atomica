@@ -76,25 +76,25 @@ Last update: 2018-08-22
         </div>
       </div>
 
-      <div style="text-align: center">
-        <div class="controls-box">
-          <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
-        </div>
-      </div>
-
       <div>
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="scaleFigs(0.9)">-</button>
-            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-            <button class="btn" @click="scaleFigs(1.1)">+</button>
+            <button class="btn" @click="scaleFigs(0.9)" data-tooltip="Zoom out">-</button>
+            <button class="btn" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="notImplemented()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
-
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="clearGraphs()" data-tooltip="Clear graphs">
+              <i class="ti-close"></i>
+            </button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="toggleShowingPlotControls()" data-tooltip="Toggle plot selectors">
+              <i class="ti-settings"></i>
+            </button>
           </div>
         </div>
         <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
