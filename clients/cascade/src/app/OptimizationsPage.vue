@@ -76,10 +76,19 @@ Last update: 2018-08-22
 
         <div class="calib-figures">
           <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
             </div>
           </div>
+
+          
           <div class="calib-tables" v-if="table">
             <h3>Cascade stage losses</h3>
             <table class="table table-striped">

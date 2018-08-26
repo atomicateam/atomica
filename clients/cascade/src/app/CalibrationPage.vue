@@ -160,8 +160,15 @@ Last update: 2018-08-22
           </div>
 
           <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
             </div>
           </div>
 
@@ -253,7 +260,7 @@ Last update: 2018-08-22
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders() },
+      placeholders() { return utils.placeholders(1) },
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
