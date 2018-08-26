@@ -99,7 +99,7 @@ Last update: 2018-08-22
             </button>
           </div>
         </div>
-        
+
         <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
           <div class="calib-params" v-if="areShowingParameters">
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -152,9 +152,17 @@ Last update: 2018-08-22
             </table>
           </div>
 
+
           <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
             </div>
           </div>
 
@@ -264,7 +272,7 @@ Last update: 2018-08-22
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
-      placeholders() { return utils.placeholders() },
+      placeholders() { return utils.placeholders(1) },
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);

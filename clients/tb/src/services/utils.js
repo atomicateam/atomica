@@ -25,9 +25,12 @@ function getUniqueName(fileName, otherNames) {
   return tryName
 }
 
-function placeholders() {
+function placeholders(startVal) {
   var indices = []
-  for (var i = 0; i <= 100; i++) {
+  if (!startVal) {
+    startVal = 0
+  }
+  for (var i = startVal; i <= 100; i++) {
     indices.push(i);
   }
   return indices;
