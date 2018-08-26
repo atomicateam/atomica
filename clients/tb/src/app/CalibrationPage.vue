@@ -76,105 +76,112 @@ Last update: 2018-08-22
         </div>
       </div>
 
-      <div style="text-align: center">
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="scaleFigs(0.9)">-</button>
-          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-          <button class="btn" @click="scaleFigs(1.1)">+</button>
-        </div>
-      </div>
-
-      <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
-        <div class="calib-params" v-if="areShowingParameters">
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
-            <thead>
-            <tr>
-              <th @click="updateSorting('index')" class="sortable">
-                No.
-                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-              <th @click="updateSorting('parameter')" class="sortable">
-                Parameter
-                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-              <th @click="updateSorting('population')" class="sortable">
-                Population
-                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-              <th @click="updateSorting('value')" class="sortable">
-                Value
-                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="par in sortedPars">
-              <td>
-                {{par.index}}
-              </td>
-              <td>
-                {{par.parlabel}}
-              </td>
-              <td>
-                {{par.poplabel}}
-              </td>
-              <td>
-                <input type="text"
-                       class="txbox"
-                       v-model="par.dispvalue"/>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+      <div>
+        <div class="calib-title">
+          <help reflink="results-plots" label="Results"></help>
+          <div>
+            <button class="btn" @click="scaleFigs(0.9)" data-tooltip="Zoom out">-</button>
+            <button class="btn" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="notImplemented()">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" v-if="plotScenarios" :disabled="!scenariosLoaded" @click="plotScenarios()" data-tooltip="Refresh graphs">
+              <i class="ti-reload"></i>
+            </button>
+            <button class="btn" @click="clearGraphs()" data-tooltip="Clear graphs">
+              <i class="ti-close"></i>
+            </button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="toggleShowingPlotControls()" data-tooltip="Toggle plot selectors">
+              <i class="ti-settings"></i>
+            </button>
           </div>
         </div>
-
-        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
-          <div class="plotopts-params">
+        
+        <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
+          <div class="calib-params" v-if="areShowingParameters">
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
               <tr>
-                <th>Plot</th>
-                <th>Active</th>
+                <th @click="updateSorting('index')" class="sortable">
+                  No.
+                  <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
+                <th @click="updateSorting('parameter')" class="sortable">
+                  Parameter
+                  <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
+                <th @click="updateSorting('population')" class="sortable">
+                  Population
+                  <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
+                <th @click="updateSorting('value')" class="sortable">
+                  Value
+                  <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
               </tr>
               </thead>
               <tbody>
-              <tr v-for="item in plotOptions">
+              <tr v-for="par in sortedPars">
                 <td>
-                  {{ item.plot_name }}
+                  {{par.index}}
                 </td>
-                <td style="text-align: center">
-                  <input type="checkbox" v-model="item.active"/>
+                <td>
+                  {{par.parlabel}}
+                </td>
+                <td>
+                  {{par.poplabel}}
+                </td>
+                <td>
+                  <input type="text"
+                        class="txbox"
+                        v-model="par.dispvalue"/>
                 </td>
               </tr>
               </tbody>
             </table>
           </div>
-        </div>
 
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
+
+          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+            <div class="plotopts-params">
+              <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                <thead>
+                <tr>
+                  <th>Plot</th>
+                  <th>Active</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="item in plotOptions">
+                  <td>
+                    {{ item.plot_name }}
+                  </td>
+                  <td style="text-align: center">
+                    <input type="checkbox" v-model="item.active"/>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
       </div>
 
     </div>
@@ -223,9 +230,14 @@ Last update: 2018-08-22
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
+  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'CalibrationPage',
+
+    components: {
+      help
+    },
 
     data() {
       return {

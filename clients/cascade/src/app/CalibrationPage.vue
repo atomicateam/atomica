@@ -23,146 +23,150 @@ Last update: 2018-08-22
       <div class="card">
         <help reflink="calibration" label="Calibration"></help>
         <!--<div class="calib-controls">-->
-          <div class="controls-box">
-            <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
-            <button class="btn" @click="toggleShowingParams()">
-              <span v-if="areShowingParameters">Hide</span>
-              <span v-else>Show</span>
-              parameters
-            </button>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
-            for&nbsp;
-            <select v-model="calibTime">
-              <option v-for='time in calibTimes'>
-                {{ time }}
-              </option>
-            </select>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <!--<div style="display: inline-block; padding-left: 100px">-->
-            <b>Parameter set: &nbsp;</b>
-            <select v-model="activeParset">
-              <option v-for='parset in parsetOptions'>
-                {{ parset }}
-              </option>
-            </select>
-            &nbsp;
-            <button class="btn btn-icon" @click="renameParsetModal()" data-tooltip="Rename">
-              <i class="ti-pencil"></i>
-            </button>
-            <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy">
-              <i class="ti-files"></i>
-            </button>
-            <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete">
-              <i class="ti-trash"></i>
-            </button>
-          </div>
+        <div class="controls-box">
+          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+          <button class="btn" @click="toggleShowingParams()">
+            <span v-if="areShowingParameters">Hide</span>
+            <span v-else>Show</span>
+            parameters
+          </button>
+        </div>
+        &nbsp;&nbsp;
+        <div class="controls-box">
+          <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
+          for&nbsp;
+          <select v-model="calibTime">
+            <option v-for='time in calibTimes'>
+              {{ time }}
+            </option>
+          </select>
+        </div>
+        &nbsp;&nbsp;
+        <div class="controls-box">
+          <!--<div style="display: inline-block; padding-left: 100px">-->
+          <b>Parameter set: &nbsp;</b>
+          <select v-model="activeParset">
+            <option v-for='parset in parsetOptions'>
+              {{ parset }}
+            </option>
+          </select>
+          &nbsp;
+          <button class="btn btn-icon" @click="renameParsetModal()" data-tooltip="Rename">
+            <i class="ti-pencil"></i>
+          </button>
+          <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy">
+            <i class="ti-files"></i>
+          </button>
+          <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete">
+            <i class="ti-trash"></i>
+          </button>
+          <button class="btn btn-icon" @click="downloadParset()" data-tooltip="Download">
+            <i class="ti-download"></i>
+          </button>
+          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload">
+            <i class="ti-upload"></i>
+          </button>
+          &nbsp;
+          <button class="btn" @click="notImplemented()">
+            Reconcile
+          </button>
+        </div>
+
         <!--</div>-->
       </div>
 
       <div class="card full-width-card">
         <div class="calib-title">
-          <h5> Result plots </h5>
+          <help reflink="results-plots" label="Results"></help>
           <div>
             <!--<b>Start year: &nbsp;</b>-->
             <!--<input type="text"-->
-                  <!--class="txbox"-->
-                  <!--v-model="startYear"-->
-                  <!--style="display: inline-block; width:70px"/>-->
+            <!--class="txbox"-->
+            <!--v-model="startYear"-->
+            <!--style="display: inline-block; width:70px"/>-->
             <!--&nbsp;&nbsp;&nbsp;-->
 
             <b>Year: &nbsp;</b>
-            <input type="text"
-                  class="txbox"
-                  v-model="endYear"
-                  style="display: inline-block; width:70px"/>
+            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+              <option v-for='year in simYears'>
+                {{ year }}
+              </option>
+            </select>
             &nbsp;&nbsp;&nbsp;
             <b>Population: &nbsp;</b>
-            <select v-model="activePop">
+            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
               <option v-for='pop in activePops'>
                 {{ pop }}
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" @click="notImplemented()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
-            <!-- <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
-              <i class="ti-download"></i>
-            </button>
-            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Settings">
-              <i class="ti-settings"></i>
-            </button>
-            <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
-              <i class="ti-zoom-in"></i>
-            </button> -->
+
           </div>
         </div>
-      <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
-        
+        <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
 
-        <div class="calib-params" v-if="areShowingParameters">
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
-            <thead>
-            <tr>
-              <!--<th @click="updateSorting('index')" class="sortable">-->
+
+          <div class="calib-params" v-if="areShowingParameters">
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <!--<th @click="updateSorting('index')" class="sortable">-->
                 <!--No.-->
                 <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
                 <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
                 <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
-              <!--</th>-->
-              <th @click="updateSorting('parameter')" class="sortable">
-                Parameter
-                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-              <th @click="updateSorting('population')" class="sortable">
-                Population
-                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-              <th @click="updateSorting('value')" class="sortable">
-                Value
-                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="par in sortedPars">
-              <!--<td>-->
+                <!--</th>-->
+                <th @click="updateSorting('parameter')" class="sortable">
+                  Parameter
+                  <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
+                <th @click="updateSorting('population')" class="sortable">
+                  Population
+                  <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
+                <th @click="updateSorting('value')" class="sortable">
+                  Value
+                  <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                  <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                  <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+                </th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="par in sortedPars">
+                <!--<td>-->
                 <!--{{par.index}}-->
-              <!--</td>-->
-              <td>
-                {{par.parlabel}}
-              </td>
-              <td>
-                {{par.poplabel}}
-              </td>
-              <td>
-                <input type="text"
-                       class="txbox"
-                       v-model="par.dispvalue"/>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+                <!--</td>-->
+                <td>
+                  {{par.parlabel}}
+                </td>
+                <td>
+                  {{par.poplabel}}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="par.dispvalue"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
           </div>
-        </div>
+
+          <div class="calib-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
 
         </div>
-        
+
       </div>
 
     </div>
@@ -184,7 +188,7 @@ Last update: 2018-08-22
           New name:<br>
           <input type="text"
                  class="txbox"
-                 v-model="newParsetName"/><br>
+                 v-model="activeParset"/><br>
         </div>
         <div style="text-align:justify">
           <button @click="renameParset()" class='btn __green' style="display:inline-block">
@@ -229,7 +233,7 @@ Last update: 2018-08-22
         areShowingParameters: false,
         activeParset: -1,
         parsetOptions: [],
-        newParsetName: [],
+        origParsetName: [],
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
@@ -247,7 +251,8 @@ Last update: 2018-08-22
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
-      activePops()   { return utils.activePops(this) },      
+      simYears()     { return utils.simYears(this) },
+      activePops()   { return utils.activePops(this) },
       placeholders() { return utils.placeholders() },
 
       sortedPars() {
@@ -269,9 +274,9 @@ Last update: 2018-08-22
         this.viewTable()
         this.getPlotOptions()
         utils.sleep(1)  // used so that spinners will come up by callback func
-        .then(response => {
-          this.updateParset()
-        })
+          .then(response => {
+            this.updateParset()
+          })
         utils.sleep(1000)
           .then(response => {
               this.manualCalibration(this.projectID)
@@ -281,7 +286,7 @@ Last update: 2018-08-22
     },
 
     methods: {
-      
+
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
@@ -296,7 +301,11 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-      
+
+      notImplemented() {
+        status.fail(this, 'Sorry, this feature is not yet implemented')
+      },
+
       clipValidateYearInput() {
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
@@ -318,7 +327,6 @@ Last update: 2018-08-22
             } else {
               console.log('Parameter set ' + this.activeParset + ' still found')
             }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
             status.succeed(this, '')  // No green notification.
@@ -370,7 +378,7 @@ Last update: 2018-08-22
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,       
+        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,
           this.startYear, this.endYear, this.activePop]) // Go to the server to get the results from the package set.
           .then(response => {
             status.succeed(this, 'Simulation run') // Indicate success.
@@ -404,6 +412,7 @@ Last update: 2018-08-22
 
       renameParsetModal() {
         console.log('renameParsetModal() called');
+        this.origParsetName = this.activeParset // Store this before it gets overwritten
         this.$modal.show('rename-parset');
       },
 
@@ -412,7 +421,7 @@ Last update: 2018-08-22
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
         status.start(this) // Start indicating progress.
-        rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
@@ -429,6 +438,7 @@ Last update: 2018-08-22
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
           .catch(error => {
@@ -447,6 +457,34 @@ Last update: 2018-08-22
           })
           .catch(error => {
             status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
+          })
+      },
+
+      downloadParset() {
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
+        console.log('downloadParset() called for ' + this.activeParset)
+        status.start(this) // Start indicating progress.
+        rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => { // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not download parameter set: ' + error.message)
+          })
+      },
+
+      uploadParset() {
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
+        console.log('uploadParset() called')
+        status.start(this) // Start indicating progress.
+        rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = response.data
+            status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
+          })
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not upload parameter set: ' + error.message)
           })
       },
     }

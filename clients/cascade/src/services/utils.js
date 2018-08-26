@@ -67,6 +67,21 @@ function simEnd(vm) {
   }
 }
 
+function simYears(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return []
+  } else {
+    var sim_start = vm.$store.state.activeProject.project.sim_start
+    var sim_end = vm.$store.state.activeProject.project.sim_end
+    var years = []
+    for (var i = sim_start; i <= sim_end; i++) {
+      years.push(i);
+    }
+    console.log('sim years: ' + years)
+    return years;
+  }
+}
+
 function activePops(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -195,6 +210,7 @@ export default {
   hasData,
   simStart,
   simEnd,
+  simYears,
   activePops,
   getPlotOptions,
   makeGraphs,

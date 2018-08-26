@@ -115,7 +115,7 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
                 ax.scatter(t[flt],vals[flt],marker='o', s=40, linewidths=1, facecolors=color,color='k',zorder=100)
 
 
-def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=None):
+def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=None, title=False):
     # This is the fancy cascade plot, which only applies to a single result at a single time
     # INPUTS
     # result - A single result, or list of results. One figure will be generated for each result
@@ -128,6 +128,10 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     #
     # OUTPUTS
     # figs - a Figure handle
+
+    barcolor  = (0.00, 0.15, 0.48) # Cascade color -- array([0,38,122])/255.
+    diffcolor = (0.85, 0.89, 1.00) # (0.74, 0.82, 1.00) # Original: (0.93,0.93,0.93)
+    losscolor = (0,0,0) # (0.8,0.2,0.2)
 
     cascade, pops, year = sanitize_cascade_inputs(result=result, cascade=cascade, pops=pops, year=year)
 
@@ -152,7 +156,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
     bar_x = np.arange(len(cascade_vals))
-    h = plt.bar(bar_x,cascade_array, width=0.5)
+    h = plt.bar(bar_x,cascade_array, width=0.5, color=barcolor)
     if data is not None:
         non_nan = np.isfinite(cascade_data_array)
         if np.any(non_nan):
@@ -184,7 +188,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
         (right_bar.get_x(), 0),  # Bottom right corner
         ])
 
-        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=(0.93,0.93,0.93))
+        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=diffcolor)
         ax.add_patch(p)
 
         bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
@@ -195,14 +199,15 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     loss = np.diff(cascade_array)
     for i,val in enumerate(loss):
 
-        plt.text(i, -data_yrange[0]*0.02, 'Loss\n%s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top',horizontalalignment='center',color=(0.8,0.2,0.2))
+        plt.text(i, -data_yrange[0]*0.02, 'Loss: %s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top', horizontalalignment='center', color=losscolor)
 
     pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')
-    if isinstance(cascade,string_types):
-        plt.title('%s cascade for %s in %d' % (cascade, pop_label, year))
-    else:
-        plt.title('Cascade for %s in %d' % (pop_label, year))
+    if title:
+        if isinstance(cascade,string_types):
+            plt.title('%s cascade for %s in %d' % (cascade, pop_label, year))
+        else:
+            plt.title('Cascade for %s in %d' % (pop_label, year))
     plt.tight_layout()
 
     return fig

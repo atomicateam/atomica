@@ -636,7 +636,7 @@ Last update: 2018-08-23
             })
             .catch(error => {
               // Indicate failure.
-              status.fail(this, 'Could not rename project')
+              status.fail(this, 'Could not rename project: ' + error.message)
             })
         }
 
@@ -650,23 +650,15 @@ Last update: 2018-08-23
       },
 
       downloadProjectFile(uid) {
-        // Find the project that matches the UID passed in.
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
+        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('downloadProjectFile() called for ' + matchProject.project.name)
-
-        // Start indicating progress.
-        status.start(this)
-
-        // Make the server call to download the project to a .prj file.
-        rpcs.download('download_project', [uid])
-          .then(response => {
-            // Indicate success.
+        status.start(this) // Start indicating progress.
+        rpcs.download('download_project', [uid]) // Make the server call to download the project to a .prj file.
+          .then(response => { // Indicate success.
             status.succeed(this, '')  // No green popup message.
           })
-          .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not download project')
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not download project: ' + error.message)
           })
       },
 

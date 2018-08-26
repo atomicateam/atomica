@@ -56,41 +56,29 @@ Last update: 2018-08-22
 
     <div class="card full-width-card">
       <div class="calib-title">
-        <h5> Result plots </h5>
+        <help reflink="results-plots" label="Results"></help>
         <div>
-          <!--<b>Start year: &nbsp;</b>-->
-          <!--<input type="text"-->
-                <!--class="txbox"-->
-                <!--v-model="startYear"-->
-                <!--style="display: inline-block; width:70px"/>-->
-          <!--&nbsp;&nbsp;&nbsp;-->
 
           <b>Year: &nbsp;</b>
-          <input type="text"
-                class="txbox"
-                v-model="endYear"
-                style="display: inline-block; width:70px"/>
+          <select v-model="endYear" v-on:change="plotScenarios()">
+            <option v-for='year in simYears'>
+              {{ year }}
+            </option>
+          </select>
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
-          <select v-model="activePop">
+          <select v-model="activePop" v-on:change="plotScenarios()">
             <option v-for='pop in activePops'>
               {{ pop }}
             </option>
           </select>
           &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" @click="notImplemented()">Export graphs</button>
           <button class="btn" @click="exportResults(projectID)">Export data</button>
-          <!-- <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
-            <i class="ti-download"></i>
-          </button>
-          <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Settings">
-            <i class="ti-settings"></i>
-          </button>
-          <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Export">
-            <i class="ti-zoom-in"></i>
-          </button> -->
+
         </div>
       </div>
+
       <div class="calib-main" :class="{'calib-main--full': true}">
         <div class="calib-graphs">
           <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
@@ -239,6 +227,7 @@ Last update: 2018-08-22
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
+      simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return utils.placeholders() },
     },
@@ -579,31 +568,6 @@ Last update: 2018-08-22
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  /*
-  HACK: The purpose of this code is to get things to line up a bit until
-  we have a proper layout. Using fixed pixel widths is terrible and we
-  shouldn't do it in other places.
-  */
-  /*  .calib-tables span {
-      display: block;
-      margin-bottom: 1rem;
-      font-weight: bold;
-    }
-    .calib-tables, .calib-tables table, .calib-tables tr, .calib-tables td {
-      color: black; */ /* To match graph */
-  /*    font-family: Helvetica, sans-serif; */ /* To match graph */
-  /*  }
-    .calib-tables table, .calib-tables tr, .calib-tables td {
-      border: 2px solid #ddd;
-    }
-    .calib-tables table td {
-      width: 96px;
-      padding: 0.5rem;
-      text-align: right;
-    }
-    .calib-tables table td:nth-child(1) {
-      width: 192px; */ /* Header column */
-  /*    padding-right: 11px;
-    } */
+
 </style>
 
