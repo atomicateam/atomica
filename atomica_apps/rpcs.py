@@ -906,33 +906,168 @@ def get_y_factors(project_id, parsetname=-1):
 
 
 
-#%% Plotting
-def supported_plots_func():
-    supported_plots = sc.odict() # Preserve order
-    supported_plots['Population size'] = 'alive'
-    supported_plots['Latent infections'] = 'lt_inf'
-    supported_plots['Active TB'] = 'ac_inf'
-    supported_plots['Active DS-TB'] = 'ds_inf'
-    supported_plots['Active MDR-TB'] = 'mdr_inf'
-    supported_plots['Active XDR-TB'] = 'xdr_inf'
-    supported_plots['New active DS-TB'] = ['pd_div:flow','nd_div:flow']
-    supported_plots['New active MDR-TB'] = ['pm_div:flow','nm_div:flow']
-    supported_plots['New active XDR-TB'] = ['px_div:flow','nx_div:flow']
-    supported_plots['Smear negative active TB'] = 'sn_inf'
-    supported_plots['Smear positive active TB'] = 'sp_inf'
-    supported_plots['Latent diagnoses'] = ['le_treat:flow','ll_treat:flow']
-    supported_plots['New active TB diagnoses'] = ['pd_diag:flow','pm_diag:flow','px_diag:flow','nd_diag:flow','nm_diag:flow','nx_diag:flow']
-    supported_plots['New active DS-TB diagnoses'] = ['pd_diag:flow','nd_diag:flow']
-    supported_plots['New active MDR-TB diagnoses'] = ['pm_diag:flow','nm_diag:flow']
-    supported_plots['New active XDR-TB diagnoses'] = ['px_diag:flow','nx_diag:flow']
-    supported_plots['Latent treatment'] = 'ltt_inf'
-    supported_plots['Active treatment'] = 'num_treat'
-    supported_plots['TB-related deaths'] = ':ddis'
-    return supported_plots
+
+##################################################################################
+#%% Parset functions and RPCs
+##################################################################################
+
+
+@RPC() 
+def get_parset_info(project_id):
+    print('Returning parset info...')
+    proj = load_project(project_id, raise_exception=True)
+    parset_names = proj.parsets.keys()
+    return parset_names
+
+
+@RPC() 
+def rename_parset(project_id, parsetname=None, new_name=None):
+    print('Renaming parset from %s to %s...' % (parsetname, new_name))
+    proj = load_project(project_id, raise_exception=True)
+    proj.parsets.rename(parsetname, new_name)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@RPC() 
+def copy_parset(project_id, parsetname=None):
+    print('Copying parset %s...' % parsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of parsets before copy: %s' % len(proj.parsets))
+    new_name = sc.uniquename(parsetname, namelist=proj.parsets.keys())
+    print('Old name: %s; new name: %s' % (parsetname, new_name))
+    proj.parsets[new_name] = sc.dcp(proj.parsets[parsetname])
+    print('Number of parsets after copy: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return new_name
+
+
+@RPC() 
+def delete_parset(project_id, parsetname=None):
+    print('Deleting parset %s...' % parsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of parsets before delete: %s' % len(proj.parsets))
+    if len(proj.parsets)>1:
+        proj.parsets.pop(parsetname)
+    else:
+        raise Exception('Cannot delete last parameter set')
+    print('Number of parsets after delete: %s' % len(proj.parsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@RPC(call_type='download')   
+def download_parset(project_id, parsetname=None):
+    """
+    For the passed in project UID, get the Project on the server, save it in a 
+    file, minus results, and pass the full path of this file back.
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    parset = proj.parsets[parsetname]
+    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
+    file_name = '%s - %s.par' % (proj.name, parsetname) # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
+    sc.saveobj(full_file_name, parset) # Write the object to a Gzip string pickle file.
+    print(">> download_parset %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+    
+    
+@RPC(call_type='upload')   
+def upload_parset(parset_filename, project_id):
+    """
+    For the passed in project UID, get the Project on the server, save it in a 
+    file, minus results, and pass the full path of this file back.
+    """
+    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    parset = sc.loadobj(parset_filename)
+    parsetname = sc.uniquename(parset.name, namelist=proj.parsets.keys())
+    parset.name = parsetname # Reset the name
+    proj.parsets[parsetname] = parset
+    proj.modified = sc.now()
+    save_project(proj) # Save the new project in the DataStore.
+    return parsetname # Return the new project UID in the return message.
+
+
+##################################################################################
+#%% Progset functions and RPCs
+##################################################################################
+
+@RPC() 
+def get_progset_info(project_id):
+    print('Returning progset info...')
+    proj = load_project(project_id, raise_exception=True)
+    progset_names = proj.progsets.keys()
+    return progset_names
+
+
+@RPC() 
+def rename_progset(project_id, progsetname=None, new_name=None):
+    print('Renaming progset from %s to %s...' % (progsetname, new_name))
+    proj = load_project(project_id, raise_exception=True)
+    proj.progsets.rename(progsetname, new_name)
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@RPC() 
+def copy_progset(project_id, progsetname=None):
+    print('Copying progset %s...' % progsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of progsets before copy: %s' % len(proj.progsets))
+    new_name = sc.uniquename(progsetname, namelist=proj.progsets.keys())
+    print('Old name: %s; new name: %s' % (progsetname, new_name))
+    proj.progsets[new_name] = sc.dcp(proj.progsets[progsetname])
+    print('Number of progsets after copy: %s' % len(proj.progsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+@RPC() 
+def delete_progset(project_id, progsetname=None):
+    print('Deleting progset %s...' % progsetname)
+    proj = load_project(project_id, raise_exception=True)
+    print('Number of progsets before delete: %s' % len(proj.progsets))
+    if len(proj.progsets)>1:
+        proj.progsets.pop(progsetname)
+    else:
+        raise Exception('Cannot delete last program set')
+    print('Number of progsets after delete: %s' % len(proj.progsets))
+    print('Saving project...')
+    save_project(proj)
+    return None
+
+
+
+
+##################################################################################
+#%% Plotting functions and RPCs
+##################################################################################
+
+def supported_plots_func(framework):
+    '''
+    Return a dict of supported plots extracted from the framework.
+    
+    Input:
+        framework : a ProjectFramework instance
+    Output:
+        {name:quantities}: a dict with all of the plot quantities in the framework keyed by name
+    '''
+    if 'plots' not in framework.sheets:
+        return dict()
+    else:
+        df = framework.sheets['plots'][0]
+        return sc.odict(zip(df['name'],df['quantities']))
+
 
 @RPC()    
-def get_supported_plots(only_keys=False):
-    supported_plots = supported_plots_func()
+def get_supported_plots(project_id, only_keys=False):
+    proj = load_project(project_id, raise_exception=True)
+    supported_plots = supported_plots_func(proj.framework)
     if only_keys:
         plot_names = supported_plots.keys()
         vals = np.ones(len(plot_names))
@@ -947,7 +1082,7 @@ def get_supported_plots(only_keys=False):
 
 def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, xlims=None, figsize=None):
     # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
-    supported_plots = supported_plots_func()
+    supported_plots = supported_plots_func(proj.framework)
     if plot_names is None: 
         if plot_options is not None:
             plot_names = []
@@ -991,6 +1126,10 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     return {'graphs':graphs}
 
 
+#@RPC(call_type='download')
+#def export_calibration_graphs():
+    
+
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
     if figsize is None: figsize = (5,3)
     fig.set_size_inches(figsize)
@@ -1015,7 +1154,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     
 def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None, figsize=None):
     results = sc.promotetolist(results)
-    supported_plots = supported_plots_func() 
+    supported_plots = supported_plots_func(proj.framework) 
     if plot_names is None: 
         if plot_options is not None:
             plot_names = []
@@ -1191,141 +1330,6 @@ def export_results(project_id, resultset=-1):
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
-
-
-##################################################################################
-#%% Parset functions and RPCs
-##################################################################################
-
-
-@RPC() 
-def get_parset_info(project_id):
-    print('Returning parset info...')
-    proj = load_project(project_id, raise_exception=True)
-    parset_names = proj.parsets.keys()
-    return parset_names
-
-
-@RPC() 
-def rename_parset(project_id, parsetname=None, new_name=None):
-    print('Renaming parset from %s to %s...' % (parsetname, new_name))
-    proj = load_project(project_id, raise_exception=True)
-    proj.parsets.rename(parsetname, new_name)
-    print('Saving project...')
-    save_project(proj)
-    return None
-
-
-@RPC() 
-def copy_parset(project_id, parsetname=None):
-    print('Copying parset %s...' % parsetname)
-    proj = load_project(project_id, raise_exception=True)
-    print('Number of parsets before copy: %s' % len(proj.parsets))
-    new_name = sc.uniquename(parsetname, namelist=proj.parsets.keys())
-    print('Old name: %s; new name: %s' % (parsetname, new_name))
-    proj.parsets[new_name] = sc.dcp(proj.parsets[parsetname])
-    print('Number of parsets after copy: %s' % len(proj.parsets))
-    print('Saving project...')
-    save_project(proj)
-    return new_name
-
-
-@RPC() 
-def delete_parset(project_id, parsetname=None):
-    print('Deleting parset %s...' % parsetname)
-    proj = load_project(project_id, raise_exception=True)
-    print('Number of parsets before delete: %s' % len(proj.parsets))
-    if len(proj.parsets)>1:
-        proj.parsets.pop(parsetname)
-    else:
-        raise Exception('Cannot delete last parameter set')
-    print('Number of parsets after delete: %s' % len(proj.parsets))
-    print('Saving project...')
-    save_project(proj)
-    return None
-
-
-@RPC(call_type='download')   
-def download_parset(project_id, parsetname=None):
-    """
-    For the passed in project UID, get the Project on the server, save it in a 
-    file, minus results, and pass the full path of this file back.
-    """
-    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    parset = proj.parsets[parsetname]
-    dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = '%s - %s.par' % (proj.name, parsetname) # Create a filename containing the project name followed by a .prj suffix.
-    full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
-    sc.saveobj(full_file_name, parset) # Write the object to a Gzip string pickle file.
-    print(">> download_parset %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
-    
-    
-@RPC(call_type='upload')   
-def upload_parset(parset_filename, project_id):
-    """
-    For the passed in project UID, get the Project on the server, save it in a 
-    file, minus results, and pass the full path of this file back.
-    """
-    proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
-    parset = sc.loadobj(parset_filename)
-    parsetname = sc.uniquename(parset.name, namelist=proj.parsets.keys())
-    parset.name = parsetname # Reset the name
-    proj.parsets[parsetname] = parset
-    proj.modified = sc.now()
-    save_project(proj) # Save the new project in the DataStore.
-    return parsetname # Return the new project UID in the return message.
-
-
-##################################################################################
-#%% Progset functions and RPCs
-##################################################################################
-
-@RPC() 
-def get_progset_info(project_id):
-    print('Returning progset info...')
-    proj = load_project(project_id, raise_exception=True)
-    progset_names = proj.progsets.keys()
-    return progset_names
-
-
-@RPC() 
-def rename_progset(project_id, progsetname=None, new_name=None):
-    print('Renaming progset from %s to %s...' % (progsetname, new_name))
-    proj = load_project(project_id, raise_exception=True)
-    proj.progsets.rename(progsetname, new_name)
-    print('Saving project...')
-    save_project(proj)
-    return None
-
-
-@RPC() 
-def copy_progset(project_id, progsetname=None):
-    print('Copying progset %s...' % progsetname)
-    proj = load_project(project_id, raise_exception=True)
-    print('Number of progsets before copy: %s' % len(proj.progsets))
-    new_name = sc.uniquename(progsetname, namelist=proj.progsets.keys())
-    print('Old name: %s; new name: %s' % (progsetname, new_name))
-    proj.progsets[new_name] = sc.dcp(proj.progsets[progsetname])
-    print('Number of progsets after copy: %s' % len(proj.progsets))
-    print('Saving project...')
-    save_project(proj)
-    return None
-
-
-@RPC() 
-def delete_progset(project_id, progsetname=None):
-    print('Deleting progset %s...' % progsetname)
-    proj = load_project(project_id, raise_exception=True)
-    print('Number of progsets before delete: %s' % len(proj.progsets))
-    if len(proj.progsets)>1:
-        proj.progsets.pop(progsetname)
-    else:
-        raise Exception('Cannot delete last program set')
-    print('Number of progsets after delete: %s' % len(proj.progsets))
-    print('Saving project...')
-    save_project(proj)
-    return None
 
 
 ##################################################################################
