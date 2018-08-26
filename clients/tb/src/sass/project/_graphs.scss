@@ -8,7 +8,10 @@
 .calib-controls button, .calib-controls .control-group {
   margin-right: 1rem;
 }
-
+.calib-title {
+  display: flex;
+  justify-content: space-between;
+}
 .calib-main {
   display: flex;
   margin-top: 4rem;

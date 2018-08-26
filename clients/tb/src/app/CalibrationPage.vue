@@ -78,19 +78,8 @@ Last update: 2018-08-22
 
       <div style="text-align: center">
         <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
           <button class="btn" @click="clearGraphs()">Clear graphs</button>
           <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="scaleFigs(0.9)">-</button>
-          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-          <button class="btn" @click="scaleFigs(1.1)">+</button>
         </div>
       </div>
 
@@ -98,26 +87,10 @@ Last update: 2018-08-22
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
-            <!--<b>Start year: &nbsp;</b>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="startYear"-->
-            <!--style="display: inline-block; width:70px"/>-->
-            <!--&nbsp;&nbsp;&nbsp;-->
-
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
             &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
+            <button class="btn" @click="scaleFigs(0.9)">-</button>
+            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
+            <button class="btn" @click="scaleFigs(1.1)">+</button>
             &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="notImplemented()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
@@ -258,6 +231,10 @@ Last update: 2018-08-22
 
   export default {
     name: 'CalibrationPage',
+
+    components: {
+      help
+    },
 
     data() {
       return {

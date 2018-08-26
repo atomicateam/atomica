@@ -231,6 +231,10 @@ import help from '@/app/HelpLink.vue'
   
 export default {
   name: 'ProjectsPage',
+
+  components: {
+    help
+  },
   
   data() {
     return {

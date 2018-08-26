@@ -214,6 +214,10 @@ Last update: 2018-08-22
   export default {
     name: 'OptimizationPage',
 
+    components: {
+      help
+    },
+
     data() {
       return {
         response: 'no response',

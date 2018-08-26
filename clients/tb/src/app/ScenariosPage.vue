@@ -193,6 +193,10 @@ Last update: 2018-08-22
   export default {
     name: 'scenarioPage',
 
+    components: {
+      help
+    },
+
     data() {
       return {
         response: 'no response',
