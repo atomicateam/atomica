@@ -80,7 +80,6 @@ Last update: 2018-08-22
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
-            &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="scaleFigs(0.9)" data-tooltip="Zoom out">-</button>
             <button class="btn" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
             <button class="btn" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
@@ -88,6 +87,9 @@ Last update: 2018-08-22
             <button class="btn" @click="notImplemented()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
             &nbsp;&nbsp;&nbsp;
+            <button class="btn" v-if="plotScenarios" :disabled="!scenariosLoaded" @click="plotScenarios()" data-tooltip="Refresh graphs">
+              <i class="ti-reload"></i>
+            </button>
             <button class="btn" @click="clearGraphs()" data-tooltip="Clear graphs">
               <i class="ti-close"></i>
             </button>
@@ -97,6 +99,7 @@ Last update: 2018-08-22
             </button>
           </div>
         </div>
+        
         <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
           <div class="calib-params" v-if="areShowingParameters">
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
