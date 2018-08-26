@@ -81,8 +81,15 @@ Last update: 2018-08-22
 
       <div class="calib-main" :class="{'calib-main--full': true}">
         <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+          <div class="featured-graphs">
+            <div :id="'fig0'">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
+          <div class="other-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
           </div>
         </div>
       </div>
