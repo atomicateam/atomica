@@ -59,8 +59,8 @@ $disabled-color: #FFF;
   // ### Colours
 
   &.__blue {
-    background: #00aeef;
-    border-color: #01A1DD;
+    background: $optima-blue;
+    border-color: $optima-blue;
     color: #FFF;
     
     &:disabled {
