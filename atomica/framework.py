@@ -404,6 +404,8 @@ class ProjectFramework(object):
 
         for i,row in self.characs.iterrows():
 
+            # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
+            # not put them in the databook, causing an error when actually trying to run the simulation
             if (row['setup weight']>0) & (row['databook page'] is None):
                 raise AtomicaException('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % row.name)
 
@@ -485,10 +487,14 @@ class ProjectFramework(object):
             if spec['databook page'] is not None and spec['setup weight']:
                 characs.append(spec.name)
 
+        if len(characs) == 0:
+            raise AtomicaException('No compartments or characteristics have a setup weight, cannot initialize simulation')
+
         A = np.zeros((len(characs), len(comps)))
         for i, charac in enumerate(characs):
             for include in self.get_charac_includes(charac):
                 A[i, comps.index(include)] = 1.0
+
 
         if np.linalg.matrix_rank(A) < len(comps):
             logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
