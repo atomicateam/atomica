@@ -100,9 +100,9 @@ Last update: 2018-08-22
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="scaleFigs(0.9)" data-tooltip="Zoom out">-</button>
-            <button class="btn" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-            <button class="btn" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="exportGraphs()">Export graphs</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>

@@ -17,12 +17,12 @@ import mpld3
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
+import atomica as at
 from . import projects as prj
 from . import frameworks as frw
 from matplotlib.legend import Legend
 import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
-from atomica.results import evaluate_plot_string
 rc('font', size=14)
 
 
@@ -1063,7 +1063,7 @@ def supported_plots_func(framework):
         df = framework.sheets['plots'][0]
         plots = sc.odict()
         for name,output in zip(df['name'], df['quantities']):
-            plots[name] = evaluate_plot_string(output)
+            plots[name] = at.results.evaluate_plot_string(output)
         return plots
 
 @RPC()    
