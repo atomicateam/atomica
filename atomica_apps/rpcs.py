@@ -1051,7 +1051,7 @@ def delete_progset(project_id, progsetname=None):
 def supported_plots_func(framework):
     '''
     Return a dict of supported plots extracted from the framework.
-    
+
     Input:
         framework : a ProjectFramework instance
     Output:
@@ -1062,7 +1062,7 @@ def supported_plots_func(framework):
     else:
         df = framework.sheets['plots'][0]
         plots = sc.odict()
-        for name,output in zip(df['name'],df['quantities']):
+        for name,output in zip(df['name'], df['quantities']):
             plots[name] = evaluate_plot_string(output)
         return plots
 
@@ -1113,32 +1113,34 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     graphs = []
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
-        if isinstance(output.values()[0],list):
-            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-        else:
-            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
+        try:
+            if isinstance(output.values()[0],list):
+                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            else:
+                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
 
-        nans_replaced = 0
-        for series in plotdata.series:
-            if replace_nans and any(np.isnan(series.vals)):
-                nan_inds = sc.findinds(np.isnan(series.vals))
-                for nan_ind in nan_inds:
-                    if nan_ind>0: # Skip the first point
-                        series.vals[nan_ind] = series.vals[nan_ind-1]
-                        nans_replaced += 1
-        if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
-        if calibration:
-           if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
-           else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
-        else:
-           if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
-           else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
-        for fig in figs:
-            graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
-            allfigs.append(fig)
-            pl.close(fig)
-        print('Plot %s succeeded' % (output))
-
+            nans_replaced = 0
+            for series in plotdata.series:
+                if replace_nans and any(np.isnan(series.vals)):
+                    nan_inds = sc.findinds(np.isnan(series.vals))
+                    for nan_ind in nan_inds:
+                        if nan_ind>0: # Skip the first point
+                            series.vals[nan_ind] = series.vals[nan_ind-1]
+                            nans_replaced += 1
+            if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
+            if calibration:
+               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
+               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
+            else:
+               if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
+               else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
+            for fig in figs:
+                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                allfigs.append(fig)
+                pl.close(fig)
+            print('Plot %s succeeded' % (output))
+        except Exception as E:
+            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
     output = {'graphs':graphs}
     return output,allfigs
 
