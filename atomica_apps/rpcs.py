@@ -22,6 +22,7 @@ from . import frameworks as frw
 from matplotlib.legend import Legend
 import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
+from atomica.results import evaluate_plot_string
 rc('font', size=14)
 
 
@@ -1060,8 +1061,10 @@ def supported_plots_func(framework):
         return dict()
     else:
         df = framework.sheets['plots'][0]
-        return sc.odict(zip(df['name'],df['quantities']))
-
+        plots = sc.odict()
+        for name,output in zip(df['name'],df['quantities']):
+            plots[name] = evaluate_plot_string(output)
+        return plots
 
 @RPC()    
 def get_supported_plots(project_id, only_keys=False):
@@ -1110,34 +1113,32 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     graphs = []
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
-        try:
-            if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            else:
-                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
+        if isinstance(output.values()[0],list):
+            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+        else:
+            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
 
-            nans_replaced = 0
-            for series in plotdata.series:
-                if replace_nans and any(np.isnan(series.vals)):
-                    nan_inds = sc.findinds(np.isnan(series.vals))
-                    for nan_ind in nan_inds:
-                        if nan_ind>0: # Skip the first point
-                            series.vals[nan_ind] = series.vals[nan_ind-1]
-                            nans_replaced += 1
-            if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
-            if calibration:
-               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
-               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
-            else:
-               if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
-               else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
-            for fig in figs:
-                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
-                allfigs.append(fig)
-                pl.close(fig)
-            print('Plot %s succeeded' % (output))
-        except Exception as E:
-            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
+        nans_replaced = 0
+        for series in plotdata.series:
+            if replace_nans and any(np.isnan(series.vals)):
+                nan_inds = sc.findinds(np.isnan(series.vals))
+                for nan_ind in nan_inds:
+                    if nan_ind>0: # Skip the first point
+                        series.vals[nan_ind] = series.vals[nan_ind-1]
+                        nans_replaced += 1
+        if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
+        if calibration:
+           if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
+           else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
+        else:
+           if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
+           else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
+        for fig in figs:
+            graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+            allfigs.append(fig)
+            pl.close(fig)
+        print('Plot %s succeeded' % (output))
+
     output = {'graphs':graphs}
     return output,allfigs
 
