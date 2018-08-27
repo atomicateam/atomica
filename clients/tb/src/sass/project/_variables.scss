@@ -38,7 +38,7 @@ $danger-input-bg: #FFC0A4 !default;
 $success-input-bg: #ABF3CB !default;
 $other-medium-gray: #A49E93 !default;
 $transparent-bg: transparent !default;
-$button-bg: #a5d5e9 !default;
+$button-bg: $optima-blue; // #a5d5e9 !default;
 
 $default-color: #0c2544 !default;
 $default-bg: #0c2544 !default;

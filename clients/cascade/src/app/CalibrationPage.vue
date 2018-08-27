@@ -100,8 +100,13 @@ Last update: 2018-08-22
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export graphs</button>
+            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs()">Export plots</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
           </div>
         </div>
@@ -355,7 +360,7 @@ Last update: 2018-08-22
       
       updateParset() {
         console.log('updateParset() called')
-        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
+//        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
@@ -367,7 +372,7 @@ Last update: 2018-08-22
             }
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-            status.succeed(this, '')  // No green notification.
+//            status.succeed(this, '')  // No green notification.
           })
           .catch(error => {
             status.fail(this, 'Could not update parset')
@@ -424,7 +429,7 @@ Last update: 2018-08-22
           'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            status.succeed(this, 'Simulation run') // Indicate success.
+//            status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
