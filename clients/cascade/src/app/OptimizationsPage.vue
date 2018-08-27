@@ -50,7 +50,7 @@ Last update: 2018-08-27
               <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
               <button class="btn __red" @click="cancelRun(optimSummary)">Cancel</button>
               <button class="btn" @click="plotResults(optimSummary)">Plot results</button>
-              <button class="btn __red" @click="getOptimTaskState(optimSummary)">Delete results</button>
+              <button class="btn __red">Delete results</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
@@ -281,15 +281,6 @@ Last update: 2018-08-27
       simEnd()       { return utils.simEnd(this) },
       activePops()   { return utils.activePops(this) },       
       placeholders() { return utils.placeholders() },
-      
-/*      timeFormatStr(rawValue) {
-        if (rawValue == '--') {
-          return '--'
-        }
-        else {
-          return Number(rawValue).toFixed()
-        }
-      } */
     },
 
     created() {
@@ -361,9 +352,30 @@ Last update: 2018-08-27
           optimSummary.executionTime = result.data.executionTime          
         })
         .catch(error => {
-          optimSummary.status = '--'
+          optimSummary.status = 'not started'
           optimSummary.pendingTime = '--'
           optimSummary.executionTime = '--'
+        })       
+      },
+      
+      pollAllTaskStates() {
+        console.log('Do a task poll...')
+        // For each of the optimization summaries...
+        this.optimSummaries.forEach(optimSum => {
+          // If there is a valid task launched, check it.
+          if (optimSum.status != 'not started') {
+            this.getOptimTaskState(optimSum)
+          }
+        }) 
+        
+        // Sleep waitingtime seconds.
+        var waitingtime = 2
+        utils.sleep(waitingtime * 1000)
+        .then(response => {
+          // Only if we are still in the optimizations page, call ourselves.
+          if (this.$route.path == '/optimizations') {
+            this.pollAllTaskStates()
+          }
         })       
       },
       
@@ -444,6 +456,9 @@ Last update: 2018-08-27
             // Get the task state for the optimization.
             optimSum.status = this.getOptimTaskState(optimSum)
           })
+          
+          // Start polling of tasks states.
+          this.pollAllTaskStates()
           
           // Indicate success.
           status.succeed(this, 'Optimizations loaded')
@@ -663,7 +678,7 @@ Last update: 2018-08-27
             [this.projectID, optimSummary.name, this.plotOptions, true, this.endYear, this.activePop]])
           .then(response => {
             // Get the task state for the optimization.
-            optimSummary.status = this.getOptimTaskState(optimSummary)
+            this.getOptimTaskState(optimSummary)
             
             // Indicate success.
             status.succeed(this, 'Started optimization')
@@ -692,7 +707,7 @@ Last update: 2018-08-27
         rpcs.rpc('delete_task', [optimSummary.task_id])
         .then(response => {
           // Get the task state for the optimization.
-          optimSummary.status = this.getOptimTaskState(optimSummary)          
+          this.getOptimTaskState(optimSummary)          
         })
       },
       
