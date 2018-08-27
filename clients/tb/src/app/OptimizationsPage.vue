@@ -545,13 +545,12 @@ Last update: 2018-08-22
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-WARNING FIX
           .then(response => {     // Go to the server to get the results
             taskservice.getTaskResultPolling('run_optimization', 9999, 1, 'run_optimization', [this.projectID, optimSummary.name, this.plotOptions, maxtime])
               .then(response => {
                 this.makeGraphs(response.data.result.graphs)
                 this.table = response.data.result.table
-                status.succeed(this, 'Optimization complete)
+                status.succeed(this, 'Optimization complete')
               })
               .catch(error => {
                 console.log('There was an error: ' + error.message) // Pull out the error message.

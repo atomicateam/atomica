@@ -26,7 +26,7 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 #    return 'here be dummy result'
 
 @async_task
-def run_cascade_optimization(project_id, optim_name, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
+def run_optimization(project_id, optim_name, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
     # Load the projects from the DataStore.
     prj.apptasks_load_projects(config)
     print('Running optimization...')
