@@ -194,41 +194,45 @@ Last update: 2018-08-22
             </div>
           </div>
 
+        </div>
+
       </div>
+
+
+      <modal name="rename-parset"
+
+             height="auto"
+             :classes="['v--modal', 'vue-dialog']"
+             :width="width"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title">
+            Rename parameter set
+          </div>
+          <div class="dialog-c-text">
+            New name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="activeParset"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="renameParset()" class='btn __green' style="display:inline-block">
+              Rename
+            </button>
+
+            <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+      </modal>
 
     </div>
-
-    <modal name="rename-parset"
-           height="auto"
-           :classes="['v--modal', 'vue-dialog']"
-           :width="width"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
-
-      <div class="dialog-content">
-        <div class="dialog-c-title">
-          Rename parameter set
-        </div>
-        <div class="dialog-c-text">
-          New name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="activeParset"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="renameParset()" class='btn __green' style="display:inline-block">
-            Rename
-          </button>
-
-          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
-        </div>
-      </div>
-
-    </modal>
 
   </div>
 </template>
@@ -320,6 +324,10 @@ Last update: 2018-08-22
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
+
+      notImplemented() {
+        status.fail(this, 'Sorry, this feature is not implemented')
+      },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -431,12 +439,12 @@ Last update: 2018-08-22
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
-          let maxtime = 30
+          var maxtime = 30
         } else {
-          let maxtime = 9999
+          var maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'y_factors':this.parList,
-          'plot_options':this.plotOptions, 'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs)
