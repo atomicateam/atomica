@@ -731,23 +731,20 @@ class ProgramSet(NamedItem):
             
         return prop_covered
 
-    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
-        '''Returns proportion OR number covered for a time/spending vector.'''
-        
-        if as_proportion and denominator is None:
-            print('Can''t return proportions because denominators not supplied. Returning numbers instead.')
-            as_proportion = False
-            
-        if as_proportion:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+    def get_coverage(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
+        '''Returns proportion OR number covered for a time/spending vector. Returns proportion if denominator is provided'''
+        if denominator is not None:
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
         else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
     def get_outcomes(self, coverage):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
         # INPUTS
         # - coverage : dict with coverage values {prog_name:np.array}
+        # OUTPUTS
+        # - outcomes : a dict {(par,pop):vals}
 
         for covkey in coverage.keys(): # Ensure coverage level values are arrays
             coverage[covkey] = sc.promotetoarray(coverage[covkey])
