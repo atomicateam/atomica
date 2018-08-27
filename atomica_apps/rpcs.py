@@ -1082,8 +1082,10 @@ def get_supported_plots(project_id, only_keys=False):
         return supported_plots
 
 
-def savefigs(allfigs):
-    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=sw.globalvars.downloads_dir.dir_path)
+def savefigs(allfigs, online=True, die=False):
+    if online: folder = sw.globalvars.downloads_dir.dir_path
+    else:      folder = os.getcwd()
+    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=folder)
     return filepath
 
 
@@ -1147,8 +1149,8 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
     
 
-def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False):
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops,cascade=cascade)
+def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True):
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
@@ -1163,7 +1165,7 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']
             allfigs = cascadefigs + allfigs
     if dosave:
-        savefigs(allfigs)  
+        savefigs(allfigs, online=online)  
     return output
 
 

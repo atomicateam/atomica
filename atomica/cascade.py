@@ -71,10 +71,9 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
             pops = {result.pop_labels[idx]:code_names}
 
     # Sanitize year
-    if year is None:
-        year = result.t[0] # Draw cascade for first year
-    else:
-        year = sc.promotetoarray(year)
+    if not year:
+        year = result.t[-1] # Draw cascade for last year
+    year = sc.promotetoarray(year)
     
     return cascade, pops, year
 
