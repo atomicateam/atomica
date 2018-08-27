@@ -9,79 +9,60 @@ import utils from '@/services/utils'
 // sec.), and a remote task function name and its args, try to launch 
 // the task, then wait for the waiting time, then try to get the 
 // result.
-function getTaskResultWaiting(task_id, waitingtime, func_name, args) {
-  // Set the arguments to an empty list if none are passed in.
-  if (!args) {
+function getTaskResultWaiting(task_id, waitingtime, func_name, args, kwargs) {
+  if (!args) { // Set the arguments to an empty list if none are passed in.
     args = []
   }
-  
   return new Promise((resolve, reject) => {
-    // Launch the task.
-    rpcs.rpc('launch_task', [task_id, func_name, args])
+    rpcs.rpc('launch_task', [task_id, func_name, args, kwargs]) // Launch the task.
     .then(response => {
-      // Sleep waitingtime seconds.
-      utils.sleep(waitingtime * 1000)
+      utils.sleep(waitingtime * 1000) // Sleep waitingtime seconds.
       .then(response2 => {
-        // Get the result of the task.
-        rpcs.rpc('get_task_result', [task_id])
+        rpcs.rpc('get_task_result', [task_id]) // Get the result of the task.
         .then(response3 => {
-          // Clean up the task_id task.
-          rpcs.rpc('delete_task', [task_id])
-          
-          // Signal success with the result response.
-          resolve(response3)              
+          rpcs.rpc('delete_task', [task_id]) // Clean up the task_id task.
+          resolve(response3) // Signal success with the result response.
         })
         .catch(error => {
-          // While we might want to clean up the task as below, the Celery 
-          // worker is likely to "resurrect" the task if it actually is 
+          // While we might want to clean up the task as below, the Celery
+          // worker is likely to "resurrect" the task if it actually is
           // running the task to completion.
           // Clean up the task_id task.
           // rpcCall('delete_task', [task_id])
-          
-          // Reject with the error the task result get attempt gave.
-          reject(error)
-        })         
-      })     
+          reject(error) // Reject with the error the task result get attempt gave.
+        })
+      })
     })
     .catch(error => {
-      // Reject with the error the launch gave.
-      reject(error)
+      reject(error) // Reject with the error the launch gave.
     })
-  }) 
+  })
 }
 
 // getTaskResultPolling() -- given a task_id string, a timeout time (in 
 // sec.), a polling interval (also in sec.), and a remote task function name
 //  and its args, try to launch the task, then start the polling if this is 
 // successful, returning the ultimate results of the polling process. 
-function getTaskResultPolling(task_id, timeout, pollinterval, func_name, args) {
-  // Set the arguments to an empty list if none are passed in.
-  if (!args) {
+function getTaskResultPolling(task_id, timeout, pollinterval, func_name, args, kwargs) {
+  if (!args) { // Set the arguments to an empty list if none are passed in.
     args = []
   }
-  
   return new Promise((resolve, reject) => {
-    // Launch the task.
-    rpcs.rpc('launch_task', [task_id, func_name, args])
+    rpcs.rpc('launch_task', [task_id, func_name, args, kwargs]) // Launch the task.
     .then(response => {
-      // Do the whole sequence of polling steps, starting with the first 
-      // (recursive) call.
-      pollStep(task_id, timeout, pollinterval, 0)
+      pollStep(task_id, timeout, pollinterval, 0) // Do the whole sequence of polling steps, starting with the first (recursive) call.
       .then(response2 => {
-        // Resolve with the final polling result.
-        resolve(response2)
+        resolve(response2) // Resolve with the final polling result.
       })
       .catch(error => {
-        // Reject with the error the polling gave.
-        reject(error)
-      })      
+        reject(error) // Reject with the error the polling gave.
+      })
     })
     .catch(error => {
-      // Reject with the error the launch gave.
-      reject(error)
+      reject(error) // Reject with the error the launch gave.
     })
-  }) 
-} 
+  })
+}
 
 // pollStep() -- A polling step for getTaskResultPolling().  Uses the task_id, 
 // a timeout value (in sec.) a poll interval (in sec.) and the time elapsed 
@@ -93,58 +74,34 @@ function getTaskResultPolling(task_id, timeout, pollinterval, func_name, args) {
 // another pollStep().
 function pollStep(task_id, timeout, pollinterval, elapsedtime) {
   return new Promise((resolve, reject) => {
-    // Check to see if the elapsed time is longer than the timeout (and we 
-    // have a timeout we actually want to check against) and if so, 
-    // fail.
-    if ((elapsedtime > timeout) && (timeout > 0)) {
+    if ((elapsedtime > timeout) && (timeout > 0)) { // Check to see if the elapsed time is longer than the timeout (and we have a timeout we actually want to check against) and if so, fail.
       reject(Error('Task polling timed out'))
-    }
-    
-    // Otherwise, we've not run out of time yet, so do a polling step.
-    else {
-      // Sleep timeout seconds.
-      utils.sleep(pollinterval * 1000)
+    } else { // Otherwise, we've not run out of time yet, so do a polling step.
+      utils.sleep(pollinterval * 1000) // Sleep timeout seconds.
       .then(response => {
-        // Check the status of the task.
-        rpcs.rpc('check_task', [task_id])
+        rpcs.rpc('check_task', [task_id]) // Check the status of the task.
         .then(response2 => {
-          // If the task is completed...
-          if (response2.data.task.status == 'completed') {
-            // Get the result of the task.
-            rpcs.rpc('get_task_result', [task_id])
+          if (response2.data.task.status == 'completed') { // If the task is completed...
+            rpcs.rpc('get_task_result', [task_id]) // Get the result of the task.
             .then(response3 => {
-              // Clean up the task_id task.
-              rpcs.rpc('delete_task', [task_id])
-          
-              // Signal success with the response.
-              resolve(response3)             
+              rpcs.rpc('delete_task', [task_id]) // Clean up the task_id task.
+              resolve(response3) // Signal success with the response.
             })
             .catch(error => {
-              // Reject with the error the task result get attempt gave.
-              reject(error)
+              reject(error) // Reject with the error the task result get attempt gave.
             })
-          }
-          
-          // Otherwise, if the task ended in an error...
-          else if (response2.data.task.status == 'error') { 
-            // Reject with an error for the exception.
-            reject(Error(response2.data.task.errorText))
-          }
-
-          // Otherwise, do another poll step, passing in an incremented 
-          // elapsed time.
-          else {
+          } else if (response2.data.task.status == 'error') {  // Otherwise, if the task ended in an error...
+            reject(Error(response2.data.task.errorText)) // Reject with an error for the exception.
+          } else { // Otherwise, do another poll step, passing in an incremented elapsed time.
             pollStep(task_id, timeout, pollinterval, elapsedtime + pollinterval)
             .then(response3 => {
-              // Resolve with the result of the next polling step (which may 
-              // include subsequent (recursive) steps.
-              resolve(response3)
+              resolve(response3) // Resolve with the result of the next polling step (which may include subsequent (recursive) steps.
             })
-          }          
+          }
         })
-      }) 
-    }    
-  }) 
+      })
+    }
+  })
 }
 
 export default {
