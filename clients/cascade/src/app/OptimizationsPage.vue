@@ -27,8 +27,8 @@ Last update: 2018-08-27
           <tr>
             <th>Name</th>
             <th>Status</th>
-            <th>Pend Time</th>
-            <th>Exec Time</th>
+            <th>Pending Time</th>
+            <th>Execution Time</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -41,16 +41,17 @@ Last update: 2018-08-27
               {{ optimSummary.status }}
             </td>
             <td>
-              {{ timeFormatStr(optimSummary.pendingTime) }} sec
+              {{ timeFormatStr(optimSummary.pendingTime) }}
             </td>
             <td>
-              {{ timeFormatStr(optimSummary.executionTime) }} sec
+              {{ timeFormatStr(optimSummary.executionTime) }}
             </td>            
             <td style="white-space: nowrap">
-              <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
-              <button class="btn __red" @click="cancelRun(optimSummary)">Cancel</button>
-              <button class="btn" @click="plotResults(optimSummary)">Plot results</button>
-              <button class="btn __red">Delete results</button>
+              <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary)">Run</button>
+              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>
+              <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="cancelRun(optimSummary)">Clear task</button>              
+              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button>
+<!--              <button class="btn __red">Delete results</button> -->
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
@@ -318,7 +319,7 @@ Last update: 2018-08-27
           return '--'
         }
         else {
-          return Number(rawValue).toFixed()
+          return Number(rawValue).toFixed() + ' sec'
         }
       },
       
@@ -338,6 +339,22 @@ Last update: 2018-08-27
         else if (this.endYear < this.simStart) {
           this.endYear = this.simStart
         }
+      },
+      
+      canRunTask(optimSummary) {
+        return ((optimSummary.status == 'not started') || (optimSummary.status == 'completed'))
+      },
+      
+      canCancelTask(optimSummary) {
+        return ((optimSummary.status == 'queued') || (optimSummary.status == 'started'))
+      },
+      
+      canClearTask(optimSummary) {
+        return (optimSummary.status != 'not started')
+      },
+      
+      canPlotResults(optimSummary) {
+        return (optimSummary.status == 'completed')
       },
       
       getOptimTaskState(optimSummary) {
@@ -363,7 +380,7 @@ Last update: 2018-08-27
         // For each of the optimization summaries...
         this.optimSummaries.forEach(optimSum => {
           // If there is a valid task launched, check it.
-          if (optimSum.status != 'not started') {
+          if ((optimSum.status != 'not started') && (optimSum.status != 'completed')) {
             this.getOptimTaskState(optimSum)
           }
         }) 
