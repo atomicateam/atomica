@@ -37,6 +37,7 @@ Last update: 2018-08-22
             <td style="white-space: nowrap">
               <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
+              <button class="btn __red" @click="cancelRun(optimSummary)">Clear task</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
@@ -560,6 +561,12 @@ Last update: 2018-08-22
             console.log('There was an error: ' + error.message)
             status.fail(this, 'Could not set optimization info: ' + error.message)
           })
+      },
+      
+      // TODO: remove this after debugging
+      cancelRun(optimSummary) {
+        console.log('cancelRun() called for '+this.currentOptim)
+        rpcs.rpc('delete_task', ['run_optimization'])
       },
       
       plotOptimization() {
