@@ -7,11 +7,11 @@ from .version import * # No dependencies
 if _debug: print('Importing system...')
 from .system import *  # No dependencies
 if _debug: print('Importing structure...')
-from .structure import *  # Depends on structure_settings
+from .structure import *
 if _debug: print('Importing framework...')
-from .framework import *  # Depends on workbook_import
+from .framework import *
 if _debug: print('Importing project...')
-from .project import *  # Depends on workbook_export
+from .project import *
 if _debug: print('Importing calibration...')
 from .calibration import * # Depends on ???
 if _debug: print('Importing scenarios...')
@@ -22,6 +22,8 @@ if _debug: print('Importing plotting...')
 from .plotting import * # Depends on...?
 if _debug: print('Importing program instructions...')
 from .programs import ProgramInstructions, ProgramSet # Depends on...?
+if _debug: print('Importing reconciliation...')
+from .reconciliation import * # Depends on system
 if _debug: print('Importing optimization...')
 from .optimization import *
 if _debug: print('Importing cascade...')
