@@ -107,7 +107,6 @@ Last update: 2018-08-22
         </div>
         <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
 
-
           <div class="calib-params" v-if="areShowingParameters">
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
@@ -172,7 +171,28 @@ Last update: 2018-08-22
             </div>
           </div>
 
-        </div>
+          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+            <div class="plotopts-params">
+              <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                <thead>
+                <tr>
+                  <th>Plot</th>
+                  <th>Active</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="item in plotOptions">
+                  <td>
+                    {{ item.plot_name }}
+                  </td>
+                  <td style="text-align: center">
+                    <input type="checkbox" v-model="item.active"/>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
       </div>
 
@@ -238,6 +258,7 @@ Last update: 2018-08-22
         sortReverse: false,
         parList: [],
         areShowingParameters: false,
+        areShowingPlotControls: false,
         activeParset: -1,
         parsetOptions: [],
         origParsetName: [],
@@ -308,8 +329,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-
+      
       clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -317,7 +344,7 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-
+      
       updateParset() {
         console.log('updateParset() called')
         status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
@@ -377,9 +404,13 @@ Last update: 2018-08-22
         this.areShowingParameters = !this.areShowingParameters
       },
 
+      toggleShowingPlotControls() {
+        this.areShowingPlotControls = !this.areShowingPlotControls
+      },
+
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         rpcs.rpc('manual_calibration', [project_id], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
@@ -396,7 +427,7 @@ Last update: 2018-08-22
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
