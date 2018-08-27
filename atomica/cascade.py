@@ -493,21 +493,9 @@ def validate_cascade(framework,cascade):
         # A 'cascade' with 0 or 1 stages is by definition valid, although it would not be sensible!
         return True
 
-    # Now, for each cascade stage we need to expand any characteristics into compartments
-    def expand_includes(includes):
-        # Take a list of included comps/characs and replace any characs with their included comps
-        expanded = []
-        for include in includes:
-            if include in framework.characs.index:
-                components = [x.strip() for x in framework.characs.at[include, 'components'].split(',')]
-                expanded += expand_includes(components)
-            else:
-                expanded.append(str(include)) # Use 'str()' to get `'sus'` in the error message instead of  `u'sus'`
-        return expanded
-
     expanded = sc.odict()
     for stage,includes in outputs.items():
-        expanded[stage] = expand_includes(includes)
+        expanded[stage] = framework.get_charac_includes(includes)
 
     for i in range(0,len(expanded)-1):
         if not (set(expanded[i+1]) <= set(expanded[i])):
