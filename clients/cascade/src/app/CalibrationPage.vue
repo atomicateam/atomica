@@ -79,59 +79,54 @@ Last update: 2018-08-22
 
         <div class="card" v-show="areShowingParameters">
           <help reflink="parameters" label="Parameters"></help>
-          <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
-
-            <div class="calib-params" v-if="areShowingParameters">
-              <table class="table table-bordered table-hover table-striped" style="width: 100%">
-                <thead>
-                <tr>
-                  <!--<th @click="updateSorting('index')" class="sortable">-->
-                  <!--No.-->
-                  <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
-                  <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
-                  <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
-                  <!--</th>-->
-                  <th @click="updateSorting('parameter')" class="sortable">
-                    Parameter
-                    <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                    <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                    <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                  </th>
-                  <th @click="updateSorting('population')" class="sortable">
-                    Population
-                    <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                    <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                    <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                  </th>
-                  <th @click="updateSorting('value')" class="sortable">
-                    Value
-                    <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                    <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                    <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                  </th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="par in sortedPars">
-                  <!--<td>-->
-                  <!--{{par.index}}-->
-                  <!--</td>-->
-                  <td>
-                    {{par.parlabel}}
-                  </td>
-                  <td>
-                    {{par.poplabel}}
-                  </td>
-                  <td>
-                    <input type="text"
-                           class="txbox"
-                           v-model="par.dispvalue"/>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <!--<th @click="updateSorting('index')" class="sortable">-->
+              <!--No.-->
+              <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
+              <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
+              <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
+              <!--</th>-->
+              <th @click="updateSorting('parameter')" class="sortable">
+                Parameter
+                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('population')" class="sortable">
+                Population
+                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('value')" class="sortable">
+                Value
+                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="par in sortedPars">
+              <!--<td>-->
+              <!--{{par.index}}-->
+              <!--</td>-->
+              <td>
+                {{par.parlabel}}
+              </td>
+              <td>
+                {{par.poplabel}}
+              </td>
+              <td>
+                <input type="text"
+                        class="txbox"
+                        v-model="par.dispvalue"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="card full-width-card">
