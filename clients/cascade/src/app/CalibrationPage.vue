@@ -166,7 +166,7 @@ Last update: 2018-08-22
           </div>
 
 
-          <div>
+          <div class="calib-card-body">
             <div class="calib-graphs">
               <div class="featured-graphs">
                 <div :id="'fig0'">
