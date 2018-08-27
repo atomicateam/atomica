@@ -7,7 +7,8 @@ import atomica_apps as aa
 import scirisweb as sw
 
 torun = [
-'get_cascade_plot',
+#'get_cascade_plot',
+'get_plots',
 ]
 
 proj = None
@@ -31,6 +32,15 @@ if 'get_cascade_plot' in torun:
     print('Output:')
     print(output)
     sw.browser(jsons=output['graphs'])
+
+
+if 'get_plots' in torun:
+    if proj is None: proj = demoproj('tb')
+    results = proj.run_sim()
+    plot_names = aa.rpcs.supported_plots_func(proj.framework)
+    output = aa.rpcs.get_plots(proj, results=results, calibration=True)
+    print('Output:')
+    print(output)
     
     
 print('Done.')

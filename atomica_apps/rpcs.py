@@ -49,8 +49,7 @@ def timeit(method):
             name = kw.get('log_name', method.__name__.upper())
             kw['log_time'][name] = int((te - ts) * 1000)
         else:
-            print '%r  %2.2f ms' % \
-                  (method.__name__, (te - ts) * 1000)
+            print('%r  %2.2f ms' %  (method.__name__, (te - ts) * 1000))
         return result
 
     return timed
@@ -1093,9 +1092,10 @@ def download_graphs():
     return full_file_name
 
 
-def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options=None, outputs=None, replace_nans=True, stacked=False, figsize=None, dosave=True):
-    # Plot calibration - only one result is permitted, and the axis is guaranteed to be pops
-    supported_plots = supported_plots_func(proj.framework)
+
+def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, dosave=True, calibration=False):
+    results = sc.promotetolist(results)
+    supported_plots = supported_plots_func(proj.framework) 
     if plot_names is None: 
         if plot_options is not None:
             plot_names = []
@@ -1106,14 +1106,15 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
-    graphs = []
     allfigs = []
+    graphs = []
+    data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
             if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(result, outputs=output, project=proj, pops=pops)
+                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
             else:
-                plotdata = au.PlotData(result, outputs=output.values()[0], project=proj, pops=pops) # Don't rename the plot, this will allow data to be retrieved
+                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
 
             nans_replaced = 0
             for series in plotdata.series:
@@ -1123,14 +1124,15 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
                         if nan_ind>0: # Skip the first point
                             series.vals[nan_ind] = series.vals[nan_ind-1]
                             nans_replaced += 1
-            if nans_replaced:
-                print('Warning: %s nans were replaced' % nans_replaced)
-
-            if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
-            else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
-
+            if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
+            if calibration:
+               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
+               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
+            else:
+               if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
+               else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
             for fig in figs:
-                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, figsize=figsize))
+                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
                 allfigs.append(fig)
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
@@ -1140,6 +1142,8 @@ def get_calibration_plots(proj, result, plot_names=None, pops=None, plot_options
     return output,allfigs
 
 
+    
+
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False):
     cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops,cascade=cascade)
     if tool == 'cascade': # For Cascade Tool
@@ -1148,7 +1152,7 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
     else: # For Optima TB
         output,allfigs = get_plots(proj, results, plot_options=plot_options)
         if calibration:
-            unstacked_output,unstackedfigs = get_calibration_plots(proj, results, pops=None, plot_options=plot_options, stacked=False)
+            unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=None, plot_options=plot_options, stacked=False, calibration=True)
             output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']
             allfigs = cascadefigs + [x for t in zip(allfigs, unstackedfigs) for x in t]
@@ -1182,50 +1186,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     return graph_dict
     
     
-def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True,stacked=False, xlims=None, figsize=None, dosave=True):
-    results = sc.promotetolist(results)
-    supported_plots = supported_plots_func(proj.framework) 
-    if plot_names is None: 
-        if plot_options is not None:
-            plot_names = []
-            for item in plot_options:
-                if item['active']: plot_names.append(item['plot_name'])
-        else:
-            plot_names = supported_plots.keys()
-    plot_names = sc.promotetolist(plot_names)
-    if outputs is None:
-        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
-    allfigs = []
-    graphs = []
-    data = proj.data if do_plot_data is not False else None # Plot data unless asked not to
-    for output in outputs:
-        try:
-            if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            else:
-                # Pass string in directly so that it is not treated as a function aggregation
-                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
 
-            nans_replaced = 0
-            for series in plotdata.series:
-                if replace_nans and any(np.isnan(series.vals)):
-                    nan_inds = sc.findinds(np.isnan(series.vals))
-                    for nan_ind in nan_inds:
-                        if nan_ind>0: # Skip the first point
-                            series.vals[nan_ind] = series.vals[nan_ind-1]
-                            nans_replaced += 1
-            if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
-            if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
-            else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
-            for fig in figs:
-                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
-                allfigs.apend(fig)
-                pl.close(fig)
-            print('Plot %s succeeded' % (output))
-        except Exception as E:
-            print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-    output = {'graphs':graphs}
-    return output,allfigs
 
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
@@ -1306,9 +1267,8 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
         output = cascadeoutput
         allfigs = cascadefigs
     else:
-        output,stackedfigs = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, xlims=(float(start_year), float(end_year)))
-        # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-        unstacked_output,unstackedfigs = get_calibration_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, xlims=(float(start_year), float(end_year)))
+        output,stackedfigs = get_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, calibration=True)
+        unstacked_output,unstackedfigs = get_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, calibration=True) # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
         output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
         output['graphs'] = cascadeoutput['graphs'] + output['graphs']
         allfigs = cascadefigs + [x for t in zip(stackedfigs, unstackedfigs) for x in t]
