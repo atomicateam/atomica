@@ -10,7 +10,7 @@ Last update: 2018-08-27
       <help reflink="create-projects" label="Create projects"></help>
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoProject">Add demo project</button>
+        <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
         &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;

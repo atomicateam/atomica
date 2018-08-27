@@ -75,128 +75,134 @@ Last update: 2018-08-22
         <!--</div>-->
       </div>
 
-      <div class="card full-width-card">
-        <div class="calib-title">
-          <help reflink="results-plots" label="Results"></help>
-          <div>
-            <!--<b>Start year: &nbsp;</b>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="startYear"-->
-            <!--style="display: inline-block; width:70px"/>-->
-            <!--&nbsp;&nbsp;&nbsp;-->
+      <div>
 
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
-            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
-            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
-
-          </div>
+        <div class="card" v-show="areShowingParameters">
+          <help reflink="parameters" label="Parameters"></help>
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <!--<th @click="updateSorting('index')" class="sortable">-->
+              <!--No.-->
+              <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
+              <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
+              <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
+              <!--</th>-->
+              <th @click="updateSorting('parameter')" class="sortable">
+                Parameter
+                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('population')" class="sortable">
+                Population
+                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('value')" class="sortable">
+                Value
+                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="par in sortedPars">
+              <!--<td>-->
+              <!--{{par.index}}-->
+              <!--</td>-->
+              <td>
+                {{par.parlabel}}
+              </td>
+              <td>
+                {{par.poplabel}}
+              </td>
+              <td>
+                <input type="text"
+                        class="txbox"
+                        v-model="par.dispvalue"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
 
-          <div class="calib-params" v-if="areShowingParameters">
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <!--<th @click="updateSorting('index')" class="sortable">-->
-                <!--No.-->
-                <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
-                <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
-                <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
-                <!--</th>-->
-                <th @click="updateSorting('parameter')" class="sortable">
-                  Parameter
-                  <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                  <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                  <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                </th>
-                <th @click="updateSorting('population')" class="sortable">
-                  Population
-                  <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                  <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                  <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                </th>
-                <th @click="updateSorting('value')" class="sortable">
-                  Value
-                  <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                  <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                  <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="par in sortedPars">
-                <!--<td>-->
-                <!--{{par.index}}-->
-                <!--</td>-->
-                <td>
-                  {{par.parlabel}}
-                </td>
-                <td>
-                  {{par.poplabel}}
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="par.dispvalue"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="card full-width-card">
+          <div class="calib-title">
+            <help reflink="results-plots" label="Results"></help>
+            <div>
+              <!--<b>Start year: &nbsp;</b>-->
+              <!--<input type="text"-->
+              <!--class="txbox"-->
+              <!--v-model="startYear"-->
+              <!--style="display: inline-block; width:70px"/>-->
+              <!--&nbsp;&nbsp;&nbsp;-->
 
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
-              </div>
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs()">Export plots</button>
+              <button class="btn" @click="exportResults(projectID)">Export data</button>
+              <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+
             </div>
           </div>
 
-          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
-            <div class="plotopts-params">
-              <table class="table table-bordered table-hover table-striped" style="width: 100%">
-                <thead>
-                <tr>
-                  <th>Plot</th>
-                  <th>Active</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="item in plotOptions">
-                  <td>
-                    {{ item.plot_name }}
-                  </td>
-                  <td style="text-align: center">
-                    <input type="checkbox" v-model="item.active"/>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
+
+          <div class="calib-card-body">
+            <div class="calib-graphs">
+              <div class="featured-graphs">
+                <div :id="'fig0'">
+                  <!--mpld3 content goes here-->
+                </div>
+              </div>
+              <div class="other-graphs">
+                <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                  <!--mpld3 content goes here-->
+                </div>
+              </div>
             </div>
+
+            <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -342,14 +348,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-      
+
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
           this.startYear = this.simEnd
         }
         else if (this.startYear < this.simStart) {
           this.startYear = this.simStart
-        }       
+        }
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -357,7 +363,7 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-      
+
       updateParset() {
         console.log('updateParset() called')
 //        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
