@@ -157,20 +157,23 @@ def _convert_to_single_year(progset,reconciliation_year):
         if prog.spend_data.has_data:
             prog.spend_data.vals = prog.spend_data.interpolate(reconciliation_year)
             prog.spend_data.t = reconciliation_year.copy()
+            prog.spend_data.assumption = None
 
         if prog.unit_cost.has_data:
             prog.unit_cost.vals = prog.unit_cost.interpolate(reconciliation_year)
             prog.unit_cost.t = reconciliation_year.copy()
+            prog.unit_cost.assumption = None
 
         if prog.capacity.has_data:
             prog.capacity.vals = prog.capacity.interpolate(reconciliation_year)
             prog.capacity.t = reconciliation_year.copy()
+            prog.capacity.assumption = None
 
         # This is tricky - maybe we do want to retain other values? Depends on what ends up happening with coverage
         if prog.coverage.has_data:
             prog.coverage.vals = prog.coverage.interpolate(reconciliation_year)
             prog.coverage.t = reconciliation_year.copy()
-
+            prog.coverage.assumption = None
 
     return new_progset
 
@@ -247,23 +250,24 @@ def reconcile(project,parset,progset,reconciliation_year,max_time=10,unit_cost_b
     }
 
     x_opt, _, _ = sc.asd(_objective, x0, args, **optim_args)
-
+    _update_progset(x_opt, mapping, new_progset)  # Apply the changes to the progset
 
     # Before/after for quantities
     records = [(item[0],item[1:],orig_val,opt_val) for item,orig_val,opt_val in zip(mapping,x0,x_opt)]
-    reconciliation_items = pd.DataFrame.from_records(records,columns=['Quantity','Identifier','Before reconciliation','After reconciliation'])
+    progset_comparison = pd.DataFrame.from_records(records,columns=['Quantity','Identifier','Before reconciliation','After reconciliation'])
 
-    # prop_covered = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
-    # obj = 0.0
-    # for i in range(0,len(eval_years)):
-    #     outcomes = progset.get_outcomes({prog.name:cov[i] for prog,cov in prop_covered.items()})
-    #
-    #
-    #
+    # Before/after for parameters
+    records = []
+    old_coverage = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+    new_coverage = new_progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+    for i,year in enumerate(eval_years):
+        old_outcomes = progset.get_outcomes({prog: cov[i] for prog, cov in old_coverage.items()})  # Program outcomes for this year
+        new_outcomes = new_progset.get_outcomes({prog: cov[i] for prog, cov in new_coverage.items()})  # Program outcomes for this year
+        for (par, pop), target in target_vals.items():
+            records.append((par,pop,year,target[0],old_outcomes[(par,pop)][0],new_outcomes[(par,pop)][0]))
+    parameter_comparison = pd.DataFrame.from_records(records,columns=['Parameter','Population','Year','Target','Before reconciliation','After reconciliation'])
+    parameter_comparison['Difference'] = parameter_comparison['Before reconciliation'] - parameter_comparison['After reconciliation']
 
-
-    # Now, update the progset
-    _update_progset(x_opt, mapping, new_progset)  # Apply the changes to the progset
-    return new_progset
+    return new_progset, progset_comparison, parameter_comparison
 
 
