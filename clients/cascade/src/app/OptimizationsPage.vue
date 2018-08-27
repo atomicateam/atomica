@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-25
+Last update: 2018-08-27
 -->
 
 <template>
@@ -27,6 +27,8 @@ Last update: 2018-08-25
           <tr>
             <th>Name</th>
             <th>Status</th>
+            <th>Pend Time</th>
+            <th>Exec Time</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -38,11 +40,17 @@ Last update: 2018-08-25
             <td>
               {{ optimSummary.status }}
             </td>
+            <td>
+              {{ timeFormatStr(optimSummary.pendingTime) }} sec
+            </td>
+            <td>
+              {{ timeFormatStr(optimSummary.executionTime) }} sec
+            </td>            
             <td style="white-space: nowrap">
               <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
               <button class="btn __red" @click="cancelRun(optimSummary)">Cancel</button>
               <button class="btn" @click="plotResults(optimSummary)">Plot results</button>
-              <button class="btn __red">Delete results</button>
+              <button class="btn __red" @click="getOptimTaskState(optimSummary)">Delete results</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
@@ -273,6 +281,15 @@ Last update: 2018-08-25
       simEnd()       { return utils.simEnd(this) },
       activePops()   { return utils.activePops(this) },       
       placeholders() { return utils.placeholders() },
+      
+/*      timeFormatStr(rawValue) {
+        if (rawValue == '--') {
+          return '--'
+        }
+        else {
+          return Number(rawValue).toFixed()
+        }
+      } */
     },
 
     created() {
@@ -305,6 +322,15 @@ Last update: 2018-08-25
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
+      timeFormatStr(rawValue) {
+        if (rawValue == '--') {
+          return '--'
+        }
+        else {
+          return Number(rawValue).toFixed()
+        }
+      },
+      
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
@@ -323,18 +349,21 @@ Last update: 2018-08-25
         }
       },
       
-      getOptimTaskStatus(optimSummary) {
+      getOptimTaskState(optimSummary) {
         var statusStr = ''
         
         // Check the status of the task.
         rpcs.rpc('check_task', [optimSummary.task_id])
         .then(result => {
           statusStr = result.data.task.status
-          return statusStr
+          optimSummary.status = statusStr
+          optimSummary.pendingTime = result.data.pendingTime
+          optimSummary.executionTime = result.data.executionTime          
         })
         .catch(error => {
-          statusStr = '--'
-          return statusStr
+          optimSummary.status = '--'
+          optimSummary.pendingTime = '--'
+          optimSummary.executionTime = '--'
         })       
       },
       
@@ -412,15 +441,8 @@ Last update: 2018-08-25
             // Build a task ID from the project's hex UID and the optimization name.
             optimSum.task_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
             
-//            optimSum.status = this.getOptimTaskStatus(optimSum)
-            rpcs.rpc('check_task', [optimSum.task_id])
-            .then(result => {
-              optimSum.status = result.data.task.status
-            })
-            .catch(error => {
-              optimSum.status = '--'
-            }) 
-
+            // Get the task state for the optimization.
+            optimSum.status = this.getOptimTaskState(optimSum)
           })
           
           // Indicate success.
@@ -640,6 +662,9 @@ Last update: 2018-08-25
           rpcs.rpc('launch_task', [optimSummary.task_id, 'run_cascade_optimization', 
             [this.projectID, optimSummary.name, this.plotOptions, true, this.endYear, this.activePop]])
           .then(response => {
+            // Get the task state for the optimization.
+            optimSummary.status = this.getOptimTaskState(optimSummary)
+            
             // Indicate success.
             status.succeed(this, 'Started optimization')
           })
@@ -665,6 +690,10 @@ Last update: 2018-08-25
       cancelRun(optimSummary) {
         console.log('cancelRun() called for '+this.currentOptim)
         rpcs.rpc('delete_task', [optimSummary.task_id])
+        .then(response => {
+          // Get the task state for the optimization.
+          optimSummary.status = this.getOptimTaskState(optimSummary)          
+        })
       },
       
       plotResults(optimSummary) {
