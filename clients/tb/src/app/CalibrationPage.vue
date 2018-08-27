@@ -22,7 +22,6 @@ Last update: 2018-08-22
     <div v-else>
       <div class="card">
         <help reflink="calibration" label="Calibration"></help>
-        <!--<div class="calib-controls">-->
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -43,7 +42,6 @@ Last update: 2018-08-22
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
-          <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
             <option v-for='parset in parsetOptions'>
@@ -71,23 +69,16 @@ Last update: 2018-08-22
             Reconcile
           </button>
         </div>
-
-        <!--</div>-->
       </div>
 
+      <!-- ### Start: parameters and graphs ### -->
       <div>
-
+        <!-- ### Start: parameters card ### -->
         <div class="card" v-show="areShowingParameters">
           <help reflink="parameters" label="Parameters"></help>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <!--<th @click="updateSorting('index')" class="sortable">-->
-              <!--No.-->
-              <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
-              <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
-              <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
-              <!--</th>-->
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -110,9 +101,6 @@ Last update: 2018-08-22
             </thead>
             <tbody>
             <tr v-for="par in sortedPars">
-              <!--<td>-->
-              <!--{{par.index}}-->
-              <!--</td>-->
               <td>
                 {{par.parlabel}}
               </td>
@@ -121,15 +109,18 @@ Last update: 2018-08-22
               </td>
               <td>
                 <input type="text"
-                        class="txbox"
-                        v-model="par.dispvalue"/>
+                       class="txbox"
+                       v-model="par.dispvalue"/>
               </td>
             </tr>
             </tbody>
           </table>
         </div>
+        <!-- ### End: parameters card ### -->
 
+        <!-- ### Start: results card ### -->
         <div class="card full-width-card">
+          <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
             <div>
@@ -139,7 +130,6 @@ Last update: 2018-08-22
               <!--v-model="startYear"-->
               <!--style="display: inline-block; width:70px"/>-->
               <!--&nbsp;&nbsp;&nbsp;-->
-
               <b>Year: &nbsp;</b>
               <select v-model="endYear" v-on:change="manualCalibration(projectID)">
                 <option v-for='year in simYears'>
@@ -153,7 +143,7 @@ Last update: 2018-08-22
                   {{ pop }}
                 </option>
               </select>
-              &nbsp;&nbsp;&nbsp;
+              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
@@ -164,9 +154,12 @@ Last update: 2018-08-22
 
             </div>
           </div>
+          <!-- ### End: plot controls ### -->
 
-
+          <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
+
+            <!-- ### Start: plots ### -->
             <div class="calib-graphs">
               <div class="featured-graphs">
                 <div :id="'fig0'">
@@ -179,7 +172,10 @@ Last update: 2018-08-22
                 </div>
               </div>
             </div>
+            <!-- ### End: plots ### -->
 
+            <!-- CASCADE-TB DIFFERENCE -->
+            <!-- ### Start: plot selectors ### -->
             <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
               <div class="plotopts-params">
                 <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -202,11 +198,11 @@ Last update: 2018-08-22
                 </table>
               </div>
             </div>
-
+            <!-- ### End: plot selectors ### -->
           </div>
-
+          <!-- ### End: results and plot selectors ### -->
         </div>
-
+        <!-- ### End: results card ### -->
       </div>
 
 

@@ -336,7 +336,7 @@ Last update: 2018-08-27
         rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
-            status.succeed(this, 'Demo project added')
+            status.succeed(this, '')
           })
           .catch(error => {
             status.fail(this, 'Could not add demo project: ' + error.message)
