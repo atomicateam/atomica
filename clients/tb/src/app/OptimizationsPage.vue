@@ -159,10 +159,6 @@ Last update: 2018-08-22
                 {{ parset }}
               </option>
             </select><br><br>
-            Maximum time to run optimization (s):<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.maxtime"/><br>
             Start year:<br>
             <input type="text"
                    class="txbox"
@@ -176,10 +172,13 @@ Last update: 2018-08-22
             <!--class="txbox"-->
             <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
-            <b>Objective</b><br>
-<!-- CASCADE-TB DIFFERENCE -->
-            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
-            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
+            <b>Objective weights</b><br>
+            <span v-for="(val,key) in modalOptim.objective_labels">
+              {{ modalOptim.objective_labels[key] }}
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.objective_weights[key]"/><br>
+            </span>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -247,20 +246,20 @@ Last update: 2018-08-22
       return {
         response: 'no response',
         optimSummaries: [],
-        defaultOptim: {
+        defaultOptim: {},
           // set stuff here to avoid render errors before things are loaded
-          objective_weights: {
-            conversion: 0,
-            finalstage: 1
-          }
-        },
-        modalOptim: {
+//          objective_weights: {
+//            conversion: 0,
+//            finalstage: 1
+//          }
+//        },
+        modalOptim: {},
           // set stuff here to avoid render errors before things are loaded
-          objective_weights: {
-            conversion: 0,
-            finalstage: 1
-          }
-        },
+//          objective_weights: {
+//            conversion: 0,
+//            finalstage: 1
+//          }
+//        },
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -278,10 +277,6 @@ Last update: 2018-08-22
         endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
-        addEditModal: {
-          origName: '',
-          mode: 'add'
-        },
         figscale: 1.0,
       }
     },
@@ -388,7 +383,7 @@ Last update: 2018-08-22
 
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
-        rpcs.rpc('get_default_optim', [this.projectID])
+        rpcs.rpc('get_default_optim', [this.projectID, 'tb']) // CASCADE-TB DIFFERENCE
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             console.log('This is the default:')
@@ -441,21 +436,20 @@ Last update: 2018-08-22
         console.log('saveOptim() called')
         this.$modal.hide('add-optim')
         status.start(this)
-        this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage)) // Set the objectives
         this.endYear = this.modalOptim.end_year
         let newOptim = utils.dcp(this.modalOptim) // Get the new optimization summary from the modal.
         let optimNames = [] // Get the list of all of the current optimization names.
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-        if (this.addEditModal.mode == 'edit') { // If we are editing an existing optimization...
-          let index = optimNames.indexOf(this.addEditModal.origName) // Get the index of the original (pre-edited) name
+        if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
+          let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
           if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
           }
           else {
-            console.log('Error: a mismatch in editing keys')
+            status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')
           }
         }
         else { // Else (we are adding a new optimization)...
@@ -469,7 +463,7 @@ Last update: 2018-08-22
             this.resetModal()
           })
           .catch(error => {
-            status.fail(this, 'Could not add optimization')
+            status.fail(this, 'Could not add optimization: ' + error)
           })
       },
 

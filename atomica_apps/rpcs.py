@@ -1154,8 +1154,8 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
     
 
-def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True):
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade)
+def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=False)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
@@ -1225,6 +1225,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 #        budgetfigs[1].set_figwidth(8.7)
         
         figs += budgetfigs
+        print('Budget plot succeeded')
     
     for fig in figs:
         ax = fig.get_axes()[0]
@@ -1454,6 +1455,8 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
 
 def py_to_js_optim(py_optim, project=None):
     js_optim = sw.sanitize_json(py_optim.json)
+    if 'objective_labels' not in js_optim:
+        js_optim['objective_labels'] = {key:key for key in js_optim['objective_weights'].keys()} # Copy keys if labels not available
     for prog_name in js_optim['prog_spending']:
         prog_label = project.progset().programs[prog_name].label
         this_prog = js_optim['prog_spending'][prog_name]
@@ -1490,10 +1493,10 @@ def get_optim_info(project_id):
 
 
 @RPC()    
-def get_default_optim(project_id):
+def get_default_optim(project_id, tool=None):
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
-    py_optim = proj.demo_optimization()
+    py_optim = proj.demo_optimization(tool=tool)
     js_optim = py_to_js_optim(py_optim, project=proj)
     print('Created default optimization:')
     print(js_optim)

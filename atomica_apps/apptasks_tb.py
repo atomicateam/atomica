@@ -34,7 +34,7 @@ def run_optimization(project_id, optim_name=None, plot_options=None, maxtime=Non
         proj = project_id
     results = proj.run_optimization(optim_name, maxtime=maxtime)
     proj.results['optimization'] = results # WARNING, will want to save separately!
-    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online)
+    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:
         print('Saving project...')
         rpcs.save_project(proj)    

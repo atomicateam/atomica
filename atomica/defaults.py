@@ -96,7 +96,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
-            P.demo_tb_optimization() # Add optimization example
+            P.demo_optimization(tool='tb') # Add optimization example
             if verbose: print('Done!')
 
     elif which=='service':
@@ -131,7 +131,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
-            P.demo_optimization() # Add optimization example
+            P.demo_optimization(tool='cascade') # Add optimization example
             if verbose: print('Done!')
 
     elif which=='usdt':
@@ -148,7 +148,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
-            P.demo_optimization() # Add optimization example
+            P.demo_optimization(tool='cascade') # Add optimization example
             if verbose: print('Done!')
 
     elif which=='hypertension':
@@ -165,7 +165,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
-            P.demo_optimization() # Add optimization example
+            P.demo_optimization(tool='cascade') # Add optimization example
             if verbose: print('Done!')
 
     elif which=='hiv':
@@ -182,7 +182,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
-            P.demo_optimization() # Add optimization example
+            P.demo_optimization(tool='cascade') # Add optimization example
             if verbose: print('Done!')
 
     else:

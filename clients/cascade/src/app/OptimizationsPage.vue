@@ -391,7 +391,7 @@ Last update: 2018-08-22
 
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
-        rpcs.rpc('get_default_optim', [this.projectID])
+        rpcs.rpc('get_default_optim', [this.projectID, 'cascade'])  // CASCADE-TB DIFFERENCE
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             console.log('This is the default:')

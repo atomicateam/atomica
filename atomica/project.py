@@ -502,11 +502,11 @@ class Project(object):
                                         'conversion':'Maximize the conversion rates along each stage of the cascade'}
         elif tool == 'tb':
             json['objective_weights'] = {'ddis':1,'acj':1, 'ds_inf':0, 'mdr_inf':0, 'xdr_inf':0} # These are TB-specific: maximize people alive, minimize people dead due to TB
-            json['objective_labels'] = {'ddis':   'TB-related deaths',
-                                        'acj':    'Total new active TB infections', 
-                                        'ds_inf': 'Prevalence of active DS-TB', 
-                                        'mdr_inf':'Prevalence of active MDR-TB', 
-                                        'xdr_inf':'Prevalence of active XDR-TB'}
+            json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
+                                        'acj':    'Minimize total new active TB infections', 
+                                        'ds_inf': 'Minimize prevalence of active DS-TB', 
+                                        'mdr_inf':'Minimize prevalence of active MDR-TB', 
+                                        'xdr_inf':'Minimize prevalence of active XDR-TB'}
         else:
             raise Exception('Tool "%s" not recognized' % tool)
         json['maxtime']           = 30 # WARNING, default!
