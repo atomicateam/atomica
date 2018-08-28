@@ -56,7 +56,7 @@ if 'run_cascade_optimization' in torun:
 if 'run_tb_optimization' in torun:
     maxtime = 10
     if proj is None: proj = demoproj('tb')
-    output = attb.run_optimization(proj, maxtime=maxtime, online=False)
+    output = attb.run_tb_optimization(proj, maxtime=maxtime, online=False)
     print('Output:')
     print(output)
     

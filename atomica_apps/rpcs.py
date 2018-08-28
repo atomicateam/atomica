@@ -1202,6 +1202,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
     if results is None: results = proj.results[-1]
+    if year is None: year = proj.settings.sim_end # Needed for plot_budget
     
     figs = []
     graphs = []
@@ -1230,7 +1231,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+#        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
         graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
