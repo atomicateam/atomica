@@ -164,11 +164,11 @@ class ProjectData(object):
 
         for _,spec in framework.interactions.iterrows():
             interpop = data.add_interaction(spec.name, spec['display name'])
-            if 'default_value' in spec and spec['default_value']:
+            if 'default value' in spec and spec['default value']:
                 for from_pop in interpop.pops:
                     for to_pop in interpop.pops:
                         ts = TimeSeries(format=interpop.allowed_units[0],units=interpop.allowed_units[0])
-                        ts.insert(None,spec['default_value'])
+                        ts.insert(None,spec['default value'])
                         interpop.ts[(from_pop,to_pop)] = ts
 
         # Finally, insert parameter and characteristic default values
