@@ -41,12 +41,10 @@ Last update: 2018-08-28
               {{ optimSummary.status }}
             </td>
             <td>
-              {{ optimSummary.pendingTime }}
-<!--              {{ timeFormatStr(optimSummary.pendingTime) }} -->
+              {{ timeFormatStr(optimSummary.pendingTime) }}
             </td>
             <td>
-              {{ optimSummary.executionTime }}
-<!--              {{ timeFormatStr(optimSummary.executionTime) }} -->
+              {{ timeFormatStr(optimSummary.executionTime) }}
             </td>            
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
@@ -396,9 +394,9 @@ Last update: 2018-08-28
       
       getOptimTaskState(optimSummary) {
         var statusStr = ''
-        optimSummary.status = 'not started'
+/*        optimSummary.status = 'not started'
         optimSummary.pendingTime = '--'
-        optimSummary.executionTime = '--'
+        optimSummary.executionTime = '--' */
 //        optimSummary.status = 'xxxxx'
 //        optimSummary.pendingTime = 'xxxxx'
 //        optimSummary.executionTime = 'xxxxx'
