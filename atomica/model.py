@@ -9,6 +9,8 @@ import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
 from six import string_types
+from scipy.optimize import lsq_linear
+from scipy.linalg import lstsq
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -709,11 +711,18 @@ class Population(object):
                 A[i, comp_indices[c.name]] = 1.0
 
         # Solve the linear system
-        x, residual, rank, _ = np.linalg.lstsq(A, b, rcond=-1)
+        if np.linalg.matrix_rank(A) < A.shape[1]:
+            # If the system is rank deficient, then attempt to solve it with positive compartment sizes
+            # This will allow `x+y+z=10`, `x=10` to resolve `y+z=0`
+            res = lsq_linear(A, b.ravel(),bounds=(0,np.inf)) # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
+        else:
+            # If the system is NOT rank deficient, then attempt to solve it with negative compartment sizes. This way,
+            # errors that result in negative compartments will be limited to the part of the system that is incorrect,
+            # rather than manifesting is a large residual distributed over the entire system
+            res = lsq_linear(A, b.ravel()) # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
 
-        # Halt if the solution is not unique (could relax this check later)
-        if rank < A.shape[1]:
-            raise AtomicaException('Characteristics are not full rank, cannot determine a unique initialization')
+        x = res['x'].reshape(-1,1)
+        residual = res['cost']
 
         # Print warning for characteristics that are not well matched by the compartment size solution
         proposed = np.matmul(A, x)
