@@ -37,7 +37,7 @@ Last update: 2018-08-22
             <td style="white-space: nowrap">
               <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
-              <button class="btn __red" @click="cancelRun(optimSummary)">Clear task</button>
+              <!--<button class="btn" @click="cancelRun(optimSummary)">Clear task</button>-->
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
@@ -463,7 +463,7 @@ Last update: 2018-08-22
             this.resetModal()
           })
           .catch(error => {
-            status.fail(this, 'Could not add optimization: ' + error)
+            status.fail(this, 'Could not add optimization: ' + error.message)
           })
       },
 
