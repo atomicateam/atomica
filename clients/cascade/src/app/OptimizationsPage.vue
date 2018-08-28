@@ -38,9 +38,9 @@ Last update: 2018-08-22
               <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
               <button class="btn __red" @click="cancelRun(optimSummary)">Clear task</button>
-              <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
@@ -275,13 +275,13 @@ Last update: 2018-08-22
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         addEditModal: {
-//          optimSummary: {
-            // set stuff here to avoid render errors before things are loaded
-//            objective_weights: {
-//              conversion: 0,
-//              finalstage: 1
-//            }
-//          },
+          optimSummary: {
+//             set stuff here to avoid render errors before things are loaded
+            objective_weights: {
+              conversion: 0,
+              finalstage: 1
+            }
+          },
           origName: '',
           mode: 'add'
         },
