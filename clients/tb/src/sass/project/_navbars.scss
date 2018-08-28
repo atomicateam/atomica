@@ -88,7 +88,7 @@
       margin-right: 1rem;
       background: transparent;
       color: #144e6b;
-      border: 1px solid #144e6b;
+      border: 1px solid $optima-blue; // #144e6b;
     }
 
     &.navbar-right > li {
@@ -107,7 +107,7 @@
     > .active > a:not(.btn):focus,
     > li > a:not(.btn):hover,
     > li > a:not(.btn):focus {
-      background: #144e6b;
+      background: $optima-blue; // #144e6b;
       color: white;
       @include opacity(1);
     }

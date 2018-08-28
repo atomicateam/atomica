@@ -35,7 +35,9 @@ Last update: 2018-08-22
               <b>{{ optimSummary.name }}</b>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn __green" @click="runOptim(optimSummary)">Run</button>
+              <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
+              <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
+              <button class="btn __red" @click="cancelRun(optimSummary)">Clear task</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
@@ -49,11 +51,12 @@ Last update: 2018-08-22
         </div>
       </div>
 
+      <!-- ### Start: results card ### -->
       <div class="card full-width-card">
+        <!-- ### Start: plot controls ### -->
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
-
             <b>Year: &nbsp;</b>
             <select v-model="endYear" v-on:change="plotOptimization()">
               <option v-for='year in simYears'>
@@ -67,14 +70,27 @@ Last update: 2018-08-22
                 {{ pop }}
               </option>
             </select>
+<!-- CASCADE-TB DIFFERENCE
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export graphs</button>
+            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+-->
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs()">Export plots</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
+<!-- CASCADE-TB DIFFERENCE
+            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+-->
 
           </div>
         </div>
+        <!-- ### End: plot controls ### -->
 
-        <div class="calib-figures">
+        <!-- ### Start: results and plot selectors ### -->
+        <div class="calib-card-body">
+
+          <!-- ### Start: plots ### -->
           <div class="calib-graphs">
             <div class="featured-graphs">
               <div :id="'fig0'">
@@ -87,8 +103,9 @@ Last update: 2018-08-22
               </div>
             </div>
           </div>
+          <!-- ### End: plots ### -->
 
-          
+          <!-- CASCADE-TB DIFFERENCE -->
           <div class="calib-tables" v-if="table">
             <h3>Cascade stage losses</h3>
             <table class="table table-striped">
@@ -107,7 +124,9 @@ Last update: 2018-08-22
             </table>
           </div>
         </div>
+        <!-- ### End: results and plot selectors ### -->
       </div>
+      <!-- ### End: results card ### -->
 
       <modal name="add-optim"
              height="auto"
@@ -222,7 +241,7 @@ Last update: 2018-08-22
 
     data() {
       return {
-        serverresponse: 'no response',
+        response: 'no response',
         optimSummaries: [],
         defaultOptim: {
           // set stuff here to avoid render errors before things are loaded
@@ -245,13 +264,27 @@ Last update: 2018-08-22
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        startYear: 0,
+        endYear: 0,         
         graphData: [],
+        areShowingPlotControls: false,
         plotOptions: [],
         table: null,
         activePop: "All",
         endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
+        addEditModal: {
+          optimSummary: {
+            // set stuff here to avoid render errors before things are loaded
+            objective_weights: {
+              conversion: 0,
+              finalstage: 1
+            }
+          },
+          origName: '',
+          mode: 'add'
+        },
         figscale: 1.0,
       }
     },
@@ -267,8 +300,7 @@ Last update: 2018-08-22
     },
 
     created() {
-      // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
+      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project != undefined) &&
@@ -305,8 +337,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-
+      
       clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }       
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -314,11 +352,10 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-
+      
       updateSets() {
         console.log('updateSets() called')
-        // Get the current user's parsets from the server.
-        rpcs.rpc('get_parset_info', [this.projectID])
+        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -330,9 +367,7 @@ Last update: 2018-08-22
             this.newParsetName = this.activeParset // WARNING, KLUDGY
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-
-            // Get the current user's progsets from the server.
-            rpcs.rpc('get_progset_info', [this.projectID])
+            rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
               .then(response => {
                 this.progsetOptions = response.data // Set the scenarios to what we received.
                 if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
@@ -346,12 +381,10 @@ Last update: 2018-08-22
                 console.log('Active progset: ' + this.activeProgset)
               })
               .catch(error => {
-                // Failure popup.
                 status.failurePopup(this, 'Could not get progset info')
               })
           })
           .catch(error => {
-            // Failure popup.
             status.failurePopup(this, 'Could not get parset info')
           })
       },
@@ -361,57 +394,40 @@ Last update: 2018-08-22
         rpcs.rpc('get_default_optim', [this.projectID])
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
-            this.resetModal()
             console.log('This is the default:')
             console.log(this.defaultOptim);
           })
           .catch(error => {
-            // Failure popup.
             status.failurePopup(this, 'Could not get default optimization')
           })
       },
 
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
-
-        // Start indicating progress.
-        // Note: For some reason, the popup spinner doesn't work from inside created() 
-        // so it doesn't show up here.         
         status.start(this)
-
-        // Get the current project's optimization summaries from the server.
-        rpcs.rpc('get_optim_info', [this.projectID])
+        rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
           .then(response => {
             this.optimSummaries = response.data // Set the optimizations to what we received.
-
-            // Indicate success.
             status.succeed(this, 'Optimizations loaded')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not load optimizations')
           })
       },
 
       setOptimSummaries() {
         console.log('setOptimSummaries() called')
-
-        // Start indicating progress.
         status.start(this)
-
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Optimizations saved')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not save optimizations')
           })
       },
 
-      addOptimModal() {
-        // Open a model dialog for creating a new project
+      addOptimModal() { // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         this.resetModal()
         rpcs.rpc('get_default_optim', [this.projectID])
@@ -427,51 +443,36 @@ Last update: 2018-08-22
       saveOptim() {
         console.log('saveOptim() called')
         this.$modal.hide('add-optim')
-
-        // Start indicating progress.
         status.start(this)
-
-        // Set the objectives
-        this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage))
+        this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage)) // Set the objectives
         this.endYear = this.modalOptim.end_year
-
-        // Get the optimization summary from the modal.
-        let newOptim = utils.dcp(this.modalOptim) // Not sure if dcp is necessary
-
-        // Get the list of all of the current optimization names.
-        let optimNames = []
+        let newOptim = utils.dcp(this.addEditModal.optimSummary) // Get the new optimization summary from the modal.
+        let optimNames = [] // Get the list of all of the current optimization names.
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-
-        // If we are editing an existing optimization...
-        if (this.addEditDialogMode == 'edit') {
-          // Get the index of the _old_ name
-          let index = optimNames.indexOf(this.addEditDialogOldName)
+        if (this.addEditModal.mode == 'edit') { // If we are editing an existing optimization...
+          let index = optimNames.indexOf(this.addEditModal.origName) // Get the index of the original (pre-edited) name
           if (index > -1) {
+            this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
           }
           else {
             console.log('Error: a mismatch in editing keys')
           }
         }
-        // Else (we are adding a new optimization)...
-        else {
+        else { // Else (we are adding a new optimization)...
           newOptim.name = utils.getUniqueName(newOptim.name, optimNames)
           this.optimSummaries.push(newOptim)
         }
 
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Optimization added')
             this.resetModal()
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not add optimization')
-
-            // TODO: Should probably fix the corrupted this.optimSummaries.
           })
       },
 
@@ -498,10 +499,7 @@ Last update: 2018-08-22
 
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
-
-        // Start indicating progress.
         status.start(this)
-
         var newOptim = utils.dcp(optimSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
@@ -511,88 +509,69 @@ Last update: 2018-08-22
         this.optimSummaries.push(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
-            // Indicate success.
             status.succeed(this, 'Opimization copied')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not copy optimization')
-
-            // TODO: Should probably fix the corrupted this.optimSummaries.
           })
       },
 
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
-
-        // Start indicating progress.
         status.start(this)
-
         for(var i = 0; i< this.optimSummaries.length; i++) {
-          console.log('Trying ' + this.optimSummaries[i].name + ' vs ' + optimSummary.name)
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
           }
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then(response => {
-            // Indicate success.
             status.succeed(this, 'Optimization deleted')
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not delete optimization')
-
-            // TODO: Should probably fix the corrupted this.optimSummaries.
           })
       },
 
-      toggleShowingPlots() {
-        this.areShowingPlots = !this.areShowingPlots
+      toggleShowingPlotControls() {
+        this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
-      runOptim(optimSummary) {
+      runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim)
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
-        // Start indicating progress.
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
-        // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then(response => {
-            // Go to the server to get the results from the package set.
-//            rpcservice.rpcCall('run_optimization',
-            taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 3, 'run_cascade_optimization',
-              [this.projectID, optimSummary.name, this.plotOptions, true, this.endYear, this.activePop])
+            taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 1, 'run_cascade_optimization', // Go to the server to get the results
+              [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  // CASCADE-TB DIFFERENCE
+                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
               .then(response => {
                 this.makeGraphs(response.data.result.graphs)
                 this.table = response.data.result.table
-
-                // Indicate success.
-                status.succeed(this, 'Graphs created')
+                status.succeed(this, 'Optimization complete')
               })
               .catch(error => {
-                this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-                console.log(this.serverresponse)
-                this.servererror = error.message // Set the server error.
-
-                // Indicate failure.
-                status.fail(this, 'Could not make graphs: ' + error.message)
+                console.log('There was an error: ' + error.message) // Pull out the error message.
+                status.fail(this, 'Could not run optimization: ' + error.message)
               })
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            console.log(this.serverresponse)
-            this.servererror = error.message // Set the server error.
-
-            // Indicate failure.
-            status.fail(this, 'Could not make graphs: ' + error.message)
+            console.log('There was an error: ' + error.message)
+            status.fail(this, 'Could not set optimization info: ' + error.message)
           })
       },
-
+      
+      // TODO: remove this after debugging
+      cancelRun(optimSummary) {
+        console.log('cancelRun() called for '+this.currentOptim)
+        rpcs.rpc('delete_task', ['run_optimization'])
+      },
+      
       plotOptimization() {
         console.log('plotOptimization() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
@@ -609,7 +588,6 @@ Last update: 2018-08-22
             status.fail(this, 'Could not make graphs') // Indicate failure.
           })
       },
-
     }
   }
 </script>

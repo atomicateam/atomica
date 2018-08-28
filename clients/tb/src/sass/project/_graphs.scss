@@ -1,12 +1,21 @@
 .calib-controls {
   text-align: center;
+  display: flex;
   margin-bottom: 3rem;
 }
 .calib-controls .control-group {
-  display: inline-block;
+  //display: inline-block;
+  //display: flex;
+  //flex-wrap: wrap;
+  //& > div {
+  //  flex: 0 0 400px;
+  //}
 }
 .calib-controls button, .calib-controls .control-group {
-  margin-right: 1rem;
+  //margin-right: 1rem;
+}
+.full-width-card {
+  width: 100%;
 }
 .calib-title {
   display: flex;
@@ -16,13 +25,17 @@
   display: flex;
   margin-top: 4rem;
 }
+.calib-card-body {
+  display: flex;
+}
 .calib-params {
   flex: 0 0 30%;
-  max-height:80vh;
+  max-height: 80vh;
   overflow-y: scroll;
 }
 .calib-graphs {
-  max-height:80vh;
+  flex-grow: 1;
+  max-height :80vh;
   overflow-y: scroll;
   .featured-graphs {
 
@@ -37,6 +50,7 @@
   }
 }
 .plotopts-main {
+  flex: 0 0 30%;
   display: flex;
   max-height:80vh;
   overflow-y: scroll;

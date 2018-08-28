@@ -25,13 +25,17 @@
   display: flex;
   margin-top: 4rem;
 }
+.calib-card-body {
+  display: flex;
+}
 .calib-params {
   flex: 0 0 30%;
-  max-height:80vh;
+  max-height: 80vh;
   overflow-y: scroll;
 }
 .calib-graphs {
-  max-height:80vh;
+  flex-grow: 1;
+  max-height :80vh;
   overflow-y: scroll;
   .featured-graphs {
 
@@ -46,6 +50,7 @@
   }
 }
 .plotopts-main {
+  flex: 0 0 30%;
   display: flex;
   max-height:80vh;
   overflow-y: scroll;

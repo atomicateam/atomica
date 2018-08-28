@@ -1,11 +1,11 @@
 <!--
 Change the user's password
 
-Last update: 2018-03-25
+Last update: 2018-08-26
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <form name="ChangePasswordForm" @submit.prevent="tryChangePassword" style="max-width: 300px; min-width: 100px; margin: 0 0">
 
@@ -37,7 +37,6 @@ Last update: 2018-03-25
 </template>
 
 <script>
-import rpcs from '@/services/rpc-service'
 import userservice from '@/services/user-service'
 import router from '@/router'
 

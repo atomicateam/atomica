@@ -100,7 +100,8 @@ function activePops(vm) {
       
 function getPlotOptions(vm) {
   console.log('getPlotOptions() called')
-  rpcs.rpc('get_supported_plots', [true])
+  let project_id = projectID(vm)
+  rpcs.rpc('get_supported_plots', [project_id, true])
     .then(response => {
     vm.plotOptions = response.data // Get the parameter values
 })

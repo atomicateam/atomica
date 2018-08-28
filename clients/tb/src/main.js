@@ -53,8 +53,8 @@ Object.defineProperty(Vue.prototype, '$Chartist', {
 new Vue({
   el: '#app',
   render: h => h(App),
-  router: router,
-  store: store,
+  router,
+  store,
   template: '<App/>',
   components: { App },
   data: {

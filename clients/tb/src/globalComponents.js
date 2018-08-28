@@ -1,4 +1,3 @@
-// import fgInput from './components/generic/Inputs/formGroupInput.vue'
 import DropDown from './app/Dropdown.vue'
 
 /**
@@ -7,7 +6,6 @@ import DropDown from './app/Dropdown.vue'
 
 const GlobalComponents = {
   install (Vue) {
-    // Vue.component('fg-input', fgInput)
     Vue.component('drop-down', DropDown)
   }
 }

@@ -1,6 +1,6 @@
 // rpc-service.js -- RPC functions for Vue to call
 //
-// Last update: 5/26/18 (gchadder3)
+// Last update: 2018aug26
 
 import axios from 'axios'
 var filesaver = require('file-saver')
@@ -18,7 +18,7 @@ function consoleLogCommand (type, funcname, args, kwargs) {
 }
 
 // readJsonFromBlob(theBlob) -- Attempt to convert a Blob passed in to a JSON. Passes back a Promise.
-function readJsonFromBlob (theBlob) {
+function readJsonFromBlob(theBlob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader() // Create a FileReader; reader.result contains the contents of blob as text when this is called
     reader.addEventListener("loadend", function() { // Create a callback for after the load attempt is finished

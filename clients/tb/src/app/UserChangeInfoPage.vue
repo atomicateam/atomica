@@ -1,11 +1,11 @@
 <!--
 Change account info
 
-Last update: 2018-05-28
+Last update: 2018-08-18
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <form name="ChangeUserInfo" @submit.prevent="tryChangeInfo" style="max-width: 500px; min-width: 100px; margin: 0 0">
 
@@ -61,7 +61,6 @@ Last update: 2018-05-28
 </template>
 
 <script>
-import rpcs from '@/services/rpc-service'
 import userservice from '@/services/user-service'
 import router from '@/router'
 

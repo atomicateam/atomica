@@ -1,4 +1,6 @@
 $cascade-blue: #00267a;
+$optima-blue: #00adee;
+$optima-dark: #092344;
 
 $font-color: #0c2544 !default;
 $fill-font-color: rgba(255, 255, 255, 0.7);
@@ -75,25 +77,16 @@ $light-red: rgba($danger-color, .2);
 //== Components
 //
 $padding-base-vertical: 7px !default;
-$padding-base-horizontal: 18px !default;
+$padding-base-horizontal: 10px !default;
 
 $padding-round-vertical: 9px !default;
 $padding-round-horizontal: 18px !default;
-
-$padding-simple-vertical: 10px !default;
-$padding-simple-horizontal: 18px !default;
 
 $padding-large-vertical: 11px !default;
 $padding-large-horizontal: 30px !default;
 
 $padding-small-vertical: 4px !default;
 $padding-small-horizontal: 10px !default;
-
-$padding-xs-vertical: 2px !default;
-$padding-xs-horizontal: 5px !default;
-
-$padding-label-vertical: 2px !default;
-$padding-label-horizontal: 12px !default;
 
 // padding for links inside dropdown menu
 $padding-dropdown-vertical: 10px !default;

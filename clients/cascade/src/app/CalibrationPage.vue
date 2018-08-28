@@ -75,140 +75,176 @@ Last update: 2018-08-22
         <!--</div>-->
       </div>
 
-      <div class="card full-width-card">
-        <div class="calib-title">
-          <help reflink="results-plots" label="Results"></help>
-          <div>
-            <!--<b>Start year: &nbsp;</b>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="startYear"-->
-            <!--style="display: inline-block; width:70px"/>-->
-            <!--&nbsp;&nbsp;&nbsp;-->
+      <div>
 
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export graphs</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
-
-          </div>
+        <div class="card" v-show="areShowingParameters">
+          <help reflink="parameters" label="Parameters"></help>
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <!--<th @click="updateSorting('index')" class="sortable">-->
+              <!--No.-->
+              <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
+              <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
+              <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
+              <!--</th>-->
+              <th @click="updateSorting('parameter')" class="sortable">
+                Parameter
+                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('population')" class="sortable">
+                Population
+                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+              <th @click="updateSorting('value')" class="sortable">
+                Value
+                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
+                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
+                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="par in sortedPars">
+              <!--<td>-->
+              <!--{{par.index}}-->
+              <!--</td>-->
+              <td>
+                {{par.parlabel}}
+              </td>
+              <td>
+                {{par.poplabel}}
+              </td>
+              <td>
+                <input type="text"
+                        class="txbox"
+                        v-model="par.dispvalue"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
 
+        <div class="card full-width-card">
+          <div class="calib-title">
+            <help reflink="results-plots" label="Results"></help>
+            <div>
+              <!--<b>Start year: &nbsp;</b>-->
+              <!--<input type="text"-->
+              <!--class="txbox"-->
+              <!--v-model="startYear"-->
+              <!--style="display: inline-block; width:70px"/>-->
+              <!--&nbsp;&nbsp;&nbsp;-->
 
-          <div class="calib-params" v-if="areShowingParameters">
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <!--<th @click="updateSorting('index')" class="sortable">-->
-                <!--No.-->
-                <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
-                <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
-                <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
-                <!--</th>-->
-                <th @click="updateSorting('parameter')" class="sortable">
-                  Parameter
-                  <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                  <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                  <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                </th>
-                <th @click="updateSorting('population')" class="sortable">
-                  Population
-                  <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                  <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                  <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                </th>
-                <th @click="updateSorting('value')" class="sortable">
-                  Value
-                  <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                  <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                  <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="par in sortedPars">
-                <!--<td>-->
-                <!--{{par.index}}-->
-                <!--</td>-->
-                <td>
-                  {{par.parlabel}}
-                </td>
-                <td>
-                  {{par.poplabel}}
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="par.dispvalue"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <!-- CASCADE-TB DIFFERENCE -->
+              <!--<button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button> -->
+              <!--<button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>-->
+              <!--<button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>-->
+              <!--&nbsp;&nbsp;&nbsp;-->
+              <button class="btn" @click="exportGraphs()">Export plots</button>
+              <button class="btn" @click="exportResults(projectID)">Export data</button>
+              <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> --> <!-- CASCADE-TB DIFFERENCE -->
+
+            </div>
           </div>
 
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
+
+          <div class="calib-card-body">
+            <div class="calib-graphs">
+              <div class="featured-graphs">
+                <div :id="'fig0'">
+                  <!--mpld3 content goes here-->
+                </div>
+              </div>
+              <div class="other-graphs">
+                <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                  <!--mpld3 content goes here-->
+                </div>
               </div>
             </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
+
+            <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
+
           </div>
 
         </div>
 
       </div>
+
+
+      <modal name="rename-parset"
+
+             height="auto"
+             :classes="['v--modal', 'vue-dialog']"
+             :width="width"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title">
+            Rename parameter set
+          </div>
+          <div class="dialog-c-text">
+            New name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="activeParset"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="renameParset()" class='btn __green' style="display:inline-block">
+              Rename
+            </button>
+
+            <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+      </modal>
 
     </div>
-
-    <modal name="rename-parset"
-           height="auto"
-           :classes="['v--modal', 'vue-dialog']"
-           :width="width"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
-
-      <div class="dialog-content">
-        <div class="dialog-c-title">
-          Rename parameter set
-        </div>
-        <div class="dialog-c-text">
-          New name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="activeParset"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="renameParset()" class='btn __green' style="display:inline-block">
-            Rename
-          </button>
-
-          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
-        </div>
-      </div>
-
-    </modal>
 
   </div>
 </template>
@@ -238,6 +274,7 @@ Last update: 2018-08-22
         sortReverse: false,
         parList: [],
         areShowingParameters: false,
+        areShowingPlotControls: false,
         activeParset: -1,
         parsetOptions: [],
         origParsetName: [],
@@ -300,6 +337,10 @@ Last update: 2018-08-22
       exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
 
+      notImplemented() {
+        status.fail(this, 'Sorry, this feature is not implemented')
+      },
+
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
@@ -310,6 +351,12 @@ Last update: 2018-08-22
       },
 
       clipValidateYearInput() {
+        if (this.startYear > this.simEnd) {
+          this.startYear = this.simEnd
+        }
+        else if (this.startYear < this.simStart) {
+          this.startYear = this.simStart
+        }
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -320,7 +367,7 @@ Last update: 2018-08-22
 
       updateParset() {
         console.log('updateParset() called')
-        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
+//        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
@@ -332,7 +379,7 @@ Last update: 2018-08-22
             }
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-            status.succeed(this, '')  // No green notification.
+//            status.succeed(this, '')  // No green notification.
           })
           .catch(error => {
             status.fail(this, 'Could not update parset')
@@ -377,14 +424,19 @@ Last update: 2018-08-22
         this.areShowingParameters = !this.areShowingParameters
       },
 
+      toggleShowingPlotControls() {
+        this.areShowingPlotControls = !this.areShowingPlotControls
+      },
+
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions,
-          this.startYear, this.endYear, this.activePop]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+          'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+        ) // Go to the server to get the results from the package set.
           .then(response => {
-            status.succeed(this, 'Simulation run') // Indicate success.
+//            status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
@@ -393,45 +445,19 @@ Last update: 2018-08-22
           })
       },
 
-      plotCalibration(project_id, export_graphs) {
-        console.log('exportGraphs() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
-        status.start(this) // Start indicating progress.
-        if (export_graphs) {
-          rpcs.download('plot_calibration_graphs', [project_id, this.activeParset, this.parList, this.plotOptions,
-            this.startYear, this.endYear, this.activePop, export_graphs]) // Go to the server to get the results from the package set.
-            .then(response => {
-              status.succeed(this, '')
-            })
-            .catch(error => {
-              console.log(error.message)
-              status.fail(this, 'Could not download graphs: ' + error.message)
-            })
-        } else {
-          rpcs.rpc('plot_calibration_graphs', [project_id, this.activeParset, this.parList, this.plotOptions,
-            this.startYear, this.endYear, this.activePop, export_graphs]) // Go to the server to get the results from the package set.
-            .then(response => {
-              status.succeed(this, 'Simulation run') // Indicate success.
-              this.makeGraphs(response.data.graphs)
-            })
-            .catch(error => {
-              console.log(error.message)
-              status.fail(this, 'Could not run manual calibration: ' + error.message)
-            })
-        }
-      },
-
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
-          let maxtime = 30
+          var maxtime = 30
         } else {
-          let maxtime = 9999
+          var maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration', [project_id, this.activeParset, maxtime]) // Go to the server to get the results from the package set.
+        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+        ) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs)
           })

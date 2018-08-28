@@ -1,10 +1,9 @@
 // task-service.js -- task queuing functions for Vue to call
 //
-// Last update: 7/3/18 (gchadder3)
+// Last update: 8/18/18 (gchadder3)
 
 import rpcs from '@/services/rpc-service'
 import utils from '@/services/utils'
-
 
 // getTaskResultWaiting() -- given a task_id string, a waiting time (in 
 // sec.), and a remote task function name and its args, try to launch 
