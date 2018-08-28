@@ -316,9 +316,9 @@ class Project(object):
         An optional program set and use instructions can be passed in to simulate budget-based interventions.
         """
 
-        parset = parset if isinstance(parset,ParameterSet) else self.parset()
+        parset = parset if isinstance(parset,ParameterSet) else self.parset(parset)
         if progset is not None:     # Do not grab a default program set in case one does not exist.
-            progset = progset if isinstance(progset, ProgramSet) else self.progset()
+            progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
 
         if progset is None:
             logger.info("Initiating a standard run of project '{0}' "
