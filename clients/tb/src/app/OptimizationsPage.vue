@@ -278,13 +278,6 @@ Last update: 2018-08-22
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         addEditModal: {
-          optimSummary: {
-            // set stuff here to avoid render errors before things are loaded
-            objective_weights: {
-              conversion: 0,
-              finalstage: 1
-            }
-          },
           origName: '',
           mode: 'add'
         },
@@ -449,7 +442,7 @@ Last update: 2018-08-22
         status.start(this)
         this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage)) // Set the objectives
         this.endYear = this.modalOptim.end_year
-        let newOptim = utils.dcp(this.addEditModal.optimSummary) // Get the new optimization summary from the modal.
+        let newOptim = utils.dcp(this.modalOptim) // Get the new optimization summary from the modal.
         let optimNames = [] // Get the list of all of the current optimization names.
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
