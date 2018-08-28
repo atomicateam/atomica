@@ -1083,7 +1083,12 @@ def get_supported_plots(project_id, only_keys=False):
 
 
 def savefigs(allfigs, online=True, die=False):
-    if online: folder = sw.globalvars.downloads_dir.dir_path
+#    if online: folder = sw.globalvars.downloads_dir.dir_path
+    if online: 
+        # Look for an existing downloads_dir UID.
+        downloads_dir_uid = sw.globalvars.data_store.get_uid('filesavedir', 
+            'Downloads Directory')        
+        folder = sw.globalvars.data_store.retrieve(downloads_dir_uid).dir_path    
     else:      folder = os.getcwd()
     filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=folder)
     return filepath
