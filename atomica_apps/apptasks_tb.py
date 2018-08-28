@@ -33,8 +33,7 @@ def run_optimization(project_id, optim_name, plot_options=None, maxtime=None, to
     proj = rpcs.load_project(project_id, raise_exception=True)
     results = proj.run_optimization(optim_name, maxtime=maxtime)
     proj.results['optimization'] = results # WARNING, will want to save separately!
-#    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options)
+    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     print('Saving project...')
     rpcs.save_project(proj)    
     return output
