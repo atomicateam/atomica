@@ -378,6 +378,10 @@ Last update: 2018-08-28
       
       canRunTask(optimSummary) {
         return ((optimSummary.status == 'not started') || (optimSummary.status == 'completed'))
+/*        ||
+          (optimSummary.status == ''))  */
+          // The last clause shouldn't be necessary, but is because of weird intermittent 
+          // failures to update the status.
       },
       
       canCancelTask(optimSummary) {
@@ -394,12 +398,6 @@ Last update: 2018-08-28
       
       getOptimTaskState(optimSummary) {
         var statusStr = ''
-/*        optimSummary.status = 'not started'
-        optimSummary.pendingTime = '--'
-        optimSummary.executionTime = '--' */
-//        optimSummary.status = 'xxxxx'
-//        optimSummary.pendingTime = 'xxxxx'
-//        optimSummary.executionTime = 'xxxxx'
         
         // Check the status of the task.
         rpcs.rpc('check_task', [optimSummary.task_id])
@@ -499,6 +497,12 @@ Last update: 2018-08-28
           this.optimSummaries.forEach(optimSum => {
             // Build a task ID from the project's hex UID and the optimization name.
             optimSum.task_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
+            
+            // Set the status to 'not started' by default, and the pending and execution 
+            // times to '--'.
+            optimSum.status = 'not started'
+            optimSum.pendingTime = '--'
+            optimSum.executionTime = '--'
             
             // Get the task state for the optimization.
             this.getOptimTaskState(optimSum)
