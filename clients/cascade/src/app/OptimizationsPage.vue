@@ -275,13 +275,13 @@ Last update: 2018-08-22
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         addEditModal: {
-          optimSummary: {
+//          optimSummary: {
             // set stuff here to avoid render errors before things are loaded
-            objective_weights: {
-              conversion: 0,
-              finalstage: 1
-            }
-          },
+//            objective_weights: {
+//              conversion: 0,
+//              finalstage: 1
+//            }
+//          },
           origName: '',
           mode: 'add'
         },

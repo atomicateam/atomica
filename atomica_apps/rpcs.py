@@ -1463,6 +1463,8 @@ def py_to_js_optim(py_optim, project=None):
 
 
 def js_to_py_optim(js_optim):
+    print('HIIIIIIIII')
+    print js_optim
     json = js_optim
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
         json[key] = to_number(json[key]) # Convert to a number
