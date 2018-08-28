@@ -12,11 +12,9 @@ import scirisweb as sw
 from . import projects as prj
 from . import rpcs
 
-
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
 async_task = sw.make_async_tag(task_func_dict) # Task function registration decorator created using call to make_async_tag().
-print '** apptasks_cascade.py _init_tasks() call'  # TODO: remove this post-debugging
 celery_instance = sw.make_celery_instance(config=config) # Create the Celery instance for this module.
 
 # This is needed in Windows using celery Version 3.1.25 in order for the

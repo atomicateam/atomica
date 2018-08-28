@@ -2,14 +2,16 @@
 Version:
 """
 
-import atomica.ui as au
-import atomica_apps as aa
 import scirisweb as sw
+import atomica.ui as au
+from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
+
 
 torun = [
 #'get_cascade_plot',
 #'get_plots',
-'run_cascade_optimization',
+#'run_cascade_optimization',
+'run_tb_optimization',
 ]
 
 proj = None
@@ -29,7 +31,7 @@ if 'get_cascade_plot' in torun:
         'cascade': None, 
         'plot_budget': True
         }
-    output = aa.rpcs.get_cascade_plot(proj, **args)
+    output = rpcs.get_cascade_plot(proj, **args)
     print('Output:')
     print(output)
     sw.browser(jsons=output['graphs'])
@@ -38,16 +40,24 @@ if 'get_cascade_plot' in torun:
 if 'get_plots' in torun:
     if proj is None: proj = demoproj('tb')
     results = proj.run_sim()
-    output = aa.rpcs.get_plots(proj, results=results, calibration=True)
+    output = rpcs.get_plots(proj, results=results, calibration=True)
     print('Output:')
     print(output)
 
 
 if 'run_cascade_optimization' in torun:
+    maxtime = 10
     if proj is None: proj = demoproj('hypertension')
-    output = aa.apptasks_cascade.run_cascade_optimization(proj, maxtime=10, online=False)
+    output = atca.run_cascade_optimization(proj, maxtime=maxtime, online=False)
     print('Output:')
     print(output)
     
+    
+if 'run_tb_optimization' in torun:
+    maxtime = 10
+    if proj is None: proj = demoproj('tb')
+    output = attb.run_optimization(proj, maxtime=maxtime, online=False)
+    print('Output:')
+    print(output)
     
 print('Done.')
