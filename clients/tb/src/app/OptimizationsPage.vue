@@ -177,6 +177,7 @@ Last update: 2018-08-22
             <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
             <b>Objective</b><br>
+<!-- CASCADE-TB DIFFERENCE -->
             <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
             <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
             <br>
@@ -539,8 +540,11 @@ Last update: 2018-08-22
         status.start(this)
         this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => {     // Go to the server to get the results
-            taskservice.getTaskResultPolling('run_optimization', 9999, 1, 'run_optimization', [this.projectID, optimSummary.name, this.plotOptions, maxtime])
+          .then(response => { // Go to the server to get the results
+ //           taskservice.getTaskResultPolling('run_optimization', 9999, 1, 'run_optimization', [this.projectID, optimSummary.name, this.plotOptions, maxtime])
+            taskservice.getTaskResultPolling('run_optimization', 9999, 1, 'run_optimization', 
+              [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  // CASCADE-TB DIFFERENCE
+                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
               .then(response => {
                 this.makeGraphs(response.data.result.graphs)
                 this.table = response.data.result.table
