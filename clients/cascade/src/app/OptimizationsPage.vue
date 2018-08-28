@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-27
+Last update: 2018-08-28
 -->
 
 <template>
@@ -396,12 +396,15 @@ Last update: 2018-08-27
       
       getOptimTaskState(optimSummary) {
         var statusStr = ''
-        optimSummary.status = 'fucksored'
-        optimSummary.pendingTime = 'fucksored'
-        optimSummary.executionTime = 'fucksored'
-            
+        optimSummary.status = 'not started'
+        optimSummary.pendingTime = '--'
+        optimSummary.executionTime = '--'
+//        optimSummary.status = 'xxxxx'
+//        optimSummary.pendingTime = 'xxxxx'
+//        optimSummary.executionTime = 'xxxxx'
+        
         // Check the status of the task.
-/*        rpcs.rpc('check_task', [optimSummary.task_id])
+        rpcs.rpc('check_task', [optimSummary.task_id])
         .then(result => {
           statusStr = result.data.task.status
           optimSummary.status = statusStr
@@ -412,7 +415,7 @@ Last update: 2018-08-27
           optimSummary.status = 'not started'
           optimSummary.pendingTime = '--'
           optimSummary.executionTime = '--'
-        })   */
+        })
       },
       
       pollAllTaskStates() {
@@ -500,14 +503,11 @@ Last update: 2018-08-27
             optimSum.task_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
             
             // Get the task state for the optimization.
-/*            optimSum.status = 'fucksored'
-            optimSum.pendingTime = 'fucksored'
-            optimSum.executionTime = 'fucksored' */
             this.getOptimTaskState(optimSum)
           })
           
           // Start polling of tasks states.
-//          this.pollAllTaskStates()
+          this.pollAllTaskStates()
           
           // Indicate success.
           status.succeed(this, 'Optimizations loaded')
@@ -741,12 +741,6 @@ Last update: 2018-08-27
           // Indicate failure.
           status.fail(this, 'Could not make graphs: ' + error.message)
         })
-      },
-      
-      // TODO: remove this after debugging
-      cancelRun(optimSummary) {
-        console.log('cancelRun() called for '+this.currentOptim)
-        rpcs.rpc('delete_task', ['run_optimization'])
       },
       
       plotOptimization() {
