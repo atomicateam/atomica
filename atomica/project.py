@@ -487,8 +487,8 @@ class Project(object):
         else:
             return json1
     
-    def demo_optimization(self, dorun=False):
-        ''' WARNING, only works for TB '''
+    def demo_optimization(self, dorun=False, tool=None):
+        if tool is None: tool = 'cascade'
         json = sc.odict()
         json['name']              = 'Default optimization'
         json['parset_name']       = -1
@@ -496,7 +496,19 @@ class Project(object):
         json['start_year']        = 2018
         json['end_year']          = 2035
         json['budget_factor']     = 2.5
-        json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
+        if tool == 'cascade':
+            json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
+            json['objective_labels'] = {'finalstage':'Maximize the number of people in the final stage of the cascade',
+                                        'conversion':'Maximize the conversion rates along each stage of the cascade'}
+        elif tool == 'tb':
+            json['objective_weights'] = {'ddis':1,'acj':1, 'ds_inf':0, 'mdr_inf':0, 'xdr_inf':0} # These are TB-specific: maximize people alive, minimize people dead due to TB
+            json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
+                                        'acj':    'Minimize total new active TB infections', 
+                                        'ds_inf': 'Minimize prevalence of active DS-TB', 
+                                        'mdr_inf':'Minimize prevalence of active MDR-TB', 
+                                        'xdr_inf':'Minimize prevalence of active XDR-TB'}
+        else:
+            raise Exception('Tool "%s" not recognized' % tool)
         json['maxtime']           = 30 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
@@ -508,24 +520,3 @@ class Project(object):
         else:
             return optim
             
-
-    def demo_tb_optimization(self, dorun=False):
-        ''' WARNING, only works for TB '''
-        json = sc.odict()
-        json['name']              = 'Default optimization'
-        json['parset_name']       = -1
-        json['progset_name']      = -1
-        json['start_year']        = 2018
-        json['end_year']          = 2035
-        json['budget_factor']     = 2.5
-        json['objective_weights'] = {'alive':-1,'ddis':1,'acj':1} # These are TB-specific: maximize people alive, minimize people dead due to TB. Note that ASD minimizes the objective, so 'alive' has a negative weight
-        json['maxtime']           = 3600 # WARNING, default!
-        json['prog_spending']     = sc.odict()
-        for prog_name in self.progset().programs.keys():
-            json['prog_spending'][prog_name] = [0,None]
-        optim = self.make_optimization(json=json)
-        if dorun:
-            results = self.run_optimization(optimization=json['name'])
-            return results
-        else:
-            return optim

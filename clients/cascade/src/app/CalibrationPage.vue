@@ -67,6 +67,9 @@ Last update: 2018-08-22
             <i class="ti-upload"></i>
           </button>
           &nbsp;
+        </div>
+
+        <div class="controls-box">
           <button class="btn" @click="notImplemented()">
             Reconcile
           </button>

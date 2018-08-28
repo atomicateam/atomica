@@ -4,7 +4,6 @@ apptasks.py -- The Celery tasks module for this webapp
 Last update: 2018aug26
 """
 
-
 from . import config_cascade as config
 import matplotlib.pyplot as ppl
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
@@ -28,14 +27,16 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 @async_task
 def run_cascade_optimization(project_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
     print('Running optimization...')
+    import sciris as sc
+    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
     if online: # Assume project_id is actually an ID
         prj.apptasks_load_projects(config) # Load the projects from the DataStore.
         proj = rpcs.load_project(project_id, raise_exception=True)
     else: # Otherwise try using it as a project
         proj = project_id
-    results = proj.run_optimization(optim_name, maxtime=maxtime)
+    results = proj.run_optimization(optim_name, maxtime=float(maxtime))
     proj.results['optimization'] = results # WARNING, will want to save separately!
-    output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online)
+    output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:
         print('Saving project...')
         rpcs.save_project(proj)    
