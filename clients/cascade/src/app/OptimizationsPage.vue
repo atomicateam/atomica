@@ -41,16 +41,18 @@ Last update: 2018-08-27
               {{ optimSummary.status }}
             </td>
             <td>
-              {{ timeFormatStr(optimSummary.pendingTime) }}
+              {{ optimSummary.pendingTime }}
+<!--              {{ timeFormatStr(optimSummary.pendingTime) }} -->
             </td>
             <td>
-              {{ timeFormatStr(optimSummary.executionTime) }}
+              {{ optimSummary.executionTime }}
+<!--              {{ timeFormatStr(optimSummary.executionTime) }} -->
             </td>            
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button>
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>              
-              <button class="btn __red" @click="cancelRun(optimSummary)">Clear task</button>
+              <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="cancelRun(optimSummary)">Clear task</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
@@ -394,9 +396,12 @@ Last update: 2018-08-27
       
       getOptimTaskState(optimSummary) {
         var statusStr = ''
-        
+        optimSummary.status = 'fucksored'
+        optimSummary.pendingTime = 'fucksored'
+        optimSummary.executionTime = 'fucksored'
+            
         // Check the status of the task.
-        rpcs.rpc('check_task', [optimSummary.task_id])
+/*        rpcs.rpc('check_task', [optimSummary.task_id])
         .then(result => {
           statusStr = result.data.task.status
           optimSummary.status = statusStr
@@ -407,7 +412,7 @@ Last update: 2018-08-27
           optimSummary.status = 'not started'
           optimSummary.pendingTime = '--'
           optimSummary.executionTime = '--'
-        })       
+        })   */
       },
       
       pollAllTaskStates() {
@@ -428,7 +433,7 @@ Last update: 2018-08-27
           if (this.$route.path == '/optimizations') {
             this.pollAllTaskStates()
           }
-        })       
+        }) 
       },
       
       updateSets() {
@@ -495,11 +500,14 @@ Last update: 2018-08-27
             optimSum.task_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
             
             // Get the task state for the optimization.
-            optimSum.status = this.getOptimTaskState(optimSum)
+/*            optimSum.status = 'fucksored'
+            optimSum.pendingTime = 'fucksored'
+            optimSum.executionTime = 'fucksored' */
+            this.getOptimTaskState(optimSum)
           })
           
           // Start polling of tasks states.
-          this.pollAllTaskStates()
+//          this.pollAllTaskStates()
           
           // Indicate success.
           status.succeed(this, 'Optimizations loaded')
