@@ -88,7 +88,7 @@
       margin-right: 1rem;
       background: transparent;
       color: #144e6b;
-      border: 1px solid #144e6b;
+      border: 1px solid $cascade-blue; // #144e6b;
     }
 
     &.navbar-right > li {

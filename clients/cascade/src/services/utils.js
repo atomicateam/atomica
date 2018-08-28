@@ -25,9 +25,12 @@ function getUniqueName(fileName, otherNames) {
   return tryName
 }
 
-function placeholders() {
+function placeholders(startVal) {
   var indices = []
-  for (var i = 0; i <= 100; i++) {
+  if (!startVal) {
+    startVal = 0
+  }
+  for (var i = startVal; i <= 100; i++) {
     indices.push(i);
   }
   return indices;
@@ -67,6 +70,21 @@ function simEnd(vm) {
   }
 }
 
+function simYears(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return []
+  } else {
+    var sim_start = vm.$store.state.activeProject.project.sim_start
+    var sim_end = vm.$store.state.activeProject.project.sim_end
+    var years = []
+    for (var i = sim_start; i <= sim_end; i++) {
+      years.push(i);
+    }
+    console.log('sim years: ' + years)
+    return years;
+  }
+}
+
 function activePops(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -82,7 +100,8 @@ function activePops(vm) {
       
 function getPlotOptions(vm) {
   console.log('getPlotOptions() called')
-  rpcs.rpc('get_supported_plots', [true])
+  let project_id = projectID(vm)
+  rpcs.rpc('get_supported_plots', [project_id, true])
     .then(response => {
     vm.plotOptions = response.data // Get the parameter values
 })
@@ -128,11 +147,11 @@ function clearGraphs() {
   }
 }
 
-function exportGraphs(vm, project_id) {
-  console.log('exportResults() called')
-  rpcs.download('export_results', [project_id]) // Make the server call to download the framework to a .prj file.
+function exportGraphs(vm) {
+  console.log('exportGraphs() called')
+  rpcs.download('download_graphs', []) // Make the server call to download the framework to a .prj file.
     .catch(error => {
-    status.failurePopup(vm, 'Could not export results')
+    status.failurePopup(vm, 'Could not download graphs')
 })
 }
 
@@ -195,10 +214,12 @@ export default {
   hasData,
   simStart,
   simEnd,
+  simYears,
   activePops,
   getPlotOptions,
   makeGraphs,
   clearGraphs,
+  exportGraphs,
   exportResults,
   scaleFigs,
   showBrowserWindowSize,

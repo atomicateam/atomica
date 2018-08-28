@@ -5,6 +5,7 @@ import os
 import textwrap
 from collections import defaultdict
 
+import pylab as pl
 import matplotlib.cm as cmx
 import matplotlib.colors as matplotlib_colors
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ from matplotlib.ticker import FuncFormatter
 import sciris as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, NotFoundError, logger, NotAllowedError
+from .system import AtomicaException, logger, NotAllowedError
 from .parser_function import parse_function
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
@@ -436,7 +437,7 @@ class PlotData(object):
             outputs = [outputs]
 
         outputs = expand_dict(outputs)
-        progs_required = extract_labels(outputs)
+#        progs_required = extract_labels(outputs)
 
         assert quantity in ['spending','coverage_number','coverage_denominator','coverage_fraction']
         # Make a new PlotData instance

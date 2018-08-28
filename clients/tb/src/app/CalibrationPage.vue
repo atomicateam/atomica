@@ -20,7 +20,8 @@ Last update: 2018-08-22
     </div>
 
     <div v-else>
-      <div class="calib-controls">
+      <div class="card">
+        <help reflink="calibration" label="Calibration"></help>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -29,7 +30,7 @@ Last update: 2018-08-22
             parameters
           </button>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;
         <div class="controls-box">
           <button class="btn" @click="autoCalibrate(projectID)">Automatic calibration</button>
           for&nbsp;
@@ -39,9 +40,8 @@ Last update: 2018-08-22
             </option>
           </select>
         </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;
         <div class="controls-box">
-          <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
             <option v-for='parset in parsetOptions'>
@@ -49,62 +49,36 @@ Last update: 2018-08-22
             </option>
           </select>
           &nbsp;
-          <button class="btn small-button" @click="renameParsetModal()" data-tooltip="Rename">
+          <button class="btn btn-icon" @click="renameParsetModal()" data-tooltip="Rename">
             <i class="ti-pencil"></i>
           </button>
-          <button class="btn small-button" @click="copyParset()" data-tooltip="Copy">
+          <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy">
             <i class="ti-files"></i>
           </button>
-          <button class="btn small-button" @click="deleteParset()" data-tooltip="Delete">
+          <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete">
             <i class="ti-trash"></i>
           </button>
-        </div>
-
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <b>Start year: &nbsp;</b>
-          <input type="text"
-                 class="txbox"
-                 v-model="startYear"
-                 style="display: inline-block; width:70px"/>
-          &nbsp;&nbsp;&nbsp;
-          <b>End year: &nbsp;</b>
-          <input type="text"
-                 class="txbox"
-                 v-model="endYear"
-                 style="display: inline-block; width:70px"/>
+          <button class="btn btn-icon" @click="downloadParset()" data-tooltip="Download">
+            <i class="ti-download"></i>
+          </button>
+          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload">
+            <i class="ti-upload"></i>
+          </button>
+          &nbsp;
+          <button class="btn" @click="notImplemented()">
+            Reconcile
+          </button>
         </div>
       </div>
 
-      <div style="text-align: center">
-        <div class="controls-box">
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="clearGraphs()">Clear graphs</button>
-          <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
-        </div>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <div class="controls-box">
-          <button class="btn" @click="scaleFigs(0.9)">-</button>
-          <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-          <button class="btn" @click="scaleFigs(1.1)">+</button>
-        </div>
-      </div>
-
-      <div class="calib-main" :class="{'calib-main--full': !areShowingParameters}">
-        <div class="calib-params" v-if="areShowingParameters">
+      <!-- ### Start: parameters and graphs ### -->
+      <div>
+        <!-- ### Start: parameters card ### -->
+        <div class="card" v-show="areShowingParameters">
+          <help reflink="parameters" label="Parameters"></help>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th @click="updateSorting('index')" class="sortable">
-                No.
-                <span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
-              </th>
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -128,9 +102,6 @@ Last update: 2018-08-22
             <tbody>
             <tr v-for="par in sortedPars">
               <td>
-                {{par.index}}
-              </td>
-              <td>
                 {{par.parlabel}}
               </td>
               <td>
@@ -145,71 +116,130 @@ Last update: 2018-08-22
             </tbody>
           </table>
         </div>
+        <!-- ### End: parameters card ### -->
 
-        <div class="calib-graphs">
-          <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-            <!--mpld3 content goes here-->
+        <!-- ### Start: results card ### -->
+        <div class="card full-width-card">
+          <!-- ### Start: plot controls ### -->
+          <div class="calib-title">
+            <help reflink="results-plots" label="Results"></help>
+            <div>
+              <!--<b>Start year: &nbsp;</b>-->
+              <!--<input type="text"-->
+              <!--class="txbox"-->
+              <!--v-model="startYear"-->
+              <!--style="display: inline-block; width:70px"/>-->
+              <!--&nbsp;&nbsp;&nbsp;-->
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs()">Export plots</button>
+              <button class="btn" @click="exportResults(projectID)">Export data</button>
+              <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+
+            </div>
           </div>
-        </div>
+          <!-- ### End: plot controls ### -->
 
-        <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
-          <div class="plotopts-params">
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Plot</th>
-                <th>Active</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="item in plotOptions">
-                <td>
-                  {{ item.plot_name }}
-                </td>
-                <td style="text-align: center">
-                  <input type="checkbox" v-model="item.active"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
+          <!-- ### Start: results and plot selectors ### -->
+          <div class="calib-card-body">
+
+            <!-- ### Start: plots ### -->
+            <div class="calib-graphs">
+              <div class="featured-graphs">
+                <div :id="'fig0'">
+                  <!--mpld3 content goes here-->
+                </div>
+              </div>
+              <div class="other-graphs">
+                <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                  <!--mpld3 content goes here-->
+                </div>
+              </div>
+            </div>
+            <!-- ### End: plots ### -->
+
+            <!-- CASCADE-TB DIFFERENCE -->
+            <!-- ### Start: plot selectors ### -->
+            <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <!-- ### End: plot selectors ### -->
           </div>
+          <!-- ### End: results and plot selectors ### -->
         </div>
-
+        <!-- ### End: results card ### -->
       </div>
+
+
+      <modal name="rename-parset"
+
+             height="auto"
+             :classes="['v--modal', 'vue-dialog']"
+             :width="width"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title">
+            Rename parameter set
+          </div>
+          <div class="dialog-c-text">
+            New name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="activeParset"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="renameParset()" class='btn __green' style="display:inline-block">
+              Rename
+            </button>
+
+            <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+      </modal>
 
     </div>
-
-    <modal name="rename-parset"
-           height="auto"
-           :classes="['v--modal', 'vue-dialog']"
-           :width="width"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
-
-      <div class="dialog-content">
-        <div class="dialog-c-title">
-          Rename parameter set
-        </div>
-        <div class="dialog-c-text">
-          New name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="newParsetName"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="renameParset()" class='btn __green' style="display:inline-block">
-            Rename
-          </button>
-
-          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
-        </div>
-      </div>
-
-    </modal>
 
   </div>
 </template>
@@ -223,9 +253,14 @@ Last update: 2018-08-22
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue'
+  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'CalibrationPage',
+
+    components: {
+      help
+    },
 
     data() {
       return {
@@ -237,10 +272,13 @@ Last update: 2018-08-22
         areShowingPlotControls: false,
         activeParset: -1,
         parsetOptions: [],
-        newParsetName: [],
+        origParsetName: [],
         startYear: 0,
-        endYear: 0,
+        endYear: 2018, // TEMP FOR DEMO
+        activePop: "All",
         plotOptions: [],
+        yearOptions: [],
+        popOptions: [],
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
@@ -252,7 +290,9 @@ Last update: 2018-08-22
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
-      placeholders() { return utils.placeholders() },
+      simYears()     { return utils.simYears(this) },
+      activePops()   { return utils.activePops(this) },
+      placeholders() { return utils.placeholders(1) },
 
       sortedPars() {
         var sortedParList = this.applySorting(this.parList);
@@ -268,10 +308,14 @@ Last update: 2018-08-22
       } else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
-        this.endYear = this.simEnd
+//        this.endYear = this.simEnd
+        this.popOptions = this.activePops
         this.viewTable()
         this.getPlotOptions()
-        this.updateParset()
+        utils.sleep(1)  // used so that spinners will come up by callback func
+          .then(response => {
+            this.updateParset()
+          })
         utils.sleep(1000)
           .then(response => {
               this.manualCalibration(this.projectID)
@@ -285,8 +329,12 @@ Last update: 2018-08-22
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
+
+      notImplemented() {
+        status.fail(this, 'Sorry, this feature is not implemented')
+      },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -296,14 +344,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-      
+
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
           this.startYear = this.simEnd
         }
         else if (this.startYear < this.simStart) {
           this.startYear = this.simStart
-        }       
+        }
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -311,10 +359,10 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-      
+
       updateParset() {
         console.log('updateParset() called')
-        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.        
+//        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
@@ -324,10 +372,9 @@ Last update: 2018-08-22
             } else {
               console.log('Parameter set ' + this.activeParset + ' still found')
             }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-            status.succeed(this, '')  // No green notification.
+//            status.succeed(this, '')  // No green notification.
           })
           .catch(error => {
             status.fail(this, 'Could not update parset')
@@ -380,10 +427,11 @@ Last update: 2018-08-22
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id, this.activeParset, this.parList, this.plotOptions, 
-          this.startYear, this.endYear]) // Go to the server to get the results from the package set.
+        rpcs.rpc('manual_calibration', [project_id], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+          'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
+        ) // Go to the server to get the results from the package set.
           .then(response => {
-            status.succeed(this, 'Simulation run') // Indicate success.
+//            status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
@@ -398,11 +446,13 @@ Last update: 2018-08-22
         status.start(this) // Start indicating progress.
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
-          let maxtime = 30
+          var maxtime = 30
         } else {
-          let maxtime = 9999
+          var maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration', [project_id, this.activeParset, maxtime]) // Go to the server to get the results from the package set.
+        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
+        ) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs)
           })
@@ -414,6 +464,7 @@ Last update: 2018-08-22
 
       renameParsetModal() {
         console.log('renameParsetModal() called');
+        this.origParsetName = this.activeParset // Store this before it gets overwritten
         this.$modal.show('rename-parset');
       },
 
@@ -422,7 +473,7 @@ Last update: 2018-08-22
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
         status.start(this) // Start indicating progress.
-        rpcs.rpc('rename_parset', [uid, this.activeParset, this.newParsetName]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
@@ -439,6 +490,7 @@ Last update: 2018-08-22
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
           .catch(error => {
@@ -459,8 +511,37 @@ Last update: 2018-08-22
             status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
           })
       },
+
+      downloadParset() {
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
+        console.log('downloadParset() called for ' + this.activeParset)
+        status.start(this) // Start indicating progress.
+        rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => { // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not download parameter set: ' + error.message)
+          })
+      },
+
+      uploadParset() {
+        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
+        console.log('uploadParset() called')
+        status.start(this) // Start indicating progress.
+        rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
+          .then(response => {
+            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.activeParset = response.data
+            status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
+          })
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not upload parameter set: ' + error.message)
+          })
+      },
     }
   }
+
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

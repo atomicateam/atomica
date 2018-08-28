@@ -9,7 +9,7 @@ const SidebarStore = {
       path: '/projects'
     },
     {
-      name: 'Calibration',
+      name: 'Baseline',
       icon: 'ti-ruler-alt-2',
       path: '/calibration'
     },

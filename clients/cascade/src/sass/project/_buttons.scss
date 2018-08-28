@@ -227,14 +227,14 @@ $disabled-color: #FFF;
 
   &:hover,
   &:focus {
-    color: #ff0;
+    color: $default-color;
   }
 
   &:active,
   &.active,
   .open > &.dropdown-toggle {
     background-color: $white-color;
-    color: #f0f;
+    color: $default-color;
   }
 
   &.btn-fill {
@@ -242,7 +242,7 @@ $disabled-color: #FFF;
   }
   &.btn-fill:hover,
   &.btn-fill:focus {
-    color: #0ff;
+    color: $default-states-color;
   }
 
   &.btn-simple:active,
@@ -257,10 +257,6 @@ $disabled-color: #FFF;
   &.disabled {
     @include opacity(.5);
   }
-}
-
-.btn-icon {
-  padding: 0 0 0 0;
 }
 
 .btn-simple {

@@ -1,24 +1,22 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-23
+Last update: 2018-08-27
 -->
 
 <template>
   <div>
-    <!--<div class="PageSection">-->
-      <div class="card">
-        <help reflink="create-projects" label="Create projects"></help>
+    <div class="card">
+      <help reflink="create-projects" label="Create projects"></help>
 
-        <div class="ControlsRow">
-          <button class="btn __blue" @click="addDemoProjectModal">Create demo project</button>
-          &nbsp; &nbsp;
-          <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
-          &nbsp; &nbsp;
-          <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
-          &nbsp; &nbsp;
-        </div>
-      <!--</div>-->
+      <div class="ControlsRow">
+        <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
+        &nbsp; &nbsp;
+        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
+        &nbsp; &nbsp;
+        <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
+        &nbsp; &nbsp;
+      </div>
     </div>
 
     <div class="PageSection" v-if="projectSummaries.length > 0">
@@ -272,7 +270,6 @@ Last update: 2018-08-23
         </div>
       </div>
     </modal>
-
   </div>
 
 </template>
@@ -335,20 +332,6 @@ Last update: 2018-08-23
     },
 
     methods: {
-
-      /*    openThang(thangLink) {
-       let scrh = screen.height
-       let scrw = screen.width
-       let h = scrh * 0.8  // Height of window
-       let w = scrw * 0.6  // Width of window
-       let t = scrh * 0.1  // Position from top of screen -- centered
-       let l = scrw * 0.37 // Position from left of screen -- almost all the way right
-       let newWindow = window.open(thangLink,
-       'Reference manual', 'width=' + w + ', height=' + h + ', top=' + t + ',left=' + l)
-       if (window.focus) {
-       newWindow.focus()
-       }
-       }, */
 
       beforeOpen (event) {
         console.log(event)
@@ -636,7 +619,7 @@ Last update: 2018-08-23
             })
             .catch(error => {
               // Indicate failure.
-              status.fail(this, 'Could not rename project')
+              status.fail(this, 'Could not rename project: ' + error.message)
             })
         }
 
@@ -650,23 +633,15 @@ Last update: 2018-08-23
       },
 
       downloadProjectFile(uid) {
-        // Find the project that matches the UID passed in.
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-
+        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('downloadProjectFile() called for ' + matchProject.project.name)
-
-        // Start indicating progress.
-        status.start(this)
-
-        // Make the server call to download the project to a .prj file.
-        rpcs.download('download_project', [uid])
-          .then(response => {
-            // Indicate success.
+        status.start(this) // Start indicating progress.
+        rpcs.download('download_project', [uid]) // Make the server call to download the project to a .prj file.
+          .then(response => { // Indicate success.
             status.succeed(this, '')  // No green popup message.
           })
-          .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not download project')
+          .catch(error => { // Indicate failure.
+            status.fail(this, 'Could not download project: ' + error.message)
           })
       },
 
@@ -734,9 +709,9 @@ Last update: 2018-08-23
       uploadDatabook(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('uploadDatabook() called for ' + matchProject.project.name)
+        status.start(this, 'Uploading databook...')
         rpcs.upload('upload_databook', [uid], {})
           .then(response => {
-            status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
           })
@@ -749,9 +724,9 @@ Last update: 2018-08-23
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('uploadProgbook() called for ' + matchProject.project.name)
+        status.start(this) // Start indicating progress. (This is here because we don't want the
         rpcs.upload('upload_progbook', [uid], {})
           .then(response => {
-            status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })

@@ -5,7 +5,7 @@ Last update: 2018-08-22
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -20,63 +20,97 @@ Last update: 2018-08-22
     </div>
 
     <div v-else>
-      <table class="table table-bordered table-hover table-striped" style="width: 100%">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>Active?</th>
-          <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="scenSummary in scenSummaries">
-          <td>
-            <b>{{ scenSummary.name }}</b>
-          </td>
-          <td>
-            <input type="checkbox" v-model="scenSummary.active"/>
-          </td>
-          <td style="white-space: nowrap">
-            <button class="btn" @click="editScen(scenSummary)">Edit</button>
-            <button class="btn" @click="copyScen(scenSummary)">Copy</button>
-            <button class="btn" @click="deleteScen(scenSummary)">Delete</button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+      <div class="card">
+        <help reflink="scenarios" label="Define scenarios"></help>
+        <table class="table table-bordered table-hover table-striped" style="width: 100%">
+          <thead>
+          <tr>
+            <th>Name</th>
+            <th>Active?</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="scenSummary in scenSummaries">
+            <td>
+              <b>{{ scenSummary.name }}</b>
+            </td>
+            <td style="text-align: center">
+              <input type="checkbox" v-model="scenSummary.active"/>
+            </td>
+            <td style="white-space: nowrap">
+              <button class="btn btn-icon" @click="editScen(scenSummary)"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyScen(scenSummary)"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteScen(scenSummary)"><i class="ti-trash"></i></button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
 
-      <div>
         <div>
           <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
-          <!--<button class="btn __blue" @click="addBudgetScenModal()">Add parameter scenario</button>-->
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
-        <div style="text-align: center">
-          <div class="controls-box">
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+      </div>
+
+      <!-- ### Start: results card ### -->
+      <div class="card full-width-card">
+        <!-- ### Start: plot controls ### -->
+        <div class="calib-title">
+          <help reflink="results-plots" label="Results"></help>
+          <div>
+            <!--<b>Start year: &nbsp;</b>-->
+            <!--<input type="text"-->
+            <!--class="txbox"-->
+            <!--v-model="startYear"-->
+            <!--style="display: inline-block; width:70px"/>-->
+            <!--&nbsp;&nbsp;&nbsp;-->
+            <b>Year: &nbsp;</b>
+            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+              <option v-for='year in simYears'>
+                {{ year }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
+            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs()">Export plots</button>
             <button class="btn" @click="exportResults(projectID)">Export data</button>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <button class="btn" @click="clearGraphs()">Clear graphs</button>
-            <button class="btn" :disabled="!scenariosLoaded" @click="plotScenarios()">Refresh graphs</button>
-            <button class="btn" @click="toggleShowingPlotControls()"><span v-if="areShowingPlotControls">Hide</span><span v-else>Show</span> plot controls</button>
-          </div>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          <div class="controls-box">
-            <button class="btn" @click="scaleFigs(0.9)">-</button>
-            <button class="btn" @click="scaleFigs(1.0)">Scale</button>
-            <button class="btn" @click="scaleFigs(1.1)">+</button>
+            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+
           </div>
         </div>
+        <!-- ### End: plot controls ### -->
 
-        <div class="calib-main" :class="{'calib-main--full': !areShowingPlotControls}">
+        <!-- ### Start: results and plot selectors ### -->
+        <div class="calib-card-body">
+
+          <!-- ### Start: plots ### -->
           <div class="calib-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
             </div>
           </div>
+          <!-- ### End: plots ### -->
 
+          <!-- CASCADE-TB DIFFERENCE -->
+          <!-- ### Start: plot selectors ### -->
           <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
             <div class="plotopts-params">
               <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -99,82 +133,86 @@ Last update: 2018-08-22
               </table>
             </div>
           </div>
+          <!-- ### End: plot selectors ### -->
         </div>
+        <!-- ### End: results and plot selectors ### -->
       </div>
+      <!-- ### End: results card ### -->
+
+
+      <modal name="add-budget-scen"
+             height="auto"
+             :scrollable="true"
+             :width="900"
+             :classes="['v--modal', 'vue-dialog']"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
+          </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
+          </div>
+          <div class="dialog-c-text">
+            Scenario name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.name"/><br>
+            Parameter set:<br>
+            <select v-model="parsetOptions[0]">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select><br><br>
+            Program set:<br>
+            <select v-model="progsetOptions[0]">
+              <option v-for='progset in progsetOptions'>
+                {{ progset }}
+              </option>
+            </select><br><br>
+            Budget year:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.start_year"/><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Budget</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in addEditModal.scenSummary.alloc">
+                <td>
+                  {{ item[2] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="item[1]"
+                         style="text-align: right"
+                  />
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
+              Save scenario
+            </button>
+            <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </modal>
+
     </div>
-
-    <modal name="add-budget-scen"
-           height="auto"
-           :scrollable="true"
-           :width="900"
-           :classes="['v--modal', 'vue-dialog']"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
-
-      <div class="dialog-content">
-        <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
-          Add scenario
-        </div>
-        <div class="dialog-c-title" v-else>
-          Edit scenario
-        </div>
-        <div class="dialog-c-text">
-          Scenario name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="addEditModal.scenSummary.name"/><br>
-          Parameter set:<br>
-          <select v-model="parsetOptions[0]">
-            <option v-for='parset in parsetOptions'>
-              {{ parset }}
-            </option>
-          </select><br><br>
-          Program set:<br>
-          <select v-model="progsetOptions[0]">
-            <option v-for='progset in progsetOptions'>
-              {{ progset }}
-            </option>
-          </select><br><br>
-          Budget year:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="addEditModal.scenSummary.start_year"/><br>
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
-            <thead>
-            <tr>
-              <th>Program</th>
-              <th>Budget</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="item in addEditModal.scenSummary.alloc">
-              <td>
-                {{ item[2] }}
-              </td>
-              <td>
-                <input type="text"
-                       class="txbox"
-                       v-model="item[1]"
-                       style="text-align: right"
-                />
-              </td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-        <div style="text-align:justify">
-          <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
-            Save scenario
-          </button>
-          <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </modal>
-
   </div>
 </template>
 
@@ -188,9 +226,14 @@ Last update: 2018-08-22
   import status from '@/services/status-service'
   import router from '@/router'
   import Vue from 'vue';
+  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'scenarioPage',
+
+    components: {
+      help
+    },
 
     data() {
       return {
@@ -205,10 +248,13 @@ Last update: 2018-08-22
         newParsetName:  [],
         newProgsetName: [],
         startYear: 0,
-        endYear: 0,        
+        endYear: 0,
         areShowingPlotControls: false,
         plotOptions: [],
         scenariosLoaded: false,
+        table: null,
+        activePop: "All",
+        endYear: 0,
         addEditModal: {
           scenSummary: {},
           origName: '',
@@ -223,6 +269,8 @@ Last update: 2018-08-22
       hasData()      { return utils.hasData(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
+      simYears()     { return utils.simYears(this) },
+      activePops()   { return utils.activePops(this) },
       placeholders() { return utils.placeholders() },
     },
 
@@ -233,9 +281,9 @@ Last update: 2018-08-22
       else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
-        this.startYear  = this.active_sim_start
-        this.endYear    = this.active_sim_end
-        this.popOptions = this.active_pops
+        this.startYear = this.simStart
+        this.endYear = this.simEnd
+        this.popOptions = this.activePops
         utils.sleep(1)  // used so that spinners will come up by callback func
           .then(response => {
             this.getScenSummaries()
@@ -249,9 +297,9 @@ Last update: 2018-08-22
     methods: {
 
       getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { return utils.clearGraphs() },
+      clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
 
       scaleFigs(frac) {
@@ -262,14 +310,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-      
+
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
           this.startYear = this.simEnd
         }
         else if (this.startYear < this.simStart) {
           this.startYear = this.simStart
-        }       
+        }
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -277,7 +325,7 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-      
+
       updateSets() {
         console.log('updateSets() called')
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
@@ -404,7 +452,7 @@ Last update: 2018-08-22
             status.succeed(this, 'Scenario added')
           })
           .catch(error => {
-            status.fail(this, 'Could not add scenario')
+            status.fail(this, 'Could not add scenario: ' + error.message)
           })
       },
 
@@ -435,7 +483,7 @@ Last update: 2018-08-22
             status.succeed(this, 'Scenario copied')
           })
           .catch(error => {
-            status.fail(this, 'Could not copy scenario')
+            status.fail(this, 'Could not copy scenario: ' + error.message)
           })
       },
 
@@ -452,7 +500,7 @@ Last update: 2018-08-22
             status.succeed(this, 'Scenario deleted')
           })
           .catch(error => {
-            status.fail(this, 'Could not delete scenario')
+            status.fail(this, 'Could not delete scenario: ' + error.message)
           })
       },
 
@@ -464,14 +512,16 @@ Last update: 2018-08-22
         console.log('runScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        this.$Progress.start(7000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions], {saveresults: false})
+            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions],
+              {saveresults: false, tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
               .then(response => {
                 this.makeGraphs(response.data.graphs)
+//                this.table = response.data.table // CASCADE-TB DIFFERENCE
+                status.succeed(this, 'Graphs created')
               })
               .catch(error => {
                 console.log('There was an error: ' + error.message) // Pull out the error message.
@@ -490,10 +540,11 @@ Last update: 2018-08-22
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions], 
-          {tool:'tb', plotyear:this.endYear})
+        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions],
+          {tool:'tb', plotyear:this.endYear}) // CASCADE-TB DIFFERENCE
           .then(response => {
             this.makeGraphs(response.data.graphs)
+//            this.table = response.data.table // CASCADE-TB DIFFERENCE
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
@@ -501,7 +552,7 @@ Last update: 2018-08-22
             this.servererror = error.message // Set the server error.
             status.fail(this, 'Could not make graphs') // Indicate failure.
           })
-      },      
+      },
     }
   }
 </script>

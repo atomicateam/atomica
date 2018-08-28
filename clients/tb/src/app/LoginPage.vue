@@ -1,11 +1,11 @@
 <!--
 Login page
 
-Last update: 2018-05-26
+Last update: 2018-08-18
 -->
 
 <template>
-  <div class="SitePage" style="background-color:#f8f8f4; position:fixed; min-height:100%; min-width:100%; padding:0 0 0 0" v-model="getVersionInfo"> <!-- Should match _variables.scss:$bg-nude -->
+  <div style="background-color:#f8f8f4; position:fixed; min-height:100%; min-width:100%; padding:0 0 0 0" v-model="getVersionInfo"> <!-- Should match _variables.scss:$bg-nude -->
     <div style="background-color:#0c2544; position:absolute; height:100%; width:260px">
       <div class="logo">
         <div class="simple-text" style="font-size:20px; color:#fff; font-weight:bold; padding:20px">
@@ -117,7 +117,8 @@ Last update: 2018-05-26
           }
         })
         .catch(error => {
-          this.loginResult = 'Server error.  Please try again later.'
+          console.log('Login failed: ' + error.message)
+          this.loginResult = "We're sorry, it seems we're having trouble communicating with the server.  Please contact support or try again later."
         })
       }
     }

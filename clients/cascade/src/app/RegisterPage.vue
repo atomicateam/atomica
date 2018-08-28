@@ -1,7 +1,7 @@
 <!--
 User registration page
 
-Last update: 2018-08-18
+Last update: 2018-08-26
 -->
 
 
@@ -11,7 +11,9 @@ Last update: 2018-08-18
       <div class="logo">
         <div class="simple-text" style="font-size:20px; color:#fff; font-weight:bold; padding:20px">
           <span style="padding-left:10px">
-            <img src="static/img/cascade-logo-white.png" width="160px" vertical-align="middle" alt>
+            <a href="http://cascade.tools" target="_blank">
+              <img src="static/img/cascade-logo-white.png" width="160px" vertical-align="middle" alt>
+            </a>
           </span>
           <br/><br/>
           <div style="font-size:14px; font-weight:normal">
