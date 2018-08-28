@@ -1154,8 +1154,8 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
     
 
-def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True):
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade)
+def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
@@ -1202,6 +1202,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
     if results is None: results = proj.results[-1]
+    if year is None: year = proj.settings.sim_end # Needed for plot_budget
     
     figs = []
     graphs = []
@@ -1225,11 +1226,12 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 #        budgetfigs[1].set_figwidth(8.7)
         
         figs += budgetfigs
+        print('Budget plot succeeded')
     
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
+#        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
         graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
@@ -1454,6 +1456,8 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
 
 def py_to_js_optim(py_optim, project=None):
     js_optim = sw.sanitize_json(py_optim.json)
+    if 'objective_labels' not in js_optim:
+        js_optim['objective_labels'] = {key:key for key in js_optim['objective_weights'].keys()} # Copy keys if labels not available
     for prog_name in js_optim['prog_spending']:
         prog_label = project.progset().programs[prog_name].label
         this_prog = js_optim['prog_spending'][prog_name]
@@ -1463,6 +1467,8 @@ def py_to_js_optim(py_optim, project=None):
 
 
 def js_to_py_optim(js_optim):
+    print('HIIIIIIIII')
+    print js_optim
     json = js_optim
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
         json[key] = to_number(json[key]) # Convert to a number
@@ -1488,10 +1494,10 @@ def get_optim_info(project_id):
 
 
 @RPC()    
-def get_default_optim(project_id):
+def get_default_optim(project_id, tool=None):
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
-    py_optim = proj.demo_optimization()
+    py_optim = proj.demo_optimization(tool=tool)
     js_optim = py_to_js_optim(py_optim, project=proj)
     print('Created default optimization:')
     print(js_optim)

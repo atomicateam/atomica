@@ -37,10 +37,10 @@ Last update: 2018-08-22
             <td style="white-space: nowrap">
               <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
-              <button class="btn __red" @click="cancelRun(optimSummary)">Clear task</button>
-              <button class="btn btn-icon" @click="editOptim(scenSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyOptim(scenSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteOptim(scenSummary)"><i class="ti-trash"></i></button>
+              <!--<button class="btn" @click="cancelRun(optimSummary)">Clear task</button>-->
+              <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
@@ -52,80 +52,64 @@ Last update: 2018-08-22
       </div>
 
       <!-- ### Start: results card ### -->
-      <div class="card full-width-card">
-        <!-- ### Start: plot controls ### -->
-        <div class="calib-title">
-          <help reflink="results-plots" label="Results"></help>
-          <div>
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="plotOptimization()">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="plotOptimization()">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-<!-- CASCADE-TB DIFFERENCE
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
-            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
--->
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
-<!-- CASCADE-TB DIFFERENCE
-            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
--->
+    <div class="card full-width-card">
+      <div class="calib-title">
+        <help reflink="results-plots" label="Results"></help>
+        <div>
 
-          </div>
+          <b>Year: &nbsp;</b>
+          <select v-model="endYear" v-on:change="plotScenarios()">
+            <option v-for='year in simYears'>
+              {{ year }}
+            </option>
+          </select>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop" v-on:change="plotScenarios()">
+            <option v-for='pop in activePops'>
+              {{ pop }}
+            </option>
+          </select>
+          &nbsp;&nbsp;&nbsp;
+          <button class="btn" @click="exportGraphs()">Export graphs</button>
+          <button class="btn" @click="exportResults(projectID)">Export data</button>
+
         </div>
-        <!-- ### End: plot controls ### -->
-
-        <!-- ### Start: results and plot selectors ### -->
-        <div class="calib-card-body">
-
-          <!-- ### Start: plots ### -->
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-          </div>
-          <!-- ### End: plots ### -->
-
-          <!-- CASCADE-TB DIFFERENCE -->
-          <div class="calib-tables" v-if="table">
-            <h3>Cascade stage losses</h3>
-            <table class="table table-striped">
-              <thead>
-              <tr>
-                <th></th>
-                <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(label, index) in table.rowlabels">
-                <td>{{label}}</td>
-                <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <!-- ### End: results and plot selectors ### -->
       </div>
+
+      <div class="calib-main" :class="{'calib-main--full': true}">
+        <div class="calib-graphs">
+          <div class="featured-graphs">
+            <div :id="'fig0'">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
+          <div class="other-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="calib-tables" v-if="table">
+        <h4>Cascade stage losses</h4>
+        <table class="table table-striped">
+          <thead>
+          <tr>
+            <th></th>
+            <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(label, index) in table.rowlabels">
+            <td>{{label}}</td>
+            <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
       <!-- ### End: results card ### -->
 
       <modal name="add-optim"
@@ -156,10 +140,6 @@ Last update: 2018-08-22
                 {{ parset }}
               </option>
             </select><br><br>
-            Maximum time to run optimization (s):<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.maxtime"/><br>
             Start year:<br>
             <input type="text"
                    class="txbox"
@@ -173,9 +153,13 @@ Last update: 2018-08-22
             <!--class="txbox"-->
             <!--v-model="modalOptim.budget_factor"/><br>-->
             <br>
-            <b>Objective</b><br>
-            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="1">&nbsp;Maximize the number of people in the final stage of the cascade<br>
-            <input type="radio" v-model="modalOptim.objective_weights.finalstage" value="0">&nbsp;Maximize the conversion rates along each stage of the cascade<br>
+            <b>Objective weights</b><br>
+            <span v-for="(val,key) in modalOptim.objective_labels">
+              {{ modalOptim.objective_labels[key] }}
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.objective_weights[key]"/><br>
+            </span>
             <br>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -243,20 +227,8 @@ Last update: 2018-08-22
       return {
         response: 'no response',
         optimSummaries: [],
-        defaultOptim: {
-          // set stuff here to avoid render errors before things are loaded
-          objective_weights: {
-            conversion: 0,
-            finalstage: 1
-          }
-        },
-        modalOptim: {
-          // set stuff here to avoid render errors before things are loaded
-          objective_weights: {
-            conversion: 0,
-            finalstage: 1
-          }
-        },
+        defaultOptim: {},
+        modalOptim: {},
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -274,17 +246,6 @@ Last update: 2018-08-22
         endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
-        addEditModal: {
-          optimSummary: {
-            // set stuff here to avoid render errors before things are loaded
-            objective_weights: {
-              conversion: 0,
-              finalstage: 1
-            }
-          },
-          origName: '',
-          mode: 'add'
-        },
         figscale: 1.0,
       }
     },
@@ -391,7 +352,7 @@ Last update: 2018-08-22
 
       getDefaultOptim() {
         console.log('getDefaultOptim() called')
-        rpcs.rpc('get_default_optim', [this.projectID])
+        rpcs.rpc('get_default_optim', [this.projectID, 'cascade'])  // CASCADE-TB DIFFERENCE
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             console.log('This is the default:')
@@ -444,21 +405,20 @@ Last update: 2018-08-22
         console.log('saveOptim() called')
         this.$modal.hide('add-optim')
         status.start(this)
-        this.modalOptim.objective_weights.conversion = (1.0-Number(this.modalOptim.objective_weights.finalstage)) // Set the objectives
         this.endYear = this.modalOptim.end_year
-        let newOptim = utils.dcp(this.addEditModal.optimSummary) // Get the new optimization summary from the modal.
+        let newOptim = utils.dcp(this.modalOptim) // Get the new optimization summary from the modal.
         let optimNames = [] // Get the list of all of the current optimization names.
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-        if (this.addEditModal.mode == 'edit') { // If we are editing an existing optimization...
-          let index = optimNames.indexOf(this.addEditModal.origName) // Get the index of the original (pre-edited) name
+        if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
+          let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
           if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
           }
           else {
-            console.log('Error: a mismatch in editing keys')
+            status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')
           }
         }
         else { // Else (we are adding a new optimization)...
@@ -472,7 +432,7 @@ Last update: 2018-08-22
             this.resetModal()
           })
           .catch(error => {
-            status.fail(this, 'Could not add optimization')
+            status.fail(this, 'Could not add optimization: ' + error.message)
           })
       },
 
@@ -538,13 +498,12 @@ Last update: 2018-08-22
       },
 
       runOptim(optimSummary, maxtime) {
-        console.log('runOptim() called for '+this.currentOptim)
+        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => {
-            taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 1, 'run_cascade_optimization', // Go to the server to get the results
+          .then(response => { // Go to the server to get the results
+            taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 1, 'run_cascade_optimization',
               [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  // CASCADE-TB DIFFERENCE
                 'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
               .then(response => {
