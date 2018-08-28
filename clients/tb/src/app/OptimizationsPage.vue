@@ -529,14 +529,12 @@ Last update: 2018-08-22
       },
 
       runOptim(optimSummary, maxtime) {
-        console.log('runOptim() called for '+this.currentOptim)
+        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        this.$Progress.start(9000)  // restart just the progress bar, and make it slower        
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then(response => { // Go to the server to get the results
- //           taskservice.getTaskResultPolling('run_optimization', 9999, 1, 'run_optimization', [this.projectID, optimSummary.name, this.plotOptions, maxtime])
-            taskservice.getTaskResultPolling('run_optimization', 9999, 1, 'run_optimization', 
+            taskservice.getTaskResultPolling('run_tb_optimization', 9999, 1, 'run_tb_optimization',
               [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  // CASCADE-TB DIFFERENCE
                 'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
               .then(response => {

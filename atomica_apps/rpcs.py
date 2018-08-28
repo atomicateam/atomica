@@ -1155,7 +1155,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     
 
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=False)
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
