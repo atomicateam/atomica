@@ -70,6 +70,7 @@ Last update: 2018-08-22
                 {{ pop }}
               </option>
             </select>
+<!-- CASCADE-TB DIFFERENCE -->
             &nbsp;&nbsp;&nbsp;
             <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
             <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
@@ -247,19 +248,7 @@ Last update: 2018-08-22
         response: 'no response',
         optimSummaries: [],
         defaultOptim: {},
-          // set stuff here to avoid render errors before things are loaded
-//          objective_weights: {
-//            conversion: 0,
-//            finalstage: 1
-//          }
-//        },
         modalOptim: {},
-          // set stuff here to avoid render errors before things are loaded
-//          objective_weights: {
-//            conversion: 0,
-//            finalstage: 1
-//          }
-//        },
         objectiveOptions: [],
         activeParset:  -1,
         activeProgset: -1,
@@ -553,7 +542,7 @@ Last update: 2018-08-22
           })
       },
       
-      // TODO: remove this after debugging      
+      // TODO: remove this after debugging
       cancelRun(optimSummary) {
         console.log('cancelRun() called for '+this.currentOptim)
         rpcs.rpc('delete_task', ['run_optimization'])
