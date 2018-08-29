@@ -1,16 +1,18 @@
 import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
-import sciris.core as sc
+import sciris as sc
 from atomica.ui import InvalidCascade
 import os
+from atomica_apps import rpcs
 
 test = 'tb'
 # test = 'udt'
 
 torun = [
-"basicplots",
-"scenplots",
-"validate_cascade"
+# "basicplots",
+# "scenplots",
+# "validate_cascade",
+"json",
 # "basicplots",
 #"scenplots",
 #"cascadefromscratch",
@@ -102,6 +104,9 @@ if "basicplots" in torun:
         au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data)
         au.plot_cascade(result, cascade=0, pops='all', year=endyear, data=P.data)
 
+if "json" in torun:
+    x = rpcs.get_json_cascade(result,P.data)
+    print(x)
 
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
