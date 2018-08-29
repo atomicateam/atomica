@@ -17,8 +17,8 @@ scvalues[scen_par] = dict()
 scvalues[scen_par][scen_pop] = dict()
 scvalues[scen_par][scen_pop]["y"] = [0.2,0.2]
 scvalues[scen_par][scen_pop]["t"] = [2014., 2050.]
-P.make_scenario(which='parameter',name="Increased mortality", instructions=scvalues)
-scen_results = P.run_scenario(scenario="Increased mortality", parset="default")
+scen = P.make_scenario(which='parameter',name="Increased mortality", instructions=scvalues)
+scen_results = scen.run(P,P.parsets["default"])
 par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
 

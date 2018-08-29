@@ -400,23 +400,6 @@ class Project(object):
             self.parsets.append(new_parset)
 
         return new_parset
-
-    def run_scenario(self, scenario, parset, progset=None, progset_instructions=None,
-                     store_results=True):
-        """ Run a scenario. """
-        parset = parset if isinstance(parset,ParameterSet) else self.parsets[parset]
-        if progset:
-            progset = progset if isinstance(progset, ProgramSet) else self.progsets[progset]
-
-        scenario = scenario if isinstance(scenario,Scenario) else self.scens[scenario]
-        scenario_parset = scenario.get_parset(parset, self.settings)
-        scenario_progset, progset_instructions = scenario.get_progset(progset, self.settings, progset_instructions)
-
-        result = self.run_sim(parset=scenario_parset, progset=scenario_progset, progset_instructions=progset_instructions,
-                            store_results=store_results, result_type="scenario", result_name=scenario.name)
-
-        scenario.result_uid = result.uid
-        return result
     
     def run_scenarios(self):
         results = []
