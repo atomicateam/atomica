@@ -12,7 +12,7 @@ from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDepend
 import xlsxwriter as xw
 import io
 import numpy as np
-from .system import AtomicaException, NotFoundError
+from .system import AtomicaException, NotFoundError, reraise_modify
 from .structure import FrameworkSettings as FS
 from collections import defaultdict
 from six import string_types
@@ -226,7 +226,11 @@ class ProjectData(object):
             else:
                 self.tdve_pages[sheet.title] = []
                 for table in read_tables(sheet):
-                    tdve = TimeDependentValuesEntry.from_rows(table)
+
+                    try:
+                        tdve = TimeDependentValuesEntry.from_rows(table)
+                    except Exception as e:
+                        reraise_modify(e,'Error while reading sheet "%s" -> ' % (sheet.title))
 
                     # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
                     code_name = framework.get_variable(tdve.name)[0].name

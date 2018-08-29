@@ -13,7 +13,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from six import string_types
+from six import string_types, reraise
 from .system import logger
 
 def standard_formats(workbook):
