@@ -871,9 +871,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     # Set axes now, because we need block_offset and base_offset after the loop
     ax.autoscale()
     _turn_off_border(ax)
-    set_ytick_format(ax, "km")
     block_labels = sorted(block_labels, key=lambda x: x[0])
-
     if orientation == 'horizontal':
         ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
         fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
@@ -881,12 +879,14 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
+        set_tick_format(ax.xaxis, "km")
     else:
         ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
         fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
         ax.set_ylim(ymin=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
+        set_tick_format(ax.yaxis, "km")
 
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
@@ -918,8 +918,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     elif outer == 'results' and (show_all_labels or len(plotdata.results) > 1):
         offset = 0.0
         for r in plotdata.results:
-            # NB. result_names mirrors output_names and pop_names - enables control of the labels that appear on the plot
-            # on a per-plot basis separately from modifying the actual original objects.
+            # NB. result_names mirrors usage of output_names and pop_names - see example for relabelling results in plotting documentation
             if orientation == 'horizontal':
                 ax.text(1,offset + (result_offset - gaps[1] - gaps[2]) / 2, plotdata.result_names[r],
                         transform=ax.get_yaxis_transform(), verticalalignment='center', horizontalalignment='left')
@@ -1145,7 +1144,10 @@ def render_data(ax, data, series,baseline=None,filled=False):
         ax.scatter(t,y,marker='o', s=40, linewidths=3, facecolors='none',color=series.color)#label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
-def set_ytick_format(ax, formatter):
+def set_tick_format(axis, formatter):
+    # INPUTS
+    # - axis : The axis to format e.g. 'ax.xaxis' or 'ax.yaxis'
+    # - formatter : Specify which format to use (scope to expand selection in here, e.g. draw from sciris)
     def km(x, pos):
         # 
         if x >= 1e6:
@@ -1159,7 +1161,7 @@ def set_ytick_format(ax, formatter):
         return '%g%%' % (x * 100)
 
     fcn = locals()[formatter]
-    ax.yaxis.set_major_formatter(FuncFormatter(fcn))
+    axis.set_major_formatter(FuncFormatter(fcn))
 
 
 def apply_series_formatting(ax, plot_type):
@@ -1175,7 +1177,7 @@ def apply_series_formatting(ax, plot_type):
     else:
         ax.set_ylim(ymax=ax.get_ylim()[1] * 1.05)
 
-    set_ytick_format(ax, "km")
+    set_tick_format(ax.yaxis, "km")
 
 
 def _turn_off_border(ax):
