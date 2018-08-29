@@ -599,9 +599,20 @@ class PlotData(object):
         # - At least one of them must not be none
         # - It is a bad idea to manually set colors for more than one dimension because the order is unclear!
 
-        results = [results] if not isinstance(results, list) else results
-        pops = [pops] if not isinstance(pops, list) else pops
-        outputs = [outputs] if not isinstance(outputs, list) else outputs
+        if isinstance(results,dict):
+            results = results.keys()
+        else:
+            results = sc.promotetolist(results)
+
+        if isinstance(pops,dict):
+            pops = pops.keys()
+        else:
+            pops = sc.promotetolist(pops)
+
+        if isinstance(outputs,dict):
+            outputs = outputs.keys()
+        else:
+            outputs = sc.promotetolist(outputs)
 
         targets = list(itertools.product(results, pops, outputs))
 
@@ -655,7 +666,7 @@ class Series(object):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
-def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False,orientation='vertical'):
+def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
     # pops and outputs but we never want to stack results. At least for now. 

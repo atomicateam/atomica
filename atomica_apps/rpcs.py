@@ -1269,8 +1269,7 @@ def get_json_cascade(results,data):
     #   Note - the data values entered in the databook are sparse (typically there isn't a data point at every time). The arrays all have
     #   the same size as cascade_data['data_t'], but contain `NaN` if the data was missing
 
-    if not isinstance(results,list):
-        results = [results]
+    results = sc.promotetolist(results)
 
     cascade_data = sc.odict()
     cascade_data['pops'] = results[0].pop_labels
@@ -1304,10 +1303,10 @@ def get_json_cascade(results,data):
         for pop_name, pop_label in zip(results[0].pop_names, results[0].pop_labels):
             cascade_data['data'][name][pop_label],t = au.get_cascade_data(data,results[0].framework, cascade=cascade,pops=pop_name)
     cascade_data['data_t'] = t
-
-    # TODO - convert to JSON here
-
-    return cascade_data
+    
+    output = sw.sanitize_json(cascade_data)
+    
+    return output
 
 
 @timeit
