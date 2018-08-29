@@ -1216,11 +1216,12 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     if plot_budget:
         d = au.PlotData.programs(results)
         d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False)
+        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False,orientation='horizontal')
         
         ax = budgetfigs[0].axes[0]
-        ax.set_ylabel('Spending ($/year)')
-    
+        ax.set_xlabel('Spending ($/year)')
+
+        au.save_figs(budgetfigs,fnames='horizontal')
         # The legend is too big for the figure -- WARNING, think of a better solution
 #        budgetfigs[1].set_figheight(8.9)
 #        budgetfigs[1].set_figwidth(8.7)
