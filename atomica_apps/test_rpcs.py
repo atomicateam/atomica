@@ -22,6 +22,7 @@ def demoproj(which=None):
     P = au.demo(which=which)
     return P
 
+
 if 'get_cascade_plot' in torun:
     if proj is None: proj = demoproj('hypertension')
     results = proj.run_optimization(maxtime=3)
@@ -37,12 +38,14 @@ if 'get_cascade_plot' in torun:
     print(output)
     sw.browser(jsons=output['graphs'])
 
+
 if 'get_cascade_json' in torun:
     if proj is None: proj = demoproj('hypertension')
     results = proj.run_optimization(maxtime=3)
-    x = rpcs.get_json_cascade(results, proj.data)
+    output = rpcs.get_json_cascade(results, proj.data)
     print('Output:')
-    print(x)
+    print(output)
+
 
 if 'get_plots' in torun:
     if proj is None: proj = demoproj('tb')
