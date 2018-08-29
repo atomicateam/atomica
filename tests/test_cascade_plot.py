@@ -1,6 +1,6 @@
 import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
-import sciris.core as sc
+import sciris as sc
 from atomica.ui import InvalidCascade
 import os
 
@@ -9,8 +9,8 @@ test = 'tb'
 
 torun = [
 "basicplots",
-"scenplots",
-"validate_cascade"
+# "scenplots",
+# "validate_cascade",
 # "basicplots",
 #"scenplots",
 #"cascadefromscratch",
@@ -102,7 +102,6 @@ if "basicplots" in torun:
         au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data)
         au.plot_cascade(result, cascade=0, pops='all', year=endyear, data=P.data)
 
-
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
 
@@ -121,13 +120,13 @@ if "scenplots" in torun:
     if test=='tb':
         scvalues[scen_par][scen_pop]["y"] = [0.5,0.5]
         scvalues[scen_par][scen_pop]["t"] = [1999., 2050.]
-        P.make_scenario(which='parameter',name="Increased deaths", instructions=scvalues)
-        scen_results = P.run_scenario(scenario="Increased deaths", parset="default")
+        scen = P.make_scenario(which='parameter',name="Increased deaths", instructions=scvalues)
+        scen_results = scen.run(P,P.parsets["default"])
     elif test=='udt':
         scvalues[scen_par][scen_pop]["y"] = [1000.,1500.]
         scvalues[scen_par][scen_pop]["t"] = [2016., 2017.]
-        P.make_scenario(which='parameter',name="Increased diagnosis rate", instructions=scvalues)
-        scen_results = P.run_scenario(scenario="Increased diagnosis rate", parset="default")
+        scen = P.make_scenario(which='parameter',name="Increased diagnosis rate", instructions=scvalues)
+        scen_results = scen.run(P,P.parsets["default"])
 
     par_results.name = 'Baseline'
     scen_results.name = 'Scenario'

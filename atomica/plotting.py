@@ -648,7 +648,7 @@ class Series(object):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
-def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False):
+def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
     # pops and outputs but we never want to stack results. At least for now. 
@@ -660,11 +660,13 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     #
     # INPUTS
     # - show_all_labels: If True, then inner/outer labels will be shown even if there is only one
+    # - orientation : 'vertical' (default) or 'horizontal'
     global settings
     if legend_mode is None:
         legend_mode = settings['legend_mode']
 
     assert outer in ['times', 'results'], 'Supported outer groups are "times" or "results"'
+    assert orientation in ['vertical', 'horizontal'], 'Supported orientations are "vertical" or "horizontal"'
 
     plotdata = sc.dcp(plotdata)
 
@@ -831,7 +833,11 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                 for output in bar_output[2]:
                     series = plotdata[plotdata.results[r_idx], pop, output]
                     y = series.vals[t_idx]
-                    rectangles[series.color].append(Rectangle((base_offset + block_offset, y0), width, y))
+                    if orientation == 'horizontal':
+                        rectangles[series.color].append(Rectangle((y0,base_offset + block_offset), y, width))
+                    else:
+                        rectangles[series.color].append(Rectangle((base_offset + block_offset, y0), width, y))
+
                     if series.color in color_legend and (pop, output) not in color_legend[series.color]:
                         color_legend[series.color].append((pop, output))
                     elif series.color not in color_legend:
@@ -864,20 +870,33 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 
     # Set axes now, because we need block_offset and base_offset after the loop
     ax.autoscale()
-    ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
-    fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
-    ax.set_ylim(ymin=0)
     _turn_off_border(ax)
-    set_ytick_format(ax, "km")
     block_labels = sorted(block_labels, key=lambda x: x[0])
-    ax.set_xticks([x[0] for x in block_labels])
-    ax.set_xticklabels([x[1] for x in block_labels])
+    if orientation == 'horizontal':
+        ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
+        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
+        ax.set_xlim(xmin=0)
+        ax.set_yticks([x[0] for x in block_labels])
+        ax.set_yticklabels([x[1] for x in block_labels])
+        ax.invert_yaxis()
+        set_tick_format(ax.xaxis, "km")
+    else:
+        ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
+        fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
+        ax.set_ylim(ymin=0)
+        ax.set_xticks([x[0] for x in block_labels])
+        ax.set_xticklabels([x[1] for x in block_labels])
+        set_tick_format(ax.yaxis, "km")
+
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
     units = list(set([x.units for x in plotdata.series]))
     if len(units) == 1:
-        ax.set_ylabel(units[0])
+        if orientation == 'horizontal':
+            ax.set_xlabel(units[0])
+        else:
+            ax.set_ylabel(units[0])
     else:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
@@ -885,33 +904,58 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     if outer == 'times' and (show_all_labels or len(tvals) > 1):
         offset = 0.0
         for t in t_labels:
-            # WARNING: text is fragile, better to construct a string and render with e.g. title()
-            ax.text(offset + (tval_offset - gaps[1] - gaps[2]) / 2, 1, t, transform=ax.get_xaxis_transform(),
-                    verticalalignment='bottom', horizontalalignment='center')
+            # Can't use title() here, there are usually more than one of these labels and they need to be positioned
+            # at the particular axis value where the block of bars appear. Also, it would be common that the plot still
+            # needs a title in addition to these (these outer labels are essentially tertiary axis ticks, not a title for the plot)
+            if orientation == 'horizontal':
+                ax.text(1,offset + (tval_offset - gaps[1] - gaps[2]) / 2, t, transform=ax.get_yaxis_transform(),
+                        verticalalignment='center', horizontalalignment='left')
+            else:
+                ax.text(offset + (tval_offset - gaps[1] - gaps[2]) / 2, 1, t, transform=ax.get_xaxis_transform(),
+                        verticalalignment='bottom', horizontalalignment='center')
             offset += tval_offset
+
     elif outer == 'results' and (show_all_labels or len(plotdata.results) > 1):
         offset = 0.0
         for r in plotdata.results:
-            # CK: if use an odict then don't need both results and result_names (also results should be called "result_keys" or something)
-            ax.text(offset + (result_offset - gaps[1] - gaps[2]) / 2, 1, plotdata.result_names[r],
+            # NB. result_names mirrors usage of output_names and pop_names - see example for relabelling results in plotting documentation
+            if orientation == 'horizontal':
+                ax.text(1,offset + (result_offset - gaps[1] - gaps[2]) / 2, plotdata.result_names[r],
+                        transform=ax.get_yaxis_transform(), verticalalignment='center', horizontalalignment='left')
+            else:
+                ax.text(offset + (result_offset - gaps[1] - gaps[2]) / 2, 1, plotdata.result_names[r],
                     transform=ax.get_xaxis_transform(), verticalalignment='bottom', horizontalalignment='center')
             offset += result_offset
 
     # If there is only one block per inner group, then use the inner group string as the bar label
     if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and (show_all_labels or len(set([x for _, x in inner_labels])) > 1):
-        ax.set_xticks([x[0] for x in inner_labels])
-        ax.set_xticklabels([x[1] for x in inner_labels])
+        if orientation == 'horizontal':
+            ax.set_yticks([x[0] for x in inner_labels])
+            ax.set_yticklabels([x[1] for x in inner_labels])
+        else:
+            ax.set_xticks([x[0] for x in inner_labels])
+            ax.set_xticklabels([x[1] for x in inner_labels])
     elif show_all_labels or (len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1):  # Inner group labels are only displayed if there is more than one label
-        ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
-        ax2.set_xticks([x[0] for x in inner_labels])
-        ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
-        ax2.xaxis.set_ticks_position('bottom')
-        ax2.set_xlim(ax.get_xlim())
+        # The inner labels span multiple bars, so they need to be constructed in addition to the
+        if orientation == 'horizontal':
+            ax2 = ax.twinx()  # instantiate a second axes that shares the same y-axis
+            ax2.set_yticks([x[0] for x in inner_labels])
+            # TODO - At the moment there is a chance these labels will overlap, need to increase the offset somehow e.g. padding with spaces
+            # Best to leave this until a specific test case arises
+            ax2.set_yticklabels([str(x[1]) for x in inner_labels])
+            ax2.yaxis.set_ticks_position('left')
+            ax2.set_ylim(ax.get_ylim())
+        else:
+            ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
+            ax2.set_xticks([x[0] for x in inner_labels])
+            ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
+            ax2.xaxis.set_ticks_position('bottom')
+            ax2.set_xlim(ax.get_xlim())
+        ax2.tick_params(axis=u'both', which=u'both', length=0)
         ax2.spines['right'].set_visible(False)
         ax2.spines['top'].set_visible(False)
         ax2.spines['left'].set_visible(False)
         ax2.spines['bottom'].set_visible(False)
-        ax2.tick_params(axis=u'both', which=u'both', length=0)
 
     fig.tight_layout() # Do a final resizing
 
@@ -1100,7 +1144,10 @@ def render_data(ax, data, series,baseline=None,filled=False):
         ax.scatter(t,y,marker='o', s=40, linewidths=3, facecolors='none',color=series.color)#label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
-def set_ytick_format(ax, formatter):
+def set_tick_format(axis, formatter):
+    # INPUTS
+    # - axis : The axis to format e.g. 'ax.xaxis' or 'ax.yaxis'
+    # - formatter : Specify which format to use (scope to expand selection in here, e.g. draw from sciris)
     def km(x, pos):
         # 
         if x >= 1e6:
@@ -1114,7 +1161,7 @@ def set_ytick_format(ax, formatter):
         return '%g%%' % (x * 100)
 
     fcn = locals()[formatter]
-    ax.yaxis.set_major_formatter(FuncFormatter(fcn))
+    axis.set_major_formatter(FuncFormatter(fcn))
 
 
 def apply_series_formatting(ax, plot_type):
@@ -1130,7 +1177,7 @@ def apply_series_formatting(ax, plot_type):
     else:
         ax.set_ylim(ymax=ax.get_ylim()[1] * 1.05)
 
-    set_ytick_format(ax, "km")
+    set_tick_format(ax.yaxis, "km")
 
 
 def _turn_off_border(ax):

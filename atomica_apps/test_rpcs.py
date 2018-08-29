@@ -8,10 +8,11 @@ from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
 
 
 torun = [
-#'get_cascade_plot',
+'get_cascade_plot',
+# 'get_cascade_json',
 #'get_plots',
 #'run_cascade_optimization',
-'run_tb_optimization',
+# 'run_tb_optimization',
 ]
 
 proj = None
@@ -20,6 +21,7 @@ def demoproj(which=None):
     if which is None: which = 'tb'
     P = au.demo(which=which)
     return P
+
 
 if 'get_cascade_plot' in torun:
     if proj is None: proj = demoproj('hypertension')
@@ -34,7 +36,15 @@ if 'get_cascade_plot' in torun:
     output = rpcs.get_cascade_plot(proj, **args)
     print('Output:')
     print(output)
-    sw.browser(jsons=output['graphs'])
+    sw.browser(jsons=output[0]['graphs'])
+
+
+if 'get_cascade_json' in torun:
+    if proj is None: proj = demoproj('hypertension')
+    results = proj.run_optimization(maxtime=3)
+    output = rpcs.get_json_cascade(results, proj.data)
+    print('Output:')
+    print(output)
 
 
 if 'get_plots' in torun:

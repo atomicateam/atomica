@@ -508,7 +508,7 @@ Last update: 2018-08-28
         this.$modal.hide('add-optim')
         status.start(this)
         this.endYear = this.modalOptim.end_year
-        let newOptim = utils.dcp(this.modalOptim) // Get the new optimization summary from the modal.
+        let newOptim = _.cloneDeep(this.modalOptim) // Get the new optimization summary from the modal.
         let optimNames = [] // Get the list of all of the current optimization names.
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
@@ -545,14 +545,14 @@ Last update: 2018-08-28
 
       resetModal() {
         console.log('resetModal() called')
-        this.modalOptim = utils.dcp(this.defaultOptim)
+        this.modalOptim = _.cloneDeep(this.defaultOptim)
         console.log(this.modalOptim)
       },
 
       editOptim(optimSummary) {
         // Open a model dialog for creating a new project
         console.log('editOptim() called');
-        this.modalOptim = utils.dcp(optimSummary)
+        this.modalOptim = _.cloneDeep(optimSummary)
         console.log('defaultOptim', this.defaultOptim.obj)
         this.addEditDialogMode = 'edit'
         this.addEditDialogOldName = this.modalOptim.name
@@ -562,7 +562,7 @@ Last update: 2018-08-28
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
         status.start(this)
-        var newOptim = utils.dcp(optimSummary); // You've got to be kidding me, buster
+        var newOptim = _.cloneDeep(optimSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)

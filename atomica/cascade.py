@@ -6,8 +6,7 @@ import sciris as sc
 import matplotlib
 from .utils import NDict
 from .results import Result
-from six import string_types
-from .system import logger, NotAllowedError, AtomicaException
+from .system import logger, AtomicaException
 
 default_figsize = (9,5)
 
@@ -54,8 +53,8 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     else:
         code_names = []
 
-        if isinstance(pops,string_types):
-            pops = [pops]
+        if sc.isstring(pops):
+            pops = [pops] # Use promotetolist()?
 
         for pop in pops:
             if pop not in result.pop_names:
@@ -92,7 +91,7 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
 
     # Now, construct and plot the series
     assert isinstance(result,Result), 'Input must be a single Result object'
-    if isinstance(cascade,string_types):
+    if sc.isstring(cascade):
         outputs = get_cascade_outputs(result.framework,cascade)
     else:
         outputs = cascade
@@ -203,7 +202,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')
     if title:
-        if isinstance(cascade,string_types):
+        if sc.isstring(cascade):
             plt.title('%s cascade for %s in %d' % (cascade, pop_label, year))
         else:
             plt.title('Cascade for %s in %d' % (pop_label, year))
@@ -353,7 +352,7 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
     # Sanitize the cascade inputs
     cascade = sanitize_cascade(result.framework, cascade)
 
-    if isinstance(cascade,string_types):
+    if sc.isstring(cascade):
         outputs = get_cascade_outputs(result.framework,cascade)
     else:
         outputs = cascade
@@ -391,7 +390,9 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
 
     if pops is None: pops = 'all'
 
-    if isinstance(cascade,string_types):
+    cascade = sanitize_cascade(framework, cascade)
+
+    if sc.isstring(cascade):
         outputs = get_cascade_outputs(framework,cascade)
     else:
         outputs = cascade
@@ -400,7 +401,7 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
 
     if pops == 'all':
         pops = list(data.pops.keys())
-    elif isinstance(pops,string_types):
+    elif sc.isstring(pops):
         pops = [pops]
     elif isinstance(pops,dict):
         assert len(pops) == 1, 'Aggregation should have only one output population'
@@ -414,7 +415,7 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
     # Now, get the outputs in the given years
     data_values = dict()
     for stage_constituents in outputs.values():
-        if isinstance(stage_constituents,string_types):
+        if sc.isstring(stage_constituents):
             stage_constituents = [stage_constituents] # Make it a list - this is going to be a common source of errors otherwise
         for code_name in stage_constituents:
             if code_name not in data_values:
@@ -488,7 +489,7 @@ def validate_cascade(framework,cascade):
     fallback_used = cascade is None # Record whether or not the fallback cascade was used, to help customize error message
 
     cascade = sanitize_cascade(framework,cascade)
-    if isinstance(cascade,string_types):
+    if sc.isstring(cascade):
         outputs = get_cascade_outputs(framework,cascade)
     else:
         outputs = cascade
@@ -506,7 +507,7 @@ def validate_cascade(framework,cascade):
             message = ''
             if fallback_used:
                 message += 'The fallback cascade is not properly nested\n\n'
-            elif isinstance(cascade,string_types):
+            elif sc.isstring(cascade):
                 message += 'The cascade "%s" is not properly nested\n\n' % (cascade)
             else:
                 message += 'The requested cascade is not properly nested\n\n' % (cascade)
@@ -520,7 +521,7 @@ def validate_cascade(framework,cascade):
                 message += '\n\nNote that the framework did not contain a cascade - in many cases, the characteristics do not form a valid cascade. You will likely need to explicitly define a cascade in the framework file'
             if fallback_used and framework.cascades:
                 message += '\n\nAlthough the framework fallback cascade was not valid, user-specified cascades do exist. The fallback cascade should only be used if user cascades are not present.'
-            elif isinstance(cascade,string_types):
+            elif sc.isstring(cascade):
                 message += '\n\nTo fix this error, please modify the definition of the cascade in the framework file'
 
             raise InvalidCascade(message)
