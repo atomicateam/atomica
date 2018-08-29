@@ -549,7 +549,7 @@ class TimeDependentValuesEntry(object):
         vals = [x.value for x in rows[0]]
         name = vals[0].strip()
 
-        lowered_headings = [x.lower() if isinstance(x,string_types) else x for x in vals]
+        lowered_headings = [x.lower().strip() if isinstance(x,string_types) else x for x in vals]
 
         # We can optionally have units, uncertainty, and constant
         # nb. finding the index means this is robust to extra empty

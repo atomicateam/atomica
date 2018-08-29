@@ -12,7 +12,7 @@ from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDepend
 import xlsxwriter as xw
 import io
 import numpy as np
-from .system import AtomicaException, NotFoundError, reraise_modify
+from .system import AtomicaException, NotFoundError, reraise_modify, logger
 from .structure import FrameworkSettings as FS
 from collections import defaultdict
 from six import string_types
@@ -212,6 +212,7 @@ class ProjectData(object):
         self.interpops = list()
 
         for sheet in workbook.worksheets:
+
             if sheet.title.startswith('#ignore'):
                 continue
 
@@ -232,8 +233,18 @@ class ProjectData(object):
                     except Exception as e:
                         reraise_modify(e,'Error while reading sheet "%s" -> ' % (sheet.title))
 
-                    # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
-                    code_name = framework.get_variable(tdve.name)[0].name
+                    # If the TDVE is not in the Framework, that's a critical stop error, because the framework needs to at least declare
+                    # what kind of variable this is - otherwise, we don't know the allowed units and cannot write the databook back properly
+                    try:
+                        spec = framework.get_variable(tdve.name)[0]
+                    except NotFoundError:
+                        raise AtomicaException('Error on sheet "%s" while reading TDVE table "%s". The variable was not found in the Framework' % (sheet.title,tdve.name))
+
+                    code_name = spec.name
+
+                    if not spec['databook page']:
+                        logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook' % (tdve.name,code_name))
+
                     tdve.allowed_units = [x.title() for x in framework.get_allowed_units(code_name)]
 
                     self.tdve[code_name] = tdve
