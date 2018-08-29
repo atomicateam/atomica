@@ -15,7 +15,6 @@ import numpy as np
 from .system import AtomicaException, NotFoundError
 from .structure import FrameworkSettings as FS
 from collections import defaultdict
-from six import string_types
 
 # Data maps to a databook
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
@@ -201,7 +200,7 @@ class ProjectData(object):
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
         self = ProjectData()
 
-        if isinstance(spreadsheet,string_types):
+        if sc.isstring(spreadsheet):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.

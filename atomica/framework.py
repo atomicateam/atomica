@@ -4,15 +4,12 @@ Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-import os
 import openpyxl
-from six import string_types
 import pandas as pd
 import sciris as sc
 from .system import AtomicaException, NotAllowedError, NotFoundError, logger
 from .excel import read_tables, AtomicaSpreadsheet
 from .structure import FrameworkSettings as FS
-from .system import atomica_path
 from .version import version
 import numpy as np
 
@@ -34,7 +31,7 @@ class ProjectFramework(object):
         self.modified = sc.now()
 
         # Load Framework from disk
-        if isinstance(inputs,string_types):
+        if sc.isstring(inputs):
             self.spreadsheet = AtomicaSpreadsheet(inputs)
         elif isinstance(inputs,AtomicaSpreadsheet):
             self.spreadsheet = inputs
@@ -326,7 +323,7 @@ class ProjectFramework(object):
         self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
 
         # Make sure all units are lowercase
-        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
 
         # Set 'can calibrate' defaults
         # By default, it can be calibrated if it is an impact parameter
@@ -557,7 +554,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
             assert set(df[col]).issubset(validation), 'DataFrame column "%s" can only contain the following values: %s' % (col,validation)
 
     # Strip all strings
-    df.applymap(lambda x: x.strip() if isinstance(x,string_types) else x)
+    df.applymap(lambda x: x.strip() if sc.isstring(x) else x)
     if df.columns.isnull().any():
         raise NotAllowedError('There cannot be any empty cells in the header row')
     df.columns = [x.strip() for x in df.columns]

@@ -4,7 +4,6 @@ import sciris as sc
 from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
-from six import string_types
 from .excel import standard_formats
 
 class Result(NamedItem):

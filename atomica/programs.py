@@ -12,7 +12,6 @@ from .utils import NamedItem
 from numpy import array, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
-from six import string_types
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
@@ -219,7 +218,7 @@ class ProgramSet(NamedItem):
         self._set_available(framework,data)
 
         # Create and load spreadsheet
-        if isinstance(spreadsheet,string_types):
+        if sc.isstring(spreadsheet):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
@@ -267,8 +266,8 @@ class ProgramSet(NamedItem):
         # into `self.programs`
         tables = read_tables(sheet) # NB. only the first table will be read, so there can be other tables for comments on the first page
         self.programs = sc.odict()
-        sup_header = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][0]]
-        headers = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][1]]
+        sup_header = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][0]]
+        headers = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][1]]
 
         # Get the indices where the pops and comps start
         pop_start_idx = sup_header.index('targeted to (populations)')
@@ -297,11 +296,11 @@ class ProgramSet(NamedItem):
             target_comps = []
 
             for i in range(pop_start_idx, comp_start_idx):
-                if row[i].value and isinstance(row[i].value,string_types) and row[i].value.lower().strip() == 'y':
+                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
                     target_pops.append(pop_codenames[pop_idx[i]]) # Append the pop's codename
 
             for i in range(comp_start_idx, len(headers)):
-                if row[i].value and isinstance(row[i].value,string_types) and row[i].value.lower().strip() == 'y':
+                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
                     target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
@@ -423,7 +422,7 @@ class ProgramSet(NamedItem):
 
         for table in tables:
             par_name = par_codenames[table[0][0].value.strip().lower()] # Code name of the parameter we are working with
-            headers = [x.value.strip() if isinstance(x.value,string_types) else x.value for x in table[0]]
+            headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
             idx_to_header = {i:h for i,h in enumerate(headers)} # Map index to header
 
             for row in table[1:]:

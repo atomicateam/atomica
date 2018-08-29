@@ -13,7 +13,6 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from six import string_types
 from .system import logger
 
 def standard_formats(workbook):
@@ -69,7 +68,7 @@ def update_widths(width_dict,column_index,contents):
     # Keep track of the maximum length of the contents in a column
     # width_dict is a dict that is keyed by column index e.g. 0,1,2
     # and the value is the length of the longest contents seen for that column
-    if width_dict is None or contents is None or not isinstance(contents,string_types):
+    if width_dict is None or contents is None or not sc.isstring(contents):
         return
 
     if len(contents) == 0:
@@ -549,7 +548,7 @@ class TimeDependentValuesEntry(object):
         vals = [x.value for x in rows[0]]
         name = vals[0].strip()
 
-        lowered_headings = [x.lower() if isinstance(x,string_types) else x for x in vals]
+        lowered_headings = [x.lower() if sc.isstring(x) else x for x in vals]
 
         # We can optionally have units, uncertainty, and constant
         # nb. finding the index means this is robust to extra empty
