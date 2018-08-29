@@ -1242,6 +1242,72 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     print('Cascade plot succeeded')
     return output,figs
 
+def get_json_cascade(results,data):
+    # Return all data to render cascade in FE, for multiple results
+    #
+    # INPUTS
+    # - results - A Result, or list of Results
+    # - data - A ProjectData instance (e.g. proj.data)
+    #
+    # OUTPUTS
+    # - dict/json containing the data required to make the cascade plot on the FE
+    #   The dict has the following structure. Suppose we have
+    #
+    #   cascade_data = get_json_cascade(results,data)
+    #
+    #   Then the output of this function is (JSON equivalent of?):
+    #
+    #   cascade_data['results'] - List of names of all results included (could render as checkboxes)
+    #   cascade_data['pops'] - List of names of all pops included (could render as checkboxes)
+    #   cascade_data['cascades'] - List of names of all cascades included (could render as dropdown)
+    #   cascade_data['stages'][cascade_name] - List of the names of the stages in a given cascade
+    #   cascade_data['t'][result_name] - Array of time values for the given result
+    #   cascade_data['model'][result_name][cascade_name][pop_name][stage_name] - Array of values, same size as cascade_data['t'][result_name] (this contains the values that end up in the bar)
+    #   cascade_data['data_t'] - Array of time values for the data
+    #   cascade_data['data'][cascade_name][pop_name][stage_name] - Array of values, same size as cascade_data['data_t'] (this contains the values to be plotted as scatter points)
+    #
+    #   Note - the data values entered in the databook are sparse (typically there isn't a data point at every time). The arrays all have
+    #   the same size as cascade_data['data_t'], but contain `NaN` if the data was missing
+
+    if not isinstance(results,list):
+        results = [results]
+
+    cascade_data = sc.odict()
+    cascade_data['pops'] = results[0].pop_labels
+    cascade_data['results'] = [x.name for x in results]
+
+    # Extract the cascade values
+    if results[0].framework.cascades:
+        cascade_data['cascades'] = list(results[0].framework.cascades.keys()) # Available cascades
+        cascades = cascade_data['cascades']
+    else:
+        cascade_data['cascades'] = ['Default'] # Available cascades
+        cascades = [None]
+
+    cascade_data['model'] = sc.odict()
+    cascade_data['t'] = sc.odict()
+    cascade_data['stages'] = sc.odict()
+
+    for result in results:
+        cascade_data['model'][result.name] = sc.odict()
+        for name, cascade in zip(cascade_data['cascades'],cascades):
+            cascade_data['model'][result.name][name] = sc.odict()
+            for pop_name, pop_label in zip(result.pop_names,result.pop_labels):
+                cascade_data['model'][result.name][name][pop_label],t = au.get_cascade_vals(result,cascade=cascade,pops=pop_name)
+            cascade_data['stages'][name] = list(cascade_data['model'][result.name][name][pop_label].keys())
+        cascade_data['t'][result.name] = t
+
+    # Extract the data values
+    cascade_data['data'] = sc.odict()
+    for name, cascade in zip(cascade_data['cascades'], cascades):
+        cascade_data['data'][name] = sc.odict()
+        for pop_name, pop_label in zip(results[0].pop_names, results[0].pop_labels):
+            cascade_data['data'][name][pop_label],t = au.get_cascade_data(data,results[0].framework, cascade=cascade,pops=pop_name)
+    cascade_data['data_t'] = t
+
+    # TODO - convert to JSON here
+
+    return cascade_data
 
 
 @timeit

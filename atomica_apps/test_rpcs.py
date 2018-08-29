@@ -9,9 +9,10 @@ from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
 
 torun = [
 #'get_cascade_plot',
+'get_cascade_json',
 #'get_plots',
 #'run_cascade_optimization',
-'run_tb_optimization',
+# 'run_tb_optimization',
 ]
 
 proj = None
@@ -36,6 +37,12 @@ if 'get_cascade_plot' in torun:
     print(output)
     sw.browser(jsons=output['graphs'])
 
+if 'get_cascade_json' in torun:
+    if proj is None: proj = demoproj('hypertension')
+    results = proj.run_optimization(maxtime=3)
+    x = rpcs.get_json_cascade(results, proj.data)
+    print('Output:')
+    print(x)
 
 if 'get_plots' in torun:
     if proj is None: proj = demoproj('tb')

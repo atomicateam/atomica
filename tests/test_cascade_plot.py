@@ -1,6 +1,6 @@
 import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
-import sciris.core as sc
+import sciris as sc
 from atomica.ui import InvalidCascade
 import os
 
@@ -9,8 +9,8 @@ test = 'tb'
 
 torun = [
 "basicplots",
-"scenplots",
-"validate_cascade"
+# "scenplots",
+# "validate_cascade",
 # "basicplots",
 #"scenplots",
 #"cascadefromscratch",
@@ -101,7 +101,6 @@ if "basicplots" in torun:
         endyear = 2017
         au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data)
         au.plot_cascade(result, cascade=0, pops='all', year=endyear, data=P.data)
-
 
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
