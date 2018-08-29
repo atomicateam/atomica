@@ -22,7 +22,7 @@ class Scenario(NamedItem):
 
 
 class ParameterScenario(Scenario):
-    def __init__(self, name, scenario_values, active=None, parsetname=None):
+    def __init__(self, name=None, scenario_values=None, active=None, parsetname=None):
         """
         Given some data that describes a parameter scenario, creates the corresponding parameterSet
         which can then be combined with a ParameterSet when running a model.
@@ -57,7 +57,7 @@ class ParameterScenario(Scenario):
         # TODO - could do some extra validation here
         self.scenario_values = scenario_values
 
-    def get_parset(self, parset, settings):
+    def get_parset(self, parset=None, settings=None):
         """
         Get the corresponding parameterSet for this scenario, given an input parameterSet for the default baseline
         activity.
@@ -135,7 +135,7 @@ class ParameterScenario(Scenario):
             new_parset.name = self.name + '_' + parset.name
             return new_parset
 
-    def run(self,project,parset=None):
+    def run(self, project=None, parset=None):
         # Run the ParameterScenario
         # INPUTS
         # - project : A Project instance
@@ -159,7 +159,7 @@ class BudgetScenario(Scenario):
         self.start_year = start_year
         return None
     
-    def run(self, project, parset=None, progset=None):
+    def run(self, project=None, parset=None, progset=None):
         # Run the BudgetScenario
         # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
 
