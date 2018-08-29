@@ -8,8 +8,8 @@ from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
 
 
 torun = [
-#'get_cascade_plot',
-'get_cascade_json',
+'get_cascade_plot',
+# 'get_cascade_json',
 #'get_plots',
 #'run_cascade_optimization',
 # 'run_tb_optimization',
@@ -36,7 +36,7 @@ if 'get_cascade_plot' in torun:
     output = rpcs.get_cascade_plot(proj, **args)
     print('Output:')
     print(output)
-    sw.browser(jsons=output['graphs'])
+    sw.browser(jsons=output[0]['graphs'])
 
 
 if 'get_cascade_json' in torun:
