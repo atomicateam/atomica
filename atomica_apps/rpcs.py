@@ -1221,7 +1221,6 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         ax = budgetfigs[0].axes[0]
         ax.set_xlabel('Spending ($/year)')
 
-        au.save_figs(budgetfigs,fnames='horizontal')
         # The legend is too big for the figure -- WARNING, think of a better solution
 #        budgetfigs[1].set_figheight(8.9)
 #        budgetfigs[1].set_figwidth(8.7)
