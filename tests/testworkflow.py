@@ -9,10 +9,10 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
 
-#test = "sir"
+test = "sir"
 #test = "tb"
-test = "hypertension"
-#test = "udt"
+# test = "hypertension"
+# test = "udt"
 #test = "usdt"
 #test = "hiv"
 #test = "diabetes"
@@ -35,7 +35,7 @@ torun = [
 #"export",
 # "manualcalibrate",
 # "autocalibrate",
-# "parameterscenario",
+"parameterscenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -425,16 +425,16 @@ if "parameterscenario" in torun:
         scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
         scvalues[scen_par][scen_pop]["smooth_onset"] = 2
     
-        P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
-        P.run_scenario(scenario="Varying Infections", parset="default")
+        scen = P.make_scenario(which='parameter',name="Varying Infections", instructions=scvalues)
+        scen.run(P,P.parsets["default"])
     
         # Insert two values and eliminate everything between them.
         scvalues[scen_par][scen_pop]["y"] = [0.125, 0.5]
         scvalues[scen_par][scen_pop]["t"] = [2015., 2020.]
         scvalues[scen_par][scen_pop]["smooth_onset"] = [2, 3]
     
-        P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
-        P.run_scenario(scenario="Varying Infections 2", parset="default")
+        scen = P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
+        scen.run(P,P.parsets["default"])
     
         d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
         au.plot_series(d, axis="results")
