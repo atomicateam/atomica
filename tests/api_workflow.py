@@ -77,9 +77,8 @@ scvalues['infdeath']['adults']['y'] = [0.125, 0.25, 0.50, 0.50]
 scvalues['infdeath']['adults']['t'] = [2015., 2020., 2025., 2030.]
 scvalues['infdeath']['adults']['smooth_onset'] = [4.,3.,2.,1.]
 
-
 s = au.ParameterScenario('increased_infections',scvalues)
-P.run_scenario(s,'default')
+s.run(project=P,parset=P.parsets['default'])
 
 d = au.PlotData(P.results, outputs=['infdeath'])
 au.plot_series(d, axis='results')

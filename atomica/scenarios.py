@@ -12,7 +12,6 @@ from .programs import ProgramInstructions
 class Scenario(NamedItem):
     def __init__(self, name, active=None):
         NamedItem.__init__(self, name)
-        self.result_uid = None # If the scenario is run via Project.run_scenario, this will be the UID of the most recent result generated using this Scenario
         self.active = active if active is not None else True
 
     def get_parset(self, parset, settings):
@@ -23,7 +22,7 @@ class Scenario(NamedItem):
 
 
 class ParameterScenario(Scenario):
-    def __init__(self, name, scenario_values=None, active=None):
+    def __init__(self, name, scenario_values, active=None, parsetname=None):
         """
         Given some data that describes a parameter scenario, creates the corresponding parameterSet
         which can then be combined with a ParameterSet when running a model.
@@ -34,7 +33,8 @@ class ParameterScenario(Scenario):
                                      o = dict/odict with keys:
                                          t : np.array or list with year values
                                          y : np.array or list with corresponding parameter values
-
+            active : If running via `project.run_scenarios` this flags whether to run the scenario
+            parsetname : If running via 'project.run_scenarios` this identifies which parset to use from the project
 
         Example:
             scvalues = dict()
@@ -50,8 +50,10 @@ class ParameterScenario(Scenario):
 
             pscenario = ParameterScenario(name="examplePS",scenario_values=scvalues)
 
+
         """
         super(ParameterScenario, self).__init__(name, active)
+        self.parsetname = parsetname
         # TODO - could do some extra validation here
         self.scenario_values = scenario_values
 
@@ -133,6 +135,19 @@ class ParameterScenario(Scenario):
             new_parset.name = self.name + '_' + parset.name
             return new_parset
 
+    def run(self,project,parset=None):
+        # Run the ParameterScenario
+        # INPUTS
+        # - project : A Project instance
+        # - parset : Optionally a ParameterSet instance, otherwise will use `self.parsetname`
+
+        if parset is None:
+            parset = project.parsets[self.parsetname]
+
+        scenario_parset = self.get_parset(parset, project.settings)
+        result = project.run_sim(parset=scenario_parset, result_name=self.name)
+        return result
+
 class BudgetScenario(Scenario):
 
     def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None):
@@ -144,9 +159,18 @@ class BudgetScenario(Scenario):
         self.start_year = start_year
         return None
     
-    def run(self, project=None):
+    def run(self, project, parset=None, progset=None):
+        # Run the BudgetScenario
+        # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
+
+        if parset is None:
+            parset = project.parsets[self.parsetname]
+
+        if progset is None:
+            progset = project.progsets[self.progsetname]
+
         instructions = ProgramInstructions(alloc=self.alloc, start_year=self.start_year) # Instructions for default spending
-        result = project.run_sim(parset=self.parsetname, progset=self.progsetname, progset_instructions=instructions, result_name=self.name)
+        result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name)
         return result
 
 
