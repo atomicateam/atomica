@@ -385,7 +385,7 @@ Last update: 2018-08-22
         rpcs.rpc('get_default_budget_scen', [this.projectID])
           .then(response => {
             this.defaultBudgetScen = response.data // Set the scenario to what we received.
-            this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
+            this.addEditModal.scenSummary = _.cloneDeep(this.defaultBudgetScen)
             this.addEditModal.origName = this.addEditModal.scenSummary.name
             this.addEditModal.mode = 'add'
             this.$modal.show('add-budget-scen');
@@ -401,7 +401,7 @@ Last update: 2018-08-22
         console.log('addBudgetScen() called')
         this.$modal.hide('add-budget-scen')
         status.start(this)
-        let newScen = utils.dcp(this.addEditModal.scenSummary) // Get the new scenario summary from the modal.
+        let newScen = _.cloneDeep(this.addEditModal.scenSummary) // Get the new scenario summary from the modal.
         let scenNames = [] // Get the list of all of the current scenario names.
         this.scenSummaries.forEach(scenSum => {
           scenNames.push(scenSum.name)
@@ -437,7 +437,7 @@ Last update: 2018-08-22
         this.defaultBudgetScen = scenSummary
         console.log('defaultBudgetScen')
         console.log(this.defaultBudgetScen)
-        this.addEditModal.scenSummary = utils.dcp(this.defaultBudgetScen)
+        this.addEditModal.scenSummary = _.cloneDeep(this.defaultBudgetScen)
         this.addEditModal.origName = this.addEditModal.scenSummary.name
         this.addEditModal.mode = 'edit'
         this.$modal.show('add-budget-scen');
@@ -446,7 +446,7 @@ Last update: 2018-08-22
       copyScen(scenSummary) {
         console.log('copyScen() called')
         status.start(this)
-        var newScen = utils.dcp(scenSummary); // You've got to be kidding me, buster
+        var newScen = _.cloneDeep(scenSummary); // You've got to be kidding me, buster
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
