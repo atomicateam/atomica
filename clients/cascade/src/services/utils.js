@@ -5,11 +5,6 @@
 import rpcs from '@/services/rpc-service'
 import status from '@/services/status-service'
 
-function dcp(input) {
-  var output = JSON.parse(JSON.stringify(input))
-  return output
-}
-
 function sleep(time) {
   // Return a promise that resolves after _time_ milliseconds.
   return new Promise((resolve) => setTimeout(resolve, time));
@@ -206,7 +201,6 @@ function scaleFigs(frac) {
 }
 
 export default {
-  dcp,
   sleep,
   getUniqueName,
   placeholders,
