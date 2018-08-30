@@ -314,11 +314,11 @@ class ProjectFramework(object):
             'function':None,
             'databook page':None,
             'databook order':None,
-            'is impact':'n',
+            'targetable':'n',
         }
         valid_content = {
             'display name': None,
-            'is impact':{'y','n'},
+            'targetable':{'y','n'},
         }
 
         self.pars.set_index('code name',inplace=True)
@@ -328,7 +328,7 @@ class ProjectFramework(object):
         self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
 
         if 'calibrate' not in self.pars:
-            default_calibrate = self.pars['is impact'] == 'y'
+            default_calibrate = self.pars['targetable'] == 'y'
             self.pars['calibrate'] = None
             self.pars['calibrate'][default_calibrate] = 'y'
 

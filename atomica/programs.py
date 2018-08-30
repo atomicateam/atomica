@@ -193,7 +193,7 @@ class ProgramSet(NamedItem):
                 self.comps[spec.name] = spec['display name']
 
         self.pars = sc.odict()
-        for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'],framework.pars['is impact']):
+        for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'],framework.pars['targetable']):
             if is_impact == 'y':
                 self.pars[name] = label
 
@@ -617,7 +617,7 @@ class ProgramSet(NamedItem):
             # Get pars from framework
             pars = sc.odict()
             for _, spec in framework.pars.iterrows():
-                if spec['is impact'] == 'y':
+                if spec['targetable'] == 'y':
                     pars[spec.name] = spec['display name']
         elif sc.isnumber(pars):
             npars = pars
