@@ -264,7 +264,7 @@ class ProgramSet(NamedItem):
     def _read_targeting(self,sheet):
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
-        tables = read_tables(sheet) # NB. only the first table will be read, so there can be other tables for comments on the first page
+        tables, start_rows = read_tables(sheet) # NB. only the first table will be read, so there can be other tables for comments on the first page
         self.programs = sc.odict()
         sup_header = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][0]]
         headers = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][1]]
@@ -377,7 +377,7 @@ class ProgramSet(NamedItem):
 
     def _read_spending(self,sheet):
         # Read the spending table and populate the program data
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         times = set()
         for table in tables:
             tdve = TimeDependentValuesEntry.from_rows(table)
@@ -414,7 +414,7 @@ class ProgramSet(NamedItem):
     def _read_effects(self,sheet):
         # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
 
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         pop_codenames = {v.lower().strip():x for x,v in self.pops.items()}
         par_codenames = {v.lower().strip():x for x,v in self.pars.items()}
 

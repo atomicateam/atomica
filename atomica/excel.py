@@ -201,7 +201,10 @@ def read_tables(worksheet):
 
     buffer = []
     tables = []
-    for row in worksheet.rows:
+    start_rows = []
+    start = None
+
+    for i,row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
         if row[0].value and row[0].value.startswith('#ignore'):
@@ -210,18 +213,22 @@ def read_tables(worksheet):
         # Find out whether we need to add the row to the buffer
         for cell in row:
             if cell.value:  # If the row has a non-empty cell, add the row to the buffer
+                if not buffer:
+                    start = i+1 # Excel rows are indexed starting at 1
                 buffer.append(row)
                 break
         else: # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
             if buffer:
                 tables.append(buffer) # Only append the buffer if it is not empty
+                start_rows.append(start)
             buffer = []
 
     # After the last row, if the buffer has some un-flushed contents, then yield it
     if buffer:
         tables.append(buffer)
+        start_rows.append(start)
 
-    return tables
+    return tables, start_rows
 
 
 def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False,widths=None):
@@ -547,8 +554,8 @@ class TimeDependentValuesEntry(object):
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
-        name = vals[0].strip()
 
+        name = vals[0].strip()
 
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
 

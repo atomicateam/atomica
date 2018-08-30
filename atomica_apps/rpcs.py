@@ -210,7 +210,7 @@ def load_project(project_id, raise_exception=True):
     project_record = load_project_record(project_id,
         raise_exception=raise_exception)
 
-    print 'Loaded project record from Redis - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Loaded project record from Redis - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     # If there is no match, raise an exception or return None.
     if project_record is None:
@@ -222,7 +222,7 @@ def load_project(project_id, raise_exception=True):
     # Return the found project.
     proj = project_record.proj
 
-    print 'Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     return proj
 
@@ -276,18 +276,18 @@ def save_project(proj):
 
     project_record = load_project_record(proj.uid)
 
-    print 'Loaded project record - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Loaded project record - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     # Create the new project entry and enter it into the ProjectCollection.
     # Note: We don't need to pass in project.uid as a 3rd argument because 
     # the constructor will automatically use the Project's UID.
     projSO = prj.ProjectSO(proj, project_record.owner_uid)
 
-    print 'ProjectSO constructor - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('ProjectSO constructor - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     prj.proj_collection.update_object(projSO)
     
-    print 'Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000))
 
 @timeit
 def save_project_as_new(proj, user_id):
@@ -882,7 +882,7 @@ def get_y_factors(project_id, parsetname=-1):
         for parname in parset.par_ids[par_type].keys():
             this_par = parset.get_par(parname)
             this_spec = proj.framework.get_variable(parname)[0]
-            if 'can calibrate' in this_spec and this_spec['can calibrate'] == 'y':
+            if 'can calibrate' in this_spec and this_spec['can calibrate'] is not None:
                 for popname,y_factor in this_par.y_factor.items():
                     count += 1
                     parlabel = this_spec['display name']

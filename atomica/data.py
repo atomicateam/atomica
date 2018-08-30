@@ -103,6 +103,14 @@ class ProjectData(object):
 
         return None
 
+    def get_tdve_page(self,code_name):
+        # Given a code name for a TDVE quantity, find which page it is on
+        for sheet,content in self.tdve_pages.items():
+            if code_name in content:
+                return sheet
+        else:
+            raise NotFoundError('The quantity "%s" does not appear on any TDVE sheets' % (code_name))
+
     @staticmethod
     def new(framework,tvec,pops,transfers):
         # Make a brand new databook
@@ -225,19 +233,22 @@ class ProjectData(object):
                 continue
             else:
                 self.tdve_pages[sheet.title] = []
-                for table in read_tables(sheet):
+                tables, start_rows = read_tables(sheet)
+                for table, start_row in zip(tables, start_rows):
 
                     try:
                         tdve = TimeDependentValuesEntry.from_rows(table)
                     except Exception as e:
-                        reraise_modify(e,'Error while reading sheet "%s" -> ' % (sheet.title))
+                        message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
+                        reraise_modify(e,message)
 
                     # If the TDVE is not in the Framework, that's a critical stop error, because the framework needs to at least declare
                     # what kind of variable this is - otherwise, we don't know the allowed units and cannot write the databook back properly
                     try:
                         spec = framework.get_variable(tdve.name)[0]
                     except NotFoundError:
-                        raise AtomicaException('Error on sheet "%s" while reading TDVE table "%s". The variable was not found in the Framework' % (sheet.title,tdve.name))
+                        message = 'Error on sheet "%s" while reading TDVE table "%s" (row %d). The variable was not found in the Framework' % (sheet.title,tdve.name, start_row)
+                        raise AtomicaException(message)
 
                     code_name = spec.name
 
@@ -294,8 +305,12 @@ class ProjectData(object):
                         raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['display name'],spec.name))
                     else:
                         allowed_units = framework.get_allowed_units(spec.name)
+                        tdve = self.tdve[spec.name]
+                        tdve_sheet = self.get_tdve_page(spec.name)
                         for name,ts in self.tdve[spec.name].ts.items():
-                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[spec.name].name,self.pops.keys())
+                            if name not in self.pops:
+                                message = 'Error in TDVE table "%s" on sheet "%s". Population "%s" in "%s" not recognized. Should be one of: %s' % (spec.name,tdve_sheet,name,self.tdve[spec.name].name,self.pops.keys())
+                                raise AtomicaException(message)
                             assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[spec.name].name, name)
                             assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[spec.name].name, name)
                             assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
@@ -453,7 +468,7 @@ class ProjectData(object):
 
     def _read_pops(self, sheet):
         # TODO - can modify _read_pops() and _write_pops() if there are more population attributes
-        tables = read_tables(sheet)
+        tables = read_tables(sheet)[0]
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
@@ -489,7 +504,7 @@ class ProjectData(object):
         apply_widths(sheet,widths)
 
     def _read_transfers(self,sheet):
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
         self.transfers = []
         for i in range(0,len(tables),3):
@@ -513,7 +528,7 @@ class ProjectData(object):
         apply_widths(sheet,widths)
 
     def _read_interpops(self,sheet):
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
         self.interpops = []
         for i in range(0,len(tables),3):

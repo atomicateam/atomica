@@ -46,5 +46,7 @@ setup(
         'twisted',
         'xlrd',
         'xlsxwriter',
+        'scipy',
+        'openpyxl'
     ],
 )
