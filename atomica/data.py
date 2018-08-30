@@ -302,20 +302,19 @@ class ProjectData(object):
 
                 if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
-                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['display name'],spec.name))
+                        raise AtomicaException('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'],spec.name))
                     else:
                         allowed_units = framework.get_allowed_units(spec.name)
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
                         for name,ts in self.tdve[spec.name].ts.items():
-                            if name not in self.pops:
-                                message = 'Error in TDVE table "%s" on sheet "%s". Population "%s" in "%s" not recognized. Should be one of: %s' % (spec.name,tdve_sheet,name,self.tdve[spec.name].name,self.pops.keys())
-                                raise AtomicaException(message)
-                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[spec.name].name, name)
-                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[spec.name].name, name)
-                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name,tdve_sheet)
+                            assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location,name,self.pops.keys())
+                            assert ts.has_data, '%s. Data values missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
+                            assert ts.format is not None, '%s. Formats missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
+                            assert ts.units is not None, '%s. Units missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
                             if allowed_units:
-                                assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
+                                assert ts.units in allowed_units, '%s. Unit "%s" for %s (%s) do not match allowed units (%s)' % (location,ts.units,self.tdve[spec.name].name, name,allowed_units)
 
         for _,spec in framework.interactions.iterrows():
             for tdc in self.interpops:
