@@ -51,7 +51,7 @@ Last update: 2018-08-30
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
 <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>              
-              <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="cancelRun(optimSummary)">Clear task</button>
+              <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="clearTask(optimSummary)">Clear task</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
@@ -361,7 +361,7 @@ Last update: 2018-08-30
         var statusStr = ''
         
         // Check the status of the task.
-        rpcs.rpc('check_task', [optimSummary.task_id])
+        rpcs.rpc('check_task', [optimSummary.server_datastore_id])
         .then(result => {
           statusStr = result.data.task.status
           optimSummary.status = statusStr
@@ -398,6 +398,17 @@ Last update: 2018-08-30
             this.pollAllTaskStates()
           }
         }) 
+      },
+      
+      clearTask(optimSummary) {
+        console.log('cancelRun() called for '+this.currentOptim)
+        rpcs.rpc('delete_task', [optimSummary.server_datastore_id])
+        .then(response => {
+          // Get the task state for the optimization.
+          this.getOptimTaskState(optimSummary)  
+
+          // TODO: Delete cached result.          
+        })
       },
       
       updateSets() {
@@ -460,8 +471,8 @@ Last update: 2018-08-30
           
           // For each of the optimization summaries...
           this.optimSummaries.forEach(optimSum => {
-            // Build a task ID from the project's hex UID and the optimization name.
-            optimSum.task_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
+            // Build a task and results cache ID from the project's hex UID and the optimization name.
+            optimSum.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
             
             // Set the status to 'not started' by default, and the pending and execution 
             // times to '--'.
@@ -522,9 +533,22 @@ Last update: 2018-08-30
         })
         if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
-          if (index > -1) {
+          if (index > -1) {  // 
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
+            if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
+              // Clear the present task.
+              if (newOptim.status != 'not started') {
+                this.clearTask(optimSummary)  // Clear the task from the server. 
+              }
+
+              // Set a new server DataStore ID.
+              newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
+              
+              // TODO: Delete any cached results.
+              
+              this.getOptimTaskState(newOptim)
+            }              
           }
           else {
             status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')
@@ -532,7 +556,9 @@ Last update: 2018-08-30
         }
         else { // Else (we are adding a new optimization)...
           newOptim.name = utils.getUniqueName(newOptim.name, optimNames)
+          newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
           this.optimSummaries.push(newOptim)
+          this.getOptimTaskState(newOptim)
         }
 
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -569,13 +595,15 @@ Last update: 2018-08-30
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
         status.start(this)
-        var newOptim = _.cloneDeep(optimSummary); // You've got to be kidding me, buster
+        var newOptim = _.cloneDeep(optimSummary)
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
         })
         newOptim.name = utils.getUniqueName(newOptim.name, otherNames)
+        newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
         this.optimSummaries.push(newOptim)
+        this.getOptimTaskState(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
             status.succeed(this, 'Opimization copied')
@@ -588,18 +616,21 @@ Last update: 2018-08-30
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
         status.start(this)
+        if (optimSummary.status != 'not started') {
+          this.clearTask(optimSummary)  // Clear the task from the server.
+        }
         for(var i = 0; i< this.optimSummaries.length; i++) {
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
           }
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => {
-            status.succeed(this, 'Optimization deleted')
-          })
-          .catch(error => {
-            status.fail(this, 'Could not delete optimization')
-          })
+        .then(response => {
+          status.succeed(this, 'Optimization deleted')       
+        })
+        .catch(error => {
+          status.fail(this, 'Could not delete optimization')
+        })
       },
 
       toggleShowingPlotControls() {
@@ -648,7 +679,7 @@ Last update: 2018-08-30
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {
-          rpcs.rpc('launch_task', [optimSummary.task_id, 'run_cascade_optimization', 
+          rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
             [this.projectID, optimSummary.name], 
             {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
             // CASCADE-TB DIFFERENCE
@@ -681,18 +712,14 @@ Last update: 2018-08-30
       
       cancelRun(optimSummary) {
         console.log('cancelRun() called for '+this.currentOptim)
-        rpcs.rpc('delete_task', [optimSummary.task_id])
-        .then(response => {
-          // Get the task state for the optimization.
-          this.getOptimTaskState(optimSummary)          
-        })
+        this.clearTask(optimSummary)  // Clear the task from the server.
       },
       
       plotResults(optimSummary) {
         console.log('plotResults() called for '+this.currentOptim)
         this.clipValidateYearInput()  // Make sure the end year is sensibly set.
         status.start(this)
-        rpcs.rpc('get_task_result', [optimSummary.task_id])
+        rpcs.rpc('get_task_result', [optimSummary.server_datastore_id])
         .then(response => {
           this.makeGraphs(response.data.result.graphs)
           this.table = response.data.result.table
