@@ -24,7 +24,6 @@ from .parser_function import parse_function
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
 import scipy.interpolate
-from six import string_types
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -244,7 +243,7 @@ class PlotData(object):
 
                     output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
 
-                    if not isinstance(f_stack_str, string_types):
+                    if not sc.isstring(f_stack_str):
                         continue
 
                     placeholder_pop = lambda: None
@@ -273,7 +272,7 @@ class PlotData(object):
                         labels = output[output_name]
 
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
-                        if isinstance(labels, string_types):
+                        if sc.isstring(labels):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[output_name] = 'unknown'  # Also, we don't know what the units of a function are
                             continue
@@ -323,15 +322,19 @@ class PlotData(object):
                         vals = aggregated_outputs[pop][output_name]
                         self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name],units=aggregated_units[output_name]))
 
-        self.results = [x.name for x in
-                        results]  # NB. These are lists that thus specify the order in which plotting takes place
-        self.pops = [list(x.keys())[0] if isinstance(x, dict) else x for x in pops]
-        self.outputs = [list(x.keys())[0] if isinstance(x, dict) else x for x in outputs]
+        self.results = sc.odict()
+        for result in results:
+            self.results[result.name] = result.name
 
-        # Names will be substituted with these at the last minute when plotting for titles/legends
-        self.result_names = {x: x for x in self.results}  # At least for now, no Result name mapping
-        self.pop_names = {x: (get_full_name(x, project) if project is not None else x) for x in self.pops}
-        self.output_names = {x: (get_full_name(x, project) if project is not None else x) for x in self.outputs}
+        self.pops = sc.odict()
+        for pop in pops:
+            key = list(pop.keys())[0] if isinstance(pop, dict) else pop
+            self.pops[key] = get_full_name(key, project) if project is not None else key
+
+        self.outputs = sc.odict()
+        for output in outputs:
+            key = list(output.keys())[0] if isinstance(output, dict) else output
+            self.outputs[key] = get_full_name(key, project) if project is not None else key
 
         # Handle time aggregation
         if t_bins is not None:
@@ -351,7 +354,7 @@ class PlotData(object):
                 upper = self.series[0].tvec[-1]
             t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
 
-        if isinstance(t_bins, string_types) and t_bins == 'all':
+        if sc.isstring(t_bins) and t_bins == 'all':
             t_out = np.zeros((1,))
             lower = [-np.inf]
             upper = [np.inf]
@@ -388,16 +391,16 @@ class PlotData(object):
 
             s.tvec = np.array(tvec)
             s.vals = np.array(vals)
-            if isinstance(t_bins, string_types) and t_bins == 'all':
+            if sc.isstring(t_bins) and t_bins == 'all':
                 s.t_labels = ['All']
             else:
                 s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
 
     def __repr__(self):
         s = "PlotData\n"
-        s += "Results: {0}\n".format(self.results)
-        s += "Pops: {0}\n".format(self.pops)
-        s += "Outputs: {0}\n".format(self.outputs)
+        s += "Results: {0}\n".format(self.results.keys())
+        s += "Pops: {0}\n".format(self.pops.keys())
+        s += "Outputs: {0}\n".format(self.outputs.keys())
         return s
 
     @staticmethod
@@ -512,14 +515,17 @@ class PlotData(object):
                 # Accumulate the Series
                 plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units)) # The program should specify the units for its unit cost
 
-        plotdata.results = [x.name for x in results]  # NB. These are lists that thus specify the order in which plotting takes place
-        plotdata.pops = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
-        plotdata.outputs = [list(x.keys())[0] if isinstance(x, dict) else x for x in outputs]
 
-        # Names will be substituted with these at the last minute when plotting for titles/legends
-        plotdata.result_names = {x: x for x in plotdata.results}  # At least for now, no Result name mapping
-        plotdata.pop_names = {FS.DEFAULT_SYMBOL_INAPPLICABLE:FS.DEFAULT_SYMBOL_INAPPLICABLE}
-        plotdata.output_names = {x: (results[0].model.progset.programs[x].label if x in results[0].model.progset.programs else x) for x in plotdata.outputs}
+        plotdata.results = sc.odict()
+        for result in results:
+            plotdata.results[result.name] = result.name
+
+        plotdata.pops = sc.odict({FS.DEFAULT_SYMBOL_INAPPLICABLE:FS.DEFAULT_SYMBOL_INAPPLICABLE})
+
+        plotdata.outputs = sc.odict()
+        for output in outputs:
+            key = list(output.keys())[0] if isinstance(output, dict) else output
+            plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
             if quantity in ['spending','coverage_number']:
@@ -592,9 +598,20 @@ class PlotData(object):
         # - At least one of them must not be none
         # - It is a bad idea to manually set colors for more than one dimension because the order is unclear!
 
-        results = [results] if not isinstance(results, list) else results
-        pops = [pops] if not isinstance(pops, list) else pops
-        outputs = [outputs] if not isinstance(outputs, list) else outputs
+        if isinstance(results,dict):
+            results = results.keys()
+        else:
+            results = sc.promotetolist(results)
+
+        if isinstance(pops,dict):
+            pops = pops.keys()
+        else:
+            pops = sc.promotetolist(pops)
+
+        if isinstance(outputs,dict):
+            outputs = outputs.keys()
+        else:
+            outputs = sc.promotetolist(outputs)
 
         targets = list(itertools.product(results, pops, outputs))
 
@@ -648,7 +665,7 @@ class Series(object):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
-def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False,orientation='vertical'):
+def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
     # pops and outputs but we never want to stack results. At least for now. 
@@ -676,13 +693,13 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     # If quantities are stacked, then they need to be coloured differently.
     if stack_pops is None:
         color_by = 'outputs'
-        plotdata.set_colors(outputs=plotdata.outputs)
+        plotdata.set_colors(outputs=plotdata.outputs.keys())
     elif stack_outputs is None:
         color_by = 'pops'
-        plotdata.set_colors(pops=plotdata.pops)
+        plotdata.set_colors(pops=plotdata.pops.keys())
     else:
         color_by = 'both'
-        plotdata.set_colors(pops=plotdata.pops, outputs=plotdata.outputs)
+        plotdata.set_colors(pops=plotdata.pops.keys(), outputs=plotdata.outputs.keys())
 
     def process_input_stacks(input_stacks, available_items):
         # Sanitize the input. input stack could be
@@ -711,7 +728,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                 if isinstance(x, list):
                     output_stacks.append(('', '', x) if len(x) > 1 else (x[0], '', x))
                     items.update(x)
-                elif isinstance(x, string_types):
+                elif sc.isstring(x):
                     output_stacks.append((x, '', [x]))
                     items.add(x)
                 else:
@@ -722,7 +739,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                 if isinstance(x, list):
                     output_stacks.append(('', k, x) if len(x) > 1 else (x[0], k, x))
                     items.update(x)
-                elif isinstance(x, string_types):
+                elif sc.isstring(x):
                     output_stacks.append((x, k, [x]))
                     items.add(x)
                 else:
@@ -733,8 +750,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         output_stacks += [(x, '', [x]) for x in missing]
         return output_stacks
 
-    pop_stacks = process_input_stacks(stack_pops, plotdata.pops)
-    output_stacks = process_input_stacks(stack_outputs, plotdata.outputs)
+    pop_stacks = process_input_stacks(stack_pops, plotdata.pops.keys())
+    output_stacks = process_input_stacks(stack_outputs, plotdata.outputs.keys())
 
     # Now work out which pops and outputs appear in each bar (a bar is a pop-output combo)
     bar_pops = []
@@ -797,7 +814,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         if outer == 'results':
             inner_labels.append((base_offset + block_width / 2.0, t_labels[t_idx]))
         elif outer == 'times':
-            inner_labels.append((base_offset + block_width / 2.0, plotdata.result_names[plotdata.results[r_idx]]))
+            inner_labels.append((base_offset + block_width / 2.0, plotdata.results[r_idx]))
 
         for idx, bar_pop, bar_output in zip(range(len(bar_pops)), bar_pops, bar_outputs):
             # pop is something like ['0-4','5-14'] or ['0-4']
@@ -857,14 +874,14 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         pops = set([x[0] for x in items])
         outputs = set([x[1] for x in items])
 
-        if pops == set(plotdata.pops) and len(outputs) == 1:  # If the same color is used for all pops and always the same output
-            label = plotdata.output_names[items[0][1]]  # Use the output name
-        elif outputs == set(plotdata.outputs) and len(pops) == 1:  # Same color for all outputs and always same pop
-            label = plotdata.pop_names[items[0][0]]  # Use the pop name
+        if pops == set(plotdata.pops.keys()) and len(outputs) == 1:  # If the same color is used for all pops and always the same output
+            label = plotdata.outputs[items[0][1]]  # Use the output name
+        elif outputs == set(plotdata.outputs.keys()) and len(pops) == 1:  # Same color for all outputs and always same pop
+            label = plotdata.pops[items[0][0]]  # Use the pop name
         else:
             label = ''
             for x in items:
-                label += '%s-%s,\n' % (plotdata.pop_names[x[0]], plotdata.output_names[x[1]])
+                label += '%s-%s,\n' % (plotdata.pops[x[0]], plotdata.outputs[x[1]])
             label = label.strip()[:-1]  # Replace trailing newline and comma
         legend_patches.append(Patch(facecolor=color, label=label))
 
@@ -918,12 +935,11 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     elif outer == 'results' and (show_all_labels or len(plotdata.results) > 1):
         offset = 0.0
         for r in plotdata.results:
-            # NB. result_names mirrors usage of output_names and pop_names - see example for relabelling results in plotting documentation
             if orientation == 'horizontal':
-                ax.text(1,offset + (result_offset - gaps[1] - gaps[2]) / 2, plotdata.result_names[r],
+                ax.text(1,offset + (result_offset - gaps[1] - gaps[2]) / 2, plotdata.results[r],
                         transform=ax.get_yaxis_transform(), verticalalignment='center', horizontalalignment='left')
             else:
-                ax.text(offset + (result_offset - gaps[1] - gaps[2]) / 2, 1, plotdata.result_names[r],
+                ax.text(offset + (result_offset - gaps[1] - gaps[2]) / 2, 1, plotdata.results[r],
                     transform=ax.get_xaxis_transform(), verticalalignment='bottom', horizontalalignment='center')
             offset += result_offset
 
@@ -996,35 +1012,35 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     plotdata = sc.dcp(plotdata)
 
     if axis == 'results':
-        plotdata.set_colors(results=plotdata.results)
+        plotdata.set_colors(results=plotdata.results.keys())
 
-        for pop in plotdata.pops:
-            for output in plotdata.outputs:
+        for pop in plotdata.pops.keys():
+            for output in plotdata.outputs.keys():
                 fig, ax = plt.subplots()
                 fig.set_label('%s_%s' % (pop, output))
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].units for result in plotdata.results]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel('%s (%s)' % (plotdata.output_names[output], units[0]))
+                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
                 else:
-                    ax.set_ylabel('%s' % (plotdata.output_names[output]))
+                    ax.set_ylabel('%s' % (plotdata.outputs[output]))
 
-                if plotdata.pop_names[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    ax.set_title('%s' % (plotdata.pop_names[pop]))
+                if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    ax.set_title('%s' % (plotdata.pops[pop]))
 
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for result in plotdata.results])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
-                    ax.stackplot(plotdata[plotdata.results[0], pop, output].tvec, y,
-                                 labels=[plotdata.result_names[x] for x in plotdata.results],
+                    ax.stackplot(plotdata[plotdata.results.keys()[0], pop, output].tvec, y,
+                                 labels=[plotdata.results[x] for x in plotdata.results],
                                  colors=[plotdata[result, pop, output].color for result in plotdata.results])
                     if plot_type == 'stacked' and data is not None:
                         stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
                 else:
                     for i,result in enumerate(plotdata.results):
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
-                                color=plotdata[result, pop, output].color, label=plotdata.result_names[result], lw=lw)
+                                color=plotdata[result, pop, output].color, label=plotdata.results[result], lw=lw)
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
@@ -1032,7 +1048,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                     render_legend(ax, plot_type)
 
     elif axis == 'pops':
-        plotdata.set_colors(pops=plotdata.pops)
+        plotdata.set_colors(pops=plotdata.pops.keys())
 
         for result in plotdata.results:
             for output in plotdata.outputs:
@@ -1042,23 +1058,23 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 units = list(set([plotdata[result, pop, output].units for pop in plotdata.pops]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel('%s (%s)' % (plotdata.output_names[output], units[0]))
+                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
                 else:
-                    ax.set_ylabel('%s' % (plotdata.output_names[output]))
+                    ax.set_ylabel('%s' % (plotdata.outputs[output]))
 
-                ax.set_title('%s' % (plotdata.result_names[result]))
+                ax.set_title('%s' % (plotdata.results[result]))
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for pop in plotdata.pops])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
-                    ax.stackplot(plotdata[result, plotdata.pops[0], output].tvec, y,
-                                 labels=[plotdata.pop_names[x] for x in plotdata.pops],
+                    ax.stackplot(plotdata[result, plotdata.pops.keys()[0], output].tvec, y,
+                                 labels=[plotdata.pops[x] for x in plotdata.pops],
                                  colors=[plotdata[result, pop, output].color for pop in plotdata.pops])
                     if plot_type == 'stacked' and data is not None:
                         stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
                 else:
                     for pop in plotdata.pops:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
-                                color=plotdata[result, pop, output].color, label=plotdata.pop_names[pop], lw=lw)
+                                color=plotdata[result, pop, output].color, label=plotdata.pops[pop], lw=lw)
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
@@ -1066,7 +1082,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                     render_legend(ax, plot_type)
 
     elif axis == 'outputs':
-        plotdata.set_colors(outputs=plotdata.outputs)
+        plotdata.set_colors(outputs=plotdata.outputs.keys())
 
         for result in plotdata.results:
             for pop in plotdata.pops:
@@ -1078,23 +1094,23 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 if len(units) == 1 and units[0]:
                     ax.set_ylabel(units[0])
 
-                if plotdata.pop_names[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    ax.set_title('%s-%s' % (plotdata.result_names[result], plotdata.pop_names[pop]))
+                if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    ax.set_title('%s-%s' % (plotdata.results[result], plotdata.pops[pop]))
                 else:
-                    ax.set_title('%s' % (plotdata.result_names[result]))
+                    ax.set_title('%s' % (plotdata.results[result]))
 
                 if plot_type in ['stacked', 'proportion']:
                     y = np.stack([plotdata[result, pop, output].vals for output in plotdata.outputs])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
-                    ax.stackplot(plotdata[result, pop, plotdata.outputs[0]].tvec, y,
-                                 labels=[plotdata.output_names[x] for x in plotdata.outputs],
+                    ax.stackplot(plotdata[result, pop, plotdata.outputs.keys()[0]].tvec, y,
+                                 labels=[plotdata.outputs[x] for x in plotdata.outputs],
                                  colors=[plotdata[result, pop, output].color for output in plotdata.outputs])
                     if plot_type == 'stacked' and data is not None:
                         stack_data(ax,data,[plotdata[result, pop, output] for output in plotdata.outputs])
                 else:
                     for output in plotdata.outputs:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
-                                color=plotdata[result, pop, output].color, label=plotdata.output_names[output], lw=lw)
+                                color=plotdata[result, pop, output].color, label=plotdata.outputs[output], lw=lw)
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
@@ -1434,7 +1450,7 @@ def extract_labels(input_arrays):
         if isinstance(x, dict):
             k = list(x.keys())
             assert len(k) == 1, 'Aggregation dict can only have one key'
-            if isinstance(x[k[0]], string_types):
+            if sc.isstring(x[k[0]]):
                 continue
             else:
                 out += x[k[0]]
