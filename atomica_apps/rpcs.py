@@ -1608,9 +1608,9 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
 
 
 @RPC() 
-def plot_optimization_cascade(project_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
+def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
-    results = proj.results['optimization']
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True)
+    results = proj.results[cache_id]
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
     return output

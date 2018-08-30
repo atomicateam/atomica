@@ -53,7 +53,7 @@ Last update: 2018-08-30
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>              
               <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="clearTask(optimSummary)">Clear task</button>
 <!--              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button> -->
-              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization">Plot results</button>
+              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
@@ -681,7 +681,7 @@ Last update: 2018-08-30
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {
           rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
-            [this.projectID, optimSummary.name], 
+            [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
             {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
             // CASCADE-TB DIFFERENCE
             'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
@@ -736,13 +736,13 @@ Last update: 2018-08-30
         })
       },
       
-      plotOptimization() {
+      plotOptimization(optimSummary) {
         console.log('plotOptimization() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_optimization_cascade', [this.projectID, this.plotOptions],
+        rpcs.rpc('plot_optimization_cascade', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs)
