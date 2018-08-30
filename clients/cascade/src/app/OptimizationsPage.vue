@@ -52,7 +52,8 @@ Last update: 2018-08-30
 <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>              
               <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="clearTask(optimSummary)">Clear task</button>
-              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button>
+<!--              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button> -->
+              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
@@ -741,7 +742,7 @@ Last update: 2018-08-30
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions],
+        rpcs.rpc('plot_optimization_cascade', [this.projectID, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs)
