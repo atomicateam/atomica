@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-28
+Last update: 2018-08-30
 -->
 
 <template>
@@ -343,7 +343,10 @@ Last update: 2018-08-28
       },
       
       canCancelTask(optimSummary) {
-        return ((optimSummary.status == 'queued') || (optimSummary.status == 'started'))
+        // This line should be used, but at the moment revoke() doesn't seem to work 
+        // when the task still queued and not yet started.
+//        return ((optimSummary.status == 'queued') || (optimSummary.status == 'started'))
+        return (optimSummary.status == 'started')
       },
       
       canClearTask(optimSummary) {
@@ -382,8 +385,10 @@ Last update: 2018-08-28
           }
         }) 
                
+        // Hack to get the Vue display of optimSummaries to update
         this.optimSummaries.push(this.optimSummaries[0])
         this.optimSummaries.pop()
+        
         // Sleep waitingtime seconds.
         var waitingtime = 2
         utils.sleep(waitingtime * 1000)
