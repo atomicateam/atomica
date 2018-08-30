@@ -381,7 +381,9 @@ Last update: 2018-08-28
             this.getOptimTaskState(optimSum)
           }
         }) 
-        
+               
+        this.optimSummaries.push(this.optimSummaries[0])
+        this.optimSummaries.pop()
         // Sleep waitingtime seconds.
         var waitingtime = 2
         utils.sleep(waitingtime * 1000)
