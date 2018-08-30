@@ -277,11 +277,11 @@ class ProjectFramework(object):
             self.comps['setup weight'][fill_ones] = 1
             self.comps['setup weight'] = self.comps['setup weight'].fillna(0)
 
-        if 'can calibrate' not in self.comps:
-            # If calibration column is not present, then it can calibrate if in the databook
+        if 'calibrate' not in self.comps:
+            # If calibration column is not present, then it calibrate if in the databook
             default_calibrate = ~self.comps['databook page'].isnull()
-            self.comps['can calibrate'] = None
-            self.comps['can calibrate'][default_calibrate] = 'y'
+            self.comps['calibrate'] = None
+            self.comps['calibrate'][default_calibrate] = 'y'
 
         # VALIDATE THE COMPARTMENT SPECIFICATION
         for index,row in self.comps.iterrows():
@@ -299,7 +299,7 @@ class ProjectFramework(object):
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
             # will appear in the parset
-            if (row['databook page'] is None) & (row['can calibrate'] is not None):
+            if (row['databook page'] is None) & (row['calibrate'] is not None):
                 raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
             if (row['databook page'] is None) and (row['databook order'] is not None):
@@ -327,10 +327,10 @@ class ProjectFramework(object):
         # Make sure all units are lowercase
         self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
 
-        if 'can calibrate' not in self.pars:
+        if 'calibrate' not in self.pars:
             default_calibrate = self.pars['is impact'] == 'y'
-            self.pars['can calibrate'] = None
-            self.pars['can calibrate'][default_calibrate] = 'y'
+            self.pars['calibrate'] = None
+            self.pars['calibrate'][default_calibrate] = 'y'
 
         # Parse the transitions matrix
         self._process_transitions()
@@ -397,11 +397,11 @@ class ProjectFramework(object):
             self.characs['setup weight'][fill_ones] = 1
             self.characs['setup weight'] = self.characs['setup weight'].fillna(0)
 
-        if 'can calibrate' not in self.characs:
-            # If calibration column is not present, then it can calibrate if in the databook
+        if 'calibrate' not in self.characs:
+            # If calibration column is not present, then it calibrate if in the databook
             default_calibrate = ~self.characs['databook page'].isnull()
-            self.characs['can calibrate'] = None
-            self.characs['can calibrate'][default_calibrate] = 'y'
+            self.characs['calibrate'] = None
+            self.characs['calibrate'][default_calibrate] = 'y'
 
         for i,row in self.characs.iterrows():
 
@@ -413,7 +413,7 @@ class ProjectFramework(object):
             if row['denominator'] is not None:
                 assert row['denominator'] in self.comps.index or row['denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component)
 
-            if (row['databook page'] is None) & (row['can calibrate'] is not None):
+            if (row['databook page'] is None) & (row['calibrate'] is not None):
                 raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
             for component in row['components'].split(','):

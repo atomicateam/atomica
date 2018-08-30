@@ -882,7 +882,7 @@ def get_y_factors(project_id, parsetname=-1):
         for parname in parset.par_ids[par_type].keys():
             this_par = parset.get_par(parname)
             this_spec = proj.framework.get_variable(parname)[0]
-            if 'can calibrate' in this_spec and this_spec['can calibrate'] is not None:
+            if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
                 for popname,y_factor in this_par.y_factor.items():
                     count += 1
                     parlabel = this_spec['display name']
