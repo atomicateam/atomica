@@ -383,13 +383,16 @@ class ProgramSet(NamedItem):
             tdve = TimeDependentValuesEntry.from_rows(table)
             prog = self.programs[tdve.name]
             prog.spend_data = tdve.ts['Total spend']
-            prog.capacity_constraint = tdve.ts['Capacity constraints']
+            if 'Capacity constraints' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
+                prog.capacity = tdve.ts['Capacity constraints']
+            else:
+                prog.capacity = tdve.ts['Capacity']
             prog.unit_cost = tdve.ts['Unit cost']
             prog.coverage = tdve.ts['Coverage']
-            if 'Demand constraint' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
-                prog.demand_constraint = tdve.ts['Demand constraint']
+            if 'Saturation' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
+                prog.saturation = tdve.ts['Saturation']
             else:
-                prog.demand_constraint = TimeSeries()
+                prog.saturation = TimeSeries()
             times.update(set(tdve.tvec))
         self.tvec = array(sorted(list(times)))
 
@@ -398,16 +401,15 @@ class ProgramSet(NamedItem):
         widths = dict()
         next_row = 0
 
-
         for prog in self.programs.values():
             # Make a TDVE table for
             tdve = TimeDependentValuesEntry(prog.name,self.tvec)
             prog = self.programs[tdve.name]
             tdve.ts['Total spend'] = prog.spend_data
-            tdve.ts['Capacity constraints'] = prog.capacity_constraint
             tdve.ts['Unit cost'] = prog.unit_cost
+            tdve.ts['Capacity'] = prog.capacity
+            tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
-            tdve.ts['Demand constraint'] = prog.demand_constraint
 
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
@@ -479,7 +481,7 @@ class ProgramSet(NamedItem):
             for i,s in enumerate(['Baseline value','Coverage interaction','Impact interaction','Uncertainty']):
                 sheet.write(current_row, 1+i, s, self._formats['rc_title']['left']['T'])
                 widths[1+i] = 12 # Fixed width, wrapping
-            sheet.write_comment(xlrc(current_row,1), 'In this column, enter the baseline value for "%s" if none of the programs reach this parameter (e.g., if the coverage is 0)' % (par_label))
+            # sheet.write_comment(xlrc(current_row,1), 'In this column, enter the baseline value for "%s" if none of the programs reach this parameter (e.g., if the coverage is 0)' % (par_label))
 
             applicable_progs = self.programs.values() # All programs - could filter this later on
             prog_col = {p.name:i+6 for i,p in enumerate(applicable_progs)} # add any extra padding columns to the indices here too
@@ -710,7 +712,7 @@ class ProgramSet(NamedItem):
 
         return num_covered
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity_constraint=None, alloc=None, sample='best'):
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
         '''Returns proportion covered for a time/spending vector and denominator.
         Denominator is expected to be a dictionary.'''
         # INPUT
@@ -729,18 +731,18 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity_constraint=capacity_constraint, budget=spending, sample=sample)
+            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
             denom = denominator[prog.name]            
             prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
             
         return prop_covered
 
-    def get_coverage(self, year=None, denominator=None, unit_cost=None, capacity_constraint=None, alloc=None, sample='best'):
+    def get_coverage(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
         '''Returns proportion OR number covered for a time/spending vector. Returns proportion if denominator is provided'''
         if denominator is not None:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity_constraint=capacity_constraint, alloc=alloc, sample=sample)
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
         else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity_constraint=capacity_constraint, alloc=alloc, sample=sample)
+            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
     def get_outcomes(self, coverage):
         ''' Get a dictionary of parameter values associated with coverage levels'''
@@ -781,9 +783,9 @@ class Program(NamedItem):
         self.baseline_spend     = TimeSeries(assumption=0.0) # A TimeSeries with any baseline spending data - currently not exposed in progbook
         self.spend_data         = TimeSeries() # TimeSeries with spending data
         self.unit_cost          = TimeSeries() # TimeSeries with unit cost of program
-        self.capacity_constraint           = TimeSeries() # TimeSeries with capacity_constraint of program - optional - if not supplied, cost function is assumed to be linear
-        self.demand_constraint = TimeSeries()
-        self.coverage           = TimeSeries() # TimeSeries with capacity_constraint of program - optional - if not supplied, cost function is assumed to be linear
+        self.capacity           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.saturation = TimeSeries()
+        self.coverage           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         return None
 
     def __repr__(self):
@@ -821,7 +823,7 @@ class Program(NamedItem):
             tests['target_pops invalid'] = len(self.target_pops)<1
             tests['target_pars invalid'] = len(self.target_pars)<1
             tests['unit_cost invalid']   = not(sc.isnumber(self.get_unit_cost()))
-            tests['capacity_constraint invalid']   = self.capacity_constraint is None
+            tests['capacity invalid']   = self.capacity is None
             if any(tests.values()):
                 valid = False # It's looking like it can't be optimized
                 if partial and all(tests.values()): valid = True # ...but it's probably just an other program, so skip it
@@ -838,7 +840,7 @@ class Program(NamedItem):
     def has_budget(self):
         return self.spend_data.has_data()
 
-    def get_num_covered(self, year=None, unit_cost=None, capacity_constraint=None, budget=None, sample=False):
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False):
         '''Returns number covered for a time/spending vector'''
         # TODO - implement sampling - might just be replacing 'interpolate' with 'sample'?
 
@@ -853,21 +855,21 @@ class Program(NamedItem):
             unit_cost = self.unit_cost.interpolate(year)
         unit_cost = sc.promotetoarray(unit_cost)
             
-        if capacity_constraint is None and self.capacity_constraint.has_data:
-            capacity_constraint = self.capacity_constraint.interpolate(year)
+        if capacity is None and self.capacity.has_data:
+            capacity = self.capacity.interpolate(year)
             
-        # Use a linear cost function if capacity_constraint has not been set
-        if capacity_constraint is not None:
-            num_covered = 2*capacity_constraint/(1+exp(-2*budget/(capacity_constraint*unit_cost)))-capacity_constraint
+        # Use a linear cost function if capacity has not been set
+        if capacity is not None:
+            num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unit_cost)))-capacity
             
-        # Use a saturating cost function if capacity_constraint has been set
+        # Use a saturating cost function if capacity has been set
         else:
             num_covered = budget/unit_cost
 
         return num_covered
 
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity_constraint=None, budget=None, sample='best'):
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
         '''Returns proportion covered for a time/spending vector and denominator'''
         
         # Make sure that denominator has been supplied
@@ -877,12 +879,12 @@ class Program(NamedItem):
             
         # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
         # Example: year = [2015,2016], denominator = [30000,40000]
-        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity_constraint=capacity_constraint, budget=budget, year=year, sample=sample)
+        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
         prop_covered = minimum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
         return prop_covered
 
 
-    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity_constraint=None, budget=None, sample='best'):
+    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
         '''Returns proportion OR number covered for a time/spending vector.'''
         
         if as_proportion and denominator is None:
@@ -890,9 +892,9 @@ class Program(NamedItem):
             as_proportion = False
             
         if as_proportion:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity_constraint=capacity_constraint, budget=budget, sample=sample)
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
         else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity_constraint=capacity_constraint, budget=budget, sample=sample)
+            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
 
 
 #--------------------------------------------------------------------

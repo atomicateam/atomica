@@ -22,10 +22,11 @@ def standard_formats(workbook):
 
     """ the formats used in the spreadsheet """
 #    darkgray = '#413839'
-    originalblue = '#18C1FF'
-    optionalorange = '#FFA500'
-    BG_COLOR = originalblue
-    OPT_COLOR = optionalorange
+    optima_blue = '#18C1FF'
+    atomica_blue = '#98E0FA'
+    optional_orange = '#FFA500'
+    BG_COLOR = atomica_blue
+    OPT_COLOR = optional_orange
     BORDER_COLOR = 'white'
 
     formats = {}
@@ -669,7 +670,7 @@ class TimeDependentValuesEntry(object):
 
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
-            worksheet.write(current_row, i, entry, formats['bold'])
+            worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths,i,entry)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
