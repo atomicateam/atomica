@@ -34,9 +34,10 @@ pset.save("progbook_test5.xlsx")
 #     covout.cov_interaction = 'random'
 # P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 
-# which = ['tb','sir','udt','hiv','usdt','hypertension']
-# for a in which:
-#     F = au.ProjectFramework("./frameworks/framework_%s.xlsx" % (a))
-#     D = au.ProjectData.from_spreadsheet("./databooks/databook_%s.xlsx" % (a),framework=F)
-#     pset = au.ProgramSet.from_spreadsheet("./databooks/progbook_%s.xlsx" % (a),F,D)
-#     pset.save("./databooks/progbook_%s.xlsx" % (a))
+# THIS DOES VERSIONING
+which = ['tb','sir','udt','hiv','usdt','hypertension']
+for a in which:
+    F = au.ProjectFramework("./frameworks/framework_%s.xlsx" % (a))
+    D = au.ProjectData.from_spreadsheet("./databooks/databook_%s.xlsx" % (a),framework=F)
+    pset = au.ProgramSet.from_spreadsheet("./databooks/progbook_%s.xlsx" % (a),F,D)
+    pset.save("./databooks/progbook_%s.xlsx" % (a))
