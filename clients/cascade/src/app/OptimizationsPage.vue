@@ -539,7 +539,7 @@ Last update: 2018-08-30
             if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
               // Clear the present task.
               if (newOptim.status != 'not started') {
-                this.clearTask(optimSummary)  // Clear the task from the server. 
+                this.clearTask(newOptim)  // Clear the task from the server. 
               }
 
               // Set a new server DataStore ID.
