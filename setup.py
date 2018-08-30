@@ -36,8 +36,9 @@ setup(
         'celery',
         'decorator>=4.1.2',
         'dill>=0.2.7.1',
+        'flask',
         'flask_login',
-        'matplotlib>=1.4.2',
+        'matplotlib>=1.4.2,<3',
         'numpy>=1.10.1',
         'pandas',
         'pyparsing',
@@ -47,6 +48,6 @@ setup(
         'xlrd',
         'xlsxwriter',
         'scipy',
-        'openpyxl'
+        'openpyxl',
     ],
 )

@@ -380,11 +380,11 @@ class Parameter(Variable):
         for dep_name, deps in self.deps.items():
             for dep in deps:
                 if isinstance(dep, Link):
-                    dep_vals[dep_name] += dep.vals[[ti]] / dep.dt
+                    dep_vals[dep_name] += dep.vals[ti] / dep.dt
                 else:
-                    dep_vals[dep_name] += dep.vals[[ti]]
+                    dep_vals[dep_name] += dep.vals[ti]
 
-        dep_vals['t'] = self.t[[ti]]
+        dep_vals['t'] = self.t[ti]
         dep_vals['dt'] = self.dt
         self.vals[ti] = self.scale_factor*self._fcn(**dep_vals)
 
