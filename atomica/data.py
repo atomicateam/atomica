@@ -19,7 +19,7 @@ from collections import defaultdict
 # Data maps to a databook
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
 # data values
-class ProjectData(object):
+class ProjectData(sc.prettyobj):
 
     def __init__(self):
         # This is just an overview of the structure of ProjectData
@@ -37,10 +37,6 @@ class ProjectData(object):
         self._formats = None
         self._book = None
         self._references = None
-    
-    def __repr__(self):
-        output = sc.prepr(self)
-        return output
 
     @property
     def start_year(self):

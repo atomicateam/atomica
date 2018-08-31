@@ -103,9 +103,6 @@ Last update: 2018-08-27
             <td style="text-align:left">
               {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
-            <!--<td style="text-align:center">-->
-            <!--{{ projectSummary.project.n_pops }}-->
-            <!--</td>-->
             <td style="text-align:left">
               <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
                 <i class="ti-upload"></i>
@@ -210,6 +207,7 @@ Last update: 2018-08-27
         </div>
       </div>
     </modal>
+    
   </div>
 
 </template>
@@ -248,6 +246,7 @@ Last update: 2018-08-27
     },
 
     computed: {
+      projectID()    { return utils.projectID(this) },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
       },
@@ -332,11 +331,12 @@ Last update: 2018-08-27
 
       addDemoProject() {
         console.log('addDemoProject() called')
+        this.$modal.hide('demo-project')
         status.start(this)
         rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
-            status.succeed(this, '')
+            status.succeed(this, '') // Already have notification from project
           })
           .catch(error => {
             status.fail(this, 'Could not add demo project: ' + error.message)
@@ -368,7 +368,7 @@ Last update: 2018-08-27
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not add new project')    // Indicate failure.
+            status.fail(this, 'Could not add new project:' + error.message)    // Indicate failure.
           })
       },
 
@@ -381,7 +381,7 @@ Last update: 2018-08-27
             status.succeed(this, 'New project uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload file')
+            status.fail(this, 'Could not upload file: ' + error.message)
           })
       },
 
@@ -411,19 +411,12 @@ Last update: 2018-08-27
 
       updateSorting(sortColumn) {
         console.log('updateSorting() called')
-
-        // If the active sorting column is clicked...
-        if (this.sortColumn === sortColumn) {
+        if (this.sortColumn === sortColumn) { // If the active sorting column is clicked...
           // Reverse the sort.
           this.sortReverse = !this.sortReverse
-        }
-        // Otherwise.
-        else {
-          // Select the new column for sorting.
-          this.sortColumn = sortColumn
-
-          // Set the sorting for non-reverse.
-          this.sortReverse = false
+        } else { // Otherwise.
+          this.sortColumn = sortColumn // Select the new column for sorting.
+          this.sortReverse = false // Set the sorting for non-reverse.
         }
       },
 
@@ -472,35 +465,16 @@ Last update: 2018-08-27
 
       renameProject(projectSummary) {
         console.log('renameProject() called for ' + projectSummary.project.name)
-
-        // If the project is not in a mode to be renamed, make it so.
-        if (projectSummary.renaming === '') {
+        if (projectSummary.renaming === '') { // If the project is not in a mode to be renamed, make it so.
           projectSummary.renaming = projectSummary.project.name
-        }
-
-        // Otherwise (it is to be renamed)...
-        else {
-          // Make a deep copy of the projectSummary object by JSON-stringifying the old
-          // object, and then parsing the result back into a new object.
-          let newProjectSummary = JSON.parse(JSON.stringify(projectSummary))
-
-          // Rename the project name in the client list from what's in the textbox.
-          newProjectSummary.project.name = projectSummary.renaming
-
-          // Start indicating progress.
+        } else { // Otherwise (it is to be renamed)...
+          let newProjectSummary = _.cloneDeep(projectSummary)) // Make a deep copy of the projectSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
+          newProjectSummary.project.name = projectSummary.renaming // Rename the project name in the client list from what's in the textbox.
           status.start(this)
-
-          // Have the server change the name of the project by passing in the new copy of the
-          // summary.
-          rpcs.rpc('update_project_from_summary', [newProjectSummary])
+          rpcs.rpc('update_project_from_summary', [newProjectSummary]) // Have the server change the name of the project by passing in the new copy of the summary.
             .then(response => {
-              // Update the project summaries so the rename shows up on the list.
-              this.updateProjectSummaries(newProjectSummary.project.id)
-
-              // Turn off the renaming mode.
-              projectSummary.renaming = ''
-
-              // Indicate success.
+              this.updateProjectSummaries(newProjectSummary.project.id) // Update the project summaries so the rename shows up on the list.
+              projectSummary.renaming = '' // Turn off the renaming mode.
               status.succeed(this, '')  // No green popup message.
             })
             .catch(error => {
@@ -609,14 +583,10 @@ Last update: 2018-08-27
 
       // Confirmation alert
       deleteModal() {
-        // Pull out the names of the projects that are selected.
-        let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
+        let selectProjectsUIDs = this.projectSummaries.filter(theProj => // Pull out the names of the projects that are selected.
           theProj.selected).map(theProj => theProj.project.id)
-
-        // Only if something is selected...
-        if (selectProjectsUIDs.length > 0) {
-          // Alert object data
-          var obj = {
+        if (selectProjectsUIDs.length > 0) { // Only if something is selected...
+          var obj = { // Alert object data
             message: 'Are you sure you want to delete the selected projects?',
             useConfirmBtn: true,
             customConfirmBtnClass: 'btn __red',
@@ -628,60 +598,36 @@ Last update: 2018-08-27
       },
 
       deleteSelectedProjects() {
-        // Pull out the names of the projects that are selected.
-        let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
+        let selectProjectsUIDs = this.projectSummaries.filter(theProj => // Pull out the names of the projects that are selected.
           theProj.selected).map(theProj => theProj.project.id)
-
         console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
-
-        // Have the server delete the selected projects.
-        if (selectProjectsUIDs.length > 0) {
-          // Start indicating progress.
+        if (selectProjectsUIDs.length > 0) { // Have the server delete the selected projects.
           status.start(this)
-
           rpcs.rpc('delete_projects', [selectProjectsUIDs])
             .then(response => {
-              // Get the active project ID.
-              let activeProjectId = this.$store.state.activeProject.project.id
+              let activeProjectId = this.$store.state.activeProject.project.id // Get the active project ID.
               if (activeProjectId === undefined) {
                 activeProjectId = null
               }
-
-              // If the active project ID is one of the ones deleted...
-              if (selectProjectsUIDs.find(theId => theId === activeProjectId)) {
-                // Set the active project to an empty project.
-                this.$store.commit('newActiveProject', {})
-
-                // Null out the project.
-                activeProjectId = null
+              if (selectProjectsUIDs.find(theId => theId === activeProjectId)) { // If the active project ID is one of the ones deleted...
+                this.$store.commit('newActiveProject', {}) // Set the active project to an empty project.
+                activeProjectId = null // Null out the project.
               }
-
-              // Update the project summaries so the deletions show up on the list.
-              // Make sure it tries to set the project that was active (if any).
-              this.updateProjectSummaries(activeProjectId)
-
-              // Indicate success.
+              this.updateProjectSummaries(activeProjectId) // Update the project summaries so the deletions show up on the list. Make sure it tries to set the project that was active (if any).
               status.succeed(this, '')  // No green popup message.
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not delete project/s')
+              status.fail(this, 'Could not delete project/s: ' + error.message)
             })
         }
       },
 
       downloadSelectedProjects() {
-        // Pull out the names of the projects that are selected.
-        let selectProjectsUIDs = this.projectSummaries.filter(theProj =>
+        let selectProjectsUIDs = this.projectSummaries.filter(theProj => // Pull out the names of the projects that are selected.
           theProj.selected).map(theProj => theProj.project.id)
-
         console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
-
-        // Have the server download the selected projects.
-        if (selectProjectsUIDs.length > 0) {
-          // Start indicating progress.
+        if (selectProjectsUIDs.length > 0) { // Have the server download the selected projects.
           status.start(this)
-
           rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
             .then(response => {
               // Indicate success.

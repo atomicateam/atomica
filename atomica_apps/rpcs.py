@@ -1,12 +1,12 @@
 """
-rpcs.py -- code related to HealthPrior project management
+Atomica remote procedure calls (RPCs)
     
-Last update: 2018jun04 by cliffk
+Last update: 2018aug30 by cliffk
 """
 
-#
-# Imports
-#
+###############################################################
+### Imports
+##############################################################
 
 import time
 import os
@@ -87,7 +87,7 @@ def store_result_separately(proj, result):
 
 
 ###############################################################
-#%% Framework functions
+### Framework functions
 ##############################################################
     
 
@@ -175,7 +175,7 @@ def save_framework_as_new(frame, user_id):
 
         
 ##############################################################
-#%% Project functions
+### Project functions
 ##############################################################
     
 
@@ -321,7 +321,7 @@ def get_version_info():
 
 
 ##################################################################################
-#%% Framework RPCs
+### Framework RPCs
 ##################################################################################
 
 @RPC()
@@ -544,7 +544,7 @@ def create_framework_from_file(filename, user_id=None):
 
 
 ##################################################################################
-#%% Project RPCs
+### Project RPCs
 ##################################################################################
 
 @RPC()
@@ -1045,7 +1045,7 @@ def delete_progset(project_id, progsetname=None):
 
 
 ##################################################################################
-#%% Plotting functions and RPCs
+### Plotting functions and RPCs
 ##################################################################################
 
 def supported_plots_func(framework):
@@ -1399,7 +1399,7 @@ def export_results(project_id, resultset=-1):
 
 
 ##################################################################################
-#%% Scenario functions and RPCs
+### Scenario functions and RPCs
 ##################################################################################
 
 def py_to_js_scen(py_scen, project=None):
@@ -1515,7 +1515,7 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
 
 
 ##################################################################################
-#%% Optimization functions and RPCs
+### Optimization functions and RPCs
 ##################################################################################
 
 

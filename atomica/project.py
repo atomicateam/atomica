@@ -32,7 +32,7 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import Scenario, ParameterScenario
+from .scenarios import ParameterScenario
 from .optimization import optimize, OptimInstructions
 from .system import logger
 from .scenarios import BudgetScenario

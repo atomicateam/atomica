@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-22
+Last update: 2018-08-28
 -->
 
 <template>
@@ -26,6 +26,9 @@ Last update: 2018-08-22
           <thead>
           <tr>
             <th>Name</th>
+            <th>Status</th>
+            <th>Pending Time</th>
+            <th>Execution Time</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -34,10 +37,22 @@ Last update: 2018-08-22
             <td>
               <b>{{ optimSummary.name }}</b>
             </td>
+            <td>
+              {{ optimSummary.status }}
+            </td>
+            <td>
+              {{ timeFormatStr(optimSummary.pendingTime) }}
+            </td>
+            <td>
+              {{ timeFormatStr(optimSummary.executionTime) }}
+            </td>            
             <td style="white-space: nowrap">
-              <button class="btn __green" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn" @click="runOptim(optimSummary, 15)">Test run</button>
-              <!--<button class="btn" @click="cancelRun(optimSummary)">Clear task</button>-->
+              <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
+              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
+<!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
+              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>              
+              <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="cancelRun(optimSummary)">Clear task</button>
+              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
@@ -289,7 +304,16 @@ Last update: 2018-08-22
       exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
-
+      
+      timeFormatStr(rawValue) {
+        if (rawValue == '--') {
+          return '--'
+        }
+        else {
+          return Number(rawValue).toFixed() + ' sec'
+        }
+      },
+      
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
@@ -312,6 +336,61 @@ Last update: 2018-08-22
         else if (this.endYear < this.simStart) {
           this.endYear = this.simStart
         }
+      },
+      
+      canRunTask(optimSummary) {
+        return ((optimSummary.status == 'not started') || (optimSummary.status == 'completed'))
+      },
+      
+      canCancelTask(optimSummary) {
+        return ((optimSummary.status == 'queued') || (optimSummary.status == 'started'))
+      },
+      
+      canClearTask(optimSummary) {
+        return (optimSummary.status != 'not started')
+      },
+      
+      canPlotResults(optimSummary) {
+        return (optimSummary.status == 'completed')
+      },
+      
+      getOptimTaskState(optimSummary) {
+        var statusStr = ''
+        
+        // Check the status of the task.
+        rpcs.rpc('check_task', [optimSummary.task_id])
+        .then(result => {
+          statusStr = result.data.task.status
+          optimSummary.status = statusStr
+          optimSummary.pendingTime = result.data.pendingTime
+          optimSummary.executionTime = result.data.executionTime          
+        })
+        .catch(error => {
+          optimSummary.status = 'not started'
+          optimSummary.pendingTime = '--'
+          optimSummary.executionTime = '--'
+        })
+      },
+      
+      pollAllTaskStates() {
+        console.log('Do a task poll...')
+        // For each of the optimization summaries...
+        this.optimSummaries.forEach(optimSum => {
+          // If there is a valid task launched, check it.
+          if ((optimSum.status != 'not started') && (optimSum.status != 'completed')) {
+            this.getOptimTaskState(optimSum)
+          }
+        }) 
+        
+        // Sleep waitingtime seconds.
+        var waitingtime = 2
+        utils.sleep(waitingtime * 1000)
+        .then(response => {
+          // Only if we are still in the optimizations page, call ourselves.
+          if (this.$route.path == '/optimizations') {
+            this.pollAllTaskStates()
+          }
+        }) 
       },
       
       updateSets() {
@@ -366,14 +445,37 @@ Last update: 2018-08-22
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
         status.start(this)
-        rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
-          .then(response => {
-            this.optimSummaries = response.data // Set the optimizations to what we received.
-            status.succeed(this, 'Optimizations loaded')
+        
+        // Get the current project's optimization summaries from the server.
+        rpcs.rpc('get_optim_info', [this.projectID])
+        .then(response => {
+          this.optimSummaries = response.data // Set the optimizations to what we received.
+          
+          // For each of the optimization summaries...
+          this.optimSummaries.forEach(optimSum => {
+            // Build a task ID from the project's hex UID and the optimization name.
+            optimSum.task_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
+            
+            // Set the status to 'not started' by default, and the pending and execution 
+            // times to '--'.
+            optimSum.status = 'not started'
+            optimSum.pendingTime = '--'
+            optimSum.executionTime = '--'
+            
+            // Get the task state for the optimization.
+            this.getOptimTaskState(optimSum)
           })
-          .catch(error => {
-            status.fail(this, 'Could not load optimizations')
-          })
+          
+          // Start polling of tasks states.
+          this.pollAllTaskStates()
+          
+          // Indicate success.
+          status.succeed(this, 'Optimizations loaded')
+        })
+        .catch(error => {
+          // Indicate failure.
+          status.fail(this, 'Could not load optimizations')
+        })
       },
 
       setOptimSummaries() {
@@ -497,7 +599,7 @@ Last update: 2018-08-22
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
-      runOptim(optimSummary, maxtime) {
+/*      runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
@@ -520,12 +622,83 @@ Last update: 2018-08-22
             console.log('There was an error: ' + error.message)
             status.fail(this, 'Could not set optimization info: ' + error.message)
           })
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          console.log(this.serverresponse)
+          this.servererror = error.message // Set the server error.
+           
+          // Indicate failure.
+          status.fail(this, 'Could not make graphs: ' + error.message)
+        })        
+      }, */
+      
+      runOptim(optimSummary, maxtime) {
+        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
+        // Start indicating progress.
+        status.start(this)       
+        // Make sure they're saved first
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
+        .then(response => {
+          rpcs.rpc('launch_task', [optimSummary.task_id, 'run_cascade_optimization', 
+            [this.projectID, optimSummary.name], 
+            {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
+            // CASCADE-TB DIFFERENCE
+            'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
+          .then(response => {
+            // Get the task state for the optimization.
+            this.getOptimTaskState(optimSummary)
+            
+            // Indicate success.
+            status.succeed(this, 'Started optimization')
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            console.log(this.serverresponse)
+            this.servererror = error.message // Set the server error.
+             
+            // Indicate failure.
+            status.fail(this, 'Could not start optimization: ' + error.message)
+          })        
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          console.log(this.serverresponse)
+          this.servererror = error.message // Set the server error.
+           
+          // Indicate failure.
+          status.fail(this, 'Could not start optimization: ' + error.message)
+        })        
       },
       
-      // TODO: remove this after debugging
       cancelRun(optimSummary) {
         console.log('cancelRun() called for '+this.currentOptim)
-        rpcs.rpc('delete_task', ['run_optimization'])
+        rpcs.rpc('delete_task', [optimSummary.task_id])
+        .then(response => {
+          // Get the task state for the optimization.
+          this.getOptimTaskState(optimSummary)          
+        })
+      },
+      
+      plotResults(optimSummary) {
+        console.log('plotResults() called for '+this.currentOptim)
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
+        status.start(this)
+        rpcs.rpc('get_task_result', [optimSummary.task_id])
+        .then(response => {
+          this.makeGraphs(response.data.result.graphs)
+          this.table = response.data.result.table
+          status.succeed(this, 'Graphs created')          
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          console.log(this.serverresponse)
+          this.servererror = error.message // Set the server error.
+           
+          // Indicate failure.
+          status.fail(this, 'Could not make graphs: ' + error.message)
+        })
       },
       
       plotOptimization() {
