@@ -85,6 +85,89 @@ def store_result_separately(proj, result):
     save_project(proj)
 
 
+ 
+# Global for the results cache.
+results_cache = None
+    
+class ResultSet(sw.Blob):
+
+    def __init__(self, uid, result_set):
+        super(ResultSet, self).__init__(uid, type_prefix='resultset', 
+            file_suffix='.rst', instance_label='')
+        self.result_set = result_set  # can be single Result or list of Results
+        
+class ResultsCache(sw.BlobDict):
+
+    def __init__(self, uid):
+        super(ResultsCache, self).__init__(uid, type_prefix='resultscache', 
+            file_suffix='.rca', instance_label='Results Cache', 
+            objs_within_coll=False)
+        
+    def retrieve(self, cache_id):
+        print('>> ResultsCache.retrieve() under construction...')
+        result_set = None
+        return result_set
+    
+    def store(self, cache_id, project_uid, result_set):
+        print('>> ResultsCache.store() under construction...')
+    
+    def delete(self, cache_id):
+        print('>> ResultsCache.delete() under construction...')
+    
+    def delete_all(self):
+        print('>> ResultsCache.delete_all() under construction...')
+    
+    def delete_by_project(self, project_uid):
+        print('>> ResultsCache.delete_by_project() under construction...')
+        
+def init_results_cache(app):
+    global results_cache
+    
+    # Look for an existing ResultsCache.
+    results_cache_uid = sw.globalvars.data_store.get_uid('resultscache', 'Results Cache')
+    
+    # Create the results cache object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    results_cache = ResultsCache(results_cache_uid)  
+    
+    # If there was a match...
+    if results_cache_uid is not None:
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print('>> Loading ResultsCache from the DataStore.')
+        results_cache.load_from_data_store()
+        
+    # Else (no match)...
+    else:
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print('>> Creating a new ResultsCache.') 
+        results_cache.add_to_data_store()
+        
+    if app.config['LOGGING_MODE'] == 'FULL':
+        # Show what's in the ResultsCache.    
+        results_cache.show()
+        
+def apptasks_load_results_cache():
+    # Look for an existing ResultsCache.
+    results_cache_uid = sw.globalvars.data_store.get_uid('resultscache', 'Results Cache')
+    
+    # Create the results cache object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    results_cache = ResultsCache(results_cache_uid)
+    
+    # If there was a match...
+    if results_cache_uid is not None:
+        # Load the cache from the persistent storage.
+        results_cache.load_from_data_store()
+        
+        # Return the cache state to the Celery worker.
+        return results_cache
+        
+    # Else (no match)...
+    else: 
+        print('>>> ERROR: RESULTS CACHE NOT IN DATASTORE')
+        return None  
+    
+    
 
 ###############################################################
 ### Framework functions
@@ -1613,6 +1696,8 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
 def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
-    results = proj.results[cache_id]
+    results = proj.results[cache_id]  # TODO: remove this after caching done right
+    results_cache.load_from_data_store()
+    results_ignore = results_cache.retrieve(cache_id)
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
     return output
