@@ -27,7 +27,6 @@ Last update: 2018-08-30
           <tr>
             <th>Name</th>
             <th>Status</th>
-            <th></th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -38,10 +37,8 @@ Last update: 2018-08-30
             </td>
             <td>
               {{ statusFormatStr(optimSummary) }}
-            </td>
-            <td>
               {{ timeFormatStr(optimSummary) }}
-            </td>        
+            </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
@@ -304,16 +301,16 @@ Last update: 2018-08-30
       
       statusFormatStr(optimSummary) {
         if (optimSummary.status == 'not started') {
-          return '--'
+          return ''
         }
         else if (optimSummary.status == 'queued') {
-          return 'Waiting... ' // + this.timeFormatStr(optimSummary.pendingTime)
+          return 'Initializing... ' // + this.timeFormatStr(optimSummary.pendingTime)
         }
         else if (optimSummary.status == 'started') {
-          return 'Running... ' // + this.timeFormatStr(optimSummary.executionTime)
+          return 'Running for ' // + this.timeFormatStr(optimSummary.executionTime)
         }
         else if (optimSummary.status == 'completed') {
-          return 'Completed  ' // + this.timeFormatStr(optimSummary.executionTime)
+          return 'Completed after  ' // + this.timeFormatStr(optimSummary.executionTime)
         }        
         else {
           return ''
@@ -341,8 +338,8 @@ Last update: 2018-08-30
           numSecs -= numHours * 3600
           let numMins = Math.floor(numSecs / 60)
           numSecs -= numMins * 60
-          return numHours.toString().padStart(2, '0') + ':' + 
-            numMins.toString().padStart(2, '0') + ':' + numSecs.toString().padStart(2, '0')
+          let output = _.padStart(numHours.toString(), 2, '0') + ':' + _.padStart(numMins.toString(), 2, '0') + ':' + _.padStart(numSecs.toString(), 2, '0')
+          return output
         }
       },
       
