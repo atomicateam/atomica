@@ -32,7 +32,7 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import Scenario, ParameterScenario
+from .scenarios import ParameterScenario
 from .optimization import optimize, OptimInstructions
 from .system import logger
 from .scenarios import BudgetScenario
@@ -40,7 +40,6 @@ from .utils import NDict
 import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
-from six import string_types
 
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
@@ -84,7 +83,7 @@ class Project(object):
 
         self.name = name
 
-        if isinstance(framework,string_types) or isinstance(framework,AtomicaSpreadsheet):
+        if sc.isstring(framework) or isinstance(framework,AtomicaSpreadsheet):
             self.framework = ProjectFramework(inputs=framework)
         elif isinstance(framework,ProjectFramework):
             self.framework = framework
@@ -179,7 +178,7 @@ class Project(object):
                                newly-added data
         - do_run: If True, a simulation will be run using the new parset
         """
-        if isinstance(databook_path,string_types):
+        if sc.isstring(databook_path):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -221,7 +220,7 @@ class Project(object):
         ''' Load a programs databook'''
         if verbose: print('Making ProgramSet')
         if verbose: print('Uploading program data')
-        if isinstance(progbook_path,string_types):
+        if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
@@ -381,17 +380,17 @@ class Project(object):
         if parset is None: parset = -1
         parset = self.parsets[parset]
         if adjustables is None:
-            adjustables = list(self.framework.pars.index[self.framework.pars['can calibrate']=='y'])
-            adjustables += list(self.framework.comps.index[self.framework.comps['can calibrate']=='y'])
-            adjustables += list(self.framework.characs.index[self.framework.characs['can calibrate']=='y'])
+            adjustables = list(self.framework.pars.index[~self.framework.pars['calibrate'].isnull()])
+            adjustables += list(self.framework.comps.index[~self.framework.comps['calibrate'].isnull()])
+            adjustables += list(self.framework.characs.index[~self.framework.characs['calibrate'].isnull()])
         if measurables is None:
             measurables = list(self.framework.comps.index)
             measurables += list(self.framework.characs.index)
         for index, adjustable in enumerate(adjustables):
-            if isinstance(adjustable, string_types):  # Assume that a parameter name was passed in if not a tuple.
+            if sc.isstring(adjustable):  # Assume that a parameter name was passed in if not a tuple.
                 adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
         for index, measurable in enumerate(measurables):
-            if isinstance(measurable, string_types):  # Assume that a parameter name was passed in if not a tuple.
+            if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
         new_parset = perform_autofit(project=self, parset=parset,
                                      pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)

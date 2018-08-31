@@ -1,6 +1,6 @@
 // index.js -- vue-router path configuration code
 //
-// Last update: 8/17/18 (gchadder3)
+// Last update: 2018-08-30
 
 // Import main things
 import Vue from 'vue'

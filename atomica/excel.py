@@ -13,7 +13,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from six import string_types
+from six import reraise
 from .system import logger
 
 def standard_formats(workbook):
@@ -22,10 +22,11 @@ def standard_formats(workbook):
 
     """ the formats used in the spreadsheet """
 #    darkgray = '#413839'
-    originalblue = '#18C1FF'
-    optionalorange = '#FFA500'
-    BG_COLOR = originalblue
-    OPT_COLOR = optionalorange
+    optima_blue = '#18C1FF'
+    atomica_blue = '#98E0FA'
+    optional_orange = '#FFA500'
+    BG_COLOR = atomica_blue
+    OPT_COLOR = optional_orange
     BORDER_COLOR = 'white'
 
     formats = {}
@@ -69,7 +70,7 @@ def update_widths(width_dict,column_index,contents):
     # Keep track of the maximum length of the contents in a column
     # width_dict is a dict that is keyed by column index e.g. 0,1,2
     # and the value is the length of the longest contents seen for that column
-    if width_dict is None or contents is None or not isinstance(contents,string_types):
+    if width_dict is None or contents is None or not sc.isstring(contents):
         return
 
     if len(contents) == 0:
@@ -201,7 +202,10 @@ def read_tables(worksheet):
 
     buffer = []
     tables = []
-    for row in worksheet.rows:
+    start_rows = []
+    start = None
+
+    for i,row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
         if row[0].value and row[0].value.startswith('#ignore'):
@@ -210,18 +214,22 @@ def read_tables(worksheet):
         # Find out whether we need to add the row to the buffer
         for cell in row:
             if cell.value:  # If the row has a non-empty cell, add the row to the buffer
+                if not buffer:
+                    start = i+1 # Excel rows are indexed starting at 1
                 buffer.append(row)
                 break
         else: # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
             if buffer:
                 tables.append(buffer) # Only append the buffer if it is not empty
+                start_rows.append(start)
             buffer = []
 
     # After the last row, if the buffer has some un-flushed contents, then yield it
     if buffer:
         tables.append(buffer)
+        start_rows.append(start)
 
-    return tables
+    return tables, start_rows
 
 
 def write_matrix(worksheet,start_row,nodes,entries,formats,references=None, enable_diagonal=True, boolean_choice=False,widths=None):
@@ -547,9 +555,10 @@ class TimeDependentValuesEntry(object):
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
+
         name = vals[0].strip()
 
-        lowered_headings = [x.lower() if isinstance(x,string_types) else x for x in vals]
+        lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
 
         # We can optionally have units, uncertainty, and constant
         # nb. finding the index means this is robust to extra empty
@@ -661,7 +670,7 @@ class TimeDependentValuesEntry(object):
 
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
-            worksheet.write(current_row, i, entry, formats['bold'])
+            worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths,i,entry)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in

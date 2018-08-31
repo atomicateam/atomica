@@ -1,12 +1,12 @@
 """
-rpcs.py -- code related to HealthPrior project management
+Atomica remote procedure calls (RPCs)
     
-Last update: 2018jun04 by cliffk
+Last update: 2018aug30 by cliffk
 """
 
-#
-# Imports
-#
+###############################################################
+### Imports
+##############################################################
 
 import time
 import os
@@ -87,7 +87,7 @@ def store_result_separately(proj, result):
 
 
 ###############################################################
-#%% Framework functions
+### Framework functions
 ##############################################################
     
 
@@ -175,7 +175,7 @@ def save_framework_as_new(frame, user_id):
 
         
 ##############################################################
-#%% Project functions
+### Project functions
 ##############################################################
     
 
@@ -210,7 +210,7 @@ def load_project(project_id, raise_exception=True):
     project_record = load_project_record(project_id,
         raise_exception=raise_exception)
 
-    print 'Loaded project record from Redis - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Loaded project record from Redis - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     # If there is no match, raise an exception or return None.
     if project_record is None:
@@ -222,7 +222,7 @@ def load_project(project_id, raise_exception=True):
     # Return the found project.
     proj = project_record.proj
 
-    print 'Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     return proj
 
@@ -276,18 +276,18 @@ def save_project(proj):
 
     project_record = load_project_record(proj.uid)
 
-    print 'Loaded project record - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Loaded project record - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     # Create the new project entry and enter it into the ProjectCollection.
     # Note: We don't need to pass in project.uid as a 3rd argument because 
     # the constructor will automatically use the Project's UID.
     projSO = prj.ProjectSO(proj, project_record.owner_uid)
 
-    print 'ProjectSO constructor - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('ProjectSO constructor - elapsed time %.2f' % ((time.time()-ts)*1000))
 
     prj.proj_collection.update_object(projSO)
     
-    print 'Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000)
+    print('Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000))
 
 @timeit
 def save_project_as_new(proj, user_id):
@@ -321,7 +321,7 @@ def get_version_info():
 
 
 ##################################################################################
-#%% Framework RPCs
+### Framework RPCs
 ##################################################################################
 
 @RPC()
@@ -544,7 +544,7 @@ def create_framework_from_file(filename, user_id=None):
 
 
 ##################################################################################
-#%% Project RPCs
+### Project RPCs
 ##################################################################################
 
 @RPC()
@@ -639,6 +639,9 @@ def delete_projects(project_ids):
         # ProjectCollection.
         if record is not None:
             prj.proj_collection.delete_object_by_uid(project_id)
+            
+            # TODO: Delete any TaskRecords or cached Results associated with 
+            # the Project.
 
 @RPC(call_type='download')   
 def download_project(project_id):
@@ -882,7 +885,7 @@ def get_y_factors(project_id, parsetname=-1):
         for parname in parset.par_ids[par_type].keys():
             this_par = parset.get_par(parname)
             this_spec = proj.framework.get_variable(parname)[0]
-            if 'can calibrate' in this_spec and this_spec['can calibrate'] == 'y':
+            if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
                 for popname,y_factor in this_par.y_factor.items():
                     count += 1
                     parlabel = this_spec['display name']
@@ -1045,7 +1048,7 @@ def delete_progset(project_id, progsetname=None):
 
 
 ##################################################################################
-#%% Plotting functions and RPCs
+### Plotting functions and RPCs
 ##################################################################################
 
 def supported_plots_func(framework):
@@ -1155,6 +1158,8 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     
 
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
+    if sc.isstring(year):
+        year = float(year)
     cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
@@ -1399,7 +1404,7 @@ def export_results(project_id, resultset=-1):
 
 
 ##################################################################################
-#%% Scenario functions and RPCs
+### Scenario functions and RPCs
 ##################################################################################
 
 def py_to_js_scen(py_scen, project=None):
@@ -1515,7 +1520,7 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
 
 
 ##################################################################################
-#%% Optimization functions and RPCs
+### Optimization functions and RPCs
 ##################################################################################
 
 
@@ -1603,3 +1608,11 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     return output
 
+
+@RPC() 
+def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
+    print('Plotting optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.results[cache_id]
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
+    return output

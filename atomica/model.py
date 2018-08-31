@@ -8,9 +8,7 @@ from collections import defaultdict
 import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
-from six import string_types
 from scipy.optimize import lsq_linear
-from scipy.linalg import lstsq
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -288,7 +286,7 @@ class Parameter(Variable):
         # the dependencies in dep_list, and the values are scalars computed from the
         # current state of the model during integration
 
-        assert isinstance(fcn_str,string_types), "Parameter function must be supplied as a string"
+        assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
         self._fcn, dep_list = parse_function(self.fcn_str)
         if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG"):
@@ -382,11 +380,11 @@ class Parameter(Variable):
         for dep_name, deps in self.deps.items():
             for dep in deps:
                 if isinstance(dep, Link):
-                    dep_vals[dep_name] += dep.vals[[ti]] / dep.dt
+                    dep_vals[dep_name] += dep.vals[ti] / dep.dt
                 else:
-                    dep_vals[dep_name] += dep.vals[[ti]]
+                    dep_vals[dep_name] += dep.vals[ti]
 
-        dep_vals['t'] = self.t[[ti]]
+        dep_vals['t'] = self.t[ti]
         dep_vals['dt'] = self.dt
         self.vals[ti] = self.scale_factor*self._fcn(**dep_vals)
 

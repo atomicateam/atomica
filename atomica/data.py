@@ -12,15 +12,14 @@ from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDepend
 import xlsxwriter as xw
 import io
 import numpy as np
-from .system import AtomicaException, NotFoundError
+from .system import AtomicaException, NotFoundError, reraise_modify, logger
 from .structure import FrameworkSettings as FS
 from collections import defaultdict
-from six import string_types
 
 # Data maps to a databook
 # On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
 # data values
-class ProjectData(object):
+class ProjectData(sc.prettyobj):
 
     def __init__(self):
         # This is just an overview of the structure of ProjectData
@@ -38,10 +37,6 @@ class ProjectData(object):
         self._formats = None
         self._book = None
         self._references = None
-    
-    def __repr__(self):
-        output = sc.prepr(self)
-        return output
 
     @property
     def start_year(self):
@@ -103,6 +98,14 @@ class ProjectData(object):
                 return tdc.ts[key]
 
         return None
+
+    def get_tdve_page(self,code_name):
+        # Given a code name for a TDVE quantity, find which page it is on
+        for sheet,content in self.tdve_pages.items():
+            if code_name in content:
+                return sheet
+        else:
+            raise NotFoundError('The quantity "%s" does not appear on any TDVE sheets' % (code_name))
 
     @staticmethod
     def new(framework,tvec,pops,transfers):
@@ -201,7 +204,7 @@ class ProjectData(object):
         # This static method will return a new Databook instance given the provided databook Excel file and Framework
         self = ProjectData()
 
-        if isinstance(spreadsheet,string_types):
+        if sc.isstring(spreadsheet):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(),read_only=True,data_only=True) # Load in read-only mode for performance, since we don't parse comments etc.
@@ -212,6 +215,7 @@ class ProjectData(object):
         self.interpops = list()
 
         for sheet in workbook.worksheets:
+
             if sheet.title.startswith('#ignore'):
                 continue
 
@@ -225,11 +229,28 @@ class ProjectData(object):
                 continue
             else:
                 self.tdve_pages[sheet.title] = []
-                for table in read_tables(sheet):
-                    tdve = TimeDependentValuesEntry.from_rows(table)
+                tables, start_rows = read_tables(sheet)
+                for table, start_row in zip(tables, start_rows):
 
-                    # If this fails, the TDVE was not found in the framework. That's a critical stop error, because the framework needs to at least declare what kind of variable this is
-                    code_name = framework.get_variable(tdve.name)[0].name
+                    try:
+                        tdve = TimeDependentValuesEntry.from_rows(table)
+                    except Exception as e:
+                        message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
+                        reraise_modify(e,message)
+
+                    # If the TDVE is not in the Framework, that's a critical stop error, because the framework needs to at least declare
+                    # what kind of variable this is - otherwise, we don't know the allowed units and cannot write the databook back properly
+                    try:
+                        spec = framework.get_variable(tdve.name)[0]
+                    except NotFoundError:
+                        message = 'Error on sheet "%s" while reading TDVE table "%s" (row %d). The variable was not found in the Framework' % (sheet.title,tdve.name, start_row)
+                        raise AtomicaException(message)
+
+                    code_name = spec.name
+
+                    if not spec['databook page']:
+                        logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook' % (tdve.name,code_name))
+
                     tdve.allowed_units = [x.title() for x in framework.get_allowed_units(code_name)]
 
                     self.tdve[code_name] = tdve
@@ -277,16 +298,19 @@ class ProjectData(object):
 
                 if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
-                        raise AtomicaException('Databook did not find any values for "%s" (%s)' % (spec['display name'],spec.name))
+                        raise AtomicaException('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'],spec.name))
                     else:
                         allowed_units = framework.get_allowed_units(spec.name)
+                        tdve = self.tdve[spec.name]
+                        tdve_sheet = self.get_tdve_page(spec.name)
                         for name,ts in self.tdve[spec.name].ts.items():
-                            assert name in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name,self.tdve[spec.name].name,self.pops.keys())
-                            assert ts.has_data, 'Data values missing for %s (%s)' % (self.tdve[spec.name].name, name)
-                            assert ts.format is not None, 'Formats missing for %s (%s)' % (self.tdve[spec.name].name, name)
-                            assert ts.units is not None, 'Units missing for %s (%s)' % (self.tdve[spec.name].name, name)
+                            location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name,tdve_sheet)
+                            assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location,name,self.pops.keys())
+                            assert ts.has_data, '%s. Data values missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
+                            assert ts.format is not None, '%s. Formats missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
+                            assert ts.units is not None, '%s. Units missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
                             if allowed_units:
-                                assert ts.units in allowed_units, 'Unit "%s" for %s (%s) do not match allowed units (%s)' % (ts.units,self.tdve[spec.name].name, name,allowed_units)
+                                assert ts.units in allowed_units, '%s. Unit "%s" for %s (%s) do not match allowed units (%s)' % (location,ts.units,self.tdve[spec.name].name, name,allowed_units)
 
         for _,spec in framework.interactions.iterrows():
             for tdc in self.interpops:
@@ -439,7 +463,7 @@ class ProjectData(object):
 
     def _read_pops(self, sheet):
         # TODO - can modify _read_pops() and _write_pops() if there are more population attributes
-        tables = read_tables(sheet)
+        tables = read_tables(sheet)[0]
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
@@ -475,7 +499,7 @@ class ProjectData(object):
         apply_widths(sheet,widths)
 
     def _read_transfers(self,sheet):
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
         self.transfers = []
         for i in range(0,len(tables),3):
@@ -499,7 +523,7 @@ class ProjectData(object):
         apply_widths(sheet,widths)
 
     def _read_interpops(self,sheet):
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         assert len(tables)%3==0, 'There should be 3 subtables for every transfer'
         self.interpops = []
         for i in range(0,len(tables),3):

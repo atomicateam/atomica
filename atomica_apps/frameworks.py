@@ -188,7 +188,7 @@ def init_frameworks(app):
     # If there was a match...
     if frame_collection_uid is not None:
         if app.config['LOGGING_MODE'] == 'FULL':
-            print '>> Loading FrameworkCollection from the DataStore.'
+            print('>> Loading FrameworkCollection from the DataStore.')
         frame_collection.load_from_data_store() 
     
     # Else (no match)...

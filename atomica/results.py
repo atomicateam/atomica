@@ -4,7 +4,6 @@ import sciris as sc
 from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
-from six import string_types
 from .excel import standard_formats
 
 class Result(NamedItem):
@@ -209,13 +208,26 @@ class Result(NamedItem):
         return df
 
     def plot(self,plot_name=None,plot_group=None,pops=None,project=None):
+        # Plot a single Result instance using the plots defined in the framework
+        # INPUTS
+        # - plot_name : The name of a single plot in the Framework
+        # - plot_group : The name of a plot group
+        # - pops : A population aggregation supposed by PlotData (e.g. 'all')
+        # - project : A Project instance used to plot data and full names
+        #
+        # If plot_group is not None, then plot_name is ignored
+        # If plot_name and plot_group are both None, then all plots will be displayed
         from .plotting import PlotData, plot_series
 
         df = self.framework.sheets['plots'][0]
 
-        if plot_group is not None:
+        if plot_group is None and plot_name is None:
+            for plot_name in df['name']:
+                self.plot(plot_name,pops=pops,project=project)
+            return
+        elif plot_group is not None:
             for plot_name in df.loc[df['plot group']==plot_group,'name']:
-                self.plot(plot_name=plot_name)
+                self.plot(plot_name=plot_name,pops=pops,project=project)
             return
 
         this_plot = df.loc[df['name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render

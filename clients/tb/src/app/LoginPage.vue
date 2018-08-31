@@ -1,7 +1,7 @@
 <!--
 Login page
 
-Last update: 2018-08-18
+Last update: 2018-08-30
 -->
 
 <template>

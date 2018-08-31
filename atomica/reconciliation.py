@@ -19,7 +19,7 @@ def _extract_targets(result, progset, ti, eval_pars=None):
     target_vals = dict()
     for covout in progset.covouts.values():
         par,pop = covout.par,covout.pop
-        if (eval_pars is None and result.framework.get_par(par)['is impact'] == 'y') or (par,pop) in eval_pars:
+        if (eval_pars is None and result.framework.get_par(par)['targetable'] == 'y') or (par,pop) in eval_pars:
             target_vals[(par,pop)] = result.get_variable(pop, par)[0].vals[ti]
 
     # Get the coverage denominator (it's always the same, so can do it once here)

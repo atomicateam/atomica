@@ -12,7 +12,6 @@ from .utils import NamedItem
 from numpy import array, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
-from six import string_types
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
@@ -194,7 +193,7 @@ class ProgramSet(NamedItem):
                 self.comps[spec.name] = spec['display name']
 
         self.pars = sc.odict()
-        for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'],framework.pars['is impact']):
+        for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'],framework.pars['targetable']):
             if is_impact == 'y':
                 self.pars[name] = label
 
@@ -219,7 +218,7 @@ class ProgramSet(NamedItem):
         self._set_available(framework,data)
 
         # Create and load spreadsheet
-        if isinstance(spreadsheet,string_types):
+        if sc.isstring(spreadsheet):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
@@ -265,10 +264,10 @@ class ProgramSet(NamedItem):
     def _read_targeting(self,sheet):
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
-        tables = read_tables(sheet) # NB. only the first table will be read, so there can be other tables for comments on the first page
+        tables, start_rows = read_tables(sheet) # NB. only the first table will be read, so there can be other tables for comments on the first page
         self.programs = sc.odict()
-        sup_header = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][0]]
-        headers = [x.value.lower().strip() if isinstance(x.value,string_types) else x.value for x in tables[0][1]]
+        sup_header = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][0]]
+        headers = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][1]]
 
         # Get the indices where the pops and comps start
         pop_start_idx = sup_header.index('targeted to (populations)')
@@ -297,11 +296,11 @@ class ProgramSet(NamedItem):
             target_comps = []
 
             for i in range(pop_start_idx, comp_start_idx):
-                if row[i].value and isinstance(row[i].value,string_types) and row[i].value.lower().strip() == 'y':
+                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
                     target_pops.append(pop_codenames[pop_idx[i]]) # Append the pop's codename
 
             for i in range(comp_start_idx, len(headers)):
-                if row[i].value and isinstance(row[i].value,string_types) and row[i].value.lower().strip() == 'y':
+                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
                     target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
@@ -378,15 +377,22 @@ class ProgramSet(NamedItem):
 
     def _read_spending(self,sheet):
         # Read the spending table and populate the program data
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         times = set()
         for table in tables:
             tdve = TimeDependentValuesEntry.from_rows(table)
             prog = self.programs[tdve.name]
             prog.spend_data = tdve.ts['Total spend']
-            prog.capacity = tdve.ts['Capacity constraints']
+            if 'Capacity constraints' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
+                prog.capacity = tdve.ts['Capacity constraints']
+            else:
+                prog.capacity = tdve.ts['Capacity']
             prog.unit_cost = tdve.ts['Unit cost']
             prog.coverage = tdve.ts['Coverage']
+            if 'Saturation' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
+                prog.saturation = tdve.ts['Saturation']
+            else:
+                prog.saturation = TimeSeries()
             times.update(set(tdve.tvec))
         self.tvec = array(sorted(list(times)))
 
@@ -395,14 +401,14 @@ class ProgramSet(NamedItem):
         widths = dict()
         next_row = 0
 
-
         for prog in self.programs.values():
             # Make a TDVE table for
             tdve = TimeDependentValuesEntry(prog.name,self.tvec)
             prog = self.programs[tdve.name]
             tdve.ts['Total spend'] = prog.spend_data
-            tdve.ts['Capacity constraints'] = prog.capacity
             tdve.ts['Unit cost'] = prog.unit_cost
+            tdve.ts['Capacity'] = prog.capacity
+            tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
 
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
@@ -415,7 +421,7 @@ class ProgramSet(NamedItem):
     def _read_effects(self,sheet):
         # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
 
-        tables = read_tables(sheet)
+        tables, start_rows = read_tables(sheet)
         pop_codenames = {v.lower().strip():x for x,v in self.pops.items()}
         par_codenames = {v.lower().strip():x for x,v in self.pars.items()}
 
@@ -423,7 +429,7 @@ class ProgramSet(NamedItem):
 
         for table in tables:
             par_name = par_codenames[table[0][0].value.strip().lower()] # Code name of the parameter we are working with
-            headers = [x.value.strip() if isinstance(x.value,string_types) else x.value for x in table[0]]
+            headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
             idx_to_header = {i:h for i,h in enumerate(headers)} # Map index to header
 
             for row in table[1:]:
@@ -475,7 +481,7 @@ class ProgramSet(NamedItem):
             for i,s in enumerate(['Baseline value','Coverage interaction','Impact interaction','Uncertainty']):
                 sheet.write(current_row, 1+i, s, self._formats['rc_title']['left']['T'])
                 widths[1+i] = 12 # Fixed width, wrapping
-            sheet.write_comment(xlrc(current_row,1), 'In this column, enter the baseline value for "%s" if none of the programs reach this parameter (e.g., if the coverage is 0)' % (par_label))
+            # sheet.write_comment(xlrc(current_row,1), 'In this column, enter the baseline value for "%s" if none of the programs reach this parameter (e.g., if the coverage is 0)' % (par_label))
 
             applicable_progs = self.programs.values() # All programs - could filter this later on
             prog_col = {p.name:i+6 for i,p in enumerate(applicable_progs)} # add any extra padding columns to the indices here too
@@ -550,13 +556,13 @@ class ProgramSet(NamedItem):
         # - data : specify a data to use the data's pops
         # - pops : manually specify the populations. Can be
         #       - A number of pops
-        #       - A list of pop full names (these will need to match a databook when the progset is read in)
+        #       - A dict of pop {code name:full name} (these will need to match a databook when the progset is read in)
         # - comps : manually specify the compartments. Can be
         #       - A number of comps
-        #       - A list of comp full names (needs to match framework when the progset is read in)
+        #       - A dict of comp {code name:full name} (needs to match framework when the progset is read in)
         # - pars : manually specify the impact parameters. Can be
         #       - A number of pars
-        #       - A list of parameter full names (needs to match framework when the progset is read in)
+        #       - A dict of parameter {code name:full name} (needs to match framework when the progset is read in)
 
         assert tvec is not None, 'You must specify the time points where data will be entered'
         # Prepare programs
@@ -611,8 +617,10 @@ class ProgramSet(NamedItem):
             # Get pars from framework
             pars = sc.odict()
             for _, spec in framework.pars.iterrows():
-                if spec['is impact'] == 'y':
+                if spec['targetable'] == 'y':
                     pars[spec.name] = spec['display name']
+            if not pars:
+                logger.warning('No parameters were marked as "Targetable" in the Framework, so there are no program effects')
         elif sc.isnumber(pars):
             npars = pars
             pars = sc.odict()  # Create real compartments list
@@ -778,6 +786,7 @@ class Program(NamedItem):
         self.spend_data         = TimeSeries() # TimeSeries with spending data
         self.unit_cost          = TimeSeries() # TimeSeries with unit cost of program
         self.capacity           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.saturation = TimeSeries()
         self.coverage           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         return None
 

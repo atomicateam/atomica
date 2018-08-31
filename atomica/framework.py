@@ -4,15 +4,12 @@ Atomica project-framework file.
 Contains all information describing the context of a project.
 This includes a description of the Markov chain network underlying project dynamics.
 """
-import os
 import openpyxl
-from six import string_types
 import pandas as pd
 import sciris as sc
 from .system import AtomicaException, NotAllowedError, NotFoundError, logger
 from .excel import read_tables, AtomicaSpreadsheet
 from .structure import FrameworkSettings as FS
-from .system import atomica_path
 from .version import version
 import numpy as np
 
@@ -34,7 +31,7 @@ class ProjectFramework(object):
         self.modified = sc.now()
 
         # Load Framework from disk
-        if isinstance(inputs,string_types):
+        if sc.isstring(inputs):
             self.spreadsheet = AtomicaSpreadsheet(inputs)
         elif isinstance(inputs,AtomicaSpreadsheet):
             self.spreadsheet = inputs
@@ -55,7 +52,7 @@ class ProjectFramework(object):
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
-            tables = read_tables(worksheet)  # Read the tables
+            tables, start_rows = read_tables(worksheet)  # Read the tables
             if sheet_title in merge_tables:
                 tables = [[row for table in tables for row in table]] # Flatten the tables into one big table
             self.sheets[sheet_title] = list()
@@ -257,7 +254,6 @@ class ProjectFramework(object):
             'is sink':'n',
             'is source':'n',
             'is junction':'n',
-            'can calibrate':'n',
             'databook page':None,
             'default value':None,
             'databook order':None, # Default is for it to be randomly ordered if the databook page is not None
@@ -267,7 +263,6 @@ class ProjectFramework(object):
             'is sink':{'y','n'},
             'is source':{'y','n'},
             'is junction':{'y','n'},
-            'can calibrate':{'y','n'},
         }
 
         self.comps.set_index('code name',inplace=True)
@@ -281,6 +276,12 @@ class ProjectFramework(object):
             fill_ones = self.comps['setup weight'].isnull() & self.comps['databook page']
             self.comps['setup weight'][fill_ones] = 1
             self.comps['setup weight'] = self.comps['setup weight'].fillna(0)
+
+        if 'calibrate' not in self.comps:
+            # If calibration column is not present, then it calibrate if in the databook
+            default_calibrate = ~self.comps['databook page'].isnull()
+            self.comps['calibrate'] = None
+            self.comps['calibrate'][default_calibrate] = 'y'
 
         # VALIDATE THE COMPARTMENT SPECIFICATION
         for index,row in self.comps.iterrows():
@@ -298,7 +299,7 @@ class ProjectFramework(object):
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
             # will appear in the parset
-            if (row['databook page'] is None) & (row['can calibrate']=='y'):
+            if (row['databook page'] is None) & (row['calibrate'] is not None):
                 raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
             if (row['databook page'] is None) and (row['databook order'] is not None):
@@ -313,27 +314,23 @@ class ProjectFramework(object):
             'function':None,
             'databook page':None,
             'databook order':None,
-            'can calibrate':None,
-            'is impact':'n',
+            'targetable':'n',
         }
         valid_content = {
             'display name': None,
-            'is impact':{'y','n'},
-            'can calibrate':{'y','n',None},
+            'targetable':{'y','n'},
         }
 
         self.pars.set_index('code name',inplace=True)
         self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
 
         # Make sure all units are lowercase
-        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if isinstance(x, string_types) else x)
+        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
 
-        # Set 'can calibrate' defaults
-        # By default, it can be calibrated if it is an impact parameter
-        default_calibrate = (self.pars['can calibrate'].isnull()) & (self.pars['is impact'] == 'y')
-        self.pars['can calibrate'][default_calibrate] = 'y'
-        self.pars['can calibrate'] = self.pars['can calibrate'].fillna('n')
-
+        if 'calibrate' not in self.pars:
+            default_calibrate = self.pars['targetable'] == 'y'
+            self.pars['calibrate'] = None
+            self.pars['calibrate'][default_calibrate] = 'y'
 
         # Parse the transitions matrix
         self._process_transitions()
@@ -384,12 +381,10 @@ class ProjectFramework(object):
             'function':None,
             'databook page': None,
             'databook order':None,
-            'can calibrate':'n',
         }
         valid_content = {
             'display name': None,
             'components':None,
-            'can calibrate':{'y','n'},
         }
 
         self.characs.set_index('code name',inplace=True)
@@ -402,6 +397,12 @@ class ProjectFramework(object):
             self.characs['setup weight'][fill_ones] = 1
             self.characs['setup weight'] = self.characs['setup weight'].fillna(0)
 
+        if 'calibrate' not in self.characs:
+            # If calibration column is not present, then it calibrate if in the databook
+            default_calibrate = ~self.characs['databook page'].isnull()
+            self.characs['calibrate'] = None
+            self.characs['calibrate'][default_calibrate] = 'y'
+
         for i,row in self.characs.iterrows():
 
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
@@ -412,7 +413,7 @@ class ProjectFramework(object):
             if row['denominator'] is not None:
                 assert row['denominator'] in self.comps.index or row['denominator'] in self.characs.index, 'In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component)
 
-            if (row['databook page'] is None) & (row['can calibrate'] == 'y'):
+            if (row['databook page'] is None) & (row['calibrate'] is not None):
                 raise AtomicaException('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
             for component in row['components'].split(','):
@@ -557,7 +558,7 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
             assert set(df[col]).issubset(validation), 'DataFrame column "%s" can only contain the following values: %s' % (col,validation)
 
     # Strip all strings
-    df.applymap(lambda x: x.strip() if isinstance(x,string_types) else x)
+    df.applymap(lambda x: x.strip() if sc.isstring(x) else x)
     if df.columns.isnull().any():
         raise NotAllowedError('There cannot be any empty cells in the header row')
     df.columns = [x.strip() for x in df.columns]
