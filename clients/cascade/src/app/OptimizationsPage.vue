@@ -66,17 +66,17 @@ Last update: 2018-08-30
       <div class="calib-title">
         <help reflink="results-plots" label="Results"></help>
         <div>
-          <b>{{ displayResult }}</b>
+          <b>{{ displayResultName }}</b>
           &nbsp; &nbsp; &nbsp;
           <b>Year: &nbsp;</b>
-          <select v-model="endYear" v-on:change="plotScenarios()">
+          <select v-model="endYear" @change="updateYearOrPopulation">
             <option v-for='year in simYears'>
               {{ year }}
             </option>
           </select>
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
-          <select v-model="activePop" v-on:change="plotScenarios()">
+          <select v-model="activePop" @change="updateYearOrPopulation">
             <option v-for='pop in activePops'>
               {{ pop }}
             </option>
@@ -247,7 +247,7 @@ Last update: 2018-08-30
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
-        displayResult: '', 
+        displayResultName: '',
         startYear: 0,
         endYear: 0,         
         graphData: [],
@@ -753,7 +753,7 @@ Last update: 2018-08-30
           .then(response => {
             this.makeGraphs(response.data.graphs)
             this.table = response.data.table
-            this.displayResult = optimSummary.name
+            this.displayResultName = optimSummary.name
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
@@ -762,6 +762,24 @@ Last update: 2018-08-30
             status.fail(this, 'Could not make graphs') // Indicate failure.
           })
       },
+      
+      updateYearOrPopulation() {
+        // Get the list of all of the current optimization names.
+        let optimNames = [] 
+        
+        // Get the list of optimization names.
+        this.optimSummaries.forEach(optimSum => {
+          optimNames.push(optimSum.name)
+        })
+        
+        // Get the index matching (if any) which optimization matches
+        // the one being displayed.
+        let index = optimNames.indexOf(this.displayResultName)
+        if (index > -1) {  // If we have any match...
+          // Plot the desired graph.
+          this.plotOptimization(this.optimSummaries[index])
+        }
+      }
     }
   }
 </script>
