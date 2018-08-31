@@ -5,11 +5,12 @@ Version:
 import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
+import json
 
 
 torun = [
-'get_cascade_plot',
-# 'get_cascade_json',
+#'get_cascade_plot',
+ 'get_cascade_json',
 #'get_plots',
 #'run_cascade_optimization',
 # 'run_tb_optimization',
@@ -40,11 +41,15 @@ if 'get_cascade_plot' in torun:
 
 
 if 'get_cascade_json' in torun:
+    dosave = True
     if proj is None: proj = demoproj('hypertension')
     results = proj.run_optimization(maxtime=3)
     output = rpcs.get_json_cascade(results, proj.data)
     print('Output:')
     print(output)
+    if dosave:
+        with open('cascade.json','w') as f:
+            json.dump(sw.sanitize_json(output), f)
 
 
 if 'get_plots' in torun:

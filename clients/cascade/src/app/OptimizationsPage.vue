@@ -43,7 +43,7 @@ Last update: 2018-08-30
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
 <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
-              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Cancel</button>
+              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
@@ -372,14 +372,8 @@ Last update: 2018-08-30
       },
       
       canCancelTask(optimSummary) {
-        // This line should be used, but at the moment revoke() doesn't seem to work 
-        // when the task still queued and not yet started.
-//        return ((optimSummary.status == 'queued') || (optimSummary.status == 'started'))
-        return (optimSummary.status != 'not started') // (optimSummary.status == 'started')
-      },
-      
-      canClearTask(optimSummary) {
-        return (optimSummary.status != 'not started')
+        let output = (optimSummary.status != 'not started')
+        return output
       },
       
       canPlotResults(optimSummary) {
