@@ -639,6 +639,9 @@ def delete_projects(project_ids):
         # ProjectCollection.
         if record is not None:
             prj.proj_collection.delete_object_by_uid(project_id)
+            
+            # TODO: Delete any TaskRecords or cached Results associated with 
+            # the Project.
 
 @RPC(call_type='download')   
 def download_project(project_id):
@@ -1155,6 +1158,8 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     
 
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
+    if sc.isstring(year):
+        year = float(year)
     cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
@@ -1603,3 +1608,11 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     return output
 
+
+@RPC() 
+def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
+    print('Plotting optimization...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.results[cache_id]
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
+    return output
