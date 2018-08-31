@@ -42,14 +42,16 @@ if 'get_cascade_plot' in torun:
 
 if 'get_cascade_json' in torun:
     dosave = True
+    filename = 'cascade.json'
     if proj is None: proj = demoproj('hypertension')
     results = proj.run_optimization(maxtime=3)
     output = rpcs.get_json_cascade(results, proj.data)
     print('Output:')
     print(output)
     if dosave:
-        with open('cascade.json','w') as f:
+        with open(filename,'w') as f:
             json.dump(sw.sanitize_json(output), f)
+            print('JSON saved to %s' % filename)
 
 
 if 'get_plots' in torun:
