@@ -556,13 +556,13 @@ class ProgramSet(NamedItem):
         # - data : specify a data to use the data's pops
         # - pops : manually specify the populations. Can be
         #       - A number of pops
-        #       - A list of pop full names (these will need to match a databook when the progset is read in)
+        #       - A dict of pop {code name:full name} (these will need to match a databook when the progset is read in)
         # - comps : manually specify the compartments. Can be
         #       - A number of comps
-        #       - A list of comp full names (needs to match framework when the progset is read in)
+        #       - A dict of comp {code name:full name} (needs to match framework when the progset is read in)
         # - pars : manually specify the impact parameters. Can be
         #       - A number of pars
-        #       - A list of parameter full names (needs to match framework when the progset is read in)
+        #       - A dict of parameter {code name:full name} (needs to match framework when the progset is read in)
 
         assert tvec is not None, 'You must specify the time points where data will be entered'
         # Prepare programs
@@ -619,6 +619,8 @@ class ProgramSet(NamedItem):
             for _, spec in framework.pars.iterrows():
                 if spec['targetable'] == 'y':
                     pars[spec.name] = spec['display name']
+            if not pars:
+                logger.warning('No parameters were marked as "Targetable" in the Framework, so there are no program effects')
         elif sc.isnumber(pars):
             npars = pars
             pars = sc.odict()  # Create real compartments list
