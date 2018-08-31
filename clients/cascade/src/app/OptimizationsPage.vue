@@ -375,7 +375,7 @@ Last update: 2018-08-30
         // This line should be used, but at the moment revoke() doesn't seem to work 
         // when the task still queued and not yet started.
 //        return ((optimSummary.status == 'queued') || (optimSummary.status == 'started'))
-        return (optimSummary.status == 'started')
+        return (optimSummary.status != 'not started') // (optimSummary.status == 'started')
       },
       
       canClearTask(optimSummary) {
