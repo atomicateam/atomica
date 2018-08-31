@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018aug30 by cliffk
+Last update: 2018aug31 by gchadder3
 """
 
 ###############################################################
@@ -91,9 +91,9 @@ results_cache = None
     
 class ResultSet(sw.Blob):
 
-    def __init__(self, uid, result_set):
+    def __init__(self, uid, result_set, set_label):
         super(ResultSet, self).__init__(uid, type_prefix='resultset', 
-            file_suffix='.rst', instance_label='')
+            file_suffix='.rst', instance_label=set_label)
         self.result_set = result_set  # can be single Result or list of Results
         
 class ResultsCache(sw.BlobDict):
@@ -103,22 +103,78 @@ class ResultsCache(sw.BlobDict):
             file_suffix='.rca', instance_label='Results Cache', 
             objs_within_coll=False)
         
+        # Create the Python dict to hold the hashes from cache_ids to the UIDs.
+        self.cache_id_hashes = {}
+        
+    def load_from_copy(self, other_object):
+        if type(other_object) == type(self):
+            # Do the superclass copying.
+            super(ResultsCache, self).load_from_copy(other_object)
+            
+            self.cache_id_hashes = other_object.cache_id_hashes
+            
     def retrieve(self, cache_id):
-        print('>> ResultsCache.retrieve() under construction...')
-        result_set = None
-        return result_set
+        print('>> ResultsCache.retrieve() under construction...') 
+        print('>>   cache_id = %s' % cache_id)
+        
+        # Get the UID for the blob corresponding to the cache ID (if any).
+        result_set_blob_uid = self.cache_id_hashes.get(cache_id, None)
+        print ('>> the UID found: ')
+        print result_set_blob_uid
+        print ('>>--')
+        
+        # If we found no match, return None.
+        if result_set_blob_uid is None:
+            print('>> ERROR: ResultSet not in cache_id_hashes')
+            return None
+        
+        # Otherwise, return the object found.
+        else:
+            return self.get_object_by_uid(result_set_blob_uid).result_set
     
     def store(self, cache_id, project_uid, result_set):
         print('>> ResultsCache.store() under construction...')
+        print('>>   project_uid = %s' % project_uid)
+        print('>>   cache_id = %s' % cache_id)
+        
+        # Create a ResultSet containing the result/s passed in.
+        result_set_blob = ResultSet(None, result_set, cache_id)
+        
+        # If there already is a cache entry for this, update the object there.
+        if cache_id in self.cache_id_hashes:
+            self.update_object(result_set_blob)
+            
+        # Otherwise, update the cache ID hashes and add the new object.
+        else:
+            self.cache_id_hashes[cache_id] = result_set_blob.uid
+            self.add_object(result_set_blob)       
     
     def delete(self, cache_id):
         print('>> ResultsCache.delete() under construction...')
-    
+        print('>>   cache_id = %s' % cache_id)
+        
+        # Get the UID for the blob corresponding to the cache ID (if any).
+        result_set_blob_uid = self.cache_id_hashes.get(cache_id, None)
+        
+        # If we found no match, give an error.
+        if result_set_blob_uid is None:
+            print('>> ERROR: ResultSet not in cache_id_hashes')
+            
+        # Otherwise, delete the object found.
+        else:
+            self.delete_by_uid(result_set_blob_uid)
+        
     def delete_all(self):
         print('>> ResultsCache.delete_all() under construction...')
-    
+        # Reset the hashes from cache_ids to UIDs.
+        self.cache_id_hashes = {}
+        
+        # Do the rest of the deletion process.
+        self.delete_all_objects()
+        
     def delete_by_project(self, project_uid):
         print('>> ResultsCache.delete_by_project() under construction...')
+        print('>>   project_uid = %s' % project_uid)
         
 def init_results_cache(app):
     global results_cache
@@ -725,6 +781,10 @@ def delete_projects(project_ids):
             
             # TODO: Delete any TaskRecords or cached Results associated with 
             # the Project.
+#            task_dict.load_from_data_store()
+#            task_dict.delete_by_project(project_id)
+            results_cache.load_from_data_store()
+            results_cache.delete_by_project(project_id)
 
 @RPC(call_type='download')   
 def download_project(project_id):
@@ -1696,8 +1756,12 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
 def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
-    results = proj.results[cache_id]  # TODO: remove this after caching done right
+#    results = proj.results[cache_id]  # TODO: remove this after caching done right
     results_cache.load_from_data_store()
-    results_ignore = results_cache.retrieve(cache_id)
+    
+    print('>> what we see after we try to reload...')
+    results_cache.show()
+    
+    results = results_cache.retrieve(cache_id)
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
     return output

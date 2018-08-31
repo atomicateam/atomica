@@ -36,7 +36,7 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
         proj = project_id
     results = proj.run_optimization(optim_name, maxtime=float(maxtime))
 #    proj.results['optimization'] = results # WARNING, will want to save separately!
-    proj.results[cache_id] = results   # TODO: remove this after caching done right  
+#    proj.results[cache_id] = results   # TODO: remove this after caching done right  
     # NOTE: some possibility we may need a concurrency lock for next two lines.
     results_cache = rpcs.apptasks_load_results_cache()
     results_cache.show()
