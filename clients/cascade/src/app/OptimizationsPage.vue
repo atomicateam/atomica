@@ -27,8 +27,7 @@ Last update: 2018-08-30
           <tr>
             <th>Name</th>
             <th>Status</th>
-            <th>Pending Time</th>
-            <th>Execution Time</th>
+            <th></th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -38,21 +37,16 @@ Last update: 2018-08-30
               <b>{{ optimSummary.name }}</b>
             </td>
             <td>
-              {{ optimSummary.status }}
+              {{ statusFormatStr(optimSummary) }}
             </td>
             <td>
-              {{ timeFormatStr(optimSummary.pendingTime) }}
-            </td>
-            <td>
-              {{ timeFormatStr(optimSummary.executionTime) }}
-            </td>            
+              {{ timeFormatStr(optimSummary) }}
+            </td>        
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
 <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
-              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="cancelRun(optimSummary)">Cancel</button>              
-              <button class="btn __red" :disabled="!canClearTask(optimSummary)" @click="clearTask(optimSummary)">Clear task</button>
-<!--              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button> -->
+              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Cancel</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
@@ -72,7 +66,8 @@ Last update: 2018-08-30
       <div class="calib-title">
         <help reflink="results-plots" label="Results"></help>
         <div>
-
+          <b>{{ displayResult }}</b>
+          &nbsp; &nbsp; &nbsp;
           <b>Year: &nbsp;</b>
           <select v-model="endYear" v-on:change="plotScenarios()">
             <option v-for='year in simYears'>
@@ -252,6 +247,7 @@ Last update: 2018-08-30
         progsetOptions: [],
         newParsetName:  [],
         newProgsetName: [],
+        displayResult: '', 
         startYear: 0,
         endYear: 0,         
         graphData: [],
@@ -306,12 +302,47 @@ Last update: 2018-08-30
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(project_id) { return utils.exportResults(this, project_id) },
       
-      timeFormatStr(rawValue) {
+      statusFormatStr(optimSummary) {
+        if (optimSummary.status == 'not started') {
+          return '--'
+        }
+        else if (optimSummary.status == 'queued') {
+          return 'Waiting... ' // + this.timeFormatStr(optimSummary.pendingTime)
+        }
+        else if (optimSummary.status == 'started') {
+          return 'Running... ' // + this.timeFormatStr(optimSummary.executionTime)
+        }
+        else if (optimSummary.status == 'completed') {
+          return 'Completed  ' // + this.timeFormatStr(optimSummary.executionTime)
+        }        
+        else {
+          return ''
+        }
+      },
+      
+      timeFormatStr(optimSummary) {
+        let rawValue = ''
+        if (optimSummary.status == 'queued') {
+          rawValue = optimSummary.pendingTime
+        }  
+        else if ((optimSummary.status == 'started') || (optimSummary.status == 'completed')) {
+          rawValue = optimSummary.executionTime
+        }
+        else {
+          return ''
+        }
+
         if (rawValue == '--') {
           return '--'
         }
         else {
-          return Number(rawValue).toFixed() + ' sec'
+          let numSecs = Number(rawValue).toFixed()
+          let numHours = Math.floor(numSecs / 3600)
+          numSecs -= numHours * 3600
+          let numMins = Math.floor(numSecs / 60)
+          numSecs -= numMins * 60
+          return numHours.toString().padStart(2, '0') + ':' + 
+            numMins.toString().padStart(2, '0') + ':' + numSecs.toString().padStart(2, '0')
         }
       },
       
@@ -711,31 +742,6 @@ Last update: 2018-08-30
         })        
       },
       
-      cancelRun(optimSummary) {
-        console.log('cancelRun() called for '+this.currentOptim)
-        this.clearTask(optimSummary)  // Clear the task from the server.
-      },
-      
-      plotResults(optimSummary) {
-        console.log('plotResults() called for '+this.currentOptim)
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set.
-        status.start(this)
-        rpcs.rpc('get_task_result', [optimSummary.server_datastore_id])
-        .then(response => {
-          this.makeGraphs(response.data.result.graphs)
-          this.table = response.data.result.table
-          status.succeed(this, 'Graphs created')          
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          console.log(this.serverresponse)
-          this.servererror = error.message // Set the server error.
-           
-          // Indicate failure.
-          status.fail(this, 'Could not make graphs: ' + error.message)
-        })
-      },
-      
       plotOptimization(optimSummary) {
         console.log('plotOptimization() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
@@ -747,6 +753,7 @@ Last update: 2018-08-30
           .then(response => {
             this.makeGraphs(response.data.graphs)
             this.table = response.data.table
+            this.displayResult = optimSummary.name
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
