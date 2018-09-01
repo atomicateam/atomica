@@ -39,7 +39,14 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
 #    proj.results[cache_id] = results   # TODO: remove this after caching done right  
     # NOTE: some possibility we may need a concurrency lock for next two lines.
     results_cache = rpcs.apptasks_load_results_cache()
+    
+    # NOTE: I believe this is the unsafe line that is breaking the ability to 
+    # queue tasks together.  I think the problem is that when you are adding a new 
+    # cache_id, data_store.handle_dict gets changed and then saved, which is 
+    # likely to cause havoc.  When all old cache_ids are in place, the problem 
+    # doesn't happen.
     results_cache.store(cache_id, project_id, results)
+    
     output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:
         print('Saving project...')
