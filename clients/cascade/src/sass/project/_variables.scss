@@ -1,6 +1,8 @@
 $cascade-blue: #00267a;
 $optima-blue: #00adee;
 $optima-dark: #092344;
+$main-color: $cascade-blue; // CASCADE-TB DIFFERENCE
+$main-dark: $cascade-blue; // CASCADE-TB DIFFERENCE
 
 $font-color: #0c2544 !default;
 $fill-font-color: rgba(255, 255, 255, 0.7);
@@ -38,7 +40,7 @@ $danger-input-bg: #FFC0A4 !default;
 $success-input-bg: #ABF3CB !default;
 $other-medium-gray: #A49E93 !default;
 $transparent-bg: transparent !default;
-$button-bg: $cascade-blue; // #a5d5e9 !default;
+$button-bg: $main-color;
 
 $default-color: #0c2544 !default;
 $default-bg: #0c2544 !default;
