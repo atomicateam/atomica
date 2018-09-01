@@ -162,13 +162,14 @@ class ResultsCache(sw.BlobDict):
             self.delete_by_uid(result_set_blob_uid)
         
     def delete_all(self):
-        print('>> ResultsCache.delete_all() under construction...')
+        print('>> ResultsCache.delete_all() called')
         # Reset the hashes from cache_ids to UIDs.
         self.cache_id_hashes = {}
         
         # Do the rest of the deletion process.
         self.delete_all_objects()
         
+    # TODO: get this working properly.
     def delete_by_project(self, project_uid):
         print('>> ResultsCache.delete_by_project() under construction...')
         print('>>   project_uid = %s' % project_uid)
@@ -195,6 +196,9 @@ def init_results_cache(app):
             print('>> Creating a new ResultsCache.') 
         results_cache.add_to_data_store()
         
+    # Uncomment this to delete all the entries in the cache.
+#    results_cache.delete_all()
+    
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
         results_cache.show()
@@ -780,8 +784,9 @@ def delete_projects(project_ids):
             # the Project.
 #            task_dict.load_from_data_store()
 #            task_dict.delete_by_project(project_id)
+            sw.globalvars.data_store.load()
             results_cache.load_from_data_store()
-            results_cache.delete_by_project(project_id)
+            results_cache.delete_by_project(project_id)  # TODO: get that working
 
 @RPC(call_type='download')   
 def download_project(project_id):
