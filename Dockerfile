@@ -11,7 +11,7 @@ RUN apt-get install -yqq nodejs
 RUN apt-get clean -y
 
 # Install sciris
-RUN git clone https://github.com/optimamodel/sciris.git#develop
+RUN git clone https://github.com/optimamodel/sciris.git
 RUN cd sciris && python setup.py develop
 
 # Install mpld3
