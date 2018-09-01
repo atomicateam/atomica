@@ -4,7 +4,7 @@ services:
     build: .
     command: python start_server.py
     environment:
-      - 'REDIS_URL=redis://database:6379/8'
+      - 'REDIS_URL=redis://redis:6379/8' #this needs to be 7 in TB
     ports:
      - "8080:8080"
      - "8094:8094"
