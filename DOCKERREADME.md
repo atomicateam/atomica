@@ -22,10 +22,9 @@ If you are running redis on your machine, you may have to stop it
 ~~~
 /etc/init.d/redis-server stop
 ~~~
-You can start it again with 
-
+You can start it again later with 
 ~~~
-/etc/init.d/redis-server stop
+/etc/init.d/redis-server start
 ~~~
 
 Navigate to the atomica directory
@@ -38,6 +37,12 @@ The `.` represents the context of the dockerfile build. Don't forget it!
 
 Use `-f DockerFile-cascade` as an option if not using the file called Dockerfile, e.g. using Dockerfile-cascade instead
 
+To build (or rebuild) under docker-compose
+~~~
+sudo docker-compose build
+~~~
+
+To start the container(s) run
 ~~~
 sudo docker-compose up
 ~~~
@@ -49,12 +54,26 @@ sudo docker run -d atomica:versionId
 -p map ports 8080 to 8080
 sudo docker run -d -p 8080:8080 atomica:versionId .
 
-## Logs
+## Useful functions
 To see logs use 
 ~~~
 sudo docker logs containerId
 ~~~
 
+To see images use 
+~~~
+sudo docker images
+~~~
+
+To see running containers use 
+~~~
+sudo docker ps
+~~~
+
+To kill containers use 
+~~~
+sudo docker kill containerId
+~~~
 
 ## Development triggers
 At the moment, the platform is rebuilt whenever a push is made to `docker` or `develop` using the option `(docker|develop)`. 
