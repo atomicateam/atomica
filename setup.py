@@ -38,7 +38,7 @@ setup(
         'dill>=0.2.7.1',
         'flask',
         'flask_login',
-        'Flask-Session'
+        'Flask-Session',
         'matplotlib>=1.4.2,<3',
         'numpy>=1.10.1',
         'pandas',
