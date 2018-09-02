@@ -1,6 +1,10 @@
 # Docker
 
 ## Notes
+Tried command: bash "source start_celery.sh && python start_server.py"
+app_1    | bash: source start_celery.sh && python start_server.py: No such file or directory
+
+
 I'm super worried that the docker build instructions (python build_client.py) is not working. When I did the build 'locally', it worked. Building again after building using the docker seems to work
 
 The docker enounters this error:
