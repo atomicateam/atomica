@@ -7,7 +7,7 @@ Version: 2018jul30
 """
 
 import sciris as sc
-from .system import AtomicaException, logger
+from .system import AtomicaException, logger, AtomicaInputError
 from .utils import NamedItem
 from numpy import array, exp, ones, prod, minimum, inf
 from .structure import TimeSeries
@@ -16,6 +16,7 @@ from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
 import io
+import numpy as np
 
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
@@ -573,7 +574,7 @@ class ProgramSet(NamedItem):
                 progs['Prog %i' % (p+1)] = 'Program %i' % (p+1)
         elif isinstance(progs,dict): # will also match odict
             pass
-        else: 
+        else:
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
 
@@ -646,7 +647,7 @@ class ProgramSet(NamedItem):
 
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
-    #######################################################################################################        
+    #######################################################################################################
     def get_alloc(self,instructions=None,tvec=None):
         # Get time-varying alloc for each program
         # Input
@@ -671,7 +672,7 @@ class ProgramSet(NamedItem):
         else:
             if instructions.alloc is None:
                 return self.get_budgets(year=tvec)
-            else: 
+            else:
                 alloc = sc.odict()
                 for prog in self.programs.values():
                     if prog.name in instructions.alloc:
@@ -682,14 +683,14 @@ class ProgramSet(NamedItem):
 
     def get_budgets(self, year=None, optimizable=None):
         ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
-        
+
         default_budget = sc.odict() # Initialise outputs
 
         # Validate inputs
         if year is not None: year = sc.promotetoarray(year)
         if optimizable is None: optimizable = False # Return only optimizable indices
 
-        # Get cost data for each program 
+        # Get cost data for each program
         for prog in self.programs.values():
             default_budget[prog.name] = prog.get_spend(year)
 
@@ -697,13 +698,13 @@ class ProgramSet(NamedItem):
 
     def get_num_covered(self, year=None, alloc=None):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
-        
+
         num_covered = sc.odict() # Initialise outputs
 
         # Validate inputs
         if year is not None: year = sc.promotetoarray(year)
 
-        # Get cost data for each program 
+        # Get cost data for each program
         for prog in self.programs.values():
             if alloc and prog.name in alloc:
                 spending = alloc[prog.name]
@@ -726,7 +727,7 @@ class ProgramSet(NamedItem):
         if denominator is None:
             errormsg = 'Must provide denominators to calculate proportion covered.'
             raise AtomicaException(errormsg)
-            
+
         for prog in self.programs.values():
             if alloc and prog.name in alloc:
                 spending = alloc[prog.name]
@@ -734,9 +735,9 @@ class ProgramSet(NamedItem):
                 spending = None
 
             num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
-            denom = denominator[prog.name]            
+            denom = denominator[prog.name]
             prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
-            
+
         return prop_covered
 
     def get_coverage(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
@@ -814,7 +815,7 @@ class Program(NamedItem):
     def optimizable(self, doprint=False, partial=False):
         '''
         Return whether or not a program can be optimized.
-        
+
         Arguments:
             doprint = whether or not to print out why a program can't be optimized
             partial = flag programs that are only partially ready for optimization (some data entered), skipping those that have no data entered
@@ -831,12 +832,12 @@ class Program(NamedItem):
                 if partial and all(tests.values()): valid = True # ...but it's probably just an other program, so skip it
                 if not valid and doprint:
                     print('Program not optimizable for the following reasons: %s' % '\n'.join([key for key,val in tests.items() if val]))
-                
+
         except Exception as E:
             valid = False
             if doprint:
                 print('Program not optimizable because an exception was encountered: %s' % E.message)
-        
+
         return valid
 
     def has_budget(self):
@@ -852,18 +853,18 @@ class Program(NamedItem):
         if budget is None:
             budget = self.spend_data.interpolate(year)
         budget = sc.promotetoarray(budget)
-                
+
         if unit_cost is None:
             unit_cost = self.unit_cost.interpolate(year)
         unit_cost = sc.promotetoarray(unit_cost)
-            
+
         if capacity is None and self.capacity.has_data:
             capacity = self.capacity.interpolate(year)
-            
+
         # Use a linear cost function if capacity has not been set
         if capacity is not None:
             num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unit_cost)))-capacity
-            
+
         # Use a saturating cost function if capacity has been set
         else:
             num_covered = budget/unit_cost
@@ -873,12 +874,12 @@ class Program(NamedItem):
 
     def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
         '''Returns proportion covered for a time/spending vector and denominator'''
-        
+
         # Make sure that denominator has been supplied
         if denominator is None:
             errormsg = 'Must provide denominators to calculate proportion covered.'
             raise AtomicaException(errormsg)
-            
+
         # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
         # Example: year = [2015,2016], denominator = [30000,40000]
         num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
@@ -888,11 +889,11 @@ class Program(NamedItem):
 
     def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
         '''Returns proportion OR number covered for a time/spending vector.'''
-        
+
         if as_proportion and denominator is None:
             print('Can''t return proportions because denominators not supplied. Returning numbers instead.')
             as_proportion = False
-            
+
         if as_proportion:
             return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
         else:
@@ -904,7 +905,7 @@ class Program(NamedItem):
 #--------------------------------------------------------------------
 class Covout(object):
     '''
-    Coverage-outcome object 
+    Coverage-outcome object
 
     Example:
     Covout(par='contacts',
@@ -913,7 +914,7 @@ class Covout(object):
            progs={'Prog1':[15,10,10], 'Prog2':20}
            )
     '''
-    
+
     def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, uncertainty=0.0,baseline=None,progs=None):
         logger.debug('Initializing Covout for par=%s, pop=%s, baseline=%s' % (par, pop, baseline))
         self.par = par
@@ -926,7 +927,7 @@ class Covout(object):
         assert self.cov_interaction in ['additive','random','nested']
         assert self.imp_interaction in ['best','synergistic']
         return None
-    
+
     def __repr__(self):
         output = sc.prepr(self)
         output  = sc.indent('   Parameter: ', self.par)
@@ -941,32 +942,43 @@ class Covout(object):
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination
 
-        # We have been given the coverage for all programs
-        outcome = self.baseline
+        # Put coverages and deltas into array form
+        cov, delt = [], []
+        for prog, prog_outcome in self.progs.items():
+            cov.append(coverage[prog][0])
+            delt.append(prog_outcome - self.baseline)
+        cov = np.array(cov)
+        delt = np.array(delt)
 
-        # Pre-check for additive calc
-        if self.cov_interaction == 'additive':
-            total_coverage = 0.0
-            for prog in self.progs:
-                total_coverage += coverage[prog]
-            if total_coverage > 1:
-                logger.warning('Coverage of the programs %s, all of which target parameter %s, sums to %s, which is more than 100 per cent, and additive interaction was selected. Resetting to random... ' % (list(self.progs.keys()), [self.par, self.pop], total_coverage))
-                self.cov_interaction = 'random'
+        outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
+        n_progs = len(self.progs)
+
+        if n_progs == 1:
+            # If there's only one program, then just use the outcome directly
+            return outcome + cov[0]*delt[0]
 
         # ADDITIVE CALCULATION
-        # NB, if there's only one program targeting this parameter, just do simple additive calc
-        if self.cov_interaction == 'additive' or len(self.progs) == 1:
+        if self.cov_interaction == 'additive':
             # Outcome += c1*delta_out1 + c2*delta_out2
-            for prog,prog_outcome in self.progs.items():
-                outcome += coverage[prog] * (prog_outcome - self.baseline)
+
+            # If sum(cov)<0 then there will be a divide by zero error. Also, need to divide by max(sum(cov),1) rather than sum(cov)
+            # because otherwise, the coverages will be scaled UP to 1. So fastest just to check here
+            if np.sum(cov) > 1:
+                additive = cov / sum(cov)  # Portion of total population covered additively
+                random_portion = (cov - additive) / (1 - additive)  # Coverage of this program when nested within the other programs
+                combinations = np.unpackbits(np.arange(2 ** n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -n_progs:]
+                additive_portion_coverage = combinations * additive
+                random_portion_coverage = combinations * random_portion + (combinations ^ 1) * (1 - random_portion)
+                total_random_coverage = np.product(random_portion_coverage, axis=1, keepdims=True)
+                combination_coverage = np.sum(additive_portion_coverage * total_random_coverage / (random_portion), axis=1, keepdims=True)
+                for progs, cov in zip(combinations.astype(bool), combination_coverage):
+                    outcome += cov * self.compute_impact_interaction(progs, delt)
+            else:
+                outcome += np.sum(cov*delt)
 
         # NESTED CALCULATION
         elif self.cov_interaction == 'nested':
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
-            cov, delt = [], []
-            for prog,prog_outcome in self.progs.items():
-                cov.append(coverage[prog])
-                delt.append(prog_outcome - self.baseline)
             cov_tuple = sorted(zip(cov, delt))  # A tuple storing the coverage and delta out, ordered by coverage
             for j in range(len(cov_tuple)):  # For each entry in here
                 if j == 0:
@@ -981,36 +993,31 @@ class Covout(object):
 
             cov, delt = [], []
             for prog,prog_outcome in self.progs.items():
-                cov.append(coverage[prog])
+                cov.append(coverage[prog][0])
                 delt.append(prog_outcome - self.baseline)
+            cov = np.array(cov)
+            delt = np.array(delt)
 
-            # Recursion over overlap levels
-            def overlap_calc(indexes, target_depth):
-                if len(indexes) < target_depth:
-                    output = 0.0
-                    for j in range(indexes[-1] + 1, len(cov)):
-                        output += overlap_calc(indexes + [j], target_depth)
-                    return output
-                else:
-                    output = 1.0
-                    for i in range(0,len(cov)):
-                        if i in indexes:
-                            output *= cov[i]
-                        else:
-                            output *= (1-cov[i])
-
-                    output *= max([delt[x] for x in indexes], key=abs)
-                    return output
-
-            # Iterate over overlap levels
-            for i in range(1, len(cov)):  # Iterate over numbers of overlapping programs
-                for j in range(0, len(cov)):  # Iterate over the index of the first program in the sum
-                    outcome += overlap_calc([j], i)
-
-            # All programs together
-            outcome += prod(array(cov), 0) * max([c for c in delt])
+            combinations = np.unpackbits(np.arange(2 ** n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -n_progs:]
+            combination_coverage = np.product(combinations * cov + (combinations ^ 1) * (1 - cov), axis=1)
+            for progs, cov in zip(combinations.astype(bool), combination_coverage):
+                outcome += cov*self.compute_impact_interaction(progs, delt)
 
         else:
             raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)
 
         return outcome
+
+    def compute_impact_interaction(self,progs, deltas):
+        # Takes in boolean array of programs, and deltas for all programs
+        # For the given combination of programs, return the outcome
+
+        if not any(progs):
+            return 0.0
+
+        if self.imp_interaction == 'best':
+            return max(deltas[progs])
+        elif self.imp_interaction == 'synergistic':
+            raise NotImplementedError
+        else:
+            raise AtomicaInputError('Unknown impact interaction "%s"' % (self.imp_interaction))
