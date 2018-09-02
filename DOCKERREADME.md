@@ -102,6 +102,11 @@ To kill containers use
 ~~~
 sudo docker kill containerId
 ~~~
+To delete all the docker containers and images
+sudo docker system prune -a
+
+
+
 
 ## Development triggers
 At the moment, the platform is rebuilt whenever a push is made to `docker` or `develop` using the option `(docker|develop)`. 

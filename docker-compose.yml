@@ -13,6 +13,14 @@ services:
      - .:/code
     depends_on:
      - redis
+  
+  celery:
+    build: .
+    command: celery worker -A atomica_apps.apptasks_cascade -l info
+    environment:
+      - 'REDIS_URL=redis://redis:6379/8'
+    depends_on:
+      - redis
 
   redis:
     image: redis
