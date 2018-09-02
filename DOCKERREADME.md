@@ -116,7 +116,8 @@ You can see, and edit, these triggers in https://console.cloud.google.com/cloud-
 You can create new instances using 
 https://console.cloud.google.com/compute/instancesAdd
 
-
+## Used this website for inspiration on Dockerizing celery
+https://nickjanetakis.com/blog/dockerize-a-flask-celery-and-redis-application-with-docker-compose
 
 ## Good videos
 Docker Google Cloud
