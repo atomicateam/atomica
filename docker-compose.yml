@@ -3,6 +3,7 @@ services:
   app:
     build: .
     command: python start_server.py
+    # command: bash "source clients/cascade/start_celery.sh && python clients/cascade/start_server.py"
     environment:
       - 'REDIS_URL=redis://redis:6379/8' #this needs to be 7 in TB
     ports:
