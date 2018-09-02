@@ -518,7 +518,7 @@ Last update: 2018-08-22
       },
 
       runOptim(optimSummary, maxtime) {
-        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
+        console.log('runOptim() called for '+optimSummary.name + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -542,9 +542,8 @@ Last update: 2018-08-22
           })
       },
       
-      // TODO: remove this after debugging
       cancelRun(optimSummary) {
-        console.log('cancelRun() called for '+this.currentOptim)
+        console.log('cancelRun() called for '+optimSummary.name)
         rpcs.rpc('delete_task', ['run_optimization'])
       },
       

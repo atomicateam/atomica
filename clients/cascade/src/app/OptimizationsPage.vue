@@ -486,36 +486,21 @@ Last update: 2018-08-30
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
         status.start(this)
-        
-        // Get the current project's optimization summaries from the server.
-        rpcs.rpc('get_optim_info', [this.projectID])
+        rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
-          
-          // For each of the optimization summaries...
-          this.optimSummaries.forEach(optimSum => {
-            // Build a task and results cache ID from the project's hex UID and the optimization name.
-            optimSum.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
-            
-            // Set the status to 'not started' by default, and the pending and execution 
-            // times to '--'.
-            optimSum.status = 'not started'
+          this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
+            optimSum.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
             optimSum.pendingTime = '--'
             optimSum.executionTime = '--'
-            
-            // Get the task state for the optimization.
-            this.getOptimTaskState(optimSum)
+            this.getOptimTaskState(optimSum) // Get the task state for the optimization.
           })
-          
-          // Start polling of tasks states.
-          this.pollAllTaskStates()
-          
-          // Indicate success.
+          this.pollAllTaskStates() // Start polling of tasks states.
           status.succeed(this, 'Optimizations loaded')
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not load optimizations')
+          status.fail(this, 'Could not load optimizations: ' + error.message)
         })
       },
 
@@ -527,7 +512,7 @@ Last update: 2018-08-30
             status.succeed(this, 'Optimizations saved')
           })
           .catch(error => {
-            status.fail(this, 'Could not save optimizations')
+            status.fail(this, 'Could not save optimizations:'  + error.message)
           })
       },
 
@@ -697,38 +682,22 @@ Last update: 2018-08-30
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
-        // Start indicating progress.
         status.start(this)       
-        // Make sure they're saved first
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
         .then(response => {
           rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
             [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
-            {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
-            // CASCADE-TB DIFFERENCE
+            {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',   // CASCADE-TB DIFFERENCE
             'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
           .then(response => {
-            // Get the task state for the optimization.
-            this.getOptimTaskState(optimSummary)
-            
-            // Indicate success.
+            this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
             status.succeed(this, 'Started optimization')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            console.log(this.serverresponse)
-            this.servererror = error.message // Set the server error.
-             
-            // Indicate failure.
             status.fail(this, 'Could not start optimization: ' + error.message)
           })        
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          console.log(this.serverresponse)
-          this.servererror = error.message // Set the server error.
-           
-          // Indicate failure.
           status.fail(this, 'Could not start optimization: ' + error.message)
         })        
       },
