@@ -1,5 +1,29 @@
 # Docker
 
+## Notes
+I'm super worried that the docker build instructions (python build_client.py) is not working. When I did the build 'locally', it worked. Building again after building using the docker seems to work
+
+The docker enounters this error:
+~~~
+Error: Cannot find module 'chalk'
+.
+.
+.
+npm WARN Local package.json exists, but node_modules missing, did you mean to install?
+~~~
+This is probably because node modules is symlink from cascade
+
+## Errors
+
+### apt-utils
+~~~
+debconf: delaying package configuration, since apt-utils is not installed
+~~~
+Not fixed by adding
+~~~
+RUN apt-get install -y --no-install-recommends apt-utils
+~~~
+
 ## Important changes for the future
 Note that the #develop refers to the develop branch. In the future, it is likely that we will instead be using the master branch, in which case we should remove the #develop
 RUN git clone https://github.com/optimamodel/sciris.git#develop
