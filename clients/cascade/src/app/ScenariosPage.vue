@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-22
+Last update: 2018-09-01
 -->
 
 <template>
@@ -197,10 +197,8 @@ Last update: 2018-08-22
   var filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
   import help from '@/app/HelpLink.vue'
 
   export default {

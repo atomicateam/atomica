@@ -225,11 +225,10 @@ Last update: 2018-08-22
   import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
   import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'scenarioPage',
+    name: 'ScenariosPage',
 
     components: {
       help
