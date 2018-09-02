@@ -737,8 +737,6 @@ Last update: 2018-08-30
         console.log('plotOptimization() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
         status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        // Make sure they're saved first
         rpcs.rpc('plot_optimization_cascade', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
@@ -748,9 +746,7 @@ Last update: 2018-08-30
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
+            status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
           })
       },
       

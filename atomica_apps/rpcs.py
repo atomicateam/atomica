@@ -56,6 +56,18 @@ def timeit(method):
     return timed
 
 
+def to_number(raw):
+    ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
+    try:
+        output = float(raw)
+    except Exception as E:
+        if raw is None:
+            output = None
+        else:
+            raise E
+    return output
+
+
 # Make a Result storable by Sciris
 class ResultSO(sw.Blob):
 
@@ -1571,17 +1583,6 @@ def get_default_optim(project_id, tool=None):
     print(js_optim)
     return js_optim
 
-
-def to_number(raw):
-    ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
-    try:
-        output = float(raw)
-    except Exception as E:
-        if raw is None:
-            output = None
-        else:
-            raise E
-    return output
 
 
 @RPC()    
