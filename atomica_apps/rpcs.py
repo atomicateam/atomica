@@ -173,7 +173,7 @@ class ResultsCache(sw.BlobDict):
     def delete_by_project(self, project_uid):
         print('>> ResultsCache.delete_by_project() under construction...')
         print('>>   project_uid = %s' % project_uid)
-        
+             
 def init_results_cache(app):
     global results_cache
     
@@ -224,7 +224,11 @@ def apptasks_load_results_cache():
         print('>>> ERROR: RESULTS CACHE NOT IN DATASTORE')
         return None  
     
-    
+@RPC()
+def make_results_cache_entry(cache_id, project_uid):
+    results_cache.store(cache_id, project_uid, None)
+
+   
 
 ###############################################################
 ### Framework functions

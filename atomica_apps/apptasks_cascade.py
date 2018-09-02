@@ -42,6 +42,9 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     
     # Reload the whole database because it's likely that the webapp process 
     # has modified it, for example, to add a new TaskRecord.
+    # NOTE: This doesn't seem to always fix the concurrency problems, so it is 
+    # best to avoid passing the ResultsCache.store() command a cache_id that 
+    # is not yet in the cache.
     sw.globalvars.data_store.load()
     
     # The line above seems to fix the problem that re-emerged with multiple 
