@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018aug31 by gchadder3
+Last update: 2018sep02 by gchadder3
 """
 
 ###############################################################
@@ -96,6 +96,15 @@ class ResultSet(sw.Blob):
             file_suffix='.rst', instance_label=set_label)
         self.result_set = result_set  # can be single Result or list of Results
         
+    def show(self):
+        # Show superclass attributes.
+        super(ResultSet, self).show()  
+        
+        # Show the defined display text for the project.
+        print('---------------------')
+        print('Result set contents: ')
+        print(self.result_set)
+         
 class ResultsCache(sw.BlobDict):
 
     def __init__(self, uid):
@@ -133,16 +142,20 @@ class ResultsCache(sw.BlobDict):
         print('>> ResultsCache.store() called')
         print('>>   project_uid = %s' % project_uid)
         print('>>   cache_id = %s' % cache_id)
-        
-        # Create a ResultSet containing the result/s passed in.
-        result_set_blob = ResultSet(None, result_set, cache_id)
+        print('>>   result_set contents:')
+        print(result_set)
         
         # If there already is a cache entry for this, update the object there.
         if cache_id in self.cache_id_hashes:
+            result_set_blob = ResultSet(self.cache_id_hashes[cache_id], 
+                result_set, cache_id)
+            print('>> Running update_object()')
             self.update_object(result_set_blob)
             
         # Otherwise, update the cache ID hashes and add the new object.
         else:
+            print('>> Running add_object()')
+            result_set_blob = ResultSet(None, result_set, cache_id)
             self.cache_id_hashes[cache_id] = result_set_blob.uid
             self.add_object(result_set_blob)       
     
@@ -173,7 +186,7 @@ class ResultsCache(sw.BlobDict):
     def delete_by_project(self, project_uid):
         print('>> ResultsCache.delete_by_project() under construction...')
         print('>>   project_uid = %s' % project_uid)
-             
+            
 def init_results_cache(app):
     global results_cache
     
