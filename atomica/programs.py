@@ -964,9 +964,13 @@ class Covout(object):
             # If sum(cov)<0 then there will be a divide by zero error. Also, need to divide by max(sum(cov),1) rather than sum(cov)
             # because otherwise, the coverages will be scaled UP to 1. So fastest just to check here
             if np.sum(cov) > 1:
+                # Only keep the programs with nonzero coverage
+                idx = cov>0
+                delt = delt[idx]
+                cov = cov[idx]
                 additive = cov / sum(cov)  # Portion of total population covered additively
                 random_portion = (cov - additive) / (1 - additive)  # Coverage of this program when nested within the other programs
-                combinations = np.unpackbits(np.arange(2 ** n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -n_progs:]
+                combinations = np.unpackbits(np.arange(2 ** len(cov), dtype=np.uint8).reshape(-1, 1), axis=1)[:, -len(cov):]
                 additive_portion_coverage = combinations * additive
                 random_portion_coverage = combinations * random_portion + (combinations ^ 1) * (1 - random_portion)
                 total_random_coverage = np.product(random_portion_coverage, axis=1, keepdims=True)

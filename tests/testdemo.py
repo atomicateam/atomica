@@ -14,6 +14,8 @@ txtcolor  = 'blue'
 
 T = sc.tic()
 
+import numpy as np
+np.seterr(all='raise')
 
 #%%
 if to_run == 'quick':
