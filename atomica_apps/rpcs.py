@@ -10,6 +10,7 @@ Last update: 2018sep02 by gchadder3
 
 import time
 import os
+import re
 import numpy as np
 from zipfile import ZipFile
 from flask_login import current_user
@@ -24,8 +25,6 @@ from matplotlib.legend import Legend
 import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
 rc('font', size=14)
-
-import re  # TODO: delete if we don't need
 
 
 
@@ -133,12 +132,17 @@ class ResultsCache(sw.BlobDict):
         
         # If we found no match, return None.
         if result_set_blob_uid is None:
-            print('>> ERROR: ResultSet not in cache_id_hashes')
+            print('>> ERROR: ResultSet %s not in cache_id_hashes' % result_set_blob_uid)
             return None
         
         # Otherwise, return the object found.
         else:
-            return self.get_object_by_uid(result_set_blob_uid).result_set
+            obj = self.get_object_by_uid(result_set_blob_uid)
+            if obj is None:
+                print('>> ERROR: ResultSet %s not in DataStore handle_dict' % result_set_blob_uid)
+                return None
+            else:
+                return self.get_object_by_uid(result_set_blob_uid).result_set
     
     def store(self, cache_id, project_uid, result_set):
         print('>> ResultsCache.store() called')
@@ -160,14 +164,6 @@ class ResultsCache(sw.BlobDict):
             result_set_blob = ResultSet(None, result_set, cache_id)
             self.cache_id_hashes[cache_id] = result_set_blob.uid
             self.add_object(result_set_blob)
-            
-        # TODO: remove this later
-        print('>> My project UID is: ')
-        print project_uid
-        print('>> My found project UID is: ')
-        strip_post_proj = re.sub(':.*', '', cache_id)
-        print(strip_post_proj)
-#        print re.sub('-', '', strip_post_proj)
     
     def delete(self, cache_id):
         print('>> ResultsCache.delete()')
@@ -192,10 +188,20 @@ class ResultsCache(sw.BlobDict):
         # Do the rest of the deletion process.
         self.delete_all_objects()
         
-    # TODO: get this working properly.
     def delete_by_project(self, project_uid):
-        print('>> ResultsCache.delete_by_project() under construction...')
+        print('>> ResultsCache.delete_by_project() called')
         print('>>   project_uid = %s' % project_uid)
+        
+        # Build a list of the keys that match the given project.
+        matching_cache_ids = []
+        for cache_id in self.cache_id_hashes.keys():
+            cache_id_project = re.sub(':.*', '', cache_id)
+            if cache_id_project == project_uid:
+                matching_cache_ids.append(cache_id)
+        
+        # For each matching key, delete the entry.
+        for cache_id in matching_cache_ids:
+            self.delete(cache_id)
             
 def init_results_cache(app):
     global results_cache
@@ -810,18 +816,23 @@ def delete_projects(project_ids):
         # Load the project record matching the UID of the project passed in.
         record = load_project_record(project_id, raise_exception=True)
         
-        # If a matching record is found, delete the object from the 
-        # ProjectCollection.
+        # If a matching record is found...
         if record is not None:
+            # delete the object from the ProjectCollection.
             prj.proj_collection.delete_object_by_uid(project_id)
+            
+#            sw.globalvars.data_store.load()  # should not be needed so long as Celery worker does not change handle_dict
             
             # TODO: Delete any TaskRecords or cached Results associated with 
             # the Project.
 #            task_dict.load_from_data_store()
 #            task_dict.delete_by_project(project_id)
-            sw.globalvars.data_store.load()
+            
+            # Load the latest ResultsCache state from persistent store.
             results_cache.load_from_data_store()
-            results_cache.delete_by_project(project_id)  # TODO: get that working
+            
+            # Delete all cache entries with this project ID.
+            results_cache.delete_by_project(project_id)
 
 @RPC(call_type='download')   
 def download_project(project_id):
