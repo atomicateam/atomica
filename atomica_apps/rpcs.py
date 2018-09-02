@@ -25,6 +25,8 @@ import matplotlib.pyplot as pl
 from matplotlib.pyplot import rc
 rc('font', size=14)
 
+import re  # TODO: delete if we don't need
+
 
 
 RPC_dict = {} # Dictionary to hold all of the registered RPCs in this module.
@@ -157,10 +159,18 @@ class ResultsCache(sw.BlobDict):
             print('>> Running add_object()')
             result_set_blob = ResultSet(None, result_set, cache_id)
             self.cache_id_hashes[cache_id] = result_set_blob.uid
-            self.add_object(result_set_blob)       
+            self.add_object(result_set_blob)
+            
+        # TODO: remove this later
+        print('>> My project UID is: ')
+        print project_uid
+        print('>> My found project UID is: ')
+        strip_post_proj = re.sub(':.*', '', cache_id)
+        print(strip_post_proj)
+#        print re.sub('-', '', strip_post_proj)
     
     def delete(self, cache_id):
-        print('>> ResultsCache.delete() under construction...')
+        print('>> ResultsCache.delete()')
         print('>>   cache_id = %s' % cache_id)
         
         # Get the UID for the blob corresponding to the cache ID (if any).
@@ -172,7 +182,7 @@ class ResultsCache(sw.BlobDict):
             
         # Otherwise, delete the object found.
         else:
-            self.delete_by_uid(result_set_blob_uid)
+            self.delete_object_by_uid(result_set_blob_uid)
         
     def delete_all(self):
         print('>> ResultsCache.delete_all() called')
@@ -239,9 +249,17 @@ def apptasks_load_results_cache():
     
 @RPC()
 def make_results_cache_entry(cache_id, project_uid):
+    # TODO: We might want to have a check here to see if this is a new entry 
+    # in the cache, and if it isn't, just exit out, so the store doesn't 
+    # overwrite the already-stored result.  However, this may not really be an 
+    # issue because "Plot results" is disabled during the running of a task.
     results_cache.store(cache_id, project_uid, None)
-
-   
+    
+@RPC()
+def delete_results_cache_entry(cache_id):
+    results_cache.delete(cache_id)
+    
+    
 
 ###############################################################
 ### Framework functions

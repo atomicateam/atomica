@@ -649,6 +649,9 @@ Last update: 2018-09-02
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {
+          // Delete the results cache entry from the server.
+          rpcs.rpc('delete_results_cache_entry', [optimSummary.server_datastore_id])
+          
           status.succeed(this, 'Optimization deleted')       
         })
         .catch(error => {
