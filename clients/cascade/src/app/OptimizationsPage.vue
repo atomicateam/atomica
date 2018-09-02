@@ -541,21 +541,15 @@ Last update: 2018-08-30
         })
         if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
-          if (index > -1) {  // 
+          if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
             if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              // Clear the present task.
-              if (newOptim.status != 'not started') {
+              if (newOptim.status != 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
               }
-
-              // Set a new server DataStore ID.
-              newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
-              
-              // TODO: Delete any cached results.
-              
-              this.getOptimTaskState(newOptim)
+              newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Set a new server DataStore ID.
+              this.getOptimTaskState(newOptim) // TODO: Delete any cached results.
             }              
           }
           else {
@@ -637,47 +631,13 @@ Last update: 2018-08-30
           status.succeed(this, 'Optimization deleted')       
         })
         .catch(error => {
-          status.fail(this, 'Could not delete optimization')
+          status.fail(this, 'Could not delete optimization: ' + error.message)
         })
       },
 
       toggleShowingPlotControls() {
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
-
-/*      runOptim(optimSummary, maxtime) {
-        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this)
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => { // Go to the server to get the results
-            taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 1, 'run_cascade_optimization',
-              [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  // CASCADE-TB DIFFERENCE
-                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
-              .then(response => {
-                this.makeGraphs(response.data.result.graphs)
-                this.table = response.data.result.table
-                status.succeed(this, 'Optimization complete')
-              })
-              .catch(error => {
-                console.log('There was an error: ' + error.message) // Pull out the error message.
-                status.fail(this, 'Could not run optimization: ' + error.message)
-              })
-          })
-          .catch(error => {
-            console.log('There was an error: ' + error.message)
-            status.fail(this, 'Could not set optimization info: ' + error.message)
-          })
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          console.log(this.serverresponse)
-          this.servererror = error.message // Set the server error.
-           
-          // Indicate failure.
-          status.fail(this, 'Could not make graphs: ' + error.message)
-        })        
-      }, */
       
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
