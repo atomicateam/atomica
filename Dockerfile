@@ -26,7 +26,8 @@ WORKDIR clients
 RUN python install_client.py
 
 # Install cascade (TODO: add an option for cascade/tb)
-WORKDIR cascade
+ARG dockerproject
+WORKDIR $dockerproject
 RUN python build_client.py
 
 CMD PORT=80 REDIS_URL=redis://redis:6379/8 supervisord
