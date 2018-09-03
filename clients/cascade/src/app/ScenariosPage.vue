@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-22
+Last update: 2018-09-03
 -->
 
 <template>
@@ -236,6 +236,7 @@ Last update: 2018-08-22
           mode: 'add'
         },
         figscale: 1.0,
+        serverDatastoreId: ''
       }
     },
 
@@ -259,13 +260,19 @@ Last update: 2018-08-22
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
         utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            this.getScenSummaries()
-            this.getDefaultBudgetScen()
-            this.updateSets()
-            this.getPlotOptions()
-          })
+        .then(response => {
+          this.getScenSummaries()
+          this.getDefaultBudgetScen()
+          this.updateSets()
+          this.getPlotOptions()
+        })
+        utils.sleep(1000)
+        .then(response => {
+            this.plotScenarios()
+          }
+        )        
       }
     },
 
@@ -491,7 +498,7 @@ Last update: 2018-08-22
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions],
+            rpcs.rpc('run_scenarios_cascade', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
               .then(response => {
                 this.makeGraphs(response.data.graphs)
@@ -515,7 +522,7 @@ Last update: 2018-08-22
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions],
+        rpcs.rpc('plot_scenarios_cascade', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs)

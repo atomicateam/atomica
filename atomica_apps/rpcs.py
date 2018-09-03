@@ -1646,7 +1646,8 @@ def run_scenarios_cascade(project_id, cache_id, plot_options, saveresults=True, 
     results = proj.run_scenarios()
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
-    proj.results['scenarios'] = results # WARNING, will want to save separately!
+#    proj.results['scenarios'] = results # WARNING, will want to save separately!
+    put_results_cache_entry(cache_id, results)
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     print('Saving project...')
     save_project(proj)    
@@ -1669,7 +1670,7 @@ def plot_scenarios_cascade(project_id, cache_id, plot_options, tool=None, plotye
     print('Plotting scenarios...')
     proj = load_project(project_id, raise_exception=True)
 #    results = proj.results['scenarios']  # TODO: remove this when things are done
-    
+
     # Load the results from the cache and check if we got a result.
     results = fetch_results_cache_entry(cache_id)
     if results is None:
@@ -1860,6 +1861,8 @@ def fetch_results_cache_entry(cache_id):
 
 
 def put_results_cache_entry(cache_id, results, apptasks_call=False):
+    global results_cache
+    
     # If a Celery worker has made the call...
     if apptasks_call:
         # Load the latest ResultsCache from persistent storage.  It is likely 
