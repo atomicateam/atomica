@@ -1,10 +1,10 @@
 ## This script tests some databook IO operations
 
 import atomica.ui as au
-from atomica.core.excel import AtomicaSpreadsheet, transfer_comments
+from atomica.excel import AtomicaSpreadsheet, transfer_comments
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData
-import sciris.core as sc
+import sciris as sc
 
 F = ProjectFramework("./frameworks/framework_tb.xlsx")
 F.save('./temp/d_blug.xlsx')
