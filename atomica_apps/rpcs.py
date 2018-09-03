@@ -1487,7 +1487,7 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
     
 
 @RPC()  
-def manual_calibration_cascade(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None, cascade=None, dosave=True):
+def manual_calibration_cascade(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None, cascade=None, dosave=True):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -1513,8 +1513,8 @@ def manual_calibration_cascade(project_id, parsetname=-1, y_factors=None, plot_o
     proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     
-    
-    store_result_separately(proj, result)
+    put_results_cache_entry(cache_id, result)
+#    store_result_separately(proj, result)
     
     
     output = process_plots(proj, result, tool=tool, year=end_year, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
@@ -1549,6 +1549,7 @@ def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=Tr
     else:
         result = proj.run_sim(parset=parsetname, store_results=False) 
         store_result_separately(proj, result)
+    
     print('Resultsets after run: %s' % len(proj.results))
 
     output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
@@ -1557,7 +1558,7 @@ def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=Tr
 
 
 @RPC()    
-def automatic_calibration_cascade(project_id, parsetname=-1, max_time=20, saveresults=True, plot_options=None, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
+def automatic_calibration_cascade(project_id, cache_id, parsetname=-1, max_time=20, saveresults=True, plot_options=None, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     proj.calibrate(parset=parsetname, max_time=float(max_time)) # WARNING, add kwargs!
@@ -1570,11 +1571,26 @@ def automatic_calibration_cascade(project_id, parsetname=-1, max_time=20, savere
         save_project(proj)
     else:
         result = proj.run_sim(parset=parsetname, store_results=False) 
-        store_result_separately(proj, result)
+#        store_result_separately(proj, result)
+    put_results_cache_entry(cache_id, result)    
     print('Resultsets after run: %s' % len(proj.results))
 
     output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
 
+    return output
+
+
+@RPC() 
+def plot_calibration(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
+    print('Plotting calibration...')
+    proj = load_project(project_id, raise_exception=True)
+
+    # Load the results from the cache and check if we got a result.
+    results = fetch_results_cache_entry(cache_id)
+    if results is None:
+        return { 'error': 'Failed to load plot results from cache' }
+    
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     return output
 
 
@@ -1599,7 +1615,7 @@ def export_results(project_id, resultset=-1):
 
 
 @RPC(call_type='download')
-def export_results_cascade(project_id, resultset=-1):
+def export_results_cascade(project_id, cache_id, resultset=-1):
     """
     Create a new framework.
     """

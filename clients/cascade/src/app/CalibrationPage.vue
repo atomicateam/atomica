@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-22
+Last update: 2018-09-03
 -->
 
 <template>
@@ -144,14 +144,14 @@ Last update: 2018-08-22
               <!--&nbsp;&nbsp;&nbsp;-->
 
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+              <select v-model="endYear" @change="plotCalibration(true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+              <select v-model="activePop" @change="plotCalibration(true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
@@ -290,6 +290,7 @@ Last update: 2018-08-22
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
+        serverDatastoreId: ''
       }
     },
 
@@ -318,6 +319,7 @@ Last update: 2018-08-22
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
         this.popOptions = this.activePops
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.viewTable()
         this.getPlotOptions()
         utils.sleep(1)  // used so that spinners will come up by callback func
@@ -325,10 +327,11 @@ Last update: 2018-08-22
             this.updateParset()
           })
         utils.sleep(1000)
-          .then(response => {
-              this.manualCalibration(this.projectID)
-            }
-          );
+        .then(response => {
+            this.plotCalibration(false)
+//            this.manualCalibration(this.projectID)
+          }
+        );
       }
     },
 
@@ -435,7 +438,7 @@ Last update: 2018-08-22
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+        rpcs.rpc('manual_calibration_cascade', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
@@ -458,7 +461,7 @@ Last update: 2018-08-22
         } else {
           var maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+        rpcs.rpc('automatic_calibration_cascade', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
@@ -469,7 +472,32 @@ Last update: 2018-08-22
             status.fail(this, 'Could not run automatic calibration: ' + error.message)
           })
       },
-
+      
+      plotCalibration(showNoCacheError) {
+        console.log('plotCalibration() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        status.start(this)
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        // Make sure they're saved first
+        rpcs.rpc('plot_calibration', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
+      },
+      
       renameParsetModal() {
         console.log('renameParsetModal() called');
         this.origParsetName = this.activeParset // Store this before it gets overwritten
