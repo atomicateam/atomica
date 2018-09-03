@@ -570,7 +570,7 @@ def add_demo_framework(user_id, framework_name):
     Add a demo framework
     """
     other_names = [frw['framework']['name'] for frw in load_current_user_framework_summaries()['frameworks']]
-    new_frame_name = sc.unqiuename(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
+    new_frame_name = sc.uniquename(framework_name, other_names=other_names) # Get a unique name for the framework to be added.
     frame = au.demo(kind='framework', which=framework_name)  # Create the framework, loading in the desired spreadsheets.
     frame.name = new_frame_name
     print(">> add_demo_framework %s" % (frame.name))    
