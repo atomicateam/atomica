@@ -54,7 +54,7 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     # where the Celery worker is adding a new cache_id.  Somehow, maybe, the 
     # webapp should add the new cache_id, and the Celery worker should only have 
     # the power to update old IDs.
-    results_cache.store(cache_id, project_id, results)
+    results_cache.store(cache_id, results)
     
     output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:

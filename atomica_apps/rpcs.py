@@ -144,9 +144,8 @@ class ResultsCache(sw.BlobDict):
             else:
                 return self.get_object_by_uid(result_set_blob_uid).result_set
     
-    def store(self, cache_id, project_uid, result_set):
+    def store(self, cache_id, result_set):
         print('>> ResultsCache.store() called')
-        print('>>   project_uid = %s' % project_uid)
         print('>>   cache_id = %s' % cache_id)
         print('>>   result_set contents:')
         print(result_set)
@@ -254,12 +253,12 @@ def apptasks_load_results_cache():
         return None  
     
 @RPC()
-def make_results_cache_entry(cache_id, project_uid):
+def make_results_cache_entry(cache_id):
     # TODO: We might want to have a check here to see if this is a new entry 
     # in the cache, and if it isn't, just exit out, so the store doesn't 
     # overwrite the already-stored result.  However, this may not really be an 
     # issue because "Plot results" is disabled during the running of a task.
-    results_cache.store(cache_id, project_uid, None)
+    results_cache.store(cache_id, None)
     
 @RPC()
 def delete_results_cache_entry(cache_id):
