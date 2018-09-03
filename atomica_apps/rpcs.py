@@ -1511,12 +1511,9 @@ def manual_calibration_cascade(project_id, cache_id, parsetname=-1, y_factors=No
             print('Modified: %s (%s)' % (parname, y_factor))
     
     proj.modified = sc.now()
-    result = proj.run_sim(parset=parsetname, store_results=False)
-    
+    result = proj.run_sim(parset=parsetname, store_results=False)    
     put_results_cache_entry(cache_id, result)
 #    store_result_separately(proj, result)
-    
-    
     output = process_plots(proj, result, tool=tool, year=end_year, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
     
     cascadeoutput,cascadefigs = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=cascade)

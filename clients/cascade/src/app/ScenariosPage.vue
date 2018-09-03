@@ -52,66 +52,68 @@ Last update: 2018-09-03
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
       </div>
-    </div>
 
-    <div class="card full-width-card">
-      <div class="calib-title">
-        <help reflink="results-plots" label="Results"></help>
-        <div>
+      <div class="card full-width-card">
+        <div class="calib-title">
+          <help reflink="results-plots" label="Results"></help>
+          <div>
 
-          <b>Year: &nbsp;</b>
-          <select v-model="endYear" @change="plotScenarios(true)">
-            <option v-for='year in simYears'>
-              {{ year }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <b>Population: &nbsp;</b>
-          <select v-model="activePop" @change="plotScenarios(true)">
-            <option v-for='pop in activePops'>
-              {{ pop }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="exportGraphs()">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <b>Year: &nbsp;</b>
+            <select v-model="endYear" @change="plotScenarios(true)">
+              <option v-for='year in simYears'>
+                {{ year }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop" @change="plotScenarios(true)">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs()">Export graphs</button>
+            <button class="btn" @click="exportResults(projectID)">Export data</button>
 
-        </div>
-      </div>
-
-      <div class="calib-main" :class="{'calib-main--full': true}">
-        <div class="calib-graphs">
-          <div class="featured-graphs">
-            <div :id="'fig0'">
-              <!--mpld3 content goes here-->
-            </div>
-          </div>
-          <div class="other-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
-            </div>
           </div>
         </div>
-      </div>
 
-      <div class="calib-tables" v-if="table">
-        <h4>Cascade stage losses</h4>
-        <table class="table table-striped">
-          <thead>
-          <tr>
-            <th></th>
-            <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(label, index) in table.rowlabels">
-            <td>{{label}}</td>
-            <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-          </tr>
-          </tbody>
-        </table>
+        <div class="calib-main" :class="{'calib-main--full': true}">
+          <div class="calib-graphs">
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="calib-tables" v-if="table">
+          <h4>Cascade stage losses</h4>
+          <table class="table table-striped">
+            <thead>
+            <tr>
+              <th></th>
+              <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(label, index) in table.rowlabels">
+              <td>{{label}}</td>
+              <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    
+    </div>    
+    
 
     <modal name="add-budget-scen"
            height="auto"
