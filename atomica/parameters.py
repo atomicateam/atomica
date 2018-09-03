@@ -11,7 +11,7 @@ from .utils import NamedItem
 class Parameter(NamedItem):
     """ Class to hold one set of parameter values disaggregated by populations. """
 
-    def __init__(self, name, t=None, y=None, y_format=None, y_factor=None, autocalibrate=None):
+    def __init__(self, name, t=None, y=None, y_format=None, y_factor=None, autocalibrate=None, meta_y_factor=None):
         NamedItem.__init__(self, name)
 
         # These ordered dictionaries have population names as keys.
@@ -25,6 +25,7 @@ class Parameter(NamedItem):
         self.y_format = y_format  # Value format data (e.g. Probability, Fraction or Number).
         # TODO: Consider whether to support different transformations whether format is relative or absolute.
         self.y_factor = y_factor  # Scaling factor of data.
+        self.meta_y_factor = meta_y_factor
         # The following attribute determines whether this parameter can be autocalibrated.
         self.autocalibrate = autocalibrate  # A set of boolean flags corresponding to y_factor.
 
@@ -190,7 +191,7 @@ class ParameterSet(NamedItem):
             item_group = group_remapping[item_type]
 
             self.par_ids[item_group][name] = len(self.pars[item_group])
-            self.pars[item_group].append(Parameter(name=name))
+            self.pars[item_group].append(Parameter(name=name,meta_y_factor=1.0))
 
             for pop_name,ts in tdve.ts.items():
                 tvec, yvec = ts.get_arrays()
@@ -211,7 +212,7 @@ class ParameterSet(NamedItem):
         for _,spec in framework.pars.iterrows():
             if spec.name not in self.par_ids['cascade']:
                 self.par_ids['cascade'][spec.name] = len(self.pars['cascade'])
-                self.pars['cascade'].append(Parameter(name=spec.name))
+                self.pars['cascade'].append(Parameter(name=spec.name,meta_y_factor=1.0))
 
                 for pop_name in self.pop_names:
                     self.pars['cascade'][-1].t[pop_name] = None
@@ -236,7 +237,7 @@ class ParameterSet(NamedItem):
                 source_pop = pop_link[0]
                 target_pop = pop_link[1]
                 if pop_link[0] not in item_storage[name]:
-                    item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop)
+                    item_storage[name][source_pop] = Parameter(name=name + "_from_" + source_pop,meta_y_factor=1.0)
                 tvec, yvec = ts.get_arrays()
                 item_storage[name][source_pop].t[target_pop] = tvec
                 item_storage[name][source_pop].y[target_pop] = yvec
