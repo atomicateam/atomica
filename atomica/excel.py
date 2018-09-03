@@ -87,43 +87,32 @@ class AtomicaSpreadsheet(object):
     # This object provides an interface for managing the contents of files (particularly spreadsheets) as Python objects
     # that can be stored in the FE database. Basic usage is as follows:
     #
+    # READING:
+    #
     # ss = AtomicaSpreadsheet('input.xlsx') # Load a file into this object
     # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
     # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
-    # book.create_sheet(...)
-    # book.save(f) # The workbook can be saved back to this stream
-    # ss.insert(f) # We can update the contents of the AtomicaSpreadsheet with the newly written workbook
-    # ss.save('output.xlsx') # Can also write the contents back to disk
     #
-    # As shown above, no disk IO needs to happen to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
+    # WRITING:
+    #
+    # f = io.BytesIO()
+    # book = xlsxwriter.Workbook(f)
+    # book.close()
+    # spreadsheet = AtomicaSpreadsheet(f) # note that `f.flush()` will automatically be called
+    # f.close()
+    #
+    # As shown above, no disk IO is required to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
 
-    def __init__(self, source=None):
-        # source is a specification of where to get the data from
-        # It can be anything supported by AtomicaSpreadsheet.insert() which are
-        # - A filename, which will get loaded
-        # - A io.BytesIO which will get dumped into this instance
-
-        self.filename = None
-        self.data = None
-        self.load_date = None
-
-        if source is not None:
-            self.insert(source)
-
-    def __repr__(self):
-        output = sc.prepr(self)
-        return output
-
-    def insert(self, source):
-        # This function sets the `data` attribute given a file-like data source
+    def __init__(self, source):
+        # Construct a new AtomicaSpreadsheet given the contents of the spreadsheet
         #
-        # INPUTS:
+        # INPUTS
         # - source : This contains the contents of the file. It can be
         #   - A string, which is interpreted as a filename
         #   - A file-like object like a BytesIO, the entire contents of which will be read
-        #
-        # This function reads a binary ile on disk and stores the content in self.data
-        # It also records where the file was loaded from and the date
+
+        self.filename = None
+
         if isinstance(source,io.BytesIO):
             source.flush()
             source.seek(0)
@@ -136,6 +125,10 @@ class AtomicaSpreadsheet(object):
                 self.data = f.read()
 
         self.load_date = sc.now()
+
+    def __repr__(self):
+        output = sc.prepr(self)
+        return output
 
     def save(self, filename=None):
         # This function writes the contents of self.data to a file on disk
@@ -158,7 +151,6 @@ class AtomicaSpreadsheet(object):
         # - book = openpyxl.load_workbook(self.get_file())
         # - book = xlrd.open_workbook(file_contents=self.get_file().read())
         return io.BytesIO(self.data)
-
 
 def transfer_comments(target,comment_source):
     # Format this AtomicaSpreadsheet based on the extra meta-content in comment_source
