@@ -1,0 +1,11 @@
+#cloudbuild.yaml
+steps:
+  - name: 'docker/compose:1.22.0'
+    args: ['up', '-d']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['tag', 'app:latest', 'gcr.io/$PROJECT_ID/$REPO_NAME_app:$COMMIT_SHA']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['tag', 'celery:latest', 'gcr.io/$PROJECT_ID/$REPO_NAME_celery:$COMMIT_SHA']
+images:
+  - 'gcr.io/$PROJECT_ID/$REPO_NAME_app:$COMMIT_SHA',
+  - 'gcr.io/$PROJECT_ID/$REPO_NAME_celery:$COMMIT_SHA'

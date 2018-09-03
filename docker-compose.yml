@@ -3,7 +3,7 @@ services:
   app:
     build:
       context: .
-      args: 
+      args:
         dockerproject: cascade
     command: python start_server.py # Contains start_celery
     # command: bash "source clients/cascade/start_celery.sh && python clients/cascade/start_server.py"
@@ -16,7 +16,7 @@ services:
      - .:/code
     # depends_on:
     #  - redis
-  
+
   celery:
     build: .
     command: celery worker -A atomica_apps.apptasks_cascade -l info #this needs to be converted for TB
