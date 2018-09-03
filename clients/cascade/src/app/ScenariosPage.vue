@@ -60,14 +60,14 @@ Last update: 2018-09-03
         <div>
 
           <b>Year: &nbsp;</b>
-          <select v-model="endYear" v-on:change="plotScenarios()">
+          <select v-model="endYear" @change="plotScenarios(true)">
             <option v-for='year in simYears'>
               {{ year }}
             </option>
           </select>
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
-          <select v-model="activePop" v-on:change="plotScenarios()">
+          <select v-model="activePop" @change="plotScenarios(true)">
             <option v-for='pop in activePops'>
               {{ pop }}
             </option>
@@ -270,7 +270,7 @@ Last update: 2018-09-03
         })
         utils.sleep(1000)
         .then(response => {
-            this.plotScenarios()
+            this.plotScenarios(false)
           }
         )        
       }
@@ -516,7 +516,7 @@ Last update: 2018-09-03
           })
       },
 
-      plotScenarios() {
+      plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
@@ -524,16 +524,21 @@ Last update: 2018-09-03
         // Make sure they're saved first
         rpcs.rpc('plot_scenarios_cascade', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
     }
   }
