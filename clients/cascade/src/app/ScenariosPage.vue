@@ -21,7 +21,7 @@ Last update: 2018-08-22
 
     <div v-else>
       <div class="card">
-        <help reflink="scenarios" label="Define scenarios"></help>
+        <help reflink="define-scenarios" label="Define scenarios"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
           <thead>
           <tr>
@@ -56,7 +56,7 @@ Last update: 2018-08-22
 
     <div class="card full-width-card">
       <div class="calib-title">
-        <help reflink="results-plots" label="Results"></help>
+        <help reflink="sc-results" label="Results"></help>
         <div>
 
           <b>Year: &nbsp;</b>
