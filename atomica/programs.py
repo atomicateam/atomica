@@ -911,7 +911,7 @@ class Covout(object):
     Covout(par='contacts',
            pop='Adults',
            baseline=120,
-           progs={'Prog1':[15,10,10], 'Prog2':20}
+           progs={'Prog1':5, 'Prog2':20}
            )
     '''
 
@@ -923,10 +923,35 @@ class Covout(object):
         self.imp_interaction = imp_interaction if imp_interaction is not None else 'best'
         self.sigma = uncertainty
         self.baseline = baseline
-        self.progs = sc.odict() if progs is None else progs
+        self.progs = sc.odict()
+        if progs is not None:
+            self.update_progs(progs)
         assert self.cov_interaction in ['additive','random','nested']
         assert self.imp_interaction in ['best','synergistic']
         return None
+
+    def update_progs(self,progs):
+        # Call this function with the program outcomes are changed
+        # Could be because program outcomes were sampled using sigma?
+        # This is important because it also updates the modality interaction outcomes
+        # These are otherwise expensive to compute
+
+        # First, sort the program dict by the magnitude of the outcome
+        prog_tuple = [(k,v) for k,v in progs.items()]
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]))
+        self.progs = sc.odict()
+        for item in prog_tuple:
+            self.progs[item[0]] = item[1]
+        self.deltas = np.array([x[1]-self.baseline for x in prog_tuple])
+        self.n_progs = len(progs)
+
+        # Precompute the combinations and associated modality interaction outcomes
+        # Computationally expensive otherwise
+        self.combinations = np.unpackbits(np.arange(2 ** self.n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -self.n_progs:]
+        combination_outcomes = []
+        for progs in self.combinations.astype(bool):
+            combination_outcomes.append(self.compute_impact_interaction(progs))
+        self.combination_outcomes = np.array(combination_outcomes) # Reshape to column vector, since that's the shape of combination_coverage
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -937,25 +962,22 @@ class Covout(object):
         output += '\n'
         return output
 
+    # @profile
     def get_outcome(self,coverage):
         # coverage is a dict with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination
 
         # Put coverages and deltas into array form
-        cov, delt = [], []
-        for prog, prog_outcome in self.progs.items():
+        cov = []
+        for prog in self.progs.keys():
             cov.append(coverage[prog][0])
-            delt.append(prog_outcome - self.baseline)
         cov = np.array(cov)
-        delt = np.array(delt)
-
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
-        n_progs = len(self.progs)
 
-        if n_progs == 1:
+        if self.n_progs == 1:
             # If there's only one program, then just use the outcome directly
-            return outcome + cov[0]*delt[0]
+            return outcome + cov[0]*self.deltas[0]
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
@@ -963,27 +985,27 @@ class Covout(object):
 
             # If sum(cov)<0 then there will be a divide by zero error. Also, need to divide by max(sum(cov),1) rather than sum(cov)
             # because otherwise, the coverages will be scaled UP to 1. So fastest just to check here
-            if np.sum(cov) > 1:
+            if True or np.sum(cov) > 1:
                 # Only keep the programs with nonzero coverage
-                idx = cov>0
-                delt = delt[idx]
-                cov = cov[idx]
-                additive = cov / sum(cov)  # Portion of total population covered additively
-                random_portion = (cov - additive) / (1 - additive)  # Coverage of this program when nested within the other programs
-                combinations = np.unpackbits(np.arange(2 ** len(cov), dtype=np.uint8).reshape(-1, 1), axis=1)[:, -len(cov):]
-                additive_portion_coverage = combinations * additive
-                random_portion_coverage = combinations * random_portion + (combinations ^ 1) * (1 - random_portion)
-                total_random_coverage = np.product(random_portion_coverage, axis=1, keepdims=True)
-                combination_coverage = np.sum(additive_portion_coverage * total_random_coverage / (random_portion), axis=1, keepdims=True)
-                for progs, cov in zip(combinations.astype(bool), combination_coverage):
-                    outcome += cov * self.compute_impact_interaction(progs, delt)
+                additive = np.maximum(cov - np.maximum(cov - (1 - (np.cumsum(cov) - cov)), 0), 0)
+                remainder = 1 - additive
+                random = cov - additive
+                random_portion = random / remainder
+                additive_portion_coverage = self.combinations * additive
+                net_random = self.combinations * random_portion + (self.combinations ^ 1) * (1 - random_portion)  # The only way net_random can be zero is if the random_portion is zero
+                combination_coverage = np.zeros((net_random.shape[0], 1))
+                for i in range(0, net_random.shape[1]):
+                    mask = np.full((net_random.shape[1],), True)
+                    mask[i] = False
+                    combination_coverage += np.product(net_random[:, mask], axis=1, keepdims=True) * additive_portion_coverage[:, [i]]
+                outcome += np.sum(combination_coverage.ravel()*self.combination_outcomes.ravel())
             else:
-                outcome += np.sum(cov*delt)
+                outcome += np.sum(cov*self.deltas)
 
         # NESTED CALCULATION
         elif self.cov_interaction == 'nested':
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
-            cov_tuple = sorted(zip(cov, delt))  # A tuple storing the coverage and delta out, ordered by coverage
+            cov_tuple = sorted(zip(cov, self.deltas))  # A tuple storing the coverage and delta out, ordered by coverage
             for j in range(len(cov_tuple)):  # For each entry in here
                 if j == 0:
                     c1 = cov_tuple[j][0]
@@ -994,25 +1016,14 @@ class Covout(object):
         # RANDOM CALCULATION
         elif self.cov_interaction == 'random':
             # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
-
-            cov, delt = [], []
-            for prog,prog_outcome in self.progs.items():
-                cov.append(coverage[prog][0])
-                delt.append(prog_outcome - self.baseline)
-            cov = np.array(cov)
-            delt = np.array(delt)
-
-            combinations = np.unpackbits(np.arange(2 ** n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -n_progs:]
-            combination_coverage = np.product(combinations * cov + (combinations ^ 1) * (1 - cov), axis=1)
-            for progs, cov in zip(combinations.astype(bool), combination_coverage):
-                outcome += cov*self.compute_impact_interaction(progs, delt)
-
+            combination_coverage = np.product(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
+            outcome += np.sum(combination_coverage.ravel() * self.combination_outcomes.ravel())
         else:
             raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)
 
         return outcome
 
-    def compute_impact_interaction(self,progs, deltas):
+    def compute_impact_interaction(self,progs):
         # Takes in boolean array of programs, and deltas for all programs
         # For the given combination of programs, return the outcome
 
@@ -1020,7 +1031,9 @@ class Covout(object):
             return 0.0
 
         if self.imp_interaction == 'best':
-            return max(deltas[progs])
+            tmp = self.deltas[progs]
+            idx = np.argmax(abs(tmp))
+            return tmp[idx]
         elif self.imp_interaction == 'synergistic':
             raise NotImplementedError
         else:
