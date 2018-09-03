@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep02 by gchadder3
+Last update: 2018sep03 by gchadder3
 """
 
 ###############################################################
@@ -200,70 +200,7 @@ class ResultsCache(sw.BlobDict):
         
         # For each matching key, delete the entry.
         for cache_id in matching_cache_ids:
-            self.delete(cache_id)
-            
-def init_results_cache(app):
-    global results_cache
-    
-    # Look for an existing ResultsCache.
-    results_cache_uid = sw.globalvars.data_store.get_uid('resultscache', 'Results Cache')
-    
-    # Create the results cache object.  Note, that if no match was found, 
-    # this will be assigned a new UID.    
-    results_cache = ResultsCache(results_cache_uid)  
-    
-    # If there was a match...
-    if results_cache_uid is not None:
-        if app.config['LOGGING_MODE'] == 'FULL':
-            print('>> Loading ResultsCache from the DataStore.')
-        results_cache.load_from_data_store()
-        
-    # Else (no match)...
-    else:
-        if app.config['LOGGING_MODE'] == 'FULL':
-            print('>> Creating a new ResultsCache.') 
-        results_cache.add_to_data_store()
-        
-    # Uncomment this to delete all the entries in the cache.
-#    results_cache.delete_all()
-    
-    if app.config['LOGGING_MODE'] == 'FULL':
-        # Show what's in the ResultsCache.    
-        results_cache.show()
-        
-def apptasks_load_results_cache():
-    # Look for an existing ResultsCache.
-    results_cache_uid = sw.globalvars.data_store.get_uid('resultscache', 'Results Cache')
-    
-    # Create the results cache object.  Note, that if no match was found, 
-    # this will be assigned a new UID.    
-    results_cache = ResultsCache(results_cache_uid)
-    
-    # If there was a match...
-    if results_cache_uid is not None:
-        # Load the cache from the persistent storage.
-        results_cache.load_from_data_store()
-        
-        # Return the cache state to the Celery worker.
-        return results_cache
-        
-    # Else (no match)...
-    else: 
-        print('>>> ERROR: RESULTS CACHE NOT IN DATASTORE')
-        return None  
-    
-@RPC()
-def make_results_cache_entry(cache_id):
-    # TODO: We might want to have a check here to see if this is a new entry 
-    # in the cache, and if it isn't, just exit out, so the store doesn't 
-    # overwrite the already-stored result.  However, this may not really be an 
-    # issue because "Plot results" is disabled during the running of a task.
-    results_cache.store(cache_id, None)
-    
-@RPC()
-def delete_results_cache_entry(cache_id):
-    results_cache.delete(cache_id)
-    
+            self.delete(cache_id)   
     
 
 ###############################################################
@@ -1698,6 +1635,22 @@ def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyea
     print('Saving project...')
     save_project(proj)    
     return output
+
+
+# TODO: we'll want to move everything here to the above function once we port 
+# to TB.
+@RPC()    
+def run_scenarios_cascade(project_id, cache_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
+    print('Running scenarios...')
+    proj = load_project(project_id, raise_exception=True)
+    results = proj.run_scenarios()
+    if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
+        return {'error': 'No scenario selected'}
+    proj.results['scenarios'] = results # WARNING, will want to save separately!
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    print('Saving project...')
+    save_project(proj)    
+    return output
     
     
 @RPC() 
@@ -1705,6 +1658,23 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
     print('Plotting scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['scenarios']
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    return output
+
+
+# TODO: we'll want to move everything here to the above function once we port 
+# to TB.
+@RPC() 
+def plot_scenarios_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
+    print('Plotting scenarios...')
+    proj = load_project(project_id, raise_exception=True)
+#    results = proj.results['scenarios']  # TODO: remove this when things are done
+    
+    # Load the results from the cache and check if we got a result.
+    results = fetch_results_cache_entry(cache_id)
+    if results is None:
+        return { 'error': 'Failed to load plot results from cache' }
+    
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     return output
 
@@ -1799,24 +1769,135 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
     return output
 
 
+# TODO: we'll want to move everything here to the above function once we port 
+# to TB.
 @RPC() 
 def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
     print('Plotting optimization...')
     proj = load_project(project_id, raise_exception=True)
 #    results = proj.results[cache_id]  # TODO: remove this after caching done right
     
-    # Reload the whole data_store (because the Celery workers may have added 
-    # new ResultSet items to data_store.handle_dict).
-    sw.globalvars.data_store.load()
-    
-    # Load the latest results_cache from persistent store.
-    results_cache.load_from_data_store()
-    
     # Load the results from the cache and check if we got a result.
-    results = results_cache.retrieve(cache_id)
+    results = fetch_results_cache_entry(cache_id)
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
     
     # Do the actual plots and return them.
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
     return output
+
+
+##############################################################
+### Results / ResultSet functions and RPCs
+##############################################################
+    
+
+def init_results_cache(app):
+    global results_cache
+    
+    # Look for an existing ResultsCache.
+    results_cache_uid = sw.globalvars.data_store.get_uid('resultscache', 'Results Cache')
+    
+    # Create the results cache object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    results_cache = ResultsCache(results_cache_uid)  
+    
+    # If there was a match...
+    if results_cache_uid is not None:
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print('>> Loading ResultsCache from the DataStore.')
+        results_cache.load_from_data_store()
+        
+    # Else (no match)...
+    else:
+        if app.config['LOGGING_MODE'] == 'FULL':
+            print('>> Creating a new ResultsCache.') 
+        results_cache.add_to_data_store()
+        
+    # Uncomment this to delete all the entries in the cache.
+#    results_cache.delete_all()
+    
+    if app.config['LOGGING_MODE'] == 'FULL':
+        # Show what's in the ResultsCache.    
+        results_cache.show()
+
+        
+def apptasks_load_results_cache():
+    # Look for an existing ResultsCache.
+    results_cache_uid = sw.globalvars.data_store.get_uid('resultscache', 'Results Cache')
+    
+    # Create the results cache object.  Note, that if no match was found, 
+    # this will be assigned a new UID.    
+    results_cache = ResultsCache(results_cache_uid)
+    
+    # If there was a match...
+    if results_cache_uid is not None:
+        # Load the cache from the persistent storage.
+        results_cache.load_from_data_store()
+        
+        # Return the cache state to the Celery worker.
+        return results_cache
+        
+    # Else (no match)...
+    else: 
+        print('>>> ERROR: RESULTS CACHE NOT IN DATASTORE')
+        return None  
+
+
+def fetch_results_cache_entry(cache_id):
+    # Reload the whole data_store (handle_dict), just in case a Celery worker 
+    # has modified handle_dict, for example, by adding a new ResultsCache 
+    # entry.
+    # NOTE: It is possible this line can be removed if Celery never writes  
+    # to handle_dict.
+    sw.globalvars.data_store.load()
+    
+    # Load the latest results_cache from persistent store.
+    results_cache.load_from_data_store()
+    
+    # Retrieve and return the results from the cache..
+    return results_cache.retrieve(cache_id)
+
+
+def put_results_cache_entry(cache_id, results, apptasks_call=False):
+    # If a Celery worker has made the call...
+    if apptasks_call:
+        # Load the latest ResultsCache from persistent storage.  It is likely 
+        # to have changed because the webapp process added a new cache entry.
+        results_cache = apptasks_load_results_cache()
+        
+        # If we have no cache, give an error.
+        if not (cache_id in results_cache.cache_id_hashes):
+            print('>>> WARNING: A NEW CACHE ENTRY IS BEING ADDED BY CELERY, WHICH IS POTENTIALLY UNSAFE.  YOU SHOULD HAVE THE WEBAPP CALL make_results_cache_entry(cache_id) FIRST TO AVOID THIS')
+            
+    else:      
+        # Load the latest results_cache from persistent store.
+        results_cache.load_from_data_store()
+    
+    # Reload the whole data_store (handle_dict), just in case a Celery worker 
+    # has modified handle_dict, for example, by adding a new ResultsCache 
+    # entry.
+    # NOTE: It is possible this line can be removed if Celery never writes  
+    # to handle_dict.    
+    sw.globalvars.data_store.load()
+    
+    # Actually, store the results in the cache.
+    results_cache.store(cache_id, results)
+
+
+# NOTE: This function should be called by the Optimizations FE pages before the 
+# call is made to launch_task().  That is because we want to avoid the Celery 
+# workers adding new cache entries through its own call to ResultsCache.store()
+# because that is unsafe due to conflicts over the DataStore handle_dict.
+@RPC()
+def make_results_cache_entry(cache_id):
+    # TODO: We might want to have a check here to see if this is a new entry 
+    # in the cache, and if it isn't, just exit out, so the store doesn't 
+    # overwrite the already-stored result.  However, this may not really be an 
+    # issue because "Plot results" is disabled during the running of a task.
+    results_cache.store(cache_id, None)
+
+    
+@RPC()
+def delete_results_cache_entry(cache_id):
+    results_cache.delete(cache_id)
