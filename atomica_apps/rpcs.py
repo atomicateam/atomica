@@ -1573,7 +1573,7 @@ def get_optim_info(project_id):
     return optim_summaries
 
 
-@RPC()    
+@RPC()
 def get_default_optim(project_id, tool=None):
     print('Getting default optimization...')
     proj = load_project(project_id, raise_exception=True)
