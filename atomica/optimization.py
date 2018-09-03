@@ -495,9 +495,8 @@ class Optimization(NamedItem):
 
         assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
         assert measurables is not None, 'Must specify some measurables to carry out an optimization'
-        print('warning, replace with promotetolist()')
-        self.adjustments = [adjustments] if not isinstance(adjustments,list) else adjustments
-        self.measurables = [measurables] if not isinstance(measurables,list) else measurables
+        self.adjustments = sc.promotetolist(adjustments)
+        self.measurables = sc.promotetolist(measurables)
 
         if constraints:
             self.constraints = [constraints] if not isinstance(constraints,list) else constraints
