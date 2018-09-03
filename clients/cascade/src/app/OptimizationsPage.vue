@@ -706,7 +706,7 @@ Last update: 2018-09-02
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {
           rpcs.rpc('make_results_cache_entry', [optimSummary.server_datastore_id])
-          .then(response => {          
+          .then(response => {
             rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
               [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
               {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
@@ -726,7 +726,7 @@ Last update: 2018-09-02
                
               // Indicate failure.
               status.fail(this, 'Could not start optimization: ' + error.message)
-            })            
+            })
           })
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
@@ -735,7 +735,7 @@ Last update: 2018-09-02
              
             // Indicate failure.
             status.fail(this, 'Could not start optimization: ' + error.message)
-          })       
+          })
         })
         .catch(error => {
           this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
@@ -744,7 +744,7 @@ Last update: 2018-09-02
            
           // Indicate failure.
           status.fail(this, 'Could not start optimization: ' + error.message)
-        })        
+        })
       },
       
       plotOptimization(optimSummary) {

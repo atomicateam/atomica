@@ -1867,7 +1867,7 @@ def put_results_cache_entry(cache_id, results, apptasks_call=False):
         results_cache = apptasks_load_results_cache()
         
         # If we have no cache, give an error.
-        if not (cache_id in results_cache.cache_id_hashes):
+        if not (cache_id in results_cache.cache_id_hashes.keys()):
             print('>>> WARNING: A NEW CACHE ENTRY IS BEING ADDED BY CELERY, WHICH IS POTENTIALLY UNSAFE.  YOU SHOULD HAVE THE WEBAPP CALL make_results_cache_entry(cache_id) FIRST TO AVOID THIS')
             
     else:      
