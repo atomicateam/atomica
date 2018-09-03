@@ -13,7 +13,6 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from six import reraise
 from .system import logger
 
 def standard_formats(workbook):
@@ -22,7 +21,7 @@ def standard_formats(workbook):
 
     """ the formats used in the spreadsheet """
 #    darkgray = '#413839'
-    optima_blue = '#18C1FF'
+#    optima_blue = '#18C1FF'
     atomica_blue = '#98E0FA'
     optional_orange = '#FFA500'
     BG_COLOR = atomica_blue
