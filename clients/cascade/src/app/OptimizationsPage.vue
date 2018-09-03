@@ -764,7 +764,7 @@ Last update: 2018-09-02
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
           })
       },
       

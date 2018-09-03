@@ -1812,6 +1812,11 @@ def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plo
     # Load the latest results_cache from persistent store.
     results_cache.load_from_data_store()
     
+    # Load the results from the cache and check if we got a result.
     results = results_cache.retrieve(cache_id)
+    if results is None:
+        return { 'error': 'Failed to load plot results from cache' }
+    
+    # Do the actual plots and return them.
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
     return output
