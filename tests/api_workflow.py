@@ -6,14 +6,6 @@ Note, need to run testworkflow.py first to generate the required files
 import atomica.ui as au
 import os
 
-# Romesh PyCharm commands
-from IPython import get_ipython
-ipython = get_ipython()
-if ipython is not None:
-    ipython.magic('load_ext autoreload')
-    ipython.magic('autoreload 2')
-
-
 # Setup
 plot_initial = True
 
@@ -82,8 +74,6 @@ s.run(project=P,parset=P.parsets['default'])
 
 d = au.PlotData(P.results, outputs=['infdeath'])
 au.plot_series(d, axis='results')
-import matplotlib.pyplot as plt
-plt.show()
 
 d = au.PlotData(P.results, outputs=['inf'])
 au.plot_series(d, axis='results')

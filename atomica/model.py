@@ -1204,7 +1204,10 @@ class Model(object):
                 n = 0.0
                 for comp in comp_list:
                     n += comp.vals[ti]
-                prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
+                if n:
+                    prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
+                else:
+                    prop_covered[k] = 1.
 
             # Compute the updated program values
             prog_vals = self.progset.get_outcomes(prop_covered)

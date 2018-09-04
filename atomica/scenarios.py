@@ -127,7 +127,7 @@ class ParameterScenario(Scenario):
                         par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
-                    par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label], pop_label)  / par.meta_y_factor
+                    par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor, pop_label)
 
                 # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
