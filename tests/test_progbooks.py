@@ -50,7 +50,9 @@ P.load_progbook("./databooks/progbook_tb.xlsx")
 instructions = au.ProgramInstructions(start_year=2018)
 pset = P.progsets[0]
 for covout in pset.covouts.values():
-    covout.cov_interaction = 'additive'
+    covout.cov_interaction = 'random'
+P.run_sim(parset='default',progset='default',progset_instructions=instructions)
+P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 
 # THIS DOES VERSIONING
