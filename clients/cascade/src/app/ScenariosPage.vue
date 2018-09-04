@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-09-03
+Last update: 2018-09-04
 -->
 
 <template>
@@ -73,7 +73,7 @@ Last update: 2018-09-03
             </select>
             &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="exportGraphs()">Export graphs</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
 
           </div>
         </div>
@@ -284,8 +284,9 @@ Last update: 2018-09-03
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
-
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResultsCascade(this, serverDatastoreId) },
+                                
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {

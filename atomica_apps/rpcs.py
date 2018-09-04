@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep03 by gchadder3
+Last update: 2018sep04 by gchadder3
 """
 
 ###############################################################
@@ -1985,7 +1985,7 @@ def export_results(project_id, resultset=-1):
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
 
-
+# TODO: get rid of the above in favor of this version.
 @RPC(call_type='download')
 def export_results_cascade(cache_id):
     """

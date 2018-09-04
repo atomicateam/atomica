@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-02
+Last update: 2018-09-04
 -->
 
 <template>
@@ -80,7 +80,7 @@ Last update: 2018-09-02
           </select>
           &nbsp;&nbsp;&nbsp;
           <button class="btn" @click="exportGraphs()">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
+          <button class="btn" :disabled="true" @click="exportResults('')">Export data</button>
 
         </div>
       </div>
@@ -297,8 +297,9 @@ Last update: 2018-09-02
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
-      
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResultsCascade(this, serverDatastoreId) },
+                                
       statusFormatStr(optimSummary) {
         if (optimSummary.status == 'not started') {
           return ''

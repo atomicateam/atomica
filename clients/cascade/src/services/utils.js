@@ -146,7 +146,7 @@ function exportGraphs(vm) {
   console.log('exportGraphs() called')
   rpcs.download('download_graphs', [])
   .catch(error => {
-    status.failurePopup(vm, 'Could not download graphs')
+    status.failurePopup(vm, 'Could not download graphs: ' + error.message)
   })
 }
 
@@ -154,7 +154,7 @@ function exportResults(vm, project_id) {
   console.log('exportResults() called TEMP FIX')
   rpcs.download('export_results', [project_id])
   .catch(error => {
-    status.failurePopup(vm, 'Could not export results')
+    status.failurePopup(vm, 'Could not export results: ' + error.message)
   })
 }
 
@@ -162,7 +162,7 @@ function exportResultsCascade(vm, serverDatastoreId) {
   console.log('exportResults() called TEMP FIX')
   rpcs.download('export_results_cascade', [serverDatastoreId])
   .catch(error => {
-    status.failurePopup(vm, 'Could not export results')
+    status.failurePopup(vm, 'Could not export results: ' + error.message)
   })
 }
 
