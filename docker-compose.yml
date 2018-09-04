@@ -8,14 +8,15 @@ services:
     command: python start_server.py # Contains start_celery
     # command: bash "source clients/cascade/start_celery.sh && python clients/cascade/start_server.py"
     environment:
-      - 'REDIS_URL=redis://10.0.0.3:6379/8' #this needs to be /7 in TB
+      # - 'REDIS_URL=redis://10.0.0.3:6379/8' #this needs to be /7 in TB
+      - 'REDIS_URL=redis://redis:6379/8' #this needs to be /7 in TB
     ports:
      - "8080:8080"
      - "8094:8094" #this needs to be 8093 in TB
     volumes:
      - .:/code
-    # depends_on:
-    #  - redis
+    depends_on:
+     - redis
 
   celery:
     build:
@@ -24,12 +25,13 @@ services:
         dockerproject: cascade
     command: celery worker -A atomica_apps.apptasks_cascade -l info #this needs to be converted for TB
     environment:
-      - 'REDIS_URL=redis://10.0.0.3:6379/8' #this needs to be /7 in TB
-    # depends_on:
-    #   - redis
+      # - 'REDIS_URL=redis://10.0.0.3:6379/8' #this needs to be /7 in TB
+      - 'REDIS_URL=redis://redis:6379/8' #this needs to be /7 in TB
+    depends_on:
+      - redis
 
-  # redis:
-  #   image: redis
-  #   container_name: redis
-  #   ports:
-  #     - "6379:6379"
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
