@@ -2,6 +2,11 @@ FROM continuumio/anaconda:latest
 ADD . /app
 WORKDIR /app
 
+ARG PORT
+ARG REDIS_URL
+ENV PORT $PORT
+ENV REDIS_URL $REDIS_URL
+
 # Set up apt-get
 RUN apt-get update -qq && apt-get install -yqq gnupg curl libgl1-mesa-glx gcc supervisor
 
