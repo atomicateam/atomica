@@ -202,7 +202,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')
     if title:
-        if sc.isstring(cascade):
+        if sc.isstring(cascade) and not cascade.lower() == 'cascade':
             plt.title('%s cascade for %s in %d' % (cascade, pop_label, year))
         else:
             plt.title('Cascade for %s in %d' % (pop_label, year))

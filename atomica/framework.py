@@ -472,7 +472,7 @@ class ProjectFramework(object):
             for _, spec in self.characs.iterrows():
                 if not spec['denominator']:
                     records.append((spec['display name'],spec.name))
-            self.sheets['cascades'] = sc.promotetolist(pd.DataFrame.from_records(records,columns=['Default','constituents']))
+            self.sheets['cascades'] = sc.promotetolist(pd.DataFrame.from_records(records,columns=['Cascade','constituents']))
         else:
             used_fallback_cascade = False
 

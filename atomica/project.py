@@ -487,7 +487,11 @@ class Project(object):
                 cascade = get_cascade_outputs(self.framework,cascade_name)
 
                 json['objective_weights']['conversion:%s' % (cascade_name)] = 1
-                json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
+                if cascade_name.lower() == 'cascade':
+                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
+                else:
+                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
+
 
                 for stage_name in cascade.keys():
                     # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
@@ -495,7 +499,10 @@ class Project(object):
                     assert ':' not in stage_name
                     objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
                     json['objective_weights'][objective_name] = 1
-                    json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
+                    if cascade_name.lower() == 'cascade':
+                        json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
+                    else:
+                        json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
 
         elif tool == 'tb':
             json['objective_weights'] = {'ddis':1,'acj':1, 'ds_inf':0, 'mdr_inf':0, 'xdr_inf':0} # These are TB-specific: maximize people alive, minimize people dead due to TB
