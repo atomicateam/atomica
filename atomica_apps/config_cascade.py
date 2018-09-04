@@ -21,7 +21,7 @@ Last update: 2018jun04 (cliffk)
 import os
 
 # A secret key value used by Python Flask.
-SECRET_KEY = 'Pick something unique for your site here'
+SECRET_KEY = 'deadbeefcafebabe'
 
 # Directory containing the client code.
 CLIENT_DIR = '../clients/cascade/dist'
