@@ -12,7 +12,7 @@ def update_parset(parset, y_factors, pars_to_adjust):
     # Insert updated y-values into the parset
     # - parset : a ParameterSet object
     # - y_factors : Array with as many elements as pars_to_adjust
-    # - pars_to_adjust : Array of tuples (par_name,pop_name,...) with special value pop='all' supported
+    # - pars_to_adjust : Array of tuples (par_name,pop_name,...) with special value pop='all' supported to set meta factor
     #                    Must have as many elements as y_factors. pop=None is not allowed - it must be converted
     #                    to a full list of pops previously (in perform_autofit)
 
@@ -23,8 +23,7 @@ def update_parset(parset, y_factors, pars_to_adjust):
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
             if pop_name == 'all':
                 par = parset.get_par(par_name)
-                for pop in par.pops:
-                    parset.set_scaling_factor(par_name, pop, y_factors[i])
+                par.meta_y_factor = y_factors[i]
             else:
                 parset.set_scaling_factor(par_name, pop_name, y_factors[i])
         else:
@@ -113,19 +112,10 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
 
     pars_to_adjust - list of tuples, (par_name,pop_name,lower_limit,upper_limit)
                      the pop name can be None, which will be expanded to all populations
-                     relevant to the parameter independently, or 'all' which will use the
-                     same y-factor for all populations. The initial y-value is the current
-                     y-value OR in the case of 'all', the average of the y-values across pops
+                     relevant to the parameter independently, or 'all' which will instead operate
+                     on the meta y factor.
     output_quantities - list of tuples, (var_label,pop_name,weight,metric), for use in the objective
                         function. pop_name=None will expand to all pops. pop_name='all' is not supported
-    Params:
-        project
-        paramset
-        new_parset_name     name of resulting parameterset
-        target_characs      a list of characteristic and population label pairs
-        calibration_settings
-        useYFactor            boolean of flag whether we should use yvalues directly, or y_factor
-   
     """
 
     # Expand out pop=None in pars_to_adjust
@@ -168,7 +158,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
             par = parset.get_par(par_name)
             if pop_name == 'all':
-                x0.append(np.mean([par.y_factor[p] for p in par.pops]))
+                x0.append(par.meta_y_factor)
             else:
                 x0.append(par.y_factor[pop_name])
         else:
@@ -205,8 +195,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             par = args['parset'].get_par(par_name)
 
             if pop_name is None or pop_name == 'all':
-                for pop in par.pops:
-                    print("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop, par.y_factor[pop]))
+                print("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
             else:
                 print("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
 
