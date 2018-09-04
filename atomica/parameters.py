@@ -11,7 +11,7 @@ from .utils import NamedItem
 class Parameter(NamedItem):
     """ Class to hold one set of parameter values disaggregated by populations. """
 
-    def __init__(self, name, t=None, y=None, y_format=None, y_factor=None, autocalibrate=None):
+    def __init__(self, name, t=None, y=None, y_format=None, y_factor=None, autocalibrate=None, meta_y_factor=1.0):
         NamedItem.__init__(self, name)
 
         # These ordered dictionaries have population names as keys.
@@ -25,6 +25,7 @@ class Parameter(NamedItem):
         self.y_format = y_format  # Value format data (e.g. Probability, Fraction or Number).
         # TODO: Consider whether to support different transformations whether format is relative or absolute.
         self.y_factor = y_factor  # Scaling factor of data.
+        self.meta_y_factor = meta_y_factor
         # The following attribute determines whether this parameter can be autocalibrated.
         self.autocalibrate = autocalibrate  # A set of boolean flags corresponding to y_factor.
 

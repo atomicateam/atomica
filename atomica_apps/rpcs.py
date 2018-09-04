@@ -884,6 +884,7 @@ def get_y_factors(project_id, parsetname=-1):
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
             this_par = parset.get_par(parname)
+            # TODO - do something with this_par.meta_y_factor here
             this_spec = proj.framework.get_variable(parname)[0]
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
                 for popname,y_factor in this_par.y_factor.items():
@@ -1336,6 +1337,7 @@ def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=N
             interp_val = 1
         y_factor  = dispvalue/interp_val
         parset.get_par(parname).y_factor[popname] = y_factor
+        # TODO - set thispar.meta_y_factor here
         if not sc.approx(y_factor, 1):
             print('Modified: %s (%s)' % (parname, y_factor))
     
