@@ -483,19 +483,19 @@ class Project(object):
             json['objective_weights'] = sc.odict()
             json['objective_labels'] = sc.odict()
 
-            if not self.framework.cascades:
-                cascades = sc.promotetolist(sanitize_cascade(self.framework,None)) # Get fallback cascade
-                cascade_names = [None]
-            else:
-                cascades = [get_cascade_outputs(self.framework,cascade_name) for cascade_name in self.framework.cascades.keys()]
-                cascade_names = self.framework.cascades.keys()
+            json['objective_weights']['conversion'] = 0
+            json['objective_labels']['conversion'] ='Maximize the conversion rates along each stage of the cascade'
 
-            for name,cascade in zip(cascade_names,cascades):
-                json['objective_weights']
+            for cascade_name in self.framework.cascades:
+                cascade = get_cascade_outputs(self.framework,cascade_name)
+                for stage_name in cascade.keys():
+                    # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
+                    assert ':' not in cascade_name
+                    assert ':' not in stage_name
+                    objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
+                    json['objective_weights'][objective_name] = 0
+                    json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
 
-            json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
-            json['objective_labels'] = {'finalstage':'Maximize the number of people in the final stage of the cascade',
-                                        'conversion':'Maximize the conversion rates along each stage of the cascade'}
         elif tool == 'tb':
             json['objective_weights'] = {'ddis':1,'acj':1, 'ds_inf':0, 'mdr_inf':0, 'xdr_inf':0} # These are TB-specific: maximize people alive, minimize people dead due to TB
             json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
