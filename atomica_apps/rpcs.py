@@ -1441,53 +1441,8 @@ def get_json_cascade(results,data):
     return output
 
 
-@timeit
 @RPC()  
-def manual_calibration(project_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None, cascade=None, dosave=True):
-    print('Setting y factors for parset %s...' % parsetname)
-    TEMP_YEAR = 2018 # WARNING, hard-coded!
-    proj = load_project(project_id, raise_exception=True)
-    parset = proj.parsets[parsetname]
-    for pardict in y_factors:
-        parname   = pardict['parname']
-        dispvalue = float(pardict['dispvalue'])
-        popname   = pardict['popname']
-        thispar   = parset.get_par(parname)
-        try:    
-            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
-            if not np.isfinite(interp_val):
-                interp_val = 1
-            if sc.approx(interp_val, 0):
-                interp_val = 1
-        except: 
-            interp_val = 1
-        y_factor  = dispvalue/interp_val
-        parset.get_par(parname).y_factor[popname] = y_factor
-        if not sc.approx(y_factor, 1):
-            print('Modified: %s (%s)' % (parname, y_factor))
-    
-    proj.modified = sc.now()
-    result = proj.run_sim(parset=parsetname, store_results=False)    
-    store_result_separately(proj, result)
-    output = process_plots(proj, result, tool=tool, year=end_year, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
-    
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=cascade)
-    if tool == 'cascade':
-        output = cascadeoutput
-        allfigs = cascadefigs
-    else:
-        output,stackedfigs = get_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, calibration=True)
-        unstacked_output,unstackedfigs = get_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, calibration=True) # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-        output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-        output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-        allfigs = cascadefigs + [x for t in zip(stackedfigs, unstackedfigs) for x in t]
-    if dosave:
-        savefigs(allfigs)
-    return output
-    
-
-@RPC()  
-def manual_calibration_cascade(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None, cascade=None, dosave=True):
+def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None, cascade=None, dosave=True):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -1528,34 +1483,11 @@ def manual_calibration_cascade(project_id, cache_id, parsetname=-1, y_factors=No
         allfigs = cascadefigs + [x for t in zip(stackedfigs, unstackedfigs) for x in t]
     if dosave:
         savefigs(allfigs)
-    return output    
-    
-    
-@RPC()    
-def automatic_calibration(project_id, parsetname=-1, max_time=20, saveresults=True, plot_options=None, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
-    print('Running automatic calibration for parset %s...' % parsetname)
-    proj = load_project(project_id, raise_exception=True)
-    proj.calibrate(parset=parsetname, max_time=float(max_time)) # WARNING, add kwargs!
-    
-    print('Rerunning calibrated model...')
-    
-    print('Resultsets before run: %s' % len(proj.results))
-    if saveresults:
-        result = proj.run_sim(parset=parsetname, store_results=True)
-        save_project(proj)
-    else:
-        result = proj.run_sim(parset=parsetname, store_results=False) 
-        store_result_separately(proj, result)
-    
-    print('Resultsets after run: %s' % len(proj.results))
-
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-
     return output
 
 
 @RPC()    
-def automatic_calibration_cascade(project_id, cache_id, parsetname=-1, max_time=20, saveresults=True, plot_options=None, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
+def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, saveresults=True, plot_options=None, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, raise_exception=True)
     proj.calibrate(parset=parsetname, max_time=float(max_time)) # WARNING, add kwargs!
@@ -1575,23 +1507,6 @@ def automatic_calibration_cascade(project_id, cache_id, parsetname=-1, max_time=
     output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
 
     return output
-
-
-@RPC() 
-def plot_calibration(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
-    print('Plotting calibration...')
-    proj = load_project(project_id, raise_exception=True)
-
-    # Load the results from the cache and check if we got a result.
-    results = fetch_results_cache_entry(cache_id)
-    if results is None:
-        return { 'error': 'Failed to load plot results from cache' }
-    
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-    return output
-
-
-
 
 
 ##################################################################################
@@ -1726,22 +1641,6 @@ def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None
     return output
 
 
-# TODO: we'll want to move everything here to the above function once we port 
-# to TB.
-@RPC() 
-def plot_scenarios_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
-    print('Plotting scenarios...')
-    proj = load_project(project_id, raise_exception=True)
-
-    # Load the results from the cache and check if we got a result.
-    results = fetch_results_cache_entry(cache_id)
-    if results is None:
-        return { 'error': 'Failed to load plot results from cache' }
-    
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-    return output
-
-
 ##################################################################################
 ### Optimization functions and RPCs
 ##################################################################################
@@ -1829,23 +1728,6 @@ def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=N
     proj = load_project(project_id, raise_exception=True)
     results = proj.results['optimization']
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-    return output
-
-
-# TODO: we'll want to move everything here to the above function once we port 
-# to TB.
-@RPC() 
-def plot_optimization_cascade(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, savefigures=True):
-    print('Plotting optimization...')
-    proj = load_project(project_id, raise_exception=True)
-    
-    # Load the results from the cache and check if we got a result.
-    results = fetch_results_cache_entry(cache_id)
-    if results is None:
-        return { 'error': 'Failed to load plot results from cache' }
-    
-    # Do the actual plots and return them.
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=savefigures, plot_budget=True)
     return output
 
 
@@ -1966,31 +1848,23 @@ def make_results_cache_entry(cache_id):
 def delete_results_cache_entry(cache_id):
     results_cache.delete(cache_id)
     
-@RPC(call_type='download')
-def export_results(project_id, resultset=-1):
-    """
-    Create a new framework.
-    """
-    print('Exporting results...')
-    proj = load_project(project_id, raise_exception=True)
-    result = proj.results[resultset]
-    if isinstance(result, ResultPlaceholder):
-        print('Getting actual result...')
-        result = result.get()
     
-    dirname = sw.globalvars.downloads_dir.dir_path 
-    file_name = '%s.xlsx' % result.name 
-    full_file_name = os.path.join(dirname, file_name)
-    result.export(full_file_name)
-    print(">> export_results %s" % (full_file_name))
-    return full_file_name # Return the filename
+@RPC() 
+def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
+    print('Plotting cached results...')
+    proj = load_project(project_id, raise_exception=True)
 
-# TODO: get rid of the above in favor of this version.
+    # Load the results from the cache and check if we got a result.
+    results = fetch_results_cache_entry(cache_id)
+    if results is None:
+        return { 'error': 'Failed to load plot results from cache' }
+    
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    return output
+    
+
 @RPC(call_type='download')
-def export_results_cascade(cache_id):
-    """
-    Create a new framework.
-    """
+def export_results(cache_id):
     print('Exporting results...')
     
     # Load the result from the cache and check if we got a result.
@@ -1998,9 +1872,9 @@ def export_results_cascade(cache_id):
     if result is None:
         return { 'error': 'Failed to load plot results from cache' }
     
-    if isinstance(result, ResultPlaceholder):
-        print('Getting actual result...')
-        result = result.get()
+#    if isinstance(result, ResultPlaceholder):
+#        print('Getting actual result...')
+#        result = result.get()
     
     dirname = sw.globalvars.downloads_dir.dir_path 
     file_name = '%s.xlsx' % result.name 

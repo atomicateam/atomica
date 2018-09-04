@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-09-03
+Last update: 2018-09-04
 -->
 
 <template>
@@ -330,8 +330,7 @@ Last update: 2018-09-03
         .then(response => {
             this.plotCalibration(false)
 //            this.manualCalibration(this.projectID)
-          }
-        );
+        })
       }
     },
 
@@ -342,7 +341,7 @@ Last update: 2018-09-03
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(serverDatastoreId) 
-                                { return utils.exportResultsCascade(this, serverDatastoreId) },
+                                { return utils.exportResults(this, serverDatastoreId) },
 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
@@ -439,7 +438,7 @@ Last update: 2018-09-03
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration_cascade', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
@@ -462,7 +461,7 @@ Last update: 2018-09-03
         } else {
           var maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration_cascade', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+        rpcs.rpc('automatic_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
@@ -480,7 +479,7 @@ Last update: 2018-09-03
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_calibration', [this.projectID, this.serverDatastoreId, this.plotOptions],
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
         .then(response => {
           this.makeGraphs(response.data.graphs)

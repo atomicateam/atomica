@@ -298,7 +298,7 @@ Last update: 2018-09-04
       exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(serverDatastoreId) 
-                                { return utils.exportResultsCascade(this, serverDatastoreId) },
+                                { return utils.exportResults(this, serverDatastoreId) },
                                 
       statusFormatStr(optimSummary) {
         if (optimSummary.status == 'not started') {
@@ -754,7 +754,7 @@ Last update: 2018-09-04
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_optimization_cascade', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs)

@@ -285,7 +285,7 @@ Last update: 2018-09-04
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
       exportResults(serverDatastoreId) 
-                                { return utils.exportResultsCascade(this, serverDatastoreId) },
+                                { return utils.exportResults(this, serverDatastoreId) },
                                 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -525,7 +525,7 @@ Last update: 2018-09-04
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios_cascade', [this.projectID, this.serverDatastoreId, this.plotOptions],
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
         .then(response => {
           this.makeGraphs(response.data.graphs)

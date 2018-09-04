@@ -150,17 +150,9 @@ function exportGraphs(vm) {
   })
 }
 
-function exportResults(vm, project_id) {
+function exportResults(vm, serverDatastoreId) {
   console.log('exportResults() called TEMP FIX')
-  rpcs.download('export_results', [project_id])
-  .catch(error => {
-    status.failurePopup(vm, 'Could not export results: ' + error.message)
-  })
-}
-
-function exportResultsCascade(vm, serverDatastoreId) {
-  console.log('exportResults() called TEMP FIX')
-  rpcs.download('export_results_cascade', [serverDatastoreId])
+  rpcs.download('export_results', [serverDatastoreId])
   .catch(error => {
     status.failurePopup(vm, 'Could not export results: ' + error.message)
   })
@@ -223,7 +215,6 @@ export default {
   clearGraphs,
   exportGraphs,
   exportResults,
-  exportResultsCascade,
   scaleFigs,
   showBrowserWindowSize,
 }
