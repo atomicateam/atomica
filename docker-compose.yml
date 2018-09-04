@@ -18,14 +18,14 @@ services:
     # depends_on:
     #  - redis
 
-  celery:
-    build:
-      context: .
-      args:
-        dockerproject: cascade
-    command: celery worker -A atomica_apps.apptasks_cascade -l info #this needs to be converted for TB
-    environment:
-      - REDIS_URL=redis://10.0.0.3:6379/8 #this needs to be /7 in TB
+  # celery:
+  #   build:
+  #     context: .
+  #     args:
+  #       dockerproject: cascade
+  #   command: celery worker -A atomica_apps.apptasks_cascade -l info #this needs to be converted for TB
+  #   environment:
+  #     - REDIS_URL=redis://10.0.0.3:6379/8 #this needs to be /7 in TB
     #   - REDIS_URL=redis://redis:6379/8 #this needs to be /7 in TB
     # depends_on:
     #   - redis
