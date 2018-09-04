@@ -7,8 +7,9 @@ services:
         dockerproject: cascade
     command: python start_server.py
     environment:
-      - PORT=80
-      - REDIS_URL=redis://vladh.net:63790/8 #this needs to be /7 in TB
+      - 'TEST_THING=redis://vladh.net:63790/8' #this needs to be /7 in TB
+      - 'PORT=80'
+      - 'REDIS_URL=redis://vladh.net:63790/8' #this needs to be /7 in TB
       # - REDIS_URL=redis://10.0.0.3:6379/8 #this needs to be /7 in TB
       # - REDIS_URL=redis://redis:6379/8 #this needs to be /7 in TB
     ports:

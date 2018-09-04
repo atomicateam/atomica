@@ -2,11 +2,6 @@ FROM continuumio/anaconda:latest
 ADD . /app
 WORKDIR /app
 
-ARG PORT
-ARG REDIS_URL
-ENV PORT $PORT
-ENV REDIS_URL $REDIS_URL
-
 # Set up apt-get
 RUN apt-get update -qq && apt-get install -yqq gnupg curl libgl1-mesa-glx gcc supervisor
 
@@ -34,5 +29,7 @@ RUN python install_client.py
 ARG dockerproject
 WORKDIR cascade
 RUN python build_client.py
+
+RUN echo ${TEST_THING}
 
 CMD python start_server.py
