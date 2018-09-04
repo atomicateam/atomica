@@ -163,7 +163,7 @@ Last update: 2018-09-03
               <!--<button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>-->
               <!--&nbsp;&nbsp;&nbsp;-->
               <button class="btn" @click="exportGraphs()">Export plots</button>
-              <button class="btn" @click="exportResults(projectID)">Export data</button>
+              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> --> <!-- CASCADE-TB DIFFERENCE -->
 
             </div>
@@ -341,7 +341,8 @@ Last update: 2018-09-03
       clearGraphs()             { return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResultsCascade(this, serverDatastoreId) },
 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')

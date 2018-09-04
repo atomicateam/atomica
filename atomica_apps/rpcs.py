@@ -1591,44 +1591,7 @@ def plot_calibration(project_id, cache_id, plot_options, tool=None, plotyear=Non
     return output
 
 
-@RPC(call_type='download')
-def export_results(project_id, resultset=-1):
-    """
-    Create a new framework.
-    """
-    print('Exporting results...')
-    proj = load_project(project_id, raise_exception=True)
-    result = proj.results[resultset]
-    if isinstance(result, ResultPlaceholder):
-        print('Getting actual result...')
-        result = result.get()
-    
-    dirname = sw.globalvars.downloads_dir.dir_path 
-    file_name = '%s.xlsx' % result.name 
-    full_file_name = os.path.join(dirname, file_name)
-    result.export(full_file_name)
-    print(">> export_results %s" % (full_file_name))
-    return full_file_name # Return the filename
 
-
-@RPC(call_type='download')
-def export_results_cascade(project_id, cache_id, resultset=-1):
-    """
-    Create a new framework.
-    """
-    print('Exporting results...')
-    proj = load_project(project_id, raise_exception=True)
-    result = proj.results[resultset]
-    if isinstance(result, ResultPlaceholder):
-        print('Getting actual result...')
-        result = result.get()
-    
-    dirname = sw.globalvars.downloads_dir.dir_path 
-    file_name = '%s.xlsx' % result.name 
-    full_file_name = os.path.join(dirname, file_name)
-    result.export(full_file_name)
-    print(">> export_results %s" % (full_file_name))
-    return full_file_name # Return the filename
 
 
 ##################################################################################
@@ -2002,3 +1965,46 @@ def make_results_cache_entry(cache_id):
 @RPC()
 def delete_results_cache_entry(cache_id):
     results_cache.delete(cache_id)
+    
+@RPC(call_type='download')
+def export_results(project_id, resultset=-1):
+    """
+    Create a new framework.
+    """
+    print('Exporting results...')
+    proj = load_project(project_id, raise_exception=True)
+    result = proj.results[resultset]
+    if isinstance(result, ResultPlaceholder):
+        print('Getting actual result...')
+        result = result.get()
+    
+    dirname = sw.globalvars.downloads_dir.dir_path 
+    file_name = '%s.xlsx' % result.name 
+    full_file_name = os.path.join(dirname, file_name)
+    result.export(full_file_name)
+    print(">> export_results %s" % (full_file_name))
+    return full_file_name # Return the filename
+
+
+@RPC(call_type='download')
+def export_results_cascade(cache_id):
+    """
+    Create a new framework.
+    """
+    print('Exporting results...')
+    
+    # Load the result from the cache and check if we got a result.
+    result = fetch_results_cache_entry(cache_id)
+    if result is None:
+        return { 'error': 'Failed to load plot results from cache' }
+    
+    if isinstance(result, ResultPlaceholder):
+        print('Getting actual result...')
+        result = result.get()
+    
+    dirname = sw.globalvars.downloads_dir.dir_path 
+    file_name = '%s.xlsx' % result.name 
+    full_file_name = os.path.join(dirname, file_name)
+    result.export(full_file_name)
+    print(">> export_results %s" % (full_file_name))
+    return full_file_name # Return the filename
