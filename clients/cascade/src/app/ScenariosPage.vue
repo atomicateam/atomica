@@ -501,7 +501,7 @@ Last update: 2018-09-04
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios_cascade', [this.projectID, this.serverDatastoreId, this.plotOptions],
+            rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
               .then(response => {
                 this.makeGraphs(response.data.graphs)

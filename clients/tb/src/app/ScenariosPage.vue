@@ -293,7 +293,7 @@ Last update: 2018-09-04
           this.updateSets()
           this.getPlotOptions()
         })
-        utils.sleep(1000)
+        utils.sleep(6000)  // This length of time insures that getPlotOptions() is done.
         .then(response => {
             this.plotScenarios(false)
           }
@@ -524,7 +524,7 @@ Last update: 2018-09-04
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios_cascade', [this.projectID, this.serverDatastoreId, this.plotOptions],
+            rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
               .then(response => {
                 this.makeGraphs(response.data.graphs)
@@ -542,24 +542,29 @@ Last update: 2018-09-04
           })
       },
 
-      plotScenarios() {
+      plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear}) // CASCADE-TB DIFFERENCE
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
+          {tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
 //            this.table = response.data.table // CASCADE-TB DIFFERENCE
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
     }
   }

@@ -1603,23 +1603,7 @@ def get_default_budget_scen(project_id):
 
 
 @RPC()    
-def run_scenarios(project_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
-    print('Running scenarios...')
-    proj = load_project(project_id, raise_exception=True)
-    results = proj.run_scenarios()
-    if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
-        return {'error': 'No scenario selected'}
-    proj.results['scenarios'] = results # WARNING, will want to save separately!
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-    print('Saving project...')
-    save_project(proj)    
-    return output
-
-
-# TODO: we'll want to move everything here to the above function once we port 
-# to TB.
-@RPC()    
-def run_scenarios_cascade(project_id, cache_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
+def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios()
@@ -1629,15 +1613,6 @@ def run_scenarios_cascade(project_id, cache_id, plot_options, saveresults=True, 
     output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     print('Saving project...')
     save_project(proj)    
-    return output
-    
-    
-@RPC() 
-def plot_scenarios(project_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
-    print('Plotting scenarios...')
-    proj = load_project(project_id, raise_exception=True)
-    results = proj.results['scenarios']
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
     return output
 
 
