@@ -947,10 +947,13 @@ class Covout(object):
 
         # Precompute the combinations and associated modality interaction outcomes
         # Computationally expensive otherwise
+        # Note that the programs need to be ordered correctly - the order must match the self.progs odict
+        # which is the same sort order as self.deltas. So note that 'additive' and 'random' need to use this order.
+        # Nested reorders them according to coverage, which is why it has to call self.compute_impact_interaction each time
         self.combinations = np.unpackbits(np.arange(2 ** self.n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -self.n_progs:]
         combination_outcomes = []
         for progs in self.combinations.astype(bool):
-            combination_outcomes.append(self.compute_impact_interaction(progs))
+            combination_outcomes.append(self.compute_impact_interaction(deltas=self.deltas,progs=progs))
         self.combination_outcomes = np.array(combination_outcomes) # Reshape to column vector, since that's the shape of combination_coverage
 
     def __repr__(self):
@@ -962,7 +965,6 @@ class Covout(object):
         output += '\n'
         return output
 
-    # @profile
     def get_outcome(self,coverage):
         # coverage is a dict with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
@@ -993,25 +995,32 @@ class Covout(object):
                 random_portion = random / remainder
                 additive_portion_coverage = self.combinations * additive
                 net_random = self.combinations * random_portion + (self.combinations ^ 1) * (1 - random_portion)  # The only way net_random can be zero is if the random_portion is zero
-                combination_coverage = np.zeros((net_random.shape[0], 1))
+                combination_coverage = np.zeros((net_random.shape[0],))
                 for i in range(0, net_random.shape[1]):
-                    mask = np.full((net_random.shape[1],), True)
-                    mask[i] = False
-                    combination_coverage += np.product(net_random[:, mask], axis=1, keepdims=True) * additive_portion_coverage[:, [i]]
-                outcome += np.sum(combination_coverage.ravel()*self.combination_outcomes.ravel())
+                    contribution = np.ones((net_random.shape[0], ))
+                    for j in range(0, net_random.shape[1]):
+                        if i == j:
+                            contribution *= additive_portion_coverage[:,j]
+                        else:
+                            contribution *= net_random[:,j]
+
+                    combination_coverage += contribution
+                outcome += np.sum(combination_coverage*self.combination_outcomes.ravel())
             else:
                 outcome += np.sum(cov*self.deltas)
 
         # NESTED CALCULATION
         elif self.cov_interaction == 'nested':
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
-            cov_tuple = sorted(zip(cov, self.deltas))  # A tuple storing the coverage and delta out, ordered by coverage
-            for j in range(len(cov_tuple)):  # For each entry in here
-                if j == 0:
-                    c1 = cov_tuple[j][0]
+            idx = np.argsort(cov)
+            cov = cov[idx]
+            deltas = self.deltas[idx]
+            for i in range(0,len(cov)):
+                if i == 0:
+                    c1 = cov[i]
                 else:
-                    c1 = cov_tuple[j][0] - cov_tuple[j - 1][0]
-                outcome += c1 * max([ct[1] for ct in cov_tuple[j:]])
+                    c1 = cov[i]-cov[i-1]
+                outcome += c1 * self.compute_impact_interaction(deltas[i:])
 
         # RANDOM CALCULATION
         elif self.cov_interaction == 'random':
@@ -1023,15 +1032,18 @@ class Covout(object):
 
         return outcome
 
-    def compute_impact_interaction(self,progs):
+    def compute_impact_interaction(self,deltas,progs=None):
         # Takes in boolean array of programs, and deltas for all programs
         # For the given combination of programs, return the outcome
 
-        if not any(progs):
+        if progs is not None and not any(progs):
             return 0.0
 
         if self.imp_interaction == 'best':
-            tmp = self.deltas[progs]
+            if progs is None:
+                tmp = deltas
+            else:
+                tmp = deltas[progs]
             idx = np.argmax(abs(tmp))
             return tmp[idx]
         elif self.imp_interaction == 'synergistic':
