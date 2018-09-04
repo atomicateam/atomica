@@ -36,6 +36,7 @@ from .scenarios import ParameterScenario
 from .optimization import optimize, OptimInstructions
 from .system import logger
 from .scenarios import BudgetScenario
+from .cascade import sanitize_cascade, get_cascade_outputs
 from .utils import NDict
 import sciris as sc
 import numpy as np
@@ -234,7 +235,7 @@ class Project(object):
         self.progsets.append(progset)
         if verbose: print('Done with make_progset().')
 
-        
+
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if json is not None:
             if which=='budget':
@@ -246,7 +247,7 @@ class Project(object):
                 scenario = ParameterScenario(name=name, scenario_values=instructions)
             else:
                 raise Exception('Budget scenarios not from JSON not implemented')
-                
+
         self.scens.append(scenario)
         return scenario
 
@@ -353,7 +354,7 @@ class Project(object):
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
         """
         Method to perform automatic calibration.
-        
+
         The adjustables argument should be a list in the form of...
             [par_name_1, par_name_2, charac_name_1]
         ...or...
@@ -363,7 +364,7 @@ class Project(object):
         The former instructs specified parameter values for all populations to be varied between default scaling limits.
         The latter varies specified parameters for specified populations, within specified scaling limits.
         'None' in the population position represents independent scaling across all populations.
-        
+
         The measurables argument should be a list in the form of...
             [charac_name_1, charac_name_2]
         ...or...
@@ -372,7 +373,7 @@ class Project(object):
         The former calculates a 'fractional' data comparison metric across specified characteristics for all pops.
         The latter calculates its metric for specified populations and for both specified weights and metric types.
         'None' represents combining the metric across all populations.
-        
+
         To calibrate a project-attached parameter set in place, provide its key as the new name argument to this method.
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
@@ -399,7 +400,7 @@ class Project(object):
             self.parsets.append(new_parset)
 
         return new_parset
-    
+
     def run_scenarios(self):
         results = []
         for scenario in self.scens.values():
@@ -468,7 +469,7 @@ class Project(object):
                 return None
         else:
             return json1
-    
+
     def demo_optimization(self, dorun=False, tool=None):
         if tool is None: tool = 'cascade'
         json = sc.odict()
@@ -479,9 +480,23 @@ class Project(object):
         json['end_year']          = 2035
         json['budget_factor']     = 2.5
         if tool == 'cascade':
-            json['objective_weights'] = {'finalstage':1,'conversion':0} # These are cascade-specific
-            json['objective_labels'] = {'finalstage':'Maximize the number of people in the final stage of the cascade',
-                                        'conversion':'Maximize the conversion rates along each stage of the cascade'}
+            json['objective_weights'] = sc.odict()
+            json['objective_labels'] = sc.odict()
+
+            for cascade_name in self.framework.cascades:
+                cascade = get_cascade_outputs(self.framework,cascade_name)
+
+                json['objective_weights']['conversion:%s' % (cascade_name)] = 1
+                json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
+
+                for stage_name in cascade.keys():
+                    # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
+                    assert ':' not in cascade_name
+                    assert ':' not in stage_name
+                    objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
+                    json['objective_weights'][objective_name] = 1
+                    json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
+
         elif tool == 'tb':
             json['objective_weights'] = {'ddis':1,'acj':1, 'ds_inf':0, 'mdr_inf':0, 'xdr_inf':0} # These are TB-specific: maximize people alive, minimize people dead due to TB
             json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
