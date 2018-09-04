@@ -49,7 +49,7 @@ def run_test(coverage,outcomes,baseline,expected=None):
 # These should both run, and return a specific value
 run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,[0.6125,0.56308,0.45]) # Coverages below 1.0
 run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,[0.6125,0.56308,0.45]) # Coverages add to exactly 1.0
-run_test([0.2,0.15,0.3,0.1],[50,40,20,80],5)
+run_test([0.2,0.15,0.3,0.1],[50,40,20,80],5) # Coverages all different, add to < 1
 run_test([0.244945,0.022795,0.056632],[0.8,0.9,0.4],0.3,[0.4418126,0.4375362,0.4247518]) # 3 program test from HIV
 run_test([0.3,0.2,0.1,0.05],[0.8,0.9,0.4,0.35],0.3,[0.5825,0.54686,0.47])
 run_test([1.,1.,1.,1.],[0.8,0.9,0.4,0.35],0.3,[0.9,0.9,0.9]) # Tiebreaking case where all coverages are the same, and 1.0
@@ -74,8 +74,6 @@ for coverage in coverages:
     for outcome in outcomes:
         for baseline in baselines:
             run_test(coverage,outcome,baseline)
-
-# Check some of the expected invarientsts
 
 
 print('All tests completed successfully')

@@ -988,7 +988,7 @@ class Covout(object):
 
             # If sum(cov)<0 then there will be a divide by zero error. Also, need to divide by max(sum(cov),1) rather than sum(cov)
             # because otherwise, the coverages will be scaled UP to 1. So fastest just to check here
-            if True or np.sum(cov) > 1:
+            if np.sum(cov) > 1:
                 # Only keep the programs with nonzero coverage
                 additive = np.maximum(cov - np.maximum(cov - (1 - (np.cumsum(cov) - cov)), 0), 0)
                 remainder = 1 - additive
