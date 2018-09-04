@@ -30,4 +30,4 @@ ARG dockerproject
 WORKDIR cascade
 RUN python build_client.py
 
-CMD PORT=80 supervisord
+CMD python start_server.py
