@@ -462,12 +462,14 @@ class OptimInstructions(NamedItem):
         cascade_to_use = proj.framework.cascades.keys()[0] if proj.framework.cascades else None
         for mname,mweight in objective_weights.items():
 
-            if mname == 'finalstage' and mweight:
-                measurables = MaximizeCascadeStage(cascade_to_use, [end_year], pop_names='all',cascade_stage=-1)
-                break
-            elif mname == 'conversion' and mweight:
-                measurables = MaximizeCascadeConversionRate(cascade_to_use,[end_year],pop_names='all')
-                break
+            if ':' in mname and mweight:
+                tokens = mname.split(':')
+                if tokens[0] == 'cascade_stage': # Parse a measurable name like 'cascade_stage:Default:All diagnosed'
+                    measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2]))
+                elif tokens[0] == 'conversion': # Parse a measurable name like 'conversions:Default'
+                    measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all'))
+                else:
+                    raise AtomicaException('Unknown measurable "%s"' % (mname))
             else:
                 measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
                 

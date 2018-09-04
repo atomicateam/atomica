@@ -483,17 +483,18 @@ class Project(object):
             json['objective_weights'] = sc.odict()
             json['objective_labels'] = sc.odict()
 
-            json['objective_weights']['conversion'] = 0
-            json['objective_labels']['conversion'] ='Maximize the conversion rates along each stage of the cascade'
-
             for cascade_name in self.framework.cascades:
                 cascade = get_cascade_outputs(self.framework,cascade_name)
+
+                json['objective_weights']['conversion:%s' % (cascade_name)] = 1
+                json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
+
                 for stage_name in cascade.keys():
                     # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
                     assert ':' not in cascade_name
                     assert ':' not in stage_name
                     objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
-                    json['objective_weights'][objective_name] = 0
+                    json['objective_weights'][objective_name] = 1
                     json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
 
         elif tool == 'tb':
