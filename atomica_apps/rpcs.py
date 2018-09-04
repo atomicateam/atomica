@@ -57,33 +57,33 @@ def timeit(method):
     return timed
 
 
-# Make a Result storable by Sciris
-class ResultSO(sw.Blob):
-
-    def __init__(self, result):
-        super(ResultSO, self).__init__(result.uid, type_prefix='result', 
-            file_suffix='.res', instance_label=result.name)
-        self.result = result
-
-# A ResultPlaceholder can be stored in proj.results instead of a Result
-class ResultPlaceholder(au.NamedItem):
-
-    def __init__(self, result):
-        au.NamedItem.__init__(self, result.name)
-        self.uid = result.uid
-
-    def get(self):
-        result_so = sw.globalvars.data_store.retrieve(self.uid)
-        return result_so.result
-
-@timeit
-def store_result_separately(proj, result):
-    # Given a result, add a ResultPlaceholder to the project
-    # Save both the updated project and the result to the datastore
-    result_so = ResultSO(result)
-    result_so.add_to_data_store()
-    proj.results.append(ResultPlaceholder(result))
-    save_project(proj)
+## Make a Result storable by Sciris
+#class ResultSO(sw.Blob):
+#
+#    def __init__(self, result):
+#        super(ResultSO, self).__init__(result.uid, type_prefix='result', 
+#            file_suffix='.res', instance_label=result.name)
+#        self.result = result
+#
+## A ResultPlaceholder can be stored in proj.results instead of a Result
+#class ResultPlaceholder(au.NamedItem):
+#
+#    def __init__(self, result):
+#        au.NamedItem.__init__(self, result.name)
+#        self.uid = result.uid
+#
+#    def get(self):
+#        result_so = sw.globalvars.data_store.retrieve(self.uid)
+#        return result_so.result
+#
+#@timeit
+#def store_result_separately(proj, result):
+#    # Given a result, add a ResultPlaceholder to the project
+#    # Save both the updated project and the result to the datastore
+#    result_so = ResultSO(result)
+#    result_so.add_to_data_store()
+#    proj.results.append(ResultPlaceholder(result))
+#    save_project(proj)
 
 
  
@@ -861,11 +861,11 @@ def add_demo_project(user_id, project_name='default'):
     Add a demo project
     """
     if project_name is 'default':
-        new_proj_name = get_unique_name('Demo project', namelist=None) # Get a unique name for the project to be added
+        new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
         proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
-        new_proj_name = get_unique_name(project_name, namelist=None) # Get a unique name for the project to be added.
+        new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
         proj = au.demo(which=project_name, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
         print('Adding demo project %s/%s...' % (project_name, new_proj_name))
@@ -886,7 +886,7 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     else: # Or get a pre-existing one by the tool name
         frame = au.demo(kind='framework', which=tool)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
-    new_proj_name = get_unique_name(proj_name, namelist=None) # Get a unique name for the project to be added.
+    new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
@@ -952,7 +952,7 @@ def copy_project(project_id):
     
     # Just change the project name, and we have the new version of the 
     # Project object to be saved as a copy.
-    new_project.name = get_unique_name(proj.name, namelist=None)
+    new_project.name = get_unique_name(proj.name, other_names=None)
     
     # Set the user UID for the new projects record to be the current user.
     user_id = current_user.get_id() 
@@ -986,7 +986,7 @@ def create_project_from_prj_file(prj_filename, user_id):
         return { 'error': 'BadFileFormatError' }
     
     # Reset the project name to a new project name that is unique.
-    proj.name = get_unique_name(proj.name, namelist=None)
+    proj.name = get_unique_name(proj.name, other_names=None)
     
     # Save the new project in the DataStore.
     save_project_as_new(proj, user_id)
