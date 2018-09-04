@@ -45,13 +45,13 @@ pset = au.ProgramSet.new(tvec=np.arange(2015,2018),progs=progs,framework=F,data=
 pset.save("temp/progbook_test6.xlsx")
 
 # Test performance of a random coverage interaction simulation
-P = au.Project(framework="./frameworks/framework_tb.xlsx",databook_path="./databooks/databook_tb.xlsx",do_run=False)
-P.load_progbook("./databooks/progbook_tb.xlsx")
-instructions = au.ProgramInstructions(start_year=2018)
-pset = P.progsets[0]
-for covout in pset.covouts.values():
-    covout.cov_interaction = 'additive'
-P.run_sim(parset='default',progset='default',progset_instructions=instructions)
+# P = au.Project(framework="./frameworks/framework_tb.xlsx",databook_path="./databooks/databook_tb.xlsx",do_run=False)
+# P.load_progbook("./databooks/progbook_tb.xlsx")
+# instructions = au.ProgramInstructions(start_year=2018)
+# pset = P.progsets[0]
+# for covout in pset.covouts.values():
+#     covout.cov_interaction = 'additive'
+# P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 
 # THIS DOES VERSIONING
 # which = ['tb','sir','udt','hiv','usdt','hypertension']
