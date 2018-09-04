@@ -35,6 +35,4 @@ ARG dockerproject
 WORKDIR cascade
 RUN python build_client.py
 
-RUN echo ${TEST_THING}
-
 CMD python start_server.py
