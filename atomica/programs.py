@@ -915,20 +915,18 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par=None, pop=None, cov_interaction=None, imp_interaction=None, uncertainty=0.0,baseline=None,progs=None):
-        logger.debug('Initializing Covout for par=%s, pop=%s, baseline=%s' % (par, pop, baseline))
+    def __init__(self, par, pop, progs, cov_interaction='additive', imp_interaction='best', uncertainty=0.0,baseline=0.0):
+        assert cov_interaction in ['additive','random','nested']
+        assert imp_interaction in ['best','synergistic']
+
         self.par = par
         self.pop = pop
-        self.cov_interaction = cov_interaction if cov_interaction is not None else 'additive'
-        self.imp_interaction = imp_interaction if imp_interaction is not None else 'best'
+        self.cov_interaction = cov_interaction
+        self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
-        self.progs = sc.odict()
-        if progs is not None:
-            self.update_progs(progs)
-        assert self.cov_interaction in ['additive','random','nested']
-        assert self.imp_interaction in ['best','synergistic']
-        return None
+        self.update_progs(progs)
+
 
     def update_progs(self,progs):
         # Call this function with the program outcomes are changed
@@ -950,6 +948,9 @@ class Covout(object):
         # Note that the programs need to be ordered correctly - the order must match the self.progs odict
         # which is the same sort order as self.deltas. So note that 'additive' and 'random' need to use this order.
         # Nested reorders them according to coverage, which is why it has to call self.compute_impact_interaction each time
+        #
+        # Building this isn't prohibitively expensive, so doesn't really matter that we construct it regardless of what the coverage interaction is
+        # This way we don't need to worry about updating these if the coverage interaction is changed later
         self.combinations = np.unpackbits(np.arange(2 ** self.n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -self.n_progs:]
         combination_outcomes = []
         for progs in self.combinations.astype(bool):
@@ -992,9 +993,11 @@ class Covout(object):
                 additive = np.maximum(cov - np.maximum(cov - (1 - (np.cumsum(cov) - cov)), 0), 0)
                 remainder = 1 - additive
                 random = cov - additive
-                random_portion = random / remainder
+                # If remainder is 0, then random must also be 0 i.e. it's always 0/0
+                # This happens if the best program has coverage of exactly 1.0 which means it's entirely additive but also has no remainder
+                random_portion = np.divide(random,remainder,out=np.zeros_like(random), where=remainder!=0)
                 additive_portion_coverage = self.combinations * additive
-                net_random = self.combinations * random_portion + (self.combinations ^ 1) * (1 - random_portion)  # The only way net_random can be zero is if the random_portion is zero
+                net_random = self.combinations * random_portion + (self.combinations ^ 1) * (1 - random_portion)
                 combination_coverage = np.zeros((net_random.shape[0],))
                 for i in range(0, net_random.shape[1]):
                     contribution = np.ones((net_random.shape[0], ))
@@ -1003,7 +1006,6 @@ class Covout(object):
                             contribution *= additive_portion_coverage[:,j]
                         else:
                             contribution *= net_random[:,j]
-
                     combination_coverage += contribution
                 outcome += np.sum(combination_coverage*self.combination_outcomes.ravel())
             else:
