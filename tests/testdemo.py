@@ -15,7 +15,7 @@ txtcolor  = 'blue'
 T = sc.tic()
 
 import numpy as np
-np.seterr(all='raise')
+np.seterr(all='raise') # We don't expect numerical warnings in any of the demos
 
 #%%
 if to_run == 'quick':

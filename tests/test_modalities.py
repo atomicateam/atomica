@@ -75,5 +75,9 @@ for coverage in coverages:
         for baseline in baselines:
             run_test(coverage,outcome,baseline)
 
+# Check some of the expected properties
+base = run_test([0.4,0.3,0.2,0.1],[0.8,0.9,0.4,0.35],0.3,[0.705,0.63008,0.53])
+improved = run_test([0.4,0.31,0.2,0.1],[0.8,0.9,0.4,0.35],0.3,[0.7105,0.633936,0.531]) # Crossing the threshold increases coverage (whereas it decreased it before)
+assert base[0]<improved[0]
 
 print('All tests completed successfully')
