@@ -30,4 +30,4 @@ ARG dockerproject
 WORKDIR cascade
 RUN python build_client.py
 
-CMD PORT=80 REDIS_URL=redis://10.0.0.3:6379/8 supervisord
+CMD PORT=80 supervisord
