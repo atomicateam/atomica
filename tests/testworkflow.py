@@ -9,20 +9,20 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
 
-test = "sir"
+#test = "sir"
 #test = "tb"
 # test = "hypertension"
 # test = "udt"
 #test = "usdt"
 #test = "hiv"
-#test = "diabetes"
+test = "diabetes"
 #test = "service"
 
 torun = [
-#"loadframework",
-# "saveframework",
-# "makedatabook",
-# "makeproject",
+"loadframework",
+"saveframework",
+"makedatabook",
+"makeproject",
 # "loaddatabook",
 # "makeparset",
 #"runsim",
@@ -35,7 +35,7 @@ torun = [
 #"export",
 # "manualcalibrate",
 # "autocalibrate",
-"parameterscenario",
+#"parameterscenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
