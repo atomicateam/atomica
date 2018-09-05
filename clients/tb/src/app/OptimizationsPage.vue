@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-04
+Last update: 2018-09-05
 -->
 
 <template>
@@ -447,14 +447,16 @@ Last update: 2018-09-04
       },
       
       clearTask(optimSummary) {
+        let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
         console.log('clearTask() called for '+this.currentOptim)
+        
         rpcs.rpc('delete_task', [optimSummary.serverDatastoreId])
         .then(response => {
           // Get the task state for the optimization.
           this.getOptimTaskState(optimSummary)  
 
           // Delete cached result.
-          rpcs.rpc('delete_results_cache_entry', [optimSummary.serverDatastoreId])          
+          rpcs.rpc('delete_results_cache_entry', [datastoreId])          
         })
       },
       
