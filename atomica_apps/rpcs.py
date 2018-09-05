@@ -57,6 +57,7 @@ def timeit(method):
     return timed
 
 
+# This code is unused at this point.  Should we remove?
 ## Make a Result storable by Sciris
 #class ResultSO(sw.Blob):
 #
@@ -86,10 +87,15 @@ def timeit(method):
 #    save_project(proj)
 
 
- 
+###############################################################
+### Results global and classes
+##############################################################
+    
+
 # Global for the results cache.
 results_cache = None
-    
+
+
 class ResultSet(sw.Blob):
 
     def __init__(self, uid, result_set, set_label):
@@ -105,7 +111,8 @@ class ResultSet(sw.Blob):
         print('---------------------')
         print('Result set contents: ')
         print(self.result_set)
-         
+
+
 class ResultsCache(sw.BlobDict):
 
     def __init__(self, uid):
@@ -224,6 +231,7 @@ def load_framework_record(framework_id, raise_exception=True):
     # Return the Framework object for the match (None if none found).
     return framework_record
 
+
 def load_framework(framework_id, raise_exception=True):
     """
     Return the Nutrition Framework object, given a framework UID, or None if no 
@@ -243,6 +251,7 @@ def load_framework(framework_id, raise_exception=True):
         
     # Return the found framework.
     return framework_record.frame
+
 
 def load_framework_summary_from_framework_record(framework_record):
     """
@@ -287,10 +296,7 @@ def save_framework_as_new(frame, user_id):
     save_framework(frame) # Save the changed Framework object to the DataStore.
     return None
 
-
-
-
-        
+    
 ##############################################################
 ### Project functions
 ##############################################################
@@ -311,6 +317,7 @@ def load_project_record(project_id, raise_exception=True):
             
     # Return the Project object for the match (None if none found).
     return project_record
+
 
 @timeit
 def load_project(project_id, raise_exception=True):
@@ -343,6 +350,7 @@ def load_project(project_id, raise_exception=True):
 
     return proj
 
+
 @timeit
 def load_project_summary_from_project_record(project_record):
     """
@@ -351,7 +359,6 @@ def load_project_summary_from_project_record(project_record):
     
     # Return the built project summary.
     return project_record.get_user_front_end_repr()
-
 
 
 @timeit
@@ -378,6 +385,7 @@ def get_unique_name(name, other_names=None):
         
     # Return the found name.
     return unique_name
+
 
 @timeit
 def save_project(proj):
@@ -406,6 +414,7 @@ def save_project(proj):
     
     print('Collection update object - elapsed time %.2f' % ((time.time()-ts)*1000))
 
+
 @timeit
 def save_project_as_new(proj, user_id):
     """
@@ -419,7 +428,6 @@ def save_project_as_new(proj, user_id):
     print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
     save_project(proj) # Save the changed Project object to the DataStore.
     return None
-
 
 
 # RPC definitions
@@ -440,6 +448,7 @@ def get_version_info():
 ##################################################################################
 ### Framework RPCs
 ##################################################################################
+
 
 @RPC()
 def get_framework_options():
@@ -515,7 +524,8 @@ def load_all_framework_summaries():
     # just got.
     return {'frameworks': map(load_framework_summary_from_framework_record, 
         framework_entries)}
-            
+
+       
 @RPC()    
 def delete_frameworks(framework_ids):
     """
@@ -531,6 +541,7 @@ def delete_frameworks(framework_ids):
         # FrameworkCollection.
         if record is not None:
             frw.frame_collection.delete_object_by_uid(framework_id)
+
 
 @RPC(call_type='download')   
 def download_framework(framework_id):
@@ -615,7 +626,8 @@ def update_framework_from_summary(framework_summary):
     frame.modified = sc.now() # Set the modified time to now.
     save_framework(frame) # Save the changed framework to the DataStore.
     return None
-    
+
+
 @RPC()    
 def copy_framework(framework_id):
     """
@@ -659,10 +671,10 @@ def create_framework_from_file(filename, user_id=None):
     return { 'frameworkId': str(frame.uid) }
 
 
-
 ##################################################################################
 ### Project RPCs
 ##################################################################################
+
 
 @RPC()
 def get_demo_project_options():
@@ -697,6 +709,7 @@ def get_scirisdemo_projects():
     output = {'projects': sorted_summary_list}
     return output
 
+
 @RPC()
 def load_project_summary(project_id):
     """
@@ -726,7 +739,6 @@ def load_current_user_project_summaries():
         project_entries)}
 
 
-
 @RPC()
 def load_all_project_summaries():
     """
@@ -740,7 +752,8 @@ def load_all_project_summaries():
     # just got.
     return {'projects': map(load_project_summary_from_project_record, 
         project_entries)}
-            
+
+
 @RPC()    
 def delete_projects(project_ids):
     """
@@ -769,6 +782,7 @@ def delete_projects(project_ids):
             
             # Delete all cache entries with this project ID.
             results_cache.delete_by_project(project_id)
+
 
 @RPC(call_type='download')   
 def download_project(project_id):
@@ -836,7 +850,6 @@ def create_progbook(project_id, num_progs):
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.    
     
-
 
 @RPC(call_type='download')
 def load_zip_of_prj_files(project_ids):
@@ -937,6 +950,7 @@ def update_project_from_summary(project_summary):
     save_project(proj) # Save the changed project to the DataStore.
     return
 
+
 @RPC()
 def copy_project(project_id):
     """
@@ -969,6 +983,7 @@ def copy_project(project_id):
     # Return the UID for the new projects record.
     return { 'projectId': copy_project_id }
 
+
 @RPC(call_type='upload')
 def create_project_from_prj_file(prj_filename, user_id):
     """
@@ -993,11 +1008,6 @@ def create_project_from_prj_file(prj_filename, user_id):
     
     # Return the new project UID in the return message.
     return { 'projectId': str(proj.uid) }
-
-
-
-
-
 
 
 @RPC()
@@ -1032,9 +1042,6 @@ def get_y_factors(project_id, parsetname=-1):
                     print(thisdict)
     print('Returning %s y-factors' % len(y_factors))
     return y_factors
-
-
-
 
 
 ##################################################################################
@@ -1125,6 +1132,7 @@ def upload_parset(parset_filename, project_id):
 #%% Progset functions and RPCs
 ##################################################################################
 
+
 @RPC() 
 def get_progset_info(project_id):
     print('Returning progset info...')
@@ -1172,11 +1180,10 @@ def delete_progset(project_id, progsetname=None):
     return None
 
 
-
-
 ##################################################################################
 ### Plotting functions and RPCs
 ##################################################################################
+
 
 def supported_plots_func(framework):
     '''
@@ -1195,6 +1202,7 @@ def supported_plots_func(framework):
         for name,output in zip(df['name'], df['quantities']):
             plots[name] = at.results.evaluate_plot_string(output)
         return plots
+
 
 @RPC()    
 def get_supported_plots(project_id, only_keys=False):
@@ -1230,7 +1238,6 @@ def download_graphs():
     file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     return full_file_name
-
 
 
 def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, dosave=True, calibration=False):
@@ -1282,8 +1289,6 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return output,allfigs
 
 
-    
-
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
     if sc.isstring(year):
         year = float(year)
@@ -1327,9 +1332,6 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     graph_dict = mpld3.fig_to_dict(fig)
     return graph_dict
     
-    
-
-
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
@@ -1373,6 +1375,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     output = {'graphs':graphs, 'table':table}
     print('Cascade plot succeeded')
     return output,figs
+
 
 def get_json_cascade(results,data):
     # Return all data to render cascade in FE, for multiple results
@@ -1513,6 +1516,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 ### Scenario functions and RPCs
 ##################################################################################
 
+
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
@@ -1536,6 +1540,7 @@ def py_to_js_scen(py_scen, project=None):
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
         js_scen['alloc'].append([prog_name,round(float(budget)), prog_label])
     return js_scen
+
 
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
