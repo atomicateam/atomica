@@ -453,7 +453,8 @@ Last update: 2018-09-04
           // Get the task state for the optimization.
           this.getOptimTaskState(optimSummary)  
 
-          // TODO: Delete cached result.          
+          // Delete cached result.
+          rpcs.rpc('delete_results_cache_entry', [optimSummary.serverDatastoreId])          
         })
       },
       
@@ -591,8 +592,6 @@ Last update: 2018-09-04
               // Set a new server DataStore ID.
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
               
-              // TODO: Delete any cached results.
-              
               this.getOptimTaskState(newOptim)
             }              
           }
@@ -672,9 +671,6 @@ Last update: 2018-09-04
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {
-          // Delete the results cache entry from the server.
-          rpcs.rpc('delete_results_cache_entry', [optimSummary.serverDatastoreId])          
-          
           status.succeed(this, 'Optimization deleted')
         })
         .catch(error => {
