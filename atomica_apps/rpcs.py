@@ -158,7 +158,7 @@ class ResultsCache(sw.BlobDict):
         print(result_set)
         
         # If there already is a cache entry for this, update the object there.
-        if cache_id in self.cache_id_hashes:
+        if cache_id in self.cache_id_hashes.keys():
             result_set_blob = ResultSet(self.cache_id_hashes[cache_id], 
                 result_set, cache_id)
             print('>> Running update_object()')
@@ -184,6 +184,7 @@ class ResultsCache(sw.BlobDict):
             
         # Otherwise, delete the object found.
         else:
+            del self.cache_id_hashes[cache_id] 
             self.delete_object_by_uid(result_set_blob_uid)
         
     def delete_all(self):
@@ -207,8 +208,32 @@ class ResultsCache(sw.BlobDict):
         
         # For each matching key, delete the entry.
         for cache_id in matching_cache_ids:
-            self.delete(cache_id)   
-    
+            self.delete(cache_id)
+            
+    def show(self):
+        super(sw.BlobDict, self).show()   # Show superclass attributes.
+        if self.objs_within_coll: print('Objects stored within dict?: Yes')
+        else:                     print('Objects stored within dict?: No')
+        print('Cache ID dict contents: ')
+        print(self.cache_id_hashes)         
+        print('---------------------')
+        print('Contents')
+        print('---------------------')
+        
+        if self.objs_within_coll: # If we are storing things inside the obj_dict...
+            for key in self.obj_dict: # For each key in the dictionary...
+                obj = self.obj_dict[key] # Get the object pointed to.
+                obj.show() # Show the handle contents.
+        else: # Otherwise, we are using the UUID set.
+            for uid in self.ds_uuid_set: # For each item in the set...
+                obj = sw.globalvars.data_store.retrieve(uid)
+                if obj is None:
+                    print('--------------------------------------------')
+                    print('ERROR: UID %s object failed to retrieve' % uid)
+                else:
+                    obj.show() # Show the object with that UID in the DataStore.
+        print('--------------------------------------------')
+ 
 
 ###############################################################
 ### Framework functions

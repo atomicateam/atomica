@@ -447,7 +447,7 @@ Last update: 2018-09-04
       },
       
       clearTask(optimSummary) {
-        console.log('cancelRun() called for '+this.currentOptim)
+        console.log('clearTask() called for '+this.currentOptim)
         rpcs.rpc('delete_task', [optimSummary.serverDatastoreId])
         .then(response => {
           // Get the task state for the optimization.
@@ -690,7 +690,7 @@ Last update: 2018-09-04
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => { // Go to the server to get the results
-          rpcs.rpc('make_results_cache_entry', [this.serverDatastoreId])
+          rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
           .then(response => {  
             rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization', 
               [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 

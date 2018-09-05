@@ -425,7 +425,7 @@ Last update: 2018-09-04
       },
       
       clearTask(optimSummary) {
-        console.log('cancelRun() called for '+this.currentOptim)
+        console.log('clearTask() called for '+this.currentOptim)
         rpcs.rpc('delete_task', [optimSummary.server_datastore_id])
         .then(response => {
           // Get the task state for the optimization.
