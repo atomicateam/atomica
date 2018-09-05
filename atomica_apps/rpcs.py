@@ -1697,15 +1697,6 @@ def set_optim_info(project_id, optim_summaries):
     return None
 
 
-@RPC() 
-def plot_optimization(project_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
-    print('Plotting optimization...')
-    proj = load_project(project_id, raise_exception=True)
-    results = proj.results['optimization']
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
-    return output
-
-
 ##############################################################
 ### Results / ResultSet functions and RPCs
 ##############################################################
@@ -1825,7 +1816,7 @@ def delete_results_cache_entry(cache_id):
     
     
 @RPC() 
-def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
+def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, plotbudget=False):
     print('Plotting cached results...')
     proj = load_project(project_id, raise_exception=True)
 
@@ -1834,7 +1825,7 @@ def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plot
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
     
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget)
     return output
     
 

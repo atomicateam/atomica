@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-22
+Last update: 2018-09-04
 -->
 
 <template>
@@ -58,14 +58,14 @@ Last update: 2018-08-22
           <help reflink="results-plots" label="Results"></help>
           <div>
             <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="plotOptimization()">
+            <select v-model="endYear" @change="plotOptimization(true)">
               <option v-for='year in simYears'>
                 {{ year }}
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
             <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="plotOptimization()">
+            <select v-model="activePop" @change="plotOptimization(true)">
               <option v-for='pop in activePops'>
                 {{ pop }}
               </option>
@@ -77,7 +77,7 @@ Last update: 2018-08-22
             <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn" :disabled="true" @click="exportResults('')">Export data</button>
             <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
           </div>
@@ -267,6 +267,7 @@ Last update: 2018-08-22
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         figscale: 1.0,
+        serverDatastoreId: ''
       }
     },
 
@@ -286,18 +287,24 @@ Last update: 2018-08-22
       }
       else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
+        console.log('created() called')
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt'          
         utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            // Load the optimization summaries of the current project.
-            this.startYear = this.simStart
-            this.endYear = this.simEnd
-            this.popOptions = this.activePops
-            this.getOptimSummaries()
-            this.getDefaultOptim()
-            this.resetModal()
-            this.updateSets()
-            this.getPlotOptions()
-          })
+        .then(response => {
+          // Load the optimization summaries of the current project.
+          this.startYear = this.simStart
+          this.endYear = this.simEnd
+          this.popOptions = this.activePops
+          this.getOptimSummaries()
+          this.getDefaultOptim()
+          this.updateSets()
+          this.getPlotOptions()
+          this.resetModal()          
+        })
+        utils.sleep(6000)  // This length of time insures that getPlotOptions() is done.
+        .then(response => {
+          this.plotOptimization(false)
+        })        
       }
     },
 
@@ -308,8 +315,9 @@ Last update: 2018-08-22
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
-
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResults(this, serverDatastoreId) },
+                                
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
@@ -522,24 +530,35 @@ Last update: 2018-08-22
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => { // Go to the server to get the results
+        .then(response => { // Go to the server to get the results
+          rpcs.rpc('make_results_cache_entry', [this.serverDatastoreId])
+          .then(response => {           
             taskservice.getTaskResultPolling('run_tb_optimization', 9999, 1, 'run_tb_optimization',
-              [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  // CASCADE-TB DIFFERENCE
+              [this.projectID, this.serverDatastoreId, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  // CASCADE-TB DIFFERENCE
                 'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
-              .then(response => {
-                this.makeGraphs(response.data.result.graphs)
-                this.table = response.data.result.table
-                status.succeed(this, 'Optimization complete')
-              })
-              .catch(error => {
-                console.log('There was an error: ' + error.message) // Pull out the error message.
-                status.fail(this, 'Could not run optimization: ' + error.message)
-              })
+            .then(response => {
+              this.makeGraphs(response.data.result.graphs)
+              this.table = response.data.result.table
+              status.succeed(this, 'Optimization complete')
+            })
+            .catch(error => {
+              console.log('There was an error: ' + error.message) // Pull out the error message.
+              status.fail(this, 'Could not run optimization: ' + error.message)
+            })
           })
           .catch(error => {
-            console.log('There was an error: ' + error.message)
-            status.fail(this, 'Could not set optimization info: ' + error.message)
-          })
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            console.log(this.serverresponse)
+            this.servererror = error.message // Set the server error.
+             
+            // Indicate failure.
+            status.fail(this, 'Could not start optimization: ' + error.message)
+          })          
+        })
+        .catch(error => {
+          console.log('There was an error: ' + error.message)
+          status.fail(this, 'Could not set optimization info: ' + error.message)
+        })
       },
       
       // TODO: remove this after debugging
@@ -548,24 +567,29 @@ Last update: 2018-08-22
         rpcs.rpc('delete_task', ['run_optimization'])
       },
       
-      plotOptimization() {
+      plotOptimization(showNoCacheError) {
         console.log('plotOptimization() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_optimization', [this.projectID, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'tb', plotyear:this.endYear, pops:this.activePop, plotbudget:true}) // CASCADE-TB DIFFERENCE
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
     }
   }

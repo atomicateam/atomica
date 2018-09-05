@@ -1,7 +1,7 @@
 """
 apptasks.py -- The Celery tasks module for this webapp
     
-Last update: 2018aug26
+Last update: 2018sep04
 """
 
 from . import config_tb as config
@@ -25,7 +25,7 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 #    return 'here be dummy result'
 
 @async_task
-def run_tb_optimization(project_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
+def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
     print('Running optimization...')
     import sciris as sc
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
@@ -36,7 +36,10 @@ def run_tb_optimization(project_id, optim_name=None, plot_options=None, maxtime=
     else: # Otherwise try using it as a project
         proj = project_id
     results = proj.run_optimization(optim_name, maxtime=float(maxtime))
-    proj.results['optimization'] = results # WARNING, will want to save separately!
+    
+    # Put the results into the ResultsCache.
+    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
+    
     output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:
         print('Saving project...')

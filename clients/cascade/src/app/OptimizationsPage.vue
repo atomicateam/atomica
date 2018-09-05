@@ -276,17 +276,17 @@ Last update: 2018-09-04
       else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            // Load the optimization summaries of the current project.
-            this.startYear = this.simStart
-            this.endYear = this.simEnd
-            this.popOptions = this.activePops
-            this.getOptimSummaries()
-            this.getDefaultOptim()
-            this.resetModal()
-            this.updateSets()
-            this.getPlotOptions()
-          })
+        .then(response => {
+          // Load the optimization summaries of the current project.
+          this.startYear = this.simStart
+          this.endYear = this.simEnd
+          this.popOptions = this.activePops
+          this.getOptimSummaries()
+          this.getDefaultOptim()
+          this.resetModal()
+          this.updateSets()
+          this.getPlotOptions()
+        })
       }
     },
 
@@ -755,7 +755,7 @@ Last update: 2018-09-04
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          {tool:'cascade', plotyear:this.endYear, pops:this.activePop, plotbudget:true})
           .then(response => {
             this.makeGraphs(response.data.graphs)
             this.table = response.data.table

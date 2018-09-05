@@ -323,7 +323,7 @@ Last update: 2018-09-04
           .then(response => {
             this.updateParset()
           })
-        utils.sleep(1000)
+        utils.sleep(5000)  // This length of time insures that getPlotOptions() is done.
         .then(response => {
             this.plotCalibration(false)
 //            this.manualCalibration(this.projectID)
@@ -477,7 +477,7 @@ Last update: 2018-09-04
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          {tool:'tb', plotyear:this.endYear, pops:this.activePop})
         .then(response => {
           this.makeGraphs(response.data.graphs)
           this.table = response.data.table
