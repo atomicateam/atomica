@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep04 by gchadder3
+Last update: 2018sep05 by gchadder3
 """
 
 ###############################################################
@@ -792,15 +792,13 @@ def delete_projects(project_ids):
         
         # If a matching record is found...
         if record is not None:
-            # delete the object from the ProjectCollection.
+            # Delete the object from the ProjectCollection.
             prj.proj_collection.delete_object_by_uid(project_id)
             
 #            sw.globalvars.data_store.load()  # should not be needed so long as Celery worker does not change handle_dict
             
-            # TODO: Delete any TaskRecords or cached Results associated with 
-            # the Project.
-#            task_dict.load_from_data_store()
-#            task_dict.delete_by_project(project_id)
+            # Delete any TaskRecords associated with the Project.
+            tasks_delete_by_project(project_id)
             
             # Load the latest ResultsCache state from persistent store.
             results_cache.load_from_data_store()
@@ -1728,6 +1726,39 @@ def set_optim_info(project_id, optim_summaries):
     save_project(proj)
     return None
 
+
+##############################################################
+### Task functions and RPCs
+##############################################################
+    
+
+def tasks_delete_by_project(project_uid):
+    print('>> tasks_delete_by_project() called')
+    print('>>   project_uid = %s' % project_uid)
+    
+    # Look for an existing tasks dictionary.
+    task_dict_uid = sw.globalvars.data_store.get_uid('taskdict', 'Task Dictionary')
+    
+    # Create the task dictionary object.
+    task_dict = sw.TaskDict(task_dict_uid)
+    
+    # Load the TaskDict tasks from Redis.
+    task_dict.load_from_data_store()
+
+    # Build a list of the keys that match the given project.
+    matching_task_ids = []
+    for task_id in task_dict.task_id_hashes.keys():
+        task_id_project = re.sub(':.*', '', task_id)
+        if task_id_project == project_uid:
+            matching_task_ids.append(task_id)
+            
+    print('>> Task IDs to be deleted:')
+    print(matching_task_ids)
+    
+    # For each matching key, delete the task, aborting it in Celery also.
+    for task_id in matching_task_ids:
+        sw.delete_task(task_id)
+            
 
 ##############################################################
 ### Results / ResultSet functions and RPCs
