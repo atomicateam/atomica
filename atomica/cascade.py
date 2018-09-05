@@ -202,7 +202,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')
     if title:
-        if sc.isstring(cascade):
+        if sc.isstring(cascade) and not cascade.lower() == 'cascade':
             plt.title('%s cascade for %s in %d' % (cascade, pop_label, year))
         else:
             plt.title('Cascade for %s in %d' % (pop_label, year))
@@ -456,14 +456,7 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
 def sanitize_cascade(framework,cascade):
     # Construct a fallback cascade from all non-normalized characteristics
     if cascade is None:
-        if framework.cascades:
-            cascade = 0 # Use the first cascade
-        else:
-            # Assemble cascade from characteristics without denominators
-            cascade = sc.odict()
-            for _, spec in framework.characs.iterrows():
-                if not spec['denominator']:
-                    cascade[spec['display name']] = [spec.name]
+        cascade = 0 # Use the first cascade
 
     if isinstance(cascade, list):
         # Assemble cascade from comp/charac names using the display name as the stage name
@@ -474,19 +467,17 @@ def sanitize_cascade(framework,cascade):
         cascade = outputs
     elif isinstance(cascade, int):
         # Retrieve the cascade name based on index
-        available_cascades = list(framework.cascades)
-        cascade = available_cascades[cascade]
+        cascade = framework.cascades.keys()[cascade]
     return cascade
 
-def validate_cascade(framework,cascade):
+def validate_cascade(framework,cascade,fallback_used=False):
     # Check if a cascade is valid
     # INPUTS
     # - framework
     # - cascade : specification of a cascade (None for default, int, name, list of comps, output dict)
+    # - fallback_used : If 'True', error message will be modified to reflect the fact that the user hadn't explicitly specified a cascade
     #
-
     # Turn whatever form the cascade was provided as into a dict of outputs
-    fallback_used = cascade is None # Record whether or not the fallback cascade was used, to help customize error message
 
     cascade = sanitize_cascade(framework,cascade)
     if sc.isstring(cascade):
