@@ -1814,10 +1814,3 @@ def export_results(cache_id):
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename  
-
-
-
-@RPC()
-def test_stuff():
-    raise Exception('Well, la-di-dah-dah')
-    

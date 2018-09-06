@@ -11,13 +11,8 @@ Last update: 2018-09-06
 
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
-        &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
-        &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
-
-        <button class="btn __red" @click="test_stuff">BREAK</button>
-        &nbsp; &nbsp;
       </div>
     </div>
 

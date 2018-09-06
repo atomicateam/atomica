@@ -80,12 +80,11 @@
     },
     methods: {
       close () {
-        console.log('Dialog closing: ', this.timestamp)
+//        console.log('Trying to close: ', this.timestamp)
         this.$parent.$emit('on-close', this.timestamp)  
       }
     },
     mounted () {
-      console.log('Dialog opening? ', this.timestamp)
       if (this.timeout) {
         setTimeout(this.close, this.timeout)
       }
