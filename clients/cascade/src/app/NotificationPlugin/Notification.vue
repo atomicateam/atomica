@@ -7,19 +7,33 @@
     :style="customPosition"
     data-notify-position="top-center">
 
-    <div class="divTable">
-      <div class="divRow">
-        <div class="divRowContent alert-icon" data-notify="message" :class="icon" style="font-size:20px"></div> <!-- Icon -->
-        <div class="divRowContent" data-notify="message" v-html="message"></div><!-- Message -->
-        <div class="divRowContent"> <!-- Close button -->
-          <button
-            type="button"
-            aria-hidden="true"
-            class="close"
-            data-notify="dismiss"
-            @click="close">×
-          </button>
-        </div>
+    <!--<div class="divTable">-->
+      <!--<div class="divRow">-->
+        <!--<div class="divRowContent alert-icon" data-notify="message" :class="icon" style="font-size:20px"></div> &lt;!&ndash; Icon &ndash;&gt;-->
+        <!--<div class="divRowContent" data-notify="message" v-html="message"></div>&lt;!&ndash; Message &ndash;&gt;-->
+        <!--<div class="divRowContent"> &lt;!&ndash; Close button &ndash;&gt;-->
+          <!--<button-->
+            <!--type="button"-->
+            <!--aria-hidden="true"-->
+            <!--class="close"-->
+            <!--data-notify="dismiss"-->
+            <!--@click="close">×-->
+          <!--</button>-->
+        <!--</div>-->
+      <!--</div>-->
+    <!--</div>-->
+
+    <div id = "flex">
+      <div class="alert-icon" data-notify="message" :class="icon" style="font-size:20px"></div> <!-- Icon -->
+      <div data-notify="message" v-html="message" style="max-width:500px;"></div><!-- Message -->
+      <div> <!-- Close button -->
+        <button
+          type="button"
+          aria-hidden="true"
+          class="close"
+          data-notify="dismiss"
+          @click="close">×
+        </button>
       </div>
     </div>
 
@@ -161,13 +175,13 @@
     }
 
     &[data-notify="container"] {
-      max-width: 400px;
-      padding: 20px 10px 10px 20px; // CK: This actually affects the padding!
+      /*max-width: 400px;*/
+      /*padding: 20px 10px 10px 20px; // CK: This actually affects the padding!*/
       border-radius: $border-radius-base;
     }
 
     &.alert-with-icon {
-      padding-left: 15px; // CK: actual left padding
+      /*padding-left: 15px; // CK: actual left padding*/
     }
   }
 
@@ -190,5 +204,8 @@
     background-color: $bg-danger;
     color: $danger-states-color;
   }
+
+  #flex { display: flex; justify-content: space-between; border: 1px solid gray;}
+  #flex div { background-color: #A4F2D8; border: 1px solid gray; font-size: 14px; font-family: Verdana; padding: 4px; }
 
 </style>
