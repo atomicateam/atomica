@@ -541,9 +541,9 @@ Last update: 2018-09-06
       uploadDatabook(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('uploadDatabook() called for ' + matchProject.project.name)
-        status.start(this, 'Uploading databook...')
         rpcs.upload('upload_databook', [uid], {})
           .then(response => {
+            status.start(this, 'Uploading databook...')
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
           })
@@ -556,9 +556,9 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('uploadProgbook() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress. (This is here because we don't want the
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
+            status.start(this) // Start indicating progress. (This is here because we don't want the
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })

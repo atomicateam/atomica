@@ -19,6 +19,12 @@ Last update: 2018-09-06
       </div>
     </div>
 
+    <div v-else-if="!hasPrograms">
+      <div style="font-style:italic">
+        <p>Programs not yet uploaded for the project.  Please upload a program book in the Projects page.</p>
+      </div>
+    </div>
+
     <div v-else>
       <div class="card">
         <help reflink="optimizations" label="Define optimizations"></help>
@@ -44,7 +50,7 @@ Last update: 2018-09-06
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
-              <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
             </td>
@@ -254,6 +260,7 @@ Last update: 2018-09-06
     computed: {
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
+      hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
@@ -266,7 +273,8 @@ Last update: 2018-09-06
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project !== undefined) &&
-        (this.$store.state.activeProject.project.hasData) ) {
+               (this.$store.state.activeProject.project.hasData) &&
+               (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {

@@ -19,6 +19,12 @@ Last update: 2018-09-06
       </div>
     </div>
 
+    <div v-else-if="!hasPrograms">
+      <div style="font-style:italic">
+        <p>Programs not yet uploaded for the project.  Please upload a program book in the Projects page.</p>
+      </div>
+    </div>
+
     <div v-else>
       <div class="card">
         <help reflink="scenarios" label="Define scenarios"></help>
@@ -26,7 +32,7 @@ Last update: 2018-09-06
           <thead>
           <tr>
             <th>Name</th>
-            <th>Active?</th>
+            <th>Active</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -260,6 +266,7 @@ Last update: 2018-09-06
     computed: {
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
+      hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
@@ -272,7 +279,8 @@ Last update: 2018-09-06
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project !== undefined) &&
-        (this.$store.state.activeProject.project.hasData) ) {
+               (this.$store.state.activeProject.project.hasData) &&
+               (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd

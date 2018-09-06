@@ -98,32 +98,17 @@ Last update: 2018-09-06
               {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
             <td style="text-align:left">
-              <button class="btn btn-icon" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn btn-icon" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
               {{ projectSummary.project.framework }}
             </td>
-            <!--<td style="text-align:center">-->
-            <!--{{ projectSummary.project.n_pops }}-->
-            <!--</td>-->
             <td style="text-align:left">
-              <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload"><i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="white-space: nowrap; text-align:left">
-              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
-                <i class="ti-plus"></i>
-              </button>
-              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New"><i class="ti-plus"></i></button>
+              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload"><i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
@@ -667,9 +652,9 @@ Last update: 2018-09-06
 
       uploadDatabook(uid) {
         console.log('uploadDatabook() called')
-        status.start(this, 'Uploading databook...')
         rpcs.upload('upload_databook', [uid], {}, '.xlsx')
           .then(response => {
+            status.start(this, 'Uploading databook...')
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Data uploaded')
           })
@@ -682,9 +667,9 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('uploadProgbook() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress. (This is here because we don't want the
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
+            status.start(this) // Start indicating progress. (This is here because we don't want the
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })
