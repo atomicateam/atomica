@@ -335,35 +335,17 @@ def load_project_record(project_id, raise_exception=True):
 
 
 @timeit
-def load_project(project_id, raise_exception=True):
+def load_project(project_id, raise_exception=True, online=True):
     """
     Return the Nutrition Project object, given a project UID, or None if no 
     ID match is found.
     """ 
-    
-    # Load the project record matching the ID passed in.
-
-    ts = time.time()
-
-
-    project_record = load_project_record(project_id,
-        raise_exception=raise_exception)
-
-    print('Loaded project record from Redis - elapsed time %.2f' % ((time.time()-ts)*1000))
-
-    # If there is no match, raise an exception or return None.
-    if project_record is None:
-        if raise_exception:
-            raise Exception('ProjectDoesNotExist(id=%s)' % project_id)
-        else:
-            return None
-        
-    # Return the found project.
-    proj = project_record.proj
-
-    print('Unpickled project - elapsed time %.2f' % ((time.time()-ts)*1000))
-
-    return proj
+    if not online:  return project_id # If running offline, just return the project
+    project_record = load_project_record(project_id, raise_exception=raise_exception) # Load the project record matching the ID passed in.
+    if project_record is None: # If there is no match, raise an exception or return None.
+        if raise_exception: raise Exception('ProjectDoesNotExist(id=%s)' % project_id)
+        else:               return None
+    return project_record.proj # Return the found project.
 
 
 @timeit
@@ -1626,18 +1608,6 @@ def get_default_optim(project_id, tool=None):
     print('Created default optimization:')
     print(js_optim)
     return js_optim
-
-
-def to_number(raw):
-    ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
-    try:
-        output = float(raw)
-    except Exception as E:
-        if raw is None:
-            output = None
-        else:
-            raise E
-    return output
 
 
 @RPC()    

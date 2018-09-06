@@ -113,9 +113,8 @@ Last update: 2018-09-06
             </tbody>
           </table>
         </div>
-      </div>
 
-    </div>
+
     <!-- END RESULTS CARD -->
 
 
@@ -196,6 +195,7 @@ Last update: 2018-09-06
     <!-- END ADD-SCENARIO MODAL -->
 
   </div>
+
 </template>
 
 
