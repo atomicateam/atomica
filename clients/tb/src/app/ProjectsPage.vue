@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-27
+Last update: 2018-09-06
 -->
 
 <template>
@@ -121,6 +121,7 @@ Last update: 2018-08-27
               <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
+<!--              <button class="btn __blue" @click="testStuff(projectSummary.project.id)">Test stuff</button> -->
             </td>
           </tr>
           </tbody>
@@ -266,6 +267,10 @@ Last update: 2018-08-27
 
     methods: {
 
+      testStuff(uid) {
+        rpcs.rpc('test_stuff', [uid])
+      },
+      
       projectLoaded(uid) {
         console.log('projectLoaded called')
         if (this.$store.state.activeProject.project != undefined) {
@@ -468,7 +473,7 @@ Last update: 2018-08-27
         if (projectSummary.renaming === '') { // If the project is not in a mode to be renamed, make it so.
           projectSummary.renaming = projectSummary.project.name
         } else { // Otherwise (it is to be renamed)...
-          let newProjectSummary = _.cloneDeep(projectSummary)) // Make a deep copy of the projectSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
+          let newProjectSummary = _.cloneDeep(projectSummary) // Make a deep copy of the projectSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newProjectSummary.project.name = projectSummary.renaming // Rename the project name in the client list from what's in the textbox.
           status.start(this)
           rpcs.rpc('update_project_from_summary', [newProjectSummary]) // Have the server change the name of the project by passing in the new copy of the summary.

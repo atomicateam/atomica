@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-08-30
+Last update: 2018-09-05
 -->
 
 <template>
@@ -21,7 +21,7 @@ Last update: 2018-08-30
 
     <div v-else>
       <div class="card">
-        <help reflink="define-optimizations" label="Define optimizations"></help>
+        <help reflink="optimizations" label="Define optimizations"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
           <thead>
           <tr>
@@ -61,7 +61,7 @@ Last update: 2018-08-30
       <!-- ### Start: results card ### -->
     <div class="card full-width-card">
       <div class="calib-title">
-        <help reflink="op-results" label="Results"></help>
+        <help reflink="results-plots" label="Results"></help>
         <div>
           <b>{{ displayResultName }}</b>
           &nbsp; &nbsp; &nbsp;
@@ -80,7 +80,7 @@ Last update: 2018-08-30
           </select>
           &nbsp;&nbsp;&nbsp;
           <button class="btn" @click="exportGraphs()">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
+          <button class="btn" :disabled="true" @click="exportResults('')">Export data</button>
 
         </div>
       </div>
@@ -276,17 +276,17 @@ Last update: 2018-08-30
       else if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            // Load the optimization summaries of the current project.
-            this.startYear = this.simStart
-            this.endYear = this.simEnd
-            this.popOptions = this.activePops
-            this.getOptimSummaries()
-            this.getDefaultOptim()
-            this.resetModal()
-            this.updateSets()
-            this.getPlotOptions()
-          })
+        .then(response => {
+          // Load the optimization summaries of the current project.
+          this.startYear = this.simStart
+          this.endYear = this.simEnd
+          this.popOptions = this.activePops
+          this.getOptimSummaries()
+          this.getDefaultOptim()
+          this.resetModal()
+          this.updateSets()
+          this.getPlotOptions()
+        })
       }
     },
 
@@ -297,8 +297,9 @@ Last update: 2018-08-30
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
-      
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResults(this, serverDatastoreId) },
+                                
       statusFormatStr(optimSummary) {
         if (optimSummary.status == 'not started') {
           return ''
@@ -424,13 +425,15 @@ Last update: 2018-08-30
       },
       
       clearTask(optimSummary) {
-        console.log('cancelRun() called for '+this.currentOptim)
+        let server_datastore_id = optimSummary.server_datastore_id  // hack because this gets overwritten soon by caller        
+        console.log('clearTask() called for '+this.currentOptim)
         rpcs.rpc('delete_task', [optimSummary.server_datastore_id])
         .then(response => {
           // Get the task state for the optimization.
           this.getOptimTaskState(optimSummary)  
 
-          // TODO: Delete cached result.          
+          // Delete cached result. 
+          rpcs.rpc('delete_results_cache_entry', [server_datastore_id])          
         })
       },
       
@@ -548,8 +551,11 @@ Last update: 2018-08-30
               if (newOptim.status != 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
               }
-              newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Set a new server DataStore ID.
-              this.getOptimTaskState(newOptim) // TODO: Delete any cached results.
+
+              // Set a new server DataStore ID.
+              newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
+              
+              this.getOptimTaskState(newOptim)
             }              
           }
           else {
@@ -645,29 +651,56 @@ Last update: 2018-08-30
         status.start(this)       
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
         .then(response => {
-          rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
-            [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
-            {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',   // CASCADE-TB DIFFERENCE
-            'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
-          .then(response => {
-            this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
-            status.succeed(this, 'Started optimization')
+          rpcs.rpc('make_results_cache_entry', [optimSummary.server_datastore_id])
+          .then(response => {           
+            rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
+              [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
+              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
+              // CASCADE-TB DIFFERENCE
+              'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
+            .then(response => {
+              // Get the task state for the optimization.
+              this.getOptimTaskState(optimSummary)
+              
+              // Indicate success.
+              status.succeed(this, 'Started optimization')
+            })
+            .catch(error => {
+              this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+              console.log(this.serverresponse)
+              this.servererror = error.message // Set the server error.
+               
+              // Indicate failure.
+              status.fail(this, 'Could not start optimization: ' + error.message)
+            })           
           })
           .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            console.log(this.serverresponse)
+            this.servererror = error.message // Set the server error.
+             
+            // Indicate failure.
             status.fail(this, 'Could not start optimization: ' + error.message)
-          })        
+          })
         })
         .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          console.log(this.serverresponse)
+          this.servererror = error.message // Set the server error.
+           
+          // Indicate failure.
           status.fail(this, 'Could not start optimization: ' + error.message)
-        })        
+        })
       },
       
       plotOptimization(optimSummary) {
         console.log('plotOptimization() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
         status.start(this)
-        rpcs.rpc('plot_optimization_cascade', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        // Make sure they're saved first
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
+          {tool:'cascade', plotyear:this.endYear, pops:this.activePop, plotbudget:true})
           .then(response => {
             this.makeGraphs(response.data.graphs)
             this.table = response.data.table

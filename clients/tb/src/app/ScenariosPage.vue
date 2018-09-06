@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-22
+Last update: 2018-09-06
 -->
 
 <template>
@@ -66,14 +66,14 @@ Last update: 2018-08-22
             <!--style="display: inline-block; width:70px"/>-->
             <!--&nbsp;&nbsp;&nbsp;-->
             <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+            <select v-model="endYear" @change="plotScenarios(true)">
               <option v-for='year in simYears'>
                 {{ year }}
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
             <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+            <select v-model="activePop" @change="plotScenarios(true)">
               <option v-for='pop in activePops'>
                 {{ pop }}
               </option>
@@ -84,7 +84,7 @@ Last update: 2018-08-22
             <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
             <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
             <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
           </div>
@@ -260,6 +260,7 @@ Last update: 2018-08-22
           mode: 'add'
         },
         figscale: 1.0,
+        serverDatastoreId: ''
       }
     },
 
@@ -283,23 +284,45 @@ Last update: 2018-08-22
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
+        this.getPlotOptions()
+        .then(response => {
+          this.updateSets()
+          .then(response2 => {
+            // The order of execution / completion of these doesn't matter.
             this.getScenSummaries()
             this.getDefaultBudgetScen()
-            this.updateSets()
-            this.getPlotOptions()
+            this.plotScenarios(false)
           })
+        })       
       }
     },
 
     methods: {
-
-      getPlotOptions()          { return utils.getPlotOptions(this) },
+      getPlotOptions() {
+        return new Promise((resolve, reject) => {
+          console.log('getPlotOptions() called')
+          status.start(this) // Start indicating progress.
+          let project_id = this.projectID
+          rpcs.rpc('get_supported_plots', [project_id, true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+            status.succeed(this, '')
+            resolve(response)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not get plot options: ' + error.message)
+            reject(error)
+          })          
+        })
+      },
+      
+//      getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResults(this, serverDatastoreId) },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -326,8 +349,9 @@ Last update: 2018-08-22
       },
 
       updateSets() {
-        console.log('updateSets() called')
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+        return new Promise((resolve, reject) => {
+          console.log('updateSets() called')
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -340,25 +364,29 @@ Last update: 2018-08-22
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
             rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-              .then(response => {
-                this.progsetOptions = response.data // Set the scenarios to what we received.
-                if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                  console.log('Program set ' + this.activeProgset + ' no longer found')
-                  this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                } else {
-                  console.log('Program set ' + this.activeProgset + ' still found')
-                }
-                this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                console.log('Progset options: ' + this.progsetOptions)
-                console.log('Active progset: ' + this.activeProgset)
-              })
-              .catch(error => {
-                status.failurePopup(this, 'Could not get progset info: ' + error.message)
-              })
+            .then(response => {
+              this.progsetOptions = response.data // Set the scenarios to what we received.
+              if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+                console.log('Program set ' + this.activeProgset + ' no longer found')
+                this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+              } else {
+                console.log('Program set ' + this.activeProgset + ' still found')
+              }
+              this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+              console.log('Progset options: ' + this.progsetOptions)
+              console.log('Active progset: ' + this.activeProgset)
+              resolve(response)
+            })
+            .catch(error => {
+              status.failurePopup(this, 'Could not get progset info: ' + error.message)
+              reject(error)
+            })
           })
           .catch(error => {
             status.failurePopup(this, 'Could not get parset info: ' + error.message)
+            reject(error)
           })
+        })
       },
 
       getDefaultBudgetScen() {
@@ -515,7 +543,7 @@ Last update: 2018-08-22
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions],
+            rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
               .then(response => {
                 this.makeGraphs(response.data.graphs)
@@ -533,24 +561,29 @@ Last update: 2018-08-22
           })
       },
 
-      plotScenarios() {
+      plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear}) // CASCADE-TB DIFFERENCE
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
 //            this.table = response.data.table // CASCADE-TB DIFFERENCE
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
     }
   }

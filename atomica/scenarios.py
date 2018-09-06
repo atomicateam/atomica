@@ -135,7 +135,7 @@ class ParameterScenario(Scenario):
             new_parset.name = self.name + '_' + parset.name
             return new_parset
 
-    def run(self, project=None, parset=None):
+    def run(self, project=None, parset=None, store_results=True):
         # Run the ParameterScenario
         # INPUTS
         # - project : A Project instance
@@ -145,7 +145,7 @@ class ParameterScenario(Scenario):
             parset = project.parsets[self.parsetname]
 
         scenario_parset = self.get_parset(parset, project.settings)
-        result = project.run_sim(parset=scenario_parset, result_name=self.name)
+        result = project.run_sim(parset=scenario_parset, result_name=self.name, store_results=store_results)
         return result
 
 class BudgetScenario(Scenario):
@@ -159,7 +159,7 @@ class BudgetScenario(Scenario):
         self.start_year = start_year
         return None
     
-    def run(self, project=None, parset=None, progset=None):
+    def run(self, project=None, parset=None, progset=None, store_results=True):
         # Run the BudgetScenario
         # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
 
@@ -170,7 +170,7 @@ class BudgetScenario(Scenario):
             progset = project.progsets[self.progsetname]
 
         instructions = ProgramInstructions(alloc=self.alloc, start_year=self.start_year) # Instructions for default spending
-        result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name)
+        result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
         return result
 
 
