@@ -34,7 +34,8 @@ function placeholders(startVal) {
 function projectID(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
-  } else {
+  } 
+  else {
     let projectID = vm.$store.state.activeProject.project.id
     return projectID
   }
@@ -52,7 +53,8 @@ function hasData(vm) {
 function simStart(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
-  } else {
+  }
+  else {
     return vm.$store.state.activeProject.project.sim_start
   }
 }
@@ -60,7 +62,8 @@ function simStart(vm) {
 function simEnd(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
-  } else {
+  }
+  else {
     return vm.$store.state.activeProject.project.sim_end
   }
 }
@@ -68,7 +71,8 @@ function simEnd(vm) {
 function simYears(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return []
-  } else {
+  }
+  else {
     var sim_start = vm.$store.state.activeProject.project.sim_start
     var sim_end = vm.$store.state.activeProject.project.sim_end
     var years = []
@@ -83,7 +87,8 @@ function simYears(vm) {
 function activePops(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
-  } else {
+  }
+  else {
     let pop_pairs = vm.$store.state.activeProject.project.pops
     let pop_list = ["All"]
     for(let i = 0; i < pop_pairs.length; ++i) {
@@ -94,15 +99,21 @@ function activePops(vm) {
 }
 
 function getPlotOptions(vm) {
-  console.log('getPlotOptions() called')
-  let project_id = projectID(vm)
-  rpcs.rpc('get_supported_plots', [project_id, true])
+  return new Promise((resolve, reject) => {
+    console.log('getPlotOptions() called')
+    status.start(vm) // Start indicating progress.
+    let project_id = projectID(vm)
+    rpcs.rpc('get_supported_plots', [project_id, true])
     .then(response => {
       vm.plotOptions = response.data // Get the parameter values
+      status.succeed(vm, '')
+      resolve(response)
     })
     .catch(error => {
-      status.failurePopup(vm, 'Could not get plot options: ' + error.message)
-    })
+      status.fail(vm, 'Could not get plot options: ' + error.message)
+      reject(error)
+    })          
+  })
 }
 
 function makeGraphs(vm, graphdata) {
@@ -111,32 +122,32 @@ function makeGraphs(vm, graphdata) {
   status.start(vm) // Start indicating progress.
   vm.hasGraphs = true
   sleep(waitingtime * 1000)
-    .then(response => {
-      var n_plots = graphdata.length
-      console.log('Rendering ' + n_plots + ' graphs')
-      for (var index = 0; index <= n_plots; index++) {
-        console.log('Rendering plot ' + index)
-        var divlabel = 'fig' + index
-        var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-        while (div.firstChild) {
-          div.removeChild(div.firstChild);
-        }
-        try {
-          console.log(graphdata[index]);
-          mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
-            fig.setXTicks(6, function (d) {
-              return d3.format('.0f')(d);
-            });
-            fig.setYTicks(null, function (d) {
-              return d3.format('.2s')(d);
-            });
-          });
-        }
-        catch (error) {
-          console.log('Making graphs failed: ' + error.message);
-        }
+  .then(response => {
+    var n_plots = graphdata.length
+    console.log('Rendering ' + n_plots + ' graphs')
+    for (var index = 0; index <= n_plots; index++) {
+      console.log('Rendering plot ' + index)
+      var divlabel = 'fig' + index
+      var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      while (div.firstChild) {
+        div.removeChild(div.firstChild);
       }
-    })
+      try {
+        console.log(graphdata[index]);
+        mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
+          fig.setXTicks(6, function (d) {
+            return d3.format('.0f')(d);
+          });
+          fig.setYTicks(null, function (d) {
+            return d3.format('.2s')(d);
+          });
+        });
+      }
+      catch (error) {
+        console.log('Making graphs failed: ' + error.message);
+      }
+    }    
+  })
   status.succeed(vm, 'Graphs created') // Indicate success.
 }
 
@@ -152,18 +163,30 @@ function clearGraphs(vm) {
 }
 
 function exportGraphs(vm) {
-  console.log('exportGraphs() called')
-  rpcs.download('download_graphs', [])
-  .catch(error => {
-    status.failurePopup(vm, 'Could not download graphs: ' + error.message)
+  return new Promise((resolve, reject) => {
+    console.log('exportGraphs() called')
+    rpcs.download('download_graphs', [])
+    .then(response => {
+      resolve(response)
+    })
+    .catch(error => {
+      status.failurePopup(vm, 'Could not download graphs: ' + error.message)
+      reject(error)
+    })
   })
 }
 
 function exportResults(vm, serverDatastoreId) {
-  console.log('exportResults() called TEMP FIX')
-  rpcs.download('export_results', [serverDatastoreId])
-  .catch(error => {
-    status.failurePopup(vm, 'Could not export results: ' + error.message)
+  return new Promise((resolve, reject) => {  
+    console.log('exportResults() called TEMP FIX')
+    rpcs.download('export_results', [serverDatastoreId])
+    .then(response => {
+      resolve(response)
+    })    
+    .catch(error => {
+      status.failurePopup(vm, 'Could not export results: ' + error.message)
+      reject(error)      
+    })
   })
 }
 

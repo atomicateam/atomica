@@ -331,25 +331,8 @@ Last update: 2018-09-06
     },
 
     methods: {
-      getPlotOptions() {
-        return new Promise((resolve, reject) => {
-          console.log('getPlotOptions() called')
-          status.start(this) // Start indicating progress.
-          let project_id = this.projectID
-          rpcs.rpc('get_supported_plots', [project_id, true])
-          .then(response => {
-            this.plotOptions = response.data // Get the parameter values
-            status.succeed(this, '')
-            resolve(response)
-          })
-          .catch(error => {
-            status.fail(this, 'Could not get plot options: ' + error.message)
-            reject(error)
-          })          
-        })
-      },
 
-//      getPlotOptions()          { return utils.getPlotOptions(this) },
+      getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
