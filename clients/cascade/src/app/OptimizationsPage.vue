@@ -226,6 +226,7 @@ Last update: 2018-09-06
     data() {
       return {
         optimSummaries: [],
+        optimsLoaded: false,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
@@ -504,6 +505,7 @@ Last update: 2018-09-06
             this.getOptimTaskState(optimSum) // Get the task state for the optimization.
           })
           this.pollAllTaskStates() // Start polling of tasks states.
+          this.optimsLoaded = true
           status.succeed(this, 'Optimizations loaded')
         })
         .catch(error => {
