@@ -56,65 +56,65 @@ Last update: 2018-09-06
 
     <!-- START RESULTS CARD -->
     <div class="card full-width-card" v-if="hasGraphs">
-        <div class="calib-title">
-          <help reflink="results-plots" label="Results"></help>
-          <div>
+      <div class="calib-title">
+        <help reflink="results-plots" label="Results"></help>
+        <div>
 
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" @change="plotScenarios(true)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" @change="plotScenarios(true)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+          <b>Year: &nbsp;</b>
+          <select v-model="endYear" @change="plotScenarios(true)">
+            <option v-for='year in simYears'>
+              {{ year }}
+            </option>
+          </select>
+          &nbsp;&nbsp;&nbsp;
+          <b>Population: &nbsp;</b>
+          <select v-model="activePop" @change="plotScenarios(true)">
+            <option v-for='pop in activePops'>
+              {{ pop }}
+            </option>
+          </select>
+          &nbsp;&nbsp;&nbsp;
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
 
+        </div>
+      </div>
+
+
+      <div class="calib-main" :class="{'calib-main--full': true}">
+        <div class="calib-graphs">
+          <div class="featured-graphs">
+            <div :id="'fig0'">
+              <!--mpld3 content goes here-->
+            </div>
+          </div>
+          <div class="other-graphs">
+            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+              <!--mpld3 content goes here-->
+            </div>
           </div>
         </div>
       </div>
 
-        <div class="calib-main" :class="{'calib-main--full': true}">
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+        <h4>Cascade stage losses</h4>
+        <table class="table table-striped" style="text-align:right;">
+          <thead>
+          <tr>
+            <th></th>
+            <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(label, index) in table.rowlabels">
+            <td>{{label}}</td>
+            <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
 
-        <div class="calib-tables" v-if="table">
-          <h4>Cascade stage losses</h4>
-          <table class="table table-striped">
-            <thead>
-            <tr>
-              <th></th>
-              <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="(label, index) in table.rowlabels">
-              <td>{{label}}</td>
-              <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-            </tr>
-            </tbody>
-          </table>
-        </div>
-
-
+    </div>
     <!-- END RESULTS CARD -->
 
 
@@ -147,14 +147,14 @@ Last update: 2018-09-06
               {{ parset }}
             </option>
           </select><br><br>
-<!-- CASCADE-TB DIFFERENCE
-          Program set:<br>
-          <select v-model="progsetOptions[0]">
-            <option v-for='progset in progsetOptions'>
-              {{ progset }}
-            </option>
-          </select><br><br>
--->
+          <!-- CASCADE-TB DIFFERENCE
+                    Program set:<br>
+                    <select v-model="progsetOptions[0]">
+                      <option v-for='progset in progsetOptions'>
+                        {{ progset }}
+                      </option>
+                    </select><br><br>
+          -->
           Budget year:<br>
           <input type="text"
                  class="txbox"
@@ -262,17 +262,17 @@ Last update: 2018-09-06
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
         utils.sleep(1)  // used so that spinners will come up by callback func
-        .then(response => {
-          this.getScenSummaries()
-          this.getDefaultBudgetScen()
-          this.updateSets()
-          this.getPlotOptions()
-        })
+          .then(response => {
+            this.getScenSummaries()
+            this.getDefaultBudgetScen()
+            this.updateSets()
+            this.getPlotOptions()
+          })
         utils.sleep(1000)
-        .then(response => {
-            this.plotScenarios(false)
-          }
-        )        
+          .then(response => {
+              this.plotScenarios(false)
+            }
+          )
       }
     },
 
@@ -282,8 +282,8 @@ Last update: 2018-09-06
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(serverDatastoreId) 
-                                { return utils.exportResults(this, serverDatastoreId) },
+      exportResults(serverDatastoreId)
+      { return utils.exportResults(this, serverDatastoreId) },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -313,40 +313,40 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('updateSets() called')
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-          .then(response => {
-            this.parsetOptions = response.data // Set the scenarios to what we received.
-            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-              console.log('Parameter set ' + this.activeParset + ' no longer found')
-              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-            } else {
-              console.log('Parameter set ' + this.activeParset + ' still found')
-            }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
-            console.log('Parset options: ' + this.parsetOptions)
-            console.log('Active parset: ' + this.activeParset)
-            rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
             .then(response => {
-              this.progsetOptions = response.data // Set the scenarios to what we received.
-              if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                console.log('Program set ' + this.activeProgset + ' no longer found')
-                this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+              this.parsetOptions = response.data // Set the scenarios to what we received.
+              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+                console.log('Parameter set ' + this.activeParset + ' no longer found')
+                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
               } else {
-                console.log('Program set ' + this.activeProgset + ' still found')
+                console.log('Parameter set ' + this.activeParset + ' still found')
               }
-              this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-              console.log('Progset options: ' + this.progsetOptions)
-              console.log('Active progset: ' + this.activeProgset)
-              resolve(response)
+              this.newParsetName = this.activeParset // WARNING, KLUDGY
+              console.log('Parset options: ' + this.parsetOptions)
+              console.log('Active parset: ' + this.activeParset)
+              rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
+                .then(response => {
+                  this.progsetOptions = response.data // Set the scenarios to what we received.
+                  if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+                    console.log('Program set ' + this.activeProgset + ' no longer found')
+                    this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+                  } else {
+                    console.log('Program set ' + this.activeProgset + ' still found')
+                  }
+                  this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+                  console.log('Progset options: ' + this.progsetOptions)
+                  console.log('Active progset: ' + this.activeProgset)
+                  resolve(response)
+                })
+                .catch(error => {
+                  status.failurePopup(this, 'Could not get progset info: ' + error.message)
+                  reject(error)
+                })
             })
             .catch(error => {
-              status.failurePopup(this, 'Could not get progset info: ' + error.message)
+              status.failurePopup(this, 'Could not get parset info: ' + error.message)
               reject(error)
             })
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get parset info: ' + error.message)
-            reject(error)
-          })
         })
       },
 
@@ -527,21 +527,21 @@ Last update: 2018-09-06
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
-        .then(response => {
-          this.makeGraphs(response.data.graphs)
-          this.table = response.data.table // CASCADE-TB DIFFERENCE
-          status.succeed(this, 'Graphs created')
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          if (showNoCacheError) {
-            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
-          }
-          else {
-            status.succeed(this, '')  // Silently stop progress bar and spinner.
-          }
-        })
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+            this.table = response.data.table // CASCADE-TB DIFFERENCE
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            if (showNoCacheError) {
+              status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+            }
+            else {
+              status.succeed(this, '')  // Silently stop progress bar and spinner.
+            }
+          })
       },
     }
   }
