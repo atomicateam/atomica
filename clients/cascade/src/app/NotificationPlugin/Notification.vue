@@ -205,7 +205,7 @@
     color: $danger-states-color;
   }
 
-  #flex { display: flex; justify-content: space-between; border: 1px solid gray;}
-  #flex div { background-color: #A4F2D8; border: 1px solid gray; font-size: 14px; font-family: Verdana; padding: 4px; }
+  #flex {display: flex; justify-content: space-between;}
+  #flex div { padding: 4px; }
 
 </style>
