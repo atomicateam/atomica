@@ -152,6 +152,38 @@ $disabled-color: #FFF;
       color: #FFF;
     }
   }
+
+  &.__trans {
+    background: transparent;
+    border-color: transparent;
+    color: #FFF;
+
+    &:disabled {
+      background: transparent;
+      border-color: transparent;
+      color: $disabled-color;
+    }
+
+    &:hover:not(:disabled) {
+      background: transparent;
+      border: #fff 1px solid;
+      color: #FFF;
+    }
+
+    &.__active,
+    &:active:not(:disabled) {
+      background: transparent;
+      border-color: transparent;
+      color: #FFF;
+    }
+
+    &.__active,
+    &.__active:hover {
+      background: transparent;
+      border-color: transparent;
+      color: #FFF;
+    }
+  }
 }
 
 

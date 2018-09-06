@@ -39,7 +39,7 @@ function succeed(vm, successMessage) {
       type: 'success',
       verticalAlign: 'top',
       horizontalAlign: 'left',
-      timeout: 0
+      timeout: 2000
     })
   }  
 }

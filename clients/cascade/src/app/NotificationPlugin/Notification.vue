@@ -24,15 +24,14 @@
     <!--</div>-->
 
     <div id = "flex">
-      <div><span class="alert-icon" data-notify="message" :class="icon" style="font-size:20px"></span></div> <!-- Icon -->
-      <div style="max-width:400px;"><span data-notify="message" v-html="message"></span></div><!-- Message -->
-      <div> <!-- Close button -->
+      <div style="padding-top:10px; padding-right:10px"><span class="alert-icon" data-notify="message" :class="icon" style="font-size:25px;"></span></div>
+      <div style="max-width:400px; font-size:14px; align-content:center"><div data-notify="message" v-html="message"></div></div>
+      <div style="padding-left:10px">
         <button
-          type="button"
+          class="btn __trans"
           aria-hidden="true"
-          class="close"
           data-notify="dismiss"
-          @click="close">×
+          @click="close"><span style="font-size:30px; color:#fff; background-color: transparent; background: transparent">×</span>
         </button>
       </div>
     </div>
@@ -192,12 +191,12 @@
 
   .alert-success {
     background-color: $bg-success;
-    color: $success-states-color;
+    color: #fff; // $success-states-color;
   }
 
   .alert-warning {
     background-color: $bg-warning;
-    color: $warning-states-color;
+    color: #fff; // $warning-states-color;
   }
 
   .alert-danger {
