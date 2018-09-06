@@ -60,7 +60,7 @@ Last update: 2018-09-05
         </table>
 
         <div>
-          <button class="btn" :disabled="!optimsLoaded" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
 

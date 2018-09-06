@@ -59,7 +59,7 @@ Last update: 2018-09-06
         </table>
 
         <div>
-          <button class="btn" :disabled="!optimsLoaded" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
 
@@ -128,7 +128,7 @@ Last update: 2018-09-06
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="'60%'"
+             :width="800"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -143,28 +143,30 @@ Last update: 2018-09-06
             Edit optimization
           </div>
           <div class="dialog-c-text">
-            Optimization name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.name"/><br>
-            Parameter set:<br>
-            <select v-model="parsetOptions[0]">
-              <option v-for='parset in parsetOptions'>
-                {{ parset }}
-              </option>
-            </select><br><br>
-            Start year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.start_year"/><br>
-            End year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.budget_factor"/><br>
+            <div style="display:inline-block">
+              <b>Optimization name</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.name"/><br>
+              <b>Parameter set</b><br>
+              <select v-model="parsetOptions[0]">
+                <option v-for='parset in parsetOptions'>
+                  {{ parset }}
+                </option>
+              </select><br><br>
+              <b>Start year</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.start_year"/><br>
+              <b>End year</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.end_year"/><br>
+              <b>Budget factor</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.budget_factor"/><br>
+            </div>
             <br>
             <b>Objective weights</b><br>
             <span v-for="(val,key) in modalOptim.objective_labels">
