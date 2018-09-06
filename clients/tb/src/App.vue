@@ -1,7 +1,7 @@
 <!--
 App.vue -- App component, the main page
 
-Last update: 2018-08-30
+Last update: 2018-09-01
 -->
 
 <template>
@@ -35,6 +35,7 @@ Last update: 2018-08-30
 
 <script>
 import userService from '@/services/user-service'
+import Vue from 'vue'; // This needs to appear somewhere but only once
 
 export default {
   computed: {

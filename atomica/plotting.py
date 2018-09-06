@@ -471,7 +471,10 @@ class PlotData(object):
                                 num_eligible[prog.name] = result.get_variable(pop_name,comp_name)[0].vals.copy()
                             else:
                                 num_eligible[prog.name] += result.get_variable(pop_name,comp_name)[0].vals
-                    prop_covered[prog.name] = np.minimum(num_covered[prog.name]/num_eligible[prog.name],np.ones(result.t.shape))
+
+                    prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
+                    prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(result.t.shape))
+
                 if quantity == 'coverage_denominator':
                     units = 'Number of people'
                 elif quantity == 'coverage_fraction':
@@ -556,6 +559,7 @@ class PlotData(object):
             series.vals = series.interpolate(t2)
             series.tvec = np.copy(t2)
             series.t_labels = np.copy(t2)
+        return self
 
     def __getitem__(self, key):
         # key is a tuple of (result,pop,output)
@@ -635,6 +639,8 @@ class PlotData(object):
             series = [x for x in series if (x.output == target[2] or target[2] == 'all')]
             for s in series:
                 s.color = color if (s.color is None or overwrite) else s.color
+
+        return self
 
 
 class Series(object):

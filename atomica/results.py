@@ -83,7 +83,7 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self,filename,plot_names=None,cascade_names=None):
+    def export(self,filename,plot_names=None,cascade_names=None, include_target_pars=True, include_programs=True):
         # This function writes an XLSX file with the data corresponding to any Cascades or Plots
         # that are present. Note that results are exported for every year by selecting integer years.
         # Flow rates are annualized instantaneously. So for example, the flow will have values from
@@ -162,14 +162,62 @@ class Result(NamedItem):
                 worksheet.write_string(i,0, df.name,formats['center_bold'])
                 i += df.shape[0] + 2
             worksheet = writer.sheets[sheet_name]
-            required_width = max(max([len(df.name) for df in df_list]),max([max(df.index.str.len()) for df in df_list]))
+
+            required_width = 0.0
+            for df in df_list:
+                required_width = max(required_width,len(df.name))
+                if not isinstance(df.index,pd.MultiIndex):
+                    required_width = max(required_width, max(df.index.str.len()))
             worksheet.set_column(0, 0, required_width * 1.1 + 1)
 
         if plot_df:
-            write_df_list(plot_df,'plots')
+            write_df_list(plot_df,'Plot data')
 
         if cascade_df:
-            write_df_list(cascade_df,'cascades')
+            write_df_list(cascade_df,'Cascades')
+
+        if include_target_pars:
+            targetable_code_names = list(self.framework.pars.index[self.framework.pars['targetable']=='y'])
+            if targetable_code_names:
+                par_df = []
+
+                for par_name in targetable_code_names:
+                    data = sc.odict()
+                    popdata = PlotData(self, outputs=par_name)
+                    popdata.interpolate(new_tvals)
+                    for pop in popdata.pops:
+                        data[pop_names[pop]] = popdata[self.name, pop, popdata.outputs[0]].vals
+                    df = pd.DataFrame(data, index=new_tvals)
+                    df = df.T
+                    df.name = self.framework.pars.loc[par_name]['display name']
+                    par_df.append(df)
+
+                write_df_list(par_df, 'Target parameters')
+
+        if include_programs:
+            if self.model.progset is not None:
+                prog_df = []
+                for prog_name in self.model.progset.programs:
+                    data = sc.odict()
+
+                    spending = PlotData.programs(self, outputs=prog_name,quantity='spending').interpolate(new_tvals)
+                    data['Spending ($/year)'] = spending.series[0].vals
+
+                    spending = PlotData.programs(self, outputs=prog_name,quantity='coverage_number').interpolate(new_tvals)
+                    data['People covered'] = spending.series[0].vals
+
+                    spending = PlotData.programs(self, outputs=prog_name,quantity='coverage_denominator').interpolate(new_tvals)
+                    data['People eligible'] = spending.series[0].vals
+
+                    spending = PlotData.programs(self, outputs=prog_name,quantity='coverage_fraction').interpolate(new_tvals)
+                    data['Proportion covered'] = spending.series[0].vals
+
+                    df = pd.DataFrame(data, index=new_tvals)
+                    df = df.T
+                    df.name = self.framework.pars.loc[par_name]['display name']
+                    prog_df.append(df)
+
+                write_df_list(prog_df, 'Programs')
 
         writer.save()
         writer.close()

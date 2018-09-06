@@ -34,8 +34,9 @@
   overflow-y: scroll;
 }
 .calib-graphs {
+  border: 2px solid #ddd;
   flex-grow: 1;
-  max-height :80vh;
+  max-height: 80vh;
   overflow-y: scroll;
   .featured-graphs {
 

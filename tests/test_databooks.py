@@ -1,20 +1,20 @@
 ## This script tests some databook IO operations
 
 import atomica.ui as au
-from atomica.core.excel import AtomicaSpreadsheet, transfer_comments
+from atomica.excel import transfer_comments
 import numpy as np
 from atomica.ui import ProjectFramework, Project, ProjectData
-import sciris.core as sc
+import sciris as sc
 
 F = ProjectFramework("./frameworks/framework_tb.xlsx")
-F.save('./temp/d_blug.xlsx')
+F.save('./temp/f_blug.xlsx')
 #
 # Copy a databook by loading and saving it
 data = ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",F)
 data.save('./temp/d_blug.xlsx')
 
 # Copy comments, using lower-level AtomicaSpreadsheet (for in-memory file operations)
-original_workbook = AtomicaSpreadsheet("./databooks/databook_tb.xlsx")
+original_workbook = au.AtomicaSpreadsheet("./databooks/databook_tb.xlsx")
 new_workbook = data.to_spreadsheet() # This is a AtomicaSpreadsheet that can be stored in the FE database
 transfer_comments(new_workbook,original_workbook)
 new_workbook.save('./temp/d_blug_formatted.xlsx')

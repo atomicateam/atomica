@@ -4,12 +4,13 @@ apptasks.py -- The Celery tasks module for this webapp
 Last update: 2018aug31
 """
 
-from . import config_cascade as config
-import matplotlib.pyplot as ppl
-ppl.switch_backend(config.MATPLOTLIB_BACKEND)
+
 import scirisweb as sw
 from . import projects as prj
 from . import rpcs
+from . import config_cascade as config
+import matplotlib.pyplot as ppl
+ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
@@ -34,25 +35,15 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
         proj = rpcs.load_project(project_id, raise_exception=True)
     else: # Otherwise try using it as a project
         proj = project_id
-    results = proj.run_optimization(optim_name, maxtime=float(maxtime))
-#    proj.results['optimization'] = results # WARNING, will want to save separately!
-#    proj.results[cache_id] = results   # TODO: remove this after caching done right  
-    # NOTE: some possibility we may need a concurrency lock for next two lines.
-    results_cache = rpcs.apptasks_load_results_cache()
+        
+    # Actually run the optimization and get its results (list of baseline and 
+    # optimized Result objects).
+    results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     
-    # Reload the whole database because it's likely that the webapp process 
-    # has modified it, for example, to add a new TaskRecord.
-    sw.globalvars.data_store.load()
-    
-    # The line above seems to fix the problem that re-emerged with multiple 
-    # tasks not queuing well together, but the line below is still a bit 
-    # unsafe.
-    # TODO: I'm thinking probably the best way to fix this is to avoid the case 
-    # where the Celery worker is adding a new cache_id.  Somehow, maybe, the 
-    # webapp should add the new cache_id, and the Celery worker should only have 
-    # the power to update old IDs.
-    results_cache.store(cache_id, project_id, results)
-    
+    # Put the results into the ResultsCache.
+    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
+
+    # Plot the results.    
     output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:
         print('Saving project...')

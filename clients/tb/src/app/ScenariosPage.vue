@@ -1,7 +1,7 @@
 <!--
-Scenarios Page
+Scenarios page
 
-Last update: 2018-08-22
+Last update: 2018-09-06
 -->
 
 <template>
@@ -39,9 +39,9 @@ Last update: 2018-08-22
               <input type="checkbox" v-model="scenSummary.active"/>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn btn-icon" @click="editScen(scenSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyScen(scenSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteScen(scenSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editScen(scenSummary)" data-tooltip="Edit scenario"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyScen(scenSummary)" data-tooltip="Copy scenario"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteScen(scenSummary)" data-tooltip="Delete scenario"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
@@ -52,28 +52,24 @@ Last update: 2018-08-22
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
       </div>
+    </div>
 
-      <!-- ### Start: results card ### -->
-      <div class="card full-width-card">
+    <!-- START RESULTS CARD -->
+    <div class="card full-width-card" v-if="hasGraphs">
         <!-- ### Start: plot controls ### -->
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
-            <!--<b>Start year: &nbsp;</b>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="startYear"-->
-            <!--style="display: inline-block; width:70px"/>-->
-            <!--&nbsp;&nbsp;&nbsp;-->
+
             <b>Year: &nbsp;</b>
-            <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+            <select v-model="endYear" @change="plotScenarios(true)">
               <option v-for='year in simYears'>
                 {{ year }}
               </option>
             </select>
             &nbsp;&nbsp;&nbsp;
             <b>Population: &nbsp;</b>
-            <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+            <select v-model="activePop" @change="plotScenarios(true)">
               <option v-for='pop in activePops'>
                 {{ pop }}
               </option>
@@ -83,12 +79,13 @@ Last update: 2018-08-22
             <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
             <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
             <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
           </div>
         </div>
+
         <!-- ### End: plot controls ### -->
 
         <!-- ### Start: results and plot selectors ### -->
@@ -137,9 +134,10 @@ Last update: 2018-08-22
         </div>
         <!-- ### End: results and plot selectors ### -->
       </div>
-      <!-- ### End: results card ### -->
+    <!-- END RESULTS CARD -->
 
 
+    <!-- START ADD-SCENARIO MODAL -->
       <modal name="add-budget-scen"
              height="auto"
              :scrollable="true"
@@ -211,6 +209,7 @@ Last update: 2018-08-22
           </div>
         </div>
       </modal>
+    <!-- END ADD-SCENARIO MODAL -->
 
     </div>
   </div>
@@ -219,25 +218,17 @@ Last update: 2018-08-22
 
 <script>
   import axios from 'axios'
-  var filesaver = require('file-saver')
+  let filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-  import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'scenarioPage',
-
-    components: {
-      help
-    },
+    name: 'ScenariosPage',
 
     data() {
       return {
-        response: 'no response',
         scenSummaries: [],
         defaultBudgetScen: {},
         objectiveOptions: [],
@@ -261,6 +252,8 @@ Last update: 2018-08-22
           mode: 'add'
         },
         figscale: 1.0,
+        hasGraphs: false,
+        serverDatastoreId: ''
       }
     },
 
@@ -275,32 +268,54 @@ Last update: 2018-08-22
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) &&
+      else if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
+        this.getPlotOptions()
+        .then(response => {
+          this.updateSets()
+          .then(response2 => {
+            // The order of execution / completion of these doesn't matter.
             this.getScenSummaries()
             this.getDefaultBudgetScen()
-            this.updateSets()
-            this.getPlotOptions()
+            this.plotScenarios(false)
           })
+        })       
       }
     },
 
     methods: {
-
-      getPlotOptions()          { return utils.getPlotOptions(this) },
+      getPlotOptions() {
+        return new Promise((resolve, reject) => {
+          console.log('getPlotOptions() called')
+          status.start(this) // Start indicating progress.
+          let project_id = this.projectID
+          rpcs.rpc('get_supported_plots', [project_id, true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+            status.succeed(this, '')
+            resolve(response)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not get plot options: ' + error.message)
+            reject(error)
+          })          
+        })
+      },
+      
+//      getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResults(this, serverDatastoreId) },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -327,8 +342,9 @@ Last update: 2018-08-22
       },
 
       updateSets() {
-        console.log('updateSets() called')
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+        return new Promise((resolve, reject) => {
+          console.log('updateSets() called')
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -341,25 +357,29 @@ Last update: 2018-08-22
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
             rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-              .then(response => {
-                this.progsetOptions = response.data // Set the scenarios to what we received.
-                if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                  console.log('Program set ' + this.activeProgset + ' no longer found')
-                  this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                } else {
-                  console.log('Program set ' + this.activeProgset + ' still found')
-                }
-                this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                console.log('Progset options: ' + this.progsetOptions)
-                console.log('Active progset: ' + this.activeProgset)
-              })
-              .catch(error => {
-                status.failurePopup(this, 'Could not get progset info: ' + error.message)
-              })
+            .then(response => {
+              this.progsetOptions = response.data // Set the scenarios to what we received.
+              if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+                console.log('Program set ' + this.activeProgset + ' no longer found')
+                this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+              } else {
+                console.log('Program set ' + this.activeProgset + ' still found')
+              }
+              this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+              console.log('Progset options: ' + this.progsetOptions)
+              console.log('Active progset: ' + this.activeProgset)
+              resolve(response)
+            })
+            .catch(error => {
+              status.failurePopup(this, 'Could not get progset info: ' + error.message)
+              reject(error)
+            })
           })
           .catch(error => {
             status.failurePopup(this, 'Could not get parset info: ' + error.message)
+            reject(error)
           })
+        })
       },
 
       getDefaultBudgetScen() {
@@ -387,7 +407,6 @@ Last update: 2018-08-22
             status.succeed(this, 'Scenarios loaded')
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
             status.fail(this, 'Could not get scenarios: ' + error.message)
           })
       },
@@ -417,7 +436,6 @@ Last update: 2018-08-22
             console.log(this.defaultBudgetScen)
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
             status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
           })
       },
@@ -471,7 +489,7 @@ Last update: 2018-08-22
       copyScen(scenSummary) {
         console.log('copyScen() called')
         status.start(this)
-        var newScen = _.cloneDeep(scenSummary); // You've got to be kidding me, buster
+        var newScen = _.cloneDeep(scenSummary);
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
@@ -512,16 +530,14 @@ Last update: 2018-08-22
         console.log('runScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        // Make sure they're saved first
-        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries]) // Make sure they're saved first
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions],
+            rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
               .then(response => {
                 this.makeGraphs(response.data.graphs)
-//                this.table = response.data.table // CASCADE-TB DIFFERENCE
-                status.succeed(this, 'Graphs created')
+                status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
                 console.log('There was an error: ' + error.message) // Pull out the error message.
@@ -534,24 +550,28 @@ Last update: 2018-08-22
           })
       },
 
-      plotScenarios() {
+      plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear}) // CASCADE-TB DIFFERENCE
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-//            this.table = response.data.table // CASCADE-TB DIFFERENCE
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
     }
   }
@@ -562,4 +582,3 @@ Last update: 2018-08-22
 <style scoped>
 
 </style>
-

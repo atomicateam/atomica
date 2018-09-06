@@ -5,17 +5,12 @@ Last update: 2018-08-23
 -->
 
 <template>
-  <div>
-    <h5>
-      {{ label }}
+  <span>
+    <div v-if="label!==''" style="display:inline-block; font-size:1.4em; margin: 0px 5px 10px 0px;">{{ label }}</div> <!-- Was <h4> -->
       <button class="btn __blue small-button" @click="openLink(reflink)" data-tooltip="Help" style="padding-top:2px; margin-bottom:5px">
         <i class="ti-help"></i>
       </button>
-      <!--<span @click="openLink(reflink)">-->
-        <!--<i class="ti-help-alt"  style="margin-left: 0.5em; color: #29abe2; font-size: 30px; font-weight:bold"></i>-->
-      <!--</span>-->
-    </h5>
-  </div>
+  </span>
 </template>
 
 <script>
@@ -25,12 +20,12 @@ Last update: 2018-08-23
     props: {
       reflink: {
         type: String,
-        default: 'create-projects'
+        default: ''
       }, 
 
       label: {
         type: String,
-        default: 'Create projects'        
+        default: ''
       }        
     },
 
@@ -38,8 +33,20 @@ Last update: 2018-08-23
       return {
         baseURL: 'https://docs.google.com/document/d/1x4Kb3hyB8NwVziE95UhT6bXpO1uRDFxJlN8QxvrLgvg/edit#heading=', 
         linkMap: {
+          'create-frameworks': 'h.8xzemda17sn7',
+          'manage-frameworks': 'h.kjfpissnw4v8',
           'create-projects': 'h.wohgolfxe9ko', 
-          'manage-projects': 'h.fcnvzbrouon2'
+          'manage-projects': 'h.fcnvzbrouon2',
+          'bl-overview': 'h.e5er3h94vkjk',
+          'parameter-sets': 'h.ofwmxbimr7i',
+          'automatic-calibration': 'h.81g1j4y0hcp1',
+          'manual-calibration': 'h.da77fbanyz1n',
+          'reconciliation': 'h.ojtskhsm6lx9',
+          'bl-results': 'h.f2xv432x5yv',
+          'define-scenarios': 'h.6u9a8cixezwv',
+          'sc-results': 'h.syuxr0k2n3yy',
+          'define-optimizations': 'h.9g4agtbijsjq',
+          'op-results': 'h.n581zreqeowi'
         }
       }
     },

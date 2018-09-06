@@ -13,7 +13,6 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from six import reraise
 from .system import logger
 
 def standard_formats(workbook):
@@ -22,7 +21,7 @@ def standard_formats(workbook):
 
     """ the formats used in the spreadsheet """
 #    darkgray = '#413839'
-    optima_blue = '#18C1FF'
+#    optima_blue = '#18C1FF'
     atomica_blue = '#98E0FA'
     optional_orange = '#FFA500'
     BG_COLOR = atomica_blue
@@ -87,43 +86,32 @@ class AtomicaSpreadsheet(object):
     # This object provides an interface for managing the contents of files (particularly spreadsheets) as Python objects
     # that can be stored in the FE database. Basic usage is as follows:
     #
+    # READING:
+    #
     # ss = AtomicaSpreadsheet('input.xlsx') # Load a file into this object
     # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
     # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
-    # book.create_sheet(...)
-    # book.save(f) # The workbook can be saved back to this stream
-    # ss.insert(f) # We can update the contents of the AtomicaSpreadsheet with the newly written workbook
-    # ss.save('output.xlsx') # Can also write the contents back to disk
     #
-    # As shown above, no disk IO needs to happen to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
+    # WRITING:
+    #
+    # f = io.BytesIO()
+    # book = xlsxwriter.Workbook(f)
+    # book.close()
+    # spreadsheet = AtomicaSpreadsheet(f) # note that `f.flush()` will automatically be called
+    # f.close()
+    #
+    # As shown above, no disk IO is required to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
 
-    def __init__(self, source=None):
-        # source is a specification of where to get the data from
-        # It can be anything supported by AtomicaSpreadsheet.insert() which are
-        # - A filename, which will get loaded
-        # - A io.BytesIO which will get dumped into this instance
-
-        self.filename = None
-        self.data = None
-        self.load_date = None
-
-        if source is not None:
-            self.insert(source)
-
-    def __repr__(self):
-        output = sc.prepr(self)
-        return output
-
-    def insert(self, source):
-        # This function sets the `data` attribute given a file-like data source
+    def __init__(self, source):
+        # Construct a new AtomicaSpreadsheet given the contents of the spreadsheet
         #
-        # INPUTS:
+        # INPUTS
         # - source : This contains the contents of the file. It can be
         #   - A string, which is interpreted as a filename
         #   - A file-like object like a BytesIO, the entire contents of which will be read
-        #
-        # This function reads a binary ile on disk and stores the content in self.data
-        # It also records where the file was loaded from and the date
+
+        self.filename = None
+
         if isinstance(source,io.BytesIO):
             source.flush()
             source.seek(0)
@@ -136,6 +124,10 @@ class AtomicaSpreadsheet(object):
                 self.data = f.read()
 
         self.load_date = sc.now()
+
+    def __repr__(self):
+        output = sc.prepr(self)
+        return output
 
     def save(self, filename=None):
         # This function writes the contents of self.data to a file on disk
@@ -158,7 +150,6 @@ class AtomicaSpreadsheet(object):
         # - book = openpyxl.load_workbook(self.get_file())
         # - book = xlrd.open_workbook(file_contents=self.get_file().read())
         return io.BytesIO(self.data)
-
 
 def transfer_comments(target,comment_source):
     # Format this AtomicaSpreadsheet based on the extra meta-content in comment_source
@@ -330,10 +321,10 @@ class TimeDependentConnections(object):
 
         if self.type == 'transfer':
             self.enable_diagonal = False
-            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
+            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
         elif self.type == 'interaction':
             self.enable_diagonal = True
-            self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
+            self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
         else:
             raise AtomicaException('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
@@ -454,7 +445,7 @@ class TimeDependentConnections(object):
                     update_widths(widths, 3, ts.format.title())
 
                     if self.allowed_units:
-                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
+                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
                     worksheet.write(current_row, 4, ts.assumption, format)
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='OR')
                     # update_widths(widths, 5,  '...') # The largest length it will be here is '...' so use that
@@ -465,7 +456,7 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_blank(current_row, 3, '')
                     if self.allowed_units:
-                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
+                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
                     worksheet.write_blank(current_row, 4, '', format)
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='...')
                     # update_widths(widths, 5,  '...')
@@ -699,7 +690,7 @@ class TimeDependentValuesEntry(object):
                     worksheet.write(current_row,units_index,FS.DEFAULT_SYMBOL_INAPPLICABLE)
 
                 if self.allowed_units: # Add validation if a list of options is specified
-                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": [x.title() for x in self.allowed_units]})
 
             if write_uncertainty:
                 if row_ts.sigma is None:

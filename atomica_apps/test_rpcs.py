@@ -9,11 +9,11 @@ import json
 
 
 torun = [
-#'get_cascade_plot',
- 'get_cascade_json',
-#'get_plots',
-#'run_cascade_optimization',
-# 'run_tb_optimization',
+'get_cascade_plot',
+'get_cascade_json',
+'get_plots',
+'run_cascade_optimization',
+'run_tb_optimization',
 ]
 
 proj = None
@@ -22,6 +22,15 @@ def demoproj(which=None):
     if which is None: which = 'tb'
     P = au.demo(which=which)
     return P
+
+T = sc.tic()
+
+def heading(string, style=None):
+    divider = '#'*60
+    sc.blank()
+    if style == 'big': string = '\n'.join([divider, string, divider])
+    sc.colorize('blue', string)
+    return None
 
 
 if 'get_cascade_plot' in torun:
@@ -77,4 +86,6 @@ if 'run_tb_optimization' in torun:
     print('Output:')
     print(output)
     
+
+sc.toc(T)
 print('Done.')

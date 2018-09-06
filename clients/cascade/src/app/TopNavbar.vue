@@ -1,7 +1,7 @@
 <!--
 Definition of top navigation bar
 
-Last update: 2018-08-18
+Last update: 2018-08-30
 -->
 
 <template>
@@ -9,7 +9,7 @@ Last update: 2018-08-18
     <div class="container-fluid">
       <div class="navbar-header">
         <div class="logo">
-          <a href="http://cascade.tools">
+          <a href="http://cascade.tools"> <!-- CASCADE-TB DIFFERENCE -->
             <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
           </a>
         </div>
@@ -24,7 +24,7 @@ Last update: 2018-08-18
         <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
         <ul class="nav navbar-nav navbar-main">
           <li class="nav-item">
-            <router-link to="/frameworks">
+            <router-link to="/frameworks"> <!-- CASCADE-TB DIFFERENCE -->
               <span>Frameworks</span>
             </router-link>
           </li>
@@ -35,7 +35,7 @@ Last update: 2018-08-18
           </li>
           <li class="nav-item">
             <router-link to="/calibration">
-              <span>Baseline</span>
+              <span>Baseline</span> <!-- CASCADE-TB DIFFERENCE -->
             </router-link>
           </li>
           <li class="nav-item">

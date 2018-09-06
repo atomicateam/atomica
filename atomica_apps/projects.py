@@ -1,13 +1,13 @@
 '''
 Classes for handling projects as Sciris objects
 
-Version: 2018jun04 by cliffk
+Version: 2018sep06
 '''
 
 import os
-import atomica.ui as au
 import sciris as sc
 import scirisweb as sw
+import atomica.ui as au
 
 # Globals
 proj_collection = None # The ProjectCollection object for all of the app's projects.  Gets initialized by and loaded by init_projects().
@@ -57,7 +57,7 @@ class ProjectSO(sw.Blob):
             
             # Set the owner (User) UID.
             self.owner_uid = valid_uuid
-        
+            
     def load_from_copy(self, other_object):
         if type(other_object) == type(self):
             # Do the superclass copying.
@@ -228,8 +228,6 @@ def init_projects(app):
     
     # Else (no match)...
     else:
-        # Load the data path holding the Excel files.
-    
         if app.config['LOGGING_MODE'] == 'FULL':
             print('>> Creating a new ProjectCollection.') 
         proj_collection.add_to_data_store()
@@ -243,8 +241,7 @@ def init_projects(app):
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ProjectCollection.    
         proj_collection.show()
-
-
+        
 def apptasks_load_projects(config):
     global proj_collection  # need this to allow modification within the module 
     
