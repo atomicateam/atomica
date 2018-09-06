@@ -24,8 +24,8 @@
     <!--</div>-->
 
     <div id = "flex">
-      <div class="alert-icon" data-notify="message" :class="icon" style="font-size:20px"></div> <!-- Icon -->
-      <div data-notify="message" v-html="message" style="max-width:500px;"></div><!-- Message -->
+      <div><span class="alert-icon" data-notify="message" :class="icon" style="font-size:20px"></span></div> <!-- Icon -->
+      <div style="max-width:400px;"><span data-notify="message" v-html="message"></span></div><!-- Message -->
       <div> <!-- Close button -->
         <button
           type="button"
