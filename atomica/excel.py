@@ -321,10 +321,10 @@ class TimeDependentConnections(object):
 
         if self.type == 'transfer':
             self.enable_diagonal = False
-            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER.title(), FS.QUANTITY_TYPE_PROBABILITY.title()]
+            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
         elif self.type == 'interaction':
             self.enable_diagonal = True
-            self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE.title()]
+            self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
         else:
             raise AtomicaException('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
@@ -445,7 +445,7 @@ class TimeDependentConnections(object):
                     update_widths(widths, 3, ts.format.title())
 
                     if self.allowed_units:
-                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
+                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
                     worksheet.write(current_row, 4, ts.assumption, format)
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='OR')
                     # update_widths(widths, 5,  '...') # The largest length it will be here is '...' so use that
@@ -456,7 +456,7 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_blank(current_row, 3, '')
                     if self.allowed_units:
-                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": self.allowed_units})
+                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
                     worksheet.write_blank(current_row, 4, '', format)
                     worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='...')
                     # update_widths(widths, 5,  '...')
@@ -690,7 +690,7 @@ class TimeDependentValuesEntry(object):
                     worksheet.write(current_row,units_index,FS.DEFAULT_SYMBOL_INAPPLICABLE)
 
                 if self.allowed_units: # Add validation if a list of options is specified
-                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": [x.title() for x in self.allowed_units]})
 
             if write_uncertainty:
                 if row_ts.sigma is None:

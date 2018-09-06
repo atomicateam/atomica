@@ -268,7 +268,7 @@ class Parameter(Variable):
         self.limits = None  # Can be a two element vector [min,max]
         self.dependency = False
         self.pop_aggregation = None    # If True, value update in Model.update_pars(), not self.update().
-        self.scale_factor = 1.0
+        self.scale_factor = 1.0 # This should be set to the product of the population-specific y_factor and the meta_y_factor from the ParameterSet
         self.links = []  # References to links that derive from this parameter
         self.source_popsize_cache_time = None
         self.source_popsize_cache_val = None
@@ -694,12 +694,12 @@ class Population(object):
         for i, c in enumerate(characs):
             # Look up the characteristic value
             par = parset.get_par(c.name)
-            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]
+            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]*par.meta_y_factor
             # Run exception clauses for compartment logic.
             try:
                 if c.denominator is not None:
                     denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
-                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]
+                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]*denom_par.meta_y_factor
             except Exception:
                 pass
             try:
@@ -914,7 +914,7 @@ class Model(object):
             self.interactions[name] = np.zeros((len(self.pops), len(self.pops), len(self.t)))
             for from_pop, par in weights.items():
                 for to_pop in par.pops:
-                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]
+                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]*par.meta_y_factor
 
         # Insert values from parset into model objects
         for cascade_par in parset.pars['cascade']:
@@ -924,10 +924,9 @@ class Model(object):
                 # If parameter has an f-stack then vals will be calculated during/after integration.
                 # This is opposed to values being supplied from databook.
                 par.units = cascade_par.y_format[pop_name]
-                par.scale_factor = cascade_par.y_factor[pop_name]
+                par.scale_factor = cascade_par.y_factor[pop_name]*cascade_par.meta_y_factor
                 if not par.fcn_str:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)
-                    par.vals *= par.scale_factor  # Interpolation no longer rescales, so do it here
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -948,9 +947,8 @@ class Model(object):
                         par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
                         par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
-                        val = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)
-                        par.scale_factor = transfer_parameter.y_factor[pop_target]
-                        par.vals = val*par.scale_factor
+                        par.scale_factor = transfer_parameter.y_factor[pop_target]*transfer_parameter.meta_y_factor
+                        par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)*par.scale_factor
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
                         # TODO: Reconsider manual lookup hack if Transfers are implemented differently.

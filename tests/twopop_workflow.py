@@ -33,7 +33,8 @@ def plot_calibration(adjustables,measurables,titlestr):
     new_result = P.run_sim(new_parset)
     d = au.PlotData(new_result, outputs=['ch_prev'])
     figs = au.plot_series(d, axis='pops', data=P.data)
-    figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}".format(titlestr, new_parset.get_par('transpercontact').y_factor['adults'], new_parset.get_par('transpercontact').y_factor['children']))
+    par = new_parset.get_par('transpercontact')
+    figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}, meta={:.2f}".format(titlestr, par.y_factor['adults'], par.y_factor['children'],par.meta_y_factor))
 
 # Calibrate explicitly listing out the pops
 # Expected result is y-factors around adults=0.2 and children=0.3

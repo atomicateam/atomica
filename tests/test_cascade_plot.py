@@ -8,9 +8,9 @@ test = 'tb'
 # test = 'udt'
 
 torun = [
-"basicplots",
+# "basicplots",
 # "scenplots",
-# "validate_cascade",
+"validate_cascade",
 # "basicplots",
 #"scenplots",
 #"cascadefromscratch",
@@ -48,16 +48,10 @@ if "validate_cascade" in torun:
         print("Correctly raised invalid TB fallback cascade")
 
     for fname in ["./frameworks/framework_sir_badcascade1.xlsx","./frameworks/framework_sir_badcascade2.xlsx"]:
-        F = ProjectFramework(fname)
         try:
-            if not F.cascades:
-                validate_cascade(F, None)
-            else:
-                for cascade in F.cascades:
-                    validate_cascade(F, cascade)
+            F = ProjectFramework(fname)
         except InvalidCascade:
             print("Correctly raised invalid cascade for %s" % fname)
-
 
 # Load a framework and project to get a Result
 F = ProjectFramework("./frameworks/framework_"+test+".xlsx")

@@ -21,7 +21,7 @@ Last update: 2018-08-30
 
     <div v-else>
       <div class="card">
-        <help reflink="optimizations" label="Define optimizations"></help>
+        <help reflink="define-optimizations" label="Define optimizations"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
           <thead>
           <tr>
@@ -61,7 +61,7 @@ Last update: 2018-08-30
       <!-- ### Start: results card ### -->
     <div class="card full-width-card">
       <div class="calib-title">
-        <help reflink="results-plots" label="Results"></help>
+        <help reflink="op-results" label="Results"></help>
         <div>
           <b>{{ displayResultName }}</b>
           &nbsp; &nbsp; &nbsp;
