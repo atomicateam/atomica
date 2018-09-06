@@ -1,7 +1,7 @@
 <!--
 Optimizations page
 
-Last update: 2018-09-06
+Last update: 2018-09-06 WTF??
 -->
 
 <template>
