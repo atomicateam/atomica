@@ -1494,7 +1494,7 @@ def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot
             print('Modified: %s (%s)' % (parname, y_factor))
     
     proj.modified = sc.now()
-    result = proj.run_sim(parset=parsetname, store_results=False)    
+    result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
 #    store_result_separately(proj, result)
     output = process_plots(proj, result, tool=tool, year=end_year, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
@@ -1636,7 +1636,7 @@ def get_default_budget_scen(project_id):
 def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
-    results = proj.run_scenarios()
+    results = proj.run_scenarios(store_results=False)
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     put_results_cache_entry(cache_id, results)

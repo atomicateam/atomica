@@ -37,7 +37,7 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
         
     # Actually run the optimization and get its results (list of baseline and 
     # optimized Result objects).
-    results = proj.run_optimization(optim_name, maxtime=float(maxtime))
+    results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     
     # Put the results into the ResultsCache.
     rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)

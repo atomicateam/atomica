@@ -35,7 +35,7 @@ def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None
         proj = rpcs.load_project(project_id, raise_exception=True)
     else: # Otherwise try using it as a project
         proj = project_id
-    results = proj.run_optimization(optim_name, maxtime=float(maxtime))
+    results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     
     # Put the results into the ResultsCache.
     rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)

@@ -401,15 +401,15 @@ class Project(object):
 
         return new_parset
 
-    def run_scenarios(self):
+    def run_scenarios(self, store_results=True):
         results = []
         for scenario in self.scens.values():
             if scenario.active:
-                result = scenario.run(project=self)
+                result = scenario.run(project=self, store_results=store_results)
                 results.append(result)
         return results
 
-    def run_optimization(self, optimname=None, maxtime=None, maxiters=None):
+    def run_optimization(self, optimname=None, maxtime=None, maxiters=None, store_results=True):
         '''Run an optimization'''
         optim_ins = self.optim(optimname)
         optim = optim_ins.make(project=self)
@@ -421,8 +421,8 @@ class Project(object):
         original_end = self.settings.sim_end
         self.settings.sim_end = optim_ins.json['end_year']
         optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
-        optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized")
-        unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline")
+        optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized", store_results=store_results)
+        unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline", store_results=store_results)
         self.settings.sim_end = original_end
         results = [unoptimized_result, optimized_result]
         return results
