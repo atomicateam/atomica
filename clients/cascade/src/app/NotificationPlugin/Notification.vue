@@ -1,21 +1,36 @@
 <template>
-  <div
-    data-notify="container"
-    class="col-xs-11 col-sm-4 alert open alert-with-icon"
-    role="alert"
-    :class="[verticalAlign, horizontalAlign, alertType]"
-    :style="customPosition"
-    data-notify-position="top-center">
-    <button
-      type="button"
-      aria-hidden="true"
-      class="close col-xs-1"
-      data-notify="dismiss"
-      @click="close">×
-    </button>
+  <div style="display:inline-block">
+    <!--data-notify="container"-->
+    <!--class="col-xs-11 col-sm-4 alert open alert-with-icon"-->
+    <!--role="alert"-->
+    <!--:class="[verticalAlign, horizontalAlign, alertType]"-->
+    <!--:style="customPosition"-->
+    <!--data-notify-position="top-center">-->
+
     <div>
-      <span data-notify="message" :class="icon" class="alert-icon" style="font-size:20px"></span>
-      <span data-notify="message" v-html="message"></span>
+      <div id = "flex">
+        <!-- Icon -->
+        <div>
+          <span data-notify="message" :class="icon" class="alert-icon" style="font-size:20px"></span>
+        </div>
+
+        <!-- Message -->
+        <div>
+          <span data-notify="message" v-html="message"></span>
+        </div>
+
+        <!-- Close button -->
+        <!--aria-hidden="true"-->
+        <!--class="close col-xs-1"-->
+        <div>
+          <button
+            type="button"
+            data-notify="dismiss"
+            @click="close">×
+          </button>
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -185,4 +200,10 @@
     background-color: $bg-danger;
     color: $danger-states-color;
   }
+
+
+  #flex { display: flex; justify-content: space-between; border: 1px solid gray; }
+  #flex div { background-color: #A4F2D8; border: 1px solid gray; font-size: 14px; font-family: Verdana; padding: 4px; }
+
+
 </style>
