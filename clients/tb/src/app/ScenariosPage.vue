@@ -1,5 +1,5 @@
 <!--
-Scenarios Page
+Scenarios page
 
 Last update: 2018-09-06
 -->
@@ -39,9 +39,9 @@ Last update: 2018-09-06
               <input type="checkbox" v-model="scenSummary.active"/>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn btn-icon" @click="editScen(scenSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyScen(scenSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteScen(scenSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editScen(scenSummary)" data-tooltip="Edit scenario"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyScen(scenSummary)" data-tooltip="Copy scenario"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteScen(scenSummary)" data-tooltip="Delete scenario"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
@@ -52,19 +52,15 @@ Last update: 2018-09-06
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
       </div>
+    </div>
 
-      <!-- ### Start: results card ### -->
-      <div class="card full-width-card">
+    <!-- START RESULTS CARD -->
+    <div class="card full-width-card" v-if="hasGraphs">
         <!-- ### Start: plot controls ### -->
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
-            <!--<b>Start year: &nbsp;</b>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="startYear"-->
-            <!--style="display: inline-block; width:70px"/>-->
-            <!--&nbsp;&nbsp;&nbsp;-->
+
             <b>Year: &nbsp;</b>
             <select v-model="endYear" @change="plotScenarios(true)">
               <option v-for='year in simYears'>
@@ -83,12 +79,13 @@ Last update: 2018-09-06
             <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
             <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export plots</button>
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
             <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
             <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
           </div>
         </div>
+
         <!-- ### End: plot controls ### -->
 
         <!-- ### Start: results and plot selectors ### -->
@@ -137,9 +134,10 @@ Last update: 2018-09-06
         </div>
         <!-- ### End: results and plot selectors ### -->
       </div>
-      <!-- ### End: results card ### -->
+    <!-- END RESULTS CARD -->
 
 
+    <!-- START ADD-SCENARIO MODAL -->
       <modal name="add-budget-scen"
              height="auto"
              :scrollable="true"
@@ -211,6 +209,7 @@ Last update: 2018-09-06
           </div>
         </div>
       </modal>
+    <!-- END ADD-SCENARIO MODAL -->
 
     </div>
   </div>
@@ -219,25 +218,17 @@ Last update: 2018-09-06
 
 <script>
   import axios from 'axios'
-  var filesaver = require('file-saver')
+  let filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-  import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'scenarioPage',
-
-    components: {
-      help
-    },
+    name: 'ScenariosPage',
 
     data() {
       return {
-        response: 'no response',
         scenSummaries: [],
         defaultBudgetScen: {},
         objectiveOptions: [],
@@ -261,6 +252,7 @@ Last update: 2018-09-06
           mode: 'add'
         },
         figscale: 1.0,
+        hasGraphs: false,
         serverDatastoreId: ''
       }
     },
@@ -276,10 +268,10 @@ Last update: 2018-09-06
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) &&
+      else if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
@@ -321,7 +313,7 @@ Last update: 2018-09-06
 //      getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(serverDatastoreId) 
                                 { return utils.exportResults(this, serverDatastoreId) },
 
@@ -415,7 +407,6 @@ Last update: 2018-09-06
             status.succeed(this, 'Scenarios loaded')
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
             status.fail(this, 'Could not get scenarios: ' + error.message)
           })
       },
@@ -445,7 +436,6 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen)
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
             status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
           })
       },
@@ -499,7 +489,7 @@ Last update: 2018-09-06
       copyScen(scenSummary) {
         console.log('copyScen() called')
         status.start(this)
-        var newScen = _.cloneDeep(scenSummary); // You've got to be kidding me, buster
+        var newScen = _.cloneDeep(scenSummary);
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
@@ -540,16 +530,14 @@ Last update: 2018-09-06
         console.log('runScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        // Make sure they're saved first
-        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries]) // Make sure they're saved first
           .then(response => {
             // Go to the server to get the results from the package set.
             rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
               .then(response => {
                 this.makeGraphs(response.data.graphs)
-//                this.table = response.data.table // CASCADE-TB DIFFERENCE
-                status.succeed(this, 'Graphs created')
+                status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
                 console.log('There was an error: ' + error.message) // Pull out the error message.
@@ -572,7 +560,6 @@ Last update: 2018-09-06
           {tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
         .then(response => {
           this.makeGraphs(response.data.graphs)
-//            this.table = response.data.table // CASCADE-TB DIFFERENCE
           status.succeed(this, 'Graphs created')
         })
         .catch(error => {
@@ -595,4 +582,3 @@ Last update: 2018-09-06
 <style scoped>
 
 </style>
-

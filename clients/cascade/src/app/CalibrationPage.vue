@@ -21,7 +21,7 @@ Last update: 2018-09-06
 
     <div v-else>
       <div class="card">
-        <help reflink="calibration" label="Calibration"></help>
+        <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <!--<div class="calib-controls">-->
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
@@ -30,6 +30,7 @@ Last update: 2018-09-06
             <span v-else>Show</span>
             parameters
           </button>
+          &nbsp;<help reflink="manual-calibration"></help>
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
@@ -40,6 +41,7 @@ Last update: 2018-09-06
               {{ time }}
             </option>
           </select>
+          &nbsp;<help reflink="automatic-calibration"></help>
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
@@ -67,12 +69,14 @@ Last update: 2018-09-06
             <i class="ti-upload"></i>
           </button>
           &nbsp;
+          <help reflink="parameter-sets"></help>          
         </div>
 
         <div class="controls-box">
           <button class="btn" @click="notImplemented()">
             Reconcile
-          </button>
+          </button>&nbsp;
+          <help reflink="reconciliation"></help>          
         </div>
 
         <!--</div>-->
@@ -85,12 +89,6 @@ Last update: 2018-09-06
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <!--<th @click="updateSorting('index')" class="sortable">-->
-              <!--No.-->
-              <!--<span v-show="sortColumn == 'index' && !sortReverse"><i class="fas fa-caret-down"></i></span>-->
-              <!--<span v-show="sortColumn == 'index' && sortReverse"><i class="fas fa-caret-up"></i></span>-->
-              <!--<span v-show="sortColumn != 'index'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>-->
-              <!--</th>-->
               <th @click="updateSorting('parameter')" class="sortable">
                 Parameter
                 <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
@@ -113,9 +111,6 @@ Last update: 2018-09-06
             </thead>
             <tbody>
             <tr v-for="par in sortedPars">
-              <!--<td>-->
-              <!--{{par.index}}-->
-              <!--</td>-->
               <td>
                 {{par.parlabel}}
               </td>
@@ -132,16 +127,11 @@ Last update: 2018-09-06
           </table>
         </div>
 
-        <div class="card full-width-card">
+        <!-- START RESULTS CARD -->
+        <div class="card full-width-card" v-if="hasGraphs">
           <div class="calib-title">
-            <help reflink="results-plots" label="Results"></help>
+            <help reflink="bl-results" label="Results"></help>
             <div>
-              <!--<b>Start year: &nbsp;</b>-->
-              <!--<input type="text"-->
-              <!--class="txbox"-->
-              <!--v-model="startYear"-->
-              <!--style="display: inline-block; width:70px"/>-->
-              <!--&nbsp;&nbsp;&nbsp;-->
 
               <b>Year: &nbsp;</b>
               <select v-model="endYear" @change="plotCalibration(true)">
@@ -158,13 +148,8 @@ Last update: 2018-09-06
               </select>
               &nbsp;&nbsp;&nbsp;
               <!-- CASCADE-TB DIFFERENCE -->
-              <!--<button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button> -->
-              <!--<button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>-->
-              <!--<button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>-->
-              <!--&nbsp;&nbsp;&nbsp;-->
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> --> <!-- CASCADE-TB DIFFERENCE -->
 
             </div>
           </div>
@@ -290,6 +275,7 @@ Last update: 2018-09-06
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
+        hasGraphs: false,
         serverDatastoreId: ''
       }
     },

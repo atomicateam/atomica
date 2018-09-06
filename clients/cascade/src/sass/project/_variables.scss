@@ -1,6 +1,8 @@
 $cascade-blue: #00267a;
 $optima-blue: #00adee;
 $optima-dark: #092344;
+$main-color: $cascade-blue; // CASCADE-TB DIFFERENCE
+$main-dark: $cascade-blue; // CASCADE-TB DIFFERENCE
 
 $font-color: #0c2544 !default;
 $fill-font-color: rgba(255, 255, 255, 0.7);
@@ -38,7 +40,7 @@ $danger-input-bg: #FFC0A4 !default;
 $success-input-bg: #ABF3CB !default;
 $other-medium-gray: #A49E93 !default;
 $transparent-bg: transparent !default;
-$button-bg: $cascade-blue; // #a5d5e9 !default;
+$button-bg: $main-color;
 
 $default-color: #0c2544 !default;
 $default-bg: #0c2544 !default;
@@ -92,7 +94,7 @@ $padding-small-horizontal: 10px !default;
 $padding-dropdown-vertical: 10px !default;
 $padding-dropdown-horizontal: 15px !default;
 
-$margin-large-vertical: 30px !default;
+$margin-large-vertical: 5px !default;
 $margin-base-vertical: 15px !default;
 
 // border radius for buttons
@@ -124,7 +126,7 @@ $font-size-large-navbar: 20px !default;
 $font-size-h1: 3.2em !default;
 $font-size-h2: 2.6em !default;
 $font-size-h3: 1.825em !default;
-$font-size-h4: 1.5em !default;
+$font-size-h4: 1.4em !default;
 $font-size-h5: 1.25em !default;
 $font-size-h6: 0.9em !default;
 $font-paragraph: 16px !default;

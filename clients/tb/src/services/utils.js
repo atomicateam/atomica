@@ -92,61 +92,70 @@ function activePops(vm) {
     return pop_list
   }
 }
-      
+
 function getPlotOptions(vm) {
   console.log('getPlotOptions() called')
   let project_id = projectID(vm)
   rpcs.rpc('get_supported_plots', [project_id, true])
     .then(response => {
-    vm.plotOptions = response.data // Get the parameter values
-})
-.catch(error => {
-    status.failurePopup(vm, 'Could not get plot options: ' + error.message)
-})
+      vm.plotOptions = response.data // Get the parameter values
+    })
+    .catch(error => {
+      status.failurePopup(vm, 'Could not get plot options: ' + error.message)
+    })
 }
 
 function makeGraphs(vm, graphdata) {
+  let waitingtime = 0.5
   console.log('makeGraphs() called')
   status.start(vm) // Start indicating progress.
-  var n_plots = graphdata.length
-  console.log('Rendering ' + n_plots + ' graphs')
-  for (var index = 0; index <= n_plots; index++) {
-    console.log('Rendering plot ' + index)
-    var divlabel = 'fig' + index
-    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-    while (div.firstChild) {
-      div.removeChild(div.firstChild);
-    }
-    try {
-      console.log(graphdata[index]);
-      mpld3.draw_figure(divlabel, graphdata[index], function(fig, element) {
-        fig.setXTicks(6, function(d) { return d3.format('.0f')(d); });
-        fig.setYTicks(null, function(d) { return d3.format('.2s')(d); });
-      });
-      vm.haveDrawnGraphs = true
-    }
-    catch (error) {
-      console.log('Making graphs failed: ' + error.message);
-    }
-  }
+  vm.hasGraphs = true
+  sleep(waitingtime * 1000)
+    .then(response => {
+      var n_plots = graphdata.length
+      console.log('Rendering ' + n_plots + ' graphs')
+      for (var index = 0; index <= n_plots; index++) {
+        console.log('Rendering plot ' + index)
+        var divlabel = 'fig' + index
+        var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+        while (div.firstChild) {
+          div.removeChild(div.firstChild);
+        }
+        try {
+          console.log(graphdata[index]);
+          mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
+            fig.setXTicks(6, function (d) {
+              return d3.format('.0f')(d);
+            });
+            fig.setYTicks(null, function (d) {
+              return d3.format('.2s')(d);
+            });
+          });
+        }
+        catch (error) {
+          console.log('Making graphs failed: ' + error.message);
+        }
+      }
+    })
   status.succeed(vm, 'Graphs created') // Indicate success.
 }
 
-function clearGraphs() {
+function clearGraphs(vm) {
   for (var index = 0; index <= 100; index++) {
     var divlabel = 'fig' + index
     var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
     while (div.firstChild) {
       div.removeChild(div.firstChild);
     }
+    vm.hasGraphs = false
   }
 }
 
 function exportGraphs(vm) {
   console.log('exportGraphs() called')
-  rpcs.download('download_graphs', []) // Make the server call to download the framework to a .prj file.
-    .catch(error => {
-    status.failurePopup(vm, 'Could not download graphs')
+  rpcs.download('download_graphs', [])
+  .catch(error => {
+    status.failurePopup(vm, 'Could not download graphs: ' + error.message)
   })
 }
 
@@ -173,7 +182,7 @@ function showBrowserWindowSize() {
   console.log('Inner height: ', h)
   console.log('Outer width: ', ow)
   console.log('Outer height: ', oh)
-  window.alert('Browser window size:\n'+ 
+  window.alert('Browser window size:\n'+
     'Inner width: ' + w + '\n' +
     'Inner height: ' + h + '\n' +
     'Outer width: ' + ow + '\n' +

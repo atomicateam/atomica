@@ -162,8 +162,12 @@ class ProjectFramework(object):
 
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
+            if cascade_name is None or len(cascade_name) == 0:
+                raise AtomicaException('A cascade was found without a name')
+
             if cascade_name in d:
                 raise NotAllowedError('A cascade with name "%s" was already read in' % (cascade_name))
+
             d[cascade_name] = df
             if df.shape[0]:
                 data_present = True
@@ -441,11 +445,9 @@ class ProjectFramework(object):
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
         tmp = set()
         for name in code_names:
-            if ':' in name:
-                raise NotAllowedError('Cannot have a ":" in a code name')
 
-            if ',' in name:
-                raise NotAllowedError('Cannot have a "," in a code name')
+            if FS.RESERVED_SYMBOLS.intersection(name):
+                raise NotAllowedError('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name,FS.RESERVED_SYMBOLS))
 
             if name in FS.RESERVED_KEYWORDS:
                 raise NotAllowedError('Requested code name "%s" is a reserved keyword' % name)
@@ -478,21 +480,16 @@ class ProjectFramework(object):
 
         cascade_names = self.cascades.keys()
         for name in cascade_names:
-            if ':' in name:
-                raise NotAllowedError('Cannot have a ":" in a cascade name')
-
-            if ',' in name:
-                raise NotAllowedError('Cannot have a "," in a cascade name')
+            if name in FS.RESERVED_KEYWORDS:
+                raise NotAllowedError('Requested cascade name "%s" is a reserved keyword' % name)
 
             assert name not in code_names, 'Cascade "%s" cannot have the same name as a compartment, characteristic, or parameter' % (name)
             assert name not in display_names, 'Cascade "%s" cannot have the same display name as a compartment, characteristic, or parameter' % (name)
 
             for stage_name in self.cascades[name].iloc[:,0]:
-                if ':' in stage_name:
-                    raise NotAllowedError('Error in Cascade "%s": Cannot have a ":" in a cascade stage name (name was "%s")' % (name,stage_name))
 
-                if ',' in stage_name:
-                    raise NotAllowedError('Error in Cascade "%s": Cannot have a "," in a cascade stage name (name was "%s")' % (name,stage_name))
+                if stage_name in FS.RESERVED_KEYWORDS:
+                    raise NotAllowedError('Requested cascade stage name "%s" is a reserved keyword' % stage_name)
 
         # Check that all cascade constituents match a characteristic or compartment
         for df in self.cascades.values():

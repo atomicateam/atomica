@@ -26,7 +26,7 @@ Last update: 2018-09-06
           <thead>
           <tr>
             <th>Name</th>
-            <th>Status</th>            
+            <th>Status</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -38,28 +38,28 @@ Last update: 2018-09-06
             <td>
               {{ statusFormatStr(optimSummary) }}
               {{ timeFormatStr(optimSummary) }}
-            </td>            
+            </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>              
+              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
 <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
-              <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
         </table>
 
         <div>
-          <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" :disabled="!optimsLoaded" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
 
-      <!-- ### Start: results card ### -->
-      <div class="card full-width-card">
+    <!-- START RESULTS CARD -->
+    <div class="card full-width-card" v-if="hasGraphs">
         <!-- ### Start: plot controls ### -->
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
@@ -144,7 +144,7 @@ Last update: 2018-09-06
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="900"
+             :width="'60%'"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -177,10 +177,10 @@ Last update: 2018-09-06
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            <!--Budget factor:<br>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="modalOptim.budget_factor"/><br>-->
+            Budget factor:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.budget_factor"/><br>
             <br>
             <b>Objective weights</b><br>
             <span v-for="(val,key) in modalOptim.objective_labels">
@@ -239,22 +239,14 @@ Last update: 2018-09-06
   var filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-  import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'OptimizationPage',
-
-    components: {
-      help
-    },
+    name: 'OptimizationsPage',
 
     data() {
       return {
-        response: 'no response',
         optimSummaries: [],
         defaultOptim: {},
         modalOptim: {},
@@ -277,6 +269,7 @@ Last update: 2018-09-06
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         figscale: 1.0,
+        hasGraphs: false,
       }
     },
 
@@ -291,10 +284,10 @@ Last update: 2018-09-06
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) &&
+      else if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called') 
         this.startYear = this.simStart
@@ -337,45 +330,38 @@ Last update: 2018-09-06
 //      getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(serverDatastoreId) 
                                 { return utils.exportResults(this, serverDatastoreId) },
-                                
-      statusFormatStr(optimSummary) {
-        if (optimSummary.status == 'not started') {
-          return ''
+
+      scaleFigs(frac) {
+        this.figscale = this.figscale*frac;
+        if (frac === 1.0) {
+          frac = 1.0/this.figscale
+          this.figscale = 1.0
         }
-        else if (optimSummary.status == 'queued') {
-          return 'Initializing... ' // + this.timeFormatStr(optimSummary.pendingTime)
-        }
-        else if (optimSummary.status == 'started') {
-          return 'Running for ' // + this.timeFormatStr(optimSummary.executionTime)
-        }
-        else if (optimSummary.status == 'completed') {
-          return 'Completed after  ' // + this.timeFormatStr(optimSummary.executionTime)
-        }        
-        else {
-          return ''
-        }
+        return utils.scaleFigs(frac)
       },
-      
+
+      statusFormatStr(optimSummary) {
+        if      (optimSummary.status === 'not started') {return ''}
+        else if (optimSummary.status === 'queued')      {return 'Initializing... '} // + this.timeFormatStr(optimSummary.pendingTime)
+        else if (optimSummary.status === 'started')     {return 'Running for '} // + this.timeFormatStr(optimSummary.executionTime)
+        else if (optimSummary.status === 'completed')   {return 'Completed after '} // + this.timeFormatStr(optimSummary.executionTime)
+        else                                            {return ''}
+      },
+
       timeFormatStr(optimSummary) {
         let rawValue = ''
-        if (optimSummary.status == 'queued') {
-          rawValue = optimSummary.pendingTime
-        }  
-        else if ((optimSummary.status == 'started') || (optimSummary.status == 'completed')) {
-          rawValue = optimSummary.executionTime
-        }
-        else {
-          return ''
-        }
+        let is_queued = (optimSummary.status === 'queued')
+        let is_executing = ((optimSummary.status === 'started') || (optimSummary.status === 'completed'))
+        if      (is_queued)    {rawValue = optimSummary.pendingTime}
+        else if (is_executing) {rawValue = optimSummary.executionTime}
+        else                   {return ''}
 
-        if (rawValue == '--') {
+        if (rawValue === '--') {
           return '--'
-        }
-        else {
+        } else {
           let numSecs = Number(rawValue).toFixed()
           let numHours = Math.floor(numSecs / 3600)
           numSecs -= numHours * 3600
@@ -385,15 +371,7 @@ Last update: 2018-09-06
           return output
         }
       },
-      
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
-      },
+
       
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
@@ -411,21 +389,30 @@ Last update: 2018-09-06
       },
       
       canRunTask(optimSummary) {
-        return ((optimSummary.status == 'not started') || (optimSummary.status == 'completed'))
+        console.log('canRunTask() called for with: ' + optimSummary.status)
+        return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed'))
       },
-      
+
       canCancelTask(optimSummary) {
-        let output = (optimSummary.status != 'not started')
-        return output
+        console.log('canCancelTask() called for with: ' + optimSummary.status)
+        return (optimSummary.status !== 'not started')
       },
-      
+
       canPlotResults(optimSummary) {
-        return (optimSummary.status == 'completed')
-      }, 
+        console.log('canPlotResults() called for with: ' + optimSummary.status)
+        return (optimSummary.status === 'completed')
+      },
+
+      needToPoll(optimSummary) {
+        let routePath = (this.$route.path === '/optimizations')
+        let optimState = true; // ((optimSummary.status === 'queued') || (optimSummary.status === 'started')) // CK: this needs to be given a delay to work
+        return (routePath && optimState)
+      },
 
       getOptimTaskState(optimSummary) {
-        var statusStr = ''
-        
+        console.log('getOptimTaskState() called for with: ' + optimSummary.status)
+        let statusStr = '';
+
         // Check the status of the task.
         rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
         .then(result => {
@@ -440,43 +427,32 @@ Last update: 2018-09-06
           optimSummary.executionTime = '--'
         })
       },
-      
+
       pollAllTaskStates() {
-        console.log('Do a task poll...')
-        // For each of the optimization summaries...
-        this.optimSummaries.forEach(optimSum => {
-          // If there is a valid task launched, check it.
-          if ((optimSum.status != 'not started') && (optimSum.status != 'completed')) {
+        console.log('Do a task poll...');
+        this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
+          if ((optimSum.status !== 'not started') && (optimSum.status !== 'completed')) { // If there is a valid task launched, check it.
             this.getOptimTaskState(optimSum)
           }
-        }) 
-               
-        // Hack to get the Vue display of optimSummaries to update
-        this.optimSummaries.push(this.optimSummaries[0])
-        this.optimSummaries.pop()
-        
-        // Sleep waitingtime seconds.
-        var waitingtime = 2
+        });
+        this.optimSummaries.push(this.optimSummaries[0]); // Hack to get the Vue display of optimSummaries to update
+        this.optimSummaries.pop();
+        let waitingtime = 1 // Sleep waitingtime seconds
         utils.sleep(waitingtime * 1000)
-        .then(response => {
-          // Only if we are still in the optimizations page, call ourselves.
-          if (this.$route.path == '/optimizations') {
-            this.pollAllTaskStates()
-          }
-        }) 
+          .then(response => {
+            if (this.needToPoll()) { // Only if we are still in the optimizations page, call ourselves.
+              this.pollAllTaskStates()
+            }
+          })
       },
-      
+
       clearTask(optimSummary) {
         let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
         console.log('clearTask() called for '+this.currentOptim)
-        
         rpcs.rpc('delete_task', [optimSummary.serverDatastoreId])
         .then(response => {
-          // Get the task state for the optimization.
-          this.getOptimTaskState(optimSummary)  
-
-          // Delete cached result.
-          rpcs.rpc('delete_results_cache_entry', [datastoreId])          
+          this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+          rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.      
         })
       },
       
@@ -541,9 +517,7 @@ Last update: 2018-09-06
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
         status.start(this)
-        
-        // Get the current project's optimization summaries from the server.
-        rpcs.rpc('get_optim_info', [this.projectID])
+        rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
           
@@ -561,16 +535,11 @@ Last update: 2018-09-06
             // Get the task state for the optimization.
             this.getOptimTaskState(optimSum)
           })
-          
-          // Start polling of tasks states.
-          this.pollAllTaskStates()
-          
-          // Indicate success.
+          this.pollAllTaskStates() // Start polling of tasks states.
           status.succeed(this, 'Optimizations loaded')
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not load optimizations')
+          status.fail(this, 'Could not load optimizations: ' + error.message)
         })
       },
 
@@ -582,7 +551,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Optimizations saved')
           })
           .catch(error => {
-            status.fail(this, 'Could not save optimizations')
+            status.fail(this, 'Could not save optimizations: ' + error.message)
           })
       },
 
@@ -615,8 +584,7 @@ Last update: 2018-09-06
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
             if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              // Clear the present task.
-              if (newOptim.status != 'not started') {
+              if (newOptim.status != 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
               }
 
@@ -671,13 +639,13 @@ Last update: 2018-09-06
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
         status.start(this)
-        var newOptim = _.cloneDeep(optimSummary); // You've got to be kidding me, buster
+        var newOptim = _.cloneDeep(optimSummary)
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
         })
         newOptim.name = utils.getUniqueName(newOptim.name, otherNames)
-        newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name        
+        newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
         this.optimSummaries.push(newOptim)
         this.getOptimTaskState(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -694,7 +662,7 @@ Last update: 2018-09-06
         status.start(this)
         if (optimSummary.status != 'not started') {
           this.clearTask(optimSummary)  // Clear the task from the server.
-        }      
+        }
         for(var i = 0; i< this.optimSummaries.length; i++) {
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
@@ -705,14 +673,14 @@ Last update: 2018-09-06
           status.succeed(this, 'Optimization deleted')
         })
         .catch(error => {
-          status.fail(this, 'Could not delete optimization')
+          status.fail(this, 'Could not delete optimization: ' + error.message)
         })
       },
 
       toggleShowingPlotControls() {
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
-
+      
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
@@ -745,18 +713,12 @@ Last update: 2018-09-06
             })            
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            console.log(this.serverresponse)
-            this.servererror = error.message // Set the server error.
-             
-            // Indicate failure.
             status.fail(this, 'Could not start optimization: ' + error.message)
-          })          
+          })        
         })
         .catch(error => {
-          console.log('There was an error: ' + error.message)
-          status.fail(this, 'Could not set optimization info: ' + error.message)
-        })
+          status.fail(this, 'Could not start optimization: ' + error.message)
+        })        
       },
       
       plotOptimization(optimSummary) {
@@ -796,7 +758,7 @@ Last update: 2018-09-06
           // Plot the desired graph.
           this.plotOptimization(this.optimSummaries[index])
         }
-      }      
+      }
     }
   }
 </script>
@@ -804,5 +766,4 @@ Last update: 2018-09-06
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-
 </style>

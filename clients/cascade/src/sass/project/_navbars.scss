@@ -87,8 +87,8 @@
       margin-left: 1rem;
       margin-right: 1rem;
       background: transparent;
-      color: #144e6b;
-      border: 1px solid $cascade-blue; // #144e6b;
+      color: $main-dark;
+      border: 1px solid $main-dark;
     }
 
     &.navbar-right > li {
@@ -97,7 +97,7 @@
       > .nav-link,
       > a > p,
       > .nav-link > p {
-        font-size: 1.3rem;
+        font-size: 1.6rem;
       }
     }
 
@@ -107,8 +107,9 @@
     > .active > a:not(.btn):focus,
     > li > a:not(.btn):hover,
     > li > a:not(.btn):focus {
-      background: $cascade-blue;//#144e6b;
+      background: $main-color;
       color: white;
+      border: 1px solid $main-color;
       @include opacity(1);
     }
 

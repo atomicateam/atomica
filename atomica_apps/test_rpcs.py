@@ -23,6 +23,15 @@ def demoproj(which=None):
     P = au.demo(which=which)
     return P
 
+T = sc.tic()
+
+def heading(string, style=None):
+    divider = '#'*60
+    sc.blank()
+    if style == 'big': string = '\n'.join([divider, string, divider])
+    sc.colorize('blue', string)
+    return None
+
 
 if 'get_cascade_plot' in torun:
     if proj is None: proj = demoproj('hypertension')
@@ -77,4 +86,6 @@ if 'run_tb_optimization' in torun:
     print('Output:')
     print(output)
     
+
+sc.toc(T)
 print('Done.')

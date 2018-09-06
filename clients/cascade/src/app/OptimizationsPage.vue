@@ -1,7 +1,7 @@
 <!--
-Optimizations Page
+Optimizations page
 
-Last update: 2018-09-05
+Last update: 2018-09-06
 -->
 
 <template>
@@ -42,24 +42,23 @@ Last update: 2018-09-05
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
-<!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
-              <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
         </table>
 
         <div>
-          <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" :disabled="!optimsLoaded" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
 
-      <!-- ### Start: results card ### -->
-    <div class="card full-width-card">
+    <!-- START RESULTS CARD -->
+    <div class="card full-width-card" v-if="hasGraphs">
       <div class="calib-title">
         <help reflink="results-plots" label="Results"></help>
         <div>
@@ -100,7 +99,7 @@ Last update: 2018-09-05
         </div>
       </div>
 
-      <div class="calib-tables" v-if="table">
+      <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
         <h4>Cascade stage losses</h4>
         <table class="table table-striped">
           <thead>
@@ -123,7 +122,7 @@ Last update: 2018-09-05
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="900"
+             :width="'60%'"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -156,10 +155,10 @@ Last update: 2018-09-05
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            <!--Budget factor:<br>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="modalOptim.budget_factor"/><br>-->
+            Budget factor:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.budget_factor"/><br>
             <br>
             <b>Objective weights</b><br>
             <span v-for="(val,key) in modalOptim.objective_labels">
@@ -218,22 +217,14 @@ Last update: 2018-09-05
   var filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-  import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'OptimizationPage',
-
-    components: {
-      help
-    },
+    name: 'OptimizationsPage',
 
     data() {
       return {
-        response: 'no response',
         optimSummaries: [],
         defaultOptim: {},
         modalOptim: {},
@@ -256,6 +247,7 @@ Last update: 2018-09-05
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         figscale: 1.0,
+        hasGraphs: false,
       }
     },
 
@@ -270,11 +262,12 @@ Last update: 2018-09-05
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) &&
+      else if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
+        console.log('created() called')
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
@@ -295,7 +288,6 @@ Last update: 2018-09-05
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(serverDatastoreId) 
                                 { return utils.exportResults(this, serverDatastoreId) },
@@ -489,36 +481,21 @@ Last update: 2018-09-05
       getOptimSummaries() {
         console.log('getOptimSummaries() called')
         status.start(this)
-        
-        // Get the current project's optimization summaries from the server.
-        rpcs.rpc('get_optim_info', [this.projectID])
+        rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
-          
-          // For each of the optimization summaries...
-          this.optimSummaries.forEach(optimSum => {
-            // Build a task and results cache ID from the project's hex UID and the optimization name.
-            optimSum.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
-            
-            // Set the status to 'not started' by default, and the pending and execution 
-            // times to '--'.
-            optimSum.status = 'not started'
+          this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
+            optimSum.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
             optimSum.pendingTime = '--'
             optimSum.executionTime = '--'
-            
-            // Get the task state for the optimization.
-            this.getOptimTaskState(optimSum)
+            this.getOptimTaskState(optimSum) // Get the task state for the optimization.
           })
-          
-          // Start polling of tasks states.
-          this.pollAllTaskStates()
-          
-          // Indicate success.
+          this.pollAllTaskStates() // Start polling of tasks states.
           status.succeed(this, 'Optimizations loaded')
         })
         .catch(error => {
-          // Indicate failure.
-          status.fail(this, 'Could not load optimizations')
+          status.fail(this, 'Could not load optimizations: ' + error.message)
         })
       },
 
@@ -530,7 +507,7 @@ Last update: 2018-09-05
             status.succeed(this, 'Optimizations saved')
           })
           .catch(error => {
-            status.fail(this, 'Could not save optimizations')
+            status.fail(this, 'Could not save optimizations:'  + error.message)
           })
       },
 
@@ -559,12 +536,11 @@ Last update: 2018-09-05
         })
         if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
-          if (index > -1) {  // 
+          if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
             if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              // Clear the present task.
-              if (newOptim.status != 'not started') {
+              if (newOptim.status != 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
               }
 
@@ -653,55 +629,19 @@ Last update: 2018-09-05
           status.succeed(this, 'Optimization deleted')       
         })
         .catch(error => {
-          status.fail(this, 'Could not delete optimization')
+          status.fail(this, 'Could not delete optimization: ' + error.message)
         })
       },
 
       toggleShowingPlotControls() {
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
-
-/*      runOptim(optimSummary, maxtime) {
-        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this)
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => { // Go to the server to get the results
-            taskservice.getTaskResultPolling('run_cascade_optimization', 9999, 1, 'run_cascade_optimization',
-              [this.projectID, optimSummary.name], {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  // CASCADE-TB DIFFERENCE
-                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})
-              .then(response => {
-                this.makeGraphs(response.data.result.graphs)
-                this.table = response.data.result.table
-                status.succeed(this, 'Optimization complete')
-              })
-              .catch(error => {
-                console.log('There was an error: ' + error.message) // Pull out the error message.
-                status.fail(this, 'Could not run optimization: ' + error.message)
-              })
-          })
-          .catch(error => {
-            console.log('There was an error: ' + error.message)
-            status.fail(this, 'Could not set optimization info: ' + error.message)
-          })
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          console.log(this.serverresponse)
-          this.servererror = error.message // Set the server error.
-           
-          // Indicate failure.
-          status.fail(this, 'Could not make graphs: ' + error.message)
-        })        
-      }, */
       
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
-        // Start indicating progress.
         status.start(this)       
-        // Make sure they're saved first
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
         .then(response => {
           rpcs.rpc('make_results_cache_entry', [optimSummary.server_datastore_id])
           .then(response => {           
@@ -760,9 +700,7 @@ Last update: 2018-09-05
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.        
-            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
           })
       },
       

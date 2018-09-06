@@ -134,7 +134,7 @@ def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominato
     for i in range(0,len(eval_years)):
         outcomes = progset.get_outcomes({prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
         for key in target_vals: # Key is a (par,pop) tuple
-            obj += (target_vals[key][i] - outcomes[key][0]) ** 2  # Add squared difference in parameter value
+            obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj
 
 def _convert_to_single_year(progset,reconciliation_year):
@@ -264,7 +264,7 @@ def reconcile(project,parset,progset,reconciliation_year,max_time=10,unit_cost_b
         old_outcomes = progset.get_outcomes({prog: cov[i] for prog, cov in old_coverage.items()})  # Program outcomes for this year
         new_outcomes = new_progset.get_outcomes({prog: cov[i] for prog, cov in new_coverage.items()})  # Program outcomes for this year
         for (par, pop), target in target_vals.items():
-            records.append((par,pop,year,target[0],old_outcomes[(par,pop)][0],new_outcomes[(par,pop)][0]))
+            records.append((par,pop,year,target[0],old_outcomes[(par,pop)],new_outcomes[(par,pop)]))
     parameter_comparison = pd.DataFrame.from_records(records,columns=['Parameter','Population','Year','Target','Before reconciliation','After reconciliation'])
     parameter_comparison['Difference'] = parameter_comparison['Before reconciliation'] - parameter_comparison['After reconciliation']
 
