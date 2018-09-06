@@ -1472,6 +1472,8 @@ def get_json_cascade(results,data):
 
 @RPC()  
 def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, plotyear=None, pops=None, tool=None, cascade=None, dosave=True):
+    print('>> DEBUGGING STUFF:')
+    print(plot_options)
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)

@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-09-04
+Last update: 2018-09-05
 -->
 
 <template>
@@ -439,7 +439,7 @@ Last update: 2018-09-04
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
 //            status.succeed(this, 'Simulation run') // Indicate success.
