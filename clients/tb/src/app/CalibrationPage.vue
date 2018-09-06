@@ -334,14 +334,16 @@ Last update: 2018-09-06
       getPlotOptions() {
         return new Promise((resolve, reject) => {
           console.log('getPlotOptions() called')
+          status.start(this) // Start indicating progress.
           let project_id = this.projectID
           rpcs.rpc('get_supported_plots', [project_id, true])
           .then(response => {
             this.plotOptions = response.data // Get the parameter values
+            status.succeed(this, '')
             resolve(response)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get plot options: ' + error.message)
+            status.fail(this, 'Could not get plot options: ' + error.message)
             reject(error)
           })          
         })
@@ -433,13 +435,16 @@ Last update: 2018-09-06
       viewTable() {
         return new Promise((resolve, reject) => {
           console.log('viewTable() called')
+          // TODO: Get spinners working right for this leg of initialization.
+//          status.start(this)
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
           .then(response => {
             this.parList = response.data // Get the parameter values
+//            status.succeed(this, '')  // No green notification.
             resolve(response)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load parameters: ' + error.message)
+//            status.fail(this, 'Could not load parameters: ' + error.message)
             reject(error)
           })          
         })
