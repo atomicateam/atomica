@@ -99,7 +99,7 @@ Last update: 2018-09-06
         </div>
       </div>
 
-      <div class="calib-tables" v-if="table">
+      <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
         <h4>Cascade stage losses</h4>
         <table class="table table-striped">
           <thead>
@@ -155,10 +155,10 @@ Last update: 2018-09-06
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            <!--Budget factor:<br>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="modalOptim.budget_factor"/><br>-->
+            Budget factor:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.budget_factor"/><br>
             <br>
             <b>Objective weights</b><br>
             <span v-for="(val,key) in modalOptim.objective_labels">
@@ -247,6 +247,7 @@ Last update: 2018-09-06
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         figscale: 1.0,
+        hasGraphs: false,
       }
     },
 

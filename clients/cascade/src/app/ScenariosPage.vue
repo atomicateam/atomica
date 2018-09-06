@@ -147,14 +147,7 @@ Last update: 2018-09-06
               {{ parset }}
             </option>
           </select><br><br>
-          <!-- CASCADE-TB DIFFERENCE
-                    Program set:<br>
-                    <select v-model="progsetOptions[0]">
-                      <option v-for='progset in progsetOptions'>
-                        {{ progset }}
-                      </option>
-                    </select><br><br>
-          -->
+
           Budget year:<br>
           <input type="text"
                  class="txbox"

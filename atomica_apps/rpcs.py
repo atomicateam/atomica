@@ -1587,9 +1587,9 @@ def js_to_py_optim(js_optim):
     
 
 @RPC()    
-def get_optim_info(project_id):
+def get_optim_info(project_id, online=True):
     print('Getting optimization info...')
-    proj = load_project(project_id, raise_exception=True)
+    proj = load_project(project_id, raise_exception=True, online=online)
     optim_summaries = []
     for py_optim in proj.optims.values():
         js_optim = py_to_js_optim(py_optim, project=proj)
@@ -1600,9 +1600,9 @@ def get_optim_info(project_id):
 
 
 @RPC()
-def get_default_optim(project_id, tool=None):
+def get_default_optim(project_id, tool=None, online=True):
     print('Getting default optimization...')
-    proj = load_project(project_id, raise_exception=True)
+    proj = load_project(project_id, raise_exception=True, online=online)
     py_optim = proj.demo_optimization(tool=tool)
     js_optim = py_to_js_optim(py_optim, project=proj)
     print('Created default optimization:')
@@ -1611,7 +1611,7 @@ def get_default_optim(project_id, tool=None):
 
 
 @RPC()    
-def set_optim_info(project_id, optim_summaries):
+def set_optim_info(project_id, optim_summaries, online=True):
     print('Setting optimization info...')
     proj = load_project(project_id, raise_exception=True, online=online)
     proj.optims.clear()
