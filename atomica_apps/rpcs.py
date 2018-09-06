@@ -1316,14 +1316,16 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
     if sc.isstring(year):
         year = float(year)
+    if pops.lower() == 'all':
+        pops = None  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
     else: # For Optima TB
-        output,allfigs = get_plots(proj, results, plot_options=plot_options)
+        output,allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options)
         if calibration:
-            unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=None, plot_options=plot_options, stacked=False, calibration=True)
+            unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
             output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']
             allfigs = cascadefigs + [x for t in zip(allfigs, unstackedfigs) for x in t]
@@ -1469,7 +1471,7 @@ def get_json_cascade(results,data):
 
 
 @RPC()  
-def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, start_year=None, end_year=None, pops=None, tool=None, cascade=None, dosave=True):
+def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, plotyear=None, pops=None, tool=None, cascade=None, dosave=True):
     print('Setting y factors for parset %s...' % parsetname)
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
@@ -1496,21 +1498,9 @@ def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot
     proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
-#    store_result_separately(proj, result)
-    output = process_plots(proj, result, tool=tool, year=end_year, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
-    
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results=result, pops=pops, year=float(end_year),cascade=cascade)
-    if tool == 'cascade':
-        output = cascadeoutput
-        allfigs = cascadefigs
-    else:
-        output,stackedfigs = get_plots(proj, result, pops=None, plot_options=plot_options, stacked=True, calibration=True)
-        unstacked_output,unstackedfigs = get_plots(proj, result, pops=None, plot_options=plot_options, stacked=False, calibration=True) # Commands below will render unstacked plots with data, and will interleave them so they appear next to each other in the FE
-        output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-        output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-        allfigs = cascadefigs + [x for t in zip(stackedfigs, unstackedfigs) for x in t]
-    if dosave:
-        savefigs(allfigs)
+
+    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+
     return output
 
 
