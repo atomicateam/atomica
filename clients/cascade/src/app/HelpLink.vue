@@ -38,19 +38,19 @@ Last update: 2018-08-23
       return {
         baseURL: 'https://docs.google.com/document/d/1x4Kb3hyB8NwVziE95UhT6bXpO1uRDFxJlN8QxvrLgvg/edit#heading=', 
         linkMap: {
-          'create-frameworks': 'h.8xzemda17sn7'
-          'manage-frameworks': 'h.kjfpissnw4v8'
+          'create-frameworks': 'h.8xzemda17sn7',
+          'manage-frameworks': 'h.kjfpissnw4v8',
           'create-projects': 'h.wohgolfxe9ko', 
-          'manage-projects': 'h.fcnvzbrouon2'
-          'bl-overview': 'h.e5er3h94vkjk'
-          'parameter-sets': 'h.ofwmxbimr7i'
-          'automatic-calibration': 'h.81g1j4y0hcp1'
-          'manual-calibration': 'h.da77fbanyz1n'
-          'reconciliation': 'h.ojtskhsm6lx9'
-          'bl-results': 'h.f2xv432x5yv'
-          'define-scenarios': 'h.6u9a8cixezwv'
-          'sc-results': 'h.syuxr0k2n3yy'
-          'define-optimizations': 'h.9g4agtbijsjq'
+          'manage-projects': 'h.fcnvzbrouon2',
+          'bl-overview': 'h.e5er3h94vkjk',
+          'parameter-sets': 'h.ofwmxbimr7i',
+          'automatic-calibration': 'h.81g1j4y0hcp1',
+          'manual-calibration': 'h.da77fbanyz1n',
+          'reconciliation': 'h.ojtskhsm6lx9',
+          'bl-results': 'h.f2xv432x5yv',
+          'define-scenarios': 'h.6u9a8cixezwv',
+          'sc-results': 'h.syuxr0k2n3yy',
+          'define-optimizations': 'h.9g4agtbijsjq',
           'op-results': 'h.n581zreqeowi'
         }
       }
