@@ -27,7 +27,6 @@ $table-bg-active:                    $table-bg-hover;
     }
   }
   > thead > tr > th {
-    border-bottom-width: 0;
     font-size: 1.5rem;
     font-weight: bold; // $font-weight-light;
     background-color: $main-dark;
@@ -153,11 +152,12 @@ $table-bg-active:                    $table-bg-hover;
       background-color: $table-bg-accent;
     }
   }
-  //tr.highlighted {
-  //  > td {
-  //    background-color: #80ffaa !important;
-  //  }
-  //}
+
+  tr.highlighted {
+    > td {
+      background-color: #80ffaa !important;
+    }
+  }
 }
 
 // Hover effect

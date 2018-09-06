@@ -87,8 +87,8 @@
       margin-left: 1rem;
       margin-right: 1rem;
       background: transparent;
-      color: #144e6b;
-      border: 1px solid $main-color;
+      color: $main-dark;
+      border: 1px solid $main-dark;
     }
 
     &.navbar-right > li {
@@ -97,7 +97,7 @@
       > .nav-link,
       > a > p,
       > .nav-link > p {
-        font-size: 1.3rem;
+        font-size: 1.6rem;
       }
     }
 
@@ -109,6 +109,7 @@
     > li > a:not(.btn):focus {
       background: $main-color;
       color: white;
+      border: 1px solid $main-color;
       @include opacity(1);
     }
 

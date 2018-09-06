@@ -14,8 +14,8 @@ $disabled-color: #FFF;
   text-decoration: none;
   user-select: none;
 
-  background: $cascade-blue; // #00aeef;
-  border-color: $cascade-blue; // #01A1DD;
+  background: $main-color; // #00aeef;
+  border-color: $main-color; // #01A1DD;
   color: #FFF;
 
   &:focus {
@@ -305,3 +305,16 @@ $disabled-color: #FFF;
   border-width: 0;
   font-size: 16px;
 }
+
+.sheetbtn {
+  font-size: 16px;
+  border: 1px solid $main-color;
+}
+
+.deselected {
+  background: transparent;
+  color: $main-dark;
+  border: 1px solid $main-dark;
+}
+
+
