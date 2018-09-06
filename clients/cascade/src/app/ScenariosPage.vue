@@ -128,7 +128,7 @@ Last update: 2018-09-06
     <modal name="add-budget-scen"
            height="auto"
            :scrollable="true"
-           :width="'60%'"
+           :width="500"
            :classes="['v--modal', 'vue-dialog']"
            :pivot-y="0.3"
            :adaptive="true"
@@ -143,18 +143,18 @@ Last update: 2018-09-06
           Edit scenario
         </div>
         <div class="dialog-c-text">
-          Scenario name:<br>
+          <b>Scenario name</b><br>
           <input type="text"
                  class="txbox"
                  v-model="addEditModal.scenSummary.name"/><br>
-          Parameter set:<br>
+          <b>Parameter set</b><br>
           <select v-model="parsetOptions[0]">
             <option v-for='parset in parsetOptions'>
               {{ parset }}
             </option>
           </select><br><br>
 
-          Budget year:<br>
+          <b>Budget year</b><br>
           <input type="text"
                  class="txbox"
                  v-model="addEditModal.scenSummary.start_year"/><br>
