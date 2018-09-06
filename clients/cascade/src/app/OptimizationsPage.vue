@@ -169,13 +169,26 @@ Last update: 2018-09-06
             </div>
             <br>
             <b>Objective weights</b><br>
-            <span v-for="(val,key) in modalOptim.objective_labels">
-              {{ modalOptim.objective_labels[key] }}
-              <input type="text"
-                     class="txbox"
-                     v-model="modalOptim.objective_weights[key]"/><br>
-            </span>
-            <br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Objective</th>
+                <th>Weight</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(val,key) in modalOptim.objective_labels">
+                <td>
+                  {{ modalOptim.objective_labels[key] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="modalOptim.objective_weights[key]"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>

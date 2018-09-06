@@ -48,7 +48,7 @@ Last update: 2018-09-05
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
-<!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
+              <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
@@ -64,14 +64,14 @@ Last update: 2018-09-05
         </div>
       </div>
 
-    <!-- START RESULTS CARD -->
-    <div class="card full-width-card" v-if="hasGraphs">
+      <!-- START RESULTS CARD -->
+      <div class="card full-width-card" v-if="hasGraphs">
         <!-- ### Start: plot controls ### -->
         <div class="calib-title">
           <help reflink="results-plots" label="Results"></help>
           <div>
             <b>{{ displayResultName }}</b>
-            &nbsp; &nbsp; &nbsp;          
+            &nbsp; &nbsp; &nbsp;
             <b>Year: &nbsp;</b>
             <select v-model="endYear" @change="updateYearOrPopulation">
               <option v-for='year in simYears'>
@@ -85,7 +85,7 @@ Last update: 2018-09-05
                 {{ pop }}
               </option>
             </select>
-<!-- CASCADE-TB DIFFERENCE -->
+            <!-- CASCADE-TB DIFFERENCE -->
             &nbsp;&nbsp;&nbsp;
             <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
             <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
@@ -150,7 +150,7 @@ Last update: 2018-09-05
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="'60%'"
+             :width="800"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -165,37 +165,52 @@ Last update: 2018-09-05
             Edit optimization
           </div>
           <div class="dialog-c-text">
-            Optimization name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.name"/><br>
-            Parameter set:<br>
-            <select v-model="parsetOptions[0]">
-              <option v-for='parset in parsetOptions'>
-                {{ parset }}
-              </option>
-            </select><br><br>
-            Start year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.start_year"/><br>
-            End year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.budget_factor"/><br>
-            <br>
-            <b>Objective weights</b><br>
-            <span v-for="(val,key) in modalOptim.objective_labels">
-              {{ modalOptim.objective_labels[key] }}
+            <div style="display:inline-block">
+              <b>Optimization name</b><br>
               <input type="text"
                      class="txbox"
-                     v-model="modalOptim.objective_weights[key]"/><br>
-            </span>
+                     v-model="modalOptim.name"/><br>
+              <b>Parameter set</b><br>
+              <select v-model="parsetOptions[0]">
+                <option v-for='parset in parsetOptions'>
+                  {{ parset }}
+                </option>
+              </select><br><br>
+              <b>Start year</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.start_year"/><br>
+              <b>End year</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.end_year"/><br>
+              <b>Budget factor</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.budget_factor"/><br>
+            </div>
             <br>
+            <b>Objective weights</b><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Objective</th>
+                <th>Weight</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(val,key) in modalOptim.objective_labels">
+                <td>
+                  {{ modalOptim.objective_labels[key] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="modalOptim.objective_weights[key]"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
@@ -265,7 +280,7 @@ Last update: 2018-09-05
         newProgsetName: [],
         displayResultName: '',
         startYear: 0,
-        endYear: 0,         
+        endYear: 0,
         graphData: [],
         areShowingPlotControls: false,
         plotOptions: [],
@@ -295,21 +310,21 @@ Last update: 2018-09-05
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project !== undefined) &&
-               (this.$store.state.activeProject.project.hasData) &&
-               (this.$store.state.activeProject.project.hasPrograms)) {
+        (this.$store.state.activeProject.project.hasData) &&
+        (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         utils.sleep(1)  // used so that spinners will come up by callback func
-        .then(response => {
-          // Load the optimization summaries of the current project.
-          this.startYear = this.simStart
-          this.endYear = this.simEnd
-          this.popOptions = this.activePops
-          this.getOptimSummaries()
-          this.getDefaultOptim()
-          this.updateSets()
-          this.getPlotOptions()
-          this.resetModal()          
-        })       
+          .then(response => {
+            // Load the optimization summaries of the current project.
+            this.startYear = this.simStart
+            this.endYear = this.simEnd
+            this.popOptions = this.activePops
+            this.getOptimSummaries()
+            this.getDefaultOptim()
+            this.updateSets()
+            this.getPlotOptions()
+            this.resetModal()
+          })
       }
     },
 
@@ -319,8 +334,8 @@ Last update: 2018-09-05
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(serverDatastoreId) 
-                                { return utils.exportResults(this, serverDatastoreId) },
+      exportResults(serverDatastoreId)
+      { return utils.exportResults(this, serverDatastoreId) },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -360,14 +375,14 @@ Last update: 2018-09-05
         }
       },
 
-      
+
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
           this.startYear = this.simEnd
         }
         else if (this.startYear < this.simStart) {
           this.startYear = this.simStart
-        }       
+        }
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -375,7 +390,7 @@ Last update: 2018-09-05
           this.endYear = this.simStart
         }
       },
-      
+
       canRunTask(optimSummary) {
         console.log('canRunTask() called for with: ' + optimSummary.status)
         return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed'))
@@ -403,17 +418,17 @@ Last update: 2018-09-05
 
         // Check the status of the task.
         rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
-        .then(result => {
-          statusStr = result.data.task.status
-          optimSummary.status = statusStr
-          optimSummary.pendingTime = result.data.pendingTime
-          optimSummary.executionTime = result.data.executionTime          
-        })
-        .catch(error => {
-          optimSummary.status = 'not started'
-          optimSummary.pendingTime = '--'
-          optimSummary.executionTime = '--'
-        })
+          .then(result => {
+            statusStr = result.data.task.status
+            optimSummary.status = statusStr
+            optimSummary.pendingTime = result.data.pendingTime
+            optimSummary.executionTime = result.data.executionTime
+          })
+          .catch(error => {
+            optimSummary.status = 'not started'
+            optimSummary.pendingTime = '--'
+            optimSummary.executionTime = '--'
+          })
       },
 
       pollAllTaskStates() {
@@ -438,12 +453,12 @@ Last update: 2018-09-05
         let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
         console.log('clearTask() called for '+this.currentOptim)
         rpcs.rpc('delete_task', [optimSummary.serverDatastoreId])
-        .then(response => {
-          this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
-          rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.      
-        })
+          .then(response => {
+            this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+            rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
+          })
       },
-      
+
       updateSets() {
         console.log('updateSets() called')
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
@@ -497,29 +512,29 @@ Last update: 2018-09-05
         console.log('getOptimSummaries() called')
         status.start(this)
         rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
-        .then(response => {
-          this.optimSummaries = response.data // Set the optimizations to what we received.
-          
-          // For each of the optimization summaries...
-          this.optimSummaries.forEach(optimSum => {
-            // Build a task and results cache ID from the project's hex UID and the optimization name.
-            optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
-            
-            // Set the status to 'not started' by default, and the pending and execution 
-            // times to '--'.
-            optimSum.status = 'not started'
-            optimSum.pendingTime = '--'
-            optimSum.executionTime = '--'
-            
-            // Get the task state for the optimization.
-            this.getOptimTaskState(optimSum)
+          .then(response => {
+            this.optimSummaries = response.data // Set the optimizations to what we received.
+
+            // For each of the optimization summaries...
+            this.optimSummaries.forEach(optimSum => {
+              // Build a task and results cache ID from the project's hex UID and the optimization name.
+              optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
+
+              // Set the status to 'not started' by default, and the pending and execution
+              // times to '--'.
+              optimSum.status = 'not started'
+              optimSum.pendingTime = '--'
+              optimSum.executionTime = '--'
+
+              // Get the task state for the optimization.
+              this.getOptimTaskState(optimSum)
+            })
+            this.pollAllTaskStates() // Start polling of tasks states.
+            status.succeed(this, 'Optimizations loaded')
           })
-          this.pollAllTaskStates() // Start polling of tasks states.
-          status.succeed(this, 'Optimizations loaded')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not load optimizations: ' + error.message)
-        })
+          .catch(error => {
+            status.fail(this, 'Could not load optimizations: ' + error.message)
+          })
       },
 
       setOptimSummaries() {
@@ -569,9 +584,9 @@ Last update: 2018-09-05
 
               // Set a new server DataStore ID.
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
-              
+
               this.getOptimTaskState(newOptim)
-            }              
+            }
           }
           else {
             status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')
@@ -648,18 +663,18 @@ Last update: 2018-09-05
           }
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-        .then(response => {
-          status.succeed(this, 'Optimization deleted')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not delete optimization: ' + error.message)
-        })
+          .then(response => {
+            status.succeed(this, 'Optimization deleted')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not delete optimization: ' + error.message)
+          })
       },
 
       toggleShowingPlotControls() {
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
-      
+
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
@@ -667,39 +682,39 @@ Last update: 2018-09-05
         status.start(this)
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-        .then(response => { // Go to the server to get the results
-          rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
-          .then(response => {  
-            rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization', 
-              [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
-              // CASCADE-TB DIFFERENCE
-              'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
-            .then(response => {
-              // Get the task state for the optimization.
-              this.getOptimTaskState(optimSummary)
-              
-              // Indicate success.
-              status.succeed(this, 'Started optimization')
-            })
-            .catch(error => {
-              this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-              console.log(this.serverresponse)
-              this.servererror = error.message // Set the server error.
-               
-              // Indicate failure.
-              status.fail(this, 'Could not start optimization: ' + error.message)
-            })            
+          .then(response => { // Go to the server to get the results
+            rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
+              .then(response => {
+                rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization',
+                  [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
+                  {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',
+                    // CASCADE-TB DIFFERENCE
+                    'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
+                  .then(response => {
+                    // Get the task state for the optimization.
+                    this.getOptimTaskState(optimSummary)
+
+                    // Indicate success.
+                    status.succeed(this, 'Started optimization')
+                  })
+                  .catch(error => {
+                    this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+                    console.log(this.serverresponse)
+                    this.servererror = error.message // Set the server error.
+
+                    // Indicate failure.
+                    status.fail(this, 'Could not start optimization: ' + error.message)
+                  })
+              })
+              .catch(error => {
+                status.fail(this, 'Could not start optimization: ' + error.message)
+              })
           })
           .catch(error => {
             status.fail(this, 'Could not start optimization: ' + error.message)
-          })        
-        })
-        .catch(error => {
-          status.fail(this, 'Could not start optimization: ' + error.message)
-        })        
+          })
       },
-      
+
       plotOptimization(optimSummary) {
         console.log('plotOptimization() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
@@ -708,28 +723,28 @@ Last update: 2018-09-05
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.serverDatastoreId, this.plotOptions],
           {tool:'tb', plotyear:this.endYear, pops:this.activePop, plotbudget:true}) // CASCADE-TB DIFFERENCE
-        .then(response => {
-          this.makeGraphs(response.data.graphs)
-          this.table = response.data.table
-          this.displayResultName = optimSummary.name
-          status.succeed(this, 'Graphs created')
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
-        })
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+            this.table = response.data.table
+            this.displayResultName = optimSummary.name
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.servererror = error.message // Set the server error.
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          })
       },
-      
+
       updateYearOrPopulation() {
         // Get the list of all of the current optimization names.
-        let optimNames = [] 
-        
+        let optimNames = []
+
         // Get the list of optimization names.
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-        
+
         // Get the index matching (if any) which optimization matches
         // the one being displayed.
         let index = optimNames.indexOf(this.displayResultName)
