@@ -25,6 +25,7 @@ def run(which=None):
     app = make_app(which=which) # Make the app
     frameworks.init_frameworks(app) # Initialize the frameworks.
     projects.init_projects(app) # Initialize the projects.
+    rpcs.init_results_cache(app) # Initialize results cache.
     app.run() # Run the client page with Flask and a Twisted server.
     return None
 

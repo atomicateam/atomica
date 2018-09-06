@@ -19,18 +19,18 @@ test = "diabetes"
 #test = "service"
 
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-# "loaddatabook",
-# "makeparset",
+#"loadframework",
+#"saveframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
 #"runsim",
 #"plotcascade",
-# "makeblankprogbook",
+#"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -102,7 +102,6 @@ if "runsim" in torun:
     if test in ["tb"]:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
     elif test=='diabetes':
-        print('\n\n\nWARNING, diabetes example does not run yet... need to debug')
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     elif test in ['udt','hiv','usdt','hypertension']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
@@ -115,12 +114,12 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016, data=P.data)
+    au.plot_cascade(P.results[-1], cascade='Diabetes care cascade', pops='all', year=2016, data=P.data)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
-    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
-    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
-    au.plot_cascade(P.results[-1], cascade='main', pops='m_urban', year=2016)
-    au.plot_cascade(P.results[-1], cascade='main', pops='f_urban', year=2016)
+#    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
+#    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
+#    au.plot_cascade(P.results[-1], cascade='main', pops='m_urban', year=2016)
+#    au.plot_cascade(P.results[-1], cascade='main', pops='f_urban', year=2016)
 #    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
     if forceshow: pl.show()
     
@@ -134,11 +133,11 @@ if 'plotcascade' in torun:
 if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
     P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
-    filename = "temp/progbook_"+test+"_blank_n.xlsx"
+    filename = "temp/progbook_"+test+"_blank.xlsx"
     if test == "tb":
         P.make_progbook(filename, progs=6)
     elif test == "diabetes":
-        P.make_progbook(filename, progs=14)
+        P.make_progbook(filename, progs=9)
     elif test == "udt":
         P.make_progbook(filename, progs=4)
     elif test == "usdt":
@@ -241,6 +240,16 @@ if "runsim_programs" in torun:
         d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
         au.plot_series(d, axis="results")
 
+    elif test == 'diabetes':
+        parset = P.parsets[0]
+        original_progset = P.progsets[0]
+        reconciled_progset, progset_comparison, parameter_comparison = au.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
+        instructions = au.ProgramInstructions(start_year=2016.) 
+        newalloc = {'Screening - family nurse':  15000 }
+        parresults = P.run_sim(parset="default", result_name="default-noprogs")
+        progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+        au.plot_multi_cascade([parresults, progresults],'Diabetes care cascade',year=[2017])
+
     elif test == 'tb':
         instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
 #        P.run_sim(parset="default", result_name="default-noprogs")
@@ -316,7 +325,7 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],'main',year=[2017])
 
-    elif test in ['diabetes','service']:
+    elif test in ['service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
 
     else:

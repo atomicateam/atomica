@@ -59,8 +59,8 @@ $disabled-color: #FFF;
   // ### Colours
 
   &.__blue {
-    background: $cascade-blue; // #00aeef;
-    border-color: $cascade-blue; // #01A1DD;
+    background: $main-color;
+    border-color: $main-color;
     color: #FFF;
     
     &:disabled {

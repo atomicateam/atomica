@@ -634,16 +634,13 @@ Last update: 2018-08-27
       },
 
       downloadDatabook(uid) {
-        // Find the project that matches the UID passed in.
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-        console.log('downloadDatabook() called for ' + matchProject.project.name)
+        console.log('downloadDatabook() called')
         status.start(this, 'Downloading data book...') // Start indicating progress.
         rpcs.download('download_databook', [uid])
           .then(response => {
             status.succeed(this, '')  // No green popup message.
           })
           .catch(error => {
-            // Indicate failure.
             status.fail(this, 'Could not download databook: ' + error.message)
           })
       },
@@ -681,16 +678,15 @@ Last update: 2018-08-27
       },
 
       uploadDatabook(uid) {
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
-        console.log('uploadDatabook() called for ' + matchProject.project.name)
+        console.log('uploadDatabook() called')
         status.start(this, 'Uploading databook...')
-        rpcs.upload('upload_databook', [uid], {})
+        rpcs.upload('upload_databook', [uid], {}, '.xlsx')
           .then(response => {
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
-            status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
+            status.succeed(this, 'Data uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload data: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not upload data: ' + error.message)
           })
       },
 
@@ -699,7 +695,7 @@ Last update: 2018-08-27
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('uploadProgbook() called for ' + matchProject.project.name)
         status.start(this) // Start indicating progress. (This is here because we don't want the
-        rpcs.upload('upload_progbook', [uid], {})
+        rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.

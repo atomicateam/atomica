@@ -1,7 +1,7 @@
 <!--
 Scenarios Page
 
-Last update: 2018-08-22
+Last update: 2018-09-04
 -->
 
 <template>
@@ -21,7 +21,7 @@ Last update: 2018-08-22
 
     <div v-else>
       <div class="card">
-        <help reflink="define-scenarios" label="Define scenarios"></help>
+        <help reflink="scenarios" label="Define scenarios"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
           <thead>
           <tr>
@@ -52,66 +52,68 @@ Last update: 2018-08-22
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
       </div>
-    </div>
 
-    <div class="card full-width-card">
-      <div class="calib-title">
-        <help reflink="sc-results" label="Results"></help>
-        <div>
+      <div class="card full-width-card">
+        <div class="calib-title">
+          <help reflink="results-plots" label="Results"></help>
+          <div>
 
-          <b>Year: &nbsp;</b>
-          <select v-model="endYear" v-on:change="plotScenarios()">
-            <option v-for='year in simYears'>
-              {{ year }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <b>Population: &nbsp;</b>
-          <select v-model="activePop" v-on:change="plotScenarios()">
-            <option v-for='pop in activePops'>
-              {{ pop }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="exportGraphs()">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
+            <b>Year: &nbsp;</b>
+            <select v-model="endYear" @change="plotScenarios(true)">
+              <option v-for='year in simYears'>
+                {{ year }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop" @change="plotScenarios(true)">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs()">Export graphs</button>
+            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
 
-        </div>
-      </div>
-
-      <div class="calib-main" :class="{'calib-main--full': true}">
-        <div class="calib-graphs">
-          <div class="featured-graphs">
-            <div :id="'fig0'">
-              <!--mpld3 content goes here-->
-            </div>
-          </div>
-          <div class="other-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
-            </div>
           </div>
         </div>
-      </div>
 
-      <div class="calib-tables" v-if="table">
-        <h4>Cascade stage losses</h4>
-        <table class="table table-striped">
-          <thead>
-          <tr>
-            <th></th>
-            <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(label, index) in table.rowlabels">
-            <td>{{label}}</td>
-            <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-          </tr>
-          </tbody>
-        </table>
+        <div class="calib-main" :class="{'calib-main--full': true}">
+          <div class="calib-graphs">
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="calib-tables" v-if="table">
+          <h4>Cascade stage losses</h4>
+          <table class="table table-striped">
+            <thead>
+            <tr>
+              <th></th>
+              <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(label, index) in table.rowlabels">
+              <td>{{label}}</td>
+              <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    
+    </div>    
+    
 
     <modal name="add-budget-scen"
            height="auto"
@@ -197,10 +199,8 @@ Last update: 2018-08-22
   var filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
   import help from '@/app/HelpLink.vue'
 
   export default {
@@ -236,6 +236,7 @@ Last update: 2018-08-22
           mode: 'add'
         },
         figscale: 1.0,
+        serverDatastoreId: ''
       }
     },
 
@@ -259,13 +260,19 @@ Last update: 2018-08-22
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
         utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            this.getScenSummaries()
-            this.getDefaultBudgetScen()
-            this.updateSets()
-            this.getPlotOptions()
-          })
+        .then(response => {
+          this.getScenSummaries()
+          this.getDefaultBudgetScen()
+          this.updateSets()
+          this.getPlotOptions()
+        })
+        utils.sleep(1000)
+        .then(response => {
+            this.plotScenarios(false)
+          }
+        )        
       }
     },
 
@@ -275,8 +282,9 @@ Last update: 2018-08-22
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
-
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResults(this, serverDatastoreId) },
+                                
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
         if (frac === 1.0) {
@@ -491,7 +499,7 @@ Last update: 2018-08-22
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions],
+            rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
               .then(response => {
                 this.makeGraphs(response.data.graphs)
@@ -509,24 +517,29 @@ Last update: 2018-08-22
           })
       },
 
-      plotScenarios() {
+      plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions],
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
-          })
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
     }
   }
