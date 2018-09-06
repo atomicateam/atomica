@@ -1,7 +1,7 @@
 <!--
-Optimizations Page
+Optimizations page
 
-Last update: 2018-09-05
+Last update: 2018-09-06
 -->
 
 <template>
@@ -45,21 +45,21 @@ Last update: 2018-09-05
 <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->          
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
-              <button class="btn btn-icon" @click="editOptim(optimSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyOptim(optimSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteOptim(optimSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
         </table>
 
         <div>
-          <button class="btn __blue" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" :disabled="!optimsLoaded" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
 
-      <!-- ### Start: results card ### -->
-    <div class="card full-width-card">
+    <!-- START RESULTS CARD -->
+    <div class="card full-width-card" v-if="hasGraphs">
       <div class="calib-title">
         <help reflink="results-plots" label="Results"></help>
         <div>
@@ -123,7 +123,7 @@ Last update: 2018-09-05
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="900"
+             :width="'60%'"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -218,22 +218,14 @@ Last update: 2018-09-05
   var filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-  import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'OptimizationPage',
-
-    components: {
-      help
-    },
+    name: 'OptimizationsPage',
 
     data() {
       return {
-        response: 'no response',
         optimSummaries: [],
         defaultOptim: {},
         modalOptim: {},
@@ -270,11 +262,12 @@ Last update: 2018-09-05
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) &&
+      else if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
+        console.log('created() called')
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
           // Load the optimization summaries of the current project.
@@ -295,7 +288,6 @@ Last update: 2018-09-05
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
       exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
       exportResults(serverDatastoreId) 
                                 { return utils.exportResults(this, serverDatastoreId) },
