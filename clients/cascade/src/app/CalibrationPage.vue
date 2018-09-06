@@ -408,7 +408,7 @@ Last update: 2018-09-06
             this.parList = response.data // Get the parameter values
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load parameters: ' + error.message)
+            status.fail(this, 'Could not load parameters: ' + error.message)
           })
       },
 

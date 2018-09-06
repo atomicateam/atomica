@@ -346,7 +346,7 @@ Last update: 2018-09-06
             console.log(this.demoOption)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load demo project options: ' + error.message)
+            status.fail(this, 'Could not load demo project options: ' + error.message)
           })
       },
 
@@ -369,8 +369,7 @@ Last update: 2018-09-06
             }
           })
           .catch(error => {
-            // Failure popup.
-            status.failurePopup(this, 'Could not load frameworks: ' + error.message)
+            status.fail(this, 'Could not load frameworks: ' + error.message)
           })
       },
 
@@ -401,7 +400,7 @@ Last update: 2018-09-06
                 this.openProject(setActiveID)
               }
             }
-            status.succeed(this, '')  // No green popup.
+            status.succeed(this, '')
           })
           .catch(error => {
             status.fail(this, 'Could not load projects: ' + error.message)
@@ -533,7 +532,7 @@ Last update: 2018-09-06
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('openProject() called for ' + matchProject.project.name)
         this.$store.commit('newActiveProject', matchProject) // Set the active project to the matched project.
-        status.successPopup(this, 'Project "'+matchProject.project.name+'" loaded') // Success popup.
+        status.succeed(this, 'Project "'+matchProject.project.name+'" loaded') // Success popup.
       },
 
       copyProject(uid) {
@@ -562,7 +561,7 @@ Last update: 2018-09-06
             .then(response => {
               this.updateProjectSummaries(newProjectSummary.project.id) // Update the project summaries so the rename shows up on the list.
               projectSummary.renaming = '' // Turn off the renaming mode.
-              status.succeed(this, '')  // No green popup message.
+              status.succeed(this, '')
             })
             .catch(error => {
               // Indicate failure.
@@ -585,7 +584,7 @@ Last update: 2018-09-06
         status.start(this) // Start indicating progress.
         rpcs.download('download_project', [uid]) // Make the server call to download the project to a .prj file.
           .then(response => { // Indicate success.
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => { // Indicate failure.
             status.fail(this, 'Could not download project: ' + error.message)
@@ -599,7 +598,7 @@ Last update: 2018-09-06
         status.start(this, 'Downloading framework...') // Start indicating progress.
         rpcs.download('download_framework_from_project', [uid])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
             status.fail(this, 'Could not download framework: ' + error.message) // Indicate failure.
@@ -611,7 +610,7 @@ Last update: 2018-09-06
         status.start(this, 'Downloading data book...') // Start indicating progress.
         rpcs.download('download_databook', [uid])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
             status.fail(this, 'Could not download databook: ' + error.message)
@@ -625,7 +624,7 @@ Last update: 2018-09-06
         status.start(this, 'Downloading program book...') // Start indicating progress.
         rpcs.download('download_progbook', [uid])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
             // Indicate failure.
@@ -642,7 +641,7 @@ Last update: 2018-09-06
         status.start(this, 'Creating program book...') // Start indicating progress.
         rpcs.download('create_progbook', [uid, this.num_progs])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
             // Indicate failure.
@@ -711,7 +710,7 @@ Last update: 2018-09-06
                 activeProjectId = null // Null out the project.
               }
               this.updateProjectSummaries(activeProjectId) // Update the project summaries so the deletions show up on the list. Make sure it tries to set the project that was active (if any).
-              status.succeed(this, '')  // No green popup message.
+              status.succeed(this, '')
             })
             .catch(error => {
               status.fail(this, 'Could not delete project/s: ' + error.message)
@@ -728,7 +727,7 @@ Last update: 2018-09-06
           rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
             .then(response => {
               // Indicate success.
-              status.succeed(this, '')  // No green popup message.
+              status.succeed(this, '')
             })
             .catch(error => {
               // Indicate failure.

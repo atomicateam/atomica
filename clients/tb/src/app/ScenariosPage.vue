@@ -379,12 +379,12 @@ Last update: 2018-09-06
               resolve(response)
             })
             .catch(error => {
-              status.failurePopup(this, 'Could not get progset info: ' + error.message)
+              status.fail(this, 'Could not get progset info: ' + error.message)
               reject(error)
             })
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get parset info: ' + error.message)
+            status.fail(this, 'Could not get parset info: ' + error.message)
             reject(error)
           })
         })
@@ -399,7 +399,7 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen);
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get default budget scenario: ' + error.message)
+            status.fail(this, 'Could not get default budget scenario: ' + error.message)
           })
       },
 
@@ -444,7 +444,7 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
+            status.fail(this, 'Could not open add scenario modal: '  + error.message)
           })
       },
 

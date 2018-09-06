@@ -480,11 +480,11 @@ Last update: 2018-09-06
                 console.log('Active progset: ' + this.activeProgset)
               })
               .catch(error => {
-                status.failurePopup(this, 'Could not get progset info')
+                status.fail(this, 'Could not get progset info: ' + error.message)
               })
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get parset info')
+            status.fail(this, 'Could not get parset info: ' + error.message)
           })
       },
 
@@ -497,7 +497,7 @@ Last update: 2018-09-06
             console.log(this.defaultOptim);
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get default optimization')
+            status.fail(this, 'Could not get default optimization: ' + error.message)
           })
       },
 
