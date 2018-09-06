@@ -63,6 +63,4 @@ export default {
   start,
   succeed,
   fail,
-  successPopup,
-  failurePopup
 }

@@ -15,6 +15,8 @@ Last update: 2018-09-06
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
+
+        <button class="btn __red" @click="test_stuff">BREAK</button>
         &nbsp; &nbsp;
       </div>
     </div>
@@ -726,14 +728,23 @@ Last update: 2018-09-06
           status.start(this)
           rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
             .then(response => {
-              // Indicate success.
               status.succeed(this, '')
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not download project/s')
+              status.fail(this, 'Could not download project/s: ' + error.message)
             })
         }
+      },
+
+      test_stuff() {
+//        status.start(this)
+        rpcs.rpc('test_stuff', [])
+          .then(response => {
+//            status.succeed(this, 'success lol')
+          })
+          .catch(error => {
+            status.fail(this, 'Massive fail: ' + error.message)
+          })
       }
     }
   }

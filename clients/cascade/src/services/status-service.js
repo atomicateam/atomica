@@ -32,7 +32,7 @@ function succeed(vm, successMessage) {
   complete = 100; // End the counter
   vm.$spinner.stop() // Dispel the spinner.
   vm.$Progress.finish()   // Finish the loading bar -- redundant?
-  if (successMessage != '') { // Success popup.
+  if (successMessage !== '') { // Success popup.
     vm.$notifications.notify({
       message: successMessage,
       icon: 'ti-check',
@@ -48,13 +48,14 @@ function fail(vm, failMessage) {
   complete = 100;
   vm.$spinner.stop() // Dispel the spinner.
   vm.$Progress.fail() // Fail the loading bar.
-  if (failMessage != '') {  // Put up a failure notification.
+  if (failMessage !== '') {  // Put up a failure notification.
     vm.$notifications.notify({
       message: failMessage,
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
-      horizontalAlign: 'left'
+      horizontalAlign: 'left',
+      timeout: 0
     })
   }  
 }
@@ -63,6 +64,4 @@ export default {
   start,
   succeed,
   fail,
-  successPopup,
-  failurePopup
 }

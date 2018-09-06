@@ -1818,7 +1818,6 @@ def export_results(cache_id):
 
 
 @RPC()
-def test_stuff(project_id):
-    print('>> Testing load_project()')
-    proj = load_project(project_id, raise_exception=True)
+def test_stuff():
+    raise Exception('Well, la-di-dah-dah')
     
