@@ -477,7 +477,7 @@ Last update: 2018-09-05
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear, pops:this.activePop})
+          {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
         .then(response => {
           this.makeGraphs(response.data.graphs)
           this.table = response.data.table
