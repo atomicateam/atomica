@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-27
+Last update: 2018-09-06
 -->
 
 <template>
@@ -121,6 +121,7 @@ Last update: 2018-08-27
               <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
                 <i class="ti-download"></i>
               </button>
+<!--              <button class="btn __blue" @click="testStuff(projectSummary.project.id)">Test stuff</button> -->
             </td>
           </tr>
           </tbody>
@@ -266,6 +267,10 @@ Last update: 2018-08-27
 
     methods: {
 
+      testStuff(uid) {
+        rpcs.rpc('test_stuff', [uid])
+      },
+      
       projectLoaded(uid) {
         console.log('projectLoaded called')
         if (this.$store.state.activeProject.project != undefined) {

@@ -1902,4 +1902,12 @@ def export_results(cache_id):
     full_file_name = os.path.join(dirname, file_name)
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
-    return full_file_name # Return the filename
+    return full_file_name # Return the filename  
+
+
+
+@RPC()
+def test_stuff(project_id):
+    print('>> Testing load_project()')
+    proj = load_project(project_id, raise_exception=True)
+    
