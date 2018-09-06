@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-08-22
+Last update: 2018-09-06
 -->
 
 <template>
@@ -136,14 +136,14 @@ Last update: 2018-08-22
               <!--style="display: inline-block; width:70px"/>-->
               <!--&nbsp;&nbsp;&nbsp;-->
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" v-on:change="manualCalibration(projectID)">
+              <select v-model="endYear" @change="plotCalibration(true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" v-on:change="manualCalibration(projectID)">
+              <select v-model="activePop" @change="plotCalibration(true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
@@ -154,7 +154,7 @@ Last update: 2018-08-22
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
-              <button class="btn" @click="exportResults(projectID)">Export data</button>
+              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
             </div>
@@ -287,6 +287,7 @@ Last update: 2018-08-22
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
+        serverDatastoreId: ''        
       }
     },
 
@@ -315,28 +316,46 @@ Last update: 2018-08-22
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
         this.popOptions = this.activePops
-        this.viewTable()
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions()
-        utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            this.updateParset()
+        .then(response => {
+          this.updateParset()
+          .then(response2 => {
+            this.viewTable()
+            .then(response3 => {
+              this.plotCalibration(false)
+            })    
           })
-        utils.sleep(1000)
-          .then(response => {
-              this.manualCalibration(this.projectID)
-            }
-          );
+        })
       }
     },
 
     methods: {
+      getPlotOptions() {
+        return new Promise((resolve, reject) => {
+          console.log('getPlotOptions() called')
+          status.start(this) // Start indicating progress.
+          let project_id = this.projectID
+          rpcs.rpc('get_supported_plots', [project_id, true])
+          .then(response => {
+            this.plotOptions = response.data // Get the parameter values
+            status.succeed(this, '')
+            resolve(response)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not get plot options: ' + error.message)
+            reject(error)
+          })          
+        })
+      },
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
+//      getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
       exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
-
+      exportResults(serverDatastoreId) 
+                                { return utils.exportResults(this, serverDatastoreId) },
+                                
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
       },
@@ -366,9 +385,10 @@ Last update: 2018-08-22
       },
 
       updateParset() {
-        console.log('updateParset() called')
-//        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+        return new Promise((resolve, reject) => {
+          console.log('updateParset() called')
+          status.start(this)
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -379,11 +399,14 @@ Last update: 2018-08-22
             }
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-//            status.succeed(this, '')  // No green notification.
+            status.succeed(this, '')  // No green notification.
+            resolve(response)
           })
           .catch(error => {
             status.fail(this, 'Could not update parset')
+            reject(error)
           })
+        })
       },
 
       updateSorting(sortColumn) {
@@ -410,14 +433,21 @@ Last update: 2018-08-22
       },
 
       viewTable() {
-        console.log('viewTable() called')
-        rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
+        return new Promise((resolve, reject) => {
+          console.log('viewTable() called')
+          // TODO: Get spinners working right for this leg of initialization.
+//          status.start(this)
+          rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
           .then(response => {
             this.parList = response.data // Get the parameter values
+//            status.succeed(this, '')  // No green notification.
+            resolve(response)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load parameters: ' + error.message)
-          })
+//            status.fail(this, 'Could not load parameters: ' + error.message)
+            reject(error)
+          })          
+        })
       },
 
       toggleShowingParams() {
@@ -432,8 +462,8 @@ Last update: 2018-08-22
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) // Start indicating progress.
-        rpcs.rpc('manual_calibration', [project_id], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'start_year':this.startYear, 'end_year':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
+        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
 //            status.succeed(this, 'Simulation run') // Indicate success.
@@ -455,7 +485,7 @@ Last update: 2018-08-22
         } else {
           var maxtime = 9999
         }
-        rpcs.rpc('automatic_calibration', [project_id], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+        rpcs.rpc('automatic_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
@@ -466,7 +496,32 @@ Last update: 2018-08-22
             status.fail(this, 'Could not run automatic calibration: ' + error.message)
           })
       },
-
+      
+      plotCalibration(showNoCacheError) {
+        console.log('plotCalibration() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        status.start(this)
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        // Make sure they're saved first
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
+      },
+      
       renameParsetModal() {
         console.log('renameParsetModal() called');
         this.origParsetName = this.activeParset // Store this before it gets overwritten
@@ -481,6 +536,7 @@ Last update: 2018-08-22
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
@@ -495,6 +551,7 @@ Last update: 2018-08-22
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
@@ -510,6 +567,7 @@ Last update: 2018-08-22
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary            
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
           .catch(error => {
@@ -537,6 +595,7 @@ Last update: 2018-08-22
         rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
           })

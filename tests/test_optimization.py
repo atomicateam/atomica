@@ -21,7 +21,8 @@ import matplotlib.pyplot as plt
 # logger.setLevel('DEBUG')
 # test='sir'
 #test='udt'
-test='hiv'
+#test='hiv'
+test='diabetes'
 #test='hypertension'
 #test='usdt'
 
@@ -402,6 +403,33 @@ if 'cascade_multi_stage' in torun:
         au.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='all', year=2017)
         au.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='females', year=2017)
         au.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='males', year=2017)
+
+    if test == 'diabetes':
+        instructions = au.ProgramInstructions(start_year=2016)  # Instructions for default spending
+        adjustments = []
+        adjustments.append(au.SpendingAdjustment('Screening - PHC', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Screening - family nurse', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Sreening - outreach', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Confirmatory test - endocrinologist', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Confirmatory test - family doctor', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Initiation counselling - patient schools', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Initiation counselling - PHC', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Advanced adherence counselling - PHC', 2016, 'abs', 0.))
+        adjustments.append(au.SpendingAdjustment('Advanced adherence counselling - family nurse', 2016, 'abs', 0.))
+
+        ## CASCADE MEASURABLE
+        # This measurable will maximize the number of people in the final cascade stage, whatever it is
+        measurables = au.MaximizeCascadeStage(None, [2017, 2018], pop_names='all', cascade_stage=['Treated', 'HbA1c control'])  
+        # This is the same as the 'standard' example, just running the optimization and comparing the results
+        optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables)
+        unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
+        optimized_instructions = au.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
+        optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+
+        #        for adjustable in adjustments:
+        #            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2017))) # TODO - add time to alloc
+
+        au.plot_multi_cascade([unoptimized_result, optimized_result], 'Diabetes care cascade', pops='all', year=2017)
 
 if 'cascade-conversions' in torun:
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2

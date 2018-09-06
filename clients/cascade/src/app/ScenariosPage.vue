@@ -1,7 +1,7 @@
 <!--
-Scenarios Page
+Scenarios page
 
-Last update: 2018-08-22
+Last update: 2018-09-06
 -->
 
 <template>
@@ -21,7 +21,7 @@ Last update: 2018-08-22
 
     <div v-else>
       <div class="card">
-        <help reflink="define-scenarios" label="Define scenarios"></help>
+        <help reflink="scenarios" label="Define scenarios"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
           <thead>
           <tr>
@@ -39,9 +39,9 @@ Last update: 2018-08-22
               <input type="checkbox" v-model="scenSummary.active"/>
             </td>
             <td style="white-space: nowrap">
-              <button class="btn btn-icon" @click="editScen(scenSummary)"><i class="ti-pencil"></i></button>
-              <button class="btn btn-icon" @click="copyScen(scenSummary)"><i class="ti-files"></i></button>
-              <button class="btn btn-icon" @click="deleteScen(scenSummary)"><i class="ti-trash"></i></button>
+              <button class="btn btn-icon" @click="editScen(scenSummary)" data-tooltip="Edit scenario"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyScen(scenSummary)" data-tooltip="Copy scenario"><i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="deleteScen(scenSummary)" data-tooltip="Delete scenario"><i class="ti-trash"></i></button>
             </td>
           </tr>
           </tbody>
@@ -54,30 +54,32 @@ Last update: 2018-08-22
       </div>
     </div>
 
-    <div class="card full-width-card">
+    <!-- START RESULTS CARD -->
+    <div class="card full-width-card" v-if="hasGraphs">
       <div class="calib-title">
-        <help reflink="sc-results" label="Results"></help>
+        <help reflink="results-plots" label="Results"></help>
         <div>
 
           <b>Year: &nbsp;</b>
-          <select v-model="endYear" v-on:change="plotScenarios()">
+          <select v-model="endYear" @change="plotScenarios(true)">
             <option v-for='year in simYears'>
               {{ year }}
             </option>
           </select>
           &nbsp;&nbsp;&nbsp;
           <b>Population: &nbsp;</b>
-          <select v-model="activePop" v-on:change="plotScenarios()">
+          <select v-model="activePop" @change="plotScenarios(true)">
             <option v-for='pop in activePops'>
               {{ pop }}
             </option>
           </select>
           &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="exportGraphs()">Export graphs</button>
-          <button class="btn" @click="exportResults(projectID)">Export data</button>
+          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+          <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
 
         </div>
       </div>
+
 
       <div class="calib-main" :class="{'calib-main--full': true}">
         <div class="calib-graphs">
@@ -94,9 +96,9 @@ Last update: 2018-08-22
         </div>
       </div>
 
-      <div class="calib-tables" v-if="table">
+      <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
         <h4>Cascade stage losses</h4>
-        <table class="table table-striped">
+        <table class="table table-striped" style="text-align:right;">
           <thead>
           <tr>
             <th></th>
@@ -111,12 +113,16 @@ Last update: 2018-08-22
           </tbody>
         </table>
       </div>
-    </div>
 
+    </div>
+    <!-- END RESULTS CARD -->
+
+
+    <!-- START ADD-SCENARIO MODAL -->
     <modal name="add-budget-scen"
            height="auto"
            :scrollable="true"
-           :width="900"
+           :width="'60%'"
            :classes="['v--modal', 'vue-dialog']"
            :pivot-y="0.3"
            :adaptive="true"
@@ -141,14 +147,7 @@ Last update: 2018-08-22
               {{ parset }}
             </option>
           </select><br><br>
-<!-- CASCADE-TB DIFFERENCE
-          Program set:<br>
-          <select v-model="progsetOptions[0]">
-            <option v-for='progset in progsetOptions'>
-              {{ progset }}
-            </option>
-          </select><br><br>
--->
+
           Budget year:<br>
           <input type="text"
                  class="txbox"
@@ -186,33 +185,26 @@ Last update: 2018-08-22
         </div>
       </div>
     </modal>
+    <!-- END ADD-SCENARIO MODAL -->
 
   </div>
-  </div>
+
 </template>
 
 
 <script>
   import axios from 'axios'
-  var filesaver = require('file-saver')
+  let filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
-  import taskservice from '@/services/task-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue';
-  import help from '@/app/HelpLink.vue'
 
   export default {
-    name: 'scenarioPage',
-
-    components: {
-      help
-    },
+    name: 'ScenariosPage',
 
     data() {
       return {
-        response: 'no response',
         scenSummaries: [],
         defaultBudgetScen: {},
         objectiveOptions: [],
@@ -223,7 +215,7 @@ Last update: 2018-08-22
         newParsetName:  [],
         newProgsetName: [],
         startYear: 0,
-        endYear: 0,        
+        endYear: 0,
         areShowingPlotControls: false,
         plotOptions: [],
         scenariosLoaded: false,
@@ -236,6 +228,8 @@ Last update: 2018-08-22
           mode: 'add'
         },
         figscale: 1.0,
+        hasGraphs: false,
+        serverDatastoreId: ''
       }
     },
 
@@ -250,15 +244,16 @@ Last update: 2018-08-22
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
-      else if ((this.$store.state.activeProject.project != undefined) &&
+      else if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
         utils.sleep(1)  // used so that spinners will come up by callback func
           .then(response => {
             this.getScenSummaries()
@@ -266,6 +261,11 @@ Last update: 2018-08-22
             this.updateSets()
             this.getPlotOptions()
           })
+        utils.sleep(1000)
+          .then(response => {
+              this.plotScenarios(false)
+            }
+          )
       }
     },
 
@@ -274,8 +274,9 @@ Last update: 2018-08-22
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { this.table = null; return utils.clearGraphs() },
       makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(project_id) { return utils.exportResults(this, project_id) },
+      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
+      exportResults(serverDatastoreId)
+      { return utils.exportResults(this, serverDatastoreId) },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -285,14 +286,14 @@ Last update: 2018-08-22
         }
         return utils.scaleFigs(frac)
       },
-      
+
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
           this.startYear = this.simEnd
         }
         else if (this.startYear < this.simStart) {
           this.startYear = this.simStart
-        }       
+        }
         if (this.endYear > this.simEnd) {
           this.endYear = this.simEnd
         }
@@ -300,41 +301,46 @@ Last update: 2018-08-22
           this.endYear = this.simStart
         }
       },
-      
+
       updateSets() {
-        console.log('updateSets() called')
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-          .then(response => {
-            this.parsetOptions = response.data // Set the scenarios to what we received.
-            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-              console.log('Parameter set ' + this.activeParset + ' no longer found')
-              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-            } else {
-              console.log('Parameter set ' + this.activeParset + ' still found')
-            }
-            this.newParsetName = this.activeParset // WARNING, KLUDGY
-            console.log('Parset options: ' + this.parsetOptions)
-            console.log('Active parset: ' + this.activeParset)
-            rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-              .then(response => {
-                this.progsetOptions = response.data // Set the scenarios to what we received.
-                if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                  console.log('Program set ' + this.activeProgset + ' no longer found')
-                  this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                } else {
-                  console.log('Program set ' + this.activeProgset + ' still found')
-                }
-                this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                console.log('Progset options: ' + this.progsetOptions)
-                console.log('Active progset: ' + this.activeProgset)
-              })
-              .catch(error => {
-                status.failurePopup(this, 'Could not get progset info: ' + error.message)
-              })
-          })
-          .catch(error => {
-            status.failurePopup(this, 'Could not get parset info: ' + error.message)
-          })
+        return new Promise((resolve, reject) => {
+          console.log('updateSets() called')
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+            .then(response => {
+              this.parsetOptions = response.data // Set the scenarios to what we received.
+              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+                console.log('Parameter set ' + this.activeParset + ' no longer found')
+                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+              } else {
+                console.log('Parameter set ' + this.activeParset + ' still found')
+              }
+              this.newParsetName = this.activeParset // WARNING, KLUDGY
+              console.log('Parset options: ' + this.parsetOptions)
+              console.log('Active parset: ' + this.activeParset)
+              rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
+                .then(response => {
+                  this.progsetOptions = response.data // Set the scenarios to what we received.
+                  if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+                    console.log('Program set ' + this.activeProgset + ' no longer found')
+                    this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+                  } else {
+                    console.log('Program set ' + this.activeProgset + ' still found')
+                  }
+                  this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+                  console.log('Progset options: ' + this.progsetOptions)
+                  console.log('Active progset: ' + this.activeProgset)
+                  resolve(response)
+                })
+                .catch(error => {
+                  status.failurePopup(this, 'Could not get progset info: ' + error.message)
+                  reject(error)
+                })
+            })
+            .catch(error => {
+              status.failurePopup(this, 'Could not get parset info: ' + error.message)
+              reject(error)
+            })
+        })
       },
 
       getDefaultBudgetScen() {
@@ -362,7 +368,6 @@ Last update: 2018-08-22
             status.succeed(this, 'Scenarios loaded')
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
             status.fail(this, 'Could not get scenarios: ' + error.message)
           })
       },
@@ -392,7 +397,6 @@ Last update: 2018-08-22
             console.log(this.defaultBudgetScen)
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message // Pull out the error message.
             status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
           })
       },
@@ -446,7 +450,7 @@ Last update: 2018-08-22
       copyScen(scenSummary) {
         console.log('copyScen() called')
         status.start(this)
-        var newScen = _.cloneDeep(scenSummary); // You've got to be kidding me, buster
+        var newScen = _.cloneDeep(scenSummary);
         var otherNames = []
         this.scenSummaries.forEach(scenSum => {
           otherNames.push(scenSum.name)
@@ -487,16 +491,15 @@ Last update: 2018-08-22
         console.log('runScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        // Make sure they're saved first
-        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries])
+        rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries]) // Make sure they're saved first
           .then(response => {
             // Go to the server to get the results from the package set.
-            rpcs.rpc('run_scenarios', [this.projectID, this.plotOptions],
+            rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
               {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
               .then(response => {
+                this.table = response.data.table // CASCADE-TB DIFFERENCE
                 this.makeGraphs(response.data.graphs)
-                this.table = response.data.table
-                status.succeed(this, 'Graphs created')
+                status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
                 console.log('There was an error: ' + error.message) // Pull out the error message.
@@ -509,23 +512,28 @@ Last update: 2018-08-22
           })
       },
 
-      plotScenarios() {
+      plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_scenarios', [this.projectID, this.plotOptions],
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
+            this.table = response.data.table // CASCADE-TB DIFFERENCE
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
             this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs') // Indicate failure.
+            if (showNoCacheError) {
+              status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+            }
+            else {
+              status.succeed(this, '')  // Silently stop progress bar and spinner.
+            }
           })
       },
     }
@@ -537,4 +545,3 @@ Last update: 2018-08-22
 <style scoped>
 
 </style>
-

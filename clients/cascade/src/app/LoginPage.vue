@@ -117,7 +117,8 @@ Last update: 2018-08-18
           }
         })
         .catch(error => {
-          this.loginResult = 'Server error.  Please try again later.'
+          console.log('Login failed: ' + error.message)
+          this.loginResult = "We're sorry, it seems we're having trouble communicating with the server.  Please contact support or try again later."
         })
       }
     }
