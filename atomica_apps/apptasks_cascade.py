@@ -4,12 +4,13 @@ apptasks.py -- The Celery tasks module for this webapp
 Last update: 2018aug31
 """
 
-from . import config_cascade as config
-import matplotlib.pyplot as ppl
-ppl.switch_backend(config.MATPLOTLIB_BACKEND)
+
 import scirisweb as sw
 from . import projects as prj
 from . import rpcs
+from . import config_cascade as config
+import matplotlib.pyplot as ppl
+ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
