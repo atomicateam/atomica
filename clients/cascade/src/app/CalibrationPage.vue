@@ -21,7 +21,7 @@ Last update: 2018-08-22
 
     <div v-else>
       <div class="card">
-        <help reflink="calibration" label="Calibration"></help>
+        <help reflink="bl-overview" label="Calibration and reconciliation"></help>
         <!--<div class="calib-controls">-->
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
@@ -30,6 +30,7 @@ Last update: 2018-08-22
             <span v-else>Show</span>
             parameters
           </button>
+          <help reflink="manual-calibration"></help>
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
@@ -40,6 +41,7 @@ Last update: 2018-08-22
               {{ time }}
             </option>
           </select>
+          <help reflink="automatic-calibration"></help>          
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
@@ -67,12 +69,14 @@ Last update: 2018-08-22
             <i class="ti-upload"></i>
           </button>
           &nbsp;
+          <help reflink="parameter-sets"></help>          
         </div>
 
         <div class="controls-box">
           <button class="btn" @click="notImplemented()">
             Reconcile
           </button>
+          <help reflink="reconciliation"></help>          
         </div>
 
         <!--</div>-->
@@ -134,7 +138,7 @@ Last update: 2018-08-22
 
         <div class="card full-width-card">
           <div class="calib-title">
-            <help reflink="results-plots" label="Results"></help>
+            <help reflink="bl-results" label="Results"></help>
             <div>
               <!--<b>Start year: &nbsp;</b>-->
               <!--<input type="text"-->
