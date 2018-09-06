@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-08-27
+Last update: 2018-09-06
 -->
 
 <template>
@@ -87,18 +87,12 @@ Last update: 2018-08-27
               </div>
             </td>
             <td style="text-align:left">
-              <button class="btn __green" :disabled="projectLoaded(projectSummary.project.id)" @click="openProject(projectSummary.project.id)">
-                <span>Open</span>
-              </button>
-              <button class="btn btn-icon" @click="renameProject(projectSummary)" data-tooltip="Rename">
-                <i class="ti-pencil"></i>
-              </button>
-              <button class="btn btn-icon" @click="copyProject(projectSummary.project.id)" data-tooltip="Copy">
-                <i class="ti-files"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <span v-if="sortedFilteredProjectSummaries.length>1">
+                <button class="btn __green"  @click="openProject(projectSummary.project.id)"       data-tooltip="Open project" :disabled="projectLoaded(projectSummary.project.id)" ><span>Open</span></button>
+              </span>
+              <button class="btn btn-icon" @click="renameProject(projectSummary)"                  data-tooltip="Rename">  <i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="copyProject(projectSummary.project.id)"         data-tooltip="Copy">    <i class="ti-files"></i></button>
+              <button class="btn btn-icon" @click="downloadProjectFile(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="text-align:left">
               {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
@@ -281,14 +275,9 @@ Last update: 2018-08-27
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'ProjectsPage',
-
-    components: {
-      help
-    },
 
     data() {
       return {
@@ -312,6 +301,7 @@ Last update: 2018-08-27
     },
 
     computed: {
+      projectID()    { return utils.projectID(this) },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
       },
@@ -332,6 +322,20 @@ Last update: 2018-08-27
     },
 
     methods: {
+
+      projectLoaded(uid) {
+        console.log('projectLoaded called')
+        if (this.$store.state.activeProject.project != undefined) {
+          if (this.$store.state.activeProject.project.id === uid) {
+            console.log('Project ' + uid + ' is loaded')
+            return true
+          } else {
+            return false
+          }
+        } else {
+          return false
+        }
+      },
 
       beforeOpen (event) {
         console.log(event)
@@ -385,20 +389,6 @@ Last update: 2018-08-27
           })
       },
 
-      projectLoaded(uid) {
-        console.log('projectLoaded called')
-        if (this.$store.state.activeProject.project != undefined) {
-          if (this.$store.state.activeProject.project.id === uid) {
-            console.log('Project ' + uid + ' is loaded')
-            return true
-          } else {
-            return false
-          }
-        } else {
-          return false
-        }
-      },
-
       updateProjectSummaries(setActiveID) {
         console.log('updateProjectSummaries() called')
         status.start(this)
@@ -414,15 +404,13 @@ Last update: 2018-08-27
             this.projectSummaries.forEach(theProj => { // Preprocess all projects.
               theProj.selected = false // Set to not selected.
               theProj.renaming = '' // Set to not being renamed.
-//          theProj.project.creationTime = new Date(theProj.project.creationTime) // Extract actual Date objects from the strings.
-//          theProj.project.updatedTime = new Date(theProj.project.updatedTime)
               if (theProj.project.creationTime >= lastCreationTime) { // Update the last creation time and ID if what se see is later.
                 lastCreationTime = theProj.project.creationTime
                 lastCreatedID = theProj.project.id
               }
             })
             if (this.projectSummaries.length > 0) { // If we have a project on the list...
-              if (setActiveID == null) { // If no ID is passed in, set the active project to the last-created project.
+              if (setActiveID === null) { // If no ID is passed in, set the active project to the last-created project.
                 this.openProject(lastCreatedID)
               } else { // Otherwise, set the active project to the one passed in.
                 this.openProject(setActiveID)
