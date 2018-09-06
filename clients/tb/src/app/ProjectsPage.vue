@@ -131,7 +131,7 @@ Last update: 2018-09-06
     <modal name="create-project"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
-           :width="width"
+           :width="400"
            :pivot-y="0.3"
            :adaptive="true"
            :clickToClose="clickToClose"
