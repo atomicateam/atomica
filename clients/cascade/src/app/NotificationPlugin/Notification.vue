@@ -7,31 +7,15 @@
     :style="customPosition"
     data-notify-position="top-center">
 
-    <!--<div class="divTable">-->
-      <!--<div class="divRow">-->
-        <!--<div class="divRowContent alert-icon" data-notify="message" :class="icon" style="font-size:20px"></div> &lt;!&ndash; Icon &ndash;&gt;-->
-        <!--<div class="divRowContent" data-notify="message" v-html="message"></div>&lt;!&ndash; Message &ndash;&gt;-->
-        <!--<div class="divRowContent"> &lt;!&ndash; Close button &ndash;&gt;-->
-          <!--<button-->
-            <!--type="button"-->
-            <!--aria-hidden="true"-->
-            <!--class="close"-->
-            <!--data-notify="dismiss"-->
-            <!--@click="close">×-->
-          <!--</button>-->
-        <!--</div>-->
-      <!--</div>-->
-    <!--</div>-->
-
     <div id = "flex">
       <div style="padding-top:10px; padding-right:10px"><span class="alert-icon" data-notify="message" :class="icon" style="font-size:25px;"></span></div>
-      <div style="max-width:400px; font-size:14px; align-content:center"><div data-notify="message" v-html="message"></div></div>
+      <div style="max-width:400px; font-size:15px; align-content:center"><div data-notify="message" v-html="message"></div></div>
       <div style="padding-left:10px">
         <button
           class="btn __trans"
           aria-hidden="true"
           data-notify="dismiss"
-          @click="close"><span style="font-size:30px; color:#fff; background-color: transparent; background: transparent">×</span>
+          @click="close"><span style="font-size:18px; color:#fff; background-color: transparent; background: transparent"><i class="ti-close"></i></span>
         </button>
       </div>
     </div>
