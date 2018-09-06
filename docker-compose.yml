@@ -6,7 +6,8 @@ services:
       args:
         dockerproject: cascade
         PORT: '80'
-        REDIS_URL: 'redis://10.0.0.3:6379/8' #this needs to be /7 in TB
+        # REDIS_URL: 'redis://10.0.0.3:6379/8' #this needs to be /7 in TB
+        REDIS_URL: 'redis://vladh.net:63790/8' #this needs to be /7 in TB
     command: python start_server.py
     ports:
      - "8080:8080"
@@ -14,12 +15,11 @@ services:
     volumes:
      - .:/code
 
-  # celery:
-  #   build:
-  #     context: .
-  #     args:
-  #       dockerproject: cascade
-  #   command: celery worker -A atomica_apps.apptasks_cascade -l info #this needs to be converted for TB
-  #   environment:
-  #     - REDIS_URL=redis://10.0.0.3:6379/8 #this needs to be /7 in TB
-    #   - REDIS_URL=redis://redis:6379/8 #this needs to be /7 in TB
+  celery:
+    build:
+      context: .
+      args:
+        dockerproject: cascade
+        # REDIS_URL: 'redis://10.0.0.3:6379/8' #this needs to be /7 in TB
+        REDIS_URL: 'redis://vladh.net:63790/8' #this needs to be /7 in TB
+    command: celery worker -A atomica_apps.apptasks_cascade -l info #this needs to be converted for TB
