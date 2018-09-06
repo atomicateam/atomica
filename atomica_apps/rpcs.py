@@ -1264,7 +1264,7 @@ def download_graphs():
     return full_file_name
 
 
-def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, dosave=True, calibration=False):
+def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, calibration=False):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func(proj.framework) 
     if plot_names is None: 
@@ -1296,6 +1296,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
                             series.vals[nan_ind] = series.vals[nan_ind-1]
                             nans_replaced += 1
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
+
             if calibration:
                if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
                else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
@@ -1316,20 +1317,32 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
     if sc.isstring(year):
         year = float(year)
-    if pops.lower() == 'all':
+
+    results = sc.promotetolist(results)
+
+    if calibration and pops.lower() == 'all':
+        # For calibration plot, 'all' pops means that they should all be disaggregated and visible
+        # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = None  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
+    elif pops.lower() == 'all':
+        pops = 'all' # make sure it's lowercase
+    else:
+        pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
+        pops = pop_labels[pops]
+
     cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
     else: # For Optima TB
-        output,allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options)
         if calibration:
+            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
             unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
             output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']
             allfigs = cascadefigs + [x for t in zip(allfigs, unstackedfigs) for x in t]
         else:
+            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']
             allfigs = cascadefigs + allfigs
     if dosave:
@@ -1501,7 +1514,7 @@ def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot
     result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
 
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
 
     return output
 
@@ -1524,7 +1537,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
     put_results_cache_entry(cache_id, result)    
     print('Resultsets after run: %s' % len(proj.results))
 
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
 
     return output
 
@@ -1632,7 +1645,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     put_results_cache_entry(cache_id, results)
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave)
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False)
     print('Saving project...')
     save_project(proj)    
     return output
@@ -1871,7 +1884,7 @@ def delete_results_cache_entry(cache_id):
     
     
 @RPC() 
-def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, plotbudget=False):
+def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, plotbudget=False, calibration=False):
     print('Plotting cached results...')
     proj = load_project(project_id, raise_exception=True)
 
@@ -1880,7 +1893,7 @@ def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plot
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
     
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget)
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget, calibration=calibration)
     return output
     
 
