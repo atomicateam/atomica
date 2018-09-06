@@ -325,7 +325,7 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],'main',year=[2017])
 
-    elif test in ['diabetes','service']:
+    elif test in ['service']:
         print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
 
     else:
