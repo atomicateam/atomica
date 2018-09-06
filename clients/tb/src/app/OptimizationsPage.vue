@@ -517,9 +517,9 @@ Last update: 2018-09-06
             optimSum.executionTime = '--'
             
             // Get the task state for the optimization.
-            this.getOptimTaskState(optimSum)
+//            this.getOptimTaskState(optimSum)
           })
-          this.pollAllTaskStates() // Start polling of tasks states.
+//          this.pollAllTaskStates() // Start polling of tasks states.
           this.optimsLoaded = true
           status.succeed(this, 'Optimizations loaded')
         })
@@ -569,14 +569,14 @@ Last update: 2018-09-06
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
             if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (newOptim.status != 'not started') { // Clear the present task.
+/*              if (newOptim.status != 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
-              }
+              } */
 
               // Set a new server DataStore ID.
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
               
-              this.getOptimTaskState(newOptim)
+//              this.getOptimTaskState(newOptim)
             }              
           }
           else {
@@ -587,7 +587,7 @@ Last update: 2018-09-06
           newOptim.name = utils.getUniqueName(newOptim.name, optimNames)
           newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
           this.optimSummaries.push(newOptim)
-          this.getOptimTaskState(newOptim)
+//          this.getOptimTaskState(newOptim)
         }
 
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -632,7 +632,7 @@ Last update: 2018-09-06
         newOptim.name = utils.getUniqueName(newOptim.name, otherNames)
         newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
         this.optimSummaries.push(newOptim)
-        this.getOptimTaskState(newOptim)
+//        this.getOptimTaskState(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
             status.succeed(this, 'Opimization copied')
@@ -645,9 +645,9 @@ Last update: 2018-09-06
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
         status.start(this)
-        if (optimSummary.status != 'not started') {
+/*        if (optimSummary.status != 'not started') {
           this.clearTask(optimSummary)  // Clear the task from the server.
-        }
+        } */
         for(var i = 0; i< this.optimSummaries.length; i++) {
           if(this.optimSummaries[i].name === optimSummary.name) {
             this.optimSummaries.splice(i, 1);
@@ -673,9 +673,23 @@ Last update: 2018-09-06
         status.start(this)
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-        .then(response => { // Go to the server to get the results
-          rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
-          .then(response => {  
+        .then(response => {        
+          rpcs.rpc('run_optimization', [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
+            {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
+            // CASCADE-TB DIFFERENCE
+            'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+            this.table = response.data.table
+            this.displayResultName = optimSummary.name
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
+          })
+          
+// Celery code.
+/*          
             rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization', 
               [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
               {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
@@ -695,11 +709,9 @@ Last update: 2018-09-06
                
               // Indicate failure.
               status.fail(this, 'Could not start optimization: ' + error.message)
-            })            
-          })
-          .catch(error => {
-            status.fail(this, 'Could not start optimization: ' + error.message)
-          })        
+            }) 
+*/
+       
         })
         .catch(error => {
           status.fail(this, 'Could not start optimization: ' + error.message)

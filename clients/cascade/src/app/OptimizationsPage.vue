@@ -561,7 +561,7 @@ Last update: 2018-09-06
               // Set a new server DataStore ID.
               newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
               
-              this.getOptimTaskState(newOptim)
+//              this.getOptimTaskState(newOptim)
             }              
           }
           else {
@@ -657,7 +657,7 @@ Last update: 2018-09-06
         status.start(this)       
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
         .then(response => {
-          rpcs.rpc('run_cascade_optimization', [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
+          rpcs.rpc('run_optimization', [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
             {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
             // CASCADE-TB DIFFERENCE
             'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
