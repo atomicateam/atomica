@@ -38,7 +38,8 @@ function succeed(vm, successMessage) {
       icon: 'ti-check',
       type: 'success',
       verticalAlign: 'top',
-      horizontalAlign: 'left'
+      horizontalAlign: 'left',
+      timeout: 0
     })
   }  
 }
