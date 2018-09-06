@@ -24,7 +24,7 @@ def default_framework(which=None, show_options=False):
                     ('udt',      'Undiagnosed-diagnosed-treated'),       
                     ('usdt',     'Undiagnosed-screened-diagnosed-treated'),       
                     ('sir',      'SIR model'),       
-                    # ('diabetes', 'Diabetes'),        
+                    ('diabetes', 'Diabetes'),        
                     ('hypertension',  'Hypertension'),
                     ('service',  'Service delivery'),
                     ('hiv',      'HIV care cascade'),  
@@ -58,6 +58,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
                     ('udt',          'Undiagnosed-diagnosed-treated cascade (1 population)'),
                     ('usdt',         'Undiagnosed-screened-diagnosed-treated cascade (1 population)'),
                     ('sir',          'SIR model (1 population)'),       
+                    ('diabetes',     'Diabetes cascade (1 population)'),        
                     ('service',      'Service delivery cascade (1 population)'),
                     ('hypertension', 'Hypertension cascade for Malawi (4 populations)'),
                     ('hiv',          'HIV care cascade (2 populations)'), 
@@ -111,11 +112,20 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     elif which=='diabetes':
         logger.info("Creating a diabetes cascade project...")
         
+        if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
+        if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run)
         P.settings.sim_dt = 1.0
         if addprogs:
-            if verbose: print('Progbook not implemented')
+            if verbose: print('Loading progbook')
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            if verbose: print('Creating scenarios')
+            P.demo_scenarios() # Add example scenarios
+            if verbose: print('Creating optimizations')
+            P.demo_optimization(tool='tb') # Add optimization example
+            if verbose: print('Done!')
+
 
     elif which=='udt':
         logger.info("Creating a generic 3-stage disease cascade project...")

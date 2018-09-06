@@ -134,7 +134,8 @@ def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominato
     for i in range(0,len(eval_years)):
         outcomes = progset.get_outcomes({prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
         for key in target_vals: # Key is a (par,pop) tuple
-            obj += (target_vals[key][i] - outcomes[key][0]) ** 2  # Add squared difference in parameter value
+            try: obj += (target_vals[key][i] - outcomes[key][0]) ** 2  # Add squared difference in parameter value
+            except: import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
     return obj
 
 def _convert_to_single_year(progset,reconciliation_year):
