@@ -5,16 +5,12 @@ Last update: 2018-08-23
 -->
 
 <template>
-  <div>
-    <h4>{{ label }}
+  <span>
+    <div v-if="label!==''" style="display:inline-block; font-size:1.4em; margin: 0px 5px 10px 0px;">{{ label }}</div> <!-- Was <h4> -->
       <button class="btn __blue small-button" @click="openLink(reflink)" data-tooltip="Help" style="padding-top:2px; margin-bottom:5px">
         <i class="ti-help"></i>
       </button>
-      <!--<span @click="openLink(reflink)">-->
-        <!--<i class="ti-help-alt"  style="margin-left: 0.5em; color: #29abe2; font-size: 30px; font-weight:bold"></i>-->
-      <!--</span>-->
-    </h4>
-  </div>
+  </span>
 </template>
 
 <script>
@@ -24,12 +20,12 @@ Last update: 2018-08-23
     props: {
       reflink: {
         type: String,
-        default: 'create-projects'
+        default: ''
       }, 
 
       label: {
         type: String,
-        default: 'Create projects'        
+        default: ''
       }        
     },
 

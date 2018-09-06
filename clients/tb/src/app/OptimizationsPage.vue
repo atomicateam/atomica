@@ -144,7 +144,7 @@ Last update: 2018-09-05
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="900"
+             :width="'60%'"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -177,10 +177,10 @@ Last update: 2018-09-05
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            <!--Budget factor:<br>-->
-            <!--<input type="text"-->
-            <!--class="txbox"-->
-            <!--v-model="modalOptim.budget_factor"/><br>-->
+            Budget factor:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.budget_factor"/><br>
             <br>
             <b>Objective weights</b><br>
             <span v-for="(val,key) in modalOptim.objective_labels">
@@ -269,6 +269,7 @@ Last update: 2018-09-05
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
         figscale: 1.0,
+        hasGraphs: false,
       }
     },
 

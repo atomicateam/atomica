@@ -162,7 +162,7 @@ Last update: 2018-09-06
             <br>
             <b>Objective weights</b><br>
             <span v-for="(val,key) in modalOptim.objective_labels">
-              {{ val }}
+              {{ modalOptim.objective_labels[key] }}
               <input type="text"
                      class="txbox"
                      v-model="modalOptim.objective_weights[key]"/><br>
