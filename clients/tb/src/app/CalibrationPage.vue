@@ -192,12 +192,13 @@ Last update: 2018-09-06
               <!--<br><br><br>-->
             <!--</div>-->
 
-            <div class="dialogs" style="display:none">
+            <div class="dialogs">
               <dialog-drag v-for="dialog,key in openDialogs"
                            :id="dialog.id"
                            :key="key"
                            @close="minimize(dialog.id)"
-                           :options="dialog.options">
+                           :options="dialog.options"
+                           style="display:none">
 
                 <span slot='title' style="color:#fff">Legend</span>
                 <div :id="'legend'+dialog.id">
