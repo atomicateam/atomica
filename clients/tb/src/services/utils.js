@@ -150,16 +150,16 @@ function makeGraphs(vm, graphdata) {
         var containerdiv = document.getElementById(containerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
         containerdiv.style.display = 'flex'
 
-        var legendlabel = 'legend' + index
-        var legenddiv  = document.getElementById(legendlabel);
-        while (legenddiv.firstChild) {
-          legenddiv.removeChild(legenddiv.firstChild);
-        }
+        // var legendlabel = 'legend' + index
+        // var legenddiv  = document.getElementById(legendlabel);
+        // while (legenddiv.firstChild) {
+        //   legenddiv.removeChild(legenddiv.firstChild);
+        // }
 
         console.log('div review')
         console.log(figdiv)
         console.log(containerdiv)
-        console.log(legenddiv)
+        // console.log(legenddiv)
       }
 
 
@@ -176,18 +176,18 @@ function makeGraphs(vm, graphdata) {
           return d3.format('.2s')(d);
         });
       });
-      if (index>=1 && index<n_plots) {
-        mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
-          console.log('hi_5');
-          fig.setXTicks(6, function (d) {
-            return d3.format('.0f')(d);
-          });
-          console.log('hi_6');
-          fig.setYTicks(null, function (d) {
-            return d3.format('.2s')(d);
-          });
-        });
-      }
+      // if (index>=1 && index<n_plots) {
+      //   mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
+      //     console.log('hi_5');
+      //     fig.setXTicks(6, function (d) {
+      //       return d3.format('.0f')(d);
+      //     });
+      //     console.log('hi_6');
+      //     fig.setYTicks(null, function (d) {
+      //       return d3.format('.2s')(d);
+      //     });
+      //   });
+      // }
     }
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
