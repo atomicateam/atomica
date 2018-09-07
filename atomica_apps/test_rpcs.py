@@ -6,14 +6,14 @@ import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
 import json
-
+import sciris as sc
 
 torun = [
-'get_cascade_plot',
-'get_cascade_json',
+# 'get_cascade_plot',
+# 'get_cascade_json',
 'get_plots',
-'run_cascade_optimization',
-'run_tb_optimization',
+# 'run_cascade_optimization',
+# 'run_tb_optimization',
 ]
 
 proj = None

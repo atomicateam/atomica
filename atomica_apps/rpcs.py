@@ -1311,7 +1311,7 @@ def get_program_plots(results,year,budget=True,coverage=True):
 
     figs = []
     if budget:
-        d = au.PlotData.programs(results, outputs='spending')
+        d = au.PlotData.programs(results, quantity='spending')
         d.interpolate(year)
         budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
 
@@ -1326,8 +1326,12 @@ def get_program_plots(results,year,budget=True,coverage=True):
         print('Budget plot succeeded')
 
     if coverage:
-        d = au.PlotData.programs(results,outputs='coverage_fraction')
+        d = au.PlotData.programs(results,quantity='coverage_fraction')
         coverage_figs = au.plot_series(d, axis='results')
+        for fig,output in zip(coverage_figs,d.outputs.keys()):
+            fig.axes[0].set_title(output)
+            series = d[d.results.keys()[0],d.pops.keys()[0],output]
+            fig.axes[0].set_ylabel(series.units)
         figs += coverage_figs
         print('Coverage plots succeeded')
 
@@ -1601,7 +1605,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     put_results_cache_entry(cache_id, results)
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False)
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False, plot_budget=True)
     print('Saving project...')
     save_project(proj)    
     return output
