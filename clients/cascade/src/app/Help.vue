@@ -88,8 +88,9 @@ Last update: 2018-08-18
       newDialog (id, name, content) {
         let style = { name: 'dialog-2', options: { width: 150, buttonPin: false } }
         let options = {}
-        options.left = this.mousex
-        options.top = this.mousey
+        if (style.options) options = Object.assign({}, style.options)
+        if (!options.left) options.left = this.mousex
+        if (!options.top)  options.top = this.mousey
         let properties = { id, name, content, style, options }
         return this.closedDialogs.push(properties)
       },
