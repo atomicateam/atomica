@@ -359,7 +359,6 @@ Last update: 2018-09-06
 
       updateParset() {
         console.log('updateParset() called')
-//        status.start(this) // Note: For some reason, the popup spinner doesn't work from inside created() so it doesn't show up here.
         rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
@@ -371,10 +370,9 @@ Last update: 2018-09-06
             }
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
-//            status.succeed(this, '')  // No green notification.
           })
           .catch(error => {
-            status.fail(this, 'Could not update parset')
+            status.fail(this, 'Could not update parameter set', error)
           })
       },
 
@@ -408,7 +406,7 @@ Last update: 2018-09-06
             this.parList = response.data // Get the parameter values
           })
           .catch(error => {
-            status.fail(this, 'Could not load parameters: ' + error.message)
+            status.fail(this, 'Could not load parameters', error)
           })
       },
 
@@ -423,7 +421,7 @@ Last update: 2018-09-06
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
@@ -433,14 +431,14 @@ Last update: 2018-09-06
           })
           .catch(error => {
             console.log(error.message)
-            status.fail(this, 'Could not run manual calibration: ' + error.message)
+            status.fail(this, 'Could not run manual calibration', error)
           })
       },
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30
@@ -455,7 +453,7 @@ Last update: 2018-09-06
           })
           .catch(error => {
             console.log(error.message)
-            status.fail(this, 'Could not run automatic calibration: ' + error.message)
+            status.fail(this, 'Could not run automatic calibration', error)
           })
       },
       
@@ -473,10 +471,10 @@ Last update: 2018-09-06
           status.succeed(this, 'Graphs created')
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.serverresponse = 'There was an error', error // Pull out the error message.
           this.servererror = error.message // Set the server error.
           if (showNoCacheError) {
-            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not make graphs', error) 
           }
           else {
             status.succeed(this, '')  // Silently stop progress bar and spinner.
@@ -494,21 +492,21 @@ Last update: 2018-09-06
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not rename parameter set') // Indicate failure.
+            status.fail(this, 'Could not rename parameter set', error) 
           })
       },
 
       copyParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('copyParset() called for ' + this.activeParset)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
@@ -516,34 +514,34 @@ Last update: 2018-09-06
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not copy parameter set') // Indicate failure.
+            status.fail(this, 'Could not copy parameter set', error) 
           })
       },
 
       deleteParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('deleteParset() called for ' + this.activeParset)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one') // Indicate failure.
+            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one', error) 
           })
       },
 
       downloadParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('downloadParset() called for ' + this.activeParset)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => { // Indicate success.
             status.succeed(this, '')  // No green popup message.
           })
-          .catch(error => { // Indicate failure.
-            status.fail(this, 'Could not download parameter set: ' + error.message)
+          .catch(error => { 
+            status.fail(this, 'Could not download parameter set', error)
           })
       },
 
@@ -552,13 +550,13 @@ Last update: 2018-09-06
         console.log('uploadParset() called')
         rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
-            status.start(this) // Start indicating progress.
+            status.start(this) 
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
           })
-          .catch(error => { // Indicate failure.
-            status.fail(this, 'Could not upload parameter set: ' + error.message)
+          .catch(error => { 
+            status.fail(this, 'Could not upload parameter set', error)
           })
       },
     }

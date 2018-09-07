@@ -343,7 +343,7 @@ Last update: 2018-09-06
             console.log(this.demoOption)
           })
           .catch(error => {
-            status.fail(this, 'Could not load demo project options: ' + error.message)
+            status.fail(this, 'Could not load demo project options', error)
           })
       },
 
@@ -366,7 +366,7 @@ Last update: 2018-09-06
             }
           })
           .catch(error => {
-            status.fail(this, 'Could not load frameworks: ' + error.message)
+            status.fail(this, 'Could not load frameworks', error)
           })
       },
 
@@ -400,7 +400,7 @@ Last update: 2018-09-06
             status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not load projects: ' + error.message)
+            status.fail(this, 'Could not load projects', error)
           })
       },
 
@@ -414,7 +414,7 @@ Last update: 2018-09-06
             status.succeed(this, '') // Already have notification from project
           })
           .catch(error => {
-            status.fail(this, 'Could not add demo project: ' + error.message)
+            status.fail(this, 'Could not add demo project', error)
           })
       },
 
@@ -440,7 +440,7 @@ Last update: 2018-09-06
       createNewProject() {
         console.log('createNewProject() called')
         this.$modal.hide('create-project')
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the project that matches the UID passed in.  // CASCADE-TB DIFFERENCE
         console.log('Loading framework ' + this.currentFramework)
         console.log(matchFramework)
@@ -451,7 +451,7 @@ Last update: 2018-09-06
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not add new project:' + error.message)    // Indicate failure.
+            status.fail(this, 'Could not add new project:' + error.message)    
           })
       },
 
@@ -535,14 +535,14 @@ Last update: 2018-09-06
       copyProject(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('copyProject() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('copy_project', [uid]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not copy project: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not copy project', error) 
           })
       },
 
@@ -561,8 +561,8 @@ Last update: 2018-09-06
               status.succeed(this, '')
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not rename project: ' + error.message)
+              
+              status.fail(this, 'Could not rename project', error)
             })
         }
 
@@ -578,13 +578,13 @@ Last update: 2018-09-06
       downloadProjectFile(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('downloadProjectFile() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.download('download_project', [uid]) // Make the server call to download the project to a .prj file.
           .then(response => { // Indicate success.
             status.succeed(this, '')
           })
-          .catch(error => { // Indicate failure.
-            status.fail(this, 'Could not download project: ' + error.message)
+          .catch(error => { 
+            status.fail(this, 'Could not download project', error)
           })
       },
 
@@ -592,25 +592,25 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('downloadFramework() called for ' + matchProject.project.name)
-        status.start(this, 'Downloading framework...') // Start indicating progress.
+        status.start(this, 'Downloading framework...') 
         rpcs.download('download_framework_from_project', [uid])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not download framework: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not download framework', error) 
           })
       },
 
       downloadDatabook(uid) {
         console.log('downloadDatabook() called')
-        status.start(this, 'Downloading data book...') // Start indicating progress.
+        status.start(this, 'Downloading data book...') 
         rpcs.download('download_databook', [uid])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not download databook: ' + error.message)
+            status.fail(this, 'Could not download databook', error)
           })
       },
 
@@ -618,14 +618,14 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('downloadProgbook() called for ' + matchProject.project.name)
-        status.start(this, 'Downloading program book...') // Start indicating progress.
+        status.start(this, 'Downloading program book...') 
         rpcs.download('download_progbook', [uid])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not download program book: ' + error.message)
+            
+            status.fail(this, 'Could not download program book', error)
           })
       },
 
@@ -635,14 +635,14 @@ Last update: 2018-09-06
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('createProgbook() called for ' + matchProject.project.name)
         this.$modal.hide('create-progbook')
-        status.start(this, 'Creating program book...') // Start indicating progress.
+        status.start(this, 'Creating program book...') 
         rpcs.download('create_progbook', [uid, this.num_progs])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not create program book: ' + error.message)
+            
+            status.fail(this, 'Could not create program book', error)
           })
       },
 
@@ -665,12 +665,12 @@ Last update: 2018-09-06
         console.log('uploadProgbook() called for ' + matchProject.project.name)
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
-            status.start(this) // Start indicating progress. (This is here because we don't want the
+            status.start(this)  (This is here because we don't want the
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not upload program book: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not upload program book', error) 
           })
       },
 
@@ -710,7 +710,7 @@ Last update: 2018-09-06
               status.succeed(this, '')
             })
             .catch(error => {
-              status.fail(this, 'Could not delete project/s: ' + error.message)
+              status.fail(this, 'Could not delete project/s', error)
             })
         }
       },
@@ -726,7 +726,7 @@ Last update: 2018-09-06
               status.succeed(this, '')
             })
             .catch(error => {
-              status.fail(this, 'Could not download project/s: ' + error.message)
+              status.fail(this, 'Could not download project/s', error)
             })
         }
       },
@@ -738,7 +738,7 @@ Last update: 2018-09-06
 //            status.succeed(this, 'success lol')
           })
           .catch(error => {
-            status.fail(this, 'Massive fail: ' + error.message)
+            status.fail(this, 'Massive fail', error)
           })
       }
     }
