@@ -1680,8 +1680,8 @@ def init_results_cache(app):
     
     # If there was a match...
     if results_cache_uid is not None:
-        if app.config['LOGGING_MODE'] == 'FULL':
-            print('>> Loading ResultsCache from the DataStore.')
+#        if app.config['LOGGING_MODE'] == 'FULL':
+#            print('>> Loading ResultsCache from the DataStore.')
         results_cache.load_from_data_store()
         
     # Else (no match)...
@@ -1695,7 +1695,8 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-        results_cache.show()
+#        results_cache.show()
+        print('>> Loaded results cache with %s results' % len(results_cache.keys()))
 
         
 def apptasks_load_results_cache():

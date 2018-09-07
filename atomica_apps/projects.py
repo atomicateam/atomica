@@ -223,8 +223,8 @@ def init_projects(app):
     
     # If there was a match...
     if proj_collection_uid is not None:
-        if app.config['LOGGING_MODE'] == 'FULL':
-            print('>> Loading ProjectCollection from the DataStore.')
+#        if app.config['LOGGING_MODE'] == 'FULL':
+#            print('>> Loading ProjectCollection from the DataStore.')
         proj_collection.load_from_data_store() 
     
     # Else (no match)...
@@ -241,7 +241,8 @@ def init_projects(app):
         
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ProjectCollection.    
-        proj_collection.show()
+#        proj_collection.show()
+        print('>> Loaded project collection with %s projects' % len(proj_collection.keys()))
         
 def apptasks_load_projects(config):
     global proj_collection  # need this to allow modification within the module 
