@@ -34,7 +34,7 @@ Last update: 2018-08-18
 
 
     <div v-for="val in vals">
-      <button @click="unDrop(val)">active {{ val }}</button>
+      <button @click="maximize(val)">active {{ val }}</button>
       <br><br><br>
     </div>
 
@@ -44,10 +44,7 @@ Last update: 2018-08-18
         :key='dialog.id'
         :id='dialog.id'
         :ref='"dialog-" + dialog.id'
-        @close='drop(dialog.id)'
-        @drag-end='dialogDragEnd'
-        @drag-start='selectDialog'
-        @move='dialogDragEnd'
+        @close='minimize(dialog.id)'
         :options='dialog.options'>
 
         <span slot='title'> {{ dialog.name }} </span>
@@ -107,7 +104,7 @@ Last update: 2018-08-18
 //        console.log(this.x, this.y);
       },
 
-      drop (id) {
+      minimize(id) {
         let index = this.findDialog(id)
         if (index !== null) {
           console.log('a?')
@@ -117,12 +114,9 @@ Last update: 2018-08-18
           console.log('c?')
         }
       },
-      unDrop (id) {
-        console.log('iundrop')
-        console.log(id)
+
+      maximize(id) {
         let index = this.findDialog(id, this.droppeds)
-        console.log(index)
-        console.log(this.droppeds)
         if (index !== null) {
           this.droppeds[index].options.left = this.x
           this.droppeds[index].options.top = this.y
@@ -130,46 +124,32 @@ Last update: 2018-08-18
           this.droppeds.splice(index, 1)
         }
       },
+
       newDialog (sId) {
         return this.droppeds.push(this.dialog(sId))
       },
-      removeDialog (dialog) {
-        console.log('rem!')
-        console.log(dialog)
-        let id = dialog.id
-        console.log(dialog.id)
-        let index = this.findDialog(id)
-        console.log('beh!')
-        console.log(index)
-        this.dialogs.splice(index, 1)
-        if (this.selected && this.selected.id === id) this.selected = null
-      },
+
       findDialog (id, dialogs) {
         console.log('heyeye')
         console.log(this.dialogs)
         if (!dialogs) dialogs = this.dialogs
         let index = dialogs.findIndex((val) => {
-          return val.id == id
+          return String(val.id) === String(id) // Force type conversion
         })
         return (index > -1) ? index : null
       },
+
       dialog (id) {
-//        let id = String(this.dialogId)
-//        this.dialogId++
         let style = this.styles[1]
         let name = 'Dialog ' + id
         let content = 'foo' //rndText()
         let options = {}
         if (style.options) options = Object.assign({}, style.options)
         if (!options.left) options.left = this.x
-        if (!options.top) options.top = this.y
+        if (!options.top)  options.top = this.y
         return { id, name, content, style, options }
       },
-      dialogDragEnd (obj) {
-        let index = this.findDialog(obj.id)
-//        this.$set(this.dialogs[index].options, 'left', obj.left)
-//        this.$set(this.dialogs[index].options, 'top', obj.top)
-      },
+
       selectDialog (obj) {
         let index = this.findDialog(obj.id)
         this.selected = this.dialogs[index]
