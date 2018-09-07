@@ -23,17 +23,17 @@ Last update: 2018-08-18
 <template>
   <div id="app">
 
-    <button @click="createDialogs()">create</button>
+    <button @click="createDialogs()">CREATE</button>
     <br><br><br><br><br><br><br><br><br><br>
 
 
     <div v-for="val in vals">
-      <button @click="maximize(val)">active {{ val }}</button>
+      <button @click="maximize(val)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
       <br><br><br>
     </div>
 
     <div class="dialogs">
-      <dialog-drag v-for='dialog,key in dialogs'
+      <dialog-drag v-for='dialog,key in openDialogs'
         :class='dialog.style.name'
         :key='dialog.id'
         :id='dialog.id'
@@ -56,27 +56,22 @@ Last update: 2018-08-18
     data () {
       return {
         vals: [0,1,2,3],
-        doshow: [true,true,true,true],
-		dialogId: 1,
         styles: [
           { name: 'dialog-1', options: { width: 400 } },
           { name: 'dialog-2', options: { width: 150, buttonPin: false } },
           { name: 'dialog-3' }
         ],
         style: null,
-        selected: null,
         dialogWidth: 400,
-        droppeds: [],
+        closedDialogs: [],
+        openDialogs: [],
         x:-1,
         y:-1,
-        dialogs: [],
       }
     },
 
     created () {
-
       this.addListener()
-
     },
 
     methods: {
@@ -86,8 +81,8 @@ Last update: 2018-08-18
       },
 
       createDialogs() {
-        for (let i in this.vals) {
-          this.newDialog(i, 'This is test '+i)
+        for (let val in this.vals) {
+          this.newDialog(val, 'Dialog '+val, 'This is test '+val)
         }
       },
 
@@ -99,53 +94,41 @@ Last update: 2018-08-18
       minimize(id) {
         let index = this.findDialog(id)
         if (index !== null) {
-          this.droppeds.push(this.dialogs[index])
-          this.dialogs.splice(index, 1)
+          this.closedDialogs.push(this.openDialogs[index])
+          this.openDialogs.splice(index, 1)
         }
       },
 
       maximize(id) {
-        let index = this.findDialog(id, this.droppeds)
+        let index = this.findDialog(id, this.closedDialogs)
         if (index !== null) {
-          this.droppeds[index].options.left = this.x
-          this.droppeds[index].options.top = this.y
-          this.dialogs.push(this.droppeds[index])
-          this.droppeds.splice(index, 1)
+          this.closedDialogs[index].options.left = this.x
+          this.closedDialogs[index].options.top = this.y
+          this.openDialogs.push(this.closedDialogs[index])
+          this.closedDialogs.splice(index, 1)
         }
       },
-      
+
       findDialog (id, dialogs) {
-        if (!dialogs) dialogs = this.dialogs
+        if (!dialogs) dialogs = this.openDialogs
         let index = dialogs.findIndex((val) => {
           return String(val.id) === String(id) // Force type conversion
         })
         return (index > -1) ? index : null
       },
 
-      newDialog (id, content) {
+      newDialog (id, name, content) {
         let style = this.styles[1]
-        let name = 'Dialog ' + id
         let options = {}
         if (style.options) options = Object.assign({}, style.options)
         if (!options.left) options.left = this.x
         if (!options.top)  options.top = this.y
         let properties = { id, name, content, style, options }
-        return this.droppeds.push(properties)
+        return this.closedDialogs.push(properties)
       },
-
-      selectDialog (obj) {
-        let index = this.findDialog(obj.id)
-        this.selected = this.dialogs[index]
-      }
     }
   }
 </script>
-
-<!--<style src="../vue-dialog-drag/dist/vue-dialog-drag.css"></style>-->
-<!--<style src="../vue-dialog-drag/dist/drop-area.css"></style>-->
-
-<!-- optional dialog styles, see example -->
-<!--<style src="vue-dialog-drag/dist/dialog-styles.css"></style>-->
 
 <style>
   .dialog-drag{-webkit-animation-duration:.2s;
