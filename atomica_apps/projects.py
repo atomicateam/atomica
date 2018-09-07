@@ -101,6 +101,7 @@ class ProjectSO(sw.Blob):
                 'creationTime':  sc.getdate(self.proj.created),
                 'updatedTime':   sc.getdate(self.proj.modified),
                 'hasData':       self.proj.data is not None,
+                'hasPrograms':   len(self.proj.progsets)>0,
                 'n_pops':        n_pops,
                 'sim_start':     self.proj.settings.sim_start,
                 'sim_end':       self.proj.settings.sim_end,

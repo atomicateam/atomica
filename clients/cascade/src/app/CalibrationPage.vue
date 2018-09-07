@@ -408,7 +408,7 @@ Last update: 2018-09-06
             this.parList = response.data // Get the parameter values
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load parameters: ' + error.message)
+            status.fail(this, 'Could not load parameters: ' + error.message)
           })
       },
 
@@ -550,9 +550,9 @@ Last update: 2018-09-06
       uploadParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('uploadParset() called')
-        status.start(this) // Start indicating progress.
         rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
+            status.start(this) // Start indicating progress.
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.

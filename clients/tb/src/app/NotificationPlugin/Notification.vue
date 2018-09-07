@@ -1,21 +1,23 @@
 <template>
   <div
     data-notify="container"
-    class="col-xs-11 col-sm-4 alert open alert-with-icon"
+    class="alert open alert-with-icon"
     role="alert"
     :class="[verticalAlign, horizontalAlign, alertType]"
     :style="customPosition"
     data-notify-position="top-center">
-    <button
-      type="button"
-      aria-hidden="true"
-      class="close col-xs-1"
-      data-notify="dismiss"
-      @click="close">×
-    </button>
-    <div>
-      <span data-notify="message" :class="icon" class="alert-icon" style="font-size:20px"></span>
-      <span data-notify="message" v-html="message"></span>
+
+    <div id = "flex">
+      <div style="padding-top:10px; padding-right:10px"><span class="alert-icon" data-notify="message" :class="icon" style="font-size:25px;"></span></div>
+      <div style="max-width:400px; font-size:15px; align-content:center"><div data-notify="message" v-html="message"></div></div>
+      <div style="padding-left:10px">
+        <button
+          class="btn __trans"
+          aria-hidden="true"
+          data-notify="dismiss"
+          @click="close"><span style="font-size:18px; color:#fff; background-color: transparent; background: transparent"><i class="ti-close"></i></span>
+        </button>
+      </div>
     </div>
 
   </div>
@@ -150,18 +152,18 @@
     }
 
     .close~span {
-      display: block;
+      display: inline-block;
       max-width: 89%;
     }
 
     &[data-notify="container"] {
-      width: 350px;
-      padding: 20px 10px 10px 20px; // CK: This actually affects the padding!
+      /*max-width: 400px;*/
+      /*padding: 20px 10px 10px 20px; // CK: This actually affects the padding!*/
       border-radius: $border-radius-base;
     }
 
     &.alert-with-icon {
-      padding-left: 15px; // CK: actual left padding
+      /*padding-left: 15px; // CK: actual left padding*/
     }
   }
 
@@ -172,16 +174,20 @@
 
   .alert-success {
     background-color: $bg-success;
-    color: $success-states-color;
+    color: #fff; // $success-states-color;
   }
 
   .alert-warning {
     background-color: $bg-warning;
-    color: $warning-states-color;
+    color: #fff; // $warning-states-color;
   }
 
   .alert-danger {
     background-color: $bg-danger;
     color: $danger-states-color;
   }
+
+  #flex {display: flex; justify-content: space-between;}
+  #flex div { padding: 4px; }
+
 </style>

@@ -19,6 +19,12 @@ Last update: 2018-09-06
       </div>
     </div>
 
+    <div v-else-if="!hasPrograms">
+      <div style="font-style:italic">
+        <p>Programs not yet uploaded for the project.  Please upload a program book in the Projects page.</p>
+      </div>
+    </div>
+
     <div v-else>
       <div class="card">
         <help reflink="optimizations" label="Define optimizations"></help>
@@ -44,7 +50,7 @@ Last update: 2018-09-06
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
-              <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
             </td>
@@ -53,7 +59,7 @@ Last update: 2018-09-06
         </table>
 
         <div>
-          <button class="btn" :disabled="!optimsLoaded" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
 
@@ -122,7 +128,7 @@ Last update: 2018-09-06
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="'60%'"
+             :width="800"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -137,37 +143,52 @@ Last update: 2018-09-06
             Edit optimization
           </div>
           <div class="dialog-c-text">
-            Optimization name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.name"/><br>
-            Parameter set:<br>
-            <select v-model="parsetOptions[0]">
-              <option v-for='parset in parsetOptions'>
-                {{ parset }}
-              </option>
-            </select><br><br>
-            Start year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.start_year"/><br>
-            End year:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.end_year"/><br>
-            Budget factor:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.budget_factor"/><br>
-            <br>
-            <b>Objective weights</b><br>
-            <span v-for="(val,key) in modalOptim.objective_labels">
-              {{ modalOptim.objective_labels[key] }}
+            <div style="display:inline-block">
+              <b>Optimization name</b><br>
               <input type="text"
                      class="txbox"
-                     v-model="modalOptim.objective_weights[key]"/><br>
-            </span>
+                     v-model="modalOptim.name"/><br>
+              <b>Parameter set</b><br>
+              <select v-model="parsetOptions[0]">
+                <option v-for='parset in parsetOptions'>
+                  {{ parset }}
+                </option>
+              </select><br><br>
+              <b>Start year</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.start_year"/><br>
+              <b>End year</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.end_year"/><br>
+              <b>Budget factor</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.budget_factor"/><br>
+            </div>
             <br>
+            <b>Objective weights</b><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Objective</th>
+                <th>Weight</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(val,key) in modalOptim.objective_labels">
+                <td>
+                  {{ modalOptim.objective_labels[key] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="modalOptim.objective_weights[key]"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
             <b>Relative spending constraints</b><br>
             <table class="table table-bordered table-hover table-striped" style="width: 100%">
               <thead>
@@ -254,6 +275,7 @@ Last update: 2018-09-06
     computed: {
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
+      hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
@@ -266,7 +288,8 @@ Last update: 2018-09-06
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project !== undefined) &&
-        (this.$store.state.activeProject.project.hasData) ) {
+               (this.$store.state.activeProject.project.hasData) &&
+               (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         utils.sleep(1)  // used so that spinners will come up by callback func
         .then(response => {
@@ -457,11 +480,11 @@ Last update: 2018-09-06
                 console.log('Active progset: ' + this.activeProgset)
               })
               .catch(error => {
-                status.failurePopup(this, 'Could not get progset info')
+                status.fail(this, 'Could not get progset info: ' + error.message)
               })
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get parset info')
+            status.fail(this, 'Could not get parset info: ' + error.message)
           })
       },
 
@@ -474,7 +497,7 @@ Last update: 2018-09-06
             console.log(this.defaultOptim);
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get default optimization')
+            status.fail(this, 'Could not get default optimization: ' + error.message)
           })
       },
 

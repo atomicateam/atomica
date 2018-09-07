@@ -478,7 +478,7 @@ class Project(object):
         json['progset_name']      = -1
         json['start_year']        = 2018
         json['end_year']          = 2035
-        json['budget_factor']     = 2.5
+        json['budget_factor']     = 1.0
         if tool == 'cascade':
             json['objective_weights'] = sc.odict()
             json['objective_labels'] = sc.odict()

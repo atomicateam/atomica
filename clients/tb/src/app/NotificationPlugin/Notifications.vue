@@ -32,7 +32,7 @@ Last updated: 2018-07-11
         
         // Hack to address "sticky" notifications: after a removal, clear all 
         // notifications after 2 seconds.
-        setTimeout(this.clearAllNotifications, 2000)
+//        setTimeout(this.clearAllNotifications, 2000)
       },
       
       clearAllNotifications () {

@@ -266,7 +266,7 @@ Last update: 2018-08-18
             console.log(this.frameworkOptions)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load framework options: ' + error.message)
+            status.fail(this, 'Could not load framework options: ' + error.message)
           })
       },
 
@@ -284,7 +284,7 @@ Last update: 2018-08-18
           console.log(this.frameworkSummaries)
         })
         .catch(error => {
-          status.failurePopup(this, 'Could not load frameworks: ' + error.message)
+          status.fail(this, 'Could not load frameworks: ' + error.message)
         })
       },
 
@@ -484,7 +484,7 @@ Last update: 2018-08-18
         // Make the server call to download the framework to a .prj file.
         rpcs.download('download_defaults', [uid])
         .catch(error => {
-          status.failurePopup(this, 'Could not download defaults:' + error.message)     
+          status.fail(this, 'Could not download defaults:' + error.message)     
         })        
       },
 

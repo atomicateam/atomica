@@ -19,6 +19,12 @@ Last update: 2018-09-06
       </div>
     </div>
 
+    <div v-else-if="!hasPrograms">
+      <div style="font-style:italic">
+        <p>Programs not yet uploaded for the project.  Please upload a program book in the Projects page.</p>
+      </div>
+    </div>
+
     <div v-else>
       <div class="card">
         <help reflink="scenarios" label="Define scenarios"></help>
@@ -26,7 +32,7 @@ Last update: 2018-09-06
           <thead>
           <tr>
             <th>Name</th>
-            <th>Active?</th>
+            <th>Active</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -141,7 +147,7 @@ Last update: 2018-09-06
       <modal name="add-budget-scen"
              height="auto"
              :scrollable="true"
-             :width="900"
+             :width="500"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -156,23 +162,23 @@ Last update: 2018-09-06
             Edit scenario
           </div>
           <div class="dialog-c-text">
-            Scenario name:<br>
+            <b>Scenario name</b><br>
             <input type="text"
                    class="txbox"
                    v-model="addEditModal.scenSummary.name"/><br>
-            Parameter set:<br>
+            <b>Parameter set</b><br>
             <select v-model="parsetOptions[0]">
               <option v-for='parset in parsetOptions'>
                 {{ parset }}
               </option>
             </select><br><br>
-            Program set:<br>
+            <b>Program set</b><br>
             <select v-model="progsetOptions[0]">
               <option v-for='progset in progsetOptions'>
                 {{ progset }}
               </option>
             </select><br><br>
-            Budget year:<br>
+            <b>Budget year</b><br>
             <input type="text"
                    class="txbox"
                    v-model="addEditModal.scenSummary.start_year"/><br>
@@ -260,6 +266,7 @@ Last update: 2018-09-06
     computed: {
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
+      hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
@@ -272,7 +279,8 @@ Last update: 2018-09-06
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project !== undefined) &&
-        (this.$store.state.activeProject.project.hasData) ) {
+               (this.$store.state.activeProject.project.hasData) &&
+               (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
@@ -371,12 +379,12 @@ Last update: 2018-09-06
               resolve(response)
             })
             .catch(error => {
-              status.failurePopup(this, 'Could not get progset info: ' + error.message)
+              status.fail(this, 'Could not get progset info: ' + error.message)
               reject(error)
             })
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get parset info: ' + error.message)
+            status.fail(this, 'Could not get parset info: ' + error.message)
             reject(error)
           })
         })
@@ -391,7 +399,7 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen);
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not get default budget scenario: ' + error.message)
+            status.fail(this, 'Could not get default budget scenario: ' + error.message)
           })
       },
 
@@ -436,7 +444,7 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not open add scenario modal: '  + error.message)
+            status.fail(this, 'Could not open add scenario modal: '  + error.message)
           })
       },
 
