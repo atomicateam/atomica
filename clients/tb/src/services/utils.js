@@ -266,11 +266,12 @@ function addListener(vm) {
 function onMouseUpdate(e, vm) {
   vm.mousex = e.pageX;
   vm.mousey = e.pageY;
-  console.log(vm.mousex, vm.mousey)
+  // console.log(vm.mousex, vm.mousey)
 }
 
 function createDialogs(vm) {
-  for (let val in vm.vals) {
+  var vals = placeholders(vm)
+  for (var val in vals) {
     newDialog(vm, val, 'Dialog '+val, 'This is test '+val)
   }
 }

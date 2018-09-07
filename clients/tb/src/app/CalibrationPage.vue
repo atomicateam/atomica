@@ -130,8 +130,6 @@ Last update: 2018-09-06
             <help reflink="results-plots" label="Results"></help>
             <div>
 
-              <button class="btn btn-icon" @click="TEMP()">TEMP</button>
-
               <b>Year: &nbsp;</b>
               <select v-model="endYear" @change="plotCalibration(true)">
                 <option v-for='year in simYears'>
@@ -186,8 +184,8 @@ Last update: 2018-09-06
 
             <!-- ### Start: dialogs ### -->
 
-            <button @click="createDialogs()">CREATE</button>
-            <br><br><br><br><br><br><br><br><br><br>
+            <!--<button @click="createDialogs()">CREATE</button>-->
+            <!--<br><br><br><br><br><br><br><br><br><br>-->
 
             <div v-for="val in vals">
               <button @click="maximize(val)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
@@ -344,6 +342,7 @@ Last update: 2018-09-06
 
     created() {
       utils.addListener(this)
+      utils.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
@@ -365,7 +364,7 @@ Last update: 2018-09-06
 
     methods: {
 
-      createDialogs() { return utils.createDialogs(this)},
+//      createDialogs() { return utils.createDialogs(this)},
       maximize(id)    { return utils.maximize(this, id)},
       minimize(id)    { return utils.minimize(this, id)},
 
