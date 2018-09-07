@@ -200,7 +200,7 @@ Last update: 2018-09-06
                            :options="dialog.options">
 
                 <span slot='title'>Legend</span>
-                <div :id="'legendBOO'">
+                <div :id="'legend'+index">
                   <!-- Legend content goes here-->
                 </div>
               </dialog-drag>

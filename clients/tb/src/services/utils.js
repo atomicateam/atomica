@@ -150,11 +150,11 @@ function makeGraphs(vm, graphdata) {
         var containerdiv = document.getElementById(containerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
         containerdiv.style.display = 'flex'
 
-        var legendlabel = 'legendBOO' // 'legend' + index
+        var legendlabel = 'legend' + index
         var legenddiv  = document.getElementById(legendlabel);
-        // while (legenddiv.firstChild) {
-        //   legenddiv.removeChild(legenddiv.firstChild);
-        // }
+        while (legenddiv.firstChild) {
+          legenddiv.removeChild(legenddiv.firstChild);
+        }
 
         console.log('div review')
         console.log(figdiv)
@@ -176,18 +176,18 @@ function makeGraphs(vm, graphdata) {
           return d3.format('.2s')(d);
         });
       });
-      // if (index>=1 && index<n_plots) {
-      //   mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
-      //     console.log('hi_5');
-      //     fig.setXTicks(6, function (d) {
-      //       return d3.format('.0f')(d);
-      //     });
-      //     console.log('hi_6');
-      //     fig.setYTicks(null, function (d) {
-      //       return d3.format('.2s')(d);
-      //     });
-      //   });
-      // }
+      if (index>=1 && index<n_plots) {
+        mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
+          console.log('hi_5');
+          fig.setXTicks(6, function (d) {
+            return d3.format('.0f')(d);
+          });
+          console.log('hi_6');
+          fig.setYTicks(null, function (d) {
+            return d3.format('.2s')(d);
+          });
+        });
+      }
     }
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
@@ -305,7 +305,7 @@ function createDialogs(vm) {
 function newDialog(vm, id, name, content) {
   let options = {}
   let properties = { id, name, content, options }
-  return vm.closedDialogs.push(properties)
+  return vm.openDialogs.push(properties)
 }
 
 function findDialog(vm, id, dialogs) {
