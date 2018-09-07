@@ -192,14 +192,14 @@ Last update: 2018-09-06
               <!--<br><br><br>-->
             <!--</div>-->
 
-            <div class="dialogs">
+            <div class="dialogs" style="display:none">
               <dialog-drag v-for="dialog,key in openDialogs"
                            :id="dialog.id"
                            :key="key"
                            @close="minimize(dialog.id)"
                            :options="dialog.options">
 
-                <span slot='title'>Legend</span>
+                <span slot='title' style="color:#fff">Legend</span>
                 <div :id="'legend'+dialog.id">
                   <!-- Legend content goes here-->
                 </div>
