@@ -50,6 +50,15 @@ function hasData(vm) {
   }
 }
 
+function hasPrograms(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return false
+  }
+  else {
+    return vm.$store.state.activeProject.project.hasPrograms
+  }
+}
+
 function simStart(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -238,6 +247,7 @@ export default {
   placeholders,
   projectID,
   hasData,
+  hasPrograms,
   simStart,
   simEnd,
   simYears,
