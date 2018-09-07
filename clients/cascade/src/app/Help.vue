@@ -37,21 +37,20 @@ Last update: 2018-08-18
 
 
     <div class="dialogs">
-      <div v-for="val in vals">
-        <dialog-drag v-if='doshow[val]'
-                     :class='dialog-2'
-                     :key='val'
-                     :id='val'
-                     :ref='val'
-                     @close='removeDialog(val)'
-                     @drag-end='dialogDragEnd'
-                     @drag-start='selectDialog'
-                     @move='dialogDragEnd'>
+      <dialog-drag v-for='dialog,key in dialogs'
+        :class='dialog.style.name'
+        :key='dialog.id'
+        :id='dialog.id'
+        :ref='"dialog-" + dialog.id'
+        @close='removeDialog'
+        @drag-end='dialogDragEnd'
+        @drag-start='selectDialog'
+        @move='dialogDragEnd'
+        :options='dialog.options'>
 
-          <span slot='title'> {{ dialog.name }} </span>
-          <p>{{dialog.content}}</p>
-        </dialog-drag>
-      </div>
+        <span slot='title'> {{ dialog.name }} </span>
+        <p>{{dialog.content}}</p>
+      </dialog-drag>
     </div>
   </div>
 </template>
@@ -65,6 +64,7 @@ Last update: 2018-08-18
       return {
         vals: [0,1,2,3],
         doshow: [true,true,true,true],
+		dialogId: 1,
         styles: [
           { name: 'dialog-1', options: { width: 400 } },
           { name: 'dialog-2', options: { width: 150, buttonPin: false } },
@@ -81,11 +81,13 @@ Last update: 2018-08-18
     },
 
     created () {
+      for (let i = 0; i < 10; i++) {
+        let index = this.newDialog(i) - 1
+        this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
+      }
+
       this.addListener()
 
-      for (let i=0; i<4; i++) {
-        this.newDialog(i)
-      }
     },
 
     methods: {
@@ -100,10 +102,8 @@ Last update: 2018-08-18
 //        console.log(this.x, this.y);
       },
 
-      drop (index) {
-        console.log('ok?')
-        console.log(index)
-//        let index = this.findDialog(id)
+      drop (id) {
+        let index = this.findDialog(id)
         if (index !== null) {
           console.log('a?')
           this.droppeds.push(this.dialogs[index])
@@ -121,16 +121,13 @@ Last update: 2018-08-18
       },
       newDialog (sId) {
         if (sId === null) sId = Math.floor(Math.random() * this.styles.length)
-        return this.dialogs.push(this.dialog(this.styles[0], sId))
+        return this.dialogs.push(this.dialog(this.styles[0]))
       },
-      removeDialog (val) {
+      removeDialog (dialog) {
         console.log('rem!')
-        console.log(val)
-        this.doshow[val] = false
-        console.log(this.doshow)
-        let id = val
-        console.log('ah!')
-        console.log(val)
+        console.log(dialog)
+        let id = dialog.id
+        console.log(dialog.id)
         let index = this.findDialog(id)
         console.log('beh!')
         console.log(index)
@@ -146,9 +143,9 @@ Last update: 2018-08-18
         })
         return (index > -1) ? index : null
       },
-      dialog (style, myid) {
-        let id = myid // String(this.dialogId)
-//        this.dialogId++
+      dialog (style) {
+        let id = String(this.dialogId)
+        this.dialogId++
         let name = 'Dialog ' + id
         let content = 'foo' //rndText()
         let options = {}
