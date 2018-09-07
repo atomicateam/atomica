@@ -837,7 +837,7 @@ def add_demo_project(user_id, project_name='default'):
         proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
-        new_proj_name = get_unique_name(project_name, namelist=None) # Get a unique name for the project to be added.
+        new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
         proj = au.demo(which=project_name, do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
         print('Adding demo project %s/%s...' % (project_name, new_proj_name))
@@ -916,7 +916,7 @@ def copy_project(project_id):
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
     new_project = sc.dcp(proj) # Make a copy of the project loaded in to work with.
-    new_project.name = sc.uniquename(proj.name, namelist=None) # Just change the project name, and we have the new version of the Project object to be saved as a copy.
+    new_project.name = get_unique_name(proj.name, other_names=None) # Just change the project name, and we have the new version of the Project object to be saved as a copy.
     user_id = current_user.get_id() # Set the user UID for the new projects record to be the current user.
     print(">> copy_project %s" % (new_project.name))  # Display the call information.
     save_project_as_new(new_project, user_id) # Save a DataStore projects record for the copy project.
@@ -935,7 +935,7 @@ def create_project_from_prj_file(prj_filename, user_id):
         proj = sc.loadobj(prj_filename)
     except Exception:
         return { 'error': 'BadFileFormatError' }
-    proj.name = sc.uniquename(proj.name, namelist=None) # Reset the project name to a new project name that is unique.
+    proj.name = get_unique_name(proj.name, other_names=None) # Reset the project name to a new project name that is unique.
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
