@@ -1223,11 +1223,14 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
     if sc.isstring(year):
         year = float(year)
 
+    assert not (calibration and plot_budget), 'Cannot make budget plots for a calibration simulation because calibrations do not have programs'
+
     results = sc.promotetolist(results)
 
+    # Prepare populations
+    # For calibration plot, 'all' pops means that they should all be *disaggregated* and visible - which is `pops=None` in PlotData
+    # But for scenarios and optimizations, 'all' pops means *aggregated* over all pops - which is `pops='all'` in PlotData
     if calibration and pops.lower() == 'all':
-        # For calibration plot, 'all' pops means that they should all be disaggregated and visible
-        # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = None  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
         pops = 'all' # make sure it's lowercase
@@ -1235,23 +1238,44 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
 
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
-    if tool == 'cascade': # For Cascade Tool
-        output = cascadeoutput
-        allfigs = cascadefigs
+
+    # Render cascade plot
+    # This is _always_ shown
+    output = {'graphs':[]}
+    allfigs = []
+
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade)
+    output['graphs'] += cascadeoutput['graphs']
+    allfigs += cascadefigs
+
+    if plot_budget:
+        budgetoutput, budgetfigs = get_program_plots(results, year=year, budget=True, coverage=True)
+        output['graphs'] += budgetoutput['graphs']
+        allfigs += budgetfigs
+
+    def interleave(a, b):
+        # x=['a','b',], y=['c','d'], return ['a','c','b','d']
+        return [x for t in zip(a, b) for x in t]
+
+    # Make the normal time series plots - these are not generated in the Cascades tool
+    if tool == 'cascade':
+        # For Cascade Tool, currently no additional figures are shown
+        pass
     else: # For Optima TB
         if calibration:
-            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
-            unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-            output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-            output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-            allfigs = cascadefigs + [x for t in zip(allfigs, unstackedfigs) for x in t]
+            stacked_output, stacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
+            unstacked_output, unstacked_figs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
+            output['graphs'] += interleave(stacked_output, unstacked_output)
+            allfigs += interleave(stacked_figs, unstacked_figs)
         else:
             output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            output['graphs'] = cascadeoutput['graphs'] + output['graphs']
+            output['graphs'] += cascadeoutput['graphs'] + output['graphs']
             allfigs = cascadefigs + allfigs
+
     if dosave:
-        savefigs(allfigs, online=online)  
+        # TODO - get_cascade_plot and get_program_plots close the figures with pl.close(), does savefigs() still work here?
+        savefigs(allfigs, online=online)
+
     return output
 
 
@@ -1276,8 +1300,47 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     graph_dict = mpld3.fig_to_dict(fig)
     return graph_dict
     
+def get_program_plots(results,year,budget=True,coverage=True):
+    # Generate program related plots
+    # INPUTS
+    # - proj : Project instance
+    # - results : Result or list of Results
+    # - year : If making a budget bar plot, it will be displayed for this year
+    # - budget : True/False flag for whether to include budget bar plot
+    # - coverage : True/False flag for whether to include program coverage figures
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
+    figs = []
+    if budget:
+        d = au.PlotData.programs(results, outputs='spending')
+        d.interpolate(year)
+        budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
+
+        ax = budget_figs[0].axes[0]
+        ax.set_xlabel('Spending ($/year)')
+
+        # The legend is too big for the figure -- WARNING, think of a better solution
+        #        budget_figs[1].set_figheight(8.9)
+        #        budgetfigs[1].set_figwidth(8.7)
+
+        figs += budget_figs
+        print('Budget plot succeeded')
+
+    if coverage:
+        d = au.PlotData.programs(results,outputs='coverage_fraction')
+        coverage_figs = au.plot_series(d, axis='results')
+        figs += coverage_figs
+        print('Coverage plots succeeded')
+
+    graphs = []
+    for fig in figs:
+        graph_dict = mpld3.fig_to_dict(fig)
+        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        graphs.append(graph_dict)
+        pl.close(fig)
+    output = {'graphs':graphs}
+    return output, figs
+
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     
     if results is None: results = proj.results[-1]
     if year is None: year = proj.settings.sim_end # Needed for plot_budget
@@ -1290,22 +1353,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
     figs.append(fig)
-    
-    if plot_budget:
-        d = au.PlotData.programs(results)
-        d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False,orientation='horizontal')
-        
-        ax = budgetfigs[0].axes[0]
-        ax.set_xlabel('Spending ($/year)')
 
-        # The legend is too big for the figure -- WARNING, think of a better solution
-#        budgetfigs[1].set_figheight(8.9)
-#        budgetfigs[1].set_figwidth(8.7)
-        
-        figs += budgetfigs
-        print('Budget plot succeeded')
-    
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
