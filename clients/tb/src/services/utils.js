@@ -155,9 +155,9 @@ function makeGraphs(vm, graphdata) {
       catch (error) {
         console.log('Making graphs failed: ' + error.message);
       }
-    }    
+    }
   })
-  status.succeed(vm, 'Graphs created') // Indicate success.
+  status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
 }
 
 function clearGraphs(vm) {

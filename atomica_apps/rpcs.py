@@ -834,7 +834,7 @@ def add_demo_project(user_id, project_name='default'):
     """
     if project_name is 'default':
         new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-        proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
         new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
@@ -1243,11 +1243,11 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         allfigs = cascadefigs
     else: # For Optima TB
         if calibration:
-            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
-            unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-            output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
+#            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
+            output, allfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
+#            output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-            allfigs = cascadefigs + [x for t in zip(allfigs, unstackedfigs) for x in t]
+            allfigs = cascadefigs + allfigs # [x for t in zip(allfigs, unstackedfigs) for x in t]
         else:
             output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
             output['graphs'] = cascadeoutput['graphs'] + output['graphs']

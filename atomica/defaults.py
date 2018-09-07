@@ -201,7 +201,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     return P
 
 
-def demo(which=None, kind=None, doplot=False, **kwargs):
+def demo(which=None, kind=None, do_plot=False, **kwargs):
     """ Create a simple demo project"""
     
     if kind is None: kind = 'project'
@@ -209,6 +209,6 @@ def demo(which=None, kind=None, doplot=False, **kwargs):
     if kind == 'framework': output = default_framework(which=which, **kwargs)
     elif kind == 'project': output = default_project(which=which, **kwargs)
     else:                   print('Sorry, no: %s' % kind)
-    if doplot:
+    if do_plot:
         logger.warning("Plotting not implemented yet.")
     return output
