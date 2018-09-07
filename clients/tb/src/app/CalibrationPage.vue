@@ -165,15 +165,19 @@ Last update: 2018-09-06
           <div class="calib-card-body">
 
             <!-- ### Start: plots ### -->
-            <div class="calib-graphs">
-              <div class="featured-graphs">
-                <div :id="'fig0'">
-                  <!--mpld3 content goes here-->
+            <div class="calib-card-body">
+              <div class="calib-graphs">
+                <div class="featured-graphs">
+                  <div :id="'fig0'">
+                    <!--mpld3 content goes here-->
+                  </div>
                 </div>
-              </div>
-              <div class="other-graphs">
-                <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                  <!--mpld3 content goes here-->
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'fig'+index" class="calib-graph">
+                      <!--mpld3 content goes here-->
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -33,10 +33,11 @@ Last update: 2018-08-18
     </div>
 
     <div class="dialogs">
-      <dialog-drag v-for='dialog,key in openDialogs'
-        :id='dialog.id'
-        @close='minimize(dialog.id)'
-        :options='dialog.options'>
+      <dialog-drag v-for="dialog,key in openDialogs"
+                   :id="dialog.id"
+                   :key="key"
+                   @close="minimize(dialog.id)"
+                   :options="dialog.options">
 
         <span slot='title'> {{ dialog.name }} </span>
         <p>{{dialog.content}}</p>
