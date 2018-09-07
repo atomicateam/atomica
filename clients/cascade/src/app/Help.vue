@@ -55,27 +55,10 @@ Last update: 2018-08-18
 </template>
 
 <script>
-  import DialogDrag from 'vue-dialog-drag'
-  import DropArea from 'vue-dialog-drag/dist/vue-drop-area.common'
-//  export default {
-//    name: 'app',
-//    components: {
-//      DialogDrag,
-//      DropArea
-//    },
-//    methods: {
-//      drop (id) {
-//        console.log('drop id:', id)
-//      }
-//    }
-//  }
 
   export default {
     name: 'example',
-    components: {
-      DialogDrag,
-      DropArea
-    },
+
     data () {
       return {
 
