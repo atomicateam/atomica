@@ -131,33 +131,37 @@ function makeGraphs(vm, graphdata) {
   status.start(vm) // Start indicating progress.
   vm.hasGraphs = true
   sleep(waitingtime * 1000)
-  .then(response => {
+    .then(response => {
     var n_plots = graphdata.length
     console.log('Rendering ' + n_plots + ' graphs')
-    for (var index = 0; index <= n_plots; index++) {
-      console.log('Rendering plot ' + index)
-      var divlabel = 'fig' + index
-      var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-      while (div.firstChild) {
-        div.removeChild(div.firstChild);
-      }
-      try {
-        console.log(graphdata[index]);
-        mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
-          fig.setXTicks(6, function (d) {
-            return d3.format('.0f')(d);
-          });
-          fig.setYTicks(null, function (d) {
-            return d3.format('.2s')(d);
-          });
-        });
-      }
-      catch (error) {
-        console.log('Making graphs failed: ' + error.message);
-      }
+  placeholders(1)
+  sleep(waitingtime * 1000)
+    .then(response => {
+    for (let index = 0; index <= n_plots; index++)  {
+    console.log('Rendering plot ' + index)
+    var divlabel = 'fig' + index
+    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+    while (div.firstChild) {
+      div.removeChild(div.firstChild);
     }
+    try {
+      console.log(graphdata[index]);
+      mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
+        fig.setXTicks(6, function (d) {
+          return d3.format('.0f')(d);
+        });
+        fig.setYTicks(null, function (d) {
+          return d3.format('.2s')(d);
+        });
+      });
+    }
+    catch (error) {
+      console.log('Making graphs failed: ' + error.message);
+    }
+  }
+})
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
-  })
+})
 }
 
 function clearGraphs(vm) {

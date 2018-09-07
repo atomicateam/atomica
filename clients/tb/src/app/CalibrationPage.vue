@@ -295,7 +295,8 @@ Last update: 2018-09-06
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
         hasGraphs: false,
-        serverDatastoreId: ''        
+        serverDatastoreId: '',
+        placeholders: [],
       }
     },
 
@@ -306,17 +307,16 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders(1) },
+//      placeholders() { return utils.placeholders(1) },
 
       sortedPars() {
-        var sortedParList = this.applySorting(this.parList);
-        return sortedParList;
+        return this.applySorting(this.parList);
       },
 
     },
 
     created() {
-      if ((this.$store.state.activeProject.project != undefined) &&
+      if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
