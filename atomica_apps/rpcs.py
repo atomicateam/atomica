@@ -60,6 +60,9 @@ def timeit(method):
 def to_number(raw):
     ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
     try:
+        if sc.isstring(raw):
+            raw = raw.replace(',','') # Remove commas, if present
+            raw = raw.replace('$','') # Remove dollars, if present
         output = float(raw)
     except Exception as E:
         if raw is None:
@@ -1471,7 +1474,8 @@ def py_to_js_scen(py_scen, project=None):
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        js_scen['alloc'].append([prog_name,round(float(budget)), prog_label])
+        budgetstr = format(int(round(float(budget))), ',')
+        js_scen['alloc'].append([prog_name,budgetstr, prog_label])
     return js_scen
 
 
@@ -1810,11 +1814,3 @@ def export_results(cache_id):
     result.export(full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename  
-
-
-
-@RPC()
-def test_stuff(project_id):
-    print('>> Testing load_project()')
-    proj = load_project(project_id, raise_exception=True)
-    

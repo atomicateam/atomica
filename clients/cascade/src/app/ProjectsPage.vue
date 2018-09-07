@@ -11,11 +11,8 @@ Last update: 2018-09-06
 
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
-        &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
-        &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
-        &nbsp; &nbsp;
       </div>
     </div>
 
@@ -98,32 +95,17 @@ Last update: 2018-09-06
               {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
             <td style="text-align:left">
-              <button class="btn btn-icon" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn btn-icon" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
               {{ projectSummary.project.framework }}
             </td>
-            <!--<td style="text-align:center">-->
-            <!--{{ projectSummary.project.n_pops }}-->
-            <!--</td>-->
             <td style="text-align:left">
-              <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload"><i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="white-space: nowrap; text-align:left">
-              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
-                <i class="ti-plus"></i>
-              </button>
-              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New"><i class="ti-plus"></i></button>
+              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload"><i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
@@ -172,7 +154,7 @@ Last update: 2018-09-06
     <modal name="create-project"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
-           :width="width"
+           :width="400"
            :pivot-y="0.3"
            :adaptive="true"
            :clickToClose="clickToClose"
@@ -361,7 +343,7 @@ Last update: 2018-09-06
             console.log(this.demoOption)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load demo project options: ' + error.message)
+            status.fail(this, 'Could not load demo project options', error)
           })
       },
 
@@ -384,8 +366,7 @@ Last update: 2018-09-06
             }
           })
           .catch(error => {
-            // Failure popup.
-            status.failurePopup(this, 'Could not load frameworks: ' + error.message)
+            status.fail(this, 'Could not load frameworks', error)
           })
       },
 
@@ -416,10 +397,10 @@ Last update: 2018-09-06
                 this.openProject(setActiveID)
               }
             }
-            status.succeed(this, '')  // No green popup.
+            status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not load projects: ' + error.message)
+            status.fail(this, 'Could not load projects', error)
           })
       },
 
@@ -433,7 +414,7 @@ Last update: 2018-09-06
             status.succeed(this, '') // Already have notification from project
           })
           .catch(error => {
-            status.fail(this, 'Could not add demo project: ' + error.message)
+            status.fail(this, 'Could not add demo project', error)
           })
       },
 
@@ -459,7 +440,7 @@ Last update: 2018-09-06
       createNewProject() {
         console.log('createNewProject() called')
         this.$modal.hide('create-project')
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the project that matches the UID passed in.  // CASCADE-TB DIFFERENCE
         console.log('Loading framework ' + this.currentFramework)
         console.log(matchFramework)
@@ -470,7 +451,7 @@ Last update: 2018-09-06
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not add new project:' + error.message)    // Indicate failure.
+            status.fail(this, 'Could not add new project:' + error.message)    
           })
       },
 
@@ -483,7 +464,7 @@ Last update: 2018-09-06
             status.succeed(this, 'New project uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload file: ' + error.message)
+            status.fail(this, 'Could not upload file', error)
           })
       },
 
@@ -548,20 +529,20 @@ Last update: 2018-09-06
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('openProject() called for ' + matchProject.project.name)
         this.$store.commit('newActiveProject', matchProject) // Set the active project to the matched project.
-        status.successPopup(this, 'Project "'+matchProject.project.name+'" loaded') // Success popup.
+        status.succeed(this, 'Project "'+matchProject.project.name+'" loaded') // Success popup.
       },
 
       copyProject(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('copyProject() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('copy_project', [uid]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not copy project: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not copy project', error) 
           })
       },
 
@@ -577,11 +558,11 @@ Last update: 2018-09-06
             .then(response => {
               this.updateProjectSummaries(newProjectSummary.project.id) // Update the project summaries so the rename shows up on the list.
               projectSummary.renaming = '' // Turn off the renaming mode.
-              status.succeed(this, '')  // No green popup message.
+              status.succeed(this, '')
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not rename project: ' + error.message)
+              
+              status.fail(this, 'Could not rename project', error)
             })
         }
 
@@ -597,13 +578,13 @@ Last update: 2018-09-06
       downloadProjectFile(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('downloadProjectFile() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.download('download_project', [uid]) // Make the server call to download the project to a .prj file.
           .then(response => { // Indicate success.
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
-          .catch(error => { // Indicate failure.
-            status.fail(this, 'Could not download project: ' + error.message)
+          .catch(error => { 
+            status.fail(this, 'Could not download project', error)
           })
       },
 
@@ -611,25 +592,25 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('downloadFramework() called for ' + matchProject.project.name)
-        status.start(this, 'Downloading framework...') // Start indicating progress.
+        status.start(this, 'Downloading framework...') 
         rpcs.download('download_framework_from_project', [uid])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not download framework: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not download framework', error) 
           })
       },
 
       downloadDatabook(uid) {
         console.log('downloadDatabook() called')
-        status.start(this, 'Downloading data book...') // Start indicating progress.
+        status.start(this, 'Downloading data book...') 
         rpcs.download('download_databook', [uid])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not download databook: ' + error.message)
+            status.fail(this, 'Could not download databook', error)
           })
       },
 
@@ -637,14 +618,14 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('downloadProgbook() called for ' + matchProject.project.name)
-        status.start(this, 'Downloading program book...') // Start indicating progress.
+        status.start(this, 'Downloading program book...') 
         rpcs.download('download_progbook', [uid])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not download program book: ' + error.message)
+            
+            status.fail(this, 'Could not download program book', error)
           })
       },
 
@@ -654,27 +635,27 @@ Last update: 2018-09-06
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('createProgbook() called for ' + matchProject.project.name)
         this.$modal.hide('create-progbook')
-        status.start(this, 'Creating program book...') // Start indicating progress.
+        status.start(this, 'Creating program book...') 
         rpcs.download('create_progbook', [uid, this.num_progs])
           .then(response => {
-            status.succeed(this, '')  // No green popup message.
+            status.succeed(this, '')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not create program book: ' + error.message)
+            
+            status.fail(this, 'Could not create program book', error)
           })
       },
 
       uploadDatabook(uid) {
         console.log('uploadDatabook() called')
-        status.start(this, 'Uploading databook...')
         rpcs.upload('upload_databook', [uid], {}, '.xlsx')
           .then(response => {
+            status.start(this, 'Uploading databook...')
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Data uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload data: ' + error.message)
+            status.fail(this, 'Could not upload databook', error)
           })
       },
 
@@ -682,14 +663,14 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('uploadProgbook() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress. (This is here because we don't want the
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
+            status.start(this)
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not upload progbook: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not upload program book', error) 
           })
       },
 
@@ -726,10 +707,10 @@ Last update: 2018-09-06
                 activeProjectId = null // Null out the project.
               }
               this.updateProjectSummaries(activeProjectId) // Update the project summaries so the deletions show up on the list. Make sure it tries to set the project that was active (if any).
-              status.succeed(this, '')  // No green popup message.
+              status.succeed(this, '')
             })
             .catch(error => {
-              status.fail(this, 'Could not delete project/s: ' + error.message)
+              status.fail(this, 'Could not delete project/s', error)
             })
         }
       },
@@ -742,14 +723,23 @@ Last update: 2018-09-06
           status.start(this)
           rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
             .then(response => {
-              // Indicate success.
-              status.succeed(this, '')  // No green popup message.
+              status.succeed(this, '')
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not download project/s')
+              status.fail(this, 'Could not download project/s', error)
             })
         }
+      },
+
+      test_stuff() {
+//        status.start(this)
+        rpcs.rpc('test_stuff', [])
+          .then(response => {
+//            status.succeed(this, 'success lol')
+          })
+          .catch(error => {
+            status.fail(this, 'Massive fail', error)
+          })
       }
     }
   }

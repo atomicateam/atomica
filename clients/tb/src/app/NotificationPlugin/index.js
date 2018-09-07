@@ -10,15 +10,15 @@ const NotificationStore = {
       this.state.splice(indexToDelete, 1)
     }
   },
-  
+
   notify(notification) {
     // Create a timestamp to serve as a unique ID for the notification.
     notification.timestamp = new Date()
-    notification.timestamp.setMilliseconds(notification.timestamp.getMilliseconds() + this.state.length) 
+    notification.timestamp.setMilliseconds(notification.timestamp.getMilliseconds() + this.state.length)
 //    console.log('Adding notification: ', notification.timestamp)    
     this.state.push(notification)
   },
-  
+
   clear() {
 //    console.log('Removing all notifications: ', this.state.length)
 

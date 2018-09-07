@@ -8,11 +8,12 @@
 
 var complete = 0.0; // Put this here so it's global
 
-function start(vueInstance) {
+function start(vm, message) {
+  if (!message) { message = 'Starting progress' }
   var delay = 100;
   var stepsize = 1.0;
   complete = 0.0; // Reset this
-  console.log('Starting progress')
+  console.log(message)
   setTimeout(function run() { // Run in a delay loop
     setFunc();
     if (complete<99) {
@@ -21,70 +22,47 @@ function start(vueInstance) {
   }, delay);
   function setFunc() {
     complete = complete + stepsize*(1-complete/100); // Increase asymptotically
-    vueInstance.$Progress.set(complete)
+    vm.$Progress.set(complete)
   }
-  vueInstance.$spinner.start() // Bring up a spinner.
-  // vueInstance.$Progress.start() // Start the loading bar -- replaced with function above
+  vm.$spinner.start() // Bring up a spinner.
 }
 
-function succeed(vueInstance, successMessage) {
+function succeed(vm, successMessage) {
   console.log(successMessage)
   complete = 100; // End the counter
-  vueInstance.$spinner.stop() // Dispel the spinner.
-  vueInstance.$Progress.finish()   // Finish the loading bar -- redundant?
-  if (successMessage != '') { // Success popup.
-    vueInstance.$notifications.notify({
+  vm.$spinner.stop() // Dispel the spinner.
+  vm.$Progress.finish()   // Finish the loading bar -- redundant?
+  if (successMessage !== '') { // Success popup.
+    vm.$notifications.notify({
       message: successMessage,
       icon: 'ti-check',
       type: 'success',
       verticalAlign: 'top',
-      horizontalAlign: 'left'
+      horizontalAlign: 'right',
+      timeout: 2000
     })
   }  
 }
 
-function fail(vueInstance, failMessage) {
-  console.log(failMessage)
+function fail(vm, failMessage, error) {
+  console.log(failMessage, error.message)
   complete = 100;
-  vueInstance.$spinner.stop() // Dispel the spinner.
-  vueInstance.$Progress.fail() // Fail the loading bar.
-  if (failMessage != '') {  // Put up a failure notification.
-    vueInstance.$notifications.notify({
-      message: failMessage,
+  vm.$spinner.stop() // Dispel the spinner.
+  vm.$Progress.fail() // Fail the loading bar.
+  if (failMessage !== '') {  // Put up a failure notification.
+    vm.$notifications.notify({
+      message: failMessage + '<br><br>' + error.message,
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
-      horizontalAlign: 'left'
+      horizontalAlign: 'right',
+      timeout: 0
     })
   }  
-}
-
-function successPopup(vueInstance, successMessage) {
-  // Success popup.
-  vueInstance.$notifications.notify({
-    message: successMessage,
-    icon: 'ti-check',
-    type: 'success',
-    verticalAlign: 'top',
-    horizontalAlign: 'left'
-  })        
-}
-
-function failurePopup(vueInstance, failMessage) {
-  // Put up a failure notification.
-  vueInstance.$notifications.notify({
-    message: failMessage,
-    icon: 'ti-face-sad',
-    type: 'warning',
-    verticalAlign: 'top',
-    horizontalAlign: 'left'
-  })         
 }
 
 export default {
   start,
   succeed,
   fail,
-  successPopup,
-  failurePopup
 }
