@@ -852,14 +852,16 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     """
     Create a new project.
     """
+    if tool == 'tb': sim_dt = 0.5
+    else:            sim_dt = None
     if tool is None: # Optionally select by tool rather than frame
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
-        frame = au.demo(kind='framework', which=tool)
+        frame = au.demo(kind='framework', which=tool, sim_dt=sim_dt)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
+    proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
