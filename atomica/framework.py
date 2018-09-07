@@ -7,7 +7,7 @@ This includes a description of the Markov chain network underlying project dynam
 import openpyxl
 import pandas as pd
 import sciris as sc
-from .system import AtomicaException, NotFoundError, logger
+from .system import AtomicaException, NotFoundError, logger, reraise_modify
 from .excel import read_tables, AtomicaSpreadsheet
 from .structure import FrameworkSettings as FS
 from .version import version
@@ -254,15 +254,8 @@ class ProjectFramework(object):
         try:
             name_df = sanitize_dataframe(name_df, required_columns, defaults, valid_content)
         except Exception as e:
-            message = 'An occurred while reading the "About" sheet in the Framework -> '
+            message = 'An error was detected on the "About" sheet in the Framework file -> '
             reraise_modify(e, message)
-
-
-        try:
-            name_df = sanitize_dataframe(name_df, required_columns, defaults, valid_content)
-        except:
-            message =
-
 
         name_df['name'] = name_df['name'].astype(str)
         self.name = name_df['name'].iloc[0]
@@ -291,7 +284,11 @@ class ProjectFramework(object):
         }
 
         self.comps.set_index('code name',inplace=True)
-        self.comps = sanitize_dataframe(self.comps, required_columns, defaults, valid_content)
+        try:
+            self.comps = sanitize_dataframe(self.comps, required_columns, defaults, valid_content)
+        except Exception as e:
+            message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
+            reraise_modify(e, message)
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -349,7 +346,11 @@ class ProjectFramework(object):
         }
 
         self.pars.set_index('code name',inplace=True)
-        self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
+        try:
+            self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
+        except Exception as e:
+            message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
+            reraise_modify(e, message)
 
         # Make sure all units are lowercase
         self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
@@ -417,7 +418,11 @@ class ProjectFramework(object):
         }
 
         self.characs.set_index('code name',inplace=True)
-        self.characs = sanitize_dataframe(self.characs, required_columns, defaults, valid_content)
+        try:
+            self.characs = sanitize_dataframe(self.characs, required_columns, defaults, valid_content)
+        except Exception as e:
+            message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
+            reraise_modify(e, message)
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -467,7 +472,12 @@ class ProjectFramework(object):
         }
 
         self.interactions.set_index('code name',inplace=True)
-        self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
+        try:
+            self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
+        except Exception as e:
+            message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
+            reraise_modify(e, message)
+
 
         ### VALIDATE NAMES - No collisions, no keywords
 
