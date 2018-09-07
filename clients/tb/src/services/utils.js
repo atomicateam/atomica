@@ -138,12 +138,18 @@ function makeGraphs(vm, graphdata) {
     console.log('Rendering ' + n_plots + ' graphs')
     for (var index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
-      var divlabel = 'fig' + index
-      var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      var divlabel  = 'fig' + index
+      var divlabel2 = 'legendbutton' + index
+      var div  = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      var div2 = document.getElementById(divlabel2); // CK: Not sure if this is necessary? To ensure the div is clear first
       while (div.firstChild) {
         div.removeChild(div.firstChild);
       }
+      console.log('hi_0');
+      console.log(div);
+      console.log(div2);
       div.style.display = 'flex'
+      div2.style.display = 'inline-block'
       console.log('hi_1');
       vm.showGraphDivs[index] = true;
       console.log('hi_2');

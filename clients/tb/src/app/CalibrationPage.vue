@@ -164,8 +164,11 @@ Last update: 2018-09-06
             <!-- ### Start: plots ### -->
             <div class="calib-card-body">
               <div class="calib-graphs">
-                <div class="featured-graphs">
+                <div class="featured-graphs" style="display:none">
                   <div :id="'fig0'">
+                    <!--mpld3 content goes here-->
+                  </div>
+                  <div :id="'legendbutton0'" style="display:none">
                     <!--mpld3 content goes here-->
                   </div>
                 </div>
@@ -174,7 +177,7 @@ Last update: 2018-09-06
                     <div class="calib-graph" :id="'fig'+index" style="display:none">
                       <!--mpld3 content goes here-->
                     </div>
-                    <div style="display:inline-block">
+                    <div class="calib-graph" :id="'legendbutton'+index"  style="display:none">
                       <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend"><i class="ti-menu-alt"></i></button>
                     </div>
                   </div>
