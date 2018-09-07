@@ -22,12 +22,17 @@ Last update: 2018-08-18
 
 <template>
   <div id="app">
-    <dialog-drag id="dialog-1">
-      <p> Test dialog</p>
-    </dialog-drag>
-    <drop-area @drop='drop' @click='console.log("faosdifu")' style="width:100px">
-      <p>Drop Here</p>
-    </drop-area>
+    <!--<dialog-drag id="dialog-1">-->
+      <!--<p> Test dialog</p>-->
+    <!--</dialog-drag>-->
+    <!--<drop-area @drop='drop' @click='console.log("faosdifu")' style="width:100px">-->
+      <!--<p>Drop Here</p>-->
+    <!--</drop-area>-->
+
+    <button @click="newDialog('mishy')">hiii</button>
+    <br><br><br><br><br><br><br><br><br><br>
+    <br><br><br><br><br><br><br><br><br><br>
+    <button @click="newDialog('mashy')">fai</button>
 
 
     <div class="dialogs">
@@ -44,13 +49,6 @@ Last update: 2018-08-18
 
         <span slot='title'> {{ dialog.name }} </span>
         <p>{{dialog.content}}</p>
-        <!--small-->
-        <!--strong Style: {{dialog.style.name}}-->
-        <!--p-->
-        <!--strong options:-->
-        <!--p-->
-        <!--small-->
-        <!--em {{dialog.options}}-->
       </dialog-drag>
     </div>
   </div>
@@ -80,7 +78,7 @@ Last update: 2018-08-18
     },
     data () {
       return {
-        dialogs: [{id:0, style:{name:'foo'}, }],
+
         dialogId: 1,
         styles: [
           { name: 'dialog-1', options: { width: 400 } },
@@ -91,6 +89,9 @@ Last update: 2018-08-18
         selected: null,
         dialogWidth: 400,
         droppeds: [],
+        x:-1,
+        y:-1,
+        dialogs: [{id:0, style:{name: 'dialog-1', options:{ width: 400} }}],
         icons: {
 //          gitHub: ghIcon,
 //          browser: browserIcon,
@@ -101,12 +102,22 @@ Last update: 2018-08-18
       }
     },
     created () {
-      for (let i = 0; i < this.styles.length; i++) {
+      for (let i = 0; i < 10; i++) {
         let index = this.newDialog(i) - 1
-        this.dialogs[index].options.left = (index * this.dialogWidth) + 50 * index + 1
+        this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
       }
+
+//      document.addEventListener('mousemove', this.onMouseUpdate, false);
     },
+
     methods: {
+
+      onMouseUpdate(e) {
+        this.x = e.pageX;
+        this.y = e.pageY;
+        console.log(this.x, this.y);
+      },
+
       drop (id) {
         let index = this.findDialog(id)
         if (index !== null) {
@@ -122,8 +133,9 @@ Last update: 2018-08-18
         }
       },
       newDialog (sId) {
+        document.addEventListener('mousemove', this.onMouseUpdate, false);
         if (sId === null) sId = Math.floor(Math.random() * this.styles.length)
-        return this.dialogs.push(this.dialog(this.styles[sId]))
+        return this.dialogs.push(this.dialog(this.styles[0]))
       },
       removeDialog (dialog) {
         console.log('rem!')
@@ -136,6 +148,8 @@ Last update: 2018-08-18
         if (this.selected && this.selected.id === id) this.selected = null
       },
       findDialog (id, dialogs) {
+        console.log('heyeye')
+        console.log(this.dialogs)
         if (!dialogs) dialogs = this.dialogs
         let index = dialogs.findIndex((val) => {
           return val.id === id
@@ -149,8 +163,8 @@ Last update: 2018-08-18
         let content = 'foo' //rndText()
         let options = {}
         if (style.options) options = Object.assign({}, style.options)
-        if (!options.left) options.left = 30 * id
-        if (!options.top) options.top = 30 * id
+        if (!options.left) options.left = this.x
+        if (!options.top) options.top = this.y
         return { id, name, content, style, options }
       },
       dialogDragEnd (obj) {
