@@ -720,7 +720,7 @@ Last update: 2018-09-07
               })
             })
             .catch(error => {
-              status.fail(this, 'Could not start optimization', error)
+              status.fail(this, 'Could not start optimization: ' + error.message)
             })
           }
           

@@ -709,31 +709,40 @@ Last update: 2018-09-07
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
 
-//        status.start(this)
+        status.start(this)
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {   
-          if (this.useCelery) {  // We are using Celery  
-            rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization', 
-              [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
-              // CASCADE-TB DIFFERENCE
-              'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
-            .then(response => {
-              // Get the task state for the optimization.
-              this.getOptimTaskState(optimSummary)
-              
-              // Indicate success.
-              status.succeed(this, 'Started optimization')
-            })
-            .catch(error => {
-              this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-              console.log(this.serverresponse)
-              this.servererror = error.message // Set the server error.
-               
-              // Indicate failure.
-              status.fail(this, 'Could not start optimization: ' + error.message)
-            })
+          if (this.useCelery) {  // We are using Celery
+            rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
+              .then(response => {          
+                rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization', 
+                  [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
+                  {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
+                  // CASCADE-TB DIFFERENCE
+                  'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
+                .then(response => {
+                  // Get the task state for the optimization.
+                  this.getOptimTaskState(optimSummary)
+                  
+                  // Indicate success.
+                  status.succeed(this, 'Started optimization')
+                })
+                .catch(error => {
+                  this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+                  console.log(this.serverresponse)
+                  this.servererror = error.message // Set the server error.
+                   
+                  // Indicate failure.
+                  status.fail(this, 'Could not start optimization: ' + error.message)
+                })
+              })
+              .catch(error => {
+                this.serverresponse = 'There was an error', error // Pull out the error message.
+                console.log(this.serverresponse)
+                this.servererror = error.message // Set the server error.
+                status.fail(this, 'Could not start optimization: ' + error.message)
+              })            
           }
           
           else {  // We are NOT using Celery
@@ -746,17 +755,17 @@ Last update: 2018-09-07
                 this.makeGraphs(response.data.graphs)
                 this.table = response.data.table
                 this.displayResultName = optimSummary.name
-//                status.succeed(this, 'Graphs created')
+                status.succeed(this, 'Graphs created')
               }
             })
             .catch(error => {
-//              status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
+              status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
             })
           }
        
         })
         .catch(error => {
-//          status.fail(this, 'Could not start optimization: ' + error.message)
+          status.fail(this, 'Could not start optimization: ' + error.message)
         })
       },
 
