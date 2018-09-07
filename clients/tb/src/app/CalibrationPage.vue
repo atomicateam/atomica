@@ -174,7 +174,7 @@ Last update: 2018-09-06
                     <div class="calib-graph" :id="'fig'+index" style="display:none">
                       <!--mpld3 content goes here-->
                     </div>
-                    <div style="display:inline-block" :id="'legendbutton'+index" >
+                    <div style="display:inline-block">
                       <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend"><i class="ti-menu-alt"></i></button>
                     </div>
                   </div>
