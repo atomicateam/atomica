@@ -56,17 +56,10 @@ Last update: 2018-08-18
     data () {
       return {
         vals: [0,1,2,3],
-        styles: [
-          { name: 'dialog-1', options: { width: 400 } },
-          { name: 'dialog-2', options: { width: 150, buttonPin: false } },
-          { name: 'dialog-3' }
-        ],
-        style: null,
-        dialogWidth: 400,
         closedDialogs: [],
         openDialogs: [],
-        x:-1,
-        y:-1,
+        mousex:-1,
+        mousey:-1,
       }
     },
 
@@ -80,33 +73,25 @@ Last update: 2018-08-18
         document.addEventListener('mousemove', this.onMouseUpdate, false);
       },
 
+      onMouseUpdate(e) {
+        this.mousex = e.pageX;
+        this.mousey = e.pageY;
+      },
+
       createDialogs() {
         for (let val in this.vals) {
           this.newDialog(val, 'Dialog '+val, 'This is test '+val)
         }
       },
 
-      onMouseUpdate(e) {
-        this.x = e.pageX;
-        this.y = e.pageY;
-      },
-
-      minimize(id) {
-        let index = this.findDialog(id)
-        if (index !== null) {
-          this.closedDialogs.push(this.openDialogs[index])
-          this.openDialogs.splice(index, 1)
-        }
-      },
-
-      maximize(id) {
-        let index = this.findDialog(id, this.closedDialogs)
-        if (index !== null) {
-          this.closedDialogs[index].options.left = this.x
-          this.closedDialogs[index].options.top = this.y
-          this.openDialogs.push(this.closedDialogs[index])
-          this.closedDialogs.splice(index, 1)
-        }
+      // Create a new dialog
+      newDialog (id, name, content) {
+        let style = { name: 'dialog-2', options: { width: 150, buttonPin: false } }
+        let options = {}
+        options.left = this.mousex
+        options.top = this.mousey
+        let properties = { id, name, content, style, options }
+        return this.closedDialogs.push(properties)
       },
 
       findDialog (id, dialogs) {
@@ -117,15 +102,26 @@ Last update: 2018-08-18
         return (index > -1) ? index : null
       },
 
-      newDialog (id, name, content) {
-        let style = this.styles[1]
-        let options = {}
-        if (style.options) options = Object.assign({}, style.options)
-        if (!options.left) options.left = this.x
-        if (!options.top)  options.top = this.y
-        let properties = { id, name, content, style, options }
-        return this.closedDialogs.push(properties)
+      // "Show" the dialog
+      maximize(id) {
+        let index = this.findDialog(id, this.closedDialogs)
+        if (index !== null) {
+          this.closedDialogs[index].options.left = this.x
+          this.closedDialogs[index].options.top = this.y
+          this.openDialogs.push(this.closedDialogs[index])
+          this.closedDialogs.splice(index, 1)
+        }
       },
+
+      // "Hide" the dialog
+      minimize(id) {
+        let index = this.findDialog(id)
+        if (index !== null) {
+          this.closedDialogs.push(this.openDialogs[index])
+          this.openDialogs.splice(index, 1)
+        }
+      },
+
     }
   }
 </script>
