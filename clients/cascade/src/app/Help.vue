@@ -120,8 +120,7 @@ Last update: 2018-08-18
         }
       },
       newDialog (sId) {
-        if (sId === null) sId = Math.floor(Math.random() * this.styles.length)
-        return this.dialogs.push(this.dialog(this.styles[0]))
+        return this.dialogs.push(this.dialog(sId))
       },
       removeDialog (dialog) {
         console.log('rem!')
@@ -143,9 +142,10 @@ Last update: 2018-08-18
         })
         return (index > -1) ? index : null
       },
-      dialog (style) {
-        let id = String(this.dialogId)
-        this.dialogId++
+      dialog (id) {
+//        let id = String(this.dialogId)
+//        this.dialogId++
+        let style = this.styles[1]
         let name = 'Dialog ' + id
         let content = 'foo' //rndText()
         let options = {}
