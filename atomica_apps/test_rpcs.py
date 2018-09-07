@@ -61,12 +61,14 @@ proj = demoproj(which=default_which, online=True)
 
 
 if 'project_io' in torun:
+    heading('Running project_io', 'big')
     uid = rpcs.save_project_as_new(proj, user_id=user_id)
     P = rpcs.load_project_record(uid)
     print(P)
 
 
 if 'get_cascade_plot' in torun and tool=='cascade':
+    heading('Running get_cascade_plot', 'big')
     browser = False
     results = proj.run_optimization(maxtime=3)
     args = {
@@ -84,6 +86,7 @@ if 'get_cascade_plot' in torun and tool=='cascade':
 
 
 if 'get_cascade_json' in torun and tool=='cascade':
+    heading('Running get_cascade_json', 'big')
     dosave = True
     filename = 'cascade.json'
     results = proj.run_optimization(maxtime=3)
@@ -97,6 +100,7 @@ if 'get_cascade_json' in torun and tool=='cascade':
 
 
 if 'get_plots' in torun:
+    heading('Running get_plots', 'big')
     results = proj.run_sim()
     output = rpcs.get_plots(proj, results=results, calibration=False)
     print('Output:')
@@ -104,6 +108,7 @@ if 'get_plots' in torun:
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':
+    heading('Running run_cascade_optimization', 'big')
     maxtime = 10
     output = atca.run_cascade_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
@@ -111,6 +116,7 @@ if 'run_cascade_optimization' in torun and tool=='cascade':
     
     
 if 'run_tb_optimization' in torun and tool=='tb':
+    heading('Running run_tb_optimization', 'big')
     maxtime = 10
     output = attb.run_tb_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
