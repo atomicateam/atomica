@@ -74,14 +74,7 @@ Last update: 2018-08-18
         droppeds: [],
         x:-1,
         y:-1,
-        dialogs: [{id:0, style:{name: 'dialog-1', options:{ width: 400} }}],
-        icons: {
-//          gitHub: ghIcon,
-//          browser: browserIcon,
-//          download: downloadIcon,
-//          dialog: dialogIcon
-        },
-        app: process.env.APP
+        dialogs: [],
       }
     },
     created () {
@@ -90,10 +83,15 @@ Last update: 2018-08-18
         this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
       }
 
-//      document.addEventListener('mousemove', this.onMouseUpdate, false);
+      this.addListener()
+
     },
 
     methods: {
+
+      addListener() {
+        document.addEventListener('mousemove', this.onMouseUpdate, false);
+      },
 
       onMouseUpdate(e) {
         this.x = e.pageX;
@@ -116,7 +114,6 @@ Last update: 2018-08-18
         }
       },
       newDialog (sId) {
-        document.addEventListener('mousemove', this.onMouseUpdate, false);
         if (sId === null) sId = Math.floor(Math.random() * this.styles.length)
         return this.dialogs.push(this.dialog(this.styles[0]))
       },
