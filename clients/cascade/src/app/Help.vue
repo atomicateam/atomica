@@ -25,7 +25,7 @@ Last update: 2018-08-18
     <dialog-drag id="dialog-1">
       <p> Test dialog</p>
     </dialog-drag>
-    <drop-area @drop='drop' style="width:100px">
+    <drop-area @drop='drop' @click='console.log("faosdifu")' style="width:100px">
       <p>Drop Here</p>
     </drop-area>
 
