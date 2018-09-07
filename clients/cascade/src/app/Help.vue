@@ -56,15 +56,10 @@ Last update: 2018-08-18
     data () {
       return {
         vals: [0,1,2,3],
-        styles: [
-          { name: 'dialog-1', options: { width: 400 } },
-
-          { name: 'dialog-3' }
-        ],
         closedDialogs: [],
         openDialogs: [],
-        x:-1,
-        y:-1,
+        mousex:-1,
+        mousey:-1,
       }
     },
 
@@ -79,8 +74,8 @@ Last update: 2018-08-18
       },
 
       onMouseUpdate(e) {
-        this.x = e.pageX;
-        this.y = e.pageY;
+        this.mousex = e.pageX;
+        this.mousey = e.pageY;
       },
 
       createDialogs() {
@@ -93,9 +88,6 @@ Last update: 2018-08-18
       newDialog (id, name, content) {
         let style = { name: 'dialog-2', options: { width: 150, buttonPin: false } }
         let options = {}
-        if (style.options) options = Object.assign({}, style.options)
-        if (!options.left) options.left = this.x
-        if (!options.top)  options.top = this.y
         let properties = { id, name, content, style, options }
         return this.closedDialogs.push(properties)
       },
@@ -112,8 +104,8 @@ Last update: 2018-08-18
       maximize(id) {
         let index = this.findDialog(id, this.closedDialogs)
         if (index !== null) {
-          this.closedDialogs[index].options.left = this.x
-          this.closedDialogs[index].options.top = this.y
+          this.closedDialogs[index].options.left = this.mousex
+          this.closedDialogs[index].options.top = this.mousey
           this.openDialogs.push(this.closedDialogs[index])
           this.closedDialogs.splice(index, 1)
         }
