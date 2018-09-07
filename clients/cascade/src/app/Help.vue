@@ -29,12 +29,14 @@ Last update: 2018-08-18
       <!--<p>Drop Here</p>-->
     <!--</drop-area>-->
 
-
-    <button @click="newDialog('mishy')">hiii</button>
+    <button @click="createDialogs()">create</button>
     <br><br><br><br><br><br><br><br><br><br>
-    <br><br><br><br><br><br><br><br><br><br>
-    <button @click="newDialog('mashy')">fai</button>
 
+
+    <div v-for="val in vals">
+      <button @click="activateDialog(val)">active {{ val }}</button>
+      <br><br><br>
+    </div>
 
     <div class="dialogs">
       <dialog-drag v-for='dialog,key in dialogs'
@@ -81,10 +83,6 @@ Last update: 2018-08-18
     },
 
     created () {
-      for (let i in this.vals) {
-        let index = this.newDialog(i) - 1
-        this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
-      }
 
       this.addListener()
 
@@ -94,6 +92,13 @@ Last update: 2018-08-18
 
       addListener() {
         document.addEventListener('mousemove', this.onMouseUpdate, false);
+      },
+
+      createDialogs() {
+        for (let i in this.vals) {
+          let index = this.newDialog(i) - 1
+          this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
+        }
       },
 
       onMouseUpdate(e) {
