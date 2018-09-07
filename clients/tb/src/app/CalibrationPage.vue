@@ -183,6 +183,28 @@ Last update: 2018-09-06
                 </div>
               </div>
             </div>
+
+            <!-- ### Start: dialogs ### -->
+
+            <button @click="createDialogs()">CREATE</button>
+            <br><br><br><br><br><br><br><br><br><br>
+
+            <div v-for="val in vals">
+              <button @click="maximize(val)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+              <br><br><br>
+            </div>
+
+            <div class="dialogs">
+              <dialog-drag v-for="dialog,key in openDialogs"
+                           :id="dialog.id"
+                           :key="key"
+                           @close="minimize(dialog.id)"
+                           :options="dialog.options">
+
+                <span slot='title'> {{ dialog.name }} </span>
+                <p>{{dialog.content}}</p>
+              </dialog-drag>
+            </div>
             <!-- ### End: plots ### -->
 
             <!-- CASCADE-TB DIFFERENCE -->
@@ -297,6 +319,11 @@ Last update: 2018-09-06
         serverDatastoreId: '',
         showGraphDivs: [],
         showLegendDivs: [],
+        vals: [0,1,2,3],
+        closedDialogs: [],
+        openDialogs: [],
+        mousex:-1,
+        mousey:-1,
       }
     },
 
