@@ -178,7 +178,7 @@ Last update: 2018-09-06
                       <!--mpld3 content goes here-->
                     </div>
                     <div style="display:inline-block">
-                      <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend">{{index}}<i class="ti-menu-alt"></i></button>
+                      <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend"><i class="ti-menu-alt"></i></button>
                     </div>
                   </div>
                 </div>
