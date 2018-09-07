@@ -150,8 +150,8 @@ function makeGraphs(vm, graphdata) {
         var containerdiv = document.getElementById(containerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
         containerdiv.style.display = 'flex'
 
-        // var legendlabel = 'legend' + index
-        // var legenddiv  = document.getElementById(legendlabel);
+        var legendlabel = 'legendBOO' // 'legend' + index
+        var legenddiv  = document.getElementById(legendlabel);
         // while (legenddiv.firstChild) {
         //   legenddiv.removeChild(legenddiv.firstChild);
         // }
@@ -159,7 +159,7 @@ function makeGraphs(vm, graphdata) {
         console.log('div review')
         console.log(figdiv)
         console.log(containerdiv)
-        // console.log(legenddiv)
+        console.log(legenddiv)
       }
 
 
@@ -319,8 +319,8 @@ function findDialog(vm, id, dialogs) {
 function maximize(vm,id) {
   let index = findDialog(vm, id, vm.closedDialogs)
   if (index !== null) {
-    vm.closedDialogs[index].options.left = vm.mousex // Before opening, move it to where the mouse currently is
-    vm.closedDialogs[index].options.top = vm.mousey
+    vm.closedDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    vm.closedDialogs[index].options.top = vm.mousey-300
     vm.openDialogs.push(vm.closedDialogs[index])
     vm.closedDialogs.splice(index, 1)
   }
