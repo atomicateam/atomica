@@ -81,7 +81,7 @@ Last update: 2018-08-18
     },
 
     created () {
-      for (let i = 0; i < 10; i++) {
+      for (let i in this.vals) {
         let index = this.newDialog(i) - 1
         this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
       }
