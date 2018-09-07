@@ -20,13 +20,15 @@ function getUniqueName(fileName, otherNames) {
   return tryName
 }
 
-function placeholders(startVal) {
+function placeholders(vm, startVal) {
   var indices = []
   if (!startVal) {
     startVal = 0
   }
   for (var i = startVal; i <= 100; i++) {
     indices.push(i);
+    vm.showGraphDivs[i] = false
+    vm.showLegendDivs[i] = false
   }
   return indices;
 }
@@ -131,37 +133,37 @@ function makeGraphs(vm, graphdata) {
   status.start(vm) // Start indicating progress.
   vm.hasGraphs = true
   sleep(waitingtime * 1000)
-    .then(response => {
-    var n_plots = graphdata.length
+  .then(response => {
+    let n_plots = graphdata.length
     console.log('Rendering ' + n_plots + ' graphs')
-  placeholders(1)
-  sleep(waitingtime * 1000)
-    .then(response => {
-    for (let index = 0; index <= n_plots; index++)  {
-    console.log('Rendering plot ' + index)
-    var divlabel = 'fig' + index
-    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-    while (div.firstChild) {
-      div.removeChild(div.firstChild);
-    }
-    try {
-      console.log(graphdata[index]);
+    for (var index = 0; index <= n_plots; index++) {
+      console.log('Rendering plot ' + index)
+      var divlabel  = 'fig' + index
+      var divlabel2 = 'legendbutton' + index
+      var div  = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      var div2 = document.getElementById(divlabel2); // CK: Not sure if this is necessary? To ensure the div is clear first
+      while (div.firstChild) {
+        div.removeChild(div.firstChild);
+      }
+      console.log('hi_0');
+      div.style.display = 'flex'
+      div2.style.display = 'inline-block'
+      console.log('hi_1');
+      vm.showGraphDivs[index] = true;
+      console.log('hi_2');
       mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
+        console.log('hi_3');
         fig.setXTicks(6, function (d) {
           return d3.format('.0f')(d);
         });
+        console.log('hi_4');
         fig.setYTicks(null, function (d) {
           return d3.format('.2s')(d);
         });
       });
     }
-    catch (error) {
-      console.log('Making graphs failed: ' + error.message);
-    }
-  }
-})
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
-})
+  })
 }
 
 function clearGraphs(vm) {

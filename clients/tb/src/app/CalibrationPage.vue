@@ -129,12 +129,9 @@ Last update: 2018-09-06
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
             <div>
-              <!--<b>Start year: &nbsp;</b>-->
-              <!--<input type="text"-->
-              <!--class="txbox"-->
-              <!--v-model="startYear"-->
-              <!--style="display: inline-block; width:70px"/>-->
-              <!--&nbsp;&nbsp;&nbsp;-->
+
+              <button class="btn btn-icon" @click="TEMP()">TEMP</button>
+
               <b>Year: &nbsp;</b>
               <select v-model="endYear" @change="plotCalibration(true)">
                 <option v-for='year in simYears'>
@@ -174,10 +171,10 @@ Last update: 2018-09-06
                 </div>
                 <div class="other-graphs">
                   <div v-for="index in placeholders" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd">
-                    <div :id="'fig'+index" class="calib-graph">
+                    <div class="calib-graph" :id="'fig'+index" style="display:none">
                       <!--mpld3 content goes here-->
                     </div>
-                    <div style="display:inline-block">
+                    <div style="display:inline-block" :id="'legendbutton'+index" >
                       <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend"><i class="ti-menu-alt"></i></button>
                     </div>
                   </div>
@@ -296,7 +293,8 @@ Last update: 2018-09-06
         figscale: 1.0,
         hasGraphs: false,
         serverDatastoreId: '',
-        placeholders: [],
+        showGraphDivs: [],
+        showLegendDivs: [],
       }
     },
 
@@ -307,7 +305,7 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-//      placeholders() { return utils.placeholders(1) },
+      placeholders() { return utils.placeholders(this, 1) },
 
       sortedPars() {
         return this.applySorting(this.parList);
@@ -346,6 +344,10 @@ Last update: 2018-09-06
                                 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
+      },
+
+      TEMP() {
+        console.log(this.showGraphDivs)
       },
 
       scaleFigs(frac) {
