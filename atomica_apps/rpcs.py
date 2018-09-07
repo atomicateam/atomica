@@ -425,9 +425,9 @@ def save_project_as_new(proj, user_id):
     proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
     projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
-    print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
+    print(">> save_project_as_new '%s' [<%s> %s]" % (proj.name, user_id, proj.uid)) # Display the call information.
     save_project(proj) # Save the changed Project object to the DataStore.
-    return None
+    return proj.uid
 
 
 # RPC definitions
