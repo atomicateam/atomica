@@ -665,7 +665,7 @@ Last update: 2018-09-06
         console.log('uploadProgbook() called for ' + matchProject.project.name)
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
-            status.start(this)  (This is here because we don't want the
+            status.start(this)
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })

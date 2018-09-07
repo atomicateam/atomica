@@ -38,24 +38,24 @@ function succeed(vm, successMessage) {
       icon: 'ti-check',
       type: 'success',
       verticalAlign: 'top',
-      horizontalAlign: 'left',
-      timeout: 3000
+      horizontalAlign: 'right',
+      timeout: 2000
     })
   }  
 }
 
-function fail(vm, failMessage) {
-  console.log(failMessage)
+function fail(vm, failMessage, error) {
+  console.log(failMessage, error.message)
   complete = 100;
   vm.$spinner.stop() // Dispel the spinner.
   vm.$Progress.fail() // Fail the loading bar.
   if (failMessage !== '') {  // Put up a failure notification.
     vm.$notifications.notify({
-      message: failMessage,
+      message: failMessage + '<br><br>' + error.message,
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
-      horizontalAlign: 'left',
+      horizontalAlign: 'right',
       timeout: 0
     })
   }  
