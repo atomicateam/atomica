@@ -2,6 +2,7 @@
 Version:
 """
 
+import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
