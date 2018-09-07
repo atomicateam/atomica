@@ -317,22 +317,31 @@ function findDialog(vm, id, dialogs) {
 
 // "Show" the dialog
 function maximize(vm,id) {
-  let index = findDialog(vm, id, vm.closedDialogs)
+  console.log(id)
+  var legendlabel = 'legend' + id
+  console.log(legendlabel)
+  var legenddiv  = document.getElementById(legendlabel);
+  console.log(legenddiv)
+  legenddiv.style.display = 'flex'
+  let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
-    vm.closedDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-    vm.closedDialogs[index].options.top = vm.mousey-300
-    vm.openDialogs.push(vm.closedDialogs[index])
-    vm.closedDialogs.splice(index, 1)
+    vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    vm.openDialogs[index].options.top = vm.mousey-300
+    // vm.openDialogs.push(vm.openDialogs[index])
+    // vm.openDialogs.splice(index, 1)
   }
 }
 
 // "Hide" the dialog
 function minimize(vm, id) {
-  let index = findDialog(vm, id, vm.openDialogs)
-  if (index !== null) {
-    vm.closedDialogs.push(vm.openDialogs[index])
-    vm.openDialogs.splice(index, 1)
-  }
+  var legendlabel = 'legend' + id
+  var legenddiv  = document.getElementById(legendlabel);
+  legenddiv.style.display = 'none'
+  // let index = findDialog(vm, id, vm.openDialogs)
+  // if (index !== null) {
+  //   vm.openDialogs.push(vm.openDialogs[index])
+  //   vm.openDialogs.splice(index, 1)
+  // }
 }
 
 
