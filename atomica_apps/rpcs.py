@@ -1264,11 +1264,11 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         if calibration:
             stacked_output, stacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
             unstacked_output, unstacked_figs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-            output['graphs'] += interleave(stacked_output, unstacked_output)
+            output['graphs'] += interleave(stacked_output['graphs'], unstacked_output['graphs'])
             allfigs += interleave(stacked_figs, unstacked_figs)
         else:
             unstacked_output, unstacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            output['graphs'] += unstacked_output
+            output['graphs'] += unstacked_output['graphs']
             allfigs += unstacked_figs
 
     if dosave:

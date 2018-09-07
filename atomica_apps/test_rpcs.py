@@ -11,7 +11,8 @@ import sciris as sc
 torun = [
 # 'get_cascade_plot',
 # 'get_cascade_json',
-'get_plots',
+# 'get_plots',
+'process_plots',
 # 'run_cascade_optimization',
 # 'run_tb_optimization',
 ]
@@ -37,10 +38,10 @@ if 'get_cascade_plot' in torun:
     if proj is None: proj = demoproj('hypertension')
     results = proj.run_optimization(maxtime=3)
     args = {
-        'results':results, 
-        'pops':   'All', 
-        'year':   2030, 
-        'cascade': None, 
+        'results':results,
+        'pops':   'All',
+        'year':   2030,
+        'cascade': None,
         'plot_budget': True
         }
     output = rpcs.get_cascade_plot(proj, **args)
@@ -70,6 +71,12 @@ if 'get_plots' in torun:
     print('Output:')
     print(output)
 
+if 'process_plots' in torun:
+    proj = demoproj('tb')
+    results = proj.demo_scenarios(dorun=True)
+    output = rpcs.process_plots(proj, results, tool='tb', year=2018, pops='all', cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=True)
+    sw.browser(jsons=output['graphs'])
+
 
 if 'run_cascade_optimization' in torun:
     maxtime = 10
@@ -77,15 +84,15 @@ if 'run_cascade_optimization' in torun:
     output = atca.run_cascade_optimization(proj, maxtime=maxtime, online=False)
     print('Output:')
     print(output)
-    
-    
+
+
 if 'run_tb_optimization' in torun:
     maxtime = 10
     if proj is None: proj = demoproj('tb')
     output = attb.run_tb_optimization(proj, maxtime=maxtime, online=False)
     print('Output:')
     print(output)
-    
+
 
 sc.toc(T)
 print('Done.')
