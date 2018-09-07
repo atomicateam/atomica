@@ -416,13 +416,13 @@ def save_project(proj, online=True):
 
 
 @timeit
-def save_project_as_new(proj, user_id):
+def save_project_as_new(proj, user_id, uid=None):
     """
     Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
     """ 
-    proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
+    proj.uid = sc.uuid(uid=uid) # Set a new project UID, so we aren't replicating the UID passed in.
     projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
     print(">> save_project_as_new '%s' [<%s> %s]" % (proj.name, user_id, proj.uid)) # Display the call information.
@@ -1222,11 +1222,13 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
 
 
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
-    if sc.isstring(year):
-        year = float(year)
-
+    
+    # Handle inputs
+    if sc.isstring(year): year = float(year)
+    if pops is None:      pops = 'all'
     results = sc.promotetolist(results)
 
+    # Decide what to do
     if calibration and pops.lower() == 'all':
         # For calibration plot, 'all' pops means that they should all be disaggregated and visible
         # But for scenarios and optimizations, 'all' pops means aggregated over all pops

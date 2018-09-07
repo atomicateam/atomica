@@ -13,31 +13,32 @@ from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, ma
 import json
 
 torun = [
-'project_io',
+#'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
 #'get_plots',
-#'run_cascade_optimization',
+'run_cascade_optimization',
 #'run_tb_optimization',
 ]
 
 # Set parameters
 tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
-default_which = {'tb':'tb', 'cascade':'hypertension'}
-user_id = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
+default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
+user_id  = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
+proj_id  = user_id # These can all be the same
+cache_id = user_id # These can all be the same
 
 
 ###########################################################################
 ### Initialization and definitions
 ###########################################################################
 
-T = sc.tic()
-
-app = main.make_app(which=tool)
-
-def demoproj(which=None):
-    if which is None: which = default_which[tool]
+def demoproj(which=None, online=True):
+    if which is None: which = default_which
     P = au.demo(which=which)
+    if online:
+        rpcs.save_project_as_new(P, user_id=user_id, uid=proj_id)
+        rpcs.make_results_cache_entry(cache_id)
     return P
 
 def heading(string, style=None):
@@ -47,20 +48,26 @@ def heading(string, style=None):
     sc.colorize('blue', string)
     return None
 
+T = sc.tic()
+app = main.make_app(which=tool)
+proj = demoproj(which=default_which, online=True)
+
+
+
+
 ###########################################################################
 ### Run the tests
 ###########################################################################
 
+
 if 'project_io' in torun:
-    if proj is None: proj = demoproj('hypertension')
     uid = rpcs.save_project_as_new(proj, user_id=user_id)
     P = rpcs.load_project_record(uid)
     print(P)
 
 
-
-if 'get_cascade_plot' in torun:
-    if proj is None: proj = demoproj('hypertension')
+if 'get_cascade_plot' in torun and tool=='cascade':
+    browser = False
     results = proj.run_optimization(maxtime=3)
     args = {
         'results':results, 
@@ -72,13 +79,13 @@ if 'get_cascade_plot' in torun:
     output = rpcs.get_cascade_plot(proj, **args)
     print('Output:')
     print(output)
-    sw.browser(jsons=output[0]['graphs'])
+    if browser:
+        sw.browser(jsons=output[0]['graphs'])
 
 
-if 'get_cascade_json' in torun:
+if 'get_cascade_json' in torun and tool=='cascade':
     dosave = True
     filename = 'cascade.json'
-    if proj is None: proj = demoproj('hypertension')
     results = proj.run_optimization(maxtime=3)
     output = rpcs.get_json_cascade(results, proj.data)
     print('Output:')
@@ -90,25 +97,22 @@ if 'get_cascade_json' in torun:
 
 
 if 'get_plots' in torun:
-    if proj is None: proj = demoproj('tb')
     results = proj.run_sim()
-    output = rpcs.get_plots(proj, results=results, calibration=True)
+    output = rpcs.get_plots(proj, results=results, calibration=False)
     print('Output:')
     print(output)
 
 
-if 'run_cascade_optimization' in torun:
+if 'run_cascade_optimization' in torun and tool=='cascade':
     maxtime = 10
-    if proj is None: proj = demoproj('hypertension')
-    output = atca.run_cascade_optimization(proj, 'dummy_cache_ID', maxtime=maxtime, online=True)
+    output = atca.run_cascade_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
     print(output)
     
     
-if 'run_tb_optimization' in torun:
+if 'run_tb_optimization' in torun and tool=='tb':
     maxtime = 10
-    if proj is None: proj = demoproj('tb')
-    output = attb.run_tb_optimization(proj, maxtime=maxtime, online=False)
+    output = attb.run_tb_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
     print(output)
     
