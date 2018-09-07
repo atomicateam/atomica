@@ -123,7 +123,7 @@ export default {
         }
       })
       .catch(error => {
-          console.log('Register failed: ' + error.message)
+          console.log('Register failed', error)
           this.registerResult = "We're sorry, it seems we're having trouble communicating with the server.  Please contact support or try again later."
       })
     }

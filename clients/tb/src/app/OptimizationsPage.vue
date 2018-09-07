@@ -487,11 +487,11 @@ Last update: 2018-09-05
                 console.log('Active progset: ' + this.activeProgset)
               })
               .catch(error => {
-                status.fail(this, 'Could not get progset info: ' + error.message)
+                status.fail(this, 'Could not get progset info', error)
               })
           })
           .catch(error => {
-            status.fail(this, 'Could not get parset info: ' + error.message)
+            status.fail(this, 'Could not get parset info', error)
           })
       },
 
@@ -504,7 +504,7 @@ Last update: 2018-09-05
             console.log(this.defaultOptim);
           })
           .catch(error => {
-            status.fail(this, 'Could not get default optimization: ' + error.message)
+            status.fail(this, 'Could not get default optimization', error)
           })
       },
 
@@ -533,7 +533,7 @@ Last update: 2018-09-05
             status.succeed(this, 'Optimizations loaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not load optimizations: ' + error.message)
+            status.fail(this, 'Could not load optimizations', error)
           })
       },
 
@@ -545,7 +545,7 @@ Last update: 2018-09-05
             status.succeed(this, 'Optimizations saved')
           })
           .catch(error => {
-            status.fail(this, 'Could not save optimizations: ' + error.message)
+            status.fail(this, 'Could not save optimizations', error)
           })
       },
 
@@ -605,7 +605,7 @@ Last update: 2018-09-05
             this.resetModal()
           })
           .catch(error => {
-            status.fail(this, 'Could not add optimization: ' + error.message)
+            status.fail(this, 'Could not add optimization', error)
           })
       },
 
@@ -667,7 +667,7 @@ Last update: 2018-09-05
             status.succeed(this, 'Optimization deleted')
           })
           .catch(error => {
-            status.fail(this, 'Could not delete optimization: ' + error.message)
+            status.fail(this, 'Could not delete optimization', error)
           })
       },
 
@@ -678,7 +678,7 @@ Last update: 2018-09-05
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        // Start indicating progress.
+        
         status.start(this)
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -698,20 +698,20 @@ Last update: 2018-09-05
                     status.succeed(this, 'Started optimization')
                   })
                   .catch(error => {
-                    this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+                    this.serverresponse = 'There was an error', error // Pull out the error message.
                     console.log(this.serverresponse)
                     this.servererror = error.message // Set the server error.
 
-                    // Indicate failure.
-                    status.fail(this, 'Could not start optimization: ' + error.message)
+                    
+                    status.fail(this, 'Could not start optimization', error)
                   })
               })
               .catch(error => {
-                status.fail(this, 'Could not start optimization: ' + error.message)
+                status.fail(this, 'Could not start optimization', error)
               })
           })
           .catch(error => {
-            status.fail(this, 'Could not start optimization: ' + error.message)
+            status.fail(this, 'Could not start optimization', error)
           })
       },
 
@@ -730,9 +730,9 @@ Last update: 2018-09-05
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+            this.serverresponse = 'There was an error', error // Pull out the error message.
             this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not make graphs', error) 
           })
       },
 

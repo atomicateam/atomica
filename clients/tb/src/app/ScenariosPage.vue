@@ -303,7 +303,7 @@ Last update: 2018-09-06
       getPlotOptions() {
         return new Promise((resolve, reject) => {
           console.log('getPlotOptions() called')
-          status.start(this) // Start indicating progress.
+          status.start(this) 
           let project_id = this.projectID
           rpcs.rpc('get_supported_plots', [project_id, true])
           .then(response => {
@@ -312,7 +312,7 @@ Last update: 2018-09-06
             resolve(response)
           })
           .catch(error => {
-            status.fail(this, 'Could not get plot options: ' + error.message)
+            status.fail(this, 'Could not get plot options', error)
             reject(error)
           })          
         })
@@ -379,12 +379,12 @@ Last update: 2018-09-06
               resolve(response)
             })
             .catch(error => {
-              status.fail(this, 'Could not get progset info: ' + error.message)
+              status.fail(this, 'Could not get progset info', error)
               reject(error)
             })
           })
           .catch(error => {
-            status.fail(this, 'Could not get parset info: ' + error.message)
+            status.fail(this, 'Could not get parset info', error)
             reject(error)
           })
         })
@@ -399,7 +399,7 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen);
           })
           .catch(error => {
-            status.fail(this, 'Could not get default budget scenario: ' + error.message)
+            status.fail(this, 'Could not get default budget scenario', error)
           })
       },
 
@@ -415,7 +415,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Scenarios loaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not get scenarios: ' + error.message)
+            status.fail(this, 'Could not get scenarios', error)
           })
       },
 
@@ -427,7 +427,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Scenarios saved')
           })
           .catch(error => {
-            status.fail(this, 'Could not save scenarios: ' + error.message)
+            status.fail(this, 'Could not save scenarios', error)
           })
       },
 
@@ -478,7 +478,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Scenario added')
           })
           .catch(error => {
-            status.fail(this, 'Could not add scenario: ' + error.message)
+            status.fail(this, 'Could not add scenario', error)
           })
       },
 
@@ -509,7 +509,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Scenario copied')
           })
           .catch(error => {
-            status.fail(this, 'Could not copy scenario: ' + error.message)
+            status.fail(this, 'Could not copy scenario', error)
           })
       },
 
@@ -526,7 +526,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Scenario deleted')
           })
           .catch(error => {
-            status.fail(this, 'Could not delete scenario: ' + error.message)
+            status.fail(this, 'Could not delete scenario', error)
           })
       },
 
@@ -548,13 +548,13 @@ Last update: 2018-09-06
                 status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
-                console.log('There was an error: ' + error.message) // Pull out the error message.
-                status.fail(this, 'Could not run scenarios: ' + error.message) // Indicate failure.
+                console.log('There was an error', error) // Pull out the error message.
+                status.fail(this, 'Could not run scenarios', error) 
               })
           })
           .catch(error => {
-            this.response = 'There was an error: ' + error.message
-            status.fail(this, 'Could not set scenarios: ' + error.message)
+            this.response = 'There was an error', error
+            status.fail(this, 'Could not set scenarios', error)
           })
       },
 
@@ -571,10 +571,10 @@ Last update: 2018-09-06
           status.succeed(this, 'Graphs created')
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
+          this.serverresponse = 'There was an error', error // Pull out the error message.
           this.servererror = error.message // Set the server error.
           if (showNoCacheError) {
-            status.fail(this, 'Could not make graphs: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not make graphs', error) 
           }
           else {
             status.succeed(this, '')  // Silently stop progress bar and spinner.
