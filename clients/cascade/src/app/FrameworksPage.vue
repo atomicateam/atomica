@@ -266,7 +266,7 @@ Last update: 2018-08-18
             console.log(this.frameworkOptions)
           })
           .catch(error => {
-            status.failurePopup(this, 'Could not load framework options: ' + error.message)
+            status.fail(this, 'Could not load framework options', error)
           })
       },
 
@@ -284,14 +284,14 @@ Last update: 2018-08-18
           console.log(this.frameworkSummaries)
         })
         .catch(error => {
-          status.failurePopup(this, 'Could not load frameworks: ' + error.message)
+          status.fail(this, 'Could not load frameworks', error)
         })
       },
 
       addDemoFramework() {
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.rpc('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
         .then(response => {         
           // Update the framework summaries so the new framework shows up on the list.
@@ -301,7 +301,7 @@ Last update: 2018-08-18
           status.succeed(this, 'Library framework loaded')
         })
         .catch(error => {
-          // Indicate failure.
+          
           status.fail(this, 'Could not load framework')  
         })            
       },
@@ -321,13 +321,13 @@ Last update: 2018-08-18
       createNewFramework() {
         console.log('createNewFramework() called with advanced=' + this.advancedFramework)
         this.$modal.hide('create-framework')
-        status.start(this) // Start indicating progress.
+        status.start(this) 
         rpcs.download('create_new_framework', [this.advancedFramework]) // Have the server create a new framework.
         .then(response => {
           status.succeed(this, '')
         })
         .catch(error => {
-          status.fail(this, 'Could not download the framework: ' + error.message)
+          status.fail(this, 'Could not download the framework', error)
         })        
       },
 
@@ -335,12 +335,12 @@ Last update: 2018-08-18
         console.log('uploadFrameworkFromFile() called')
           rpcs.upload('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
           .then(response => {
-            status.start(this) // Start indicating progress.
+            status.start(this) 
             this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
             status.succeed(this, 'Framework uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload the framework: ' + error.message)
+            status.fail(this, 'Could not upload the framework', error)
           })
           .finally(response => {
           })
@@ -424,7 +424,7 @@ Last update: 2018-08-18
           status.succeed(this, 'Framework "'+matchFramework.framework.name+'" copied')
         })
         .catch(error => {
-          status.fail(this, 'Could not copy framework:' + error.message)
+          status.fail(this, 'Could not copy framework', error)
         })       
       },
 
@@ -436,7 +436,7 @@ Last update: 2018-08-18
         else { // Otherwise (it is to be renamed)...
           let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
-          status.start(this) // Start indicating progress.
+          status.start(this) 
           rpcs.rpc('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
             this.updateFrameworkSummaries() // Update the framework summaries so the rename shows up on the list.
@@ -444,7 +444,7 @@ Last update: 2018-08-18
             status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not rename framework:' + error.message)
+            status.fail(this, 'Could not rename framework', error)
           })            
         }
 
@@ -463,7 +463,7 @@ Last update: 2018-08-18
 
         console.log('downloadFrameworkFile() called for ' + matchFramework.framework.name)
                 
-        status.start(this) // Start indicating progress.
+        status.start(this) 
       
         // Make the server call to download the framework to a .prj file.
         rpcs.download('download_framework', [uid])
@@ -471,7 +471,7 @@ Last update: 2018-08-18
           status.succeed(this, '')        
         })
         .catch(error => {
-          status.fail(this, 'Could not rename framework:' + error.message)     
+          status.fail(this, 'Could not rename framework', error)     
         })             
       },
 
@@ -484,7 +484,7 @@ Last update: 2018-08-18
         // Make the server call to download the framework to a .prj file.
         rpcs.download('download_defaults', [uid])
         .catch(error => {
-          status.failurePopup(this, 'Could not download defaults:' + error.message)     
+          status.fail(this, 'Could not download defaults', error)     
         })        
       },
 
@@ -517,7 +517,7 @@ Last update: 2018-08-18
               
         // Have the server delete the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
-          status.start(this) // Start indicating progress.         
+          status.start(this)          
           
           rpcs.rpc('delete_frameworks', [selectFrameworksUIDs])
           .then(response => {
@@ -539,7 +539,7 @@ Last update: 2018-08-18
             status.succeed(this, '')              
           })
           .catch(error => {
-            status.fail(this, 'Could not delete framework/s:' + error.message)      
+            status.fail(this, 'Could not delete framework/s', error)      
           })                    
         }
       },
@@ -553,14 +553,14 @@ Last update: 2018-08-18
                  
         // Have the server download the selected frameworks.
         if (selectFrameworksUIDs.length > 0) {
-          status.start(this) // Start indicating progress.
+          status.start(this) 
           
           rpcs.download('load_zip_of_frw_files', [selectFrameworksUIDs])
           .then(response => {
             status.succeed(this, '')         
           })
           .catch(error => {
-            status.fail(this, 'Could not download framework/s:' + error.message) 
+            status.fail(this, 'Could not download framework/s', error) 
           })        
         }           
       }

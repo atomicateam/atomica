@@ -190,8 +190,8 @@ $red-navbar: rgba(#FF4C40, .98);
 $bg-nude: #f8f8f4 !default; // CK: main color!!!!!
 $bg-primary: #8ECFD5 !default;
 $bg-info: #7CE4FE !default;
-$bg-success: #8EF3C5 !default;
-$bg-warning: #FFE28C !default;
+$bg-success: rgba(0, 136, 0, 1.0); // #008800; //#8EF3C5 !default;
+$bg-warning: rgba(226, 151, 34, 1.0); // #e29722; //#de4724; //#FFE28C !default;
 $bg-danger: #FF8F5E !default;
 
 $topbar-x: topbar-x !default;
