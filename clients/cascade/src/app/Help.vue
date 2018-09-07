@@ -91,7 +91,7 @@ Last update: 2018-08-18
 
       // Create a new dialog
       newDialog (id, name, content) {
-        let style = this.styles[1]
+        let style = { name: 'dialog-2', options: { width: 150, buttonPin: false } }
         let options = {}
         if (style.options) options = Object.assign({}, style.options)
         if (!options.left) options.left = this.x
