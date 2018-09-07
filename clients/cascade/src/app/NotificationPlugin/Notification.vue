@@ -131,7 +131,7 @@
       right: 20px;
     }
     .container & {
-      border-radius: 4px;
+      border-radius: 0px;
     }
     .navbar & {
       border-radius: 0;
@@ -158,7 +158,7 @@
 
     &[data-notify="container"] {
       /*max-width: 400px;*/
-      /*padding: 20px 10px 10px 20px; // CK: This actually affects the padding!*/
+      padding: 10px 5px 5px 10px; // CK: This actually affects the padding!
       border-radius: $border-radius-base;
     }
 

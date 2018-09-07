@@ -464,7 +464,7 @@ Last update: 2018-09-06
             status.succeed(this, 'New project uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload file: ' + error.message)
+            status.fail(this, 'Could not upload file', error)
           })
       },
 
@@ -655,7 +655,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Data uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload data: ' + error.message)
+            status.fail(this, 'Could not upload databook', error)
           })
       },
 
@@ -670,7 +670,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not upload progbook: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not upload program book: ' + error.message) // Indicate failure.
           })
       },
 
