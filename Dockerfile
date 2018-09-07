@@ -2,6 +2,7 @@ FROM continuumio/anaconda:latest
 ADD . /app
 WORKDIR /app
 
+ARG WHICH
 ARG PORT
 ARG REDIS_URL
 ENV PORT $PORT
@@ -30,9 +31,8 @@ RUN python setup.py develop
 WORKDIR clients
 RUN python install_client.py
 
-# Install cascade (TODO: add an option for cascade/tb)
-ARG dockerproject
-WORKDIR cascade
+# Install app
+WORKDIR ${WHICH}
 RUN python build_client.py
 
 CMD python start_server.py
