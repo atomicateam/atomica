@@ -5,10 +5,10 @@ Last update: 2018-08-18
 -->
 
 <!--<template>-->
-  <!--<div class="SitePage">-->
-  	<!--<p>We are in the process of writing a user guide.</p>-->
-    <!--<p>For assistance in the meantime, please email <a href="mailto:info@cascade.tools">info@cascade.tools</a>.</p>-->
-  <!--</div>-->
+<!--<div class="SitePage">-->
+<!--<p>We are in the process of writing a user guide.</p>-->
+<!--<p>For assistance in the meantime, please email <a href="mailto:info@cascade.tools">info@cascade.tools</a>.</p>-->
+<!--</div>-->
 <!--</template>-->
 
 
@@ -28,21 +28,139 @@ Last update: 2018-08-18
     <drop-area @drop='drop' style="width:100px">
       <p>Drop Here</p>
     </drop-area>
+
+
+    <div class="dialogs">
+      <dialog-drag v-for='dialog,key in dialogs'
+        :class='dialog.style.name'
+        :key='dialog.id'
+        :id='dialog.id'
+        :ref='"dialog-" + dialog.id'
+        @close='removeDialog'
+        @drag-end='dialogDragEnd'
+        @drag-start='selectDialog'
+        @move='dialogDragEnd'
+        :options='dialog.options'>
+
+        <span slot='title'> {{ dialog.name }} </span>
+        <p>{{dialog.content}}</p>
+        <!--small-->
+        <!--strong Style: {{dialog.style.name}}-->
+        <!--p-->
+        <!--strong options:-->
+        <!--p-->
+        <!--small-->
+        <!--em {{dialog.options}}-->
+      </dialog-drag>
+    </div>
   </div>
 </template>
 
 <script>
-    import DialogDrag from 'vue-dialog-drag'
-    import DropArea from 'vue-dialog-drag/dist/vue-drop-area.common'
+  import DialogDrag from 'vue-dialog-drag'
+  import DropArea from 'vue-dialog-drag/dist/vue-drop-area.common'
+//  export default {
+//    name: 'app',
+//    components: {
+//      DialogDrag,
+//      DropArea
+//    },
+//    methods: {
+//      drop (id) {
+//        console.log('drop id:', id)
+//      }
+//    }
+//  }
+
   export default {
-    name: 'app',
+    name: 'example',
     components: {
       DialogDrag,
       DropArea
     },
+    data () {
+      return {
+        dialogs: [{id:0, style:{name:'foo'}, }],
+        dialogId: 1,
+        styles: [
+          { name: 'dialog-1', options: { width: 400 } },
+          { name: 'dialog-2', options: { width: 150, buttonPin: false } },
+          { name: 'dialog-3' }
+        ],
+        style: null,
+        selected: null,
+        dialogWidth: 400,
+        droppeds: [],
+        icons: {
+//          gitHub: ghIcon,
+//          browser: browserIcon,
+//          download: downloadIcon,
+//          dialog: dialogIcon
+        },
+        app: process.env.APP
+      }
+    },
+    created () {
+      for (let i = 0; i < this.styles.length; i++) {
+        let index = this.newDialog(i) - 1
+        this.dialogs[index].options.left = (index * this.dialogWidth) + 50 * index + 1
+      }
+    },
     methods: {
       drop (id) {
-        console.log('drop id:', id)
+        let index = this.findDialog(id)
+        if (index !== null) {
+          this.droppeds.push(this.dialogs[index])
+          this.dialogs.splice(index, 1)
+        }
+      },
+      unDrop (id) {
+        let index = this.findDialog(id, this.droppeds)
+        if (index !== null) {
+          this.dialogs.push(this.droppeds[index])
+          this.droppeds.splice(index, 1)
+        }
+      },
+      newDialog (sId) {
+        if (sId === null) sId = Math.floor(Math.random() * this.styles.length)
+        return this.dialogs.push(this.dialog(this.styles[sId]))
+      },
+      removeDialog (dialog) {
+        console.log('rem!')
+        console.log(dialog)
+        let id = dialog.id
+        console.log(dialog.id)
+        let index = this.findDialog(id)
+        console.log(index)
+        this.dialogs.splice(index, 1)
+        if (this.selected && this.selected.id === id) this.selected = null
+      },
+      findDialog (id, dialogs) {
+        if (!dialogs) dialogs = this.dialogs
+        let index = dialogs.findIndex((val) => {
+          return val.id === id
+        })
+        return (index > -1) ? index : null
+      },
+      dialog (style) {
+        let id = String(this.dialogId)
+        this.dialogId++
+        let name = 'Dialog ' + id
+        let content = 'foo' //rndText()
+        let options = {}
+        if (style.options) options = Object.assign({}, style.options)
+        if (!options.left) options.left = 30 * id
+        if (!options.top) options.top = 30 * id
+        return { id, name, content, style, options }
+      },
+      dialogDragEnd (obj) {
+        let index = this.findDialog(obj.id)
+        this.$set(this.dialogs[index].options, 'left', obj.left)
+        this.$set(this.dialogs[index].options, 'top', obj.top)
+      },
+      selectDialog (obj) {
+        let index = this.findDialog(obj.id)
+        this.selected = this.dialogs[index]
       }
     }
   }
