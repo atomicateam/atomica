@@ -22,12 +22,6 @@ Last update: 2018-08-18
 
 <template>
   <div id="app">
-    <!--<dialog-drag id="dialog-1">-->
-      <!--<p> Test dialog</p>-->
-    <!--</dialog-drag>-->
-    <!--<drop-area @drop='drop' @click='console.log("faosdifu")' style="width:100px">-->
-      <!--<p>Drop Here</p>-->
-    <!--</drop-area>-->
 
     <button @click="createDialogs()">create</button>
     <br><br><br><br><br><br><br><br><br><br>
@@ -93,8 +87,7 @@ Last update: 2018-08-18
 
       createDialogs() {
         for (let i in this.vals) {
-          this.newDialog(i)
-//          this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
+          this.newDialog(i, 'This is test '+i)
         }
       },
 
@@ -125,13 +118,11 @@ Last update: 2018-08-18
         }
       },
 
-      newDialog (sId) {
-        return this.droppeds.push(this.dialog(sId))
+      newDialog (sId, content) {
+        return this.droppeds.push(this.dialog(sId, content))
       },
 
       findDialog (id, dialogs) {
-        console.log('heyeye')
-        console.log(this.dialogs)
         if (!dialogs) dialogs = this.dialogs
         let index = dialogs.findIndex((val) => {
           return String(val.id) === String(id) // Force type conversion
@@ -139,10 +130,9 @@ Last update: 2018-08-18
         return (index > -1) ? index : null
       },
 
-      dialog (id) {
+      dialog (id, content) {
         let style = this.styles[1]
         let name = 'Dialog ' + id
-        let content = 'foo' //rndText()
         let options = {}
         if (style.options) options = Object.assign({}, style.options)
         if (!options.left) options.left = this.x
