@@ -164,21 +164,20 @@ Last update: 2018-09-06
             <!-- ### Start: plots ### -->
             <div class="calib-card-body">
               <div class="calib-graphs">
-                <div class="featured-graphs" style="display:none">
+                <div class="featured-graphs">
                   <div :id="'fig0'">
-                    <!--mpld3 content goes here-->
-                  </div>
-                  <div :id="'legendbutton0'" style="display:none">
-                    <!--mpld3 content goes here-->
+                    <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
                 <div class="other-graphs">
-                  <div v-for="index in placeholders" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd">
-                    <div class="calib-graph" :id="'fig'+index" style="display:none">
-                      <!--mpld3 content goes here-->
-                    </div>
-                    <div class="calib-graph" :id="'legendbutton'+index"  style="display:none">
-                      <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend"><i class="ti-menu-alt"></i></button>
+                  <div v-for="index in placeholders">
+                    <div :id="'container'+index" style="display:none; justify-content:flex-start; padding:5px; border:1px solid #ddd">
+                      <div class="calib-graph" :id="'fig'+index">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <div style="display:inline-block">
+                        <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend"><i class="ti-menu-alt"></i></button>
+                      </div>
                     </div>
                   </div>
                 </div>
