@@ -730,10 +730,12 @@ Last update: 2018-09-07
               // CASCADE-TB DIFFERENCE
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
             .then(response => {
-              this.makeGraphs(response.data.graphs)
-              this.table = response.data.table
-              this.displayResultName = optimSummary.name
-              status.succeed(this, 'Graphs created')
+              if (this.$route.path === '/optimizations') {  // check to see if still on same page
+                this.makeGraphs(response.data.graphs)
+                this.table = response.data.table
+                this.displayResultName = optimSummary.name
+                status.succeed(this, 'Graphs created')                
+              }
             })
             .catch(error => {
               status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
@@ -760,10 +762,12 @@ Last update: 2018-09-07
         rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop, plotbudget:true})
           .then(response => {
-            this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
-            this.displayResultName = optimSummary.name
-            status.succeed(this, 'Graphs created')
+            if (this.$route.path === '/optimizations') {  // check to see if still on same page
+              this.makeGraphs(response.data.graphs)
+              this.table = response.data.table
+              this.displayResultName = optimSummary.name
+              status.succeed(this, 'Graphs created')
+            }
           })
           .catch(error => {
             status.fail(this, 'Could not make graphs', error)

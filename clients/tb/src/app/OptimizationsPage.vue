@@ -47,7 +47,7 @@ Last update: 2018-09-07
             </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
+              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 60)">Test run</button>
               <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
@@ -709,7 +709,7 @@ Last update: 2018-09-07
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
 
-        status.start(this)
+//        status.start(this)
         // Make sure they're saved first
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
         .then(response => {   
@@ -742,19 +742,21 @@ Last update: 2018-09-07
               // CASCADE-TB DIFFERENCE
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
             .then(response => {
-              this.makeGraphs(response.data.graphs)
-              this.table = response.data.table
-              this.displayResultName = optimSummary.name
-              status.succeed(this, 'Graphs created')
+              if (this.$route.path === '/optimizations') {  // check to see if still on same page
+                this.makeGraphs(response.data.graphs)
+                this.table = response.data.table
+                this.displayResultName = optimSummary.name
+//                status.succeed(this, 'Graphs created')
+              }
             })
             .catch(error => {
-              status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
+//              status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
             })
           }
        
         })
         .catch(error => {
-          status.fail(this, 'Could not start optimization: ' + error.message)
+//          status.fail(this, 'Could not start optimization: ' + error.message)
         })
       },
 
@@ -767,10 +769,12 @@ Last update: 2018-09-07
         rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.serverDatastoreId, this.plotOptions],
           {tool:'tb', plotyear:this.endYear, pops:this.activePop, plotbudget:true}) // CASCADE-TB DIFFERENCE
           .then(response => {
-            this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
-            this.displayResultName = optimSummary.name
-            status.succeed(this, 'Graphs created')
+            if (this.$route.path === '/optimizations') {  // check to see if still on same page       
+              this.makeGraphs(response.data.graphs)
+              this.table = response.data.table
+              this.displayResultName = optimSummary.name
+              status.succeed(this, 'Graphs created')
+            }
           })
           .catch(error => {
             this.serverresponse = 'There was an error', error // Pull out the error message.
