@@ -247,6 +247,7 @@ Last update: 2018-09-06
     data() {
       return {
         optimSummaries: [],
+        optimsLoaded: false,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
@@ -291,18 +292,21 @@ Last update: 2018-09-06
                (this.$store.state.activeProject.project.hasData) &&
                (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
-        utils.sleep(1)  // used so that spinners will come up by callback func
+        this.startYear = this.simStart
+        this.endYear = this.simEnd
+        this.popOptions = this.activePops        
+        this.getPlotOptions()
         .then(response => {
-          // Load the optimization summaries of the current project.
-          this.startYear = this.simStart
-          this.endYear = this.simEnd
-          this.popOptions = this.activePops
-          this.getOptimSummaries()
-          this.getDefaultOptim()
-          this.resetModal()
           this.updateSets()
-          this.getPlotOptions()
-        })
+          .then(response2 => {
+            this.getDefaultOptim()
+            .then(response3 => {
+              // Order doesn't matter for these.
+              this.getOptimSummaries()
+              this.resetModal()
+            })
+          })          
+        })        
       }
     },
 
@@ -453,8 +457,9 @@ Last update: 2018-09-06
       },
       
       updateSets() {
-        console.log('updateSets() called')
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+        return new Promise((resolve, reject) => {          
+          console.log('updateSets() called')
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -467,38 +472,45 @@ Last update: 2018-09-06
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
             rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-              .then(response => {
-                this.progsetOptions = response.data // Set the scenarios to what we received.
-                if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                  console.log('Program set ' + this.activeProgset + ' no longer found')
-                  this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                } else {
-                  console.log('Program set ' + this.activeProgset + ' still found')
-                }
-                this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                console.log('Progset options: ' + this.progsetOptions)
-                console.log('Active progset: ' + this.activeProgset)
-              })
-              .catch(error => {
-                status.fail(this, 'Could not get progset info', error)
-              })
+            .then(response => {
+              this.progsetOptions = response.data // Set the scenarios to what we received.
+              if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
+                console.log('Program set ' + this.activeProgset + ' no longer found')
+                this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
+              } else {
+                console.log('Program set ' + this.activeProgset + ' still found')
+              }
+              this.newProgsetName = this.activeProgset // WARNING, KLUDGY
+              console.log('Progset options: ' + this.progsetOptions)
+              console.log('Active progset: ' + this.activeProgset)
+              resolve(response)              
+            })
+            .catch(error => {
+              status.fail(this, 'Could not get progset info', error)
+              reject(error)              
+            })
           })
           .catch(error => {
             status.fail(this, 'Could not get parset info', error)
+            reject(error)
           })
       },
 
       getDefaultOptim() {
-        console.log('getDefaultOptim() called')
-        rpcs.rpc('get_default_optim', [this.projectID, 'cascade'])  // CASCADE-TB DIFFERENCE
+        return new Promise((resolve, reject) => {        
+          console.log('getDefaultOptim() called')
+          rpcs.rpc('get_default_optim', [this.projectID, 'cascade'])  // CASCADE-TB DIFFERENCE
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             console.log('This is the default:')
-            console.log(this.defaultOptim);
+            console.log(this.defaultOptim)
+            resolve(response)            
           })
           .catch(error => {
             status.fail(this, 'Could not get default optimization', error)
+            reject(error)    
           })
+        })          
       },
 
       getOptimSummaries() {
@@ -515,6 +527,7 @@ Last update: 2018-09-06
             this.getOptimTaskState(optimSum) // Get the task state for the optimization.
           })
           this.pollAllTaskStates() // Start polling of tasks states.
+          this.optimsLoaded = true
           status.succeed(this, 'Optimizations loaded')
         })
         .catch(error => {

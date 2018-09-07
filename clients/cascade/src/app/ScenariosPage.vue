@@ -262,18 +262,16 @@ Last update: 2018-09-06
         this.endYear = this.simEnd
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
-        utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
+        this.getPlotOptions()
+        .then(response => {
+          this.updateSets()
+          .then(response2 => {
+            // The order of execution / completion of these doesn't matter.
             this.getScenSummaries()
             this.getDefaultBudgetScen()
-            this.updateSets()
-            this.getPlotOptions()
+            this.plotScenarios(false)
           })
-        utils.sleep(1000)
-          .then(response => {
-              this.plotScenarios(false)
-            }
-          )
+        })
       }
     },
 
@@ -315,7 +313,7 @@ Last update: 2018-09-06
           console.log('updateSets() called')
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
             .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
+              this.p arsetOptions = response.data // Set the scenarios to what we received.
               if (this.parsetOptions.indexOf(this.activeParset) === -1) {
                 console.log('Parameter set ' + this.activeParset + ' no longer found')
                 this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it

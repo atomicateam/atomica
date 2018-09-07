@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-05
+Last update: 2018-09-06
 -->
 
 <template>
@@ -269,6 +269,7 @@ Last update: 2018-09-05
     data() {
       return {
         optimSummaries: [],
+        optimsLoaded: false,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
@@ -313,18 +314,22 @@ Last update: 2018-09-05
         (this.$store.state.activeProject.project.hasData) &&
         (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
-        utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            // Load the optimization summaries of the current project.
-            this.startYear = this.simStart
-            this.endYear = this.simEnd
-            this.popOptions = this.activePops
-            this.getOptimSummaries()
+        console.log('created() called') 
+        this.startYear = this.simStart
+        this.endYear = this.simEnd
+        this.popOptions = this.activePops
+        this.getPlotOptions()
+        .then(response => {
+          this.updateSets()
+          .then(response2 => {
             this.getDefaultOptim()
-            this.updateSets()
-            this.getPlotOptions()
-            this.resetModal()
-          })
+            .then(response3 => {
+              // Order doesn't matter for these.
+              this.getOptimSummaries()
+              this.resetModal()
+            })
+          })          
+        })     
       }
     },
 
@@ -460,8 +465,9 @@ Last update: 2018-09-05
       },
 
       updateSets() {
-        console.log('updateSets() called')
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+        return new Promise((resolve, reject) => {        
+          console.log('updateSets() called')
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -485,27 +491,34 @@ Last update: 2018-09-05
                 this.newProgsetName = this.activeProgset // WARNING, KLUDGY
                 console.log('Progset options: ' + this.progsetOptions)
                 console.log('Active progset: ' + this.activeProgset)
-              })
+              resolve(response)
+            })
               .catch(error => {
                 status.fail(this, 'Could not get progset info', error)
+              reject(error)
               })
           })
           .catch(error => {
             status.fail(this, 'Could not get parset info', error)
+            reject(error)
           })
       },
 
       getDefaultOptim() {
-        console.log('getDefaultOptim() called')
-        rpcs.rpc('get_default_optim', [this.projectID, 'tb']) // CASCADE-TB DIFFERENCE
+        return new Promise((resolve, reject) => {
+          console.log('getDefaultOptim() called')
+          rpcs.rpc('get_default_optim', [this.projectID, 'tb']) // CASCADE-TB DIFFERENCE
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             console.log('This is the default:')
             console.log(this.defaultOptim);
+            resolve(response)
           })
           .catch(error => {
             status.fail(this, 'Could not get default optimization', error)
+            reject(error)
           })
+        })
       },
 
       getOptimSummaries() {
@@ -527,14 +540,15 @@ Last update: 2018-09-05
               optimSum.executionTime = '--'
 
               // Get the task state for the optimization.
-              this.getOptimTaskState(optimSum)
-            })
-            this.pollAllTaskStates() // Start polling of tasks states.
-            status.succeed(this, 'Optimizations loaded')
+            this.getOptimTaskState(optimSum)
           })
-          .catch(error => {
+          this.pollAllTaskStates() // Start polling of tasks states.
+          this.optimsLoaded = true
+          status.succeed(this, 'Optimizations loaded')
+        })
+        .catch(error => {
             status.fail(this, 'Could not load optimizations', error)
-          })
+        })
       },
 
       setOptimSummaries() {

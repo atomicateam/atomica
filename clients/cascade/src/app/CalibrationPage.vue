@@ -306,16 +306,15 @@ Last update: 2018-09-06
 //        this.endYear = this.simEnd
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
-        this.viewTable()
         this.getPlotOptions()
-        utils.sleep(1)  // used so that spinners will come up by callback func
-          .then(response => {
-            this.updateParset()
-          })
-        utils.sleep(1000)
         .then(response => {
-            this.plotCalibration(false)
-//            this.manualCalibration(this.projectID)
+          this.updateParset()
+          .then(response2 => {
+            this.viewTable()
+            .then(response3 => {
+              this.plotCalibration(false)
+            })    
+          })
         })
       }
     },
@@ -358,8 +357,10 @@ Last update: 2018-09-06
       },
 
       updateParset() {
-        console.log('updateParset() called')
-        rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+        return new Promise((resolve, reject) => {        
+          console.log('updateParset() called')
+          status.start(this)
+          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
           .then(response => {
             this.parsetOptions = response.data // Set the scenarios to what we received.
             if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -370,10 +371,14 @@ Last update: 2018-09-06
             }
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
+            status.succeed(this, '')  // No green notification.
+            resolve(response)            
           })
           .catch(error => {
             status.fail(this, 'Could not update parameter set', error)
+            reject(error)
           })
+        })          
       },
 
       updateSorting(sortColumn) {
@@ -400,14 +405,21 @@ Last update: 2018-09-06
       },
 
       viewTable() {
-        console.log('viewTable() called')
-        rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
+        return new Promise((resolve, reject) => {       
+          console.log('viewTable() called')
+          // TODO: Get spinners working right for this leg of initialization.
+//        status.start(this)        
+          rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
           .then(response => {
             this.parList = response.data // Get the parameter values
+//            status.succeed(this, '')  // No green notification.            
+            resolve(response)            
           })
           .catch(error => {
             status.fail(this, 'Could not load parameters', error)
+            reject(error)
           })
+        })          
       },
 
       toggleShowingParams() {
