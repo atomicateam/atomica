@@ -367,7 +367,7 @@ Last update: 2018-09-06
 
       createDialogs() { return utils.createDialogs(this)},
       maximize(id)    { return utils.maximize(this, id)},
-      minimize(id)    { return utils.createDialogs(this, id)},
+      minimize(id)    { return utils.minimize(this, id)},
 
 
       getPlotOptions()          { return utils.getPlotOptions(this) },
