@@ -249,6 +249,67 @@ function scaleFigs(frac) {
   }
 }
 
+
+
+//
+// Legend functions
+// 
+
+
+
+function addListener(vm) {
+  document.addEventListener('mousemove', function(e){onMouseUpdate(e, vm)}, false);
+}
+
+
+
+function onMouseUpdate(e, vm) {
+  vm.mousex = e.pageX;
+  vm.mousey = e.pageY;
+  console.log(vm.mousex, vm.mousey)
+}
+
+function createDialogs(vm) {
+  for (let val in vm.vals) {
+    newDialog(vm, val, 'Dialog '+val, 'This is test '+val)
+  }
+}
+
+// Create a new dialog
+function newDialog(vm, id, name, content) {
+  let options = {}
+  let properties = { id, name, content, options }
+  return vm.closedDialogs.push(properties)
+}
+
+function findDialog(vm, id, dialogs) {
+  let index = dialogs.findIndex((val) => {
+      return String(val.id) === String(id) // Force type conversion
+    })
+  return (index > -1) ? index : null
+}
+
+// "Show" the dialog
+function maximize(vm,id) {
+  let index = findDialog(vm, id, vm.closedDialogs)
+  if (index !== null) {
+    vm.closedDialogs[index].options.left = vm.mousex // Before opening, move it to where the mouse currently is
+    vm.closedDialogs[index].options.top = vm.mousey
+    vm.openDialogs.push(vm.closedDialogs[index])
+    vm.closedDialogs.splice(index, 1)
+  }
+}
+
+// "Hide" the dialog
+function minimize(vm, id) {
+  let index = findDialog(vm, id, vm.openDialogs)
+  if (index !== null) {
+    vm.closedDialogs.push(vm.openDialogs[index])
+    vm.openDialogs.splice(index, 1)
+  }
+}
+
+
 export default {
   sleep,
   getUniqueName,
@@ -267,4 +328,13 @@ export default {
   exportResults,
   scaleFigs,
   showBrowserWindowSize,
+  
+  addListener,
+  onMouseUpdate,
+  createDialogs,
+  newDialog,
+  findDialog,
+  maximize,
+  minimize
+  
 }

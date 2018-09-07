@@ -343,6 +343,7 @@ Last update: 2018-09-06
     },
 
     created() {
+      utils.addListener(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
@@ -363,6 +364,11 @@ Last update: 2018-09-06
     },
 
     methods: {
+
+      createDialogs() { return utils.createDialogs(this)},
+      maximize(id)    { return utils.maximize(this, id)},
+      minimize(id)    { return utils.createDialogs(this, id)},
+
 
       getPlotOptions()          { return utils.getPlotOptions(this) },
       clearGraphs()             { return utils.clearGraphs() },
