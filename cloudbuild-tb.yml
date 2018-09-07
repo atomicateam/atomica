@@ -1,7 +1,7 @@
 #cloudbuild.yaml
 steps:
   - name: 'docker/compose:1.22.0'
-    args: ['up', '-d', '-f', 'docker-compose-tb.yml']
+    args: ['-f', 'docker-compose-tb.yml', 'up', '-d']
   - name: 'gcr.io/cloud-builders/docker'
     args: ['tag', 'workspace_app:latest', 'gcr.io/${PROJECT_ID}/${REPO_NAME}_tb__app:${COMMIT_SHA}']
   - name: 'gcr.io/cloud-builders/docker'
