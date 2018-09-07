@@ -34,7 +34,7 @@ Last update: 2018-08-18
 
 
     <div v-for="val in vals">
-      <button @click="activateDialog(val)">active {{ val }}</button>
+      <button @click="unDrop(val)">active {{ val }}</button>
       <br><br><br>
     </div>
 
@@ -44,7 +44,7 @@ Last update: 2018-08-18
         :key='dialog.id'
         :id='dialog.id'
         :ref='"dialog-" + dialog.id'
-        @close='removeDialog'
+        @close='drop(dialog.id)'
         @drag-end='dialogDragEnd'
         @drag-start='selectDialog'
         @move='dialogDragEnd'
@@ -96,8 +96,8 @@ Last update: 2018-08-18
 
       createDialogs() {
         for (let i in this.vals) {
-          let index = this.newDialog(i) - 1
-          this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
+          this.newDialog(i)
+//          this.dialogs[i].options.left = (i * this.dialogWidth) + 50 * i + 1
         }
       },
 
@@ -118,14 +118,20 @@ Last update: 2018-08-18
         }
       },
       unDrop (id) {
+        console.log('iundrop')
+        console.log(id)
         let index = this.findDialog(id, this.droppeds)
+        console.log(index)
+        console.log(this.droppeds)
         if (index !== null) {
+          this.droppeds[index].options.left = this.x
+          this.droppeds[index].options.top = this.y
           this.dialogs.push(this.droppeds[index])
           this.droppeds.splice(index, 1)
         }
       },
       newDialog (sId) {
-        return this.dialogs.push(this.dialog(sId))
+        return this.droppeds.push(this.dialog(sId))
       },
       removeDialog (dialog) {
         console.log('rem!')
@@ -143,7 +149,7 @@ Last update: 2018-08-18
         console.log(this.dialogs)
         if (!dialogs) dialogs = this.dialogs
         let index = dialogs.findIndex((val) => {
-          return val.id === id
+          return val.id == id
         })
         return (index > -1) ? index : null
       },
