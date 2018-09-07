@@ -155,7 +155,7 @@ $disabled-color: #FFF;
 
   &.__trans {
     background: transparent;
-    border-color: transparent;
+    border: transparent 1px solid;
     color: #FFF;
 
     &:disabled {
