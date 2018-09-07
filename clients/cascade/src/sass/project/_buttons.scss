@@ -184,6 +184,38 @@ $disabled-color: #FFF;
       color: #FFF;
     }
   }
+
+  &.__bw {
+    background: #fff;
+    border-color: #999;
+    color: #000;
+
+    &:disabled {
+      background: $disabled-background;
+      border-color: $disabled-border-color;
+      color: $disabled-color;
+    }
+
+    &:hover:not(:disabled) {
+      background: #80ffaa;
+      border-color: #999;
+      color: #000;
+    }
+
+    &.__active,
+    &:active:not(:disabled) {
+      background: lighten(#008800, 5%);
+      border-color: #999;
+      color: #000;
+    }
+
+    &.__active,
+    &.__active:hover {
+      background: lighten(#008800, 5%);
+      border-color: #999;
+      color: #000;
+    }
+  }
 }
 
 

@@ -10,6 +10,7 @@ import VueProgressBar from 'vue-progressbar' // Progress bar plugin
 import PopupSpinner from './app/PopupSpinner' // PopupSpinner plugin
 import SideBar from './app/Sidebar' // SideBar plugin
 import Notifications from './app/NotificationPlugin'
+import DialogDrag from 'vue-dialog-drag'
 
 import GlobalComponents from './globalComponents'
 import GlobalDirectives from './globalDirectives'
@@ -42,6 +43,7 @@ Vue.use(VueProgressBar, {
   }       
 });
 Vue.use(PopupSpinner);
+Vue.use(DialogDrag);
 
 // global library setup
 Object.defineProperty(Vue.prototype, '$Chartist', {

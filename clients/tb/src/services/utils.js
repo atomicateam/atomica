@@ -34,7 +34,7 @@ function placeholders(startVal) {
 function projectID(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
-  } 
+  }
   else {
     let projectID = vm.$store.state.activeProject.project.id
     return projectID

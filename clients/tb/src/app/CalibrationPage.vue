@@ -173,9 +173,12 @@ Last update: 2018-09-06
                   </div>
                 </div>
                 <div class="other-graphs">
-                  <div v-for="index in placeholders">
+                  <div v-for="index in placeholders" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd">
                     <div :id="'fig'+index" class="calib-graph">
                       <!--mpld3 content goes here-->
+                    </div>
+                    <div style="display:inline-block">
+                      <button class="btn __bw btn-icon" @click="toggleLegend(index)" data-tooltip="Show/hide legend">{{index}}<i class="ti-menu-alt"></i></button>
                     </div>
                   </div>
                 </div>
@@ -313,10 +316,7 @@ Last update: 2018-09-06
     },
 
     created() {
-      // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
-        router.push('/login')
-      } else if ((this.$store.state.activeProject.project != undefined) &&
+      if ((this.$store.state.activeProject.project != undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
@@ -436,6 +436,11 @@ Last update: 2018-09-06
             reject(error)
           })          
         })
+      },
+
+      toggleLegend(index) {
+        console.log('hi!'+index)
+        this.notImplemented()
       },
 
       toggleShowingParams() {
