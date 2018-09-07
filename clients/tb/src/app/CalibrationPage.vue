@@ -198,7 +198,7 @@ Last update: 2018-09-06
                            :key="key"
                            @close="minimize(dialog.id)"
                            :options="dialog.options"
-                           style="display:none">
+                           style="display:inline-block">
 
                 <span slot='title' style="color:#fff">Legend</span>
                 <div :id="'legend'+dialog.id">

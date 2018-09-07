@@ -317,7 +317,7 @@ function findDialog(vm, id, dialogs) {
 
 // "Show" the dialog
 function maximize(vm,id) {
-  console.log(id)
+  console.log('maximize ' + id)
   var legendlabel = 'legend' + id
   console.log(legendlabel)
   var legenddiv  = document.getElementById(legendlabel);
@@ -334,9 +334,12 @@ function maximize(vm,id) {
 
 // "Hide" the dialog
 function minimize(vm, id) {
+  console.log('minimize ' + id)
   var legendlabel = 'legend' + id
+  console.log(legendlabel)
   var legenddiv  = document.getElementById(legendlabel);
-  legenddiv.style.display = 'none'
+  legenddiv.style.position = 'fucked'
+  console.log(legenddiv)
   // let index = findDialog(vm, id, vm.openDialogs)
   // if (index !== null) {
   //   vm.openDialogs.push(vm.openDialogs[index])
