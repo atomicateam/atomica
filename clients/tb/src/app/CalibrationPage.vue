@@ -199,8 +199,10 @@ Last update: 2018-09-06
                            @close="minimize(dialog.id)"
                            :options="dialog.options">
 
-                <span slot='title'> {{ dialog.name }} </span>
-                <p>{{dialog.content}}</p>
+                <span slot='title'>Legend</span>
+                <div :id="'legend'+index">
+                  <!-- Legend content goes here-->
+                </div>
               </dialog-drag>
             </div>
             <!-- ### End: plots ### -->
