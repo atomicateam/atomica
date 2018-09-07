@@ -1238,7 +1238,6 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
 
-
     # Render cascade plot
     # This is _always_ shown
     output = {'graphs':[]}
@@ -1268,9 +1267,9 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
             output['graphs'] += interleave(stacked_output, unstacked_output)
             allfigs += interleave(stacked_figs, unstacked_figs)
         else:
-            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            output['graphs'] += cascadeoutput['graphs'] + output['graphs']
-            allfigs = cascadefigs + allfigs
+            unstacked_output, unstacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
+            output['graphs'] += unstacked_output
+            allfigs += unstacked_figs
 
     if dosave:
         # TODO - get_cascade_plot and get_program_plots close the figures with pl.close(), does savefigs() still work here?
@@ -1328,9 +1327,9 @@ def get_program_plots(results,year,budget=True,coverage=True):
     if coverage:
         d = au.PlotData.programs(results,quantity='coverage_fraction')
         coverage_figs = au.plot_series(d, axis='results')
-        for fig,output in zip(coverage_figs,d.outputs.keys()):
-            fig.axes[0].set_title(output)
-            series = d[d.results.keys()[0],d.pops.keys()[0],output]
+        for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
+            fig.axes[0].set_title(output_label)
+            series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
             fig.axes[0].set_ylabel(series.units)
         figs += coverage_figs
         print('Coverage plots succeeded')
