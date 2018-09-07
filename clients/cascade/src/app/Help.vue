@@ -94,17 +94,13 @@ Last update: 2018-08-18
       onMouseUpdate(e) {
         this.x = e.pageX;
         this.y = e.pageY;
-//        console.log(this.x, this.y);
       },
 
       minimize(id) {
         let index = this.findDialog(id)
         if (index !== null) {
-          console.log('a?')
           this.droppeds.push(this.dialogs[index])
-          console.log('b?')
           this.dialogs.splice(index, 1)
-          console.log('c?')
         }
       },
 
@@ -117,11 +113,7 @@ Last update: 2018-08-18
           this.droppeds.splice(index, 1)
         }
       },
-
-      newDialog (sId, content) {
-        return this.droppeds.push(this.dialog(sId, content))
-      },
-
+      
       findDialog (id, dialogs) {
         if (!dialogs) dialogs = this.dialogs
         let index = dialogs.findIndex((val) => {
@@ -130,14 +122,15 @@ Last update: 2018-08-18
         return (index > -1) ? index : null
       },
 
-      dialog (id, content) {
+      newDialog (id, content) {
         let style = this.styles[1]
         let name = 'Dialog ' + id
         let options = {}
         if (style.options) options = Object.assign({}, style.options)
         if (!options.left) options.left = this.x
         if (!options.top)  options.top = this.y
-        return { id, name, content, style, options }
+        let properties = { id, name, content, style, options }
+        return this.droppeds.push(properties)
       },
 
       selectDialog (obj) {
