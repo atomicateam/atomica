@@ -117,9 +117,9 @@ if 'make_plots' in torun:
     
     # Output
     print('Output:')
-    sc.pp(output['legends'])
+    sc.pp(output)
     if browser:
-        sw.browser(output['legends'])
+        sw.browser(output['graphs']+output['legends'])
 
 
 if 'run_scenarios' in torun:
@@ -132,18 +132,24 @@ if 'run_scenarios' in torun:
 
 if 'run_cascade_optimization' in torun and tool=='cascade':
     heading('Running run_cascade_optimization', 'big')
-    maxtime = 10
+    browser = True
+    maxtime = 5
     output = atca.run_cascade_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
-    print(output)
+    sc.pp(output)
+    if browser:
+        sw.browser(output['graphs']+output['legends'])
     
     
 if 'run_tb_optimization' in torun and tool=='tb':
     heading('Running run_tb_optimization', 'big')
+    browser = True
     maxtime = 10
     output = attb.run_tb_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
-    print(output)
+    sc.pp(output)
+    if browser:
+        sw.browser(output['graphs']+output['legends'])
     
 
 sc.toc(T)

@@ -1312,7 +1312,8 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     if plot_budget:
         d = au.PlotData.programs(results)
         d.interpolate(year)
-        budgetfigs,budgetlegends = au.plot_bars(d, stack_outputs='all', legend_mode='separate', outer='times', show_all_labels=False,orientation='horizontal')
+        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
+        budgetlegends = [sc.emptyfig()]
         
         ax = budgetfigs[0].axes[0]
         ax.set_xlabel('Spending ($/year)')

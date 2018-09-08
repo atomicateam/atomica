@@ -8,7 +8,7 @@ from .utils import NDict
 from .results import Result
 from .system import logger, AtomicaException
 
-default_figsize = (7,4)
+default_figsize = (10,4)
 
 class InvalidCascade(AtomicaException):
     # Throw this error if a cascade was not valid. This error should result in the
@@ -151,7 +151,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     cascade_array = np.hstack(cascade_vals.values())
 
     fig = plt.figure(figsize=default_figsize)
-    fig.set_figwidth(fig.get_figwidth()*1.5)
+#    fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
     bar_x = np.arange(len(cascade_vals))
     h = plt.bar(bar_x,cascade_array, width=0.5, color=barcolor)
@@ -263,7 +263,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     legend_entries = sc.odict()
 
     fig = plt.figure(figsize=default_figsize)
-    fig.set_figwidth(fig.get_figwidth()*1.5)
+#    fig.set_figwidth(fig.get_figwidth()*1.5)
 
     for offset,(bar_label,data) in enumerate(cascade_vals.items()):
         legend_entries[bar_label] = colors[offset]
