@@ -1,9 +1,0 @@
-#cloudbuild.yaml
-steps:
-  - name: 'docker/compose:1.22.0'
-    args: ['-f', 'docker-compose-cascade-no-celery.yml', 'up', '-d']
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['tag', 'workspace_app:latest', 'gcr.io/${PROJECT_ID}/${REPO_NAME}_cascade__no__celery:${COMMIT_SHA}']
-images:
-  - 'gcr.io/${PROJECT_ID}/${REPO_NAME}_cascade__no__celery:${COMMIT_SHA}'
-timeout: 1200s
