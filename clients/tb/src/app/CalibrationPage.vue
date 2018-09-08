@@ -321,7 +321,7 @@ Last update: 2018-09-06
         showGraphDivs: [],
         showLegendDivs: [],
         vals: [0,1,2,3],
-//        closedDialogs: [],
+        closedDialogs: [],
         openDialogs: [],
         mousex:-1,
         mousey:-1,
