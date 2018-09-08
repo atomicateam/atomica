@@ -1185,7 +1185,9 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     allfigs = []
-    graphs = []
+    alllegends = []
+    allfigjsons = []
+    alllegendjsons = []
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
@@ -1205,19 +1207,21 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
 
             if calibration:
-               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
-               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
+               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+               else:       figs,legends = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
             else:
-               if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
-               else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
-            for fig in figs:
-                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
+               else:       figs,legends = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
+            for fig,legend in zip(figs, legends):
+                allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
+                alllegends.append(legends[f])
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-    output = {'graphs':graphs}
+    output = {'graphs':allfigjsons, 'legends':alllegendjsons}
     return output,allfigs
 
 
@@ -1259,25 +1263,29 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
     return output
 
 
-def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
-    if figsize is None: figsize = (5,3)
-    fig.set_size_inches(figsize)
-    ax = fig.get_axes()[0]
-    ax.set_position([0.25,0.15,0.70,0.75])
-    ax.set_facecolor('none')
-    ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-    ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-    if xlims is not None: ax.set_xlim(xlims)
-    try:
-        legend = fig.findobj(Legend)[0]
-        if len(legend.get_texts())==1:
-            legend.remove() # Can remove the legend if it only has one entry
-    except:
-        pass
-    mpld3.plugins.connect(fig, CursorPosition())
-    for l,line in enumerate(fig.axes[0].lines):
-        mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
-    graph_dict = mpld3.fig_to_dict(fig)
+def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, as_legend=False):
+    if as_legend:
+        pass # Put legend customizations here
+    else:
+        if figsize is None: figsize = (5,3)
+        fig.set_size_inches(figsize)
+        ax = fig.get_axes()[0]
+        ax.set_position([0.25,0.15,0.70,0.75])
+        ax.set_facecolor('none')
+        ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+        ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+        if xlims is not None: ax.set_xlim(xlims)
+        try:
+            legend = fig.findobj(Legend)[0]
+            if len(legend.get_texts())==1:
+                legend.remove() # Can remove the legend if it only has one entry
+        except:
+            pass
+        mpld3.plugins.connect(fig, CursorPosition())
+        for l,line in enumerate(fig.axes[0].lines):
+            mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
+    
+    graph_dict = mpld3.fig_to_dict(fig) # Convert to mpld3
     return graph_dict
     
 

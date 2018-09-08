@@ -794,6 +794,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         raise AtomicaException('outer option must be either "times" or "results"')
 
     figs = []
+    legends = []
     fig, ax = plt.subplots()
     fig.set_label('bars')
     figs.append(fig)
@@ -982,12 +983,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     fig.tight_layout() # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
-    if legend_mode == 'separate':
-        figs.append(render_separate_legend(ax, plot_type='bar', handles=legend_patches))
-    elif legend_mode == 'together':
-        render_legend(ax, plot_type='bar', handles=legend_patches)
-
-    return figs
+    if legend_mode == 'together':   render_legend(ax, plot_type='bar', handles=legend_patches)
+    elif legend_mode == 'separate': legends.append(render_separate_legend(ax, plot_type='bar', handles=legend_patches))
+    
+    # Decide what to return
+    if legend_mode == 'separate': return figs,legends
+    else:                         return figs
 
 
 def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
@@ -1013,6 +1014,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     assert axis in ['outputs', 'results', 'pops']
 
     figs = []
+    legends = [] # For separate mode
     ax = None
 
     plotdata = sc.dcp(plotdata)
@@ -1050,8 +1052,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                if legend_mode == 'together':   render_legend(ax, plot_type)
+                elif legend_mode == 'separate': legends.append(render_separate_legend(ax, plot_type))
 
     elif axis == 'pops':
         plotdata.set_colors(pops=plotdata.pops.keys())
@@ -1084,8 +1086,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                if legend_mode == 'together':   render_legend(ax, plot_type)
+                elif legend_mode == 'separate': legends.append(render_separate_legend(ax, plot_type))
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs.keys())
@@ -1120,15 +1122,15 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                if legend_mode == 'together':   render_legend(ax, plot_type)
+                elif legend_mode == 'separate': legends.append(render_separate_legend(ax, plot_type))
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
-    if legend_mode == 'separate':
-        figs.append(render_separate_legend(ax, plot_type))
+    # Return either the figures, or the figures and the legends
+    if legend_mode == 'separate': return figs, legends
+    else:                         return figs
 
-    return figs
 
 def stack_data(ax,data,series):
     # Stack a list of series in order
