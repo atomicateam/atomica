@@ -6,10 +6,12 @@ Version:
 ### Housekeeping
 ###########################################################################
 
+import pylab as pl
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
+pl.switch_backend('Qt4Agg')
 
 torun = [
 #'project_io',
@@ -102,9 +104,9 @@ if 'make_plots' in torun:
     heading('Running make_plots', 'big')
     browser = True
     calibration = True
-    results = proj.run_sim()
-    proj.plot(results)
-#    output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
+#    results = proj.run_sim()
+#    output = proj.plot(results) # WARNING, doesn't work
+    output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
     print('Output:')
     print(output)
     if browser:

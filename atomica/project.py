@@ -322,10 +322,14 @@ class Project(object):
         allfigs = []
         alllegends = []
         for output in outputs:
-            plotdata = PlotData(results, outputs=output, project=self, pops=pops)
-            figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
-            allfigs += figs
-            alllegends += legends
+            try: 
+                print('Plotting %s...' % output)
+                plotdata = PlotData(results, outputs=output, project=self, pops=pops)
+                figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+                allfigs += figs
+                alllegends += legends
+            except:
+                print('WARNING, %s failed' % output)
         return figs,legends
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
