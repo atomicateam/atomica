@@ -32,7 +32,7 @@ Last update: 2018-09-07
           <thead>
           <tr>
             <th>Name</th>
-            <th>Status</th>
+            <th v-if="useCelery">Status</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -41,15 +41,15 @@ Last update: 2018-09-07
             <td>
               <b>{{ optimSummary.name }}</b>
             </td>
-            <td>
+            <td v-if="useCelery">
               {{ statusFormatStr(optimSummary) }}
               {{ timeFormatStr(optimSummary) }}
             </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 60)">Test run</button>
+              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button>
               <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
-              <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
+              <button v-if="useCelery" class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
@@ -409,7 +409,12 @@ Last update: 2018-09-07
 
       canPlotResults(optimSummary) {
         console.log('canPlotResults() called for with: ' + optimSummary.status)
-        return (optimSummary.status === 'completed')
+        if (this.useCelery) {
+          return (optimSummary.status === 'completed')
+        }
+        else {
+          return true
+        }
       },
 
       needToPoll(optimSummary) {
@@ -746,7 +751,7 @@ Last update: 2018-09-07
           }
           
           else {  // We are NOT using Celery
-            rpcs.rpc('run_optimization', [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
+            rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
               {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
               // CASCADE-TB DIFFERENCE
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?

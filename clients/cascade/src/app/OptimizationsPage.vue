@@ -405,7 +405,7 @@ Last update: 2018-09-07
         var statusStr = ''
 
         // Check the status of the task.
-        rpcs.rpc('check_task', [optimSummary.server_datastore_id])
+        rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
           .then(result => {
             statusStr = result.data.task.status
             optimSummary.status = statusStr
@@ -445,15 +445,15 @@ Last update: 2018-09-07
       },
 
       clearTask(optimSummary) {
-        let server_datastore_id = optimSummary.server_datastore_id  // hack because this gets overwritten soon by caller        
+        let serverDatastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller        
         console.log('clearTask() called for '+this.currentOptim)
-        rpcs.rpc('delete_task', [optimSummary.server_datastore_id])
+        rpcs.rpc('delete_task', [optimSummary.serverDatastoreId])
           .then(response => {
             // Get the task state for the optimization.
             this.getOptimTaskState(optimSummary)
 
             // Delete cached result.
-            rpcs.rpc('delete_results_cache_entry', [server_datastore_id])
+            rpcs.rpc('delete_results_cache_entry', [serverDatastoreId])
           })
       },
 
@@ -522,7 +522,7 @@ Last update: 2018-09-07
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
           this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
-            optimSum.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
             optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
             optimSum.pendingTime = '--'
             optimSum.executionTime = '--'
@@ -589,7 +589,7 @@ Last update: 2018-09-07
               }
 
               // Set a new server DataStore ID.
-              newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
+              newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
               
               if (this.useCelery) {
                 this.getOptimTaskState(newOptim)
@@ -602,7 +602,7 @@ Last update: 2018-09-07
         }
         else { // Else (we are adding a new optimization)...
           newOptim.name = utils.getUniqueName(newOptim.name, optimNames)
-          newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
+          newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
           this.optimSummaries.push(newOptim)
           if (this.useCelery) {
             this.getOptimTaskState(newOptim)
@@ -649,7 +649,7 @@ Last update: 2018-09-07
           otherNames.push(optimSum.name)
         })
         newOptim.name = utils.getUniqueName(newOptim.name, otherNames)
-        newOptim.server_datastore_id = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
+        newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
         this.optimSummaries.push(newOptim)
         if (this.useCelery) {
           this.getOptimTaskState(newOptim)
@@ -696,10 +696,10 @@ Last update: 2018-09-07
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
         .then(response => {
           if (this.useCelery) {  // We are using Celery        
-            rpcs.rpc('make_results_cache_entry', [optimSummary.server_datastore_id])
+            rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
             .then(response => {           
-              rpcs.rpc('launch_task', [optimSummary.server_datastore_id, 'run_cascade_optimization', 
-                [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
+              rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_cascade_optimization', 
+                [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
                 {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
                 // CASCADE-TB DIFFERENCE
                 'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
@@ -725,7 +725,7 @@ Last update: 2018-09-07
           }
           
           else {  // We are NOT using Celery          
-            rpcs.rpc('run_optimization', [this.projectID, optimSummary.server_datastore_id, optimSummary.name], 
+            rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
               {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
               // CASCADE-TB DIFFERENCE
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
@@ -759,7 +759,7 @@ Last update: 2018-09-07
         status.start(this)
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.server_datastore_id, this.plotOptions],
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop, plotbudget:true})
           .then(response => {
             if (this.$route.path === '/optimizations') {  // check to see if still on same page
