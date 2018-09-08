@@ -176,7 +176,6 @@ function renderGraphs(vm, graphdata) {
 }
 
 function makeGraphs(vm, graphdata) {
-  console.log('makeGraphs() initially called')
   return new Promise((resolve, reject) => {
     let waitingtime = 1.0
     sleep(waitingtime*1000)
