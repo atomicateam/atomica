@@ -184,17 +184,16 @@ Last update: 2018-09-06
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div v-for="dialog,index in openDialogs">
-              <!--<div class="dialogs" :id="'legendcontainer'+index" style="display:none" v-show="showLegendDivs[index]">-->
-              <div class="dialogs" :id="'legendcontainer'+index"">
+            <div v-for="index in placeholders">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:none" v-show="showLegendDivs[index]">
                 <dialog-drag
                              :id="'TT'+index"
                              :key="index"
                              @close="minimize(index)"
-                              :options="dialog.options">
+                              :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
-                  <span slot='title' style="color:#fff">Leggend {{dialog.options.left}} ! </span>
-                  <div :id="'legend'+index"> <!-- maybe try pulling this out -->
+                  <span slot='title' style="color:#fff">Leggend {{openDialogs[index].options.left}} ! </span>
+                  <div :id="'legend'+index">
                     <!-- Legend content goes here-->
                   </div>
                 </dialog-drag>
@@ -318,7 +317,6 @@ Last update: 2018-09-06
 //        vals: [0,1,2,3],
 //        closedDialogs: [],
         openDialogs: [],
-        TMPdialogs: [],
         mousex:-1,
         mousey:-1,
         TEMPdialogOptions:{}

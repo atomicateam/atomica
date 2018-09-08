@@ -361,23 +361,23 @@ function maximize(vm,id) {
   console.log(vm.showLegendDivs[Number(id)])
   console.log('ok')
 
-  console.log('pusshing')
-  var vals = placeholders(vm)
-  for (var val in vals) {
-    console.log('pusshing!! ' + val)
-    vm.TMPdialogs.push(vm.openDialogs[0])
-    vm.openDialogs.splice(0, 1)
-  }
-
-  sleep(2 * 1000)
-    .then(response => {
-    console.log('pullling')
-    for (var val in vals) {
-    console.log('pullling!! ' + val)
-    vm.openDialogs.push(vm.TMPdialogs[0])
-    vm.TMPdialogs.splice(0, 1)
-  }
-  })
+  // console.log('pusshing')
+  // var vals = placeholders(vm)
+  // for (var val in vals) {
+  //   console.log('pusshing!! ' + val)
+  //   vm.TMPdialogs.push(vm.openDialogs[0])
+  //   vm.openDialogs.splice(0, 1)
+  // }
+  //
+  // sleep(2 * 1000)
+  //   .then(response => {
+  //   console.log('pullling')
+  //   for (var val in vals) {
+  //   console.log('pullling!! ' + val)
+  //   vm.openDialogs.push(vm.TMPdialogs[0])
+  //   vm.TMPdialogs.splice(0, 1)
+  // }
+  // })
 
 
   // var dialogcontainerdiv  = document.getElementById('dialogcontainer');
