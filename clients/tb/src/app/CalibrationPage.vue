@@ -477,16 +477,37 @@ Last update: 2018-09-06
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
+      plotCalibration(showNoCacheError) {
+        console.log('plotCalibration() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        status.start(this)
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+            this.table = response.data.table
+            status.succeed(this, 'Data loaded, graphs now rendering...')
+          })
+          .catch(error => {
+            if (showNoCacheError) {
+              status.fail(this, 'Could not make graphs', error)
+            }
+            else {
+              status.succeed(this, '')  // Silently stop progress bar and spinner.
+            }
+          })
+      },
+
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
-        ) // Go to the server to get the results from the package set.
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}) // Go to the server to get the results
           .then(response => {
-//            status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
+            this.table = response.data.table
+            status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
             console.log(error.message)
@@ -498,7 +519,6 @@ Last update: 2018-09-06
         console.log('autoCalibrate() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) 
-//        this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30
         } else {
@@ -514,31 +534,6 @@ Last update: 2018-09-06
             console.log(error.message)
             status.fail(this, 'Could not run automatic calibration', error)
           })
-      },
-
-      plotCalibration(showNoCacheError) {
-        console.log('plotCalibration() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this)
-//        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
-        .then(response => {
-          this.makeGraphs(response.data.graphs)
-          this.table = response.data.table
-          status.succeed(this, 'Graphs created')
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error', error // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          if (showNoCacheError) {
-            status.fail(this, 'Could not make graphs', error)
-          }
-          else {
-            status.succeed(this, '')  // Silently stop progress bar and spinner.
-          }
-        })
       },
 
       renameParsetModal() {
