@@ -108,7 +108,11 @@ if 'get_plots' in torun:
     print('Output:')
     print(output)
     if browser:
-        sw.browser(jsons=output['graphs'])
+        jsons = []
+        for graph in output['graphs']:
+#            valid = sw.mpld3ify(graph, to_mpld3=False, sanitize=False, jsonify=True, stringify=True)
+            jsons.append(graph)
+        sw.browser(jsons=jsons)
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':
