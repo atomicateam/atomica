@@ -19,8 +19,6 @@ main webapp script that imports it.
 Last update: 2018jun04 (cliffk)
 """
 import os
-import logging
-logger = logging.getLogger('atomica')
 
 # A secret key value used by Python Flask.
 SECRET_KEY = 'deadbeefcafebabe'
@@ -36,8 +34,6 @@ USE_DATASTORE = True
 # persistence.  Note that the /N/ number at the end should match the 
 # database number you want to use.  (N=0 is the default Redis database.)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/8')
-
-logger.critical('REDIS_URL set %s ' % (REDIS_URL))
 
 # Flag for setting whether we use the users functionality provided by 
 # Sciris in the webapp.

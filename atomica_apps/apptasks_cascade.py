@@ -14,6 +14,7 @@ logger.critical('debugjj from . import rpcs')
 from . import rpcs
 logger.critical('debugjj from . import config_cascade as config')
 from . import config_cascade as config
+logger.critical(config.REDIS_URL)
 logger.critical('debugjj import matplotlib.pyplot as ppl')
 import matplotlib.pyplot as ppl
 
