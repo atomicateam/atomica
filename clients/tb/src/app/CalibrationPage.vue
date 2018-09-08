@@ -181,18 +181,10 @@ Last update: 2018-09-06
                 </div>
               </div>
             </div>
+            <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-
-            <!--<button @click="createDialogs()">CREATE</button>-->
-            <!--<br><br><br><br><br><br><br><br><br><br>-->
-
-            <!--<div v-for="val in vals">-->
-              <!--<button @click="maximize(val)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
-              <!--<br><br><br>-->
-            <!--</div>-->
-
-            <div class="dialogs">
+            <div class="dialogs" id="dialogcontainer" style="display:none">
               <dialog-drag v-for="dialog,key in openDialogs"
                            :id="dialog.id"
                            :key="key"
@@ -206,7 +198,8 @@ Last update: 2018-09-06
                 </div>
               </dialog-drag>
             </div>
-            <!-- ### End: plots ### -->
+            <!-- ### End: dialogs ### -->
+
 
             <!-- CASCADE-TB DIFFERENCE -->
             <!-- ### Start: plot selectors ### -->

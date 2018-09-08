@@ -155,13 +155,13 @@ function makeGraphs(vm, graphdata) {
         while (legenddiv.firstChild) {
           legenddiv.removeChild(legenddiv.firstChild);
         }
+        minimize(vm, index) // As soon as we've created a plot, minimize it
 
         console.log('div review')
         console.log(figdiv)
         console.log(containerdiv)
         console.log(legenddiv)
       }
-
 
       console.log('hi_1');
       vm.showGraphDivs[index] = true;
@@ -324,6 +324,8 @@ function maximize(vm,id) {
     vm.openDialogs.push(vm.closedDialogs[index])
     vm.closedDialogs.splice(index, 1)
   }
+  var dialogcontainerdiv  = document.getElementById('dialogcontainer');
+  dialogcontainerdiv.style.display = 'block' // Ensure they're visible
 }
 
 // "Hide" the dialog
