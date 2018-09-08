@@ -11,9 +11,6 @@ import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
 
-import matplotlib.pyplot as ppl
-ppl.switch_backend('Qt4Agg')
-
 torun = [
 #'project_io',
 #'get_cascade_plot',
@@ -27,8 +24,8 @@ torun = [
 tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 user_id  = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
-proj_id  = user_id # These can all be the same
-cache_id = user_id # These can all be the same
+proj_id  = sc.uuid(as_string=True) # These can all be the same
+cache_id = sc.uuid(as_string=True) # These can all be the same
 
 
 ###########################################################################
@@ -56,8 +53,8 @@ def heading(string, style=None):
 ### Run the tests
 ###########################################################################
 
-
-heading('Starting tests for tool=%s, which=%s, user=%s' % (tool, default_which, user_id), 'big')
+string = 'Starting tests for:\n  tool = %s\n  which = %s\n  user = %s\n  proj = %s' % (tool, default_which, user_id, proj_id)
+heading(string, 'big')
 T = sc.tic()
 app = main.make_app(which=tool)
 proj = demoproj(which=default_which, online=True)
@@ -106,7 +103,8 @@ if 'make_plots' in torun:
     browser = True
     calibration = True
     results = proj.run_sim()
-    output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
+    proj.plot(results)
+#    output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
     print('Output:')
     print(output)
     if browser:
