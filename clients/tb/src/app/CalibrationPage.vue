@@ -190,7 +190,7 @@ Last update: 2018-09-06
                              :id="index"
                              :key="index"
                              @close="minimize(index)"
-                             :options="this.TEMPdialogOptions">
+                             :options="openDialogs[index].options">
 
                   <span slot='title' style="color:#fff">Legend</span>
                   <div :id="'legend'+index">

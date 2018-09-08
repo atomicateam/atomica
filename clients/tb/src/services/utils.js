@@ -301,7 +301,7 @@ function createDialogs(vm) {
 
 // Create a new dialog
 function newDialog(vm, id, name, content) {
-  let options = {}
+  let options = {left:100, top:100}
   let properties = { id, name, content, options }
   return vm.openDialogs.push(properties)
 }
@@ -324,8 +324,10 @@ function maximize(vm,id) {
   console.log(vm.mousex, vm.mousey)
   // let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
+    console.log(vm.openDialogs[index].options)
     vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
     vm.openDialogs[index].options.top = vm.mousey-300
+    console.log(vm.openDialogs[index].options)
     // vm.openDialogs.push(vm.closedDialogs[index])
     // vm.closedDialogs.splice(index, 1)
   }
