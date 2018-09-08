@@ -381,7 +381,6 @@ Last update: 2018-09-07
         }
       },
 
-
       clipValidateYearInput() {
         if (this.startYear > this.simEnd) {
           this.startYear = this.simEnd
@@ -409,12 +408,7 @@ Last update: 2018-09-07
 
       canPlotResults(optimSummary) {
         console.log('canPlotResults() called for with: ' + optimSummary.status)
-        if (this.useCelery) {
-          return (optimSummary.status === 'completed')
-        }
-        else {
-          return true
-        }
+        return (optimSummary.status === 'completed')
       },
 
       needToPoll(optimSummary) {
@@ -427,19 +421,41 @@ Last update: 2018-09-07
         console.log('getOptimTaskState() called for with: ' + optimSummary.status)
         let statusStr = '';
 
-        // Check the status of the task.
-        rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
-          .then(result => {
-            statusStr = result.data.task.status
-            optimSummary.status = statusStr
-            optimSummary.pendingTime = result.data.pendingTime
-            optimSummary.executionTime = result.data.executionTime
-          })
-          .catch(error => {
-            optimSummary.status = 'not started'
-            optimSummary.pendingTime = '--'
-            optimSummary.executionTime = '--'
-          })
+        if (this.useCelery) {
+          // Check the status of the task.
+          rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
+            .then(result => {
+              statusStr = result.data.task.status
+              optimSummary.status = statusStr
+              optimSummary.pendingTime = result.data.pendingTime
+              optimSummary.executionTime = result.data.executionTime
+            })
+            .catch(error => {
+              optimSummary.status = 'not started'
+              optimSummary.pendingTime = '--'
+              optimSummary.executionTime = '--'
+            })
+        }
+        
+        else {
+          // Check whether there is a cached result.
+          rpcs.rpc('check_results_cache_entry', [optimSummary.serverDatastoreId])
+            .then(result => {
+              if (result.data.found) {
+                optimSummary.status = 'completed'                
+              }
+              else {
+                optimSummary.status = 'not started'
+              }
+              optimSummary.pendingTime = '--'
+              optimSummary.executionTime = '--'              
+            })
+            .catch(error => {
+              optimSummary.status = 'not started'
+              optimSummary.pendingTime = '--'
+              optimSummary.executionTime = '--'
+            })          
+        }
       },
 
       pollAllTaskStates() {
@@ -461,13 +477,31 @@ Last update: 2018-09-07
       },
 
       clearTask(optimSummary) {
-        let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
-        console.log('clearTask() called for '+this.currentOptim)
-        rpcs.rpc('delete_task', [optimSummary.serverDatastoreId])
-          .then(response => {
-            this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
-            rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
-          })
+        return new Promise((resolve, reject) => {
+          let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
+          console.log('clearTask() called for '+this.currentOptim)
+          
+          rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
+            .then(response => {
+              if (this.useCelery) {
+                rpcs.rpc('delete_task', [datastoreId])
+                  .then(response => {
+                    this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+                    resolve(response)
+                  })
+                  .catch(error => {
+                    resolve(error)  // yes, resolve because at least cache entry deletion succeeded
+                  })                  
+              }
+              else {
+                this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+                resolve(response)
+              }
+            })
+            .catch(error => {
+              reject(error)
+            })
+        })
       },
 
       updateSets() {
@@ -547,9 +581,7 @@ Last update: 2018-09-07
             optimSum.executionTime = '--'
             
             // Get the task state for the optimization.
-            if (this.useCelery) {
-              this.getOptimTaskState(optimSum)
-            }
+            this.getOptimTaskState(optimSum)
           })
           if (this.useCelery) {
             this.pollAllTaskStates() // Start polling of tasks states.
@@ -603,18 +635,14 @@ Last update: 2018-09-07
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
             if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (this.useCelery) {
-                if (newOptim.status != 'not started') { // Clear the present task.
-                  this.clearTask(newOptim)  // Clear the task from the server. 
-                } 
+              if (newOptim.status != 'not started') { // Clear the present task.
+                this.clearTask(newOptim)  // Clear the task from the server. 
               }
 
               // Set a new server DataStore ID.
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
               
-              if (this.useCelery) {
-                this.getOptimTaskState(newOptim)
-              }
+              this.getOptimTaskState(newOptim)
             }
           }
           else {
@@ -625,9 +653,7 @@ Last update: 2018-09-07
           newOptim.name = utils.getUniqueName(newOptim.name, optimNames)
           newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
           this.optimSummaries.push(newOptim)
-          if (this.useCelery) {
-            this.getOptimTaskState(newOptim)
-          }
+          this.getOptimTaskState(newOptim)
         }
 
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -672,9 +698,7 @@ Last update: 2018-09-07
         newOptim.name = utils.getUniqueName(newOptim.name, otherNames)
         newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
         this.optimSummaries.push(newOptim)
-        if (this.useCelery) {
-          this.getOptimTaskState(newOptim)
-        }
+        this.getOptimTaskState(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
             status.succeed(this, 'Opimization copied')
@@ -687,10 +711,8 @@ Last update: 2018-09-07
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
         status.start(this)
-        if (this.useCelery) {
-          if (optimSummary.status != 'not started') {
-            this.clearTask(optimSummary)  // Clear the task from the server.
-          }
+        if (optimSummary.status != 'not started') {
+          this.clearTask(optimSummary)  // Clear the task from the server.
         }
         for(var i = 0; i< this.optimSummaries.length; i++) {
           if(this.optimSummaries[i].name === optimSummary.name) {
@@ -751,12 +773,15 @@ Last update: 2018-09-07
           }
           
           else {  // We are NOT using Celery
+            optimSummary.status = 'started'
             rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
               {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
               // CASCADE-TB DIFFERENCE
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
             .then(response => {
               if (this.$route.path === '/optimizations') {  // check to see if still on same page
+                // Get the task state for the optimization.
+                this.getOptimTaskState(optimSummary)              
                 this.makeGraphs(response.data.graphs)
                 this.table = response.data.table
                 this.displayResultName = optimSummary.name

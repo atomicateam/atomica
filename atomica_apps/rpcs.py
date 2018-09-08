@@ -1788,6 +1788,14 @@ def put_results_cache_entry(cache_id, results, apptasks_call=False):
     results_cache.store(cache_id, results)
 
 
+@RPC() 
+def check_results_cache_entry(cache_id):
+    print('Checking for cached results...')
+    # Load the results from the cache and check if we got a result.
+    results = fetch_results_cache_entry(cache_id)   
+    return { 'found': (results is not None) }
+
+
 # NOTE: This function should be called by the Optimizations FE pages before the 
 # call is made to launch_task().  That is because we want to avoid the Celery 
 # workers adding new cache entries through its own call to ResultsCache.store()

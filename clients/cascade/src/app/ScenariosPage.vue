@@ -313,7 +313,7 @@ Last update: 2018-09-07
           console.log('updateSets() called')
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
             .then(response => {
-              this.p arsetOptions = response.data // Set the scenarios to what we received.
+              this.parsetOptions = response.data // Set the scenarios to what we received.
               if (this.parsetOptions.indexOf(this.activeParset) === -1) {
                 console.log('Parameter set ' + this.activeParset + ' no longer found')
                 this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
