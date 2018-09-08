@@ -317,12 +317,12 @@ function findDialog(vm, id, dialogs) {
 
 // "Show" the dialog
 function maximize(vm,id) {
-  let index = findDialog(vm, id, vm.closedDialogs)
+  let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
-    vm.closedDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-    vm.closedDialogs[index].options.top = vm.mousey-300
-    vm.openDialogs.push(vm.closedDialogs[index])
-    vm.closedDialogs.splice(index, 1)
+    vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    vm.openDialogs[index].options.top = vm.mousey-300
+    // vm.openDialogs.push(vm.closedDialogs[index])
+    // vm.closedDialogs.splice(index, 1)
   }
   var dialogcontainerdiv  = document.getElementById('dialogcontainer');
   dialogcontainerdiv.style.display = 'block' // Ensure they're visible
@@ -332,8 +332,8 @@ function maximize(vm,id) {
 function minimize(vm, id) {
   let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
-    vm.closedDialogs.push(vm.openDialogs[index])
-    vm.openDialogs.splice(index, 1)
+    // vm.closedDialogs.push(vm.openDialogs[index])
+    // vm.openDialogs.splice(index, 1)
   }
 }
 

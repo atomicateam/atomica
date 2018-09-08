@@ -184,20 +184,21 @@ Last update: 2018-09-06
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div class="dialogs" id="dialogcontainer" style="display:none">
-              <dialog-drag v-for="dialog,key in openDialogs"
-                           :id="dialog.id"
-                           :key="key"
-                           @close="minimize(dialog.id)"
-                           :options="dialog.options"
-                           style="display:inline-block">
+            <div v-for="index in placeholders">
+              <div class="dialogs" v-show="showLegends[index]">
+                <dialog-drag
+                             :id="index"
+                             :key="index"
+                             @close="minimize(index)"
+                             :options="this.TEMPdialogOptions">
 
-                <span slot='title' style="color:#fff">Legend</span>
-                <div :id="'legend'+dialog.id">
-                  <!-- Legend content goes here-->
-                </div>
-              </dialog-drag>
-            </div>
+                  <span slot='title' style="color:#fff">Legend</span>
+                  <div :id="'legend'+index">
+                    <!-- Legend content goes here-->
+                  </div>
+                </dialog-drag>
+              </div>
+          </div>
             <!-- ### End: dialogs ### -->
 
 
@@ -314,10 +315,11 @@ Last update: 2018-09-06
         showGraphDivs: [],
         showLegendDivs: [],
         vals: [0,1,2,3],
-        closedDialogs: [],
+//        closedDialogs: [],
         openDialogs: [],
         mousex:-1,
         mousey:-1,
+        TEMPdialogOptions:{}
       }
     },
 
@@ -468,11 +470,6 @@ Last update: 2018-09-06
             reject(error)
           })          
         })
-      },
-
-      toggleLegend(index) {
-        console.log('hi!'+index)
-        this.notImplemented()
       },
 
       toggleShowingParams() {
