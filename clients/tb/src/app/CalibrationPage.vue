@@ -194,7 +194,7 @@ Last update: 2018-09-06
                               :options="dialog.options">
 
                   <span slot='title' style="color:#fff">Leggend {{dialog.options.left}} ! </span>
-                  <div :id="'legend'+index">
+                  <div :id="'legend'+index"> <!-- maybe try pulling this out -->
                     <!-- Legend content goes here-->
                   </div>
                 </dialog-drag>
