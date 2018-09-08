@@ -110,33 +110,32 @@ Last update: 2018-09-06
                       <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
-                      <div style="display:inline-block">
-                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                      <div style="display:inline-block"> <!-- Hiding for now since can't show for bar plots -->
+                        <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
                       </div>
                     </div>
                   </div>
-
-                  <!-- ### Start: cascade table ### -->
-                  <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
-                    <h4>Cascade stage losses</h4>
-                    <table class="table table-striped" style="text-align:right;">
-                      <thead>
-                      <tr>
-                        <th></th>
-                        <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-                      </tr>
-                      </thead>
-                      <tbody>
-                      <tr v-for="(label, index) in table.rowlabels">
-                        <td>{{label}}</td>
-                        <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-                      </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <!-- ### End: cascade table ### -->
-
                 </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
               </div>
             </div>
           </div>
@@ -374,16 +373,16 @@ Last update: 2018-09-06
       exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
 
       statusFormatStr(optimSummary) {
-        if (optimSummary.status == 'not started') {
+        if (optimSummary.status === 'not started') {
           return ''
         }
-        else if (optimSummary.status == 'queued') {
+        else if (optimSummary.status === 'queued') {
           return 'Initializing... ' // + this.timeFormatStr(optimSummary.pendingTime)
         }
-        else if (optimSummary.status == 'started') {
+        else if (optimSummary.status === 'started') {
           return 'Running for ' // + this.timeFormatStr(optimSummary.executionTime)
         }
-        else if (optimSummary.status == 'completed') {
+        else if (optimSummary.status === 'completed') {
           return 'Completed after  ' // + this.timeFormatStr(optimSummary.executionTime)
         }
         else {
@@ -393,17 +392,17 @@ Last update: 2018-09-06
 
       timeFormatStr(optimSummary) {
         let rawValue = ''
-        if (optimSummary.status == 'queued') {
+        if (optimSummary.status === 'queued') {
           rawValue = optimSummary.pendingTime
         }
-        else if ((optimSummary.status == 'started') || (optimSummary.status == 'completed')) {
+        else if ((optimSummary.status === 'started') || (optimSummary.status === 'completed')) {
           rawValue = optimSummary.executionTime
         }
         else {
           return ''
         }
 
-        if (rawValue == '--') {
+        if (rawValue === '--') {
           return '--'
         }
         else {
@@ -442,7 +441,7 @@ Last update: 2018-09-06
       },
 
       canRunTask(optimSummary) {
-        return ((optimSummary.status == 'not started') || (optimSummary.status == 'completed'))
+        return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed'))
       },
 
       canCancelTask(optimSummary) {
@@ -451,7 +450,7 @@ Last update: 2018-09-06
       },
 
       canPlotResults(optimSummary) {
-        return (optimSummary.status == 'completed')
+        return (optimSummary.status === 'completed')
       },
 
       getOptimTaskState(optimSummary) {
@@ -491,7 +490,7 @@ Last update: 2018-09-06
         utils.sleep(waitingtime * 1000)
           .then(response => {
             // Only if we are still in the optimizations page, call ourselves.
-            if (this.$route.path == '/optimizations') {
+            if (this.$route.path === '/optimizations') {
               this.pollAllTaskStates()
             }
           })
@@ -625,7 +624,7 @@ Last update: 2018-09-06
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-        if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
+        if (this.addEditDialogMode === 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
           if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            

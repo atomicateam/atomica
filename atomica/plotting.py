@@ -896,8 +896,6 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
             for x in items:
                 label += legendstr % (plotdata.pops[x[0]], plotdata.outputs[x[1]])
             label = label.strip()[:-1]  # Replace trailing newline and comma
-        print('HIIIIIIIIII')
-        print(label)
         legend_patches.append(Patch(facecolor=color, label=label))
 
     # Set axes now, because we need block_offset and base_offset after the loop
@@ -991,8 +989,6 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 #    fig.tight_layout() # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
-    print('HIIIIIIIIIIIIIII2')
-    for ptch in legend_patches: print ptch._label
     if   legend_mode == 'together': render_legend(ax, plot_type='bar', handles=legend_patches)
     elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=True))
     
