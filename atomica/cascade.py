@@ -48,7 +48,7 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     cascade = sanitize_cascade(result.framework,cascade)
 
     # Convert input pops to code names, if they were provided as full names e.g. from the FE
-    if pops is None or pops == 'all' or pops == 'All':
+    if pops in [None, 'all', 'All', 'aggregate', 'total']:
         pops = {'Entire population':result.pop_names} # Use all populations
     else:
         code_names = []
