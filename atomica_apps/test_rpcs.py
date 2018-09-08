@@ -110,8 +110,8 @@ if 'get_plots' in torun:
     if browser:
         jsons = []
         for graph in output['graphs']:
-#            valid = sw.mpld3ify(graph, to_mpld3=False, sanitize=False, jsonify=True, stringify=True)
-            jsons.append(graph)
+            valid = sw.mpld3ify(graph, to_mpld3=False, sanitize=False, jsonify=True, stringify=True)
+            jsons.append(valid)
         sw.browser(jsons=jsons)
 
 
