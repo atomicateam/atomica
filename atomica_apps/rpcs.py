@@ -1170,7 +1170,7 @@ def download_graphs():
     return full_file_name
 
 
-def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, calibration=False):
+def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, calibration=False):
     results = sc.promotetolist(results)
     supported_plots = supported_plots_func(proj.framework) 
     if plot_names is None: 
@@ -1224,7 +1224,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     return output, allfigs, alllegends
 
 
-def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
+def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False, outputfigs=False):
     
     # Handle inputs
     if sc.isstring(year): year = float(year)
@@ -1235,9 +1235,9 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
     if calibration and pops.lower() == 'all':
         # For calibration plot, 'all' pops means that they should all be disaggregated and visible
         # But for scenarios and optimizations, 'all' pops means aggregated over all pops
-        pops = None  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
+        pops = 'all'  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
-        pops = 'all' # make sure it's lowercase
+        pops = 'aggregate' # make sure it's lowercase
     else:
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
@@ -1249,20 +1249,21 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         alllegends = cascadelegends
     else: # For Optima TB
         if calibration:
-            output, allfigs, alllegends = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
+            output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
             for key in ['graphs','legends']:
                 output[key] = cascadeoutput[key] + output[key]
             allfigs = cascadefigs + allfigs
             alllegends = cascadelegends + alllegends
         else:
-            output, allfigs, alllegends = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
+            output, allfigs, alllegends = get_atomica_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
             for key in ['graphs','legends']:
                 output[key] = cascadeoutput[key] + output[key]
             allfigs = cascadefigs + allfigs
             alllegends = cascadelegends + alllegends
     if dosave:
         savefigs(allfigs, online=online)  
-    return output
+    if outputfigs: return output, allfigs, alllegends
+    else:          return output
 
 
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False):
@@ -1442,7 +1443,7 @@ def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot
     result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
 
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
+    output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
 
     return output
 
@@ -1465,7 +1466,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
     put_results_cache_entry(cache_id, result)    
     print('Resultsets after run: %s' % len(proj.results))
 
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
+    output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
 
     return output
 
@@ -1575,7 +1576,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     put_results_cache_entry(cache_id, results)
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False)
+    output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False)
     print('Saving project...')
     save_project(proj)    
     return output
@@ -1814,7 +1815,7 @@ def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plot
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
     
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget, calibration=calibration)
+    output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget, calibration=calibration)
     return output
     
 

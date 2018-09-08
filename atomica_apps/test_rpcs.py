@@ -15,7 +15,7 @@ torun = [
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
-'get_plots',
+'make_plots',
 #'run_cascade_optimization',
 #'run_tb_optimization',
 ]
@@ -98,11 +98,12 @@ if 'get_cascade_json' in torun and tool=='cascade':
         print('JSON saved to %s' % filename)
 
 
-if 'get_plots' in torun:
+if 'make_plots' in torun:
+    heading('Running make_plots', 'big')
     browser = True
-    heading('Running get_plots', 'big')
+    calibration = True
     results = proj.run_sim()
-    output, figs, legends = rpcs.get_plots(proj, results=results, calibration=True)
+    output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
     print('Output:')
     print(output)
     if browser:
