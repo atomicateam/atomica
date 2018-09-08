@@ -1287,7 +1287,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         for l,line in enumerate(fig.axes[0].lines):
             mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
     
-    graph_dict = mpld3.fig_to_dict(fig) # Convert to mpld3
+    graph_dict = sw.mpld3ify(fig, sanitize=True, jsonify=False, stringify=False) # Convert to mpld3
     return graph_dict
     
 
@@ -1327,16 +1327,14 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
         mpld3.plugins.connect(fig, CursorPosition())
-        graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        graph_dict = sw.mpld3ify(fig, jsonify=False, stringify=False)
         figjsons.append(graph_dict)
         pl.close(fig)
     
     for fig in legends: # Different enough to warrant its own block, although ugly
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-        graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        graph_dict = sw.mpld3ify(fig, jsonify=False, stringify=False)
         legendjsons.append(graph_dict)
         pl.close(fig)
         
