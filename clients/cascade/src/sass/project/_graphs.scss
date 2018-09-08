@@ -31,7 +31,7 @@
 .calib-params {
   flex: 0 0 30%;
   max-height: 80vh;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 .calib-graphs {
   border: 2px solid #ddd;
@@ -54,7 +54,7 @@
   flex: 0 0 30%;
   display: flex;
   max-height:80vh;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 .plotopts-main--full {
   display: block;

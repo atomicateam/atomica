@@ -1340,7 +1340,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         pl.close(fig)
         
     output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
-    print('Cascade plot succeeded')
+    print('Cascade plot succeeded with %s plots and %s legends' % (len(figjsons), len(legendjsons)))
     return output, figs, legends
 
 
@@ -1569,7 +1569,7 @@ def get_default_budget_scen(project_id):
 
 
 @RPC()    
-def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
+def run_scenarios(project_id, cache_id, plot_options=None, saveresults=True, tool=None, plotyear=None, pops=None,cascade=None, dosave=True):
     print('Running scenarios...')
     proj = load_project(project_id, raise_exception=True)
     results = proj.run_scenarios(store_results=False)

@@ -17,13 +17,14 @@ torun = [
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
-'make_plots',
+#'make_plots',
+'run_scenarios',
 #'run_cascade_optimization',
 #'run_tb_optimization',
 ]
 
 # Set parameters
-tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
+tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 user_id  = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
 proj_id  = sc.uuid(as_string=True) # These can all be the same
@@ -37,6 +38,7 @@ cache_id = sc.uuid(as_string=True) # These can all be the same
 def demoproj(which=None, online=True):
     if which is None: which = default_which
     P = au.demo(which=which)
+    P.name = 'RPCs test %s' % proj_id[:6]
     if online:
         rpcs.save_project_as_new(P, user_id=user_id, uid=proj_id)
         rpcs.make_results_cache_entry(cache_id)
@@ -118,6 +120,14 @@ if 'make_plots' in torun:
     sc.pp(output['legends'])
     if browser:
         sw.browser(output['legends'])
+
+
+if 'run_scenarios' in torun:
+    browser = True
+    output = rpcs.run_scenarios(proj_id, cache_id, tool='cascade')
+    sc.pp(output)
+    if browser:
+        sw.browser(output['graphs']+output['legends'])
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':

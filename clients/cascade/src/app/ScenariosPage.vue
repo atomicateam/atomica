@@ -63,68 +63,75 @@ Last update: 2018-09-06
       <!-- ### End: scenarios card ### -->
 
       <!-- ### Start: results card ### -->
-      <div class="card full-width-card" v-if="hasGraphs">
-        <div class="calib-title">
-          <help reflink="results-plots" label="Results"></help>
-          <div>
+      <div class="PageSection">
+        <div class="card" v-if="hasGraphs">
+          <div class="calib-title">
+            <help reflink="results-plots" label="Results"></help>
+            <div>
 
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" @change="plotScenarios(true)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" @change="plotScenarios(true)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" @change="plotScenarios(true)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" @change="plotScenarios(true)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
 
-          </div>
-        </div>
-
-
-        <div class="calib-main" :class="{'calib-main--full': true}">
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
-              </div>
             </div>
           </div>
-        </div>
 
-        <!-- ### Start: results and plot selectors ### -->
-        <div class="calib-card-body">
-
-          <!-- ### Start: plots ### -->
+          <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
-            <div class="calib-graphs">
-              <div class="featured-graphs">
-                <div :id="'fig0'">
-                  <!-- mpld3 content goes here, no legend for it -->
+
+            <!-- ### Start: plots ### -->
+            <div class="calib-card-body">
+              <div class="calib-graphs">
+                <div class="featured-graphs">
+                  <div :id="'fig0'">
+                    <!-- mpld3 content goes here, no legend for it -->
+                  </div>
                 </div>
-              </div>
-              <div class="other-graphs">
-                <div v-for="index in placeholders">
-                  <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
-                    <div :id="'fig'+index" class="calib-graph">
-                      <!--mpld3 content goes here-->
-                    </div>
-                    <div style="display:inline-block">
-                      <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <div style="display:inline-block">
+                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                      </div>
                     </div>
                   </div>
+
+                  <!-- ### Start: cascade table ### -->
+                  <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+                    <h4>Cascade stage losses</h4>
+                    <table class="table table-striped" style="text-align:right;">
+                      <thead>
+                      <tr>
+                        <th></th>
+                        <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                      </tr>
+                      </thead>
+                      <tbody>
+                      <tr v-for="(label, index) in table.rowlabels">
+                        <td>{{label}}</td>
+                        <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <!-- ### End: cascade table ### -->
+
                 </div>
               </div>
             </div>
@@ -148,24 +155,6 @@ Last update: 2018-09-06
             </div>
           </div>
           <!-- ### End: dialogs ### -->
-
-          <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
-            <h4>Cascade stage losses</h4>
-            <table class="table table-striped" style="text-align:right;">
-              <thead>
-              <tr>
-                <th></th>
-                <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(label, index) in table.rowlabels">
-                <td>{{label}}</td>
-                <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
 
         </div>
       </div>
@@ -568,11 +557,10 @@ Last update: 2018-09-06
               {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
               .then(response => {
                 this.table = response.data.table // CASCADE-TB DIFFERENCE
-                this.makeGraphs(this, response.data.graphs, response.data.legends)
+                this.makeGraphs(response.data.graphs, response.data.legends)
                 status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
-                console.log('There was an error', error) // Pull out the error message.
                 status.fail(this, 'Could not run scenarios', error)
               })
           })
@@ -590,7 +578,7 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.makeGraphs(this, response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table // CASCADE-TB DIFFERENCE
             status.succeed(this, 'Graphs created')
           })
