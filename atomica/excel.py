@@ -640,7 +640,10 @@ class TimeDependentValuesEntry(object):
 
         # First, assemble and write the headings
         headings = []
-        headings.append(self.name)
+        if self.name in references:
+            headings.append(references[self.name])
+        else:
+            headings.append(self.name)
         offset = 1 # This is the column where the time values start
 
         if write_units:
