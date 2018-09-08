@@ -139,30 +139,43 @@ function makeGraphs(vm, graphdata, legenddata) {
       console.log('Rendering plot ' + index)
       var figlabel    = 'fig' + index
       var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-      while (figdiv.firstChild) {
-        figdiv.removeChild(figdiv.firstChild);
+      if (figdiv) {
+        while (figdiv.firstChild) {
+          figdiv.removeChild(figdiv.firstChild);
+        }
+      } else {
+        console.log('WARNING: figdiv not found: ' + figlabel)
       }
+
 
       if (index>=1 && index<n_plots) {
         var figcontainerlabel = 'figcontainer' + index
         var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-        figcontainerdiv.style.display = 'flex'
+        if (figcontainerdiv) {
+          figcontainerdiv.style.display = 'flex'
+        } else {
+          console.log('WARNING: figcontainerdiv not found: ' + figcontainerlabel)
+        }
 
         var legendlabel = 'legend' + index
         var legenddiv  = document.getElementById(legendlabel);
-        while (legenddiv.firstChild) {
-          legenddiv.removeChild(legenddiv.firstChild);
+        if (legenddiv) {
+          while (legenddiv.firstChild) {
+            legenddiv.removeChild(legenddiv.firstChild);
+          }
+        } else {
+          console.log('WARNING: legenddiv not found: ' + legendlabel)
         }
       }
 
-      mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
-        fig.setXTicks(6, function (d) {
-          return d3.format('.0f')(d);
-        });
-        fig.setYTicks(null, function (d) {
-          return d3.format('.2s')(d);
-        });
-      });
+      // mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
+      //   fig.setXTicks(6, function (d) {
+      //     return d3.format('.0f')(d);
+      //   });
+      //   fig.setYTicks(null, function (d) {
+      //     return d3.format('.2s')(d);
+      //   });
+      // });
       // if (index>=1 && index<n_plots) {
       //   mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
       //     fig.setXTicks(6, function (d) {
