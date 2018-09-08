@@ -13,6 +13,7 @@ from .structure import FrameworkSettings as FS
 from .version import version
 import numpy as np
 from .cascade import validate_cascade
+from .parser_function import parse_function
 
 class InvalidFramework(AtomicaException):
     pass
@@ -305,7 +306,8 @@ class ProjectFramework(object):
             self.comps['calibrate'] = None
             self.comps['calibrate'][default_calibrate] = 'y'
 
-        # VALIDATE THE COMPARTMENT SPECIFICATION
+        ### VALIDATE COMPARTMENTS
+
         for index,row in self.comps.iterrows():
             n_types = (row[['is sink','is source','is junction']]=='y').astype(int).sum() # This sums the number of Y's for each compartment
 
@@ -328,78 +330,6 @@ class ProjectFramework(object):
 
             if (row['databook page'] is None) and (row['databook order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
-
-        ### VALIDATE PARAMETERS
-        required_columns = ['display name','format']
-        defaults = {
-            'default value':None,
-            'minimum value':None,
-            'maximum value':None,
-            'function':None,
-            'databook page':None,
-            'databook order':None,
-            'targetable':'n',
-        }
-        valid_content = {
-            'display name': None,
-            'targetable':{'y','n'},
-        }
-
-        self.pars.set_index('code name',inplace=True)
-        try:
-            self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
-        except Exception as e:
-            message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
-            reraise_modify(e, message)
-
-        # Make sure all units are lowercase
-        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
-
-        if 'calibrate' not in self.pars:
-            default_calibrate = self.pars['targetable'] == 'y'
-            self.pars['calibrate'] = None
-            self.pars['calibrate'][default_calibrate] = 'y'
-
-        # Parse the transitions matrix
-        self._process_transitions()
-
-        # Now validate each parameter
-        for i,par in self.pars.iterrows():
-            if self.transitions[par.name]: # If this parameter is associated with transitions
-
-                # Units must be specified if this is a function parameter (in which case the databook does not specify the units)
-                if (par['function'] is not None) and (par['format'] is None):
-                    raise InvalidFramework('Parameter %s has a custom function and is a transition parameter, so needs to have a format specified in the Framework' % par.name)
-
-                from_comps = [x[0] for x in self.transitions[par.name]]
-                to_comps = [x[1] for x in self.transitions[par.name]]
-
-                # Avoid discussions about how to disaggregate parameters with multiple links from the same compartment.
-                if len(from_comps) != len(set(from_comps)):
-                    raise InvalidFramework('Parameter "%s" cannot be associated with more than one transition from the same compartment' % par.name)
-
-                n_source_outflow = 0
-                for comp in from_comps:
-                    comp_spec = self.get_comp(comp)
-                    if comp_spec['is sink']=='y':
-                        raise InvalidFramework('Parameter "%s" has an outflow from Compartment "%s" which is a sink' % par.name,comp)
-                    elif comp_spec['is source']=='y':
-                        n_source_outflow += 1
-                        if par['format'] != FS.QUANTITY_TYPE_NUMBER:
-                            raise InvalidFramework('Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par.name)
-                    elif comp_spec['is junction']=='y':
-                        if par['format'] != FS.QUANTITY_TYPE_PROPORTION:
-                            raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par.name)
-
-                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (comp_spec['is junction']!='y'):
-                        raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not',par.name,comp)
-
-                if n_source_outflow > 1:
-                    raise InvalidFramework('Parameter "%s" has an outflow from more than one source compartment, which prevents disaggregation from working correctly' % par.name)
-
-                for comp in to_comps:
-                    if self.get_comp(comp)['is source']=='y':
-                        raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
 
         ### VALIDATE CHARACTERISTICS
 
@@ -447,9 +377,9 @@ class ProjectFramework(object):
             if row['denominator'] is not None:
                 if not (row['denominator'] in self.comps.index or row['denominator'] in self.characs.index):
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
-                if row['denominator'] in self.comps.index:
-                    if not (self.comps.loc[row['denominator']]['denominator'] is None):
-                        raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot itself be used as a denominator for "%s"' % (row.name,row['denominator'],row['denominator'],row.name))
+                if row['denominator'] in self.characs.index:
+                    if not (self.characs.loc[row['denominator']]['denominator'] is None):
+                        raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (row.name,row['denominator'],row['denominator'],row.name))
 
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
@@ -477,6 +407,120 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
             reraise_modify(e, message)
+
+        ### VALIDATE PARAMETERS
+        # This is done last, because validating parameter dependencies requires checking compartments and characteristics
+        required_columns = ['display name','format']
+        defaults = {
+            'default value':None,
+            'minimum value':None,
+            'maximum value':None,
+            'function':None,
+            'databook page':None,
+            'databook order':None,
+            'targetable':'n',
+        }
+        valid_content = {
+            'display name': None,
+            'targetable':{'y','n'},
+        }
+
+        self.pars.set_index('code name',inplace=True)
+        try:
+            self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
+        except Exception as e:
+            message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
+            reraise_modify(e, message)
+
+        # Make sure all units are lowercase
+        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
+
+        if 'calibrate' not in self.pars:
+            default_calibrate = self.pars['targetable'] == 'y'
+            self.pars['calibrate'] = None
+            self.pars['calibrate'][default_calibrate] = 'y'
+
+        # Parse the transitions matrix
+        self._process_transitions()
+
+        # Now validate each parameter
+        defined = set() # Track which parameters have already been defined
+        for i,par in self.pars.iterrows():
+            defined.add(par.name)
+
+            if par['function'] is not None:
+                _, deps = parse_function(par['function']) # Parse the function to get dependencies
+                for dep in deps:
+                    if dep in ['t','dt']:
+                        # These are special variables passed in by model.py
+                        continue
+                    elif dep.endswith('___flow'): # Note that the parser replaces ':' with '___'
+                        dep_name = dep.replace('___flow','')
+
+                        if self.transitions[par.name]:
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s:flow"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name,dep_name,par.name,par.name)
+                            raise InvalidFramework(message)
+
+                        if dep_name not in self.pars.index:
+                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name,dep_name,dep_name)
+                            raise InvalidFramework(message)
+
+                        if not self.transitions[dep_name]:
+                            # If the user is trying to get the flow rate for a non-transition parameter
+                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name,dep_name,dep_name)
+                            raise InvalidFramework(message)
+
+                    elif dep in self.comps.index:
+                        continue
+                    elif dep in self.characs.index:
+                        continue
+                    elif dep in self.interactions.index:
+                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG")):
+                            message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be "SRC_POP_AVG" or "TGT_POP_AVG"' % (par.name,dep)
+                            raise InvalidFramework(message)
+                    elif dep in self.pars.index:
+                        if dep not in defined:
+                            message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s". Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par.name,dep,par.name,dep,par.name)
+                            raise InvalidFramework(message)
+                    else:
+                        message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par.name,dep)
+                        raise InvalidFramework(message)
+
+            if self.transitions[par.name]: # If this parameter is associated with transitions
+
+                # Units must be specified if this is a function parameter (in which case the databook does not specify the units)
+                if (par['function'] is not None) and (par['format'] is None):
+                    raise InvalidFramework('Parameter %s has a custom function and is a transition parameter, so needs to have a format specified in the Framework' % par.name)
+
+                from_comps = [x[0] for x in self.transitions[par.name]]
+                to_comps = [x[1] for x in self.transitions[par.name]]
+
+                # Avoid discussions about how to disaggregate parameters with multiple links from the same compartment.
+                if len(from_comps) != len(set(from_comps)):
+                    raise InvalidFramework('Parameter "%s" cannot be associated with more than one transition from the same compartment' % par.name)
+
+                n_source_outflow = 0
+                for comp in from_comps:
+                    comp_spec = self.get_comp(comp)
+                    if comp_spec['is sink']=='y':
+                        raise InvalidFramework('Parameter "%s" has an outflow from Compartment "%s" which is a sink' % par.name,comp)
+                    elif comp_spec['is source']=='y':
+                        n_source_outflow += 1
+                        if par['format'] != FS.QUANTITY_TYPE_NUMBER:
+                            raise InvalidFramework('Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par.name)
+                    elif comp_spec['is junction']=='y':
+                        if par['format'] != FS.QUANTITY_TYPE_PROPORTION:
+                            raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par.name)
+
+                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (comp_spec['is junction']!='y'):
+                        raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not',par.name,comp)
+
+                if n_source_outflow > 1:
+                    raise InvalidFramework('Parameter "%s" has an outflow from more than one source compartment, which prevents disaggregation from working correctly' % par.name)
+
+                for comp in to_comps:
+                    if self.get_comp(comp)['is source']=='y':
+                        raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
 
 
         ### VALIDATE NAMES - No collisions, no keywords
