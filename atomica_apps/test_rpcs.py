@@ -16,13 +16,13 @@ torun = [
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
-#'get_plots',
-'run_cascade_optimization',
+'get_plots',
+#'run_cascade_optimization',
 #'run_tb_optimization',
 ]
 
 # Set parameters
-tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
+tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 user_id  = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
 proj_id  = user_id # These can all be the same
@@ -30,7 +30,7 @@ cache_id = user_id # These can all be the same
 
 
 ###########################################################################
-### Initialization and definitions
+### Definitions
 ###########################################################################
 
 def demoproj(which=None, online=True):
@@ -42,22 +42,23 @@ def demoproj(which=None, online=True):
     return P
 
 def heading(string, style=None):
-    divider = '#'*60
+    divider = '='*60
     sc.blank()
     if style == 'big': string = '\n'.join([divider, string, divider])
     sc.colorize('blue', string)
     return None
-
-T = sc.tic()
-app = main.make_app(which=tool)
-proj = demoproj(which=default_which, online=True)
-
 
 
 
 ###########################################################################
 ### Run the tests
 ###########################################################################
+
+
+heading('Starting tests for tool=%s, which=%s, user=%s' % (tool, default_which, user_id), 'big')
+T = sc.tic()
+app = main.make_app(which=tool)
+proj = demoproj(which=default_which, online=True)
 
 
 if 'project_io' in torun:
@@ -100,11 +101,14 @@ if 'get_cascade_json' in torun and tool=='cascade':
 
 
 if 'get_plots' in torun:
+    browser = True
     heading('Running get_plots', 'big')
     results = proj.run_sim()
-    output = rpcs.get_plots(proj, results=results, calibration=False)
+    output, figs, legends = rpcs.get_plots(proj, results=results, calibration=True)
     print('Output:')
     print(output)
+    if browser:
+        sw.browser(jsons=output['graphs'])
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':
