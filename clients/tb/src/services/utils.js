@@ -323,6 +323,12 @@ function maximize(vm,id) {
   var index = Number(id)
   console.log('x,y')
   console.log(vm.mousex, vm.mousey)
+  var TTlabel = 'TT'+id
+  console.log(TTlabel)
+  var TTdiv  = document.getElementById(TTlabel);
+  TTdiv.style.left = '440px'
+  console.log(TTdiv)
+  console.log('sakfjaldfjsadfj')
   // let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
     console.log(vm.openDialogs[index].style.options)

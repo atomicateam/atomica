@@ -187,7 +187,7 @@ Last update: 2018-09-06
             <div v-for="index in placeholders">
               <div class="dialogs" :id="'legendcontainer'+index" style="display:none" v-show="showLegendDivs[index]">
                 <dialog-drag
-                             :id="index"
+                             :id="'TT'+index"
                              :key="index"
                              @close="minimize(index)">
 
