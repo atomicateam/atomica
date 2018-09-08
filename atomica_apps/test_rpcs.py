@@ -102,15 +102,22 @@ if 'get_cascade_json' in torun and tool=='cascade':
 
 if 'make_plots' in torun:
     heading('Running make_plots', 'big')
-    browser = True
+    
+    # Settings
+    browser     = True
     calibration = True
-#    results = proj.run_sim()
-#    output = proj.plot(results) # WARNING, doesn't work
+    show_BE     = False
+    
+    # Run
+    results = proj.run_sim()
+    if show_BE: output = proj.plot(results) # WARNING, doesn't work
     output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
+    
+    # Output
     print('Output:')
-    print(output)
+    sc.pp(output['legends'])
     if browser:
-        sw.browser(output['graphs'])
+        sw.browser(output['legends'])
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':

@@ -990,7 +990,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     else:                         return figs
 
 
-def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None, rescale=False):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -1256,8 +1256,8 @@ def render_separate_legend(ax, plot_type=None, handles=None):
         labels = [h.get_label() for h in handles]
 
     fig, ax = plt.subplots()
-    ax.set_position([0.5, 0.5, 0.01, 0.01])
-    ax.set_axis_off()  # This allows the figure to be shown in jupyter notebook
+#    ax.set_position([0.5, 0.5, 0.01, 0.01])
+#    ax.set_axis_off()  # This allows the figure to be shown in jupyter notebook
 
     legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}
 
