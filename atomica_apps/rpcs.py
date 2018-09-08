@@ -1287,7 +1287,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         for l,line in enumerate(fig.axes[0].lines):
             mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
     
-    graph_dict = sw.mpld3ify(fig, jsonify=False, stringify=False) # Convert to mpld3
+    graph_dict = sw.mpld3ify(fig, sanitize=True, jsonify=False, stringify=False) # Convert to mpld3
     return graph_dict
     
 
