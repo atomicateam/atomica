@@ -480,13 +480,13 @@ Last update: 2018-09-06
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-//        status.start(this)
+        status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
+//            status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
-            status.succeed(this, 'Simulation complete') // Indicate success.
           })
           .catch(error => {
             console.log(error.message)
@@ -520,27 +520,25 @@ Last update: 2018-09-06
         console.log('plotCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-//        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-              .then(response2 => {
-                this.table = response.data.table;
-                status.succeed(this, 'Graphs loaded')
-              })
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error', error // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            if (showNoCacheError) {
-              status.fail(this, 'Could not make graphs', error)
-            }
-            else {
-              status.succeed(this, '')  // Silently stop progress bar and spinner.
-            }
-          })
+        .then(response => {
+          this.makeGraphs(response.data.graphs)
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
+        })
+        .catch(error => {
+          this.serverresponse = 'There was an error', error // Pull out the error message.
+          this.servererror = error.message // Set the server error.
+          if (showNoCacheError) {
+            status.fail(this, 'Could not make graphs', error)
+          }
+          else {
+            status.succeed(this, '')  // Silently stop progress bar and spinner.
+          }
+        })
       },
 
       renameParsetModal() {

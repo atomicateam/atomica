@@ -7,7 +7,7 @@ import status from '@/services/status-service'
 
 function sleep(time) {
   // Return a promise that resolves after _time_ milliseconds.
-  return new Promise((resolve) => setTimeout(resolve, time))
+  return new Promise((resolve) => setTimeout(resolve, time));
 }
 
 function getUniqueName(fileName, otherNames) {
@@ -128,46 +128,36 @@ function placeholders(vm, startVal) {
 }
 
 function makeGraphs(vm, graphdata) {
-  return new Promise((resolve) => {
-      let waitingtime = 0.5
-      console.log('makeGraphs() called')
-  // status.start(vm) // Start indicating progress.
+  let waitingtime = 0.5
+  console.log('makeGraphs() called')
+  status.start(vm) // Start indicating progress.
   vm.hasGraphs = true
   sleep(waitingtime * 1000)
-    .then(response => {
+  .then(response => {
     let n_plots = graphdata.length
     console.log('Rendering ' + n_plots + ' graphs')
-  for (var index = 0; index <= n_plots; index++) {
-    console.log('Rendering plot ' + index)
-    var figlabel = 'fig' + index
-    var figdiv = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-    while (figdiv.firstChild) {
-      figdiv.removeChild(figdiv.firstChild);
-    }
-
-    if (index >= 1 && index < n_plots) {
-      var figcontainerlabel = 'figcontainer' + index
-      var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-      figcontainerdiv.style.display = 'flex'
-
-      var legendlabel = 'legend' + index
-      var legenddiv = document.getElementById(legendlabel);
-      while (legenddiv.firstChild) {
-        legenddiv.removeChild(legenddiv.firstChild);
+    for (var index = 0; index <= n_plots; index++) {
+      console.log('Rendering plot ' + index)
+      var figlabel    = 'fig' + index
+      var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      while (figdiv.firstChild) {
+        figdiv.removeChild(figdiv.firstChild);
       }
-    }
 
-    vm.showGraphDivs[index] = true;
-    mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
-      fig.setXTicks(6, function (d) {
-        return d3.format('.0f')(d);
-      });
-      fig.setYTicks(null, function (d) {
-        return d3.format('.2s')(d);
-      });
-    });
-    if (index >= 1 && index < n_plots) {
-      mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
+      if (index>=1 && index<n_plots) {
+        var figcontainerlabel = 'figcontainer' + index
+        var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+        figcontainerdiv.style.display = 'flex'
+
+        var legendlabel = 'legend' + index
+        var legenddiv  = document.getElementById(legendlabel);
+        while (legenddiv.firstChild) {
+          legenddiv.removeChild(legenddiv.firstChild);
+        }
+      }
+
+      vm.showGraphDivs[index] = true;
+      mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
         fig.setXTicks(6, function (d) {
           return d3.format('.0f')(d);
         });
@@ -175,11 +165,19 @@ function makeGraphs(vm, graphdata) {
           return d3.format('.2s')(d);
         });
       });
+      if (index>=1 && index<n_plots) {
+        mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
+          fig.setXTicks(6, function (d) {
+            return d3.format('.0f')(d);
+          });
+          fig.setYTicks(null, function (d) {
+            return d3.format('.2s')(d);
+          });
+        });
+      }
     }
-  }
-  // status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
-})
-})
+  status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
+  })
 }
 
 function clearGraphs(vm) {
