@@ -307,15 +307,28 @@ function newDialog(vm, id, name, content) {
 }
 
 function findDialog(vm, id, dialogs) {
+  console.log('looking')
   let index = dialogs.findIndex((val) => {
       return String(val.id) === String(id) // Force type conversion
     })
+  console.log(index)
+  console.log('okkk')
   return (index > -1) ? index : null
 }
 
 // "Show" the dialog
 function maximize(vm,id) {
   console.log('maximizing')
+  var index = Number(id)
+  console.log('x,y')
+  console.log(vm.mousex, vm.mousey)
+  // let index = findDialog(vm, id, vm.openDialogs)
+  if (index !== null) {
+    vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    vm.openDialogs[index].options.top = vm.mousey-300
+    // vm.openDialogs.push(vm.closedDialogs[index])
+    // vm.closedDialogs.splice(index, 1)
+  }
   console.log(id)
   console.log(Number(id))
   console.log(vm.showLegendDivs[Number(id)])
@@ -327,13 +340,7 @@ function maximize(vm,id) {
   containerdiv.style.display = 'inline-block' // Ensure they're visible
   console.log(vm.showLegendDivs[Number(id)])
   console.log('ok')
-  // let index = findDialog(vm, id, vm.openDialogs)
-  // if (index !== null) {
-  //   vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-  //   vm.openDialogs[index].options.top = vm.mousey-300
-  //   // vm.openDialogs.push(vm.closedDialogs[index])
-  //   // vm.closedDialogs.splice(index, 1)
-  // }
+
   // var dialogcontainerdiv  = document.getElementById('dialogcontainer');
   // dialogcontainerdiv.style.display = 'block' // Ensure they're visible
 }
