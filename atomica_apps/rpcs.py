@@ -32,7 +32,7 @@ RPC = sw.makeRPCtag(RPC_dict) # RPC registration decorator factory created using
 
 
 def CursorPosition():
-    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
+    plugin = mpld3.plugins.MousePosition(fontsize=12, fmt='.4r')
     return plugin
 
 def LineLabels(line=None, label=None):
@@ -1307,10 +1307,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
     figs.append(fig)
-    dummyfig = pl.figure(figsize=(1,1)) # Make a dummy plot since no legend
-    dummyfig.add_subplot(111) # So axis commands work
-    dummyfig.get_axes()[0].set_visible(False) # Turn off axes
-    legends.append(dummyfig) 
+    legends.append(sc.emptyfig()) # No figure, but still useful to have a plot
     
     if plot_budget:
         d = au.PlotData.programs(results)
@@ -1333,8 +1330,11 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         pl.close(fig)
     
     for fig in legends: # Different enough to warrant its own block, although ugly
-        ax = fig.get_axes()[0]
-        ax.set_facecolor('none')
+        try:
+            ax = fig.get_axes()[0]
+            ax.set_facecolor('none')
+        except:
+            pass
         graph_dict = sw.mpld3ify(fig, jsonify=False)
         legendjsons.append(graph_dict)
         pl.close(fig)

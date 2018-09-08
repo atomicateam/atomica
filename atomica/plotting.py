@@ -1017,7 +1017,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     ax = None
 
     plotdata = sc.dcp(plotdata)
-    
+
     if axis == 'results':
         plotdata.set_colors(results=plotdata.results.keys())
 
