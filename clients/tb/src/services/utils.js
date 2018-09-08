@@ -154,11 +154,11 @@ function makeGraphs(vm, graphdata) {
         // containerdiv.style.display = 'flex'
 
         console.log('new_2');
-        // var legendlabel = 'legend' + index
-        // var legenddiv  = document.getElementById(legendlabel);
-        // while (legenddiv.firstChild) {
-        //   legenddiv.removeChild(legenddiv.firstChild);
-        // }
+        var legendlabel = 'legend' + index
+        var legenddiv  = document.getElementById(legendlabel);
+        while (legenddiv.firstChild) {
+          legenddiv.removeChild(legenddiv.firstChild);
+        }
         console.log('new_3');
         // minimize(vm, index) // As soon as we've created a plot, minimize it
         console.log('new_4');
@@ -182,18 +182,18 @@ function makeGraphs(vm, graphdata) {
           return d3.format('.2s')(d);
         });
       });
-      // if (index>=1 && index<n_plots) {
-      //   mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
-      //     console.log('hi_5');
-      //     fig.setXTicks(6, function (d) {
-      //       return d3.format('.0f')(d);
-      //     });
-      //     console.log('hi_6');
-      //     fig.setYTicks(null, function (d) {
-      //       return d3.format('.2s')(d);
-      //     });
-      //   });
-      // }
+      if (index>=1 && index<n_plots) {
+        mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
+          console.log('hi_5');
+          fig.setXTicks(6, function (d) {
+            return d3.format('.0f')(d);
+          });
+          console.log('hi_6');
+          fig.setYTicks(null, function (d) {
+            return d3.format('.2s')(d);
+          });
+        });
+      }
     }
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
