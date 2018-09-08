@@ -326,22 +326,24 @@ function maximize(vm,id) {
   var TTlabel = 'TT'+id
   console.log(TTlabel)
   var TTdiv  = document.getElementById(TTlabel);
-  TTdiv.style.left = '440px'
+  TTdiv.style.left = String(vm.mousex-80) + 'px'
+  TTdiv.style.top = String(vm.mousey-300) + 'px'
+  // TTdiv.style.left = '440px'
   console.log(TTdiv)
   console.log('sakfjaldfjsadfj')
   // let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
     console.log(vm.openDialogs[index].style.options)
-    let thisDialog = _.cloneDeep(vm.openDialogs[index])
-    thisDialog.style.options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-    thisDialog.style.options.top = vm.mousey-300
-    vm.openDialogs[index] = null
-    vm.openDialogs[index] = thisDialog
+    // let thisDialog = _.cloneDeep(vm.openDialogs[index])
+    // thisDialog.style.options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    // thisDialog.style.options.top = vm.mousey-300
+    // vm.openDialogs[index] = null
+    // vm.openDialogs[index] = thisDialog
 
     console.log('style?')
     console.log(vm.openDialogs[index].style.options)
-    // vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-    // vm.openDialogs[index].options.top = vm.mousey-300
+    vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    vm.openDialogs[index].options.top = vm.mousey-300
     console.log('options?')
     console.log(vm.openDialogs[index].options)
     // vm.openDialogs.push(vm.closedDialogs[index])
