@@ -347,7 +347,7 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
 
     from .plotting import PlotData # Import here to avoid circular dependencies
 
-    if pops is None: pops = 'all'
+    if pops in [None, 'all', 'All']: pops = 'total'
 
     # Sanitize the cascade inputs
     cascade = sanitize_cascade(result.framework, cascade)

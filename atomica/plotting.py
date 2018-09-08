@@ -141,7 +141,7 @@ class PlotData(object):
         if pops in [None, 'All', 'all', 'overlaid']:
             pops = [pop.name for pop in results[0].model.pops]
         elif pops in ['overall', 'total','aggregate']:
-            pops = [{'All': [pop.name for pop in results[0].model.pops]}] # CK: should fix name
+            pops = [{'Total': [pop.name for pop in results[0].model.pops]}] # CK: should fix name
         pops = sc.promotetolist(pops)
 
         if outputs is None:

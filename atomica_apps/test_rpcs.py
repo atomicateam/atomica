@@ -18,8 +18,8 @@ torun = [
 #'get_cascade_plot',
 #'get_cascade_json',
 #'make_plots',
-'run_scenarios',
-#'run_cascade_optimization',
+#'run_scenarios',
+'run_cascade_optimization',
 #'run_tb_optimization',
 ]
 
