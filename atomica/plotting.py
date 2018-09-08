@@ -1270,13 +1270,13 @@ def render_separate_legend(ax, plot_type=None, handles=None):
 
     # Stop the figures from being rendered in the original figure, which will allow them to
     # then be rendered in the legend figure
-    for h in handles:
-        h.figure = None
+#    for h in handles:
+#        h.figure = None
 
     if plot_type in ['stacked', 'proportion', 'bar']:
-        fig.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
+        ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
     else:
-        fig.legend(handles=handles, labels=labels, **legendsettings)
+        ax.legend(handles=handles, labels=labels, **legendsettings)
 
     return fig
 
