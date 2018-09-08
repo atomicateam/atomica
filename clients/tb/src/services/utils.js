@@ -336,11 +336,23 @@ function maximize(vm,id) {
 
 // "Hide" the dialog
 function minimize(vm, id) {
-  let index = findDialog(vm, id, vm.openDialogs)
-  if (index !== null) {
+  console.log('minimizing')
+  console.log(id)
+  console.log(Number(id))
+  console.log(vm.showLegendDivs[Number(id)])
+  vm.showLegendDivs[Number(id)] = false
+  var containerlabel = 'TEMPcontainer'+id
+  console.log(containerlabel)
+  var containerdiv  = document.getElementById(containerlabel);
+  console.log(containerdiv)
+  containerdiv.style.display = 'none' // Ensure they're visible
+  console.log(vm.showLegendDivs[Number(id)])
+  console.log('ok')
+  // let index = findDialog(vm, id, vm.openDialogs)
+  // if (index !== null) {
     // vm.closedDialogs.push(vm.openDialogs[index])
     // vm.openDialogs.splice(index, 1)
-  }
+  // }
 }
 
 

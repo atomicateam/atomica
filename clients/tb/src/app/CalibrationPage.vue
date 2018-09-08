@@ -185,7 +185,7 @@ Last update: 2018-09-06
 
             <!-- ### Start: dialogs ### -->
             <div v-for="index in placeholders">
-              <div class="dialogs" v-show="showLegendDivs[index]">
+              <div class="dialogs" :id="'TEMPcontainer'+index" v-show="showLegendDivs[index]">
                 <dialog-drag
                              :id="index"
                              :key="index"
