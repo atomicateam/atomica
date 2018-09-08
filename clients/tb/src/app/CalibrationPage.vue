@@ -485,11 +485,8 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs)
-//              .then(response => {
-//
-//              })
 //            status.succeed(this, 'Simulation run') // Indicate success.
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
             console.log(error.message)
@@ -528,16 +525,9 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
         .then(response => {
-          status.succeed(this, 'Graphs loaded??')
-          this.table = response.data.table
           this.makeGraphs(response.data.graphs)
-            .then(response => {
-              resolve(response)
-            })
-            .catch(error => {
-              status.succeed(this, 'Graphs not loaded?????')
-              reject(error)
-            })
+          this.table = response.data.table
+          status.succeed(this, 'Graphs created')
         })
         .catch(error => {
           this.serverresponse = 'There was an error', error // Pull out the error message.

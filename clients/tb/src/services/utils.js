@@ -127,12 +127,16 @@ function placeholders(vm, startVal) {
   return indices;
 }
 
-function renderGraphs(vm, graphdata) {
-  return new Promise((resolve, reject) => {
-    console.log('renderGraphs() called')
+function makeGraphs(vm, graphdata) {
+  let waitingtime = 0.5
+  console.log('makeGraphs() called')
+  status.start(vm) // Start indicating progress.
+  vm.hasGraphs = true
+  sleep(waitingtime * 1000)
+  .then(response => {
     let n_plots = graphdata.length
     console.log('Rendering ' + n_plots + ' graphs')
-    for (let index = 0; index <= n_plots; index++) {
+    for (var index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
       var figlabel    = 'fig' + index
       var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
@@ -172,28 +176,7 @@ function renderGraphs(vm, graphdata) {
         });
       }
     }
-  })
-}
-
-function makeGraphs(vm, graphdata) {
-  return new Promise((resolve, reject) => {
-    let waitingtime = 1.0
-    sleep(waitingtime*1000)
-      .then(response => {
-        console.log('makeGraphs() actually called')
-        status.start(vm) // Start indicating progress.
-        vm.hasGraphs = true
-        renderGraphs(vm, graphdata)
-          .then(response => {
-            status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
-            resolve(response)
-          })
-          .catch(error => {
-            status.fail(this, 'Could not make graphs', error)
-            reject(error)
-          })
-      })
-
+  status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
 }
 
