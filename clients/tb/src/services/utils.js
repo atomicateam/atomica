@@ -121,8 +121,8 @@ function placeholders(vm, startVal) {
   }
   for (let i = startVal; i <= 100; i++) {
     indices.push(i);
-    vm.showGraphDivs.push(true);
-    vm.showLegendDivs.push(true);
+    vm.showGraphDivs.push(false);
+    vm.showLegendDivs.push(false);
   }
   return indices;
 }
@@ -191,6 +191,7 @@ function makeGraphs(vm, graphdata, legenddata) {
           });
         });
       }
+      vm.showGraphDivs[index] = true;
     }
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
@@ -323,18 +324,22 @@ function maximize(vm,id) {
     vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
     vm.openDialogs[index].options.top = vm.mousey-300
   }
-  vm.showLegendDivs[Number(id)] = false
-  let containerlabel = 'legendcontainer'+id
-  let containerdiv  = document.getElementById(containerlabel);
-  containerdiv.style.display = 'inline-block' // Ensure they're visible
+  vm.showLegendDivs[index] = true
+  sleep(2000).then(response => {
+    vm.showLegendDivs[index] = false
+  })
+  // let containerlabel = 'legendcontainer'+id
+  // let containerdiv  = document.getElementById(containerlabel);
+  // containerdiv.style.display = 'inline-block' // Ensure they're visible
 }
 
 // "Hide" the dialog
 function minimize(vm, id) {
-  vm.showLegendDivs[Number(id)] = false
-  let containerlabel = 'legendcontainer'+id
-  let containerdiv  = document.getElementById(containerlabel);
-  containerdiv.style.display = 'none' // Ensure they're invisible
+  let index = Number(id)
+  vm.showLegendDivs[index] = false
+  // let containerlabel = 'legendcontainer'+id
+  // let containerdiv  = document.getElementById(containerlabel);
+  // containerdiv.style.display = 'none' // Ensure they're invisible
 }
 
 
