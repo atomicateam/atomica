@@ -8,7 +8,7 @@ from .utils import NDict
 from .results import Result
 from .system import logger, AtomicaException
 
-default_figsize = (9,5)
+default_figsize = (7,4)
 
 class InvalidCascade(AtomicaException):
     # Throw this error if a cascade was not valid. This error should result in the
