@@ -26,7 +26,7 @@ services:
     build:
       context: .
       args:
-        WHICH: tb
+        WHICH: cascade
         PORT: '80'
         # REDIS_URL: 'redis://10.0.0.3:6379/8'
         # REDIS_URL: 'redis://vladh.net:63790/8'
