@@ -35,4 +35,4 @@ RUN python install_client.py
 WORKDIR ${WHICH}
 RUN python build_client.py
 
-CMD python start_server.py
+# CMD python start_server.py
