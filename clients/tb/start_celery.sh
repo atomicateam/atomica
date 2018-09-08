@@ -1,2 +1,3 @@
 #!/bin/bash
-celery worker -A atomica_apps.apptasks_tb -l info
+echo 'Starting celery in shell'
+celery worker -A atomica_apps.apptasks_tb -l info $@

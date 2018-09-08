@@ -26,7 +26,7 @@ services:
         PORT: '80'
         REDIS_URL: 'redis://10.0.0.3:6379/7'
         # REDIS_URL: 'redis://vladh.net:63790/7'
-    command: celery worker -A atomica_apps.apptasks_tb -l info
+    command: source start_celery.sh
     environment: 
       - REDIS_URL=redis://10.0.0.3:6379/7 
       # - REDIS_URL=redis://redis:6379/7
