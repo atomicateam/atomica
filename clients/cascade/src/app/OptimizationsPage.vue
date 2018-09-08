@@ -1,7 +1,7 @@
 <!--
 Optimizations page
 
-Last update: 2018-09-07
+Last update: 2018-09-08
 -->
 
 <template>
@@ -248,7 +248,7 @@ Last update: 2018-09-07
       return {
         optimSummaries: [],
         optimsLoaded: false,
-        useCelery: false,
+        useCelery: true,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
