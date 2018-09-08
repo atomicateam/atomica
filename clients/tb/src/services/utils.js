@@ -149,9 +149,9 @@ function makeGraphs(vm, graphdata) {
       console.log('new_1');
 
       if (index>=1 && index<n_plots) {
-        // var containerlabel = 'container' + index
-        // var containerdiv = document.getElementById(containerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-        // containerdiv.style.display = 'flex'
+        var figcontainerlabel = 'figcontainer' + index
+        var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+        figcontainerdiv.style.display = 'flex'
 
         console.log('new_2');
         var legendlabel = 'legend' + index
@@ -165,8 +165,8 @@ function makeGraphs(vm, graphdata) {
 
         console.log('div review')
         console.log(figdiv)
-        // console.log(containerdiv)
-        // console.log(legenddiv)
+        console.log(figcontainerdiv)
+        console.log(legenddiv)
       }
 
       console.log('hi_1');

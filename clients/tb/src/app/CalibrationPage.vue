@@ -169,7 +169,7 @@ Last update: 2018-09-06
                 </div>
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div v-show="showGraphDivs[index]" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd">
+                    <div :id="'figcontainer'+index" style="display:none; justify-content:flex-start; padding:5px; border:1px solid #ddd">
                       <div class="calib-graph" :id="'fig'+index">
                         <!--mpld3 content goes here-->
                       </div>
