@@ -1327,7 +1327,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
         mpld3.plugins.connect(fig, CursorPosition())
-        graph_dict = sw.mpld3ify(fig, jsonify=False)
+        graph_dict = sw.mpld3ify(fig, jsonify=False) # These get jsonified later
         figjsons.append(graph_dict)
         pl.close(fig)
     
