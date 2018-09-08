@@ -119,6 +119,11 @@ function placeholders(vm, startVal) {
   if (!startVal) {
     startVal = 0
   }
+  for (let i = startVal; i <= 100; i++) {
+    indices.push(i);
+    vm.showGraphDivs.push(true);
+    vm.showLegendDivs.push(true);
+  }
   return indices;
 }
 

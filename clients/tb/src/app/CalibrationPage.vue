@@ -169,7 +169,7 @@ Last update: 2018-09-06
                 </div>
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:none; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showFigureDivs[index]">
+                    <div :id="'figcontainer'+index" style="display:none; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
                       <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
@@ -313,7 +313,7 @@ Last update: 2018-09-06
         hasGraphs: false,
         serverDatastoreId: '',
         openDialogs: [],
-        showFigureDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
+        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
         showLegendDivs: [],
         mousex:-1,
         mousey:-1,
