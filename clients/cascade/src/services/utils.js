@@ -20,17 +20,6 @@ function getUniqueName(fileName, otherNames) {
   return tryName
 }
 
-function placeholders(startVal) {
-  var indices = []
-  if (!startVal) {
-    startVal = 0
-  }
-  for (var i = startVal; i <= 100; i++) {
-    indices.push(i);
-  }
-  return indices;
-}
-
 function projectID(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -82,10 +71,10 @@ function simYears(vm) {
     return []
   }
   else {
-    var sim_start = vm.$store.state.activeProject.project.sim_start
-    var sim_end = vm.$store.state.activeProject.project.sim_end
-    var years = []
-    for (var i = sim_start; i <= sim_end; i++) {
+    let sim_start = vm.$store.state.activeProject.project.sim_start
+    let sim_end = vm.$store.state.activeProject.project.sim_end
+    let years = []
+    for (let i = sim_start; i <= sim_end; i++) {
       years.push(i);
     }
     console.log('sim years: ' + years)
@@ -125,25 +114,75 @@ function getPlotOptions(vm) {
   })
 }
 
-function makeGraphs(vm, graphdata) {
+function placeholders(vm, startVal) {
+  let indices = []
+  if (!startVal) {
+    startVal = 0
+  }
+  for (let i = startVal; i <= 100; i++) {
+    indices.push(i);
+    vm.showGraphDivs.push(false);
+    vm.showLegendDivs.push(false);
+  }
+  return indices;
+}
+
+function makeGraphs(vm, graphdata, legenddata) {
   let waitingtime = 0.5
   console.log('makeGraphs() called')
   status.start(vm) // Start indicating progress.
   vm.hasGraphs = true
   sleep(waitingtime * 1000)
   .then(response => {
-    var n_plots = graphdata.length
+    let n_plots = graphdata.length
+    let n_legends = legenddata.length
     console.log('Rendering ' + n_plots + ' graphs')
+    if (n_plots !== n_legends) {
+      console.log('WARNING: different numbers of plots and legends: ' + n_plots + ' vs. ' + n_legends)
+    }
     for (var index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
-      var divlabel = 'fig' + index
-      var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-      while (div.firstChild) {
-        div.removeChild(div.firstChild);
+      var figlabel    = 'fig' + index
+      var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      if (figdiv) {
+        while (figdiv.firstChild) {
+          figdiv.removeChild(figdiv.firstChild);
+        }
+      } else {
+        console.log('WARNING: figdiv not found: ' + figlabel)
       }
-      try {
-        console.log(graphdata[index]);
-        mpld3.draw_figure(divlabel, graphdata[index], function (fig, element) {
+
+
+      if (index>=1 && index<n_plots) {
+        var figcontainerlabel = 'figcontainer' + index
+        var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+        if (figcontainerdiv) {
+          figcontainerdiv.style.display = 'flex'
+        } else {
+          console.log('WARNING: figcontainerdiv not found: ' + figcontainerlabel)
+        }
+
+        var legendlabel = 'legend' + index
+        var legenddiv  = document.getElementById(legendlabel);
+        if (legenddiv) {
+          while (legenddiv.firstChild) {
+            legenddiv.removeChild(legenddiv.firstChild);
+          }
+        } else {
+          console.log('WARNING: legenddiv not found: ' + legendlabel)
+        }
+      }
+
+      mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
+        fig.setXTicks(6, function (d) {
+          return d3.format('.0f')(d);
+        });
+        fig.setYTicks(null, function (d) {
+          return d3.format('.2s')(d);
+        });
+      });
+      if (index>=1 && index<n_plots) {
+        mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
           fig.setXTicks(6, function (d) {
             return d3.format('.0f')(d);
           });
@@ -152,18 +191,16 @@ function makeGraphs(vm, graphdata) {
           });
         });
       }
-      catch (error) {
-        console.log('Making graphs failed: ' + error.message);
-      }
+      vm.showGraphDivs[index] = true;
     }
+  status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
-  status.succeed(vm, 'Graphs created') // Indicate success.
 }
 
 function clearGraphs(vm) {
-  for (var index = 0; index <= 100; index++) {
-    var divlabel = 'fig' + index
-    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+  for (let index = 0; index <= 100; index++) {
+    let divlabel = 'fig' + index
+    let div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
     while (div.firstChild) {
       div.removeChild(div.firstChild);
     }
@@ -205,27 +242,19 @@ function exportResults(vm, serverDatastoreId) {
 //
 
 function showBrowserWindowSize() {
-  var w = window.innerWidth;
-  var h = window.innerHeight;
-  var ow = window.outerWidth; //including toolbars and status bar etc.
-  var oh = window.outerHeight;
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  let ow = window.outerWidth; //including toolbars and status bar etc.
+  let oh = window.outerHeight;
   console.log('Browser window size:')
-  console.log('Inner width: ', w)
-  console.log('Inner height: ', h)
-  console.log('Outer width: ', ow)
-  console.log('Outer height: ', oh)
-  window.alert('Browser window size:\n'+
-    'Inner width: ' + w + '\n' +
-    'Inner height: ' + h + '\n' +
-    'Outer width: ' + ow + '\n' +
-    'Outer height: ' + oh + '\n')
+  console.log(w, h, ow, oh)
 }
 
 function scaleElem(svg, frac) {
   // It might ultimately be better to redraw the graph, but this works
-  var width  = svg.getAttribute("width")
-  var height = svg.getAttribute("height")
-  var viewBox = svg.getAttribute("viewBox")
+  let width  = svg.getAttribute("width")
+  let height = svg.getAttribute("height")
+  let viewBox = svg.getAttribute("viewBox")
   if (!viewBox) {
     svg.setAttribute("viewBox",  '0 0 ' + width + ' ' + height)
   }
@@ -235,16 +264,97 @@ function scaleElem(svg, frac) {
 }
 
 function scaleFigs(frac) {
-  var graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
-  for (var g = 0; g < graphs.length; g++) {
+  let graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
+  for (let g = 0; g < graphs.length; g++) {
     scaleElem(graphs[g], frac)
   }
 }
 
+
+
+//
+// Legend functions
+// 
+
+
+
+function addListener(vm) {
+  document.addEventListener('mousemove', function(e){onMouseUpdate(e, vm)}, false);
+}
+
+
+
+function onMouseUpdate(e, vm) {
+  vm.mousex = e.pageX;
+  vm.mousey = e.pageY;
+  // console.log(vm.mousex, vm.mousey)
+}
+
+function createDialogs(vm) {
+  let vals = placeholders(vm)
+  for (let val in vals) {
+    newDialog(vm, val, 'Dialog '+val, 'This is test '+val)
+  }
+}
+
+// Create a new dialog
+function newDialog(vm, id, name, content) {
+  let options = {left:123+Number(id), top:123}
+  let style = {options:options}
+  let properties = { id, name, content, style, options }
+  return vm.openDialogs.push(properties)
+}
+
+function findDialog(vm, id, dialogs) {
+  console.log('looking')
+  let index = dialogs.findIndex((val) => {
+      return String(val.id) === String(id) // Force type conversion
+    })
+  return (index > -1) ? index : null
+}
+
+// "Show" the dialog
+function maximize(vm,id) {
+  let index = Number(id)
+  let DDlabel = 'DD'+id // DD for dialog-drag
+  let DDdiv  = document.getElementById(DDlabel);
+  if (DDdiv) {
+    DDdiv.style.left = String(vm.mousex-80) + 'px'
+    DDdiv.style.top = String(vm.mousey-300) + 'px'
+  } else {
+    console.log('WARNING: DDdiv not found: ' + DDlabel)
+  }
+  if (index !== null) {
+    vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+    vm.openDialogs[index].options.top = vm.mousey-300
+  }
+  vm.showLegendDivs[index] = true // Not really used, but here for completeness
+  let containerlabel = 'legendcontainer'+id
+  let containerdiv  = document.getElementById(containerlabel);
+  if (containerdiv) {
+    containerdiv.style.display = 'inline-block' // Ensure they're invisible
+  } else {
+    console.log('WARNING: containerdiv not found: ' + containerlabel)
+  }
+}
+
+// "Hide" the dialog
+function minimize(vm, id) {
+  let index = Number(id)
+  vm.showLegendDivs[index] = false
+  let containerlabel = 'legendcontainer'+id
+  let containerdiv  = document.getElementById(containerlabel);
+  if (containerdiv) {
+    containerdiv.style.display = 'none' // Ensure they're invisible
+  } else {
+    console.log('WARNING: containerdiv not found: ' + containerlabel)
+  }
+}
+
+
 export default {
   sleep,
   getUniqueName,
-  placeholders,
   projectID,
   hasData,
   hasPrograms,
@@ -252,6 +362,8 @@ export default {
   simEnd,
   simYears,
   activePops,
+
+  placeholders,
   getPlotOptions,
   makeGraphs,
   clearGraphs,
@@ -259,4 +371,13 @@ export default {
   exportResults,
   scaleFigs,
   showBrowserWindowSize,
+
+  addListener,
+  onMouseUpdate,
+  createDialogs,
+  newDialog,
+  findDialog,
+  maximize,
+  minimize
+  
 }

@@ -22,7 +22,6 @@ Last update: 2018-09-06
     <div v-else>
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
-        <!--<div class="calib-controls">-->
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -45,7 +44,6 @@ Last update: 2018-09-06
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
-          <!--<div style="display: inline-block; padding-left: 100px">-->
           <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset">
             <option v-for='parset in parsetOptions'>
@@ -78,12 +76,13 @@ Last update: 2018-09-06
           </button>&nbsp;
           <help reflink="reconciliation"></help>          
         </div>
-
-        <!--</div>-->
       </div>
 
-      <div>
 
+
+      <!-- ### Start: parameters and graphs ### -->
+      <div>
+        <!-- ### Start: parameters card ### -->
         <div class="card" v-show="areShowingParameters">
           <help reflink="parameters" label="Parameters"></help>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -119,16 +118,18 @@ Last update: 2018-09-06
               </td>
               <td>
                 <input type="text"
-                        class="txbox"
-                        v-model="par.dispvalue"/>
+                       class="txbox"
+                       v-model="par.dispvalue"/>
               </td>
             </tr>
             </tbody>
           </table>
         </div>
+        <!-- ### End: parameters card ### -->
 
-        <!-- START RESULTS CARD -->
+        <!-- ### Start: results card ### -->
         <div class="card full-width-card" v-if="hasGraphs">
+          <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="bl-results" label="Results"></help>
             <div>
@@ -153,22 +154,56 @@ Last update: 2018-09-06
 
             </div>
           </div>
+          <!-- ### End: plot controls ### -->
 
-
+          <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
-            <div class="calib-graphs">
-              <div class="featured-graphs">
-                <div :id="'fig0'">
-                  <!--mpld3 content goes here-->
+
+            <!-- ### Start: plots ### -->
+            <div class="calib-card-body">
+              <div class="calib-graphs">
+                <div class="featured-graphs">
+                  <div :id="'fig0'">
+                    <!-- mpld3 content goes here, no legend for it -->
+                  </div>
                 </div>
-              </div>
-              <div class="other-graphs">
-                <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                  <!--mpld3 content goes here-->
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <div style="display:inline-block">
+                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+            <!-- ### End: plots ### -->
 
+            <!-- ### Start: dialogs ### -->
+            <div v-for="index in placeholders">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+                <dialog-drag
+                             :id="'DD'+index"
+                             :key="index"
+                             @close="minimize(index)"
+                              :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+
+                  <span slot='title' style="color:#fff">Legend</span>
+                  <div :id="'legend'+index">
+                    <!-- Legend content goes here-->
+                  </div>
+                </dialog-drag>
+              </div>
+          </div>
+            <!-- ### End: dialogs ### -->
+
+
+            <!-- CASCADE-TB DIFFERENCE -->
+            <!-- ### Start: plot selectors ### -->
             <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
               <div class="plotopts-params">
                 <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -191,11 +226,11 @@ Last update: 2018-09-06
                 </table>
               </div>
             </div>
-
+            <!-- ### End: plot selectors ### -->
           </div>
-
+          <!-- ### End: results and plot selectors ### -->
         </div>
-
+        <!-- ### End: results card ### -->
       </div>
 
 
@@ -276,7 +311,12 @@ Last update: 2018-09-06
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
         hasGraphs: false,
-        serverDatastoreId: ''
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
       }
     },
 
@@ -287,20 +327,18 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders(1) },
+      placeholders() { return utils.placeholders(this, 1) },
 
       sortedPars() {
-        var sortedParList = this.applySorting(this.parList);
-        return sortedParList;
+        return this.applySorting(this.parList);
       },
 
     },
 
     created() {
-      // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
-        router.push('/login')
-      } else if ((this.$store.state.activeProject.project != undefined) &&
+      utils.addListener(this)
+      utils.createDialogs(this)
+      if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
 //        this.endYear = this.simEnd
@@ -321,13 +359,16 @@ Last update: 2018-09-06
 
     methods: {
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { return utils.clearGraphs() },
-      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(serverDatastoreId) 
-                                { return utils.exportResults(this, serverDatastoreId) },
+      maximize(id)    { return utils.maximize(this, id)},
+      minimize(id)    { return utils.minimize(this, id)},
 
+
+      getPlotOptions()            { return utils.getPlotOptions(this) },
+      clearGraphs()               { return utils.clearGraphs() },
+      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
+      exportGraphs()              { return utils.exportGraphs(this) },
+      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
+                                
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
       },
@@ -357,7 +398,7 @@ Last update: 2018-09-06
       },
 
       updateParset() {
-        return new Promise((resolve, reject) => {        
+        return new Promise((resolve, reject) => {
           console.log('updateParset() called')
           status.start(this)
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
@@ -372,13 +413,13 @@ Last update: 2018-09-06
             console.log('Parset options: ' + this.parsetOptions)
             console.log('Active parset: ' + this.activeParset)
             status.succeed(this, '')  // No green notification.
-            resolve(response)            
+            resolve(response)
           })
           .catch(error => {
             status.fail(this, 'Could not update parameter set', error)
             reject(error)
           })
-        })          
+        })
       },
 
       updateSorting(sortColumn) {
@@ -405,15 +446,13 @@ Last update: 2018-09-06
       },
 
       viewTable() {
-        return new Promise((resolve, reject) => {       
+        return new Promise((resolve, reject) => {
           console.log('viewTable() called')
           // TODO: Get spinners working right for this leg of initialization.
-//        status.start(this)        
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
           .then(response => {
             this.parList = response.data // Get the parameter values
-//            status.succeed(this, '')  // No green notification.            
-            resolve(response)            
+            resolve(response)
           })
           .catch(error => {
             status.fail(this, 'Could not load parameters', error)
@@ -430,16 +469,38 @@ Last update: 2018-09-06
         this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
+      plotCalibration(showNoCacheError) {
+        console.log('plotCalibration() called')
+        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        status.start(this)
+        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
+          {tool:'cascade', plotyear:this.endYear, pops:this.activePop, calibration:true})
+          .then(response => {
+            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.table = response.data.table
+            status.succeed(this, 'Data loaded, graphs now rendering...')
+          })
+          .catch(error => {
+            if (showNoCacheError) {
+              status.fail(this, 'Could not make graphs', error)
+            }
+            else {
+              status.succeed(this, '')  // Silently stop progress bar and spinner.
+            }
+          })
+      },
+
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this) 
+        status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-//            status.succeed(this, 'Simulation run') // Indicate success.
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.table = response.data.table
+            status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
             console.log(error.message)
@@ -451,7 +512,6 @@ Last update: 2018-09-06
         console.log('autoCalibrate() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) 
-        this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30
         } else {
@@ -461,39 +521,14 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(response.data.graphs, response.data.legends)
           })
           .catch(error => {
             console.log(error.message)
             status.fail(this, 'Could not run automatic calibration', error)
           })
       },
-      
-      plotCalibration(showNoCacheError) {
-        console.log('plotCalibration() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop, calibration:true})
-        .then(response => {
-          this.makeGraphs(response.data.graphs)
-          this.table = response.data.table
-          status.succeed(this, 'Graphs created')
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error', error // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          if (showNoCacheError) {
-            status.fail(this, 'Could not make graphs', error) 
-          }
-          else {
-            status.succeed(this, '')  // Silently stop progress bar and spinner.
-          }
-        })
-      },
-      
+
       renameParsetModal() {
         console.log('renameParsetModal() called');
         this.origParsetName = this.activeParset // Store this before it gets overwritten

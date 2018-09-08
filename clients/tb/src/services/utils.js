@@ -355,7 +355,6 @@ function minimize(vm, id) {
 export default {
   sleep,
   getUniqueName,
-  placeholders,
   projectID,
   hasData,
   hasPrograms,
@@ -363,6 +362,8 @@ export default {
   simEnd,
   simYears,
   activePops,
+
+  placeholders,
   getPlotOptions,
   makeGraphs,
   clearGraphs,

@@ -29,6 +29,7 @@ Last update: 2018-09-06
             <span v-else>Show</span>
             parameters
           </button>
+          &nbsp;<help reflink="manual-calibration"></help>
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
@@ -39,6 +40,7 @@ Last update: 2018-09-06
               {{ time }}
             </option>
           </select>
+          &nbsp;<help reflink="automatic-calibration"></help>
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
@@ -65,12 +67,14 @@ Last update: 2018-09-06
             <i class="ti-upload"></i>
           </button>
           &nbsp;
+          <help reflink="parameter-sets"></help>          
         </div>
 
         <div class="controls-box">
           <button class="btn" @click="notImplemented()">
             Reconcile
-          </button>
+          </button>&nbsp;
+          <help reflink="reconciliation"></help>          
         </div>
       </div>
 
@@ -359,7 +363,6 @@ Last update: 2018-09-06
 
     methods: {
 
-//      createDialogs() { return utils.createDialogs(this)},
       maximize(id)    { return utils.maximize(this, id)},
       minimize(id)    { return utils.minimize(this, id)},
 
@@ -417,7 +420,7 @@ Last update: 2018-09-06
             resolve(response)
           })
           .catch(error => {
-            status.fail(this, 'Could not update parset', error)
+            status.fail(this, 'Could not update parameter set', error)
             reject(error)
           })
         })
@@ -450,18 +453,16 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('viewTable() called')
           // TODO: Get spinners working right for this leg of initialization.
-//          status.start(this)
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
           .then(response => {
             this.parList = response.data // Get the parameter values
-//            status.succeed(this, '')  // No green notification.
             resolve(response)
           })
           .catch(error => {
-           status.fail(this, 'Could not load parameters', error)
+            status.fail(this, 'Could not load parameters', error)
             reject(error)
-          })          
-        })
+          })
+        })          
       },
 
       toggleShowingParams() {
