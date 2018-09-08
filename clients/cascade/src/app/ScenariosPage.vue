@@ -26,6 +26,8 @@ Last update: 2018-09-06
     </div>
 
     <div v-else>
+
+      <!-- ### Start: scenarios card ### -->
       <div class="card">
         <help reflink="scenarios" label="Define scenarios"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -58,70 +60,118 @@ Last update: 2018-09-06
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
       </div>
-    </div>
+      <!-- ### End: scenarios card ### -->
 
-    <!-- START RESULTS CARD -->
-    <div class="card full-width-card" v-if="hasGraphs">
-      <div class="calib-title">
-        <help reflink="results-plots" label="Results"></help>
-        <div>
+      <!-- ### Start: results card ### -->
+      <div class="card full-width-card" v-if="hasGraphs">
+        <div class="calib-title">
+          <help reflink="results-plots" label="Results"></help>
+          <div>
 
-          <b>Year: &nbsp;</b>
-          <select v-model="endYear" @change="plotScenarios(true)">
-            <option v-for='year in simYears'>
-              {{ year }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <b>Population: &nbsp;</b>
-          <select v-model="activePop" @change="plotScenarios(true)">
-            <option v-for='pop in activePops'>
-              {{ pop }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+            <b>Year: &nbsp;</b>
+            <select v-model="endYear" @change="plotScenarios(true)">
+              <option v-for='year in simYears'>
+                {{ year }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop" @change="plotScenarios(true)">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+
+          </div>
+        </div>
+
+
+        <div class="calib-main" :class="{'calib-main--full': true}">
+          <div class="calib-graphs">
+            <div class="featured-graphs">
+              <div :id="'fig0'">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+            <div class="other-graphs">
+              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
+                <!--mpld3 content goes here-->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ### Start: results and plot selectors ### -->
+        <div class="calib-card-body">
+
+          <!-- ### Start: plots ### -->
+          <div class="calib-card-body">
+            <div class="calib-graphs">
+              <div class="featured-graphs">
+                <div :id="'fig0'">
+                  <!-- mpld3 content goes here, no legend for it -->
+                </div>
+              </div>
+              <div class="other-graphs">
+                <div v-for="index in placeholders">
+                  <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                    <div :id="'fig'+index" class="calib-graph">
+                      <!--mpld3 content goes here-->
+                    </div>
+                    <div style="display:inline-block">
+                      <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- ### End: plots ### -->
+
+          <!-- ### Start: dialogs ### -->
+          <div v-for="index in placeholders">
+            <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+              <dialog-drag
+                :id="'DD'+index"
+                :key="index"
+                @close="minimize(index)"
+                :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+
+                <span slot='title' style="color:#fff">Legend</span>
+                <div :id="'legend'+index">
+                  <!-- Legend content goes here-->
+                </div>
+              </dialog-drag>
+            </div>
+          </div>
+          <!-- ### End: dialogs ### -->
+
+          <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+            <h4>Cascade stage losses</h4>
+            <table class="table table-striped" style="text-align:right;">
+              <thead>
+              <tr>
+                <th></th>
+                <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(label, index) in table.rowlabels">
+                <td>{{label}}</td>
+                <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
 
         </div>
       </div>
-
-
-      <div class="calib-main" :class="{'calib-main--full': true}">
-        <div class="calib-graphs">
-          <div class="featured-graphs">
-            <div :id="'fig0'">
-              <!--mpld3 content goes here-->
-            </div>
-          </div>
-          <div class="other-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
-        <h4>Cascade stage losses</h4>
-        <table class="table table-striped" style="text-align:right;">
-          <thead>
-          <tr>
-            <th></th>
-            <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(label, index) in table.rowlabels">
-            <td>{{label}}</td>
-            <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- END RESULTS CARD -->
 
     </div>
-    <!-- END RESULTS CARD -->
 
 
     <!-- START ADD-SCENARIO MODAL -->
@@ -200,7 +250,7 @@ Last update: 2018-09-06
 
 <script>
   import axios from 'axios'
-  let filesaver = require('file-saver')
+  var filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
@@ -235,7 +285,12 @@ Last update: 2018-09-06
         },
         figscale: 1.0,
         hasGraphs: false,
-        serverDatastoreId: ''
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
       }
     },
 
@@ -247,42 +302,51 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders() },
+      placeholders() { return utils.placeholders(this, 1) },
     },
 
     created() {
+      utils.addListener(this)
+      utils.createDialogs(this)
       if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
       else if ((this.$store.state.activeProject.project !== undefined) &&
-               (this.$store.state.activeProject.project.hasData) &&
-               (this.$store.state.activeProject.project.hasPrograms)) {
+        (this.$store.state.activeProject.project.hasData) &&
+        (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
         this.getPlotOptions()
-        .then(response => {
-          this.updateSets()
-          .then(response2 => {
-            // The order of execution / completion of these doesn't matter.
-            this.getScenSummaries()
-            this.getDefaultBudgetScen()
-            this.plotScenarios(false)
+          .then(response => {
+            this.updateSets()
+              .then(response2 => {
+                // The order of execution / completion of these doesn't matter.
+                this.getScenSummaries()
+                this.getDefaultBudgetScen()
+                this.plotScenarios(false)
+              })
           })
-        })
       }
     },
 
     methods: {
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { this.table = null; return utils.clearGraphs() },
-      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(serverDatastoreId)
-      { return utils.exportResults(this, serverDatastoreId) },
+      maximize(id)    { return utils.maximize(this, id)},
+      minimize(id)    { return utils.minimize(this, id)},
+
+
+      getPlotOptions()            { return utils.getPlotOptions(this) },
+      clearGraphs()               { return utils.clearGraphs() },
+      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
+      exportGraphs()              { return utils.exportGraphs(this) },
+      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
+
+      notImplemented() {
+        status.fail(this, 'Sorry, this feature is not implemented')
+      },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -504,16 +568,15 @@ Last update: 2018-09-06
               {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
               .then(response => {
                 this.table = response.data.table // CASCADE-TB DIFFERENCE
-                this.makeGraphs(response.data.graphs)
+                this.makeGraphs(this, response.data.graphs, response.data.legends)
                 status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
                 console.log('There was an error', error) // Pull out the error message.
-                status.fail(this, 'Could not run scenarios', error) 
+                status.fail(this, 'Could not run scenarios', error)
               })
           })
           .catch(error => {
-            this.response = 'There was an error', error
             status.fail(this, 'Could not set scenarios', error)
           })
       },
@@ -527,7 +590,7 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(this, response.data.graphs, response.data.legends)
             this.table = response.data.table // CASCADE-TB DIFFERENCE
             status.succeed(this, 'Graphs created')
           })
@@ -535,7 +598,7 @@ Last update: 2018-09-06
             this.serverresponse = 'There was an error', error // Pull out the error message.
             this.servererror = error.message // Set the server error.
             if (showNoCacheError) {
-              status.fail(this, 'Could not make graphs', error) 
+              status.fail(this, 'Could not make graphs', error)
             }
             else {
               status.succeed(this, '')  // Silently stop progress bar and spinner.

@@ -5,7 +5,7 @@ Last update: 2018-09-06
 -->
 
 <template>
-  <div class="SitePage">
+  <div>
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -20,6 +20,8 @@ Last update: 2018-09-06
     </div>
 
     <div v-else>
+
+      <!-- ### Start: calibration card ### -->
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
@@ -77,6 +79,7 @@ Last update: 2018-09-06
           <help reflink="reconciliation"></help>          
         </div>
       </div>
+      <!-- ### End: calibration card ### -->
 
 
 
@@ -280,19 +283,12 @@ Last update: 2018-09-06
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue'
-  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'CalibrationPage',
 
-    components: {
-      help
-    },
-
     data() {
       return {
-        response: 'no response',
         sortColumn: 'index',
         sortReverse: false,
         parList: [],
