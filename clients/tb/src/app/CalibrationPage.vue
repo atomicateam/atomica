@@ -169,7 +169,7 @@ Last update: 2018-09-06
                 </div>
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div :id="'container'+index" style="display:none; justify-content:flex-start; padding:5px; border:1px solid #ddd">
+                    <div v-show="showGraphDivs[index]" style="justify-content:flex-start; padding:5px; border:1px solid #ddd">
                       <div class="calib-graph" :id="'fig'+index">
                         <!--mpld3 content goes here-->
                       </div>
@@ -314,7 +314,7 @@ Last update: 2018-09-06
         serverDatastoreId: '',
         showGraphDivs: [],
         showLegendDivs: [],
-        vals: [0,1,2,3],
+//        vals: [0,1,2,3],
 //        closedDialogs: [],
         openDialogs: [],
         mousex:-1,

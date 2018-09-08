@@ -27,8 +27,8 @@ function placeholders(vm, startVal) {
   }
   for (var i = startVal; i <= 100; i++) {
     indices.push(i);
-    vm.showGraphDivs[i] = false
-    vm.showLegendDivs[i] = false
+    vm.showGraphDivs[i] = true
+    vm.showLegendDivs[i] = true
   }
   return indices;
 }
@@ -139,27 +139,33 @@ function makeGraphs(vm, graphdata) {
     for (var index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
 
-      var figlabel    = 'fig' + index
+      var figlabel    = 'fig0' // + index
+      console.log(figlabel)
       var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+      console.log(figdiv)
       while (figdiv.firstChild) {
         figdiv.removeChild(figdiv.firstChild);
       }
+      console.log('new_1');
 
       if (index>=1 && index<n_plots) {
-        var containerlabel = 'container' + index
-        var containerdiv = document.getElementById(containerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-        containerdiv.style.display = 'flex'
+        // var containerlabel = 'container' + index
+        // var containerdiv = document.getElementById(containerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+        // containerdiv.style.display = 'flex'
 
+        console.log('new_2');
         var legendlabel = 'legend' + index
         var legenddiv  = document.getElementById(legendlabel);
         while (legenddiv.firstChild) {
           legenddiv.removeChild(legenddiv.firstChild);
         }
-        minimize(vm, index) // As soon as we've created a plot, minimize it
+        console.log('new_3');
+        // minimize(vm, index) // As soon as we've created a plot, minimize it
+        console.log('new_4');
 
         console.log('div review')
         console.log(figdiv)
-        console.log(containerdiv)
+        // console.log(containerdiv)
         console.log(legenddiv)
       }
 
@@ -324,8 +330,8 @@ function maximize(vm,id) {
     // vm.openDialogs.push(vm.closedDialogs[index])
     // vm.closedDialogs.splice(index, 1)
   }
-  var dialogcontainerdiv  = document.getElementById('dialogcontainer');
-  dialogcontainerdiv.style.display = 'block' // Ensure they're visible
+  // var dialogcontainerdiv  = document.getElementById('dialogcontainer');
+  // dialogcontainerdiv.style.display = 'block' // Ensure they're visible
 }
 
 // "Hide" the dialog
