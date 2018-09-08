@@ -136,7 +136,7 @@ Last update: 2018-09-06
               </div>
             </div>
           </div>
-          <!-- ### End: plots ### -->
+          <!-- ### End: plots card ### -->
 
           <!-- ### Start: dialogs ### -->
           <div v-for="index in placeholders">
@@ -156,11 +156,11 @@ Last update: 2018-09-06
           </div>
           <!-- ### End: dialogs ### -->
 
-        </div>
-      </div>
-      <!-- END RESULTS CARD -->
+        </div>  <!-- ### End: hasGraphs ### -->
+      </div> <!-- ### End: pageSection ### -->
+      <!-- ### End: results section ### -->
 
-    </div>
+    </div> <!-- ### End: v-else project ### -->
 
 
     <!-- START ADD-SCENARIO MODAL -->
@@ -325,7 +325,6 @@ Last update: 2018-09-06
 
       maximize(id)    { return utils.maximize(this, id)},
       minimize(id)    { return utils.minimize(this, id)},
-
 
       getPlotOptions()            { return utils.getPlotOptions(this) },
       clearGraphs()               { return utils.clearGraphs() },
