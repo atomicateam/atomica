@@ -10,7 +10,6 @@ import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
-import json
 
 torun = [
 #'project_io',
@@ -79,11 +78,11 @@ if 'get_cascade_plot' in torun and tool=='cascade':
         'cascade': None, 
         'plot_budget': True
         }
-    output = rpcs.get_cascade_plot(proj, **args)
+    output, figs, legends = rpcs.get_cascade_plot(proj, **args)
     print('Output:')
     print(output)
     if browser:
-        sw.browser(jsons=output[0]['graphs'])
+        sw.browser(output['graphs'])
 
 
 if 'get_cascade_json' in torun and tool=='cascade':
@@ -95,9 +94,8 @@ if 'get_cascade_json' in torun and tool=='cascade':
     print('Output:')
     print(output)
     if dosave:
-        with open(filename,'w') as f:
-            json.dump(sw.sanitize_json(output), f)
-            print('JSON saved to %s' % filename)
+        sc.savejson(filename, output)
+        print('JSON saved to %s' % filename)
 
 
 if 'get_plots' in torun:
@@ -108,11 +106,7 @@ if 'get_plots' in torun:
     print('Output:')
     print(output)
     if browser:
-        jsons = []
-        for graph in output['graphs']:
-#            valid = sw.mpld3ify(graph, to_mpld3=False, sanitize=False, jsonify=True, stringify=True)
-            jsons.append(graph)
-        sw.browser(jsons=jsons)
+        sw.browser(output['graphs'])
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':

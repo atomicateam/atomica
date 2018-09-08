@@ -13,9 +13,9 @@ import os
 import re
 import numpy as np
 import pylab as pl
+import mpld3
 from zipfile import ZipFile
 from flask_login import current_user
-import mpld3
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
@@ -1287,7 +1287,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         for l,line in enumerate(fig.axes[0].lines):
             mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
     
-    graph_dict = sw.mpld3ify(fig, sanitize=True, jsonify=False, stringify=False) # Convert to mpld3
+    graph_dict = sw.mpld3ify(fig, jsonify=False) # Convert to mpld3
     return graph_dict
     
 
@@ -1327,14 +1327,14 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
         mpld3.plugins.connect(fig, CursorPosition())
-        graph_dict = sw.mpld3ify(fig, jsonify=False, stringify=False)
+        graph_dict = sw.mpld3ify(fig, jsonify=False)
         figjsons.append(graph_dict)
         pl.close(fig)
     
     for fig in legends: # Different enough to warrant its own block, although ugly
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-        graph_dict = sw.mpld3ify(fig, jsonify=False, stringify=False)
+        graph_dict = sw.mpld3ify(fig, jsonify=False)
         legendjsons.append(graph_dict)
         pl.close(fig)
         
@@ -1405,7 +1405,7 @@ def get_json_cascade(results,data):
             cascade_data['data'][name][pop_label],t = au.get_cascade_data(data,results[0].framework, cascade=cascade,pops=pop_name)
     cascade_data['data_t'] = t
     
-    output = sw.sanitize_json(cascade_data)
+    output = sc.sanitizejson(cascade_data)
     
     return output
 
@@ -1589,7 +1589,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
 
 
 def py_to_js_optim(py_optim, project=None):
-    js_optim = sw.sanitize_json(py_optim.json)
+    js_optim = sc.sanitizejson(py_optim.json)
     if 'objective_labels' not in js_optim:
         js_optim['objective_labels'] = {key:key for key in js_optim['objective_weights'].keys()} # Copy keys if labels not available
     for prog_name in js_optim['prog_spending']:

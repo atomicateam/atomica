@@ -181,16 +181,16 @@ function makeGraphs(vm, graphdata, legenddata) {
           return d3.format('.2s')(d);
         });
       });
-      if (index>=1 && index<n_plots) {
-        mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
-          fig.setXTicks(6, function (d) {
-            return d3.format('.0f')(d);
-          });
-          fig.setYTicks(null, function (d) {
-            return d3.format('.2s')(d);
-          });
-        });
-      }
+    //   if (index>=1 && index<n_plots) {
+    //     mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
+    //       fig.setXTicks(6, function (d) {
+    //         return d3.format('.0f')(d);
+    //       });
+    //       fig.setYTicks(null, function (d) {
+    //         return d3.format('.2s')(d);
+    //       });
+    //     });
+    //   }
       vm.showGraphDivs[index] = true;
     }
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
