@@ -169,7 +169,7 @@ Last update: 2018-09-06
                 </div>
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div v-show="showGraphDivs[index]" style="justify-content:flex-start; padding:5px; border:1px solid #ddd">
+                    <div v-show="showGraphDivs[index]" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd">
                       <div class="calib-graph" :id="'fig'+index">
                         <!--mpld3 content goes here-->
                       </div>
@@ -184,21 +184,21 @@ Last update: 2018-09-06
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div v-for="index in placeholders">
-              <div class="dialogs" v-show="showLegends[index]">
-                <dialog-drag
-                             :id="index"
-                             :key="index"
-                             @close="minimize(index)"
-                             :options="this.TEMPdialogOptions">
+            <!--<div v-for="index in placeholders">-->
+              <!--<div class="dialogs" v-show="showLegends[index]">-->
+                <!--<dialog-drag-->
+                             <!--:id="index"-->
+                             <!--:key="index"-->
+                             <!--@close="minimize(index)"-->
+                             <!--:options="this.TEMPdialogOptions">-->
 
-                  <span slot='title' style="color:#fff">Legend</span>
-                  <div :id="'legend'+index">
-                    <!-- Legend content goes here-->
-                  </div>
-                </dialog-drag>
-              </div>
-          </div>
+                  <!--<span slot='title' style="color:#fff">Legend</span>-->
+                  <!--<div :id="'legend'+index">-->
+                    <!--&lt;!&ndash; Legend content goes here&ndash;&gt;-->
+                  <!--</div>-->
+                <!--</dialog-drag>-->
+              <!--</div>-->
+          <!--</div>-->
             <!-- ### End: dialogs ### -->
 
 
