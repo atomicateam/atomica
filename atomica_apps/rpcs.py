@@ -12,6 +12,7 @@ import time
 import os
 import re
 import numpy as np
+import pylab as pl
 from zipfile import ZipFile
 from flask_login import current_user
 import mpld3
@@ -22,9 +23,7 @@ import atomica as at
 from . import projects as prj
 from . import frameworks as frw
 from matplotlib.legend import Legend
-import matplotlib.pyplot as pl
-from matplotlib.pyplot import rc
-rc('font', size=14)
+pl.rc('font', size=14)
 
 
 
@@ -1216,7 +1215,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
                 allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
                 alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
-                alllegends.append(legends[f])
+                alllegends.append(legend)
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
@@ -1263,8 +1262,8 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
     return output
 
 
-def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, as_legend=False):
-    if as_legend:
+def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False):
+    if is_legend:
         pass # Put legend customizations here
     else:
         if figsize is None: figsize = (5,3)
@@ -1295,40 +1294,50 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     if year is None: year = proj.settings.sim_end # Needed for plot_budget
     
     figs = []
-    graphs = []
+    legends = []
+    figjsons = []
+    legendjsons = []
     years = sc.promotetolist(year)
     for y in range(len(years)):
         years[y] = float(years[y]) # Ensure it's a float
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
     figs.append(fig)
+    dummyfig = pl.figure(figsize=(1,1)) # Make a dummy plot since no legend
+    dummyfig.add_subplot(111) # So axis commands work
+    dummyfig.get_axes()[0].set_visible(False) # Turn off axes
+    legends.append(dummyfig) 
     
     if plot_budget:
         d = au.PlotData.programs(results)
         d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False,orientation='horizontal')
+        budgetfigs,budgetlegends = au.plot_bars(d, stack_outputs='all', legend_mode='separate', outer='times', show_all_labels=False,orientation='horizontal')
         
         ax = budgetfigs[0].axes[0]
         ax.set_xlabel('Spending ($/year)')
-
-        # The legend is too big for the figure -- WARNING, think of a better solution
-#        budgetfigs[1].set_figheight(8.9)
-#        budgetfigs[1].set_figwidth(8.7)
         
-        figs += budgetfigs
+        figs    += budgetfigs
+        legends += budgetlegends
         print('Budget plot succeeded')
     
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-#        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
         graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
-        graphs.append(graph_dict)
+        figjsons.append(graph_dict)
+        pl.close(fig)
+    
+    for fig in legends: # Different enough to warrant its own block, although ugly
+        ax = fig.get_axes()[0]
+        ax.set_facecolor('none')
+        graph_dict = mpld3.fig_to_dict(fig)
+        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        legendjsons.append(graph_dict)
         pl.close(fig)
         
-    output = {'graphs':graphs, 'table':table}
+    output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
     print('Cascade plot succeeded')
     return output,figs
 
