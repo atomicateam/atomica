@@ -170,7 +170,7 @@ Last update: 2018-09-06
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
                     <div :id="'figcontainer'+index" style="display:none; justify-content:flex-start; padding:5px; border:1px solid #ddd">
-                      <div class="calib-graph" :id="'fig'+index">
+                      <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
                       <div style="display:inline-block">
@@ -185,7 +185,7 @@ Last update: 2018-09-06
 
             <!-- ### Start: dialogs ### -->
             <div v-for="index in placeholders">
-              <div class="dialogs" :id="'legendcontainer'+index" style="display:none" v-show="showLegendDivs[index]">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:none">
                 <dialog-drag
                              :id="'TT'+index"
                              :key="index"
