@@ -323,13 +323,25 @@ function findDialog(vm, id, dialogs) {
 
 // "Show" the dialog
 function maximize(vm,id) {
-  let index = findDialog(vm, id, vm.openDialogs)
-  if (index !== null) {
-    vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-    vm.openDialogs[index].options.top = vm.mousey-300
-    // vm.openDialogs.push(vm.closedDialogs[index])
-    // vm.closedDialogs.splice(index, 1)
-  }
+  console.log('maximizing')
+  console.log(id)
+  console.log(Number(id))
+  console.log(vm.showLegendDivs[Number(id)])
+  vm.showLegendDivs[Number(id)] = false
+  var containerlabel = 'legendcontainer'+id
+  console.log(containerlabel)
+  var containerdiv  = document.getElementById(containerlabel);
+  console.log(containerdiv)
+  containerdiv.style.display = 'inline-block' // Ensure they're visible
+  console.log(vm.showLegendDivs[Number(id)])
+  console.log('ok')
+  // let index = findDialog(vm, id, vm.openDialogs)
+  // if (index !== null) {
+  //   vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
+  //   vm.openDialogs[index].options.top = vm.mousey-300
+  //   // vm.openDialogs.push(vm.closedDialogs[index])
+  //   // vm.closedDialogs.splice(index, 1)
+  // }
   // var dialogcontainerdiv  = document.getElementById('dialogcontainer');
   // dialogcontainerdiv.style.display = 'block' // Ensure they're visible
 }
@@ -341,11 +353,11 @@ function minimize(vm, id) {
   console.log(Number(id))
   console.log(vm.showLegendDivs[Number(id)])
   vm.showLegendDivs[Number(id)] = false
-  var containerlabel = 'TEMPcontainer'+id
+  var containerlabel = 'legendcontainer'+id
   console.log(containerlabel)
   var containerdiv  = document.getElementById(containerlabel);
   console.log(containerdiv)
-  containerdiv.style.display = 'none' // Ensure they're visible
+  containerdiv.style.display = 'none' // Ensure they're invisible
   console.log(vm.showLegendDivs[Number(id)])
   console.log('ok')
   // let index = findDialog(vm, id, vm.openDialogs)
