@@ -312,8 +312,6 @@ Last update: 2018-09-06
         figscale: 1.0,
         hasGraphs: false,
         serverDatastoreId: '',
-        showGraphDivs: [],
-        showLegendDivs: [],
         openDialogs: [],
         mousex:-1,
         mousey:-1,
@@ -364,19 +362,14 @@ Last update: 2018-09-06
       minimize(id)    { return utils.minimize(this, id)},
 
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { return utils.clearGraphs() },
-      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs()            { return utils.exportGraphs(this) },
-      exportResults(serverDatastoreId) 
-                                { return utils.exportResults(this, serverDatastoreId) },
+      getPlotOptions()            { return utils.getPlotOptions(this) },
+      clearGraphs()               { return utils.clearGraphs() },
+      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
+      exportGraphs()              { return utils.exportGraphs(this) },
+      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
                                 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
-      },
-
-      TEMP() {
-        console.log(this.showGraphDivs)
       },
 
       scaleFigs(frac) {
@@ -484,7 +477,7 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
             status.succeed(this, 'Data loaded, graphs now rendering...')
           })
@@ -505,7 +498,7 @@ Last update: 2018-09-06
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}) // Go to the server to get the results
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
@@ -528,7 +521,7 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(response.data.graphs, response.data.legends)
           })
           .catch(error => {
             console.log(error.message)

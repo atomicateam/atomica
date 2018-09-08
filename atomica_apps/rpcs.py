@@ -1221,7 +1221,7 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
     output = {'graphs':allfigjsons, 'legends':alllegendjsons}
-    return output,allfigs
+    return output, allfigs, alllegends
 
 
 def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
@@ -1242,21 +1242,24 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
 
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
+    cascadeoutput,cascadefigs,cascadelegends = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
     if tool == 'cascade': # For Cascade Tool
         output = cascadeoutput
         allfigs = cascadefigs
+        alllegends = cascadelegends
     else: # For Optima TB
         if calibration:
-#            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
-            output, allfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-#            output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-            output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-            allfigs = cascadefigs + allfigs # [x for t in zip(allfigs, unstackedfigs) for x in t]
-        else:
-            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            output['graphs'] = cascadeoutput['graphs'] + output['graphs']
+            output, allfigs, alllegends = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
+            for key in ['graphs','legends']:
+                output[key] = cascadeoutput[key] + output[key]
             allfigs = cascadefigs + allfigs
+            alllegends = cascadelegends + alllegends
+        else:
+            output, allfigs, alllegends = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
+            for key in ['graphs','legends']:
+                output[key] = cascadeoutput[key] + output[key]
+            allfigs = cascadefigs + allfigs
+            alllegends = cascadelegends + alllegends
     if dosave:
         savefigs(allfigs, online=online)  
     return output
@@ -1339,7 +1342,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         
     output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
     print('Cascade plot succeeded')
-    return output,figs
+    return output, figs, legends
 
 
 def get_json_cascade(results,data):

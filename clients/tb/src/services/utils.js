@@ -119,15 +119,10 @@ function placeholders(vm, startVal) {
   if (!startVal) {
     startVal = 0
   }
-  for (let i = startVal; i <= 100; i++) {
-    indices.push(i);
-    vm.showGraphDivs[i] = false
-    vm.showLegendDivs[i] = false
-  }
   return indices;
 }
 
-function makeGraphs(vm, graphdata) {
+function makeGraphs(vm, graphdata, legenddata) {
   let waitingtime = 0.5
   console.log('makeGraphs() called')
   status.start(vm) // Start indicating progress.
@@ -135,7 +130,11 @@ function makeGraphs(vm, graphdata) {
   sleep(waitingtime * 1000)
   .then(response => {
     let n_plots = graphdata.length
+    let n_legends = legenddata.length
     console.log('Rendering ' + n_plots + ' graphs')
+    if (n_plots !== n_legends) {
+      console.log('WARNING: different numbers of plots and legends: ' + n_plots + ' vs. ' + n_legends)
+    }
     for (var index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
       var figlabel    = 'fig' + index
@@ -156,7 +155,6 @@ function makeGraphs(vm, graphdata) {
         }
       }
 
-      vm.showGraphDivs[index] = true;
       mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
         fig.setXTicks(6, function (d) {
           return d3.format('.0f')(d);
@@ -166,7 +164,7 @@ function makeGraphs(vm, graphdata) {
         });
       });
       if (index>=1 && index<n_plots) {
-        mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
+        mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
           fig.setXTicks(6, function (d) {
             return d3.format('.0f')(d);
           });
