@@ -20,19 +20,6 @@ function getUniqueName(fileName, otherNames) {
   return tryName
 }
 
-function placeholders(vm, startVal) {
-  var indices = []
-  if (!startVal) {
-    startVal = 0
-  }
-  for (var i = startVal; i <= 100; i++) {
-    indices.push(i);
-    vm.showGraphDivs[i] = true
-    vm.showLegendDivs[i] = true
-  }
-  return indices;
-}
-
 function projectID(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -125,6 +112,19 @@ function getPlotOptions(vm) {
       reject(error)
     })          
   })
+}
+
+function placeholders(vm, startVal) {
+  var indices = []
+  if (!startVal) {
+    startVal = 0
+  }
+  for (var i = startVal; i <= 100; i++) {
+    indices.push(i);
+    vm.showGraphDivs[i] = false
+    vm.showLegendDivs[i] = false
+  }
+  return indices;
 }
 
 function makeGraphs(vm, graphdata) {
@@ -249,15 +249,7 @@ function showBrowserWindowSize() {
   var ow = window.outerWidth; //including toolbars and status bar etc.
   var oh = window.outerHeight;
   console.log('Browser window size:')
-  console.log('Inner width: ', w)
-  console.log('Inner height: ', h)
-  console.log('Outer width: ', ow)
-  console.log('Outer height: ', oh)
-  window.alert('Browser window size:\n'+
-    'Inner width: ' + w + '\n' +
-    'Inner height: ' + h + '\n' +
-    'Outer width: ' + ow + '\n' +
-    'Outer height: ' + oh + '\n')
+  console.log(w, h, ow, oh)
 }
 
 function scaleElem(svg, frac) {
@@ -386,7 +378,7 @@ export default {
   exportResults,
   scaleFigs,
   showBrowserWindowSize,
-  
+
   addListener,
   onMouseUpdate,
   createDialogs,
