@@ -990,7 +990,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     else:                         return figs
 
 
-def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None, timeit=False):
+def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -1000,11 +1000,6 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     #   a data label. Only draws data if the plot_type is 'line'
     # - legend_mode - override the default legend mode in settings
     # - lw - Change the line width
-
-    print('TEMP')
-    timeit = True
-
-    if timeit: T = sc.tic()
 
     global settings
     if legend_mode is None:
@@ -1023,13 +1018,10 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
     plotdata = sc.dcp(plotdata)
     
-    if timeit: sc.toc(T, label='a')
-
     if axis == 'results':
         plotdata.set_colors(results=plotdata.results.keys())
 
         for pop in plotdata.pops.keys():
-            if timeit: sc.toc(T, label='b: '+pop)
             for output in plotdata.outputs.keys():
                 fig, ax = plt.subplots()
                 fig.set_label('%s_%s' % (pop, output))
@@ -1066,14 +1058,11 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         plotdata.set_colors(pops=plotdata.pops.keys())
 
         for result in plotdata.results:
-            if timeit: sc.toc(T, label='c')
             for output in plotdata.outputs:
-                if timeit: sc.toc(T, label='c.1')
                 fig, ax = plt.subplots()
                 fig.set_label('%s_%s' % (result, output))
                 figs.append(fig)
 
-                if timeit: sc.toc(T, label='c.2')
                 units = list(set([plotdata[result, pop, output].units for pop in plotdata.pops]))
                 if len(units) == 1 and units[0]:
                     ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
@@ -1082,7 +1071,6 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 ax.set_title('%s' % (plotdata.results[result]))
                 if plot_type in ['stacked', 'proportion']:
-                    if timeit: sc.toc(T, label='c.3')
                     y = np.stack([plotdata[result, pop, output].vals for pop in plotdata.pops])
                     y = y / np.sum(y, axis=0) if plot_type == 'proportion' else y
                     ax.stackplot(plotdata[result, plotdata.pops.keys()[0], output].tvec, y,
@@ -1090,25 +1078,20 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                                  colors=[plotdata[result, pop, output].color for pop in plotdata.pops])
                     if plot_type == 'stacked' and data is not None:
                         stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
-                    if timeit: sc.toc(T, label='c.3.1')
                 else:
-                    if timeit: sc.toc(T, label='c.4')
                     for pop in plotdata.pops:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
                                 color=plotdata[result, pop, output].color, label=plotdata.pops[pop], lw=lw)
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
-                    if timeit: sc.toc(T, label='c.4.1')
                 apply_series_formatting(ax, plot_type)
                 if legend_mode == 'together':   render_legend(ax, plot_type)
                 elif legend_mode == 'separate': legends.append(render_separate_legend(ax, plot_type))
-                if timeit: sc.toc(T, label='c.5')
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs.keys())
 
         for result in plotdata.results:
-            if timeit: sc.toc(T, label='d')
             for pop in plotdata.pops:
                 fig, ax = plt.subplots()
                 fig.set_label('%s_%s' % (result, pop))
@@ -1143,7 +1126,6 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
-    if timeit: sc.toc(T, label='e')
     # Return either the figures, or the figures and the legends
     if legend_mode == 'separate': return figs, legends
     else:                         return figs

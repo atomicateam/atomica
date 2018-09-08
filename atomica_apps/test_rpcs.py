@@ -11,6 +11,9 @@ import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
 
+import matplotlib.pyplot as ppl
+ppl.switch_backend('Qt4Agg')
+
 torun = [
 #'project_io',
 #'get_cascade_plot',

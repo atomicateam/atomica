@@ -1216,7 +1216,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
                 alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
                 alllegends.append(legend)
-                pl.close(fig)
+#                pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1330,14 +1330,14 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = sw.mpld3ify(fig, jsonify=False) # These get jsonified later
         figjsons.append(graph_dict)
-        pl.close(fig)
+#        pl.close(fig)
     
     for fig in legends: # Different enough to warrant its own block, although ugly
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
         graph_dict = sw.mpld3ify(fig, jsonify=False)
         legendjsons.append(graph_dict)
-        pl.close(fig)
+#        pl.close(fig)
         
     output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
     print('Cascade plot succeeded')
