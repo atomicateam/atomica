@@ -53,3 +53,6 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
 
 # Add the asynchronous task functions in this module to the tasks.py module so run_task() can call them.
 sw.add_task_funcs(task_func_dict)
+
+
+print('celerysetupcomplete')

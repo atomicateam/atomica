@@ -35,6 +35,8 @@ USE_DATASTORE = True
 # database number you want to use.  (N=0 is the default Redis database.)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/8')
 
+print('REDIS_URL set %s ' % (REDIS_URL))
+
 # Flag for setting whether we use the users functionality provided by 
 # Sciris in the webapp.
 USE_USERS = True
