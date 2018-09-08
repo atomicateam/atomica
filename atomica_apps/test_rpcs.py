@@ -2,6 +2,7 @@
 Version:
 """
 
+import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb
@@ -59,7 +60,7 @@ if 'get_cascade_json' in torun:
     print(output)
     if dosave:
         with open(filename,'w') as f:
-            json.dump(sw.sanitize_json(output), f)
+            json.dump(sc.sanitizejson(output), f)
             print('JSON saved to %s' % filename)
 
 

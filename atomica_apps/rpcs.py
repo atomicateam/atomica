@@ -1312,7 +1312,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 #        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
         graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
         graphs.append(graph_dict)
         pl.close(fig)
         
@@ -1383,7 +1383,7 @@ def get_json_cascade(results,data):
             cascade_data['data'][name][pop_label],t = au.get_cascade_data(data,results[0].framework, cascade=cascade,pops=pop_name)
     cascade_data['data_t'] = t
     
-    output = sw.sanitize_json(cascade_data)
+    output = sc.sanitizejson(cascade_data)
     
     return output
 
@@ -1567,7 +1567,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
 
 
 def py_to_js_optim(py_optim, project=None):
-    js_optim = sw.sanitize_json(py_optim.json)
+    js_optim = sc.sanitizejson(py_optim.json)
     if 'objective_labels' not in js_optim:
         js_optim['objective_labels'] = {key:key for key in js_optim['objective_weights'].keys()} # Copy keys if labels not available
     for prog_name in js_optim['prog_spending']:
