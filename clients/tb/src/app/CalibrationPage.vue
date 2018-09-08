@@ -187,7 +187,7 @@ Last update: 2018-09-06
             <div v-for="index in placeholders">
               <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
                 <dialog-drag
-                             :id="'TT'+index"
+                             :id="'DD'+index"
                              :key="index"
                              @close="minimize(index)"
                               :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">

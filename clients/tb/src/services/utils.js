@@ -316,30 +316,39 @@ function findDialog(vm, id, dialogs) {
 // "Show" the dialog
 function maximize(vm,id) {
   let index = Number(id)
-  let TTlabel = 'TT'+id
-  let TTdiv  = document.getElementById(TTlabel);
-  TTdiv.style.left = String(vm.mousex-80) + 'px'
-  TTdiv.style.top = String(vm.mousey-300) + 'px'
+  let DDlabel = 'DD'+id // DD for dialog-drag
+  let DDdiv  = document.getElementById(DDlabel);
+  if (DDdiv) {
+    DDdiv.style.left = String(vm.mousex-80) + 'px'
+    DDdiv.style.top = String(vm.mousey-300) + 'px'
+  } else {
+    console.log('WARNING: DDdiv not found: ' + DDlabel)
+  }
   if (index !== null) {
     vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
     vm.openDialogs[index].options.top = vm.mousey-300
   }
-  vm.showLegendDivs[index] = true
-  sleep(2000).then(response => {
-    vm.showLegendDivs[index] = false
-  })
-  // let containerlabel = 'legendcontainer'+id
-  // let containerdiv  = document.getElementById(containerlabel);
-  // containerdiv.style.display = 'inline-block' // Ensure they're visible
+  vm.showLegendDivs[index] = true // Not really used, but here for completeness
+  let containerlabel = 'legendcontainer'+id
+  let containerdiv  = document.getElementById(containerlabel);
+  if (containerdiv) {
+    containerdiv.style.display = 'inline-block' // Ensure they're invisible
+  } else {
+    console.log('WARNING: containerdiv not found: ' + containerlabel)
+  }
 }
 
 // "Hide" the dialog
 function minimize(vm, id) {
   let index = Number(id)
   vm.showLegendDivs[index] = false
-  // let containerlabel = 'legendcontainer'+id
-  // let containerdiv  = document.getElementById(containerlabel);
-  // containerdiv.style.display = 'none' // Ensure they're invisible
+  let containerlabel = 'legendcontainer'+id
+  let containerdiv  = document.getElementById(containerlabel);
+  if (containerdiv) {
+    containerdiv.style.display = 'none' // Ensure they're invisible
+  } else {
+    console.log('WARNING: containerdiv not found: ' + containerlabel)
+  }
 }
 
 
