@@ -5,11 +5,17 @@ Last update: 2018aug31
 """
 
 
+print('debugjj import scirisweb as sw')
 import scirisweb as sw
+print('debugjj from . import projects as prj')
 from . import projects as prj
+print('debugjj from . import rpcs')
 from . import rpcs
+print('debugjj from . import config_cascade as config')
 from . import config_cascade as config
+print('debugjj import matplotlib.pyplot as ppl')
 import matplotlib.pyplot as ppl
+
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
 # Globals
