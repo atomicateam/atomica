@@ -189,10 +189,9 @@ Last update: 2018-09-06
                 <dialog-drag
                              :id="index"
                              :key="index"
-                             @close="minimize(index)"
-                             :options="openDialogs[index].options">
+                             @close="minimize(index)">
 
-                  <span slot='title' style="color:#fff">Legend</span>
+                  <span slot='title' style="color:#fff">Leggend {{openDialogs[index].options.left}} ! </span>
                   <div :id="'legend'+index">
                     <!-- Legend content goes here-->
                   </div>
