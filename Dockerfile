@@ -36,3 +36,4 @@ WORKDIR ${WHICH}
 RUN python build_client.py
 
 # CMD python start_server.py
+CMD PORT=80 supervisord 
