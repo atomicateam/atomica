@@ -485,8 +485,11 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-//            status.succeed(this, 'Simulation run') // Indicate success.
             this.makeGraphs(response.data.graphs)
+//              .then(response => {
+//
+//              })
+//            status.succeed(this, 'Simulation run') // Indicate success.
           })
           .catch(error => {
             console.log(error.message)
@@ -498,7 +501,7 @@ Last update: 2018-09-06
         console.log('autoCalibrate() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this) 
-        this.$Progress.start(7000)
+//        this.$Progress.start(7000)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30
         } else {
@@ -520,14 +523,21 @@ Last update: 2018-09-06
         console.log('plotCalibration() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
+//        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
         .then(response => {
-          this.makeGraphs(response.data.graphs)
+          status.succeed(this, 'Graphs loaded??')
           this.table = response.data.table
-          status.succeed(this, 'Graphs created')
+          this.makeGraphs(response.data.graphs)
+            .then(response => {
+              resolve(response)
+            })
+            .catch(error => {
+              status.succeed(this, 'Graphs not loaded?????')
+              reject(error)
+            })
         })
         .catch(error => {
           this.serverresponse = 'There was an error', error // Pull out the error message.

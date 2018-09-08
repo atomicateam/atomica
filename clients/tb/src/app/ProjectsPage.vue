@@ -243,21 +243,17 @@ Last update: 2018-09-06
 
     created() {
       let projectId = null
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
-        router.push('/login')
-      } else {    // Otherwise...
-        if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
-          projectId = this.$store.state.activeProject.project.id
-        }
-        this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
+      if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
+        projectId = this.$store.state.activeProject.project.id
       }
+      this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
     },
 
     methods: {
 
       projectLoaded(uid) {
         console.log('projectLoaded called')
-        if (this.$store.state.activeProject.project != undefined) {
+        if (this.$store.state.activeProject.project !== undefined) {
           if (this.$store.state.activeProject.project.id === uid) {
             console.log('Project ' + uid + ' is loaded')
             return true

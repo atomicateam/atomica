@@ -71,10 +71,10 @@ function simYears(vm) {
     return []
   }
   else {
-    var sim_start = vm.$store.state.activeProject.project.sim_start
-    var sim_end = vm.$store.state.activeProject.project.sim_end
-    var years = []
-    for (var i = sim_start; i <= sim_end; i++) {
+    let sim_start = vm.$store.state.activeProject.project.sim_start
+    let sim_end = vm.$store.state.activeProject.project.sim_end
+    let years = []
+    for (let i = sim_start; i <= sim_end; i++) {
       years.push(i);
     }
     console.log('sim years: ' + years)
@@ -115,11 +115,11 @@ function getPlotOptions(vm) {
 }
 
 function placeholders(vm, startVal) {
-  var indices = []
+  let indices = []
   if (!startVal) {
     startVal = 0
   }
-  for (var i = startVal; i <= 100; i++) {
+  for (let i = startVal; i <= 100; i++) {
     indices.push(i);
     vm.showGraphDivs[i] = false
     vm.showLegendDivs[i] = false
@@ -127,16 +127,12 @@ function placeholders(vm, startVal) {
   return indices;
 }
 
-function makeGraphs(vm, graphdata) {
-  let waitingtime = 0.5
-  console.log('makeGraphs() called')
-  status.start(vm) // Start indicating progress.
-  vm.hasGraphs = true
-  sleep(waitingtime * 1000)
-  .then(response => {
+function renderGraphs(vm, graphdata) {
+  return new Promise((resolve, reject) => {
+    console.log('renderGraphs() called')
     let n_plots = graphdata.length
     console.log('Rendering ' + n_plots + ' graphs')
-    for (var index = 0; index <= n_plots; index++) {
+    for (let index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
       var figlabel    = 'fig' + index
       var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
@@ -176,14 +172,36 @@ function makeGraphs(vm, graphdata) {
         });
       }
     }
-  status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
+  })
+}
+
+function makeGraphs(vm, graphdata) {
+  console.log('makeGraphs() initially called')
+  return new Promise((resolve, reject) => {
+    let waitingtime = 1.0
+    sleep(waitingtime*1000)
+      .then(response => {
+        console.log('makeGraphs() actually called')
+        status.start(vm) // Start indicating progress.
+        vm.hasGraphs = true
+        renderGraphs(vm, graphdata)
+          .then(response => {
+            status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
+            resolve(response)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not make graphs', error)
+            reject(error)
+          })
+      })
+
   })
 }
 
 function clearGraphs(vm) {
-  for (var index = 0; index <= 100; index++) {
-    var divlabel = 'fig' + index
-    var div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+  for (let index = 0; index <= 100; index++) {
+    let divlabel = 'fig' + index
+    let div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
     while (div.firstChild) {
       div.removeChild(div.firstChild);
     }
@@ -225,19 +243,19 @@ function exportResults(vm, serverDatastoreId) {
 //
 
 function showBrowserWindowSize() {
-  var w = window.innerWidth;
-  var h = window.innerHeight;
-  var ow = window.outerWidth; //including toolbars and status bar etc.
-  var oh = window.outerHeight;
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  let ow = window.outerWidth; //including toolbars and status bar etc.
+  let oh = window.outerHeight;
   console.log('Browser window size:')
   console.log(w, h, ow, oh)
 }
 
 function scaleElem(svg, frac) {
   // It might ultimately be better to redraw the graph, but this works
-  var width  = svg.getAttribute("width")
-  var height = svg.getAttribute("height")
-  var viewBox = svg.getAttribute("viewBox")
+  let width  = svg.getAttribute("width")
+  let height = svg.getAttribute("height")
+  let viewBox = svg.getAttribute("viewBox")
   if (!viewBox) {
     svg.setAttribute("viewBox",  '0 0 ' + width + ' ' + height)
   }
@@ -247,8 +265,8 @@ function scaleElem(svg, frac) {
 }
 
 function scaleFigs(frac) {
-  var graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
-  for (var g = 0; g < graphs.length; g++) {
+  let graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
+  for (let g = 0; g < graphs.length; g++) {
     scaleElem(graphs[g], frac)
   }
 }
@@ -274,8 +292,8 @@ function onMouseUpdate(e, vm) {
 }
 
 function createDialogs(vm) {
-  var vals = placeholders(vm)
-  for (var val in vals) {
+  let vals = placeholders(vm)
+  for (let val in vals) {
     newDialog(vm, val, 'Dialog '+val, 'This is test '+val)
   }
 }
@@ -298,9 +316,9 @@ function findDialog(vm, id, dialogs) {
 
 // "Show" the dialog
 function maximize(vm,id) {
-  var index = Number(id)
-  var TTlabel = 'TT'+id
-  var TTdiv  = document.getElementById(TTlabel);
+  let index = Number(id)
+  let TTlabel = 'TT'+id
+  let TTdiv  = document.getElementById(TTlabel);
   TTdiv.style.left = String(vm.mousex-80) + 'px'
   TTdiv.style.top = String(vm.mousey-300) + 'px'
   if (index !== null) {
@@ -308,16 +326,16 @@ function maximize(vm,id) {
     vm.openDialogs[index].options.top = vm.mousey-300
   }
   vm.showLegendDivs[Number(id)] = false
-  var containerlabel = 'legendcontainer'+id
-  var containerdiv  = document.getElementById(containerlabel);
+  let containerlabel = 'legendcontainer'+id
+  let containerdiv  = document.getElementById(containerlabel);
   containerdiv.style.display = 'inline-block' // Ensure they're visible
 }
 
 // "Hide" the dialog
 function minimize(vm, id) {
   vm.showLegendDivs[Number(id)] = false
-  var containerlabel = 'legendcontainer'+id
-  var containerdiv  = document.getElementById(containerlabel);
+  let containerlabel = 'legendcontainer'+id
+  let containerdiv  = document.getElementById(containerlabel);
   containerdiv.style.display = 'none' // Ensure they're invisible
 }
 
