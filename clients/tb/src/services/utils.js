@@ -138,57 +138,38 @@ function makeGraphs(vm, graphdata) {
     console.log('Rendering ' + n_plots + ' graphs')
     for (var index = 0; index <= n_plots; index++) {
       console.log('Rendering plot ' + index)
-
       var figlabel    = 'fig' + index
-      console.log(figlabel)
       var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-      console.log(figdiv)
       while (figdiv.firstChild) {
         figdiv.removeChild(figdiv.firstChild);
       }
-      console.log('new_1');
 
       if (index>=1 && index<n_plots) {
         var figcontainerlabel = 'figcontainer' + index
         var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
         figcontainerdiv.style.display = 'flex'
 
-        console.log('new_2');
         var legendlabel = 'legend' + index
         var legenddiv  = document.getElementById(legendlabel);
         while (legenddiv.firstChild) {
           legenddiv.removeChild(legenddiv.firstChild);
         }
-        console.log('new_3');
-        // minimize(vm, index) // As soon as we've created a plot, minimize it
-        console.log('new_4');
-
-        console.log('div review')
-        console.log(figdiv)
-        console.log(figcontainerdiv)
-        console.log(legenddiv)
       }
 
-      console.log('hi_1');
       vm.showGraphDivs[index] = true;
-      console.log('hi_2');
       mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
-        console.log('hi_3');
         fig.setXTicks(6, function (d) {
           return d3.format('.0f')(d);
         });
-        console.log('hi_4');
         fig.setYTicks(null, function (d) {
           return d3.format('.2s')(d);
         });
       });
       if (index>=1 && index<n_plots) {
         mpld3.draw_figure(legendlabel, graphdata[index], function (fig, element) {
-          console.log('hi_5');
           fig.setXTicks(6, function (d) {
             return d3.format('.0f')(d);
           });
-          console.log('hi_6');
           fig.setYTicks(null, function (d) {
             return d3.format('.2s')(d);
           });
@@ -312,97 +293,32 @@ function findDialog(vm, id, dialogs) {
   let index = dialogs.findIndex((val) => {
       return String(val.id) === String(id) // Force type conversion
     })
-  console.log(index)
-  console.log('okkk')
   return (index > -1) ? index : null
 }
 
 // "Show" the dialog
 function maximize(vm,id) {
-  console.log('maximizing')
   var index = Number(id)
-  console.log('x,y')
-  console.log(vm.mousex, vm.mousey)
   var TTlabel = 'TT'+id
-  console.log(TTlabel)
   var TTdiv  = document.getElementById(TTlabel);
   TTdiv.style.left = String(vm.mousex-80) + 'px'
   TTdiv.style.top = String(vm.mousey-300) + 'px'
-  // TTdiv.style.left = '440px'
-  console.log(TTdiv)
-  console.log('sakfjaldfjsadfj')
-  // let index = findDialog(vm, id, vm.openDialogs)
   if (index !== null) {
-    console.log(vm.openDialogs[index].style.options)
-    // let thisDialog = _.cloneDeep(vm.openDialogs[index])
-    // thisDialog.style.options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
-    // thisDialog.style.options.top = vm.mousey-300
-    // vm.openDialogs[index] = null
-    // vm.openDialogs[index] = thisDialog
-
-    console.log('style?')
-    console.log(vm.openDialogs[index].style.options)
     vm.openDialogs[index].options.left = vm.mousex-80 // Before opening, move it to where the mouse currently is
     vm.openDialogs[index].options.top = vm.mousey-300
-    console.log('options?')
-    console.log(vm.openDialogs[index].options)
-    // vm.openDialogs.push(vm.closedDialogs[index])
-    // vm.closedDialogs.splice(index, 1)
   }
-  console.log(id)
-  console.log(Number(id))
-  console.log(vm.showLegendDivs[Number(id)])
   vm.showLegendDivs[Number(id)] = false
   var containerlabel = 'legendcontainer'+id
-  console.log(containerlabel)
   var containerdiv  = document.getElementById(containerlabel);
-  console.log(containerdiv)
   containerdiv.style.display = 'inline-block' // Ensure they're visible
-  console.log(vm.showLegendDivs[Number(id)])
-  console.log('ok')
-
-  // console.log('pusshing')
-  // var vals = placeholders(vm)
-  // for (var val in vals) {
-  //   console.log('pusshing!! ' + val)
-  //   vm.TMPdialogs.push(vm.openDialogs[0])
-  //   vm.openDialogs.splice(0, 1)
-  // }
-  //
-  // sleep(2 * 1000)
-  //   .then(response => {
-  //   console.log('pullling')
-  //   for (var val in vals) {
-  //   console.log('pullling!! ' + val)
-  //   vm.openDialogs.push(vm.TMPdialogs[0])
-  //   vm.TMPdialogs.splice(0, 1)
-  // }
-  // })
-
-
-  // var dialogcontainerdiv  = document.getElementById('dialogcontainer');
-  // dialogcontainerdiv.style.display = 'block' // Ensure they're visible
 }
 
 // "Hide" the dialog
 function minimize(vm, id) {
-  console.log('minimizing')
-  console.log(id)
-  console.log(Number(id))
-  console.log(vm.showLegendDivs[Number(id)])
   vm.showLegendDivs[Number(id)] = false
   var containerlabel = 'legendcontainer'+id
-  console.log(containerlabel)
   var containerdiv  = document.getElementById(containerlabel);
-  console.log(containerdiv)
   containerdiv.style.display = 'none' // Ensure they're invisible
-  console.log(vm.showLegendDivs[Number(id)])
-  console.log('ok')
-  // let index = findDialog(vm, id, vm.openDialogs)
-  // if (index !== null) {
-    // vm.closedDialogs.push(vm.openDialogs[index])
-    // vm.openDialogs.splice(index, 1)
-  // }
 }
 
 

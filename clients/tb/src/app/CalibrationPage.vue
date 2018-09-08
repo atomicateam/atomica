@@ -192,7 +192,7 @@ Last update: 2018-09-06
                              @close="minimize(index)"
                               :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
-                  <span slot='title' style="color:#fff">Leggend {{openDialogs[index].options.left}} ! </span>
+                  <span slot='title' style="color:#fff">Legend</span>
                   <div :id="'legend'+index">
                     <!-- Legend content goes here-->
                   </div>
@@ -314,12 +314,9 @@ Last update: 2018-09-06
         serverDatastoreId: '',
         showGraphDivs: [],
         showLegendDivs: [],
-//        vals: [0,1,2,3],
-//        closedDialogs: [],
         openDialogs: [],
         mousex:-1,
         mousey:-1,
-        TEMPdialogOptions:{}
       }
     },
 
