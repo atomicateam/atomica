@@ -1257,7 +1257,7 @@ def render_separate_legend(ax, plot_type=None, handles=None):
 
     fig, ax = plt.subplots()
 #    ax.set_position([0.5, 0.5, 0.01, 0.01])
-#    ax.set_axis_off()  # This allows the figure to be shown in jupyter notebook
+    ax.set_axis_off()  # This allows the figure to be shown in jupyter notebook
 
     legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}
 
