@@ -4,16 +4,17 @@ apptasks.py -- The Celery tasks module for this webapp
 Last update: 2018aug31
 """
 
-
-print('debugjj import scirisweb as sw')
+import logging
+logger = logging.getLogger('atomica')
+logger.critical('debugjj import scirisweb as sw')
 import scirisweb as sw
-print('debugjj from . import projects as prj')
+logger.critical('debugjj from . import projects as prj')
 from . import projects as prj
-print('debugjj from . import rpcs')
+logger.critical('debugjj from . import rpcs')
 from . import rpcs
-print('debugjj from . import config_cascade as config')
+logger.critical('debugjj from . import config_cascade as config')
 from . import config_cascade as config
-print('debugjj import matplotlib.pyplot as ppl')
+logger.critical('debugjj import matplotlib.pyplot as ppl')
 import matplotlib.pyplot as ppl
 
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
@@ -33,7 +34,7 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 
 @async_task
 def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
-    print('Running optimization...')
+    logger.critical('Running optimization...')
     import sciris as sc
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
     if online: # Assume project_id is actually an ID
@@ -52,7 +53,7 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     # Plot the results.    
     output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     if online:
-        print('Saving project...')
+        logger.critical('Saving project...')
         rpcs.save_project(proj)    
     return output
 
@@ -61,4 +62,4 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
 sw.add_task_funcs(task_func_dict)
 
 
-print('celerysetupcomplete')
+logger.critical('celerysetupcomplete')
