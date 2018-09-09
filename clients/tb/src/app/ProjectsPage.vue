@@ -343,10 +343,10 @@ Last update: 2018-09-06
 
     created() {
       let projectId = null
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       } else {    // Otherwise...
-        if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
+        if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
           projectId = this.$store.state.activeProject.project.id
         }
         this.getDemoOptions()
@@ -356,6 +356,8 @@ Last update: 2018-09-06
     },
 
     methods: {
+
+      updateSorting() { return utils.updateSorting(this) },
 
       projectLoaded(uid) {
         console.log('projectLoaded called')
@@ -368,19 +370,6 @@ Last update: 2018-09-06
           }
         } else {
           return false
-        }
-      },
-
-      beforeOpen (event) {
-        console.log(event)
-        this.TEMPtime = Date.now() // Set the opening time of the modal
-      },
-
-      beforeClose (event) {
-        console.log(event)
-        // If modal was open less then 5000 ms - prevent closing it
-        if (this.TEMPtime + this.TEMPduration < Date.now()) {
-          event.stop()
         }
       },
 
@@ -558,17 +547,6 @@ Last update: 2018-09-06
         this.allSelected = false
       },
 
-      updateSorting(sortColumn) {
-        console.log('updateSorting() called')
-        if (this.sortColumn === sortColumn) { // If the active sorting column is clicked...
-          // Reverse the sort.
-          this.sortReverse = !this.sortReverse
-        } else { // Otherwise.
-          this.sortColumn = sortColumn // Select the new column for sorting.
-          this.sortReverse = false // Set the sorting for non-reverse.
-        }
-      },
-
       applyNameFilter(projects) {
         return projects.filter(theProject => theProject.project.name.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
       },
@@ -577,18 +555,13 @@ Last update: 2018-09-06
         return projects.slice(0).sort((proj1, proj2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if (this.sortColumn === 'name') {
-              return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
-            } else if (this.sortColumn === 'creationTime') {
-              return proj1.project.creationTime > proj2.project.creationTime ? sortDir: -sortDir
-            } else if (this.sortColumn === 'updatedTime') {
-              return proj1.project.updatedTime > proj2.project.updatedTime ? sortDir: -sortDir
+            if        (this.sortColumn === 'name')         { return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
+            } else if (this.sortColumn === 'creationTime') { return (proj1.project.creationTime       > proj2.project.creationTime       ? sortDir: -sortDir)
+            } else if (this.sortColumn === 'updatedTime')  { return (proj1.project.updatedTime        > proj2.project.updatedTime        ? sortDir: -sortDir)
             }
           }
         )
       },
-
-
 
       openProject(uid) {
         // Find the project that matches the UID passed in.

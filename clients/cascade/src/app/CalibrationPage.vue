@@ -383,33 +383,15 @@ Last update: 2018-09-06
     methods: {
 
       updateSorting()                   { return utils.updateSorting(this) },
+      validateYears()                   { return shared.validateYears(this) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
       maximize(legend_id)               { return graphs.maximize(this, legend_id)},
       minimize(legend_id)               { return graphs.minimize(this, legend_id)},
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
-      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
-      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
-
-      notImplemented() {
-        status.fail(this, 'Sorry, this feature is not implemented')
-      },
-
-      clipValidateYearInput() {
-        if (this.startYear > this.simEnd) {
-          this.startYear = this.simEnd
-        }
-        else if (this.startYear < this.simStart) {
-          this.startYear = this.simStart
-        }
-        if (this.endYear > this.simEnd) {
-          this.endYear = this.simEnd
-        }
-        else if (this.endYear < this.simStart) {
-          this.endYear = this.simStart
-        }
-      },
 
       updateParset() {
         return new Promise((resolve, reject) => {
@@ -474,7 +456,7 @@ Last update: 2018-09-06
 
       plotCalibration(showNoCacheError) {
         console.log('plotCalibration() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
@@ -495,7 +477,7 @@ Last update: 2018-09-06
 
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
@@ -512,7 +494,7 @@ Last update: 2018-09-06
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30

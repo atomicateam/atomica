@@ -302,12 +302,14 @@ Last update: 2018-09-06
 
 
 <script>
-  import axios from 'axios'
   var filesaver = require('file-saver')
-  import utils from '@/js/utils'
-  import rpcs from '@/js/rpc-service'
-  import status from '@/js/status-service'
+  import axios  from 'axios'
   import router from '@/router'
+  import utils  from '@/js/utils'
+  import graphs from '@/js/graphs'
+  import shared from '@/js/shared'
+  import rpcs   from '@/js/rpc-service'
+  import status from '@/js/status-service'
 
   export default {
     name: 'CalibrationPage',
@@ -348,7 +350,7 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders(this, 1) },
+      placeholders() { return graphs.placeholders(this, 1) },
 
       sortedPars() {
         return this.applySorting(this.parList);
@@ -357,15 +359,15 @@ Last update: 2018-09-06
     },
 
     created() {
-      utils.addListener(this)
-      utils.createDialogs(this)
+      graphs.addListener(this)
+      graphs.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
-//        this.endYear = this.simEnd
+//        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
-        this.getPlotOptions()
+        this.getPlotOptions(this.$store.state.activeProject.project.id)
         .then(response => {
           this.updateParset()
           .then(response2 => {
@@ -380,43 +382,16 @@ Last update: 2018-09-06
 
     methods: {
 
-      maximize(id)    { return utils.maximize(this, id)},
-      minimize(id)    { return utils.minimize(this, id)},
-
-
-      getPlotOptions()            { return utils.getPlotOptions(this) },
-      clearGraphs()               { return utils.clearGraphs() },
-      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
-      exportGraphs()              { return utils.exportGraphs(this) },
-      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
-
-      notImplemented() {
-        status.fail(this, 'Sorry, this feature is not implemented')
-      },
-
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
-      },
-
-      clipValidateYearInput() {
-        if (this.startYear > this.simEnd) {
-          this.startYear = this.simEnd
-        }
-        else if (this.startYear < this.simStart) {
-          this.startYear = this.simStart
-        }
-        if (this.endYear > this.simEnd) {
-          this.endYear = this.simEnd
-        }
-        else if (this.endYear < this.simStart) {
-          this.endYear = this.simStart
-        }
-      },
+      updateSorting()                   { return utils.updateSorting(this) },
+      validateYears()                   { return shared.validateYears(this) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
+      maximize(legend_id)               { return graphs.maximize(this, legend_id)},
+      minimize(legend_id)               { return graphs.minimize(this, legend_id)},
+      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
+      clearGraphs()                     { return graphs.clearGraphs(this) },
+      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
 
       updateParset() {
         return new Promise((resolve, reject) => {
@@ -441,17 +416,6 @@ Last update: 2018-09-06
               reject(error)
             })
         })
-      },
-
-      updateSorting(sortColumn) {
-        console.log('updateSorting() called')
-        if (this.sortColumn === sortColumn) {  // If the active sorting column is clicked... // Reverse the sort.
-          this.sortReverse = !this.sortReverse
-        }
-        else { // Otherwise.
-          this.sortColumn = sortColumn // Select the new column for sorting.
-          this.sortReverse = false // Set the sorting for non-reverse.
-        }
       },
 
       applySorting(pars) {
@@ -492,12 +456,12 @@ Last update: 2018-09-06
 
       plotCalibration(showNoCacheError) {
         console.log('plotCalibration() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data)
             this.table = response.data.table
             status.succeed(this, 'Data loaded, graphs now rendering...')
           })
@@ -513,12 +477,12 @@ Last update: 2018-09-06
 
       manualCalibration(project_id) {
         console.log('manualCalibration() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data)
             this.table = response.data.table
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
@@ -530,7 +494,7 @@ Last update: 2018-09-06
 
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30
@@ -541,7 +505,7 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
             console.log(error.message)
@@ -632,10 +596,8 @@ Last update: 2018-09-06
       },
     }
   }
-
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-
+<style lang="scss" scoped>
 </style>

@@ -3,6 +3,13 @@
  */
 
 
+function validateYears(vm) {
+  if      (vm.startYear > vm.simEnd)   { vm.startYear = vm.simEnd }
+  else if (vm.startYear < vm.simStart) { vm.startYear = vm.simStart }
+  if      (vm.endYear   > vm.simEnd)   { vm.endYear   = vm.simEnd }
+  else if (vm.endYear   < vm.simStart) { vm.endYear   = vm.simStart }
+}
+
 function exportGraphs(vm, serverDatastoreId) {
   return new Promise((resolve, reject) => {
     console.log('exportGraphs() called')
@@ -32,6 +39,7 @@ function exportResults(vm, serverDatastoreId) {
 }
 
 export default {
+  validateYears,
   exportGraphs,
   exportResults,
 }
