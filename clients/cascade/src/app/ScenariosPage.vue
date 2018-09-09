@@ -375,52 +375,6 @@ Last update: 2018-09-06
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
 
-      updateSets() {
-        return new Promise((resolve, reject) => {
-          console.log('updateSets() called')
-          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-            .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
-              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-                console.log('Parameter set ' + this.activeParset + ' no longer found')
-                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-              } else {
-                console.log('Parameter set ' + this.activeParset + ' still found')
-              }
-
-              this.newParsetName = this.activeParset // WARNING, KLUDGY
-              console.log('Parset options: ' + this.parsetOptions)
-              console.log('Active parset: ' + this.activeParset)
-              rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-                .then(response => {
-                  this.progsetOptions = response.data // Set the scenarios to what we received.
-                  if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                    console.log('Program set ' + this.activeProgset + ' no longer found')
-                    this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                  } else {
-                    console.log('Program set ' + this.activeProgset + ' still found')
-                  }
-                  this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                  console.log('Progset options: ' + this.progsetOptions)
-                  console.log('Active progset: ' + this.activeProgset)
-                  resolve(response)
-                })
-                .catch(error => {
-                  status.fail(this, 'Could not get progset info', error)
-                  reject(error)
-                })
-            })
-            .catch(error => {
-              status.fail(this, 'Could not get parset info', error)
-              reject(error)
-            })
-        })
-          .catch(error => {
-            status.fail(this, 'Could not get parset info', error)
-            reject(error)
-          })
-      },
-
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
         rpcs.rpc('get_default_budget_scen', [this.projectID])

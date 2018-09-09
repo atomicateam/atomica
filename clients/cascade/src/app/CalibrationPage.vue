@@ -363,9 +363,9 @@ Last update: 2018-09-06
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
         .then(response => {
-          this.updateParset()
+          this.updateSets()
           .then(response2 => {
-            this.viewTable()
+            this.loadParTable()
             .then(response3 => {
               this.plotCalibration(false)
             })    
@@ -377,6 +377,7 @@ Last update: 2018-09-06
     methods: {
 
       validateYears()                   { return shared.validateYears(this) },
+      updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
       maximize(legend_id)               { return graphs.maximize(this, legend_id)},
@@ -386,37 +387,28 @@ Last update: 2018-09-06
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
 
-      updateParset() {
-        return new Promise((resolve, reject) => {
-          console.log('updateParset() called')
-          status.start(this)
-          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-            .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
-              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-                console.log('Parameter set ' + this.activeParset + ' no longer found')
-                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-              } else {
-                console.log('Parameter set ' + this.activeParset + ' still found')
-              }
-              console.log('Parset options: ' + this.parsetOptions)
-              console.log('Active parset: ' + this.activeParset)
-              status.succeed(this, '')  // No green notification.
-              resolve(response)
-            })
-            .catch(error => {
-              status.fail(this, 'Could not update parameter set', error)
-              reject(error)
-            })
-        })
-      },
-
       toggleShowingParams() {
         this.areShowingParameters = !this.areShowingParameters
       },
 
       toggleShowingPlotControls() {
         this.areShowingPlotControls = !this.areShowingPlotControls
+      },
+
+      loadParTable() {
+        return new Promise((resolve, reject) => {
+          console.log('loadParTable() called')
+          // TODO: Get spinners working right for this leg of initialization.
+          rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
+            .then(response => {
+              this.parList = response.data // Get the parameter values
+              resolve(response)
+            })
+            .catch(error => {
+              status.fail(this, 'Could not load parameters', error)
+              reject(error)
+            })
+        })
       },
 
       plotCalibration(showNoCacheError) {
@@ -491,7 +483,7 @@ Last update: 2018-09-06
         status.start(this)
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
               // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
@@ -506,7 +498,7 @@ Last update: 2018-09-06
         status.start(this)
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
               // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
@@ -522,7 +514,7 @@ Last update: 2018-09-06
         status.start(this)
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
               // TODO: look into whether the above line is necessary            
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
@@ -550,7 +542,7 @@ Last update: 2018-09-06
         rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
             status.start(this)
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
               // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
