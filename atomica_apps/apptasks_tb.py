@@ -1,7 +1,7 @@
 """
-apptasks.py -- The Celery tasks module for this webapp
+apptasks_tb.py -- The Celery tasks module for this webapp
     
-Last update: 2018sep04
+Last update: 2018sep07
 """
 
 from . import config_tb as config
@@ -41,9 +41,9 @@ def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None
     rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
     
     output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
-    if online:
-        print('Saving project...')
-        rpcs.save_project(proj)    
+#    if online:
+#        print('Saving project...')
+#        rpcs.save_project(proj)    
     return output
 
 

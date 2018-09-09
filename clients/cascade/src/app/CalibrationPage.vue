@@ -438,8 +438,10 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
+            if (this.$route.path === '/calibration') {  // check to see if still on same page
 //            status.succeed(this, 'Simulation run') // Indicate success.
-            this.makeGraphs(response.data.graphs)
+              this.makeGraphs(response.data.graphs)
+            }
           })
           .catch(error => {
             console.log(error.message)
@@ -461,7 +463,9 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            if (this.$route.path === '/calibration') {  // check to see if still on same page
+              this.makeGraphs(response.data.graphs)
+            }
           })
           .catch(error => {
             console.log(error.message)
@@ -478,9 +482,11 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'cascade', plotyear:this.endYear, pops:this.activePop, calibration:true})
         .then(response => {
-          this.makeGraphs(response.data.graphs)
-          this.table = response.data.table
-          status.succeed(this, 'Graphs created')
+          if (this.$route.path === '/calibration') {  // check to see if still on same page
+            this.makeGraphs(response.data.graphs)
+            this.table = response.data.table
+            status.succeed(this, 'Graphs created')
+          }
         })
         .catch(error => {
           this.serverresponse = 'There was an error', error // Pull out the error message.

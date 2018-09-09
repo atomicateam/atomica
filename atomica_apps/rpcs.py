@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep05 by gchadder3
+Last update: 2018sep06 by gchadder3
 """
 
 ###############################################################
@@ -1681,6 +1681,31 @@ def set_optim_info(project_id, optim_summaries, online=True):
     return None
 
 
+# This is the function we should use on occasions when we can't use Celery.
+@RPC()
+def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
+    print('Running Cascade optimization...')
+    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
+    if online: # Assume project_id is actually an ID
+        proj = load_project(project_id, raise_exception=True)
+    else: # Otherwise try using it as a project
+        proj = project_id
+        
+    # Actually run the optimization and get its results (list of baseline and 
+    # optimized Result objects).
+    results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
+    
+    # Put the results into the ResultsCache.
+    put_results_cache_entry(cache_id, results)
+
+    # Plot the results.    
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
+#    if online:
+#        print('Saving project...')
+#        save_project(proj)
+    return output
+
+
 ##############################################################
 ### Task functions and RPCs
 ##############################################################
@@ -1812,6 +1837,14 @@ def put_results_cache_entry(cache_id, results, apptasks_call=False):
     
     # Actually, store the results in the cache.
     results_cache.store(cache_id, results)
+
+
+@RPC() 
+def check_results_cache_entry(cache_id):
+    print('Checking for cached results...')
+    # Load the results from the cache and check if we got a result.
+    results = fetch_results_cache_entry(cache_id)   
+    return { 'found': (results is not None) }
 
 
 # NOTE: This function should be called by the Optimizations FE pages before the 
