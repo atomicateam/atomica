@@ -632,10 +632,8 @@ Last update: 2018-09-06
       },
     }
   }
-
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-
+<style lang="scss" scoped>
 </style>
