@@ -77,7 +77,7 @@ Last update: 2018-08-30
   </nav>
 </template>
 <script>
-  import userService from '@/services/user-service'
+  import userService from '@/js/user-service'
   import router from '@/router'
 
   export default {
