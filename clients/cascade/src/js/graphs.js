@@ -35,6 +35,17 @@ function placeholders(vm, startVal) {
   return indices;
 }
 
+function clearGraphs(vm) {
+  for (let index = 0; index <= 100; index++) {
+    let divlabel = 'fig' + index
+    let div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+    while (div.firstChild) {
+      div.removeChild(div.firstChild);
+    }
+    vm.hasGraphs = false
+  }
+}
+
 function makeGraphs(vm, graphdata, legenddata) {
   let waitingtime = 0.5
   console.log('makeGraphs() called')
@@ -103,17 +114,6 @@ function makeGraphs(vm, graphdata, legenddata) {
     }
   status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
   })
-}
-
-function clearGraphs(vm) {
-  for (let index = 0; index <= 100; index++) {
-    let divlabel = 'fig' + index
-    let div = document.getElementById(divlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-    while (div.firstChild) {
-      div.removeChild(div.firstChild);
-    }
-    vm.hasGraphs = false
-  }
 }
 
 function exportGraphs(vm) {

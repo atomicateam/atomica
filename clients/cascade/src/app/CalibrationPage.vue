@@ -302,12 +302,14 @@ Last update: 2018-09-06
 
 
 <script>
-  import axios from 'axios'
   var filesaver = require('file-saver')
-  import utils from '@/js/utils'
-  import rpcs from '@/js/rpc-service'
-  import status from '@/js/status-service'
+  import axios  from 'axios'
   import router from '@/router'
+  import utils  from '@/js/utils'
+  import graphs from '@/js/graphs'
+  import shared from '@/js/shared'
+  import rpcs   from '@/js/rpc-service'
+  import status from '@/js/status-service'
 
   export default {
     name: 'CalibrationPage',
@@ -357,8 +359,8 @@ Last update: 2018-09-06
     },
 
     created() {
-      utils.addListener(this)
-      utils.createDialogs(this)
+      graphs.addListener(this)
+      graphs.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
@@ -380,14 +382,13 @@ Last update: 2018-09-06
 
     methods: {
 
-      maximize(id)    { return utils.maximize(this, id)},
-      minimize(id)    { return utils.minimize(this, id)},
-
-      getPlotOptions(project_id)  { return utils.getPlotOptions(this, project_id) },
-      clearGraphs()               { return utils.clearGraphs() },
-      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
-      exportGraphs()              { return utils.exportGraphs(this) },
-      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
+      maximize(legend_id)         { return graphs.maximize(this, legend_id)},
+      minimize(legend_id)         { return graphs.minimize(this, legend_id)},
+      clearGraphs()               { return graphs.clearGraphs(this) },
+      getPlotOptions(project_id)  { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphs, legends) { return graphs.makeGraphs(this, graphs, legends) },
+      exportGraphs(datastoreID)   { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)  { return shared.exportResults(this, datastoreID) },
 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')

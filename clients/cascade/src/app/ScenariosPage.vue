@@ -278,12 +278,14 @@ Last update: 2018-09-06
 
 
 <script>
-  import axios from 'axios'
-  let filesaver = require('file-saver')
-  import utils from '@/js/utils'
-  import rpcs from '@/js/rpc-service'
-  import status from '@/js/status-service'
+  var filesaver = require('file-saver')
+  import axios  from 'axios'
   import router from '@/router'
+  import utils  from '@/js/utils'
+  import graphs from '@/js/graphs'
+  import shared from '@/js/shared'
+  import rpcs   from '@/js/rpc-service'
+  import status from '@/js/status-service'
 
   export default {
     name: 'ScenariosPage',
