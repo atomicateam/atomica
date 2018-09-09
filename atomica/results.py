@@ -5,6 +5,9 @@ from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
 from .excel import standard_formats
+from .system import logger
+from zipfile import ZipFile
+import os
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -150,7 +153,8 @@ class Result(NamedItem):
                     df.name = '%s - %s' % (name,label)
                     cascade_df.append(df)
 
-        writer = pd.ExcelWriter(filename + '.xlsx' if not filename.endswith('.xlsx') else filename,engine='xlsxwriter')
+        output_fname = filename + '.xlsx' if not filename.endswith('.xlsx') else filename
+        writer = pd.ExcelWriter(output_fname,engine='xlsxwriter')
         formats = standard_formats(writer.book)
 
         # WRITE THE PLOTS
@@ -222,7 +226,7 @@ class Result(NamedItem):
         writer.save()
         writer.close()
 
-        return
+        return output_fname
 
     def export_raw(self, filename=None):
         """Convert raw outputs to a single DataFrame and optionally write it to a file"""
@@ -317,3 +321,23 @@ def evaluate_plot_string(plot_string):
         return eval(compiled_code)
     else:
         return plot_string
+
+
+def export_results(results,fname):
+    # fname is the output file to write, including path
+    # e.g. concatenate downloads_dir.dir_path with 'output.zip'
+    results = sc.promotetolist(results)
+    result_names = [x.name for x in results]
+    if len(result_names) != len(set(result_names)):
+        logger.warning('Result names were not all unique, so not all results will be exported')
+
+    # TODO - is this OK on the server side in regard to simultaneous
+    # writing? Can two different sets of results be written to disk at the
+    # same time with the same filenames?
+    result_files = [x.export('temp_export_%s.xlsx' % (x.name)) for x in results]
+
+    with ZipFile(fname,'w') as zipfile:  # Create the zip file, putting all of the .prj files in a projects directory.
+        for result_file in result_files:
+            zipfile.write(result_file,result_file.replace('temp_export_',''))
+            os.remove(result_file)
+    return fname  # Return the server file name.
