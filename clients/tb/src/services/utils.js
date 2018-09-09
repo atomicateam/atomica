@@ -2,8 +2,8 @@
  * Utilities that are shared across pages
  */
 
-import rpcs from '@/services/rpc-service'
-import status from '@/services/status-service'
+import rpcs from '@/js/rpc-service'
+import status from '@/js/status-service'
 
 function sleep(time) {
   // Return a promise that resolves after _time_ milliseconds.
