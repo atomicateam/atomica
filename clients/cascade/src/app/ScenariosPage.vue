@@ -91,10 +91,10 @@ Last update: 2018-09-06
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
-
             </div>
           </div>
           <!-- ### End: plot controls ### -->
+
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -366,7 +366,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
-      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, false) }, // Set to calibration=false
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, false, false) }, // Set to calibration=false, plotbudget=false
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
@@ -540,5 +540,4 @@ Last update: 2018-09-06
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-
 </style>

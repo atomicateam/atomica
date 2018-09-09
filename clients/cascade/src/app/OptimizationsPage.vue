@@ -66,41 +66,39 @@ Last update: 2018-09-06
       </div>
       <!-- ### End: optimizations card ### -->
 
+
       <!-- ### Start: results card ### -->
-      <div class="PageSection">
-        <div class="card" v-if="hasGraphs">
+      <div class="PageSection" v-if="hasGraphs">
+        <div class="card">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
             <div>
-              <b>{{ displayResultName }}</b>
-              &nbsp; &nbsp; &nbsp;
+
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="updateYearOrPopulation">
+              <select v-model="endYear" @change="reloadGraphs(true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="updateYearOrPopulation">
+              <select v-model="activePop" @change="reloadGraphs(true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
               </select>
-              <!-- CASCADE-TB DIFFERENCE -->
-              &nbsp;&nbsp;&nbsp;
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='tb'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
-
+              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
             </div>
           </div>
           <!-- ### End: plot controls ### -->
+
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -119,90 +117,85 @@ Last update: 2018-09-06
                       <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
-                      <div style="display:inline-block"> <!-- Hiding for now since can't show for bar plots -->
-                        <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
+                      <div style="display:inline-block">
+                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                <!-- ### Start: cascade table ### -->
-                <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
-                  <h4>Cascade stage losses</h4>
-                  <table class="table table-striped" style="text-align:right;">
-                    <thead>
-                    <tr>
-                      <th></th>
-                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="(label, index) in table.rowlabels">
-                      <td>{{label}}</td>
-                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-                    </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!-- ### End: cascade table ### -->
-
-
-                <!-- ### Start: plot selectors ### -->
-                <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
-                  <div class="plotopts-params">
-                    <table class="table table-bordered table-hover table-striped" style="width: 100%">
-                      <thead>
-                      <tr>
-                        <th>Plot</th>
-                        <th>Active</th>
-                      </tr>
-                      </thead>
-                      <tbody>
-                      <tr v-for="item in plotOptions">
-                        <td>
-                          {{ item.plot_name }}
-                        </td>
-                        <td style="text-align: center">
-                          <input type="checkbox" v-model="item.active"/>
-                        </td>
-                      </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <!-- ### End: plot selectors ### -->
               </div>
             </div>
-          </div>
-          <!-- ### End: plots card ### -->
+            <!-- ### End: plots ### -->
 
+            <!-- ### Start: dialogs ### -->
+            <div v-for="index in placeholders">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+                <dialog-drag :id="'DD'+index"
+                             :key="index"
+                             @close="minimize(index)"
+                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
-          <!-- ### Start: dialogs ### -->
-          <div v-for="index in placeholders">
-            <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-              <dialog-drag
-                :id="'DD'+index"
-                :key="index"
-                @close="minimize(index)"
-                :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
-
-                <span slot='title' style="color:#fff">Legend</span>
-                <div :id="'legend'+index">
-                  <!-- Legend content goes here-->
-                </div>
-              </dialog-drag>
+                  <span slot='title' style="color:#fff">Legend</span>
+                  <div :id="'legend'+index">
+                    <!-- Legend content goes here-->
+                  </div>
+                </dialog-drag>
+              </div>
             </div>
-          </div>
-          <!-- ### End: dialogs ### -->
+            <!-- ### End: dialogs ### -->
 
-        </div>  <!-- ### End: hasGraphs ### -->
-      </div> <!-- ### End: pageSection ### -->
-      <!-- ### End: results section ### -->
+            <!-- ### Start: cascade table ### -->
+            <div v-if="this.$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
+              <h4>Cascade stage losses</h4>
+              <table class="table table-striped" style="text-align:right;">
+                <thead>
+                <tr>
+                  <th></th>
+                  <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(label, index) in table.rowlabels">
+                  <td>{{label}}</td>
+                  <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- ### End: cascade table ### -->
 
-    </div> <!-- ### End: v-else project ### -->
+            <!-- ### Start: plot selectors ### -->
+            <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <!-- ### End: plot selectors ### -->
+
+          </div>  <!-- ### End: card body ### -->
+        </div> <!-- ### End: results card ### -->
+      </div> <!-- ### End: PageSection/hasGraphs ### -->
+    </div> <!-- ### End: v-else project (results) ### -->
 
 
-    <!-- START ADD-OPTIMIZATION MODAL -->
+    <!-- ### Start: add optimization modal ### -->
     <modal name="add-optim"
            height="auto"
            :scrollable="true"
@@ -305,6 +298,7 @@ Last update: 2018-09-06
         </div>
       </div>
     </modal>
+    <!-- ### End: add optimization modal ### -->
 
   </div>
 </template>
@@ -325,35 +319,39 @@ Last update: 2018-09-06
 
     data() {
       return {
+        // Parameter and program set information
+        activeParset:  -1,
+        activeProgset: -1,
+        parsetOptions: [],
+        progsetOptions: [],
+
+        // Plotting data
+        showPlotControls: false,
+        hasGraphs: false,
+        table: null,
+        startYear: 0,
+        endYear: 2018, // TEMP FOR DEMO
+        activePop: "All",
+        popOptions: [],
+        plotOptions: [],
+        yearOptions: [],
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they're here for future use
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
+        figscale: 1.0,
+
+        // Page-specific data
         optimSummaries: [],
         optimsLoaded: false,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
-        activeParset:  -1,
-        activeProgset: -1,
-        parsetOptions:  [],
-        progsetOptions: [],
-        newParsetName:  [],
-        newProgsetName: [],
         displayResultName: '',
-        startYear: 0,
-        endYear: 0,
-        graphData: [],
-        areShowingPlotControls: false,
-        plotOptions: [],
-        table: null,
-        activePop: "All",
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
-        figscale: 1.0,
-        hasGraphs: false,
-        serverDatastoreId: '',
-        openDialogs: [],
-        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
-        showLegendDivs: [],
-        mousex:-1,
-        mousey:-1,
       }
     },
 
@@ -365,16 +363,13 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders(this, 1) },
+      placeholders() { return graphs.placeholders(this, 1) },
     },
 
     created() {
-      utils.addListener(this)
-      utils.createDialogs(this)
-      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
-        router.push('/login')
-      }
-      else if ((this.$store.state.activeProject.project !== undefined) &&
+      graphs.addListener(this)
+      graphs.createDialogs(this)
+      if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) &&
         (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
@@ -399,23 +394,18 @@ Last update: 2018-09-06
 
     methods: {
 
-      maximize(id)    { return utils.maximize(this, id)},
-      minimize(id)    { return utils.minimize(this, id)},
-
-      getPlotOptions(project_id)  { return utils.getPlotOptions(this, project_id) },
-      clearGraphs()               { return utils.clearGraphs() },
-      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
-      exportGraphs()              { return utils.exportGraphs(this) },
-      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
-
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
-      },
+      validateYears()                   { return shared.validateYears(this) },
+      updateSets()                      { return shared.updateSets(this) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
+      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
+      clearGraphs()                     { return graphs.clearGraphs(this) },
+      togglePlotControls()              { return graphs.togglePlotControls(this) },
+      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, false, true) }, // Set to calibration=false, plotbudget=True
+      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
       statusFormatStr(optimSummary) {
         if      (optimSummary.status === 'not started') {return ''}
@@ -443,22 +433,6 @@ Last update: 2018-09-06
           numSecs -= numMins * 60
           let output = _.padStart(numHours.toString(), 2, '0') + ':' + _.padStart(numMins.toString(), 2, '0') + ':' + _.padStart(numSecs.toString(), 2, '0')
           return output
-        }
-      },
-
-
-      clipValidateYearInput() {
-        if (this.startYear > this.simEnd) {
-          this.startYear = this.simEnd
-        }
-        else if (this.startYear < this.simStart) {
-          this.startYear = this.simStart
-        }
-        if (this.endYear > this.simEnd) {
-          this.endYear = this.simEnd
-        }
-        else if (this.endYear < this.simStart) {
-          this.endYear = this.simStart
         }
       },
 
@@ -528,47 +502,6 @@ Last update: 2018-09-06
             this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
             rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
           })
-      },
-
-      updateSets() {
-        return new Promise((resolve, reject) => {
-          console.log('updateSets() called')
-          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-            .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
-              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-                console.log('Parameter set ' + this.activeParset + ' no longer found')
-                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-              } else {
-                console.log('Parameter set ' + this.activeParset + ' still found')
-              }
-              this.newParsetName = this.activeParset // WARNING, KLUDGY
-              console.log('Parset options: ' + this.parsetOptions)
-              console.log('Active parset: ' + this.activeParset)
-              rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-                .then(response => {
-                  this.progsetOptions = response.data // Set the scenarios to what we received.
-                  if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                    console.log('Program set ' + this.activeProgset + ' no longer found')
-                    this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                  } else {
-                    console.log('Program set ' + this.activeProgset + ' still found')
-                  }
-                  this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                  console.log('Progset options: ' + this.progsetOptions)
-                  console.log('Active progset: ' + this.activeProgset)
-                  resolve(response)
-                })
-                .catch(error => {
-                  status.fail(this, 'Could not get progset info', error)
-                  reject(error)
-                })
-            })
-            .catch(error => {
-              status.fail(this, 'Could not get parset info', error)
-              reject(error)
-            })
-        })
       },
 
       getDefaultOptim() {
@@ -752,10 +685,6 @@ Last update: 2018-09-06
           })
       },
 
-      toggleShowingPlotControls() {
-        this.areShowingPlotControls = !this.areShowingPlotControls
-      },
-
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
@@ -774,7 +703,6 @@ Last update: 2018-09-06
                 rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
                   [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
                   {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
-                    // CASCADE-TB DIFFERENCE
                     'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
                   .then(response => {
                     // Get the task state for the optimization.
@@ -794,42 +722,6 @@ Last update: 2018-09-06
           })
       },
 
-      plotOptimization(optimSummary) {
-        console.log('plotOptimization() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
-        status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.serverDatastoreId, this.plotOptions],
-          {tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop, plotbudget:true})
-          .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
-            this.table = response.data.table
-            this.displayResultName = optimSummary.name
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            status.fail(this, 'Could not make graphs', error)
-          })
-      },
-
-      updateYearOrPopulation() {
-        // Get the list of all of the current optimization names.
-        let optimNames = []
-
-        // Get the list of optimization names.
-        this.optimSummaries.forEach(optimSum => {
-          optimNames.push(optimSum.name)
-        })
-
-        // Get the index matching (if any) which optimization matches
-        // the one being displayed.
-        let index = optimNames.indexOf(this.displayResultName)
-        if (index > -1) {  // If we have any match...
-          // Plot the desired graph.
-          this.plotOptimization(this.optimSummaries[index])
-        }
-      }
     }
   }
 </script>
