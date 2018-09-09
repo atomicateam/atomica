@@ -9,14 +9,14 @@ Last update: 2018-08-30
     <div class="container-fluid">
       <div class="navbar-header">
         <div class="logo">
-          <div v-if="$globaltool=='tb'">
-            <a href="http://ocds.co" target="_blank">
-              <img src="static/img/optima-logo-tb.png" height="50px" vertical-align="middle" alt>
-            </a>
-          </div>
           <div v-if="$globaltool=='cascade'">
             <a href="http://cascade.tools" target="_blank">
               <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
+            </a>
+          </div>
+          <div v-if="$globaltool=='tb'">
+            <a href="http://ocds.co" target="_blank">
+              <img src="static/img/optima-logo-tb.png" height="50px" vertical-align="middle" alt>
             </a>
           </div>
         </div>

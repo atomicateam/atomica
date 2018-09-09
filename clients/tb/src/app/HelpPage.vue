@@ -1,17 +1,13 @@
 <!--
-Help page -- ideally will have mostly in-app help a la HIV
+Help page
 
-Last update: 2018-03-25
+Last update: 2018sep09
 -->
 
 <template>
   <div class="SitePage">
   	<p>We are in the process of writing a user guide.</p>
-    <p>For assistance in the mean time, please email <a href="mailto:help@ocds.co">help@ocds.co</a>.</p>
+    <p v-if="$globaltool=='cascade'">For assistance in the mean time, please email <a href="mailto:help@ocds.co">help@ocds.co</a>.</p>
+    <p v-if="$globaltool=='tb'">     For assistance in the mean time, please email <a href="mailto:info@cascade.tools">info@cascade.tools">info@cascade.tools">info@cascade.tools</a>.</p>
   </div>
 </template>
-
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-</style>
