@@ -131,7 +131,7 @@ Last update: 2018-09-06
         <!-- ### End: parameters card ### -->
 
         <!-- ### Start: results card ### -->
-        <div class="card full-width-card" v-if="hasGraphs">
+        <div class="card" v-if="hasGraphs">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="bl-results" label="Results"></help>
@@ -208,7 +208,7 @@ Last update: 2018-09-06
             <!-- ### End: dialogs ### -->
 
             <!-- ### Start: cascade table ### -->
-            <div v-if="this.$globaltool=='cascade'" class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+            <div v-if="this.$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
               <h4>Cascade stage losses</h4>
               <table class="table table-striped" style="text-align:right;">
                 <thead>
