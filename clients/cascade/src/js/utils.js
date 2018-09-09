@@ -93,6 +93,18 @@ function activePops(vm) {
   }
 }
 
+
+function updateSorting(vm, sortColumn) {
+  console.log('updateSorting() called')
+  if (vm.sortColumn === sortColumn) { // If the active sorting column is clicked...
+    vm.sortReverse = !vm.sortReverse // Reverse the sort.
+  } else { // Otherwise.
+    vm.sortColumn = sortColumn // Select the new column for sorting.
+    vm.sortReverse = false // Set the sorting for non-reverse.
+  }
+}
+
+
 export default {
   sleep,
   getUniqueName,
@@ -103,4 +115,5 @@ export default {
   simEnd,
   simYears,
   activePops,
+  updateSorting,
 }
