@@ -31,7 +31,7 @@ Last update: 2018-08-30
         <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
         <ul class="nav navbar-nav navbar-main">
           <li class="nav-item" v-if="$globaltool=='cascade'">
-            <router-link to="/frameworks"> <!-- CASCADE-TB DIFFERENCE -->
+            <router-link to="/frameworks">
               <span>Frameworks</span>
             </router-link>
           </li>
