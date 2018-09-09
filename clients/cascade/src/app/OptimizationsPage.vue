@@ -145,7 +145,7 @@ Last update: 2018-09-06
             <!-- ### End: dialogs ### -->
 
             <!-- ### Start: cascade table ### -->
-            <div v-if="this.$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
+            <div v-if="$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
               <h4>Cascade stage losses</h4>
               <table class="table table-striped" style="text-align:right;">
                 <thead>

@@ -1250,7 +1250,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
     else: # For Optima TB
         if calibration: output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, calibration=True, stacked=False)
         else:           output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, calibration=False)
-        output['table'] = cascadeoutput['table'] # Put this back in -- warning kludgy!
+        output['table'] = cascadeoutput['table'] # Put this back in -- warning kludgy! -- also not used for Optima TB...
         for key in ['graphs','legends']:
             output[key] = cascadeoutput[key] + output[key]
         allfigs = cascadefigs + allfigs
@@ -1336,7 +1336,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         pl.close(fig)
         
     output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
-    print('Cascade plot succeeded with %s plots and %s legends' % (len(figjsons), len(legendjsons)))
+    print('Cascade plot succeeded with %s plots and %s legends and %s table' % (len(figjsons), len(legendjsons), bool(table)))
     return output, figs, legends
 
 

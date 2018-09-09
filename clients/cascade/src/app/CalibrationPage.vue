@@ -208,7 +208,7 @@ Last update: 2018-09-06
             <!-- ### End: dialogs ### -->
 
             <!-- ### Start: cascade table ### -->
-            <div v-if="$globaltool=='cascade'" class="calib-tables" style="display:inline-block; padding-top:30px">
+            <div v-if="$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
               <h4>Cascade stage losses</h4>
               <table class="table table-striped" style="text-align:right;">
                 <thead>
@@ -320,7 +320,7 @@ Last update: 2018-09-06
         // Plotting data
         showPlotControls: false,
         hasGraphs: false,
-        table: {},
+        table: null, // Not actually used on this page
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
