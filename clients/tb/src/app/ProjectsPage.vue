@@ -460,11 +460,12 @@ Last update: 2018-09-06
         console.log('addDemoProject() called')
         this.$modal.hide('demo-project')
         status.start(this)
+        var demoOption = ''
         if (this.$globaltool === 'cascade') {
-          let demoOption = this.demoOption
+          demoOption = this.demoOption
         }
         if (this.$globaltool === 'tb') {
-          let demoOption = null
+          demoOption = null
         }
         rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption]) // Have the server create a new project.
           .then(response => {
