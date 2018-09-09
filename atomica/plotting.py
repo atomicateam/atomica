@@ -796,12 +796,9 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         raise AtomicaException('outer option must be either "times" or "results"')
 
     figs = []
-    legends = []
-    fig, ax = plt.subplots(figsize=bar_fig_size)
+    fig, ax = plt.subplots()
     fig.set_label('bars')
     figs.append(fig)
-    if orientation == 'vertical' and legend_mode == 'together':
-        ax.set_position(default_ax_position)
 
     rectangles = defaultdict(list)  # Accumulate the list of rectangles for each colour
     color_legend = sc.odict()
@@ -897,12 +894,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         legend_patches.append(Patch(facecolor=color, label=label))
 
     # Set axes now, because we need block_offset and base_offset after the loop
-#    ax.autoscale()
+    ax.autoscale()
     _turn_off_border(ax)
     block_labels = sorted(block_labels, key=lambda x: x[0])
     if orientation == 'horizontal':
         ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
-#        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
+        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
         ax.set_xlim(xmin=0)
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
