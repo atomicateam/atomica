@@ -317,18 +317,20 @@ Last update: 2018-09-06
       return {
         // Parameter and program set information
         activeParset:  -1,
+        activeProgset: -1,
         parsetOptions: [],
-        origParsetName: [],
+        progsetOptions: [],
 
         // Plotting data
         showPlotControls: false,
         hasGraphs: false,
+        table: null,
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
+        popOptions: [],
         plotOptions: [],
         yearOptions: [],
-        popOptions: [],
         serverDatastoreId: '',
         openDialogs: [],
         showGraphDivs: [], // These don't actually do anything, but they're here for future use
@@ -339,6 +341,7 @@ Last update: 2018-09-06
 
         // Page-specific data
         parList: [],
+        origParsetName: [],
         showParameters: false,
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
@@ -360,7 +363,8 @@ Last update: 2018-09-06
       graphs.addListener(this)
       graphs.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
-        (this.$store.state.activeProject.project.hasData) ) {
+          (this.$store.state.activeProject.project.hasData) ) {
+        console.log('created() called')
         this.startYear = this.simStart
 //        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops

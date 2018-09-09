@@ -292,36 +292,39 @@ Last update: 2018-09-06
 
     data() {
       return {
-        scenSummaries: [],
-        defaultBudgetScen: {},
-        objectiveOptions: [],
+        // Parameter and program set information
         activeParset:  -1,
         activeProgset: -1,
-        parsetOptions:  [],
+        parsetOptions: [],
         progsetOptions: [],
-        newParsetName:  [],
-        newProgsetName: [],
-        startYear: 0,
-        endYear: 0,
-        areShowingPlotControls: false,
-        plotOptions: [],
-        scenariosLoaded: false,
+
+        // Plotting data
+        showPlotControls: false,
+        hasGraphs: false,
         table: null,
+        startYear: 0,
+        endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
-        endYear: 0,
+        popOptions: [],
+        plotOptions: [],
+        yearOptions: [],
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they're here for future use
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
+        figscale: 1.0,
+
+        // Page-specific data
+        scenSummaries: [],
+        defaultBudgetScen: {},
+        scenariosLoaded: false,
         addEditModal: {
           scenSummary: {},
           origName: '',
           mode: 'add'
         },
-        figscale: 1.0,
-        hasGraphs: false,
-        serverDatastoreId: '',
-        openDialogs: [],
-        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
-        showLegendDivs: [],
-        mousex:-1,
-        mousey:-1,
       }
     },
 
@@ -339,12 +342,9 @@ Last update: 2018-09-06
     created() {
       graphs.addListener(this)
       graphs.createDialogs(this)
-      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
-        router.push('/login')
-      }
-      else if ((this.$store.state.activeProject.project !== undefined) &&
-        (this.$store.state.activeProject.project.hasData) &&
-        (this.$store.state.activeProject.project.hasPrograms)) {
+      if ((this.$store.state.activeProject.project !== undefined) &&
+          (this.$store.state.activeProject.project.hasData) &&
+          (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
@@ -366,14 +366,16 @@ Last update: 2018-09-06
     methods: {
 
       validateYears()                   { return shared.validateYears(this) },
+      updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
-      maximize(legend_id)               { return graphs.maximize(this, legend_id)},
-      minimize(legend_id)               { return graphs.minimize(this, legend_id)},
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },
+      togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
