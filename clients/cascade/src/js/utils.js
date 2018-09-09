@@ -17,6 +17,13 @@ function getUniqueName(fileName, otherNames) {
   return tryName
 }
 
+function validateYears(vm) {
+  if      (vm.startYear > vm.simEnd)   { vm.startYear = vm.simEnd }
+  else if (vm.startYear < vm.simStart) { vm.startYear = vm.simStart }
+  if      (vm.endYear   > vm.simEnd)   { vm.endYear   = vm.simEnd }
+  else if (vm.endYear   < vm.simStart) { vm.endYear   = vm.simStart }
+}
+
 function projectID(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -108,6 +115,7 @@ function updateSorting(vm, sortColumn) {
 export default {
   sleep,
   getUniqueName,
+  validateYears,
   projectID,
   hasData,
   hasPrograms,

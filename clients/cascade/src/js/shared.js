@@ -2,16 +2,8 @@
  * Heftier functions that are shared across pages
  */
 
-import utils from '@/js/utils'
 import rpcs from '@/js/rpc-service'
 import status from '@/js/status-service'
-
-function validateYears(vm) {
-  if      (vm.startYear > vm.simEnd)   { vm.startYear = vm.simEnd }
-  else if (vm.startYear < vm.simStart) { vm.startYear = vm.simStart }
-  if      (vm.endYear   > vm.simEnd)   { vm.endYear   = vm.simEnd }
-  else if (vm.endYear   < vm.simStart) { vm.endYear   = vm.simStart }
-}
 
 function updateSets(vm) {
   return new Promise((resolve, reject) => {
@@ -87,11 +79,7 @@ function exportResults(vm, serverDatastoreId) {
 }
 
 
-
-
-
 export default {
-  validateYears,
   updateSets,
   exportGraphs,
   exportResults,

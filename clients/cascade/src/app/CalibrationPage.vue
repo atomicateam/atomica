@@ -380,7 +380,7 @@ Last update: 2018-09-06
 
     methods: {
 
-      validateYears()                   { return shared.validateYears(this) },
+      validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
@@ -389,7 +389,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
-      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, true) }, // Set to calibration=true
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, showErr, true) }, // Set to calibration=true
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
@@ -420,11 +420,10 @@ Last update: 2018-09-06
       },
 
       renameParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
         status.start(this)
-        rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('rename_parset', [this.projectID, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
             // TODO: look into whether the above line is necessary
@@ -436,10 +435,9 @@ Last update: 2018-09-06
       },
 
       copyParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('copyParset() called for ' + this.activeParset)
         status.start(this)
-        rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('copy_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
             // TODO: look into whether the above line is necessary
@@ -452,10 +450,9 @@ Last update: 2018-09-06
       },
 
       deleteParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('deleteParset() called for ' + this.activeParset)
         status.start(this)
-        rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('delete_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
             // TODO: look into whether the above line is necessary
@@ -467,10 +464,9 @@ Last update: 2018-09-06
       },
 
       downloadParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('downloadParset() called for ' + this.activeParset)
         status.start(this)
-        rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.download('download_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => { // Indicate success.
             status.succeed(this, '')  // No green popup message.
           })
@@ -480,9 +476,8 @@ Last update: 2018-09-06
       },
 
       uploadParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('uploadParset() called')
-        rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
+        rpcs.upload('upload_parset', [this.projectID], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
             status.start(this)
             this.updateSets() // Update the project summaries so the copied program shows up on the list.

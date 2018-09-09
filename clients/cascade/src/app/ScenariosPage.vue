@@ -341,7 +341,7 @@ Last update: 2018-09-06
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenario'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
           .then(response => {
             this.updateSets()
@@ -357,7 +357,7 @@ Last update: 2018-09-06
 
     methods: {
 
-      validateYears()                   { return shared.validateYears(this) },
+      validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
@@ -366,7 +366,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
-      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, false, false) }, // Set to calibration=false, plotbudget=false
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, showErr, false, false) }, // Set to calibration=false, plotbudget=false
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 

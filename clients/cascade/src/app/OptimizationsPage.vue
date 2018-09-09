@@ -51,7 +51,7 @@ Last update: 2018-09-06
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
-              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
+              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="reloadGraphs(true)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
@@ -376,7 +376,7 @@ Last update: 2018-09-06
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':optimization'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
           .then(response => {
             this.updateSets()
@@ -394,7 +394,7 @@ Last update: 2018-09-06
 
     methods: {
 
-      validateYears()                   { return shared.validateYears(this) },
+      validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
@@ -403,7 +403,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
-      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, false, true) }, // Set to calibration=false, plotbudget=True
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, showErr, false, true) }, // Set to calibration=false, plotbudget=True
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
@@ -422,7 +422,6 @@ Last update: 2018-09-06
         if      (is_queued)    {rawValue = optimSummary.pendingTime}
         else if (is_executing) {rawValue = optimSummary.executionTime}
         else                   {return ''}
-
         if (rawValue === '--') {
           return '--'
         } else {
@@ -436,20 +435,9 @@ Last update: 2018-09-06
         }
       },
 
-      canRunTask(optimSummary) {
-        console.log('canRunTask() called for with: ' + optimSummary.status)
-        return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed'))
-      },
-
-      canCancelTask(optimSummary) {
-        console.log('canCancelTask() called for with: ' + optimSummary.status)
-        return (optimSummary.status !== 'not started')
-      },
-
-      canPlotResults(optimSummary) {
-        console.log('canPlotResults() called for with: ' + optimSummary.status)
-        return (optimSummary.status === 'completed')
-      },
+      canRunTask(optimSummary)     { return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed')) },
+      canCancelTask(optimSummary)  { return  (optimSummary.status !== 'not started') },
+      canPlotResults(optimSummary) { return  (optimSummary.status === 'completed') },
 
       needToPoll(optimSummary) {
         let routePath = (this.$route.path === '/optimizations')
@@ -687,7 +675,7 @@ Last update: 2018-09-06
 
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         var RPCname = ''
         if (this.$globaltool === 'cascade') {
