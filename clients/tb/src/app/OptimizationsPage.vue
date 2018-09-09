@@ -67,6 +67,7 @@ Last update: 2018-09-06
       <!-- ### End: optimizations card ### -->
 
       <!-- START RESULTS CARD -->
+      <div class="PageSection">
       <div class="card full-width-card" v-if="hasGraphs">
         <!-- ### Start: plot controls ### -->
         <div class="calib-title">
