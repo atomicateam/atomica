@@ -350,7 +350,7 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders(this, 1) },
+      placeholders() { return graphs.placeholders(this, 1) },
 
       sortedPars() {
         return this.applySorting(this.parList);
@@ -382,14 +382,13 @@ Last update: 2018-09-06
 
     methods: {
 
-      maximize(legend_id)         { return graphs.maximize(this, legend_id)},
-      minimize(legend_id)         { return graphs.minimize(this, legend_id)},
-      foobar(legend_id)         { return graphs.makeGraphs(this, legend_id)},
-      clearGraphs()               { return graphs.clearGraphs(this) },
-      getPlotOptions(project_id)  { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphs, legends) { return graphs.foobar(this, graphs, legends) },
-      exportGraphs(datastoreID)   { return shared.exportGraphs(this, datastoreID) },
-      exportResults(datastoreID)  { return shared.exportResults(this, datastoreID) },
+      maximize(legend_id)               { return graphs.maximize(this, legend_id)},
+      minimize(legend_id)               { return graphs.minimize(this, legend_id)},
+      clearGraphs()                     { return graphs.clearGraphs(this) },
+      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
@@ -498,7 +497,7 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data)
             this.table = response.data.table
             status.succeed(this, 'Data loaded, graphs now rendering...')
           })
@@ -519,7 +518,7 @@ Last update: 2018-09-06
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
-            this.foobar(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data)
             this.table = response.data.table
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
@@ -542,7 +541,7 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
             console.log(error.message)
