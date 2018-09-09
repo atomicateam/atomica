@@ -20,8 +20,10 @@ Last update: 2018-09-06
     </div>
 
     <div v-else>
+
+      <!-- ### Start: calibration card ### -->
       <div class="card">
-        <div><help reflink="calibration" label="Calibration"></help></div>
+        <div><help reflink="bl-overview" label="Calibration"></help></div>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -67,16 +69,17 @@ Last update: 2018-09-06
             <i class="ti-upload"></i>
           </button>
           &nbsp;
-          <help reflink="parameter-sets"></help>          
+          <help reflink="parameter-sets"></help>
         </div>
 
         <div class="controls-box">
           <button class="btn" @click="notImplemented()">
             Reconcile
           </button>&nbsp;
-          <help reflink="reconciliation"></help>          
+          <help reflink="reconciliation"></help>
         </div>
       </div>
+      <!-- ### End: calibration card ### -->
 
 
 
@@ -131,7 +134,7 @@ Last update: 2018-09-06
         <div class="card full-width-card" v-if="hasGraphs">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
-            <help reflink="results-plots" label="Results"></help>
+            <help reflink="bl-results" label="Results"></help>
             <div>
 
               <b>Year: &nbsp;</b>
@@ -190,8 +193,7 @@ Last update: 2018-09-06
             <!-- ### Start: dialogs ### -->
             <div v-for="index in placeholders">
               <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-                <dialog-drag
-                             :id="'DD'+index"
+                <dialog-drag :id="'DD'+index"
                              :key="index"
                              @close="minimize(index)"
                               :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
@@ -284,19 +286,12 @@ Last update: 2018-09-06
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
   import router from '@/router'
-  import Vue from 'vue'
-  import help from '@/app/HelpLink.vue'
 
   export default {
     name: 'CalibrationPage',
 
-    components: {
-      help
-    },
-
     data() {
       return {
-        response: 'no response',
         sortColumn: 'index',
         sortReverse: false,
         parList: [],
@@ -372,7 +367,7 @@ Last update: 2018-09-06
       makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
       exportGraphs()              { return utils.exportGraphs(this) },
       exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
-                                
+
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
       },
@@ -406,23 +401,23 @@ Last update: 2018-09-06
           console.log('updateParset() called')
           status.start(this)
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-          .then(response => {
-            this.parsetOptions = response.data // Set the scenarios to what we received.
-            if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-              console.log('Parameter set ' + this.activeParset + ' no longer found')
-              this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-            } else {
-              console.log('Parameter set ' + this.activeParset + ' still found')
-            }
-            console.log('Parset options: ' + this.parsetOptions)
-            console.log('Active parset: ' + this.activeParset)
-            status.succeed(this, '')  // No green notification.
-            resolve(response)
-          })
-          .catch(error => {
-            status.fail(this, 'Could not update parameter set', error)
-            reject(error)
-          })
+            .then(response => {
+              this.parsetOptions = response.data // Set the scenarios to what we received.
+              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
+                console.log('Parameter set ' + this.activeParset + ' no longer found')
+                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
+              } else {
+                console.log('Parameter set ' + this.activeParset + ' still found')
+              }
+              console.log('Parset options: ' + this.parsetOptions)
+              console.log('Active parset: ' + this.activeParset)
+              status.succeed(this, '')  // No green notification.
+              resolve(response)
+            })
+            .catch(error => {
+              status.fail(this, 'Could not update parameter set', error)
+              reject(error)
+            })
         })
       },
 
@@ -454,15 +449,15 @@ Last update: 2018-09-06
           console.log('viewTable() called')
           // TODO: Get spinners working right for this leg of initialization.
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
-          .then(response => {
-            this.parList = response.data // Get the parameter values
-            resolve(response)
-          })
-          .catch(error => {
-            status.fail(this, 'Could not load parameters', error)
-            reject(error)
-          })
-        })          
+            .then(response => {
+              this.parList = response.data // Get the parameter values
+              resolve(response)
+            })
+            .catch(error => {
+              status.fail(this, 'Could not load parameters', error)
+              reject(error)
+            })
+        })
       },
 
       toggleShowingParams() {
@@ -514,7 +509,7 @@ Last update: 2018-09-06
       autoCalibrate(project_id) {
         console.log('autoCalibrate() called')
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this) 
+        status.start(this)
         if (this.calibTime === '30 seconds') {
           var maxtime = 30
         } else {
@@ -542,7 +537,7 @@ Last update: 2018-09-06
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('renameParset() called for ' + this.activeParset)
         this.$modal.hide('rename-parset');
-        status.start(this) 
+        status.start(this)
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
@@ -550,14 +545,14 @@ Last update: 2018-09-06
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not rename parameter set', error) 
+            status.fail(this, 'Could not rename parameter set', error)
           })
       },
 
       copyParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('copyParset() called for ' + this.activeParset)
-        status.start(this) 
+        status.start(this)
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
@@ -566,14 +561,14 @@ Last update: 2018-09-06
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not copy parameter set', error) 
+            status.fail(this, 'Could not copy parameter set', error)
           })
       },
 
       deleteParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('deleteParset() called for ' + this.activeParset)
-        status.start(this) 
+        status.start(this)
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
@@ -581,19 +576,19 @@ Last update: 2018-09-06
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one', error) 
+            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one', error)
           })
       },
 
       downloadParset() {
         let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
         console.log('downloadParset() called for ' + this.activeParset)
-        status.start(this) 
+        status.start(this)
         rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => { // Indicate success.
             status.succeed(this, '')  // No green popup message.
           })
-          .catch(error => { 
+          .catch(error => {
             status.fail(this, 'Could not download parameter set', error)
           })
       },
@@ -603,13 +598,13 @@ Last update: 2018-09-06
         console.log('uploadParset() called')
         rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
-            status.start(this) 
+            status.start(this)
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
               // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
           })
-          .catch(error => { 
+          .catch(error => {
             status.fail(this, 'Could not upload parameter set', error)
           })
       },

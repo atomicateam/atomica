@@ -5,7 +5,7 @@ Last update: 2018-09-06
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -150,10 +150,14 @@ Last update: 2018-09-06
                   {{ pop }}
                 </option>
               </select>
+              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <!-- CASCADE-TB DIFFERENCE -->
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
+              <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> --> <!-- CASCADE-TB DIFFERENCE -->
 
             </div>
           </div>
@@ -189,11 +193,10 @@ Last update: 2018-09-06
             <!-- ### Start: dialogs ### -->
             <div v-for="index in placeholders">
               <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-                <dialog-drag
-                  :id="'DD'+index"
-                  :key="index"
-                  @close="minimize(index)"
-                  :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+                <dialog-drag :id="'DD'+index"
+                             :key="index"
+                             @close="minimize(index)"
+                              :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
                   <span slot='title' style="color:#fff">Legend</span>
                   <div :id="'legend'+index">
@@ -363,15 +366,15 @@ Last update: 2018-09-06
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions()
-          .then(response => {
-            this.updateParset()
-              .then(response2 => {
-                this.viewTable()
-                  .then(response3 => {
-                    this.plotCalibration(false)
-                  })
-              })
+        .then(response => {
+          this.updateParset()
+          .then(response2 => {
+            this.viewTable()
+            .then(response3 => {
+              this.plotCalibration(false)
+            })    
           })
+        })
       }
     },
 
@@ -492,7 +495,7 @@ Last update: 2018-09-06
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop, calibration:true})
+          {tool:'cascade', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
@@ -513,8 +516,7 @@ Last update: 2018-09-06
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
-        ) // Go to the server to get the results from the package set.
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}) // Go to the server to get the results
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
@@ -561,6 +563,7 @@ Last update: 2018-09-06
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
@@ -575,6 +578,7 @@ Last update: 2018-09-06
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
@@ -590,6 +594,7 @@ Last update: 2018-09-06
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary            
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
           .catch(error => {
@@ -617,6 +622,7 @@ Last update: 2018-09-06
           .then(response => {
             status.start(this)
             this.updateParset() // Update the project summaries so the copied program shows up on the list.
+              // TODO: look into whether the above line is necessary            
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
           })
