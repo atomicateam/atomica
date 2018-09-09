@@ -1339,7 +1339,7 @@ def get_program_plots(results,year,budget=True,coverage=True):
     graphs = []
     for fig in figs:
         graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sw.sanitize_json(graph_dict) # This shouldn't be necessary, but it is...
+        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
         graphs.append(graph_dict)
         pl.close(fig)
     output = {'graphs':graphs}
