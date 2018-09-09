@@ -93,7 +93,7 @@
 
 </script>
 <style lang="scss" scoped>
-  @import "../../sass/project/variables";
+  @import "../../sass/project";
 
   .fade-enter-active,
   .fade-leave-active {

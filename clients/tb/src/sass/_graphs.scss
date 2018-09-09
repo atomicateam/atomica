@@ -31,7 +31,11 @@
 .calib-params {
   flex: 0 0 30%;
   max-height: 80vh;
-  overflow-y: scroll;
+  overflow-y: auto;
+}
+.calib-tables {
+  display:inline-block;
+  padding: 0px 0px 30px 10px;
 }
 .calib-graphs {
   border: 2px solid #ddd;
@@ -46,7 +50,7 @@
     flex: 1;
     flex-wrap: wrap;
     .calib-graph {
-      flex: 0 0 200px;
+      //flex: 0 0 200px; // CK: Not sure why this was here, but it messes things up
     }
   }
 }
@@ -54,7 +58,7 @@
   flex: 0 0 30%;
   display: flex;
   max-height:80vh;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 .plotopts-main--full {
   display: block;

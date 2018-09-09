@@ -8,7 +8,8 @@ from .utils import NDict
 from .results import Result
 from .system import logger, AtomicaException
 
-default_figsize = (9,5)
+default_figsize = (10,4)
+default_ax_position = [0.15,0.2,0.35,0.7]
 
 class InvalidCascade(AtomicaException):
     # Throw this error if a cascade was not valid. This error should result in the
@@ -48,7 +49,7 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     cascade = sanitize_cascade(result.framework,cascade)
 
     # Convert input pops to code names, if they were provided as full names e.g. from the FE
-    if pops is None or pops == 'all' or pops == 'All':
+    if pops in [None, 'all', 'All', 'aggregate', 'total']:
         pops = {'Entire population':result.pop_names} # Use all populations
     else:
         code_names = []
@@ -151,7 +152,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     cascade_array = np.hstack(cascade_vals.values())
 
     fig = plt.figure(figsize=default_figsize)
-    fig.set_figwidth(fig.get_figwidth()*1.5)
+#    fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
     bar_x = np.arange(len(cascade_vals))
     h = plt.bar(bar_x,cascade_array, width=0.5, color=barcolor)
@@ -263,7 +264,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     legend_entries = sc.odict()
 
     fig = plt.figure(figsize=default_figsize)
-    fig.set_figwidth(fig.get_figwidth()*1.5)
+#    fig.set_figwidth(fig.get_figwidth()*1.5)
 
     for offset,(bar_label,data) in enumerate(cascade_vals.items()):
         legend_entries[bar_label] = colors[offset]
@@ -294,6 +295,9 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
         plt.subplots_adjust(top=0.8,right=0.75,left=0.2, bottom=0.25)
     else:
         plt.subplots_adjust(top=0.95, right=0.75, left=0.2, bottom=0.25)
+    
+    # Reset axes
+    plt.tight_layout()
 
     # Add a table at the bottom of the axes
     row_labels = list(cascade_vals.keys())
@@ -347,7 +351,7 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
 
     from .plotting import PlotData # Import here to avoid circular dependencies
 
-    if pops is None: pops = 'all'
+    if pops in [None, 'all', 'All']: pops = 'total'
 
     # Sanitize the cascade inputs
     cascade = sanitize_cascade(result.framework, cascade)

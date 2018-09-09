@@ -9,9 +9,16 @@ Last update: 2018-08-30
     <div class="container-fluid">
       <div class="navbar-header">
         <div class="logo">
-          <a href="http://cascade.tools"> <!-- CASCADE-TB DIFFERENCE -->
-            <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
-          </a>
+          <div v-if="$globaltool=='cascade'">
+            <a href="http://cascade.tools" target="_blank">
+              <img src="static/img/cascade-logo-black.png" height="50px" vertical-align="middle" alt>
+            </a>
+          </div>
+          <div v-if="$globaltool=='tb'">
+            <a href="http://ocds.co" target="_blank">
+              <img src="static/img/optima-logo-tb.png" height="50px" vertical-align="middle" alt>
+            </a>
+          </div>
         </div>
         <button type="button" class="navbar-toggle" :class="{toggled: $sidebar.showSidebar}" @click="toggleSidebar">
           <span class="sr-only">Toggle navigation</span>
@@ -23,8 +30,8 @@ Last update: 2018-08-30
       <div class="collapse navbar-collapse">
         <!-- If you edit this section, make sure to fix the section in App.vue for the narrow screen -->
         <ul class="nav navbar-nav navbar-main">
-          <li class="nav-item">
-            <router-link to="/frameworks"> <!-- CASCADE-TB DIFFERENCE -->
+          <li class="nav-item" v-if="$globaltool=='cascade'">
+            <router-link to="/frameworks">
               <span>Frameworks</span>
             </router-link>
           </li>
@@ -35,7 +42,8 @@ Last update: 2018-08-30
           </li>
           <li class="nav-item">
             <router-link to="/calibration">
-              <span>Baseline</span> <!-- CASCADE-TB DIFFERENCE -->
+              <span v-if="$globaltool=='cascade'">Baseline</span>
+              <span v-if="$globaltool=='tb'">Calibration</span>
             </router-link>
           </li>
           <li class="nav-item">
@@ -69,7 +77,7 @@ Last update: 2018-08-30
   </nav>
 </template>
 <script>
-  import userService from '@/services/user-service'
+  import userService from '@/js/user-service'
   import router from '@/router'
 
   export default {

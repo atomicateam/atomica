@@ -37,7 +37,7 @@ Last update: 2018-08-26
 </template>
 
 <script>
-import userservice from '@/services/user-service'
+import userservice from '@/js/user-service'
 import router from '@/router'
 
 export default {

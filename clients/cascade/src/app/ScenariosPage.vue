@@ -1,11 +1,11 @@
 <!--
 Scenarios page
 
-Last update: 2018-09-07
+Last update: 2018-09-09
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -26,6 +26,8 @@ Last update: 2018-09-07
     </div>
 
     <div v-else>
+
+      <!-- ### Start: scenarios card ### -->
       <div class="card">
         <help reflink="scenarios" label="Define scenarios"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -58,73 +60,141 @@ Last update: 2018-09-07
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
         </div>
       </div>
-    </div>
-
-    <!-- START RESULTS CARD -->
-    <div class="card full-width-card" v-if="hasGraphs">
-      <div class="calib-title">
-        <help reflink="results-plots" label="Results"></help>
-        <div>
-
-          <b>Year: &nbsp;</b>
-          <select v-model="endYear" @change="plotScenarios(true)">
-            <option v-for='year in simYears'>
-              {{ year }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <b>Population: &nbsp;</b>
-          <select v-model="activePop" @change="plotScenarios(true)">
-            <option v-for='pop in activePops'>
-              {{ pop }}
-            </option>
-          </select>
-          &nbsp;&nbsp;&nbsp;
-          <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-          <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-
-        </div>
-      </div>
+      <!-- ### End: scenarios card ### -->
 
 
-      <div class="calib-main" :class="{'calib-main--full': true}">
-        <div class="calib-graphs">
-          <div class="featured-graphs">
-            <div :id="'fig0'">
-              <!--mpld3 content goes here-->
+      <!-- ### Start: results card ### -->
+      <div class="PageSection" v-if="hasGraphs">
+        <div class="card">
+          <!-- ### Start: plot controls ### -->
+          <div class="calib-title">
+            <help reflink="results-plots" label="Results"></help>
+            <div>
+
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" @change="reloadGraphs(true)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" @change="reloadGraphs(true)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
             </div>
           </div>
-          <div class="other-graphs">
-            <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-              <!--mpld3 content goes here-->
+          <!-- ### End: plot controls ### -->
+
+
+          <!-- ### Start: results and plot selectors ### -->
+          <div class="calib-card-body">
+
+            <!-- ### Start: plots ### -->
+            <div class="calib-card-body">
+              <div class="calib-graphs">
+                <div class="featured-graphs">
+                  <div :id="'fig0'">
+                    <!-- mpld3 content goes here, no legend for it -->
+                  </div>
+                </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div v-if="$globaltool=='cascade' && table" class="calib-tables">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
+
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <div style="display:inline-block">
+                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div> <!-- ### End: calib-graphs ### -->
             </div>
-          </div>
-        </div>
-      </div>
+            <!-- ### End: plots ### -->
 
-      <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
-        <h4>Cascade stage losses</h4>
-        <table class="table table-striped" style="text-align:right;">
-          <thead>
-          <tr>
-            <th></th>
-            <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(label, index) in table.rowlabels">
-            <td>{{label}}</td>
-            <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
+            <!-- ### Start: dialogs ### -->
+            <div v-for="index in placeholders">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+                <dialog-drag :id="'DD'+index"
+                             :key="index"
+                             @close="minimize(index)"
+                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
-    </div>
-    <!-- END RESULTS CARD -->
+                  <span slot='title' style="color:#fff">Legend</span>
+                  <div :id="'legend'+index">
+                    <!-- Legend content goes here-->
+                  </div>
+                </dialog-drag>
+              </div>
+            </div>
+            <!-- ### End: dialogs ### -->
 
 
-    <!-- START ADD-SCENARIO MODAL -->
+            <!-- ### Start: plot selectors ### -->
+            <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <!-- ### End: plot selectors ### -->
+
+          </div>  <!-- ### End: card body ### -->
+        </div> <!-- ### End: results card ### -->
+      </div> <!-- ### End: PageSection/hasGraphs ### -->
+    </div> <!-- ### End: v-else project (results) ### -->
+
+
+    <!-- ### Start: add scenarios modal ### -->
     <modal name="add-budget-scen"
            height="auto"
            :scrollable="true"
@@ -153,7 +223,12 @@ Last update: 2018-09-07
               {{ parset }}
             </option>
           </select><br><br>
-
+          <b>Program set</b><br>
+          <select v-model="progsetOptions[0]">
+            <option v-for='progset in progsetOptions'>
+              {{ progset }}
+            </option>
+          </select><br><br>
           <b>Budget year</b><br>
           <input type="text"
                  class="txbox"
@@ -191,51 +266,60 @@ Last update: 2018-09-07
         </div>
       </div>
     </modal>
-    <!-- END ADD-SCENARIO MODAL -->
+    <!-- ### End: add scenarios modal ### -->
 
   </div>
-
 </template>
 
 
 <script>
-  import axios from 'axios'
-  let filesaver = require('file-saver')
-  import utils from '@/services/utils'
-  import rpcs from '@/services/rpc-service'
-  import status from '@/services/status-service'
+  var filesaver = require('file-saver')
+  import axios  from 'axios'
   import router from '@/router'
+  import utils  from '@/js/utils'
+  import graphs from '@/js/graphs'
+  import shared from '@/js/shared'
+  import rpcs   from '@/js/rpc-service'
+  import status from '@/js/status-service'
 
   export default {
     name: 'ScenariosPage',
 
     data() {
       return {
-        scenSummaries: [],
-        defaultBudgetScen: {},
-        objectiveOptions: [],
+        // Parameter and program set information
         activeParset:  -1,
         activeProgset: -1,
-        parsetOptions:  [],
+        parsetOptions: [],
         progsetOptions: [],
-        newParsetName:  [],
-        newProgsetName: [],
-        startYear: 0,
-        endYear: 0,
-        areShowingPlotControls: false,
-        plotOptions: [],
-        scenariosLoaded: false,
+
+        // Plotting data
+        showPlotControls: false,
+        hasGraphs: false,
         table: null,
+        startYear: 0,
+        endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
-        endYear: 0,
+        popOptions: [],
+        plotOptions: [],
+        yearOptions: [],
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they're here for future use
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
+        figscale: 1.0,
+
+        // Page-specific data
+        scenSummaries: [],
+        defaultBudgetScen: {},
+        scenariosLoaded: false,
         addEditModal: {
           scenSummary: {},
           origName: '',
           mode: 'add'
         },
-        figscale: 1.0,
-        hasGraphs: false,
-        serverDatastoreId: ''
       }
     },
 
@@ -247,107 +331,47 @@ Last update: 2018-09-07
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders() },
+      placeholders() { return graphs.placeholders(this, 1) },
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
-        router.push('/login')
-      }
-      else if ((this.$store.state.activeProject.project !== undefined) &&
-               (this.$store.state.activeProject.project.hasData) &&
-               (this.$store.state.activeProject.project.hasPrograms)) {
+      graphs.addListener(this)
+      graphs.createDialogs(this)
+      if ((this.$store.state.activeProject.project !== undefined) &&
+        (this.$store.state.activeProject.project.hasData) &&
+        (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
-        this.getPlotOptions()
-        .then(response => {
-          this.updateSets()
-          .then(response2 => {
-            // The order of execution / completion of these doesn't matter.
-            this.getScenSummaries()
-            this.getDefaultBudgetScen()
-            this.plotScenarios(false)
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenario'
+        this.getPlotOptions(this.$store.state.activeProject.project.id)
+          .then(response => {
+            this.updateSets()
+              .then(response2 => {
+                // The order of execution / completion of these doesn't matter.
+                this.getScenSummaries()
+                this.getDefaultBudgetScen()
+                this.reloadGraphs(false)
+              })
           })
-        })
       }
     },
 
     methods: {
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { this.table = null; return utils.clearGraphs() },
-      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(serverDatastoreId)
-      { return utils.exportResults(this, serverDatastoreId) },
-
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
-      },
-
-      clipValidateYearInput() {
-        if (this.startYear > this.simEnd) {
-          this.startYear = this.simEnd
-        }
-        else if (this.startYear < this.simStart) {
-          this.startYear = this.simStart
-        }
-        if (this.endYear > this.simEnd) {
-          this.endYear = this.simEnd
-        }
-        else if (this.endYear < this.simStart) {
-          this.endYear = this.simStart
-        }
-      },
-
-      updateSets() {
-        return new Promise((resolve, reject) => {
-          console.log('updateSets() called')
-          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-            .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
-              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-                console.log('Parameter set ' + this.activeParset + ' no longer found')
-                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-              } else {
-                console.log('Parameter set ' + this.activeParset + ' still found')
-              }
-              this.newParsetName = this.activeParset // WARNING, KLUDGY
-              console.log('Parset options: ' + this.parsetOptions)
-              console.log('Active parset: ' + this.activeParset)
-              rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-                .then(response => {
-                  this.progsetOptions = response.data // Set the scenarios to what we received.
-                  if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                    console.log('Program set ' + this.activeProgset + ' no longer found')
-                    this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                  } else {
-                    console.log('Program set ' + this.activeProgset + ' still found')
-                  }
-                  this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                  console.log('Progset options: ' + this.progsetOptions)
-                  console.log('Active progset: ' + this.activeProgset)
-                  resolve(response)
-                })
-                .catch(error => {
-                  status.fail(this, 'Could not get progset info', error)
-                  reject(error)
-                })
-            })
-            .catch(error => {
-              status.fail(this, 'Could not get parset info', error)
-              reject(error)
-            })
-        })
-      },
+      validateYears()                   { return utils.validateYears(this) },
+      updateSets()                      { return shared.updateSets(this) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
+      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
+      clearGraphs()                     { return graphs.clearGraphs(this) },
+      togglePlotControls()              { return graphs.togglePlotControls(this) },
+      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata, '/scenarios') },
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, false, false) }, // Set to calibration=false, plotbudget=false
+      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
       getDefaultBudgetScen() {
         console.log('getDefaultBudgetScen() called')
@@ -489,63 +513,29 @@ Last update: 2018-09-07
           })
       },
 
-      toggleShowingPlotControls() {
-        this.areShowingPlotControls = !this.areShowingPlotControls
-      },
-
       runScens() {
         console.log('runScens() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries]) // Make sure they're saved first
           .then(response => {
             // Go to the server to get the results from the package set.
             rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
-              {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+              {saveresults: false, tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
               .then(response => {
-                if (this.$route.path === '/scenarios') {  // check to see if still on same page                
-                  this.table = response.data.table // CASCADE-TB DIFFERENCE
-                  this.makeGraphs(response.data.graphs)
-                  status.succeed(this, '') // Success message in graphs function
-                }
+                this.table = response.data.table
+                this.makeGraphs(response.data)
+                status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
-                console.log('There was an error', error) // Pull out the error message.
-                status.fail(this, 'Could not run scenarios', error) 
+                status.fail(this, 'Could not run scenarios', error)
               })
           })
           .catch(error => {
-            this.response = 'There was an error', error
             status.fail(this, 'Could not set scenarios', error)
           })
       },
 
-      plotScenarios(showNoCacheError) {
-        console.log('plotScens() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-        status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop, plotbudget:true})
-          .then(response => {
-            if (this.$route.path === '/scenarios') {  // check to see if still on same page
-              this.makeGraphs(response.data.graphs)
-              this.table = response.data.table // CASCADE-TB DIFFERENCE
-              status.succeed(this, 'Graphs created')
-            }
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error', error // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            if (showNoCacheError) {
-              status.fail(this, 'Could not make graphs', error) 
-            }
-            else {
-              status.succeed(this, '')  // Silently stop progress bar and spinner.
-            }
-          })
-      },
     }
   }
 </script>
@@ -553,5 +543,4 @@ Last update: 2018-09-07
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-
 </style>

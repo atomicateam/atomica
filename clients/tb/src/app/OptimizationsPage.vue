@@ -1,11 +1,11 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-08
+Last update: 2018-09-06
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -26,6 +26,8 @@ Last update: 2018-09-08
     </div>
 
     <div v-else>
+
+      <!-- ### Start: optimizations card ### -->
       <div class="card">
         <help reflink="optimizations" label="Define optimizations"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -47,11 +49,10 @@ Last update: 2018-09-08
             </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button>
-              <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
+              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="reloadGraphs(optimSummary.serverDatastoreId, true)">Plot results</button>
+              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 10)">Test run</button>
               <button v-if="useCelery" class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
-              <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
-              <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
+              <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
             </td>
@@ -63,236 +64,298 @@ Last update: 2018-09-08
           <button class="btn" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
+      <!-- ### End: optimizations card ### -->
 
-      <!-- START RESULTS CARD -->
-      <div class="card full-width-card" v-if="hasGraphs">
-        <!-- ### Start: plot controls ### -->
-        <div class="calib-title">
-          <help reflink="results-plots" label="Results"></help>
-          <div>
-            <b>{{ displayResultName }}</b>
-            &nbsp; &nbsp; &nbsp;
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" @change="updateYearOrPopulation">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" @change="updateYearOrPopulation">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            <!-- CASCADE-TB DIFFERENCE -->
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
-            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" :disabled="true" @click="exportResults('')">Export data</button>
-            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
-          </div>
-        </div>
-        <!-- ### End: plot controls ### -->
+      <!-- ### Start: results card ### -->
+      <div class="PageSection" v-if="hasGraphs">
+        <div class="card">
+          <!-- ### Start: plot controls ### -->
+          <div class="calib-title">
+            <help reflink="results-plots" label="Results"></help>
+            <div>
 
-        <!-- ### Start: results and plot selectors ### -->
-        <div class="calib-card-body">
-
-          <!-- ### Start: plots ### -->
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-          </div>
-          <!-- ### End: plots ### -->
-
-          <!-- CASCADE-TB DIFFERENCE -->
-          <!-- ### Start: plot selectors ### -->
-          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
-            <div class="plotopts-params">
-              <table class="table table-bordered table-hover table-striped" style="width: 100%">
-                <thead>
-                <tr>
-                  <th>Plot</th>
-                  <th>Active</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="item in plotOptions">
-                  <td>
-                    {{ item.plot_name }}
-                  </td>
-                  <td style="text-align: center">
-                    <input type="checkbox" v-model="item.active"/>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <!-- ### End: plot selectors ### -->
-        </div>
-        <!-- ### End: results and plot selectors ### -->
-      </div>
-      <!-- ### End: results card ### -->
-
-      <modal name="add-optim"
-             height="auto"
-             :scrollable="true"
-             :width="800"
-             :classes="['v--modal', 'vue-dialog']"
-             :pivot-y="0.3"
-             :adaptive="true"
-             :clickToClose="clickToClose"
-             :transition="transition">
-
-        <div class="dialog-content">
-          <div class="dialog-c-title" v-if="addEditDialogMode=='add'">
-            Add optimization
-          </div>
-          <div class="dialog-c-title" v-else>
-            Edit optimization
-          </div>
-          <div class="dialog-c-text">
-            <div style="display:inline-block">
-              <b>Optimization name</b><br>
-              <input type="text"
-                     class="txbox"
-                     v-model="modalOptim.name"/><br>
-              <b>Parameter set</b><br>
-              <select v-model="parsetOptions[0]">
-                <option v-for='parset in parsetOptions'>
-                  {{ parset }}
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" @change="reloadGraphs(optimSummary.serverDatastoreId, true)">
+                <option v-for='year in simYears'>
+                  {{ year }}
                 </option>
-              </select><br><br>
-              <b>Start year</b><br>
-              <input type="text"
-                     class="txbox"
-                     v-model="modalOptim.start_year"/><br>
-              <b>End year</b><br>
-              <input type="text"
-                     class="txbox"
-                     v-model="modalOptim.end_year"/><br>
-              <b>Budget factor</b><br>
-              <input type="text"
-                     class="txbox"
-                     v-model="modalOptim.budget_factor"/><br>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" @change="reloadGraphs(optimSummary.serverDatastoreId, true)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
             </div>
-            <br>
-            <b>Objective weights</b><br>
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Objective</th>
-                <th>Weight</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(val,key) in modalOptim.objective_labels">
-                <td>
-                  {{ modalOptim.objective_labels[key] }}
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="modalOptim.objective_weights[key]"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-            <b>Relative spending constraints</b><br>
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Program</th>
-                <th>Minimum</th>
-                <th>Maximum</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(val,key) in modalOptim.prog_spending">
-                <td>
-                  {{ modalOptim.prog_spending[key].label }}
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="modalOptim.prog_spending[key].min"/>
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="modalOptim.prog_spending[key].max"/>
-                </td>
-              </tr>
-              </tbody>
-            </table>
           </div>
-          <div style="text-align:justify">
-            <button @click="saveOptim()" class='btn __green' style="display:inline-block">
-              Save optimization
-            </button>
-            <button @click="cancelOptim()" class='btn __red' style="display:inline-block">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </modal>
+          <!-- ### End: plot controls ### -->
 
-    </div>
+
+          <!-- ### Start: results and plot selectors ### -->
+          <div class="calib-card-body">
+
+            <!-- ### Start: plots ### -->
+            <div class="calib-card-body">
+              <div class="calib-graphs">
+                <div class="featured-graphs">
+                  <div :id="'fig0'">
+                    <!-- mpld3 content goes here, no legend for it -->
+                  </div>
+                </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div v-if="$globaltool=='cascade' && table" class="calib-tables">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
+
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <div style="display:inline-block">
+                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div> <!-- ### End: calib-graphs ### -->
+            </div>
+            <!-- ### End: plots ### -->
+
+            <!-- ### Start: dialogs ### -->
+            <div v-for="index in placeholders">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+                <dialog-drag :id="'DD'+index"
+                             :key="index"
+                             @close="minimize(index)"
+                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+
+                  <span slot='title' style="color:#fff">Legend</span>
+                  <div :id="'legend'+index">
+                    <!-- Legend content goes here-->
+                  </div>
+                </dialog-drag>
+              </div>
+            </div>
+            <!-- ### End: dialogs ### -->
+
+
+            <!-- ### Start: plot selectors ### -->
+            <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <!-- ### End: plot selectors ### -->
+
+          </div>  <!-- ### End: card body ### -->
+        </div> <!-- ### End: results card ### -->
+      </div> <!-- ### End: PageSection/hasGraphs ### -->
+    </div> <!-- ### End: v-else project (results) ### -->
+
+
+    <!-- ### Start: add optimization modal ### -->
+    <modal name="add-optim"
+           height="auto"
+           :scrollable="true"
+           :width="800"
+           :classes="['v--modal', 'vue-dialog']"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title" v-if="addEditDialogMode=='add'">
+          Add optimization
+        </div>
+        <div class="dialog-c-title" v-else>
+          Edit optimization
+        </div>
+        <div class="dialog-c-text">
+          <div style="display:inline-block">
+            <b>Optimization name</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.name"/><br>
+            <b>Parameter set</b><br>
+            <select v-model="parsetOptions[0]">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select><br><br>
+            <b>Start year</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.start_year"/><br>
+            <b>End year</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.end_year"/><br>
+            <b>Budget factor</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="modalOptim.budget_factor"/><br>
+          </div>
+          <br>
+          <b>Objective weights</b><br>
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th>Objective</th>
+              <th>Weight</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(val,key) in modalOptim.objective_labels">
+              <td>
+                {{ modalOptim.objective_labels[key] }}
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="modalOptim.objective_weights[key]"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <b>Relative spending constraints</b><br>
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th>Program</th>
+              <th>Minimum</th>
+              <th>Maximum</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(val,key) in modalOptim.prog_spending">
+              <td>
+                {{ modalOptim.prog_spending[key].label }}
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="modalOptim.prog_spending[key].min"/>
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="modalOptim.prog_spending[key].max"/>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="text-align:justify">
+          <button @click="saveOptim()" class='btn __green' style="display:inline-block">
+            Save optimization
+          </button>
+          <button @click="cancelOptim()" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </modal>
+    <!-- ### End: add optimization modal ### -->
+
   </div>
 </template>
 
 
 <script>
-  import axios from 'axios'
   var filesaver = require('file-saver')
-  import utils from '@/services/utils'
-  import rpcs from '@/services/rpc-service'
-  import status from '@/services/status-service'
+  import axios  from 'axios'
   import router from '@/router'
+  import utils  from '@/js/utils'
+  import graphs from '@/js/graphs'
+  import shared from '@/js/shared'
+  import rpcs   from '@/js/rpc-service'
+  import status from '@/js/status-service'
 
   export default {
     name: 'OptimizationsPage',
 
     data() {
       return {
+        // Parameter and program set information
+        activeParset:  -1,
+        activeProgset: -1,
+        parsetOptions: [],
+        progsetOptions: [],
+
+        // Plotting data
+        showPlotControls: false,
+        hasGraphs: false,
+        table: null,
+        startYear: 0,
+        endYear: 2018, // TEMP FOR DEMO
+        activePop: "All",
+        popOptions: [],
+        plotOptions: [],
+        yearOptions: [],
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they're here for future use
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
+        figscale: 1.0,
+
+        // Page-specific data
         optimSummaries: [],
         optimsLoaded: false,
         useCelery: true,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
-        activeParset:  -1,
-        activeProgset: -1,
-        parsetOptions:  [],
-        progsetOptions: [],
-        newParsetName:  [],
-        newProgsetName: [],
         displayResultName: '',
-        startYear: 0,
-        endYear: 0,
-        graphData: [],
-        areShowingPlotControls: false,
-        plotOptions: [],
-        table: null,
-        activePop: "All",
-        endYear: 0,
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
-        figscale: 1.0,
-        hasGraphs: false,
       }
     },
 
@@ -304,22 +367,21 @@ Last update: 2018-09-08
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders() },
+      placeholders() { return graphs.placeholders(this, 1) },
     },
 
     created() {
-      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
-        router.push('/login')
-      }
-      else if ((this.$store.state.activeProject.project !== undefined) &&
+      graphs.addListener(this)
+      graphs.createDialogs(this)
+      if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) &&
         (this.$store.state.activeProject.project.hasPrograms)) {
-        console.log('created() called')
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        this.getPlotOptions()
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':optimization'
+        this.getPlotOptions(this.$store.state.activeProject.project.id)
           .then(response => {
             this.updateSets()
               .then(response2 => {
@@ -336,21 +398,18 @@ Last update: 2018-09-08
 
     methods: {
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { this.table = null; return utils.clearGraphs() },
-      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(serverDatastoreId)
-      { return utils.exportResults(this, serverDatastoreId) },
-
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
-      },
+      validateYears()                   { return utils.validateYears(this) },
+      updateSets()                      { return shared.updateSets(this) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
+      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
+      clearGraphs()                     { return graphs.clearGraphs(this) },
+      togglePlotControls()              { return graphs.togglePlotControls(this) },
+      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata, '/optimizations') },
+      reloadGraphs(cache_id, showErr)   { return graphs.reloadGraphs(this, this.projectID, cache_id, showErr, false, true) }, // Set to calibration=false, plotbudget=True
+      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
       statusFormatStr(optimSummary) {
         if      (optimSummary.status === 'not started') {return ''}
@@ -367,7 +426,6 @@ Last update: 2018-09-08
         if      (is_queued)    {rawValue = optimSummary.pendingTime}
         else if (is_executing) {rawValue = optimSummary.executionTime}
         else                   {return ''}
-
         if (rawValue === '--') {
           return '--'
         } else {
@@ -381,35 +439,9 @@ Last update: 2018-09-08
         }
       },
 
-      clipValidateYearInput() {
-        if (this.startYear > this.simEnd) {
-          this.startYear = this.simEnd
-        }
-        else if (this.startYear < this.simStart) {
-          this.startYear = this.simStart
-        }
-        if (this.endYear > this.simEnd) {
-          this.endYear = this.simEnd
-        }
-        else if (this.endYear < this.simStart) {
-          this.endYear = this.simStart
-        }
-      },
-
-      canRunTask(optimSummary) {
-        console.log('canRunTask() called for with: ' + optimSummary.status)
-        return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed'))
-      },
-
-      canCancelTask(optimSummary) {
-        console.log('canCancelTask() called for with: ' + optimSummary.status)
-        return (optimSummary.status !== 'not started')
-      },
-
-      canPlotResults(optimSummary) {
-        console.log('canPlotResults() called for with: ' + optimSummary.status)
-        return (optimSummary.status === 'completed')
-      },
+      canRunTask(optimSummary)     { return ((optimSummary.status === 'not started') || (optimSummary.status === 'completed')) },
+      canCancelTask(optimSummary)  { return  (optimSummary.status !== 'not started') },
+      canPlotResults(optimSummary) { return  (optimSummary.status === 'completed') },
 
       needToPoll(optimSummary) {
         let routePath = (this.$route.path === '/optimizations')
@@ -504,55 +536,14 @@ Last update: 2018-09-08
         })
       },
 
-      updateSets() {
-        return new Promise((resolve, reject) => {
-          console.log('updateSets() called')
-          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-            .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
-              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-                console.log('Parameter set ' + this.activeParset + ' no longer found')
-                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-              } else {
-                console.log('Parameter set ' + this.activeParset + ' still found')
-              }
-              this.newParsetName = this.activeParset // WARNING, KLUDGY
-              console.log('Parset options: ' + this.parsetOptions)
-              console.log('Active parset: ' + this.activeParset)
-              rpcs.rpc('get_progset_info', [this.projectID]) // Get the current user's progsets from the server.
-                .then(response => {
-                  this.progsetOptions = response.data // Set the scenarios to what we received.
-                  if (this.progsetOptions.indexOf(this.activeProgset) === -1) {
-                    console.log('Program set ' + this.activeProgset + ' no longer found')
-                    this.activeProgset = this.progsetOptions[0] // If the active parset no longer exists in the array, reset it
-                  } else {
-                    console.log('Program set ' + this.activeProgset + ' still found')
-                  }
-                  this.newProgsetName = this.activeProgset // WARNING, KLUDGY
-                  console.log('Progset options: ' + this.progsetOptions)
-                  console.log('Active progset: ' + this.activeProgset)
-                  resolve(response)
-                })
-                .catch(error => {
-                  status.fail(this, 'Could not get progset info', error)
-                  reject(error)
-                })
-            })
-            .catch(error => {
-              status.fail(this, 'Could not get parset info', error)
-              reject(error)
-            })
-        })
-      },
-
       getDefaultOptim() {
         return new Promise((resolve, reject) => {
           console.log('getDefaultOptim() called')
-          rpcs.rpc('get_default_optim', [this.projectID, 'tb']) // CASCADE-TB DIFFERENCE
+          rpcs.rpc('get_default_optim', [this.projectID, this.$globaltool])
             .then(response => {
               this.defaultOptim = response.data // Set the optimization to what we received.
               console.log('This is the default:')
-              console.log(this.defaultOptim);
+              console.log(this.defaultOptim)
               resolve(response)
             })
             .catch(error => {
@@ -568,20 +559,14 @@ Last update: 2018-09-08
         rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
         .then(response => {
           this.optimSummaries = response.data // Set the optimizations to what we received.
-          
-          // For each of the optimization summaries...
-          this.optimSummaries.forEach(optimSum => {
-            // Build a task and results cache ID from the project's hex UID and the optimization name.
-            optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name
-            
-            // Set the status to 'not started' by default, and the pending and execution 
-            // times to '--'.
-            optimSum.status = 'not started'
+          this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
+            optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
             optimSum.pendingTime = '--'
             optimSum.executionTime = '--'
             
             // Get the task state for the optimization.
-            this.getOptimTaskState(optimSum)
+            this.getOptimTaskState(optimSum) // Get the task state for the optimization.
           })
           if (this.useCelery) {
             this.pollAllTaskStates() // Start polling of tasks states.
@@ -590,7 +575,7 @@ Last update: 2018-09-08
           status.succeed(this, 'Optimizations loaded')
         })
         .catch(error => {
-          status.fail(this, 'Could not load optimizations: ' + error.message)
+          status.fail(this, 'Could not load optimizations', error)
         })
       },
 
@@ -629,19 +614,19 @@ Last update: 2018-09-08
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-        if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
+        if (this.addEditDialogMode === 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
           if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
-            if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (newOptim.status != 'not started') { // Clear the present task.
+            if (newOptim.name !== this.addEditDialogOldName) {  // If we've renamed an optimization
+              if (newOptim.status !== 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
               }
 
               // Set a new server DataStore ID.
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
-              
+
               this.getOptimTaskState(newOptim)
             }
           }
@@ -728,117 +713,66 @@ Last update: 2018-09-08
           })
       },
 
-      toggleShowingPlotControls() {
-        this.areShowingPlotControls = !this.areShowingPlotControls
-      },
 
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-
+        this.validateYears()  // Make sure the end year is sensibly set.
         status.start(this)
-        // Make sure they're saved first
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-        .then(response => {   
-          if (this.useCelery) {  // We are using Celery
+        var RPCname = ''
+        if (this.$globaltool === 'cascade') {
+          RPCname = 'run_cascade_optimization'
+        }
+        if (this.$globaltool === 'tb') {
+          RPCname = 'run_tb_optimization'
+        }
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
+        .then(response => {
+
+          // We are using Celery
+          if (this.useCelery) {
             rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
-              .then(response => {          
-                rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization', 
-                  [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-                  {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
-                  // CASCADE-TB DIFFERENCE
-                  'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
-                .then(response => {
-                  // Get the task state for the optimization.
-                  this.getOptimTaskState(optimSummary)
-                  
-                  // Indicate success.
-                  status.succeed(this, 'Started optimization')
-                })
-                .catch(error => {
-                  this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-                  console.log(this.serverresponse)
-                  this.servererror = error.message // Set the server error.
-                   
-                  // Indicate failure.
-                  status.fail(this, 'Could not start optimization: ' + error.message)
-                })
+            .then(response => {           
+              rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
+                [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
+                {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
+                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
+              .then(response => {
+                this.getOptimTaskState(optimSummary)
+                status.succeed(this, 'Started optimization')
               })
               .catch(error => {
-                this.serverresponse = 'There was an error', error // Pull out the error message.
-                console.log(this.serverresponse)
-                this.servererror = error.message // Set the server error.
-                status.fail(this, 'Could not start optimization: ' + error.message)
-              })            
+                status.fail(this, 'Could not start optimization', error)
+              })
+            })
+            .catch(error => {
+              status.fail(this, 'Could not start optimization', error)
+            })
           }
-          
-          else {  // We are NOT using Celery
-            optimSummary.status = 'started'
+
+          // We are NOT using Celery
+          else {
+            optimSummary.status = 'started'          
             rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',  
-              // CASCADE-TB DIFFERENCE
+              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
             .then(response => {
-              if (this.$route.path === '/optimizations') {  // check to see if still on same page
-                // Get the task state for the optimization.
-                this.getOptimTaskState(optimSummary)              
+                this.getOptimTaskState(optimSummary)
                 this.makeGraphs(response.data.graphs)
                 this.table = response.data.table
                 this.displayResultName = optimSummary.name
-                status.succeed(this, 'Graphs created')
-              }
+                status.succeed(this, 'Graphs created')                
             })
             .catch(error => {
-              status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
+              status.fail(this, 'Could not make graphs', error) // Indicate failure.
             })
           }
-       
+     
         })
         .catch(error => {
-          status.fail(this, 'Could not start optimization: ' + error.message)
+          status.fail(this, 'Could not start optimization', error)
         })
       },
 
-      plotOptimization(optimSummary) {
-        console.log('plotOptimization() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range. 
-        status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
-        // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.serverDatastoreId, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear, pops:this.activePop, plotbudget:true}) // CASCADE-TB DIFFERENCE
-          .then(response => {
-            if (this.$route.path === '/optimizations') {  // check to see if still on same page       
-              this.makeGraphs(response.data.graphs)
-              this.table = response.data.table
-              this.displayResultName = optimSummary.name
-              status.succeed(this, 'Graphs created')
-            }
-          })
-          .catch(error => {
-            this.serverresponse = 'There was an error', error // Pull out the error message.
-            this.servererror = error.message // Set the server error.
-            status.fail(this, 'Could not make graphs', error)
-          })
-      },
-
-      updateYearOrPopulation() {
-        // Get the list of all of the current optimization names.
-        let optimNames = []
-
-        // Get the list of optimization names.
-        this.optimSummaries.forEach(optimSum => {
-          optimNames.push(optimSum.name)
-        })
-
-        // Get the index matching (if any) which optimization matches
-        // the one being displayed.
-        let index = optimNames.indexOf(this.displayResultName)
-        if (index > -1) {  // If we have any match...
-          // Plot the desired graph.
-          this.plotOptimization(this.optimSummaries[index])
-        }
-      }
     }
   }
 </script>
