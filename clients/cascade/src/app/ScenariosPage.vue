@@ -72,14 +72,14 @@ Last update: 2018-09-06
             <div>
 
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="plotScenarios(true)">
+              <select v-model="endYear" @change="reloadGraphs(true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="plotScenarios(true)">
+              <select v-model="activePop" @change="reloadGraphs(true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
@@ -356,7 +356,7 @@ Last update: 2018-09-06
                 // The order of execution / completion of these doesn't matter.
                 this.getScenSummaries()
                 this.getDefaultBudgetScen()
-                this.plotScenarios(false)
+                this.reloadGraphs(false)
               })
           })
       }
@@ -373,6 +373,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, false) }, // Set to calibration=false
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
@@ -543,27 +544,6 @@ Last update: 2018-09-06
           })
       },
 
-      plotScenarios(showNoCacheError) {
-        console.log('plotScens() called')
-        this.validateYears()  // Make sure the start end years are in the right range.
-        status.start(this)
-        // Make sure they're saved first
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-            this.table = response.data.table
-            status.succeed(this, 'Graphs created')
-          })
-          .catch(error => {
-            if (showNoCacheError) {
-              status.fail(this, 'Could not make graphs', error)
-            }
-            else {
-              status.succeed(this, '')  // Silently stop progress bar and spinner.
-            }
-          })
-      },
     }
   }
 </script>

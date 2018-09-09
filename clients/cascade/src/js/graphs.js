@@ -126,6 +126,28 @@ function makeGraphs(vm, data) {
   })
 }
 
+
+function reloadGraphs(vm, showNoCacheError, iscalibration) {
+  console.log('plotCalibration() called')
+  vm.validateYears()  // Make sure the start end years are in the right range.
+  status.start(this)
+  rpcs.rpc('plot_results_cache_entry', [vm.projectID, vm.serverDatastoreId, vm.plotOptions],
+    {tool:vm.$globaltool, 'cascade':null, plotyear:vm.endYear, pops:vm.activePop, calibration:iscalibration})
+    .then(response => {
+      vm.makeGraphs(response.data)
+      vm.table = response.data.table
+      status.succeed(this, 'Data loaded, graphs now rendering...')
+    })
+    .catch(error => {
+      if (showNoCacheError) {
+        status.fail(this, 'Could not make graphs', error)
+      }
+      else {
+        status.succeed(this, '')  // Silently stop progress bar and spinner.
+      }
+    })
+}
+
 //
 // Graphs DOM functions
 //
@@ -247,6 +269,7 @@ export default {
   getPlotOptions,
   togglePlotControls,
   makeGraphs,
+  reloadGraphs,
   scaleFigs,
   showBrowserWindowSize,
   addListener,

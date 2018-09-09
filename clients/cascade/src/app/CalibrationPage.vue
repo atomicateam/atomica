@@ -138,14 +138,14 @@ Last update: 2018-09-06
             <div>
 
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="plotCalibration(true)">
+              <select v-model="endYear" @change="reloadGraphs(true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="plotCalibration(true)">
+              <select v-model="activePop" @change="reloadGraphs(true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
@@ -157,7 +157,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='tb'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
 
             </div>
           </div>
@@ -363,7 +363,7 @@ Last update: 2018-09-06
       graphs.addListener(this)
       graphs.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
-          (this.$store.state.activeProject.project.hasData) ) {
+        (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
 //        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
@@ -375,7 +375,7 @@ Last update: 2018-09-06
               .then(response2 => {
                 this.loadParTable()
                   .then(response3 => {
-                    this.plotCalibration(false)
+                    this.reloadGraphs(false)
                   })
               })
           })
@@ -393,6 +393,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, showErr, true) }, // Set to calibration=true
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
@@ -414,27 +415,6 @@ Last update: 2018-09-06
               reject(error)
             })
         })
-      },
-
-      plotCalibration(showNoCacheError) {
-        console.log('plotCalibration() called')
-        this.validateYears()  // Make sure the start end years are in the right range.
-        status.start(this)
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
-          .then(response => {
-            this.makeGraphs(response.data)
-            this.table = response.data.table
-            status.succeed(this, 'Data loaded, graphs now rendering...')
-          })
-          .catch(error => {
-            if (showNoCacheError) {
-              status.fail(this, 'Could not make graphs', error)
-            }
-            else {
-              status.succeed(this, '')  // Silently stop progress bar and spinner.
-            }
-          })
       },
 
       manualCalibration(project_id) {
