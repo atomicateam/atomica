@@ -681,8 +681,8 @@ Last update: 2018-09-06
         if (this.$globaltool === 'cascade') {
           RPCname = 'run_cascade_optimization'
         }
-        if (this.$globaltool === 'cascade') {
-          RPCname = 'run_cascade_optimization'
+        if (this.$globaltool === 'tb') {
+          RPCname = 'run_tb_optimization'
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
           .then(response => {
