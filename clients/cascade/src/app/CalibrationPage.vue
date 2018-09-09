@@ -364,7 +364,7 @@ Last update: 2018-09-06
       if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
         this.startYear = this.simStart
-//        this.endYear = this.simEnd
+//        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
@@ -384,6 +384,7 @@ Last update: 2018-09-06
 
       maximize(legend_id)         { return graphs.maximize(this, legend_id)},
       minimize(legend_id)         { return graphs.minimize(this, legend_id)},
+      foobar(legend_id)         { return graphs.foobar(this, legend_id)},
       clearGraphs()               { return graphs.clearGraphs(this) },
       getPlotOptions(project_id)  { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphs, legends) { return graphs.makeGraphs(this, graphs, legends) },
@@ -518,7 +519,7 @@ Last update: 2018-09-06
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.foobar(response.data.graphs, response.data.legends)
             this.table = response.data.table
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
