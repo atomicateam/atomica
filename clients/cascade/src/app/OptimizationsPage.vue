@@ -51,7 +51,7 @@ Last update: 2018-09-06
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
-              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="reloadGraphs(true)">Plot results</button>
+              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="reloadGraphs(optimSummary.serverDatastoreId, true)">Plot results</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
@@ -76,14 +76,14 @@ Last update: 2018-09-06
             <div>
 
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="reloadGraphs(true)">
+              <select v-model="endYear" @change="reloadGraphs(optimSummary.serverDatastoreId, true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="reloadGraphs(true)">
+              <select v-model="activePop" @change="reloadGraphs(optimSummary.serverDatastoreId, true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
@@ -403,7 +403,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
-      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, showErr, false, true) }, // Set to calibration=false, plotbudget=True
+      reloadGraphs(cache_id, showErr)   { return graphs.reloadGraphs(this, this.projectID, cache_id, showErr, false, true) }, // Set to calibration=false, plotbudget=True
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
