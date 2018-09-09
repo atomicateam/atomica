@@ -49,7 +49,7 @@ export default new Router({
         },
         {
           path: 'calibration',
-          name: 'Calibration',
+          name: 'Calibration', // CASCADE-TB DIFFERENCE
           component: CalibrationPage
         },
         {

@@ -9,7 +9,7 @@ import DashboardLayout from '@/app/DashboardLayout.vue'
 
 // App views
 import NotFound from '@/app/NotFoundPage.vue'
-import FrameworksPage from '@/app/FrameworksPage'
+import FrameworksPage from '@/app/FrameworksPage'  // CASCADE-TB DIFFERENCE
 import ProjectsPage from '@/app/ProjectsPage'
 import CalibrationPage from '@/app/CalibrationPage'
 import ScenariosPage from '@/app/ScenariosPage'
@@ -44,7 +44,7 @@ export default new Router({
       redirect: '/projects',
       children: [
         {
-          path: 'frameworks',
+          path: 'frameworks',  // CASCADE-TB DIFFERENCE
           name: 'Manage frameworks',
           component: FrameworksPage
         },
@@ -55,7 +55,7 @@ export default new Router({
         },
         {
           path: 'calibration',
-          name: 'Baseline',
+          name: 'Baseline', // CASCADE-TB DIFFERENCE
           component: CalibrationPage
         },
         {
