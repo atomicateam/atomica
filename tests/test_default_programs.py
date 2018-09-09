@@ -11,6 +11,7 @@ import re
 fe_pops = sc.odict()
 fe_pops["0-15"] = "Gen 0-15"
 fe_pops["15+"] = "Gen 15+"
+fe_pops["0-15 (HIV)"] = "Gen 0-15 PLHIV" # This should match 0-15 only
 fe_pops["15+ (HIV)"] = "Gen 15+ PLHIV"
 fe_transfers = sc.odict()
 fe_transfers['aging'] = 'Aging'
@@ -25,13 +26,13 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
     # These commands get used to both write and read the template progbook
     # In practice, the main requirement is that this list of template pops
     # matches the pops in the progbook containing the defaults
-    template_pops = sc.odict()
-    template_pops["^0.*"] = "^0.*"
-    template_pops[".*HIV.*"] = ".*HIV.*"
+    default_pops = sc.odict()
+    default_pops["^0.*"] = "^0.*"
+    default_pops[".*HIV.*"] = ".*HIV.*"
 
     # Use these comments to make the blank template for *us* to fill out
     # Normally this is just a one-off process
-    D = au.ProjectData.new(F,tvec=np.array([0]),pops=template_pops,transfers=0)
+    D = au.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
     ps = au.ProgramSet.new(framework=F,data=D,progs=2,tvec=np.array([0]))
     ps.save('template_blank.xlsx')
 
@@ -45,7 +46,19 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
     progs = {prog.name:prog.label for prog in default_progset.programs.values()}
     user_progset = au.ProgramSet.new(framework=F,data=user_data,progs=progs,tvec=np.arange(fe_program_years[0],fe_program_years[1]+1))
 
-    # Now copy over the targeting and effects into the user's progset
+    # Assign a template pop to each user pop
+    # It stops after the first match, so the regex should be ordered in
+    # decreasing specificity in the template progbook
+    # Maybe don't need this?
+    pop_assignment = sc.odict() # Which regex goes with each user pop {user_pop:template:pop}
+    for user_pop in user_progset.pops:
+        for default_pop in default_progset.pops:
+            if re.match(default_pop,user_pop):
+                pop_assignment[user_pop] = default_pop
+                break
+        else:
+            pop_assignment[user_pop] = None
+
     for prog in user_progset.programs:
 
         u_prog = user_progset.programs[prog]
@@ -54,13 +67,10 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
         # Copy target compartments
         u_prog.target_comps = d_prog.target_comps[:] # Make a copy of the comp list (using [:], faster than dcp)
 
-        # Use regex matching for target pops
-        for template_pop in d_prog.target_pops:
-            # targeted_pops is the regex string of populations to assign as targets
-            regex = re.compile(template_pop)
-            for pop in user_progset.pops:
-                if regex.match(pop):
-                    u_prog.target_pops.append(pop)
+        # Assign target populations
+        for user_pop in user_progset.pops:
+            if pop_assignment[user_pop] in d_prog.target_pops:
+                u_prog.target_pops.append(user_pop)
 
         # Copy assumptions from spending data
         u_prog.baseline_spend.assumption = d_prog.baseline_spend.assumption
@@ -69,7 +79,12 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
         u_prog.unit_cost.assumption = d_prog.unit_cost.assumption
         u_prog.spend_data.assumption = d_prog.spend_data.assumption
 
-        # TODO - copy program effects here
+    for user_par in user_progset.pars:
+        for user_pop in user_progset.pops:
+            default_pop = pop_assignment[user_pop]
+            if (user_par,default_pop) in default_progset.covouts:
+                user_progset.covouts[(user_par,user_pop)] = sc.dcp(default_progset.covouts[(user_par,default_pop)])
+                user_progset.covouts[(user_par, user_pop)].pop = user_pop
 
     return user_data, user_progset
 
