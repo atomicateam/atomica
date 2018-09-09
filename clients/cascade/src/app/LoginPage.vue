@@ -17,6 +17,7 @@ Last update: 2018-08-18
           <br/><br/>
           <div style="font-size:14px; font-weight:normal">
             Version {{ version }} ({{ date }})
+            Tool?? {{ $globaltool }} ok
           </div>
         </div>
       </div>

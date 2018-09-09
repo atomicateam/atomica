@@ -11,9 +11,7 @@ Last update: 2018-09-06
 
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
-        &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
-        &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
       </div>
     </div>
@@ -265,6 +263,7 @@ Last update: 2018-09-06
 
     data() {
       return {
+        globaltool: 'cascade',
         filterPlaceholder: 'Type here to filter projects', // Placeholder text for table filter box
         filterText: '',  // Text in the table filter box
         allSelected: false, // Are all of the projects selected?

@@ -301,7 +301,6 @@ Last update: 2018-09-06
         scenariosLoaded: false,
         table: null,
         activePop: "All",
-        endYear: 0,
         addEditModal: {
           scenSummary: {},
           origName: '',

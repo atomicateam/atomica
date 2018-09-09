@@ -56,6 +56,8 @@ Object.defineProperty(Vue.prototype, '$Chartist', {
 // import utils from '@/services/utils'
 // Vue.prototype.$utils = utils
 
+Vue.prototype.$globaltool = 'cascade'
+
 new Vue({
   el: '#app',
   render: h => h(App),
