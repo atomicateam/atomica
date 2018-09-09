@@ -12,9 +12,10 @@ torun = [
 # 'get_cascade_plot',
 # 'get_cascade_json',
 # 'get_plots',
-'process_plots',
+# 'process_plots',
 # 'run_cascade_optimization',
 # 'run_tb_optimization',
+'export_results',
 ]
 
 proj = None
@@ -77,6 +78,11 @@ if 'process_plots' in torun:
     output = rpcs.process_plots(proj, results, tool='tb', year=2018, pops='all', cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=True)
     sw.browser(jsons=output['graphs'])
 
+if 'export_results' in torun:
+    # This test validates exporting Excel files from Result objects
+    proj = demoproj('tb')
+    results = proj.demo_scenarios(dorun=True)
+    au.export_results(results,'test_rpcs_export_results.zip')
 
 if 'run_cascade_optimization' in torun:
     maxtime = 10
