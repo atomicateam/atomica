@@ -315,28 +315,33 @@ Last update: 2018-09-06
 
     data() {
       return {
-        parList: [],
-        showParameters: false,
-        showPlotControls: false,
-        activeParset: -1,
+        // Parameter and program set information
+        activeParset:  -1,
         parsetOptions: [],
         origParsetName: [],
+
+        // Plotting data
+        showPlotControls: false,
+        hasGraphs: false,
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
         plotOptions: [],
         yearOptions: [],
         popOptions: [],
-        calibTime: '30 seconds',
-        calibTimes: ['30 seconds', 'Unlimited'],
-        figscale: 1.0,
-        hasGraphs: false,
         serverDatastoreId: '',
         openDialogs: [],
-        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
+        showGraphDivs: [], // These don't actually do anything, but they're here for future use
         showLegendDivs: [],
         mousex:-1,
         mousey:-1,
+        figscale: 1.0,
+
+        // Page-specific data
+        parList: [],
+        showParameters: false,
+        calibTime: '30 seconds',
+        calibTimes: ['30 seconds', 'Unlimited'],
       }
     },
 

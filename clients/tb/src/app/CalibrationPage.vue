@@ -26,8 +26,8 @@ Last update: 2018-09-06
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
-          <button class="btn" @click="toggleShowingParams()">
-            <span v-if="areShowingParameters">Hide</span>
+          <button class="btn" @click="toggleParams()">
+            <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
             parameters
           </button>
@@ -82,11 +82,9 @@ Last update: 2018-09-06
       <!-- ### End: calibration card ### -->
 
 
-
-      <!-- ### Start: parameters and graphs ### -->
-      <div>
-        <!-- ### Start: parameters card ### -->
-        <div class="card" v-show="areShowingParameters">
+      <!-- ### Start: parameters card ### -->
+      <div class="PageSection" v-show="showParameters">
+        <div class="card">
           <help reflink="parameters" label="Parameters"></help>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
@@ -112,7 +110,7 @@ Last update: 2018-09-06
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in sortedPars">
+            <tr v-for="par in parList">
               <td>
                 {{par.parlabel}}
               </td>
@@ -128,10 +126,12 @@ Last update: 2018-09-06
             </tbody>
           </table>
         </div>
-        <!-- ### End: parameters card ### -->
+      </div>
+      <!-- ### End: parameters card ### -->
 
-        <!-- ### Start: results card ### -->
-        <div class="card" v-if="hasGraphs">
+      <!-- ### Start: results card ### -->
+      <div class="PageSection" v-if="hasGraphs">
+        <div class="card">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="bl-results" label="Results"></help>
@@ -157,7 +157,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
@@ -196,7 +196,7 @@ Last update: 2018-09-06
                 <dialog-drag :id="'DD'+index"
                              :key="index"
                              @close="minimize(index)"
-                              :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
                   <span slot='title' style="color:#fff">Legend</span>
                   <div :id="'legend'+index">
@@ -227,9 +227,8 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: cascade table ### -->
 
-            <!-- CASCADE-TB DIFFERENCE -->
             <!-- ### Start: plot selectors ### -->
-            <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+            <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
               <div class="plotopts-params">
                 <table class="table table-bordered table-hover table-striped" style="width: 100%">
                   <thead>
@@ -316,46 +315,45 @@ Last update: 2018-09-06
 
     data() {
       return {
-        sortColumn: 'index',
-        sortReverse: false,
-        parList: [],
-        areShowingParameters: false,
-        areShowingPlotControls: false,
-        activeParset: -1,
+        // Parameter and program set information
+        activeParset:  -1,
         parsetOptions: [],
         origParsetName: [],
+
+        // Plotting data
+        showPlotControls: false,
+        hasGraphs: false,
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
         plotOptions: [],
         yearOptions: [],
         popOptions: [],
-        calibTime: '30 seconds',
-        calibTimes: ['30 seconds', 'Unlimited'],
-        figscale: 1.0,
-        hasGraphs: false,
         serverDatastoreId: '',
         openDialogs: [],
-        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
+        showGraphDivs: [], // These don't actually do anything, but they're here for future use
         showLegendDivs: [],
         mousex:-1,
         mousey:-1,
+        figscale: 1.0,
+
+        // Page-specific data
+        parList: [],
+        showParameters: false,
+        calibTime: '30 seconds',
+        calibTimes: ['30 seconds', 'Unlimited'],
       }
     },
 
     computed: {
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
+      hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
-
-      sortedPars() {
-        return this.applySorting(this.parList);
-      },
-
     },
 
     created() {
@@ -368,71 +366,39 @@ Last update: 2018-09-06
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
-        .then(response => {
-          this.updateParset()
-          .then(response2 => {
-            this.viewTable()
-            .then(response3 => {
-              this.plotCalibration(false)
-            })    
+          .then(response => {
+            this.updateSets()
+              .then(response2 => {
+                this.loadParTable()
+                  .then(response3 => {
+                    this.plotCalibration(false)
+                  })
+              })
           })
-        })
       }
     },
 
     methods: {
 
-      updateSorting()                   { return utils.updateSorting(this) },
       validateYears()                   { return shared.validateYears(this) },
+      updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
-      maximize(legend_id)               { return graphs.maximize(this, legend_id)},
-      minimize(legend_id)               { return graphs.minimize(this, legend_id)},
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },
+      togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
-      updateParset() {
-        return new Promise((resolve, reject) => {
-          console.log('updateParset() called')
-          status.start(this)
-          rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-            .then(response => {
-              this.parsetOptions = response.data // Set the scenarios to what we received.
-              if (this.parsetOptions.indexOf(this.activeParset) === -1) {
-                console.log('Parameter set ' + this.activeParset + ' no longer found')
-                this.activeParset = this.parsetOptions[0] // If the active parset no longer exists in the array, reset it
-              } else {
-                console.log('Parameter set ' + this.activeParset + ' still found')
-              }
-              console.log('Parset options: ' + this.parsetOptions)
-              console.log('Active parset: ' + this.activeParset)
-              status.succeed(this, '')  // No green notification.
-              resolve(response)
-            })
-            .catch(error => {
-              status.fail(this, 'Could not update parameter set', error)
-              reject(error)
-            })
-        })
+      toggleParams() {
+        this.showParameters = !this.showParameters
       },
 
-      applySorting(pars) {
-        return pars.slice(0).sort((par1, par2) =>
-          {
-            let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'index')      { return par1.index     > par2.index     ? sortDir: -sortDir}
-            else if (this.sortColumn === 'parameter')  { return par1.parlabel  > par2.parlabel  ? sortDir: -sortDir}
-            else if (this.sortColumn === 'population') { return par1.poplabel  > par2.poplabel  ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')      { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
-          }
-        )
-      },
-
-      viewTable() {
+      loadParTable() {
         return new Promise((resolve, reject) => {
-          console.log('viewTable() called')
+          console.log('loadParTable() called')
           // TODO: Get spinners working right for this leg of initialization.
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
             .then(response => {
@@ -444,14 +410,6 @@ Last update: 2018-09-06
               reject(error)
             })
         })
-      },
-
-      toggleShowingParams() {
-        this.areShowingParameters = !this.areShowingParameters
-      },
-
-      toggleShowingPlotControls() {
-        this.areShowingPlotControls = !this.areShowingPlotControls
       },
 
       plotCalibration(showNoCacheError) {
@@ -526,8 +484,8 @@ Last update: 2018-09-06
         status.start(this)
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
@@ -541,8 +499,8 @@ Last update: 2018-09-06
         status.start(this)
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary            
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
@@ -557,8 +515,8 @@ Last update: 2018-09-06
         status.start(this)
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary            
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
           .catch(error => {
@@ -585,8 +543,8 @@ Last update: 2018-09-06
         rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
           .then(response => {
             status.start(this)
-            this.updateParset() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary            
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
           })
