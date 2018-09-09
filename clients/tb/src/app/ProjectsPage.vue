@@ -15,7 +15,6 @@ Last update: 2018-09-06
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
         &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
-        &nbsp; &nbsp;
       </div>
     </div>
 
@@ -60,7 +59,7 @@ Last update: 2018-09-06
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-
+            <!-- <th style="text-align:left">Framework</th> --> 
             <!--<th style="text-align:center">Populations</th>-->
             <th style="text-align:left">Databook</th>
             <th style="text-align:left">Program book</th>
@@ -305,7 +304,7 @@ Last update: 2018-09-06
                 this.openProject(setActiveID)
               }
             }
-            status.succeed(this, '')  
+            status.succeed(this, '')
           })
           .catch(error => {
             status.fail(this, 'Could not load projects', error)
@@ -535,16 +534,15 @@ Last update: 2018-09-06
       },
 
       uploadDatabook(uid) {
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
-        console.log('uploadDatabook() called for ' + matchProject.project.name)
-        rpcs.upload('upload_databook', [uid], {})
+        console.log('uploadDatabook() called')
+        rpcs.upload('upload_databook', [uid], {}, '.xlsx')
           .then(response => {
             status.start(this, 'Uploading databook...')
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
-            status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
+            status.succeed(this, 'Data uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload data', error) 
+            status.fail(this, 'Could not upload databook', error)
           })
       },
 
@@ -559,7 +557,7 @@ Last update: 2018-09-06
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not upload progbook', error) 
+            status.fail(this, 'Could not upload program book', error) 
           })
       },
 
@@ -612,7 +610,6 @@ Last update: 2018-09-06
           status.start(this)
           rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
             .then(response => {
-              // Indicate success.
               status.succeed(this, '')
             })
             .catch(error => {

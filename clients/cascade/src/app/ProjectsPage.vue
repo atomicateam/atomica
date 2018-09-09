@@ -11,7 +11,9 @@ Last update: 2018-09-06
 
       <div class="ControlsRow">
         <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
+        &nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
+        &nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
       </div>
     </div>
@@ -275,7 +277,7 @@ Last update: 2018-09-06
         data_start: 2000, // For creating a new project: number of populations
         data_end:   2035, // For creating a new project: number of populations
         activeuid:  [], // WARNING, kludgy to get create progbook working
-        frameworkSummaries: [],
+        frameworkSummaries: [], // CASCADE-TB DIFFERENCE
         currentFramework: '',
         demoOptions: [],
         demoOption: '',
@@ -307,7 +309,7 @@ Last update: 2018-09-06
 
       projectLoaded(uid) {
         console.log('projectLoaded called')
-        if (this.$store.state.activeProject.project != undefined) {
+        if (this.$store.state.activeProject.project !== undefined) {
           if (this.$store.state.activeProject.project.id === uid) {
             console.log('Project ' + uid + ' is loaded')
             return true
@@ -729,17 +731,6 @@ Last update: 2018-09-06
               status.fail(this, 'Could not download project/s', error)
             })
         }
-      },
-
-      test_stuff() {
-//        status.start(this)
-        rpcs.rpc('test_stuff', [])
-          .then(response => {
-//            status.succeed(this, 'success lol')
-          })
-          .catch(error => {
-            status.fail(this, 'Massive fail', error)
-          })
       }
     }
   }
