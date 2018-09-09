@@ -348,7 +348,7 @@ Last update: 2018-09-06
         this.endYear = this.simEnd
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
-        this.getPlotOptions()
+        this.getPlotOptions(this.$store.state.activeProject.project.id)
           .then(response => {
             this.updateSets()
               .then(response2 => {
@@ -366,7 +366,7 @@ Last update: 2018-09-06
       maximize(id)    { return utils.maximize(this, id)},
       minimize(id)    { return utils.minimize(this, id)},
 
-      getPlotOptions()            { return utils.getPlotOptions(this) },
+      getPlotOptions(project_id)  { return utils.getPlotOptions(this, project_id) },
       clearGraphs()               { return utils.clearGraphs() },
       makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
       exportGraphs()              { return utils.exportGraphs(this) },
