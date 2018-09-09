@@ -27,7 +27,7 @@ Last update: 2018-09-06
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleParams()">
-            <span v-if="areShowingParameters">Hide</span>
+            <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
             parameters
           </button>
@@ -82,11 +82,9 @@ Last update: 2018-09-06
       <!-- ### End: calibration card ### -->
 
 
-
-      <!-- ### Start: parameters and graphs ### -->
-      <div>
-        <!-- ### Start: parameters card ### -->
-        <div class="card" v-show="areShowingParameters">
+      <!-- ### Start: parameters card ### -->
+      <div class="PageSection" v-show="showParameters">
+        <div class="card">
           <help reflink="parameters" label="Parameters"></help>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
@@ -112,7 +110,7 @@ Last update: 2018-09-06
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in sortedPars">
+            <tr v-for="par in parList">
               <td>
                 {{par.parlabel}}
               </td>
@@ -128,10 +126,12 @@ Last update: 2018-09-06
             </tbody>
           </table>
         </div>
-        <!-- ### End: parameters card ### -->
+      </div>
+      <!-- ### End: parameters card ### -->
 
-        <!-- ### Start: results card ### -->
-        <div class="card" v-if="hasGraphs">
+      <!-- ### Start: results card ### -->
+      <div class="PageSection" v-if="hasGraphs">
+        <div class="card">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="bl-results" label="Results"></help>
@@ -196,7 +196,7 @@ Last update: 2018-09-06
                 <dialog-drag :id="'DD'+index"
                              :key="index"
                              @close="minimize(index)"
-                              :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
 
                   <span slot='title' style="color:#fff">Legend</span>
                   <div :id="'legend'+index">
@@ -227,9 +227,8 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: cascade table ### -->
 
-            <!-- CASCADE-TB DIFFERENCE -->
             <!-- ### Start: plot selectors ### -->
-            <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+            <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
               <div class="plotopts-params">
                 <table class="table table-bordered table-hover table-striped" style="width: 100%">
                   <thead>
@@ -362,15 +361,15 @@ Last update: 2018-09-06
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
-        .then(response => {
-          this.updateSets()
-          .then(response2 => {
-            this.loadParTable()
-            .then(response3 => {
-              this.plotCalibration(false)
-            })    
+          .then(response => {
+            this.updateSets()
+              .then(response2 => {
+                this.loadParTable()
+                  .then(response3 => {
+                    this.plotCalibration(false)
+                  })
+              })
           })
-        })
       }
     },
 
@@ -481,7 +480,7 @@ Last update: 2018-09-06
         rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary
+            // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
@@ -496,7 +495,7 @@ Last update: 2018-09-06
         rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary            
+            // TODO: look into whether the above line is necessary
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
           })
@@ -512,7 +511,7 @@ Last update: 2018-09-06
         rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary            
+            // TODO: look into whether the above line is necessary
             status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
           })
           .catch(error => {
@@ -540,7 +539,7 @@ Last update: 2018-09-06
           .then(response => {
             status.start(this)
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
-              // TODO: look into whether the above line is necessary            
+            // TODO: look into whether the above line is necessary
             this.activeParset = response.data
             status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
           })
