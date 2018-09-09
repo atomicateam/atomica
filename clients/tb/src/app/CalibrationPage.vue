@@ -391,7 +391,7 @@ Last update: 2018-09-06
       clearGraphs()                     { return graphs.clearGraphs(this) },
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata, '/calibration') },
       reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, true) }, // Set to calibration=true
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },

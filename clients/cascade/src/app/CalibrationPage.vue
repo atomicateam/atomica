@@ -500,9 +500,7 @@ Last update: 2018-09-06
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
-            if (this.$route.path === '/calibration') {
-              this.makeGraphs(response.data)
-            } // CK: TEMPPPPPPPPP DUPLICATE as lambda function
+            this.makeGraphs(response.data)
             this.table = response.data.table
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })

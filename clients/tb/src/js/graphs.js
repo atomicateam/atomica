@@ -51,79 +51,84 @@ function clearGraphs(vm) {
   }
 }
 
-function makeGraphs(vm, data) {
-  let waitingtime = 0.5
+function makeGraphs(vm, data, routepath) {
   console.log('makeGraphs() called')
-  var graphdata = data.graphs
-  var legenddata = data.legends
-  status.start(vm) // Start indicating progress.
-  vm.hasGraphs = true
-  utils.sleep(waitingtime * 1000)
-  .then(response => {
-    let n_plots = graphdata.length
-    let n_legends = legenddata.length
-    console.log('Rendering ' + n_plots + ' graphs')
-    if (n_plots !== n_legends) {
-      console.log('WARNING: different numbers of plots and legends: ' + n_plots + ' vs. ' + n_legends)
-    }
-    for (var index = 0; index <= n_plots; index++) {
-      console.log('Rendering plot ' + index)
-      var figlabel    = 'fig' + index
-      var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-      if (figdiv) {
-        while (figdiv.firstChild) {
-          figdiv.removeChild(figdiv.firstChild);
+  if (routepath !== vm.$route.path) { // Don't render graphs if we've changed page
+    console.log('Not rendering graphs since route changed: ' + routepath + ' vs. ' + vm.$route.path)
+  }
+  else { // Proceed...
+    let waitingtime = 0.5
+    var graphdata = data.graphs
+    var legenddata = data.legends
+    status.start(vm) // Start indicating progress.
+    vm.hasGraphs = true
+    utils.sleep(waitingtime * 1000)
+      .then(response => {
+        let n_plots = graphdata.length
+        let n_legends = legenddata.length
+        console.log('Rendering ' + n_plots + ' graphs')
+        if (n_plots !== n_legends) {
+          console.log('WARNING: different numbers of plots and legends: ' + n_plots + ' vs. ' + n_legends)
         }
-      } else {
-        console.log('WARNING: figdiv not found: ' + figlabel)
-      }
-
-      // Show figure containers
-      if (index>=1 && index<n_plots) {
-        var figcontainerlabel = 'figcontainer' + index
-        var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
-        if (figcontainerdiv) {
-          figcontainerdiv.style.display = 'flex'
-        } else {
-          console.log('WARNING: figcontainerdiv not found: ' + figcontainerlabel)
-        }
-
-        var legendlabel = 'legend' + index
-        var legenddiv  = document.getElementById(legendlabel);
-        if (legenddiv) {
-          while (legenddiv.firstChild) {
-            legenddiv.removeChild(legenddiv.firstChild);
+        for (var index = 0; index <= n_plots; index++) {
+          console.log('Rendering plot ' + index)
+          var figlabel    = 'fig' + index
+          var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+          if (figdiv) {
+            while (figdiv.firstChild) {
+              figdiv.removeChild(figdiv.firstChild);
+            }
+          } else {
+            console.log('WARNING: figdiv not found: ' + figlabel)
           }
-        } else {
-          console.log('WARNING: legenddiv not found: ' + legendlabel)
+
+          // Show figure containers
+          if (index>=1 && index<n_plots) {
+            var figcontainerlabel = 'figcontainer' + index
+            var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            if (figcontainerdiv) {
+              figcontainerdiv.style.display = 'flex'
+            } else {
+              console.log('WARNING: figcontainerdiv not found: ' + figcontainerlabel)
+            }
+
+            var legendlabel = 'legend' + index
+            var legenddiv  = document.getElementById(legendlabel);
+            if (legenddiv) {
+              while (legenddiv.firstChild) {
+                legenddiv.removeChild(legenddiv.firstChild);
+              }
+            } else {
+              console.log('WARNING: legenddiv not found: ' + legendlabel)
+            }
+          }
+
+          // Draw figures
+          mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
+            fig.setXTicks(6, function (d) {
+              return d3.format('.0f')(d);
+            });
+            fig.setYTicks(null, function (d) {
+              return d3.format('.2s')(d);
+            });
+          });
+
+          // Draw legends
+          if (index>=1 && index<n_plots) {
+            mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
+              fig.setXTicks(6, function (d) {
+                return d3.format('.0f')(d);
+              });
+              fig.setYTicks(null, function (d) {
+                return d3.format('.2s')(d);
+              });
+            });
+          }
+          vm.showGraphDivs[index] = true;
         }
-      }
-
-      // Draw figures
-      mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
-        fig.setXTicks(6, function (d) {
-          return d3.format('.0f')(d);
-        });
-        fig.setYTicks(null, function (d) {
-          return d3.format('.2s')(d);
-        });
-      });
-
-      // Draw legends
-      if (index>=1 && index<n_plots) {
-        mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
-          fig.setXTicks(6, function (d) {
-            return d3.format('.0f')(d);
-          });
-          fig.setYTicks(null, function (d) {
-            return d3.format('.2s')(d);
-          });
-        });
-      }
-      vm.showGraphDivs[index] = true;
-    }
-  status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
-  })
+        status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
+      })
+  }
 }
 
 
