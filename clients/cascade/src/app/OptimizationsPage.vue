@@ -716,7 +716,7 @@ Last update: 2018-09-06
 
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
+        this.validateYears()  // Make sure the end year is sensibly set.
         status.start(this)
         var RPCname = ''
         if (this.$globaltool === 'cascade') {
