@@ -65,29 +65,37 @@ Last update: 2018-09-06
       <!-- ### Start: results card ### -->
       <div class="PageSection">
         <div class="card" v-if="hasGraphs">
+
+          <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
             <div>
 
-              <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="plotScenarios(true)">
-                <option v-for='year in simYears'>
-                  {{ year }}
-                </option>
-              </select>
-              &nbsp;&nbsp;&nbsp;
-              <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="plotScenarios(true)">
-                <option v-for='pop in activePops'>
-                  {{ pop }}
-                </option>
-              </select>
-              &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+            <b>Year: &nbsp;</b>
+            <select v-model="endYear" @change="plotScenarios(true)">
+              <option v-for='year in simYears'>
+                {{ year }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;
+            <b>Population: &nbsp;</b>
+            <select v-model="activePop" @change="plotScenarios(true)">
+              <option v-for='pop in activePops'>
+                {{ pop }}
+              </option>
+            </select>
+            &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
+            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+            &nbsp;&nbsp;&nbsp;
+            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+            <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> -->
 
             </div>
           </div>
+        <!-- ### End: plot controls ### -->
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -111,6 +119,7 @@ Last update: 2018-09-06
                       </div>
                     </div>
                   </div>
+          <!-- ### End: plots ### -->
 
                   <!-- ### Start: cascade table ### -->
                   <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
@@ -134,6 +143,32 @@ Last update: 2018-09-06
 
                 </div>
               </div>
+            </div>
+          </div>
+          <!-- ### End: plots card ### -->
+
+          <!-- CASCADE-TB DIFFERENCE -->
+          <!-- ### Start: plot selectors ### -->
+          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+            <div class="plotopts-params">
+              <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                <thead>
+                <tr>
+                  <th>Plot</th>
+                  <th>Active</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="item in plotOptions">
+                  <td>
+                    {{ item.plot_name }}
+                  </td>
+                  <td style="text-align: center">
+                    <input type="checkbox" v-model="item.active"/>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
             </div>
           </div>
           <!-- ### End: plots card ### -->
@@ -239,7 +274,7 @@ Last update: 2018-09-06
 
 <script>
   import axios from 'axios'
-  var filesaver = require('file-saver')
+  let filesaver = require('file-saver')
   import utils from '@/services/utils'
   import rpcs from '@/services/rpc-service'
   import status from '@/services/status-service'
@@ -364,6 +399,7 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('updateSets() called')
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
+
             .then(response => {
               this.parsetOptions = response.data // Set the scenarios to what we received.
               if (this.parsetOptions.indexOf(this.activeParset) === -1) {
@@ -372,6 +408,7 @@ Last update: 2018-09-06
               } else {
                 console.log('Parameter set ' + this.activeParset + ' still found')
               }
+
               this.newParsetName = this.activeParset // WARNING, KLUDGY
               console.log('Parset options: ' + this.parsetOptions)
               console.log('Active parset: ' + this.activeParset)
@@ -398,6 +435,11 @@ Last update: 2018-09-06
               status.fail(this, 'Could not get parset info', error)
               reject(error)
             })
+          })
+          .catch(error => {
+            status.fail(this, 'Could not get parset info', error)
+            reject(error)
+          })
         })
       },
 

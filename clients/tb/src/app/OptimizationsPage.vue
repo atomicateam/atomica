@@ -26,6 +26,8 @@ Last update: 2018-09-06
     </div>
 
     <div v-else>
+
+      <!-- ### Start: optimizations card ### -->
       <div class="card">
         <help reflink="optimizations" label="Define optimizations"></help>
         <table class="table table-bordered table-hover table-striped" style="width: 100%">
@@ -48,7 +50,6 @@ Last update: 2018-09-06
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 5)">Test run</button>
-              <!--              <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 15)">Test run</button> -->
               <button class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn" :disabled="!canPlotResults(optimSummary)" @click="plotOptimization(optimSummary)">Plot results</button>
               <button class="btn btn-icon" @click="editOptimModal(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
@@ -63,6 +64,7 @@ Last update: 2018-09-06
           <button class="btn" @click="addOptimModal()">Add optimization</button>
         </div>
       </div>
+      <!-- ### End: optimizations card ### -->
 
       <!-- START RESULTS CARD -->
       <div class="card full-width-card" v-if="hasGraphs">
@@ -91,31 +93,57 @@ Last update: 2018-09-06
             <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
             <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
             &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs()">Export plots</button>
-            <button class="btn" :disabled="true" @click="exportResults('')">Export data</button>
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
             <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
           </div>
         </div>
         <!-- ### End: plot controls ### -->
 
-        <!-- ### Start: results and plot selectors ### -->
-        <div class="calib-card-body">
+          <!-- ### Start: results and plot selectors ### -->
+          <div class="calib-card-body">
 
-          <!-- ### Start: plots ### -->
-          <div class="calib-graphs">
-            <div class="featured-graphs">
-              <div :id="'fig0'">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-            <div class="other-graphs">
-              <div v-for="index in placeholders" :id="'fig'+index" class="calib-graph">
-                <!--mpld3 content goes here-->
-              </div>
-            </div>
-          </div>
-          <!-- ### End: plots ### -->
+            <!-- ### Start: plots ### -->
+            <div class="calib-card-body">
+              <div class="calib-graphs">
+                <div class="featured-graphs">
+                  <div :id="'fig0'">
+                    <!-- mpld3 content goes here, no legend for it -->
+                  </div>
+                </div>
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <div style="display:inline-block"> <!-- Hiding for now since can't show for bar plots -->
+                        <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
 
           <!-- CASCADE-TB DIFFERENCE -->
           <!-- ### Start: plot selectors ### -->
@@ -142,15 +170,39 @@ Last update: 2018-09-06
             </div>
           </div>
           <!-- ### End: plot selectors ### -->
-        </div>
-        <!-- ### End: results and plot selectors ### -->
-      </div>
-      <!-- ### End: results card ### -->
+              </div>
+            </div>
+          </div>
+          <!-- ### End: plots card ### -->
+
+          <!-- ### Start: dialogs ### -->
+          <div v-for="index in placeholders">
+            <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+              <dialog-drag
+                :id="'DD'+index"
+                :key="index"
+                @close="minimize(index)"
+                :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+
+                <span slot='title' style="color:#fff">Legend</span>
+                <div :id="'legend'+index">
+                  <!-- Legend content goes here-->
+                </div>
+              </dialog-drag>
+            </div>
+          </div>
+          <!-- ### End: dialogs ### -->
+
+        </div>  <!-- ### End: hasGraphs ### -->
+      </div> <!-- ### End: pageSection ### -->
+      <!-- ### End: results section ### -->
+
+    </div> <!-- ### End: v-else project ### -->
 
       <modal name="add-optim"
              height="auto"
              :scrollable="true"
-             :width="800"
+             :width="500"
              :classes="['v--modal', 'vue-dialog']"
              :pivot-y="0.3"
              :adaptive="true"
@@ -292,6 +344,12 @@ Last update: 2018-09-06
         addEditDialogOldName: '',
         figscale: 1.0,
         hasGraphs: false,
+        serverDatastoreId: '',
+        openDialogs: [],
+        showGraphDivs: [], // These don't actually do anything, but they force binding to happen, otherwise the page doesn't update...argh!!!!
+        showLegendDivs: [],
+        mousex:-1,
+        mousey:-1,
       }
     },
 
@@ -303,10 +361,12 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders() },
+      placeholders() { return utils.placeholders(this, 1) },
     },
 
     created() {
+      utils.addListener(this)
+      utils.createDialogs(this)
       if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
@@ -314,10 +374,10 @@ Last update: 2018-09-06
         (this.$store.state.activeProject.project.hasData) &&
         (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
-        console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
+        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':scenarios'
         this.getPlotOptions()
           .then(response => {
             this.updateSets()
@@ -335,12 +395,14 @@ Last update: 2018-09-06
 
     methods: {
 
-      getPlotOptions()          { return utils.getPlotOptions(this) },
-      clearGraphs()             { this.table = null; return utils.clearGraphs() },
-      makeGraphs(graphdata)     { return utils.makeGraphs(this, graphdata) },
-      exportGraphs(project_id)  { return utils.exportGraphs(this, project_id) },
-      exportResults(serverDatastoreId)
-      { return utils.exportResults(this, serverDatastoreId) },
+      maximize(id)    { return utils.maximize(this, id)},
+      minimize(id)    { return utils.minimize(this, id)},
+
+      getPlotOptions()            { return utils.getPlotOptions(this) },
+      clearGraphs()               { return utils.clearGraphs() },
+      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
+      exportGraphs()              { return utils.exportGraphs(this) },
+      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
 
       scaleFigs(frac) {
         this.figscale = this.figscale*frac;
@@ -512,7 +574,7 @@ Last update: 2018-09-06
             .then(response => {
               this.defaultOptim = response.data // Set the optimization to what we received.
               console.log('This is the default:')
-              console.log(this.defaultOptim);
+              console.log(this.defaultOptim)
               resolve(response)
             })
             .catch(error => {
@@ -587,7 +649,7 @@ Last update: 2018-09-06
         this.optimSummaries.forEach(optimSum => {
           optimNames.push(optimSum.name)
         })
-        if (this.addEditDialogMode == 'edit') { // If we are editing an existing optimization...
+        if (this.addEditDialogMode === 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
           if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
@@ -693,31 +755,22 @@ Last update: 2018-09-06
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
-
         status.start(this)
-        // Make sure they're saved first
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
-          .then(response => { // Go to the server to get the results
+        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
+          .then(response => {
             rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
               .then(response => {
                 rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_tb_optimization',
                   [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
                   {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'tb',
                     // CASCADE-TB DIFFERENCE
-                    'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])
+                    'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
                   .then(response => {
                     // Get the task state for the optimization.
                     this.getOptimTaskState(optimSummary)
-
-                    // Indicate success.
                     status.succeed(this, 'Started optimization')
                   })
                   .catch(error => {
-                    this.serverresponse = 'There was an error', error // Pull out the error message.
-                    console.log(this.serverresponse)
-                    this.servererror = error.message // Set the server error.
-
-
                     status.fail(this, 'Could not start optimization', error)
                   })
               })
@@ -739,14 +792,12 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, optimSummary.serverDatastoreId, this.plotOptions],
           {tool:'tb', plotyear:this.endYear, pops:this.activePop, plotbudget:true}) // CASCADE-TB DIFFERENCE
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
             this.displayResultName = optimSummary.name
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error', error // Pull out the error message.
-            this.servererror = error.message // Set the server error.
             status.fail(this, 'Could not make graphs', error)
           })
       },
