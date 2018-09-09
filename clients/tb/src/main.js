@@ -56,7 +56,7 @@ Object.defineProperty(Vue.prototype, '$Chartist', {
 // import utils from '@/services/utils'
 // Vue.prototype.$utils = utils
 
-Vue.prototype.$globaltool = 'tb' // CASCADE-TB DIFFERENCE
+Vue.prototype.$globaltool = 'tb' // CASCADE-TB DIFFERENCE, duh :)
 
 new Vue({
   el: '#app',
