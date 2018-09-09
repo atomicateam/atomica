@@ -182,11 +182,13 @@ Last update: 2018-09-06
                   </tbody>
                 </table>
               </div>
-            </div> <!-- ### End: plot selectors ### -->
-          </div>  <!-- ### End: hasGraphs ### -->
-        </div> <!-- ### End: PageSection ### -->
-      </div> <!-- ### End: v-else project (results) ### -->
+            </div>
+            <!-- ### End: plot selectors ### -->
 
+          </div>  <!-- ### End: card body ### -->
+        </div> <!-- ### End: results card ### -->
+      </div> <!-- ### End: PageSection/hasGraphs ### -->
+    </div> <!-- ### End: v-else project (results) ### -->
 
 
     <!-- ### Start: add scenarios modal ### -->

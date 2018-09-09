@@ -249,45 +249,48 @@ Last update: 2018-09-06
                   </tbody>
                 </table>
               </div>
-            </div> <!-- ### End: plot selectors ### -->
-          </div>  <!-- ### End: hasGraphs ### -->
-        </div> <!-- ### End: PageSection ### -->
-      </div> <!-- ### End: v-else project (results) ### -->
+            </div>
+            <!-- ### End: plot selectors ### -->
+
+          </div>  <!-- ### End: card body ### -->
+        </div> <!-- ### End: results card ### -->
+      </div> <!-- ### End: PageSection/hasGraphs ### -->
+    </div> <!-- ### End: v-else project (results) ### -->
 
 
-      <!-- ### Start: add scenarios modal ### -->
-      <modal name="rename-parset"
-             height="auto"
-             :classes="['v--modal', 'vue-dialog']"
-             :width="width"
-             :pivot-y="0.3"
-             :adaptive="true"
-             :clickToClose="clickToClose"
-             :transition="transition">
+    <!-- ### Start: add scenarios modal ### -->
+    <modal name="rename-parset"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
 
-        <div class="dialog-content">
-          <div class="dialog-c-title">
-            Rename parameter set
-          </div>
-          <div class="dialog-c-text">
-            New name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="activeParset"/><br>
-          </div>
-          <div style="text-align:justify">
-            <button @click="renameParset()" class='btn __green' style="display:inline-block">
-              Rename
-            </button>
-
-            <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
-              Cancel
-            </button>
-          </div>
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Rename parameter set
         </div>
+        <div class="dialog-c-text">
+          New name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="activeParset"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="renameParset()" class='btn __green' style="display:inline-block">
+            Rename
+          </button>
 
-      </modal>
-      <!-- ### End: rename parset modal ### -->
+          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+    </modal>
+    <!-- ### End: rename parset modal ### -->
 
   </div>
 </template>
