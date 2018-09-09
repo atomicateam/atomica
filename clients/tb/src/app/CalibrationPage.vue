@@ -21,7 +21,7 @@ Last update: 2018-09-06
 
     <div v-else>
       <div class="card">
-        <help reflink="calibration" label="Calibration"></help>
+        <div><help reflink="calibration" label="Calibration"></help></div>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -124,7 +124,7 @@ Last update: 2018-09-06
         <!-- ### End: parameters card ### -->
 
         <!-- ### Start: results card ### -->
-        <div class="card full-width-card">
+        <div class="card full-width-card" v-if="hasGraphs">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
@@ -287,6 +287,7 @@ Last update: 2018-09-06
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
+        hasGraphs: false,
         serverDatastoreId: ''        
       }
     },

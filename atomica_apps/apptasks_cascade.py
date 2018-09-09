@@ -44,10 +44,7 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
 
     # Plot the results.    
-    output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
-#    if online:
-#        print('Saving project...')
-#        rpcs.save_project(proj)    
+    output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True) 
     return output
 
 

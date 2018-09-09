@@ -416,18 +416,18 @@ def save_project(proj, online=True):
 
 
 @timeit
-def save_project_as_new(proj, user_id):
+def save_project_as_new(proj, user_id, uid=None):
     """
     Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
     """ 
-    proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
+    proj.uid = sc.uuid(uid=uid) # Set a new project UID, so we aren't replicating the UID passed in.
     projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
-    print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
+    print(">> save_project_as_new '%s' [<%s> %s]" % (proj.name, user_id, proj.uid)) # Display the call information.
     save_project(proj) # Save the changed Project object to the DataStore.
-    return None
+    return proj.uid
 
 
 # RPC definitions
@@ -834,7 +834,7 @@ def add_demo_project(user_id, project_name='default'):
     """
     if project_name is 'default':
         new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-        proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
         new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
@@ -852,14 +852,16 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     """
     Create a new project.
     """
+    if tool == 'tb': sim_dt = 0.5
+    else:            sim_dt = None
     if tool is None: # Optionally select by tool rather than frame
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
-        frame = au.demo(kind='framework', which=tool)
+        frame = au.demo(kind='framework', which=tool, sim_dt=sim_dt)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
+    proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
@@ -914,7 +916,7 @@ def copy_project(project_id):
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
     new_project = sc.dcp(proj) # Make a copy of the project loaded in to work with.
-    new_project.name = sc.uniquename(proj.name, namelist=None) # Just change the project name, and we have the new version of the Project object to be saved as a copy.
+    new_project.name = get_unique_name(proj.name, other_names=None) # Just change the project name, and we have the new version of the Project object to be saved as a copy.
     user_id = current_user.get_id() # Set the user UID for the new projects record to be the current user.
     print(">> copy_project %s" % (new_project.name))  # Display the call information.
     save_project_as_new(new_project, user_id) # Save a DataStore projects record for the copy project.
@@ -933,7 +935,7 @@ def create_project_from_prj_file(prj_filename, user_id):
         proj = sc.loadobj(prj_filename)
     except Exception:
         return { 'error': 'BadFileFormatError' }
-    proj.name = sc.uniquename(proj.name, namelist=None) # Reset the project name to a new project name that is unique.
+    proj.name = get_unique_name(proj.name, other_names=None) # Reset the project name to a new project name that is unique.
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
@@ -1756,8 +1758,8 @@ def init_results_cache(app):
     
     # If there was a match...
     if results_cache_uid is not None:
-        if app.config['LOGGING_MODE'] == 'FULL':
-            print('>> Loading ResultsCache from the DataStore.')
+#        if app.config['LOGGING_MODE'] == 'FULL':
+#            print('>> Loading ResultsCache from the DataStore.')
         results_cache.load_from_data_store()
         
     # Else (no match)...
@@ -1771,7 +1773,8 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-        results_cache.show()
+#        results_cache.show()
+        print('>> Loaded results cache with %s results' % len(results_cache.keys()))
 
         
 def apptasks_load_results_cache():
