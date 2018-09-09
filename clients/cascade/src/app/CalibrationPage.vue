@@ -157,7 +157,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="this.$globaltool=='tb'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>

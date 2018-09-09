@@ -84,14 +84,13 @@ Last update: 2018-09-06
                   {{ pop }}
                 </option>
               </select>
-              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
               <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="$globaltool=='tb'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="$globaltool=='tb'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
@@ -149,7 +148,7 @@ Last update: 2018-09-06
 
           <!-- CASCADE-TB DIFFERENCE -->
           <!-- ### Start: plot selectors ### -->
-          <div class="plotopts-main" :class="{'plotopts-main--full': !areShowingPlotControls}" v-if="areShowingPlotControls">
+          <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
             <div class="plotopts-params">
               <table class="table table-bordered table-hover table-striped" style="width: 100%">
                 <thead>
@@ -343,8 +342,8 @@ Last update: 2018-09-06
       graphs.addListener(this)
       graphs.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
-          (this.$store.state.activeProject.project.hasData) &&
-          (this.$store.state.activeProject.project.hasPrograms)) {
+        (this.$store.state.activeProject.project.hasData) &&
+        (this.$store.state.activeProject.project.hasPrograms)) {
         console.log('created() called')
         this.startYear = this.simStart
         this.endYear = this.simEnd
@@ -517,13 +516,13 @@ Last update: 2018-09-06
           })
       },
 
-      toggleShowingPlotControls() {
-        this.areShowingPlotControls = !this.areShowingPlotControls
+      togglePlotControls() {
+        this.showPlotControls = !this.showPlotControls
       },
 
       runScens() {
         console.log('runScens() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('set_scen_info', [this.projectID, this.scenSummaries]) // Make sure they're saved first
           .then(response => {
@@ -532,7 +531,7 @@ Last update: 2018-09-06
               {saveresults: false, tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
               .then(response => {
                 this.table = response.data.table
-                this.makeGraphs(response.data.graphs, response.data.legends)
+                this.makeGraphs(response.data)
                 status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {
@@ -546,14 +545,13 @@ Last update: 2018-09-06
 
       plotScenarios(showNoCacheError) {
         console.log('plotScens() called')
-        this.clipValidateYearInput()  // Make sure the start end years are in the right range.
+        this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
-        this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
           .then(response => {
-            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.makeGraphs(response.data.graphs)
             this.table = response.data.table
             status.succeed(this, 'Graphs created')
           })
