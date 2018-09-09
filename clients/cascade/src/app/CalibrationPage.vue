@@ -382,8 +382,10 @@ Last update: 2018-09-06
 
     methods: {
 
+      updateSorting()                   { return utils.updateSorting(this) },
       maximize(legend_id)               { return graphs.maximize(this, legend_id)},
       minimize(legend_id)               { return graphs.minimize(this, legend_id)},
+      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
@@ -392,15 +394,6 @@ Last update: 2018-09-06
 
       notImplemented() {
         status.fail(this, 'Sorry, this feature is not implemented')
-      },
-
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
       },
 
       clipValidateYearInput() {
@@ -441,17 +434,6 @@ Last update: 2018-09-06
               reject(error)
             })
         })
-      },
-
-      updateSorting(sortColumn) {
-        console.log('updateSorting() called')
-        if (this.sortColumn === sortColumn) {  // If the active sorting column is clicked... // Reverse the sort.
-          this.sortReverse = !this.sortReverse
-        }
-        else { // Otherwise.
-          this.sortColumn = sortColumn // Select the new column for sorting.
-          this.sortReverse = false // Set the sorting for non-reverse.
-        }
       },
 
       applySorting(pars) {

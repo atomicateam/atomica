@@ -148,7 +148,12 @@ function scaleElem(svg, frac) {
   svg.setAttribute("height", height*frac)
 }
 
-function scaleFigs(frac) {
+function scaleFigs(vm, frac) {
+  vm.figscale = vm.figscale*frac;
+  if (frac === 1.0) {
+    frac = 1.0/vm.figscale
+    vm.figscale = 1.0
+  }
   let graphs = window.top.document.querySelectorAll('svg.mpld3-figure')
   for (let g = 0; g < graphs.length; g++) {
     scaleElem(graphs[g], frac)
@@ -156,18 +161,14 @@ function scaleFigs(frac) {
 }
 
 
-
 //
 // Legend functions
 // 
 
 
-
 function addListener(vm) {
   document.addEventListener('mousemove', function(e){onMouseUpdate(e, vm)}, false);
 }
-
-
 
 function onMouseUpdate(e, vm) {
   vm.mousex = e.pageX;
