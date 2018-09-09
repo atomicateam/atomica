@@ -120,35 +120,6 @@ function makeGraphs(vm, graphdata, legenddata) {
   // })
 }
 
-function exportGraphs(vm) {
-  return new Promise((resolve, reject) => {
-    console.log('exportGraphs() called')
-    rpcs.download('download_graphs', [])
-    .then(response => {
-      resolve(response)
-    })
-    .catch(error => {
-      status.failurePopup(vm, 'Could not download graphs: ' + error.message)
-      reject(error)
-    })
-  })
-}
-
-function exportResults(vm, serverDatastoreId) {
-  return new Promise((resolve, reject) => {  
-    console.log('exportResults() called TEMP FIX')
-    rpcs.download('export_results', [serverDatastoreId])
-    .then(response => {
-      resolve(response)
-    })    
-    .catch(error => {
-      status.failurePopup(vm, 'Could not export results: ' + error.message)
-      reject(error)      
-    })
-  })
-}
-
-
 //
 // Graphs DOM functions
 //
@@ -267,14 +238,16 @@ function foobar(vm, id) {
   console.log('????????????')
 }
 
+function makeGraphs2(vm, id) {
+  console.log('kdlfasd')
+}
+
 
 export default {
   placeholders,
+  clearGraphs,
   getPlotOptions,
   makeGraphs,
-  clearGraphs,
-  exportGraphs,
-  exportResults,
   scaleFigs,
   showBrowserWindowSize,
   addListener,
@@ -284,6 +257,6 @@ export default {
   findDialog,
   maximize,
   minimize,
-  foobar
-  
+  foobar,
+  makeGraphs2,
 }

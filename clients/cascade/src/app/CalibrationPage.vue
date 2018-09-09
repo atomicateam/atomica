@@ -384,10 +384,10 @@ Last update: 2018-09-06
 
       maximize(legend_id)         { return graphs.maximize(this, legend_id)},
       minimize(legend_id)         { return graphs.minimize(this, legend_id)},
-      foobar(legend_id)         { return graphs.foobar(this, legend_id)},
+      foobar(legend_id)         { return graphs.makeGraphs(this, legend_id)},
       clearGraphs()               { return graphs.clearGraphs(this) },
       getPlotOptions(project_id)  { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphs, legends) { return graphs.makeGraphs(this, graphs, legends) },
+      makeGraphs(graphs, legends) { return graphs.foobar(this, graphs, legends) },
       exportGraphs(datastoreID)   { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)  { return shared.exportResults(this, datastoreID) },
 
