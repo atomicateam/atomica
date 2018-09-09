@@ -1349,7 +1349,8 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     legends.append(sc.emptyfig()) # No figure, but still useful to have a plot
     
     if plot_budget:
-        d = au.PlotData.programs(results)
+        
+        d = au.PlotData.programs(results, quantity='spending')
         d.interpolate(year)
         budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
         budgetlegends = [sc.emptyfig()]
