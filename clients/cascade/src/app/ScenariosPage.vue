@@ -119,7 +119,28 @@ Last update: 2018-09-06
                     </div>
                   </div>
                 </div>
-              </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div v-if="$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
+
+              </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
@@ -140,25 +161,7 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: dialogs ### -->
 
-            <!-- ### Start: cascade table ### -->
-            <div v-if="$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
-              <h4>Cascade stage losses</h4>
-              <table class="table table-striped" style="text-align:right;">
-                <thead>
-                <tr>
-                  <th></th>
-                  <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(label, index) in table.rowlabels">
-                  <td>{{label}}</td>
-                  <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-            <!-- ### End: cascade table ### -->
+
 
             <!-- ### Start: plot selectors ### -->
             <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
