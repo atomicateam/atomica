@@ -153,7 +153,7 @@ class PlotData(object):
         pops = expand_dict(pops)
         outputs = expand_dict(outputs)
 
-        assert isinstance(results, list), 'Results should be specified as a Result, list, or odict'
+        assert isinstance(results, list), 'Results should be specified as a Result, list, or odict' # CK: WARNING: code doesn't match text
 
         assert output_aggregation in ['sum', 'average', 'weighted']
         assert pop_aggregation in ['sum', 'average', 'weighted']
@@ -669,6 +669,7 @@ class Series(object):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
+
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
@@ -690,6 +691,9 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     assert orientation in ['vertical', 'horizontal'], 'Supported orientations are "vertical" or "horizontal"'
 
     plotdata = sc.dcp(plotdata)
+    
+    bar_fig_size = (10,4)
+    default_ax_position = [0.15,0.2,0.35,0.7]
 
     # Note - all of the tvecs must be the same
     tvals, t_labels = plotdata.tvals()  # We have to iterate over these, with offsets, if there is more than one
@@ -792,9 +796,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         raise AtomicaException('outer option must be either "times" or "results"')
 
     figs = []
-    fig, ax = plt.subplots()
+    legends = []
+    fig, ax = plt.subplots(figsize=bar_fig_size)
     fig.set_label('bars')
     figs.append(fig)
+    if orientation == 'vertical' and legend_mode == 'together':
+        ax.set_position(default_ax_position)
 
     rectangles = defaultdict(list)  # Accumulate the list of rectangles for each colour
     color_legend = sc.odict()
@@ -829,17 +836,18 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
             # If the user provided a label, it will always be displayed
             # In addition, if there is more than one label of the other (output/pop) type,
             # then that label will also be shown, otherwise it will be suppressed
+            controlstr = '%s %s' # '%s\n%s' -- has problems on the FE
             if bar_pop[1] or bar_output[1]:
                 if bar_pop[1]:
                     if bar_output[1]:
-                        bar_label = '%s\n%s' % (bar_pop[1], bar_output[1])
+                        bar_label = controlstr % (bar_pop[1], bar_output[1])
                     elif len(output_stacks) > 1 and len(set([x[0] for x in output_stacks])) > 1 and bar_output[0]:
-                        bar_label = '%s\n%s' % (bar_pop[1], bar_output[0])
+                        bar_label = controlstr % (bar_pop[1], bar_output[0])
                     else:
                         bar_label = bar_pop[1]
                 else:
                     if len(pop_stacks) > 1 and len(set([x[0] for x in pop_stacks])) > 1 and bar_pop[0]:
-                        bar_label = '%s\n%s' % (bar_pop[0], bar_output[1])
+                        bar_label = controlstr % (bar_pop[0], bar_output[1])
                     else:
                         bar_label = bar_output[1]
             else:
@@ -872,6 +880,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     # Add the patches to the figure and assemble the legend patches
     legend_patches = []
 
+    legendstr = '%s-%s, '
     for color, items in color_legend.items():
         pc = PatchCollection(rectangles[color], facecolor=color, edgecolor='none')
         ax.add_collection(pc)
@@ -885,29 +894,29 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         else:
             label = ''
             for x in items:
-                label += '%s-%s,\n' % (plotdata.pops[x[0]], plotdata.outputs[x[1]])
+                label += legendstr % (plotdata.pops[x[0]], plotdata.outputs[x[1]])
             label = label.strip()[:-1]  # Replace trailing newline and comma
         legend_patches.append(Patch(facecolor=color, label=label))
 
     # Set axes now, because we need block_offset and base_offset after the loop
-    ax.autoscale()
+#    ax.autoscale()
     _turn_off_border(ax)
     block_labels = sorted(block_labels, key=lambda x: x[0])
     if orientation == 'horizontal':
         ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
-        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
+#        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
         ax.set_xlim(xmin=0)
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
-        set_tick_format(ax.xaxis, "km")
+#        set_tick_format(ax.xaxis, "km")
     else:
         ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
-        fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
+#        fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
         ax.set_ylim(ymin=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
-        set_tick_format(ax.yaxis, "km")
+#        set_tick_format(ax.yaxis, "km")
 
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
@@ -968,7 +977,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         else:
             ax2 = ax.twiny()  # instantiate a second axes that shares the same x-axis
             ax2.set_xticks([x[0] for x in inner_labels])
-            ax2.set_xticklabels(['\n\n' + str(x[1]) for x in inner_labels])
+            ax2.set_xticklabels([' \n\n' + str(x[1]) for x in inner_labels])
             ax2.xaxis.set_ticks_position('bottom')
             ax2.set_xlim(ax.get_xlim())
         ax2.tick_params(axis=u'both', which=u'both', length=0)
@@ -977,15 +986,16 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         ax2.spines['left'].set_visible(False)
         ax2.spines['bottom'].set_visible(False)
 
-    fig.tight_layout() # Do a final resizing
+#    fig.tight_layout() # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
-    if legend_mode == 'separate':
-        figs.append(render_separate_legend(ax, plot_type='bar', handles=legend_patches))
-    elif legend_mode == 'together':
-        render_legend(ax, plot_type='bar', handles=legend_patches)
+    if   legend_mode == 'together': render_legend(ax, plot_type='bar', handles=legend_patches)
+    elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=True))
+    
+    # Decide what to return
+    if legend_mode == 'separate': return figs,legends
+    else:                         return figs
 
-    return figs
 
 
 def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
