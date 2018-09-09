@@ -10,8 +10,9 @@ Last update: 2018-09-06
       <help reflink="create-projects" label="Create projects"></help>
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoProjectModal">Add demo project</button>  <!-- CASCADE-TB DIFFERENCE -->
-        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
+        <button v-if="$globaltool=='cascade'" class="btn __blue" @click="addDemoProjectModal">Add demo project</button>&nbsp; &nbsp;
+        <button v-if="$globaltool=='tb'"      class="btn __blue" @click="addDemoProject">Add demo project</button>
+        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>&nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
       </div>
     </div>
@@ -57,8 +58,7 @@ Last update: 2018-09-06
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <th style="text-align:left">Framework</th>
-            <!--<th style="text-align:center">Populations</th>-->
+            <th v-if="$globaltool=='cascade'"style="text-align:left">Framework</th>
             <th style="text-align:left">Databook</th>
             <th style="text-align:left">Program book</th>
           </tr>
@@ -94,7 +94,7 @@ Last update: 2018-09-06
             <td style="text-align:left">
               {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
-            <td style="text-align:left">
+            <td v-if="$globaltool=='cascade'" style="text-align:left">
               <button class="btn btn-icon" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
               {{ projectSummary.project.framework }}
             </td>
@@ -118,6 +118,7 @@ Last update: 2018-09-06
         </div>
       </div>
     </div>
+
 
     <modal name="demo-project"
            height="auto"

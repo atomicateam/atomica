@@ -59,8 +59,6 @@ Last update: 2018-09-06
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-            <!-- <th style="text-align:left">Framework</th> --> 
-            <!--<th style="text-align:center">Populations</th>-->
             <th style="text-align:left">Databook</th>
             <th style="text-align:left">Program book</th>
           </tr>
@@ -105,15 +103,9 @@ Last update: 2018-09-06
               </button>
             </td>
             <td style="white-space: nowrap; text-align:left">
-              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
-                <i class="ti-plus"></i>
-              </button>
-              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New"><i class="ti-plus"></i></button>
+              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload"><i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
@@ -126,6 +118,38 @@ Last update: 2018-09-06
         </div>
       </div>
     </div>
+
+    <modal name="demo-project"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create demo project
+        </div>
+        <div class="dialog-c-text">
+          <select v-model="demoOption">
+            <option v-for='project in demoOptions'>
+              {{ project }}
+            </option>
+          </select><br><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="addDemoProject()" class='btn __green' style="display:inline-block">
+            Add selected
+          </button>
+
+          <button @click="$modal.hide('demo-project')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </modal>
 
     <modal name="create-project"
            height="auto"
