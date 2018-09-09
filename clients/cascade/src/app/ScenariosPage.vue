@@ -440,7 +440,6 @@ Last update: 2018-09-06
             status.fail(this, 'Could not get parset info', error)
             reject(error)
           })
-        })
       },
 
       getDefaultBudgetScen() {

@@ -15,33 +15,29 @@
  */
 
 
-@import "project/variables";
-@import "project/mixins";
-@import 'project/functions';
-@import "project/typography";
+@import "tool-customization";
+@import "variables";
+@import "mixins";
+@import 'functions';
+@import "typography";
+
 // Core CSS
-@import "project/misc";
-@import "project/sidebar-and-main-panel";
-@import "project/buttons";
-@import "project/graphs";
-@import "project/inputs";
-@import "project/alerts";
-@import "project/tables";
-@import "project/checkbox-radio";
-@import "project/navbars";
-@import "project/footers";
-@import "project/modal";
+@import "misc";
+@import "sidebar-and-main-panel";
+@import "buttons";
+@import "graphs";
+@import "inputs";
+@import "alerts";
+@import "tables";
+@import "checkbox-radio";
+@import "navbars";
+@import "footers";
+@import "modal";
+
 // Fancy Stuff
-@import "project/dropdown";
-@import "project/cards";
-@import "project/chartist";
-@import "project/responsive";
-@import "project/textbox";
-@import "project/tooltips";
-
-
-// Reserved just for code only your mother would love (and even then, not very 
-// much).  I.e., any code in here should probably be implemented later in a 
-// more proper way.
-// see http://csswizardry.com/2013/04/shame-css/ 
-// @import 'main/shame'; nothing yet
+@import "dropdown";
+@import "cards";
+@import "chartist";
+@import "responsive";
+@import "textbox";
+@import "tooltips";
