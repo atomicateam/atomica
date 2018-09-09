@@ -25,20 +25,16 @@ if "validate_cascade" in torun:
     # Check that all the frameworks have either a valid cascade sheet, or
     # the fallback cascade is valid
     fnames = os.listdir('./frameworks')
+    # NB. To test a single file, set e.g. `fnames=['framework_tb.xlsx']`
     for fname in fnames:
         if '_bad' in fname:
             continue
         print("Validating %s" % (fname))
-        F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
-
-#        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
+        F = ProjectFramework(sc.makefilepath(fname,'./frameworks'))
 
         # Validate all of the cascades in the framework
-        if not F.cascades:
-            validate_cascade(F, None)
-        else:
-            for cascade in F.cascades:
-                validate_cascade(F, cascade)
+        for cascade in F.cascades:
+            validate_cascade(F, cascade)
 
 
     F = ProjectFramework("./frameworks/framework_tb.xlsx")
