@@ -897,24 +897,24 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         legend_patches.append(Patch(facecolor=color, label=label))
 
     # Set axes now, because we need block_offset and base_offset after the loop
-    ax.autoscale()
+#    ax.autoscale()
     _turn_off_border(ax)
     block_labels = sorted(block_labels, key=lambda x: x[0])
     if orientation == 'horizontal':
         ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
-        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
+#        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
         ax.set_xlim(xmin=0)
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
-        set_tick_format(ax.xaxis, "km")
+#        set_tick_format(ax.xaxis, "km")
     else:
         ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
-        fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
+#        fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
         ax.set_ylim(ymin=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
-        set_tick_format(ax.yaxis, "km")
+#        set_tick_format(ax.yaxis, "km")
 
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
@@ -984,18 +984,18 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         ax2.spines['left'].set_visible(False)
         ax2.spines['bottom'].set_visible(False)
 
-    fig.tight_layout() # Do a final resizing
+#    fig.tight_layout() # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
-    if legend_mode == 'separate':
-        figs.append(render_separate_legend(ax, plot_type='bar', handles=legend_patches))
-    elif legend_mode == 'together':
-        render_legend(ax, plot_type='bar', handles=legend_patches)
+    if   legend_mode == 'together': render_legend(ax, plot_type='bar', handles=legend_patches)
+    elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=True))
+    
+    # Decide what to return
+    if legend_mode == 'separate': return figs,legends
+    else:                         return figs
 
-    return figs
 
-
-def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
+def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None, rescale=False):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -1013,11 +1013,12 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     if lw is None:
         lw = 3
     
+    reverse_legend = True if plot_type in ['stacked', 'proportion', 'bar'] else False
     if axis is None: axis = 'outputs'
-
     assert axis in ['outputs', 'results', 'pops']
 
     figs = []
+    legends = [] # For separate mode
     ax = None
 
     plotdata = sc.dcp(plotdata)
@@ -1055,8 +1056,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                if legend_mode == 'together':   render_legend(ax, reverse=reverse_legend)
+                elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
 
     elif axis == 'pops':
         plotdata.set_colors(pops=plotdata.pops.keys())
@@ -1089,8 +1090,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                if legend_mode == 'together':   render_legend(ax, plot_type)
+                elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs.keys())
@@ -1125,15 +1126,15 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                if legend_mode == 'together':   render_legend(ax, plot_type)
+                elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
-    if legend_mode == 'separate':
-        figs.append(render_separate_legend(ax, plot_type))
+    # Return either the figures, or the figures and the legends
+    if legend_mode == 'separate': return figs, legends
+    else:                         return figs
 
-    return figs
 
 def stack_data(ax,data,series):
     # Stack a list of series in order
@@ -1234,7 +1235,7 @@ def plot_legend(entries, plot_type='patch', fig=None):
     legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
 
     if fig is None:  # Draw in a new figure
-        render_separate_legend(None, None, h)
+        sc.separatelegend(None, handles=h)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
@@ -1253,38 +1254,6 @@ def plot_legend(entries, plot_type='patch', fig=None):
     return fig
 
 
-def render_separate_legend(ax, plot_type=None, handles=None):
-    if handles is None:
-        handles, labels = ax.get_legend_handles_labels()
-    else:
-        labels = [h.get_label() for h in handles]
-
-    fig, ax = plt.subplots()
-    ax.set_position([0.5, 0.5, 0.01, 0.01])
-    ax.set_axis_off()  # This allows the figure to be shown in jupyter notebook
-
-    legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}
-
-    # A legend renders the line/patch based on the object handle. However, an object
-    # can only appear in one figure. Thus, if the legend is in a different figure, the
-    # object cannot be shown in both the original figure and in the legend. Thus we need
-    # to copy the handles, and use the copies to render the legend
-    from copy import copy
-    handles = [copy(x) for x in handles]
-
-    # Stop the figures from being rendered in the original figure, which will allow them to
-    # then be rendered in the legend figure
-    for h in handles:
-        h.figure = None
-
-    if plot_type in ['stacked', 'proportion', 'bar']:
-        fig.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
-    else:
-        fig.legend(handles=handles, labels=labels, **legendsettings)
-
-    return fig
-
-
 def render_legend(ax, plot_type=None, handles=None, ):
     # This function renders a legend
     # INPUTS
@@ -1295,7 +1264,7 @@ def render_legend(ax, plot_type=None, handles=None, ):
         labels = [h.get_label() for h in handles]
 
     legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
-    labels = [textwrap.fill(label, 16) for label in labels]
+#    labels = [textwrap.fill(label, 16) for label in labels]
 
     if plot_type in ['stacked', 'proportion', 'bar']:
         ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
