@@ -130,20 +130,20 @@ function makeGraphs(vm, data) {
 function reloadGraphs(vm, project_id, showNoCacheError, iscalibration, plotbudget) {
   console.log('reloadGraphs() called')
   utils.validateYears(vm)  // Make sure the start end years are in the right range.
-  status.start(this)
+  status.start(vm)
   rpcs.rpc('plot_results_cache_entry', [project_id, vm.serverDatastoreId, vm.plotOptions],
     {tool:vm.$globaltool, 'cascade':null, plotyear:vm.endYear, pops:vm.activePop, calibration:iscalibration, plotbudget:plotbudget})
     .then(response => {
       vm.makeGraphs(response.data)
       vm.table = response.data.table
-      status.succeed(this, 'Data loaded, graphs now rendering...')
+      status.succeed(vm, 'Data loaded, graphs now rendering...')
     })
     .catch(error => {
       if (showNoCacheError) {
-        status.fail(this, 'Could not make graphs', error)
+        status.fail(vm, 'Could not make graphs', error)
       }
       else {
-        status.succeed(this, '')  // Silently stop progress bar and spinner.
+        status.succeed(vm, '')  // Silently stop progress bar and spinner.
       }
     })
 }
@@ -205,7 +205,7 @@ function onMouseUpdate(e, vm) {
 function createDialogs(vm) {
   let vals = placeholders(vm)
   for (let val in vals) {
-    newDialog(vm, val, 'Dialog '+val, 'This is test '+val)
+    newDialog(vm, val, 'Dialog '+val, 'Placeholder content '+val)
   }
 }
 
