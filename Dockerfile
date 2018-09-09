@@ -18,7 +18,7 @@ RUN apt-get clean -y
 
 # Install sciris
 RUN git clone https://github.com/optimamodel/sciris.git
-RUN cd sciris && git checkout use-redis-session-2 && python setup.py develop && python setup-web.py develop 
+RUN cd sciris && python setup.py develop && python setup-web.py develop 
 
 # Install mpld3
 RUN git clone https://github.com/optimamodel/mpld3.git
