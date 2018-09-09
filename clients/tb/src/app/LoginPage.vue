@@ -1,7 +1,7 @@
 <!--
 Login page
 
-Last update: 2018-08-30
+Last update: 2018sep09
 -->
 
 <template>
@@ -10,7 +10,10 @@ Last update: 2018-08-30
       <div class="logo">
         <div class="simple-text" style="font-size:20px; color:#fff; font-weight:bold; padding:20px">
           <span style="padding-left:10px">
-            <a href="http://ocds.co" target="_blank">
+            <a v-if="$globaltool=='cascade'" href="http://cascade.tools" target="_blank">
+              <img src="static/img/cascade-logo-white.png" width="160px" vertical-align="middle" alt>
+            </a>
+            <a v-if="$globaltool=='tb'"      href="http://ocds.co" target="_blank">
               <img src="static/img/optima-inverted-logo-tb.png" width="160px" vertical-align="middle" alt>
             </a>
           </span>
@@ -62,8 +65,8 @@ Last update: 2018-08-30
 </template>
 
 <script>
-  import rpcs from '@/services/rpc-service'
-  import userservice from '@/services/user-service'
+  import rpcs from '@/js/rpc-service'
+  import userservice from '@/js/user-service'
   import router from '@/router'
 
   export default {

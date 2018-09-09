@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep06 by gchadder3
+Last update: 2018sep09
 """
 
 ###############################################################
@@ -12,9 +12,10 @@ import time
 import os
 import re
 import numpy as np
+import pylab as pl
+import mpld3
 from zipfile import ZipFile
 from flask_login import current_user
-import mpld3
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
@@ -22,9 +23,7 @@ import atomica as at
 from . import projects as prj
 from . import frameworks as frw
 from matplotlib.legend import Legend
-import matplotlib.pyplot as pl
-from matplotlib.pyplot import rc
-rc('font', size=14)
+pl.rc('font', size=14)
 
 
 
@@ -33,7 +32,7 @@ RPC = sw.makeRPCtag(RPC_dict) # RPC registration decorator factory created using
 
 
 def CursorPosition():
-    plugin = mpld3.plugins.MousePosition(fontsize=8, fmt='.4r')
+    plugin = mpld3.plugins.MousePosition(fontsize=12, fmt='.4r')
     return plugin
 
 def LineLabels(line=None, label=None):
@@ -1171,9 +1170,9 @@ def download_graphs():
     return full_file_name
 
 
-def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, calibration=False):
+def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, pops='all', outputs=None, do_plot_data=None, replace_nans=True, stacked=False, xlims=None, figsize=None, calibration=False):
     results = sc.promotetolist(results)
-    supported_plots = supported_plots_func(proj.framework) 
+    supported_plots = supported_plots_func(proj.framework)
     if plot_names is None: 
         if plot_options is not None:
             plot_names = []
@@ -1185,7 +1184,9 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
     if outputs is None:
         outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
     allfigs = []
-    graphs = []
+    alllegends = []
+    allfigjsons = []
+    alllegendjsons = []
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
@@ -1205,102 +1206,87 @@ def get_plots(proj, results=None, plot_names=None, plot_options=None, pops='all'
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
 
             if calibration:
-               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='off')
-               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='off') # Only plot data if not stacked
+               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+               else:       figs,legends = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
             else:
-               if stacked: figs = au.plot_series(plotdata, data=data, axis='pops', plot_type='stacked', legend_mode='off')
-               else:       figs = au.plot_series(plotdata, data=data, axis='results', legend_mode='off')
-            for fig in figs:
-                graphs.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
+               else:       figs,legends = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
+            for fig,legend in zip(figs, legends):
+                allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
+                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
+                alllegends.append(legend)
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-    output = {'graphs':graphs}
-    return output,allfigs
+    output = {'graphs':allfigjsons, 'legends':alllegendjsons}
+    return output, allfigs, alllegends
 
 
-def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False):
-    if sc.isstring(year):
-        year = float(year)
-
-    assert not (calibration and plot_budget), 'Cannot make budget plots for a calibration simulation because calibrations do not have programs'
-
+def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False, outputfigs=False):
+    
+    # Handle inputs
+    if sc.isstring(year): year = float(year)
+    if pops is None:      pops = 'all'
     results = sc.promotetolist(results)
 
-    # Prepare populations
-    # For calibration plot, 'all' pops means that they should all be *disaggregated* and visible - which is `pops=None` in PlotData
-    # But for scenarios and optimizations, 'all' pops means *aggregated* over all pops - which is `pops='all'` in PlotData
+    # Decide what to do
     if calibration and pops.lower() == 'all':
-        pops = None  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
+        # For calibration plot, 'all' pops means that they should all be disaggregated and visible
+        # But for scenarios and optimizations, 'all' pops means aggregated over all pops
+        pops = 'all'  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
-        pops = 'all' # make sure it's lowercase
+        pops = 'aggregate' # make sure it's lowercase
     else:
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
 
-    # Render cascade plot
-    # This is _always_ shown
-    output = {'graphs':[]}
-    allfigs = []
-
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade)
-    output['graphs'] += cascadeoutput['graphs']
-    allfigs += cascadefigs
-
-    if plot_budget:
-        budgetoutput, budgetfigs = get_program_plots(results, year=year, budget=True, coverage=True)
-        output['graphs'] += budgetoutput['graphs']
-        allfigs += budgetfigs
-
-    def interleave(a, b):
-        # x=['a','b',], y=['c','d'], return ['a','c','b','d']
-        return [x for t in zip(a, b) for x in t]
-
-    # Make the normal time series plots - these are not generated in the Cascades tool
-    if tool == 'cascade':
-        # For Cascade Tool, currently no additional figures are shown
-        pass
+    cascadeoutput,cascadefigs,cascadelegends = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
+    if tool == 'cascade': # For Cascade Tool
+        output = cascadeoutput
+        allfigs = cascadefigs
+        alllegends = cascadelegends
     else: # For Optima TB
-        if calibration:
-            stacked_output, stacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
-            unstacked_output, unstacked_figs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-            output['graphs'] += interleave(stacked_output['graphs'], unstacked_output['graphs'])
-            allfigs += interleave(stacked_figs, unstacked_figs)
-        else:
-            unstacked_output, unstacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            output['graphs'] += unstacked_output['graphs']
-            allfigs += unstacked_figs
-
+        if calibration: output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, calibration=True, stacked=False)
+        else:           output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, calibration=False)
+        output['table'] = cascadeoutput['table'] # Put this back in -- warning kludgy! -- also not used for Optima TB...
+        for key in ['graphs','legends']:
+            output[key] = cascadeoutput[key] + output[key]
+        allfigs = cascadefigs + allfigs
+        alllegends = cascadelegends + alllegends
     if dosave:
-        # TODO - get_cascade_plot and get_program_plots close the figures with pl.close(), does savefigs() still work here?
-        savefigs(allfigs, online=online)
+        savefigs(allfigs, online=online)  
+    if outputfigs: return output, allfigs, alllegends
+    else:          return output
 
-    return output
 
-
-def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None):
-    if figsize is None: figsize = (5,3)
-    fig.set_size_inches(figsize)
-    ax = fig.get_axes()[0]
-    ax.set_position([0.25,0.15,0.70,0.75])
-    ax.set_facecolor('none')
-    ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-    ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
-    if xlims is not None: ax.set_xlim(xlims)
-    try:
-        legend = fig.findobj(Legend)[0]
-        if len(legend.get_texts())==1:
-            legend.remove() # Can remove the legend if it only has one entry
-    except:
-        pass
-    mpld3.plugins.connect(fig, CursorPosition())
-    for l,line in enumerate(fig.axes[0].lines):
-        mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
-    graph_dict = mpld3.fig_to_dict(fig)
+def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False):
+    if is_legend:
+        pass # Put legend customizations here
+    else:
+        if figsize is None: figsize = (5,3)
+        fig.set_size_inches(figsize)
+        ax = fig.get_axes()[0]
+        ax.set_position([0.25,0.15,0.70,0.75])
+        ax.set_facecolor('none')
+        ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+        ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+        if xlims is not None: ax.set_xlim(xlims)
+        try:
+            legend = fig.findobj(Legend)[0]
+            if len(legend.get_texts())==1:
+                legend.remove() # Can remove the legend if it only has one entry
+        except:
+            pass
+        mpld3.plugins.connect(fig, CursorPosition())
+        for l,line in enumerate(fig.axes[0].lines):
+            mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
+    
+    graph_dict = sw.mpld3ify(fig, jsonify=False) # Convert to mpld3
     return graph_dict
     
+
 def get_program_plots(results,year,budget=True,coverage=True):
     # Generate program related plots
     # INPUTS
@@ -1345,33 +1331,57 @@ def get_program_plots(results,year,budget=True,coverage=True):
     output = {'graphs':graphs}
     return output, figs
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
     if results is None: results = proj.results[-1]
     if year is None: year = proj.settings.sim_end # Needed for plot_budget
     
     figs = []
-    graphs = []
+    legends = []
+    figjsons = []
+    legendjsons = []
     years = sc.promotetolist(year)
     for y in range(len(years)):
         years[y] = float(years[y]) # Ensure it's a float
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
     figs.append(fig)
-
+    legends.append(sc.emptyfig()) # No figure, but still useful to have a plot
+    
+    if plot_budget:
+        d = au.PlotData.programs(results)
+        d.interpolate(year)
+        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
+        budgetlegends = [sc.emptyfig()]
+        
+        ax = budgetfigs[0].axes[0]
+        ax.set_xlabel('Spending ($/year)')
+        
+        figs    += budgetfigs
+        legends += budgetlegends
+        print('Budget plot succeeded')
+    
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
-#        fig.tight_layout(rect=[0.05,0.05,0.9,0.95])
         mpld3.plugins.connect(fig, CursorPosition())
-        graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
-        graphs.append(graph_dict)
+        graph_dict = sw.mpld3ify(fig, jsonify=False) # These get jsonified later
+        figjsons.append(graph_dict)
+        pl.close(fig)
+    
+    for fig in legends: # Different enough to warrant its own block, although ugly
+        try:
+            ax = fig.get_axes()[0]
+            ax.set_facecolor('none')
+        except:
+            pass
+        graph_dict = sw.mpld3ify(fig, jsonify=False)
+        legendjsons.append(graph_dict)
         pl.close(fig)
         
-    output = {'graphs':graphs, 'table':table}
-    print('Cascade plot succeeded')
-    return output,figs
+    output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
+    print('Cascade plot succeeded with %s plots and %s legends and %s table' % (len(figjsons), len(legendjsons), bool(table)))
+    return output, figs, legends
 
 
 def get_json_cascade(results,data):
@@ -1473,7 +1483,7 @@ def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot
     result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
 
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
+    output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
 
     return output
 
@@ -1496,7 +1506,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
     put_results_cache_entry(cache_id, result)    
     print('Resultsets after run: %s' % len(proj.results))
 
-    output = process_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
+    output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
 
     return output
 
@@ -1606,9 +1616,9 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     put_results_cache_entry(cache_id, results)
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False, plot_budget=True)
+    output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False, plot_budget=True)
     print('Saving project...')
-    save_project(proj)    
+    save_project(proj)
     return output
 
 
@@ -1701,10 +1711,7 @@ def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, m
     put_results_cache_entry(cache_id, results)
 
     # Plot the results.    
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
-#    if online:
-#        print('Saving project...')
-#        save_project(proj)
+    output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 
 
@@ -1878,7 +1885,7 @@ def plot_results_cache_entry(project_id, cache_id, plot_options, tool=None, plot
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
     
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget, calibration=calibration)
+    output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget, calibration=calibration)
     return output
     
 

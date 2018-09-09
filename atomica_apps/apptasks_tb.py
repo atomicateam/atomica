@@ -11,18 +11,12 @@ import scirisweb as sw
 from . import projects as prj
 from . import rpcs
 
+
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
 async_task = sw.make_async_tag(task_func_dict) # Task function registration decorator created using call to make_async_tag().
 celery_instance = sw.make_celery_instance(config=config) # Create the Celery instance for this module.
 
-# This is needed in Windows using celery Version 3.1.25 in order for the
-# add_task_funcs() function below to successfully add the asynchronous task 
-# functions defined in this module to tasks.py.  Why these lines enable this 
-# I do not understand.
-#@celery_instance.task
-#def dummy_result():
-#    return 'here be dummy result'
 
 @async_task
 def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
@@ -40,10 +34,7 @@ def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None
     # Put the results into the ResultsCache.
     rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
     
-    output = rpcs.process_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
-#    if online:
-#        print('Saving project...')
-#        rpcs.save_project(proj)    
+    output = rpcs.make_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 
 

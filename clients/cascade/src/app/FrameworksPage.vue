@@ -192,11 +192,11 @@ Last update: 2018-08-18
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import utils from '@/services/utils'
-  import rpcs from '@/services/rpc-service'
-  import status from '@/services/status-service'
+  import utils  from '@/js/utils'
+  import rpcs   from '@/js/rpc-service'
+  import status from '@/js/status-service'
   import router from '@/router'
-  import help from '@/app/HelpLink.vue'
+  import help   from '@/app/HelpLink.vue'
   
   export default {
     name: 'FrameworksPage',

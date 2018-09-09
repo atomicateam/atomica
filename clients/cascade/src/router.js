@@ -1,6 +1,6 @@
 // index.js -- vue-router path configuration code
 //
-// Last update: 2018-09-01
+// Last update: 2018sep09
 
 // Import main things
 import Vue from 'vue'
@@ -9,7 +9,7 @@ import DashboardLayout from '@/app/DashboardLayout.vue'
 
 // App views
 import NotFound from '@/app/NotFoundPage.vue'
-import FrameworksPage from '@/app/FrameworksPage'
+import FrameworksPage from '@/app/FrameworksPage'  // CASCADE-TB DIFFERENCE
 import ProjectsPage from '@/app/ProjectsPage'
 import CalibrationPage from '@/app/CalibrationPage'
 import ScenariosPage from '@/app/ScenariosPage'
@@ -19,9 +19,9 @@ import MainAdminPage from '@/app/MainAdminPage'
 import RegisterPage from '@/app/RegisterPage'
 import UserChangeInfoPage from '@/app/UserChangeInfoPage'
 import ChangePasswordPage from '@/app/ChangePasswordPage'
-import Help from '@/app/Help'
-import Contact from '@/app/Contact'
-import About from '@/app/About'
+import HelpPage from '@/app/HelpPage'
+import ContactPage from '@/app/ContactPage'
+import AboutPage from '@/app/AboutPage'
 
 
 Vue.use(Router);
@@ -44,7 +44,7 @@ export default new Router({
       redirect: '/projects',
       children: [
         {
-          path: 'frameworks',
+          path: 'frameworks',  // CASCADE-TB DIFFERENCE
           name: 'Manage frameworks',
           component: FrameworksPage
         },
@@ -55,7 +55,7 @@ export default new Router({
         },
         {
           path: 'calibration',
-          name: 'Baseline',
+          name: 'Baseline', // CASCADE-TB DIFFERENCE
           component: CalibrationPage
         },
         {
@@ -86,17 +86,17 @@ export default new Router({
         {
           path: 'help',
           name: 'Help',
-          component: Help
+          component: HelpPage
         },
         {
           path: 'contact',
           name: 'Contact',
-          component: Contact
+          component: ContactPage
         },
         {
           path: 'about',
           name: 'About',
-          component: About
+          component: AboutPage
         },
       ]
     },

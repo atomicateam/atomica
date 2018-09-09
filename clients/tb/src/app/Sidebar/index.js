@@ -9,7 +9,7 @@ const SidebarStore = {
       path: '/projects'
     },
     {
-      name: 'Calibration',
+      name: 'Calibration', // CASCADE-TB DIFFERENCE
       icon: 'ti-ruler-alt-2',
       path: '/calibration'
     },

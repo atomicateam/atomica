@@ -1,4 +1,4 @@
-import rpcs from '@/services/rpc-service'
+import rpcs from '@/js/rpc-service'
 import store from '@/store'
 import router from '@/router'
 var state = {

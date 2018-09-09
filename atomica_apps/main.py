@@ -16,7 +16,7 @@ def make_app(which=None):
         import config_tb as config
         import apptasks_tb as apptasks # analysis:ignore
     elif which == 'cascade':
-        name = 'Cascade Analysis Tool'
+        name = 'Cascade Analysis Tools'
         import config_cascade as config
         import apptasks_cascade as apptasks # analysis:ignore
     else:
