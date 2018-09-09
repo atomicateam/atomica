@@ -26,7 +26,7 @@ Last update: 2018-09-06
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
-          <button class="btn" @click="toggleShowingParams()">
+          <button class="btn" @click="toggleParams()">
             <span v-if="areShowingParameters">Hide</span>
             <span v-else>Show</span>
             parameters
@@ -157,7 +157,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
@@ -317,8 +317,8 @@ Last update: 2018-09-06
     data() {
       return {
         parList: [],
-        areShowingParameters: false,
-        areShowingPlotControls: false,
+        showParameters: false,
+        showPlotControls: false,
         activeParset: -1,
         parsetOptions: [],
         origParsetName: [],
@@ -380,19 +380,16 @@ Last update: 2018-09-06
       updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
-      maximize(legend_id)               { return graphs.maximize(this, legend_id)},
-      minimize(legend_id)               { return graphs.minimize(this, legend_id)},
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },
+      togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
-      toggleShowingParams() {
-        this.areShowingParameters = !this.areShowingParameters
-      },
-
-      toggleShowingPlotControls() {
-        this.areShowingPlotControls = !this.areShowingPlotControls
+      toggleParams() {
+        this.showParameters = !this.showParameters
       },
 
       loadParTable() {

@@ -23,6 +23,10 @@ function getPlotOptions(vm, project_id) {
   })
 }
 
+function togglePlotControls(vm) {
+  vm.showPlotControls = !vm.showPlotControls
+}
+
 function placeholders(vm, startVal) {
   let indices = []
   if (!startVal) {
@@ -241,6 +245,7 @@ export default {
   placeholders,
   clearGraphs,
   getPlotOptions,
+  togglePlotControls,
   makeGraphs,
   scaleFigs,
   showBrowserWindowSize,
