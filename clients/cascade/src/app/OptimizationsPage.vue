@@ -449,6 +449,7 @@ Last update: 2018-09-06
         return (routePath && optimState)
       },
 
+      getOptimTaskState(optimSummary) {
         console.log('getOptimTaskState() called for with: ' + optimSummary.status)
         let statusStr = '';
 
@@ -712,9 +713,10 @@ Last update: 2018-09-06
           })
       },
 
+
       runOptim(optimSummary, maxtime) {
         console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.validateYears()  // Make sure the start end years are in the right range.
+        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
         status.start(this)
         var RPCname = ''
         if (this.$globaltool === 'cascade') {
@@ -724,77 +726,38 @@ Last update: 2018-09-06
           RPCname = 'run_tb_optimization'
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
-          .then(response => {
+        .then(response => {
+
+          // We are using Celery
+          if (this.useCelery) {
             rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
+            .then(response => {           
+              rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
+                [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
+                {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
+                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
               .then(response => {
-                rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
-                  [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
-                  {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
-                    'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
-                  .then(response => {
-                    // Get the task state for the optimization.
-                    this.getOptimTaskState(optimSummary)
-                    status.succeed(this, 'Started optimization')
-                  })
-                  .catch(error => {
-                    status.fail(this, 'Could not start optimization', error)
-                  })
+                this.getOptimTaskState(optimSummary)
+                status.succeed(this, 'Started optimization')
               })
               .catch(error => {
                 status.fail(this, 'Could not start optimization', error)
               })
-          })
-          .catch(error => {
-            status.fail(this, 'Could not start optimization', error)
-          })
-      },
-
-
-      runOptim(optimSummary, maxtime) {  // CK: TEMMPPPPPPPPPP
-        console.log('runOptim() called for '+this.currentOptim + ' for time: ' + maxtime)
-        this.clipValidateYearInput()  // Make sure the end year is sensibly set. 
-        status.start(this)
-        rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
-        .then(response => {
-          if (this.useCelery) {  // We are using Celery        
-            rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
-            .then(response => {           
-              rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, 'run_cascade_optimization', 
-                [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-                {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
-                // CASCADE-TB DIFFERENCE
-                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
-              .then(response => {
-                // Get the task state for the optimization.
-                this.getOptimTaskState(optimSummary)
-                
-                // Indicate success.
-                status.succeed(this, 'Started optimization')
-              })
-              .catch(error => {
-                this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-                console.log(this.serverresponse)
-                this.servererror = error.message // Set the server error.
-                 
-                // Indicate failure.
-                status.fail(this, 'Could not start optimization: ' + error.message)
-              })
             })
             .catch(error => {
-              status.fail(this, 'Could not start optimization: ' + error.message)
+              status.fail(this, 'Could not start optimization', error)
             })
           }
-          
-          else {  // We are NOT using Celery  
+
+          // We are NOT using Celery
+          else {
             optimSummary.status = 'started'          
             rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':'cascade',  
-              // CASCADE-TB DIFFERENCE
+              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
             .then(response => {
               if (this.$route.path === '/optimizations') {  // check to see if still on same page
-                // Get the task state for the optimization.
-                this.getOptimTaskState(optimSummary)               
+                this.getOptimTaskState(optimSummary)
                 this.makeGraphs(response.data.graphs)
                 this.table = response.data.table
                 this.displayResultName = optimSummary.name
@@ -802,18 +765,13 @@ Last update: 2018-09-06
               }
             })
             .catch(error => {
-              status.fail(this, 'Could not make graphs:' + error.message) // Indicate failure.
+              status.fail(this, 'Could not make graphs', error) // Indicate failure.
             })
           }
      
         })
         .catch(error => {
-          this.serverresponse = 'There was an error: ' + error.message // Pull out the error message.
-          console.log(this.serverresponse)
-          this.servererror = error.message // Set the server error.
-           
-          // Indicate failure.
-          status.fail(this, 'Could not start optimization: ' + error.message)
+          status.fail(this, 'Could not start optimization', error)
         })
       },
 
