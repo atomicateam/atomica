@@ -43,7 +43,9 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
 
     # Next, instantiate a new ProjectData and ProgramSet using the FE values
     user_data = au.ProjectData.new(F,tvec=np.arange(fe_data_years[0],fe_data_years[1]+1),pops=fe_pops,transfers=fe_transfers)
-    progs = {prog.name:prog.label for prog in default_progset.programs.values()}
+    progs = sc.odict()
+    for prog in default_progset.programs.values():
+        progs[prog.name] = prog.label
     user_progset = au.ProgramSet.new(framework=F,data=user_data,progs=progs,tvec=np.arange(fe_program_years[0],fe_program_years[1]+1))
 
     # Assign a template pop to each user pop
