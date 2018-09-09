@@ -36,7 +36,7 @@ from .scenarios import ParameterScenario
 from .optimization import optimize, OptimInstructions
 from .system import logger
 from .scenarios import BudgetScenario
-from .cascade import sanitize_cascade, get_cascade_outputs
+from .cascade import get_cascade_outputs
 from .utils import NDict
 import sciris as sc
 import numpy as np
@@ -46,8 +46,8 @@ class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
         self.sim_start = sim_start if sim_start is not None else 2000.0
-        self.sim_end = sim_end if sim_end is not None else 2035.0
-        self.sim_dt = sim_dt if sim_dt is not None else 1.0 / 4
+        self.sim_end   = sim_end   if sim_end   is not None else 2035.0
+        self.sim_dt    = sim_dt    if sim_dt    is not None else 0.25
 
         logger.debug("Initialized project settings.")
 
@@ -62,17 +62,15 @@ class ProjectSettings(object):
 
     def update_time_vector(self, start=None, end=None, dt=None):
         """ Calculate time vector. """
-        if start is not None:
-            self.sim_start = start
-        if end is not None:
-            self.sim_end = end
-        if dt is not None:
-            self.sim_dt = dt
+        if start is not None: self.sim_start = start
+        if end   is not None: self.sim_end   = end
+        if dt    is not None: self.sim_dt    = dt
+        return None
 
 
 class Project(object):
-    def __init__(self, name="default", framework=None, databook_path=None, do_run=True):
-        """ Initialize the project. """
+    def __init__(self, name="default", framework=None, databook_path=None, do_run=True, **kwargs):
+        """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
         # - framework : a Framework to use. This could be
         #               - A filename to an Excel file on disk
@@ -107,7 +105,7 @@ class Project(object):
         self.modified = sc.now()
 
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
-        self.settings = ProjectSettings() # Global settings
+        self.settings = ProjectSettings(**kwargs) # Global settings
 
         # Load project data, if available
         if framework and databook_path:

@@ -21,7 +21,7 @@ Last update: 2018-09-06
 
     <div v-else>
       <div class="card">
-        <help reflink="calibration" label="Calibration"></help>
+        <div><help reflink="calibration" label="Calibration"></help></div>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -124,7 +124,7 @@ Last update: 2018-09-06
         <!-- ### End: parameters card ### -->
 
         <!-- ### Start: results card ### -->
-        <div class="card full-width-card">
+        <div class="card full-width-card" v-if="hasGraphs">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
@@ -287,6 +287,7 @@ Last update: 2018-09-06
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
         figscale: 1.0,
+        hasGraphs: false,
         serverDatastoreId: ''        
       }
     },
@@ -449,8 +450,10 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
+            if (this.$route.path === '/calibration') {  // check to see if still on same page            
 //            status.succeed(this, 'Simulation run') // Indicate success.
-            this.makeGraphs(response.data.graphs)
+              this.makeGraphs(response.data.graphs)
+            }
           })
           .catch(error => {
             console.log(error.message)
@@ -472,7 +475,9 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
-            this.makeGraphs(response.data.graphs)
+            if (this.$route.path === '/calibration') {  // check to see if still on same page
+              this.makeGraphs(response.data.graphs)
+            }
           })
           .catch(error => {
             console.log(error.message)
@@ -489,9 +494,11 @@ Last update: 2018-09-06
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
           {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
         .then(response => {
-          this.makeGraphs(response.data.graphs)
-          this.table = response.data.table
-          status.succeed(this, 'Graphs created')
+          if (this.$route.path === '/calibration') {  // check to see if still on same page
+            this.makeGraphs(response.data.graphs)
+            this.table = response.data.table
+            status.succeed(this, 'Graphs created')
+          }
         })
         .catch(error => {
           this.serverresponse = 'There was an error', error // Pull out the error message.

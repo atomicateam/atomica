@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep05 by gchadder3
+Last update: 2018sep06 by gchadder3
 """
 
 ###############################################################
@@ -416,18 +416,18 @@ def save_project(proj, online=True):
 
 
 @timeit
-def save_project_as_new(proj, user_id):
+def save_project_as_new(proj, user_id, uid=None):
     """
     Given a Project object and a user UID, wrap the Project in a new prj.ProjectSO 
     object and put this in the project collection, after getting a fresh UID
     for this Project.  Then do the actual save.
     """ 
-    proj.uid = sc.uuid() # Set a new project UID, so we aren't replicating the UID passed in.
+    proj.uid = sc.uuid(uid=uid) # Set a new project UID, so we aren't replicating the UID passed in.
     projSO = prj.ProjectSO(proj, user_id) # Create the new project entry and enter it into the ProjectCollection.
     prj.proj_collection.add_object(projSO)  
-    print(">> save_project_as_new '%s'" % proj.name) # Display the call information.
+    print(">> save_project_as_new '%s' [<%s> %s]" % (proj.name, user_id, proj.uid)) # Display the call information.
     save_project(proj) # Save the changed Project object to the DataStore.
-    return None
+    return proj.uid
 
 
 # RPC definitions
@@ -834,7 +834,7 @@ def add_demo_project(user_id, project_name='default'):
     """
     if project_name is 'default':
         new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
-        proj = au.demo(which='tb', do_run=False, do_plot=False)  # Create the project, loading in the desired spreadsheets.
+        proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
     else:
         new_proj_name = get_unique_name(project_name, other_names=None) # Get a unique name for the project to be added.
@@ -852,14 +852,16 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     """
     Create a new project.
     """
+    if tool == 'tb': sim_dt = 0.5
+    else:            sim_dt = None
     if tool is None: # Optionally select by tool rather than frame
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
-        frame = au.demo(kind='framework', which=tool)
+        frame = au.demo(kind='framework', which=tool, sim_dt=sim_dt)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
-    proj = au.Project(framework=frame, name=new_proj_name) # Create the project, loading in the desired spreadsheets.
+    proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
     file_name = '%s.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
@@ -914,7 +916,7 @@ def copy_project(project_id):
     project_record = load_project_record(project_id, raise_exception=True)
     proj = project_record.proj
     new_project = sc.dcp(proj) # Make a copy of the project loaded in to work with.
-    new_project.name = sc.uniquename(proj.name, namelist=None) # Just change the project name, and we have the new version of the Project object to be saved as a copy.
+    new_project.name = get_unique_name(proj.name, other_names=None) # Just change the project name, and we have the new version of the Project object to be saved as a copy.
     user_id = current_user.get_id() # Set the user UID for the new projects record to be the current user.
     print(">> copy_project %s" % (new_project.name))  # Display the call information.
     save_project_as_new(new_project, user_id) # Save a DataStore projects record for the copy project.
@@ -933,7 +935,7 @@ def create_project_from_prj_file(prj_filename, user_id):
         proj = sc.loadobj(prj_filename)
     except Exception:
         return { 'error': 'BadFileFormatError' }
-    proj.name = sc.uniquename(proj.name, namelist=None) # Reset the project name to a new project name that is unique.
+    proj.name = get_unique_name(proj.name, other_names=None) # Reset the project name to a new project name that is unique.
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
@@ -1223,11 +1225,14 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
     if sc.isstring(year):
         year = float(year)
 
+    assert not (calibration and plot_budget), 'Cannot make budget plots for a calibration simulation because calibrations do not have programs'
+
     results = sc.promotetolist(results)
 
+    # Prepare populations
+    # For calibration plot, 'all' pops means that they should all be *disaggregated* and visible - which is `pops=None` in PlotData
+    # But for scenarios and optimizations, 'all' pops means *aggregated* over all pops - which is `pops='all'` in PlotData
     if calibration and pops.lower() == 'all':
-        # For calibration plot, 'all' pops means that they should all be disaggregated and visible
-        # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = None  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
         pops = 'all' # make sure it's lowercase
@@ -1235,23 +1240,43 @@ def process_plots(proj, results, tool=None, year=None, pops=None, cascade=None, 
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
 
-    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
-    if tool == 'cascade': # For Cascade Tool
-        output = cascadeoutput
-        allfigs = cascadefigs
+    # Render cascade plot
+    # This is _always_ shown
+    output = {'graphs':[]}
+    allfigs = []
+
+    cascadeoutput,cascadefigs = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade)
+    output['graphs'] += cascadeoutput['graphs']
+    allfigs += cascadefigs
+
+    if plot_budget:
+        budgetoutput, budgetfigs = get_program_plots(results, year=year, budget=True, coverage=True)
+        output['graphs'] += budgetoutput['graphs']
+        allfigs += budgetfigs
+
+    def interleave(a, b):
+        # x=['a','b',], y=['c','d'], return ['a','c','b','d']
+        return [x for t in zip(a, b) for x in t]
+
+    # Make the normal time series plots - these are not generated in the Cascades tool
+    if tool == 'cascade':
+        # For Cascade Tool, currently no additional figures are shown
+        pass
     else: # For Optima TB
         if calibration:
-            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
-            unstacked_output,unstackedfigs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-            output['graphs'] = [x for t in zip(output['graphs'], unstacked_output['graphs']) for x in t]
-            output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-            allfigs = cascadefigs + [x for t in zip(allfigs, unstackedfigs) for x in t]
+            stacked_output, stacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, stacked=True, calibration=True)
+            unstacked_output, unstacked_figs = get_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
+            output['graphs'] += interleave(stacked_output['graphs'], unstacked_output['graphs'])
+            allfigs += interleave(stacked_figs, unstacked_figs)
         else:
-            output, allfigs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            output['graphs'] = cascadeoutput['graphs'] + output['graphs']
-            allfigs = cascadefigs + allfigs
+            unstacked_output, unstacked_figs = get_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
+            output['graphs'] += unstacked_output['graphs']
+            allfigs += unstacked_figs
+
     if dosave:
-        savefigs(allfigs, online=online)  
+        # TODO - get_cascade_plot and get_program_plots close the figures with pl.close(), does savefigs() still work here?
+        savefigs(allfigs, online=online)
+
     return output
 
 
@@ -1276,8 +1301,51 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
     graph_dict = mpld3.fig_to_dict(fig)
     return graph_dict
     
+def get_program_plots(results,year,budget=True,coverage=True):
+    # Generate program related plots
+    # INPUTS
+    # - proj : Project instance
+    # - results : Result or list of Results
+    # - year : If making a budget bar plot, it will be displayed for this year
+    # - budget : True/False flag for whether to include budget bar plot
+    # - coverage : True/False flag for whether to include program coverage figures
 
-def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
+    figs = []
+    if budget:
+        d = au.PlotData.programs(results, quantity='spending')
+        d.interpolate(year)
+        budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
+
+        ax = budget_figs[0].axes[0]
+        ax.set_xlabel('Spending ($/year)')
+
+        # The legend is too big for the figure -- WARNING, think of a better solution
+        #        budget_figs[1].set_figheight(8.9)
+        #        budgetfigs[1].set_figwidth(8.7)
+
+        figs += budget_figs
+        print('Budget plot succeeded')
+
+    if coverage:
+        d = au.PlotData.programs(results,quantity='coverage_fraction')
+        coverage_figs = au.plot_series(d, axis='results')
+        for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
+            fig.axes[0].set_title(output_label)
+            series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
+            fig.axes[0].set_ylabel(series.units)
+        figs += coverage_figs
+        print('Coverage plots succeeded')
+
+    graphs = []
+    for fig in figs:
+        graph_dict = mpld3.fig_to_dict(fig)
+        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
+        graphs.append(graph_dict)
+        pl.close(fig)
+    output = {'graphs':graphs}
+    return output, figs
+
+def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None):
     
     if results is None: results = proj.results[-1]
     if year is None: year = proj.settings.sim_end # Needed for plot_budget
@@ -1290,22 +1358,7 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
     figs.append(fig)
-    
-    if plot_budget:
-        d = au.PlotData.programs(results)
-        d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False,orientation='horizontal')
-        
-        ax = budgetfigs[0].axes[0]
-        ax.set_xlabel('Spending ($/year)')
 
-        # The legend is too big for the figure -- WARNING, think of a better solution
-#        budgetfigs[1].set_figheight(8.9)
-#        budgetfigs[1].set_figwidth(8.7)
-        
-        figs += budgetfigs
-        print('Budget plot succeeded')
-    
     for fig in figs:
         ax = fig.get_axes()[0]
         ax.set_facecolor('none')
@@ -1553,7 +1606,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
     put_results_cache_entry(cache_id, results)
-    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False)
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False, plot_budget=True)
     print('Saving project...')
     save_project(proj)    
     return output
@@ -1630,6 +1683,31 @@ def set_optim_info(project_id, optim_summaries, online=True):
     return None
 
 
+# This is the function we should use on occasions when we can't use Celery.
+@RPC()
+def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
+    print('Running Cascade optimization...')
+    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
+    if online: # Assume project_id is actually an ID
+        proj = load_project(project_id, raise_exception=True)
+    else: # Otherwise try using it as a project
+        proj = project_id
+        
+    # Actually run the optimization and get its results (list of baseline and 
+    # optimized Result objects).
+    results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
+    
+    # Put the results into the ResultsCache.
+    put_results_cache_entry(cache_id, results)
+
+    # Plot the results.    
+    output = process_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
+#    if online:
+#        print('Saving project...')
+#        save_project(proj)
+    return output
+
+
 ##############################################################
 ### Task functions and RPCs
 ##############################################################
@@ -1680,8 +1758,8 @@ def init_results_cache(app):
     
     # If there was a match...
     if results_cache_uid is not None:
-        if app.config['LOGGING_MODE'] == 'FULL':
-            print('>> Loading ResultsCache from the DataStore.')
+#        if app.config['LOGGING_MODE'] == 'FULL':
+#            print('>> Loading ResultsCache from the DataStore.')
         results_cache.load_from_data_store()
         
     # Else (no match)...
@@ -1695,7 +1773,8 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-        results_cache.show()
+#        results_cache.show()
+        print('>> Loaded results cache with %s results' % len(results_cache.keys()))
 
         
 def apptasks_load_results_cache():
@@ -1761,6 +1840,14 @@ def put_results_cache_entry(cache_id, results, apptasks_call=False):
     
     # Actually, store the results in the cache.
     results_cache.store(cache_id, results)
+
+
+@RPC() 
+def check_results_cache_entry(cache_id):
+    print('Checking for cached results...')
+    # Load the results from the cache and check if we got a result.
+    results = fetch_results_cache_entry(cache_id)   
+    return { 'found': (results is not None) }
 
 
 # NOTE: This function should be called by the Optimizations FE pages before the 

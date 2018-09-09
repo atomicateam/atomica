@@ -2,6 +2,12 @@ FROM continuumio/anaconda:latest
 ADD . /app
 WORKDIR /app
 
+ARG WHICH
+ARG PORT
+ARG REDIS_URL
+ENV PORT $PORT
+ENV REDIS_URL $REDIS_URL
+
 # Set up apt-get
 RUN apt-get update -qq && apt-get install -yqq gnupg curl libgl1-mesa-glx gcc supervisor
 
@@ -12,7 +18,7 @@ RUN apt-get clean -y
 
 # Install sciris
 RUN git clone https://github.com/optimamodel/sciris.git
-RUN cd sciris && python setup.py develop
+RUN cd sciris && git checkout use-redis-session-2 && python setup.py develop && python setup-web.py develop 
 
 # Install mpld3
 RUN git clone https://github.com/optimamodel/mpld3.git
@@ -25,8 +31,9 @@ RUN python setup.py develop
 WORKDIR clients
 RUN python install_client.py
 
-# Install cascade (TODO: add an option for cascade/tb)
-WORKDIR cascade
+# Install app
+WORKDIR ${WHICH}
 RUN python build_client.py
 
-CMD PORT=80 REDIS_URL=redis://10.0.0.3:6379/8 supervisord
+# CMD python start_server.py
+CMD PORT=80 supervisord 

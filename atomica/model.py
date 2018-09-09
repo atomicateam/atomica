@@ -696,16 +696,14 @@ class Population(object):
             par = parset.get_par(c.name)
             b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]*par.meta_y_factor
             # Run exception clauses for compartment logic.
-            try:
+            if isinstance(c,Characteristic):
                 if c.denominator is not None:
                     denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
                     b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]*denom_par.meta_y_factor
-            except Exception:
-                pass
-            try:
+
                 for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
-            except Exception:
+            else:
                 A[i, comp_indices[c.name]] = 1.0
 
         # Solve the linear system
