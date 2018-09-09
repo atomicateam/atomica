@@ -23,6 +23,10 @@ function getPlotOptions(vm, project_id) {
   })
 }
 
+function togglePlotControls(vm) {
+  vm.showPlotControls = !vm.showPlotControls
+}
+
 function placeholders(vm, startVal) {
   let indices = []
   if (!startVal) {
@@ -122,6 +126,28 @@ function makeGraphs(vm, data) {
   })
 }
 
+
+function reloadGraphs(vm, project_id, cache_id, showNoCacheError, iscalibration, plotbudget) {
+  console.log('reloadGraphs() called')
+  utils.validateYears(vm)  // Make sure the start end years are in the right range.
+  status.start(vm)
+  rpcs.rpc('plot_results_cache_entry', [project_id, cache_id, vm.plotOptions],
+    {tool:vm.$globaltool, 'cascade':null, plotyear:vm.endYear, pops:vm.activePop, calibration:iscalibration, plotbudget:plotbudget})
+    .then(response => {
+      vm.table = response.data.table
+      vm.makeGraphs(response.data)
+      status.succeed(vm, 'Data loaded, graphs now rendering...')
+    })
+    .catch(error => {
+      if (showNoCacheError) {
+        status.fail(vm, 'Could not make graphs', error)
+      }
+      else {
+        status.succeed(vm, '')  // Silently stop progress bar and spinner.
+      }
+    })
+}
+
 //
 // Graphs DOM functions
 //
@@ -179,7 +205,7 @@ function onMouseUpdate(e, vm) {
 function createDialogs(vm) {
   let vals = placeholders(vm)
   for (let val in vals) {
-    newDialog(vm, val, 'Dialog '+val, 'This is test '+val)
+    newDialog(vm, val, 'Dialog '+val, 'Placeholder content '+val)
   }
 }
 
@@ -241,7 +267,9 @@ export default {
   placeholders,
   clearGraphs,
   getPlotOptions,
+  togglePlotControls,
   makeGraphs,
+  reloadGraphs,
   scaleFigs,
   showBrowserWindowSize,
   addListener,

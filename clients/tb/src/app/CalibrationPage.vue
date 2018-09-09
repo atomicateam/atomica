@@ -129,6 +129,7 @@ Last update: 2018-09-06
       </div>
       <!-- ### End: parameters card ### -->
 
+
       <!-- ### Start: results card ### -->
       <div class="PageSection" v-if="hasGraphs">
         <div class="card">
@@ -138,30 +139,29 @@ Last update: 2018-09-06
             <div>
 
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="plotCalibration(true)">
+              <select v-model="endYear" @change="reloadGraphs(true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="plotCalibration(true)">
+              <select v-model="activePop" @change="reloadGraphs(true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
               </select>
-              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs()">Export plots</button>
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
-
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
             </div>
           </div>
           <!-- ### End: plot controls ### -->
+
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -174,6 +174,27 @@ Last update: 2018-09-06
                     <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div v-if="$globaltool=='cascade' && table" class="calib-tables">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
+
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
                     <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
@@ -186,7 +207,8 @@ Last update: 2018-09-06
                     </div>
                   </div>
                 </div>
-              </div>
+
+              </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
@@ -207,25 +229,6 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: dialogs ### -->
 
-            <!-- ### Start: cascade table ### -->
-            <div v-if="this.$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
-              <h4>Cascade stage losses</h4>
-              <table class="table table-striped" style="text-align:right;">
-                <thead>
-                <tr>
-                  <th></th>
-                  <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(label, index) in table.rowlabels">
-                  <td>{{label}}</td>
-                  <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-            <!-- ### End: cascade table ### -->
 
             <!-- ### Start: plot selectors ### -->
             <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
@@ -252,49 +255,45 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: plot selectors ### -->
 
-          </div>
-          <!-- ### End: results and plot selectors ### -->
+          </div>  <!-- ### End: card body ### -->
+        </div> <!-- ### End: results card ### -->
+      </div> <!-- ### End: PageSection/hasGraphs ### -->
+    </div> <!-- ### End: v-else project (results) ### -->
 
+
+    <!-- ### Start: add scenarios modal ### -->
+    <modal name="rename-parset"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Rename parameter set
         </div>
-        <!-- ### End: results card ### -->
+        <div class="dialog-c-text">
+          New name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="activeParset"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="renameParset()" class='btn __green' style="display:inline-block">
+            Rename
+          </button>
 
+          <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
       </div>
 
-
-      <modal name="rename-parset"
-
-             height="auto"
-             :classes="['v--modal', 'vue-dialog']"
-             :width="width"
-             :pivot-y="0.3"
-             :adaptive="true"
-             :clickToClose="clickToClose"
-             :transition="transition">
-
-        <div class="dialog-content">
-          <div class="dialog-c-title">
-            Rename parameter set
-          </div>
-          <div class="dialog-c-text">
-            New name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="activeParset"/><br>
-          </div>
-          <div style="text-align:justify">
-            <button @click="renameParset()" class='btn __green' style="display:inline-block">
-              Rename
-            </button>
-
-            <button @click="$modal.hide('rename-parset')" class='btn __red' style="display:inline-block">
-              Cancel
-            </button>
-          </div>
-        </div>
-
-      </modal>
-
-    </div>
+    </modal>
+    <!-- ### End: rename parset modal ### -->
 
   </div>
 </template>
@@ -317,18 +316,20 @@ Last update: 2018-09-06
       return {
         // Parameter and program set information
         activeParset:  -1,
+        activeProgset: -1,
         parsetOptions: [],
-        origParsetName: [],
+        progsetOptions: [],
 
         // Plotting data
         showPlotControls: false,
         hasGraphs: false,
+        table: null, // Not actually used on this page
         startYear: 0,
         endYear: 2018, // TEMP FOR DEMO
         activePop: "All",
+        popOptions: [],
         plotOptions: [],
         yearOptions: [],
-        popOptions: [],
         serverDatastoreId: '',
         openDialogs: [],
         showGraphDivs: [], // These don't actually do anything, but they're here for future use
@@ -339,6 +340,7 @@ Last update: 2018-09-06
 
         // Page-specific data
         parList: [],
+        origParsetName: [],
         showParameters: false,
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
@@ -361,6 +363,7 @@ Last update: 2018-09-06
       graphs.createDialogs(this)
       if ((this.$store.state.activeProject.project !== undefined) &&
         (this.$store.state.activeProject.project.hasData) ) {
+        console.log('created() called')
         this.startYear = this.simStart
 //        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops
@@ -371,7 +374,7 @@ Last update: 2018-09-06
               .then(response2 => {
                 this.loadParTable()
                   .then(response3 => {
-                    this.plotCalibration(false)
+                    this.reloadGraphs(false)
                   })
               })
           })
@@ -380,7 +383,7 @@ Last update: 2018-09-06
 
     methods: {
 
-      validateYears()                   { return shared.validateYears(this) },
+      validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
@@ -389,6 +392,7 @@ Last update: 2018-09-06
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, true) }, // Set to calibration=true
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
 
@@ -412,24 +416,80 @@ Last update: 2018-09-06
         })
       },
 
-      plotCalibration(showNoCacheError) {
-        console.log('plotCalibration() called')
-        this.validateYears()  // Make sure the start end years are in the right range.
+      renameParsetModal() {
+        console.log('renameParsetModal() called');
+        this.origParsetName = this.activeParset // Store this before it gets overwritten
+        this.$modal.show('rename-parset');
+      },
+
+      renameParset() {
+        console.log('renameParset() called for ' + this.activeParset)
+        this.$modal.hide('rename-parset');
         status.start(this)
-        rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
+        rpcs.rpc('rename_parset', [this.projectID, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.makeGraphs(response.data)
-            this.table = response.data.table
-            status.succeed(this, 'Data loaded, graphs now rendering...')
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
           })
           .catch(error => {
-            if (showNoCacheError) {
-              status.fail(this, 'Could not make graphs', error)
-            }
-            else {
-              status.succeed(this, '')  // Silently stop progress bar and spinner.
-            }
+            status.fail(this, 'Could not rename parameter set', error)
+          })
+      },
+
+      copyParset() {
+        console.log('copyParset() called for ' + this.activeParset)
+        status.start(this)
+        rpcs.rpc('copy_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => {
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
+            this.activeParset = response.data
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not copy parameter set', error)
+          })
+      },
+
+      deleteParset() {
+        console.log('deleteParset() called for ' + this.activeParset)
+        status.start(this)
+        rpcs.rpc('delete_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => {
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
+            status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one', error)
+          })
+      },
+
+      downloadParset() {
+        console.log('downloadParset() called for ' + this.activeParset)
+        status.start(this)
+        rpcs.download('download_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => { // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not download parameter set', error)
+          })
+      },
+
+      uploadParset() {
+        console.log('uploadParset() called')
+        rpcs.upload('upload_parset', [this.projectID], {}, '.par') // Have the server copy the project, giving it a new name.
+          .then(response => {
+            status.start(this)
+            this.updateSets() // Update the project summaries so the copied program shows up on the list.
+            // TODO: look into whether the above line is necessary
+            this.activeParset = response.data
+            status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not upload parameter set', error)
           })
       },
 
@@ -463,93 +523,12 @@ Last update: 2018-09-06
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
+            this.table = response.data.table
             this.makeGraphs(response.data.graphs)
           })
           .catch(error => {
             console.log(error.message)
             status.fail(this, 'Could not run automatic calibration', error)
-          })
-      },
-
-      renameParsetModal() {
-        console.log('renameParsetModal() called');
-        this.origParsetName = this.activeParset // Store this before it gets overwritten
-        this.$modal.show('rename-parset');
-      },
-
-      renameParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
-        console.log('renameParset() called for ' + this.activeParset)
-        this.$modal.hide('rename-parset');
-        status.start(this)
-        rpcs.rpc('rename_parset', [uid, this.origParsetName, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            this.updateSets() // Update the project summaries so the copied program shows up on the list.
-            // TODO: look into whether the above line is necessary
-            status.succeed(this, 'Parameter set "'+this.activeParset+'" renamed') // Indicate success.
-          })
-          .catch(error => {
-            status.fail(this, 'Could not rename parameter set', error)
-          })
-      },
-
-      copyParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
-        console.log('copyParset() called for ' + this.activeParset)
-        status.start(this)
-        rpcs.rpc('copy_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            this.updateSets() // Update the project summaries so the copied program shows up on the list.
-            // TODO: look into whether the above line is necessary
-            this.activeParset = response.data
-            status.succeed(this, 'Parameter set "'+this.activeParset+'" copied') // Indicate success.
-          })
-          .catch(error => {
-            status.fail(this, 'Could not copy parameter set', error)
-          })
-      },
-
-      deleteParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
-        console.log('deleteParset() called for ' + this.activeParset)
-        status.start(this)
-        rpcs.rpc('delete_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => {
-            this.updateSets() // Update the project summaries so the copied program shows up on the list.
-            // TODO: look into whether the above line is necessary
-            status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
-          })
-          .catch(error => {
-            status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one', error)
-          })
-      },
-
-      downloadParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
-        console.log('downloadParset() called for ' + this.activeParset)
-        status.start(this)
-        rpcs.download('download_parset', [uid, this.activeParset]) // Have the server copy the project, giving it a new name.
-          .then(response => { // Indicate success.
-            status.succeed(this, '')  // No green popup message.
-          })
-          .catch(error => {
-            status.fail(this, 'Could not download parameter set', error)
-          })
-      },
-
-      uploadParset() {
-        let uid = this.$store.state.activeProject.project.id // Find the project that matches the UID passed in.
-        console.log('uploadParset() called')
-        rpcs.upload('upload_parset', [uid], {}, '.par') // Have the server copy the project, giving it a new name.
-          .then(response => {
-            status.start(this)
-            this.updateSets() // Update the project summaries so the copied program shows up on the list.
-            // TODO: look into whether the above line is necessary
-            this.activeParset = response.data
-            status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
-          })
-          .catch(error => {
-            status.fail(this, 'Could not upload parameter set', error)
           })
       },
     }
