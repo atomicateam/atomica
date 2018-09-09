@@ -23,7 +23,7 @@ Last update: 2018-09-06
 
       <!-- ### Start: calibration card ### -->
       <div class="card">
-        <div><help reflink="bl-overview" label="Calibration"></help></div>
+        <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
           <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
           <button class="btn" @click="toggleShowingParams()">
@@ -157,7 +157,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
@@ -204,9 +204,28 @@ Last update: 2018-09-06
                   </div>
                 </dialog-drag>
               </div>
-          </div>
+            </div>
             <!-- ### End: dialogs ### -->
 
+            <!-- ### Start: cascade table ### -->
+            <div v-if="this.$globaltool=='cascade'" class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+              <h4>Cascade stage losses</h4>
+              <table class="table table-striped" style="text-align:right;">
+                <thead>
+                <tr>
+                  <th></th>
+                  <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(label, index) in table.rowlabels">
+                  <td>{{label}}</td>
+                  <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- ### End: cascade table ### -->
 
             <!-- CASCADE-TB DIFFERENCE -->
             <!-- ### Start: plot selectors ### -->
@@ -233,10 +252,13 @@ Last update: 2018-09-06
               </div>
             </div>
             <!-- ### End: plot selectors ### -->
+
           </div>
           <!-- ### End: results and plot selectors ### -->
+
         </div>
         <!-- ### End: results card ### -->
+
       </div>
 
 
@@ -473,7 +495,7 @@ Last update: 2018-09-06
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'tb', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
+          {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
@@ -494,7 +516,7 @@ Last update: 2018-09-06
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}) // Go to the server to get the results
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
@@ -516,7 +538,7 @@ Last update: 2018-09-06
           var maxtime = 9999
         }
         rpcs.rpc('automatic_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'tb', 'cascade':null}
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)

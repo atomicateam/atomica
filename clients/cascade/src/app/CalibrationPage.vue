@@ -157,7 +157,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export plots</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> --> <!-- CASCADE-TB DIFFERENCE -->
+              <button v-if="this.$globaltool=='cascade'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
@@ -208,7 +208,7 @@ Last update: 2018-09-06
             <!-- ### End: dialogs ### -->
 
             <!-- ### Start: cascade table ### -->
-            <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
+            <div v-if="this.$globaltool=='cascade'" class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
               <h4>Cascade stage losses</h4>
               <table class="table table-striped" style="text-align:right;">
                 <thead>
@@ -495,7 +495,7 @@ Last update: 2018-09-06
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'cascade', 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
+          {tool:this.$globaltool, 'cascade':null, plotyear:this.endYear, pops:this.activePop, calibration:true})
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
@@ -516,7 +516,7 @@ Last update: 2018-09-06
         this.clipValidateYearInput()  // Make sure the start end years are in the right range.
         status.start(this)
         rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}) // Go to the server to get the results
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
             this.table = response.data.table
@@ -538,7 +538,7 @@ Last update: 2018-09-06
           var maxtime = 9999
         }
         rpcs.rpc('automatic_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':'cascade', 'cascade':null}
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
         ) // Go to the server to get the results from the package set.
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
