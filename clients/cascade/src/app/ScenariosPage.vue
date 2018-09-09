@@ -333,12 +333,12 @@ Last update: 2018-09-06
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
-      placeholders() { return utils.placeholders(this, 1) },
+      placeholders() { return graphs.placeholders(this, 1) },
     },
 
     created() {
-      utils.addListener(this)
-      utils.createDialogs(this)
+      graphs.addListener(this)
+      graphs.createDialogs(this)
       if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       }
@@ -365,48 +365,20 @@ Last update: 2018-09-06
 
     methods: {
 
-      maximize(id)    { return utils.maximize(this, id)},
-      minimize(id)    { return utils.minimize(this, id)},
-
-      getPlotOptions(project_id)  { return utils.getPlotOptions(this, project_id) },
-      clearGraphs()               { return utils.clearGraphs() },
-      makeGraphs(graphs, legends) { return utils.makeGraphs(this, graphs, legends) },
-      exportGraphs()              { return utils.exportGraphs(this) },
-      exportResults(datastoreID)  { return utils.exportResults(this, datastoreID) },
-
-      notImplemented() {
-        status.fail(this, 'Sorry, this feature is not implemented')
-      },
-
-      scaleFigs(frac) {
-        this.figscale = this.figscale*frac;
-        if (frac === 1.0) {
-          frac = 1.0/this.figscale
-          this.figscale = 1.0
-        }
-        return utils.scaleFigs(frac)
-      },
-
-      clipValidateYearInput() {
-        if (this.startYear > this.simEnd) {
-          this.startYear = this.simEnd
-        }
-        else if (this.startYear < this.simStart) {
-          this.startYear = this.simStart
-        }
-        if (this.endYear > this.simEnd) {
-          this.endYear = this.simEnd
-        }
-        else if (this.endYear < this.simStart) {
-          this.endYear = this.simStart
-        }
-      },
+      validateYears()                   { return shared.validateYears(this) },
+      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
+      maximize(legend_id)               { return graphs.maximize(this, legend_id)},
+      minimize(legend_id)               { return graphs.minimize(this, legend_id)},
+      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
+      clearGraphs()                     { return graphs.clearGraphs(this) },
+      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
 
       updateSets() {
         return new Promise((resolve, reject) => {
           console.log('updateSets() called')
           rpcs.rpc('get_parset_info', [this.projectID]) // Get the current user's parsets from the server.
-
             .then(response => {
               this.parsetOptions = response.data // Set the scenarios to what we received.
               if (this.parsetOptions.indexOf(this.activeParset) === -1) {

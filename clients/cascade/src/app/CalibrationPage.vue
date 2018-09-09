@@ -316,8 +316,6 @@ Last update: 2018-09-06
 
     data() {
       return {
-        sortColumn: 'index',
-        sortReverse: false,
         parList: [],
         areShowingParameters: false,
         areShowingPlotControls: false,
@@ -346,16 +344,12 @@ Last update: 2018-09-06
     computed: {
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
+      hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
-
-      sortedPars() {
-        return this.applySorting(this.parList);
-      },
-
     },
 
     created() {
@@ -382,7 +376,6 @@ Last update: 2018-09-06
 
     methods: {
 
-      updateSorting()                   { return utils.updateSorting(this) },
       validateYears()                   { return shared.validateYears(this) },
       exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
@@ -413,34 +406,6 @@ Last update: 2018-09-06
             })
             .catch(error => {
               status.fail(this, 'Could not update parameter set', error)
-              reject(error)
-            })
-        })
-      },
-
-      applySorting(pars) {
-        return pars.slice(0).sort((par1, par2) =>
-          {
-            let sortDir = this.sortReverse ? -1: 1
-            if      (this.sortColumn === 'index')      { return par1.index     > par2.index     ? sortDir: -sortDir}
-            else if (this.sortColumn === 'parameter')  { return par1.parlabel  > par2.parlabel  ? sortDir: -sortDir}
-            else if (this.sortColumn === 'population') { return par1.poplabel  > par2.poplabel  ? sortDir: -sortDir}
-            else if (this.sortColumn === 'value')      { return par1.dispvalue > par2.dispvalue ? sortDir: -sortDir}
-          }
-        )
-      },
-
-      viewTable() {
-        return new Promise((resolve, reject) => {
-          console.log('viewTable() called')
-          // TODO: Get spinners working right for this leg of initialization.
-          rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
-            .then(response => {
-              this.parList = response.data // Get the parameter values
-              resolve(response)
-            })
-            .catch(error => {
-              status.fail(this, 'Could not load parameters', error)
               reject(error)
             })
         })
