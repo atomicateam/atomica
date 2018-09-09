@@ -96,7 +96,7 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
               <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="this.$globaltool=='tb'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+              <button v-if="false" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> <!-- "$globaltool=='tb'" -->
 
             </div>
           </div>
