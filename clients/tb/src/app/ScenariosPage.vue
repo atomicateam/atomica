@@ -71,31 +71,31 @@ Last update: 2018-09-06
             <help reflink="results-plots" label="Results"></help>
             <div>
 
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" @change="plotScenarios(true)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" @change="plotScenarios(true)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
-            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
-            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-            <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" @change="plotScenarios(true)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" @change="plotScenarios(true)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button v-if="$globaltool=='tb'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
-        <!-- ### End: plot controls ### -->
+          <!-- ### End: plot controls ### -->
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -119,7 +119,7 @@ Last update: 2018-09-06
                       </div>
                     </div>
                   </div>
-          <!-- ### End: plots ### -->
+                  <!-- ### End: plots ### -->
 
                   <!-- ### Start: cascade table ### -->
                   <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
@@ -199,77 +199,77 @@ Last update: 2018-09-06
 
 
     <!-- START ADD-SCENARIO MODAL -->
-      <modal name="add-budget-scen"
-             height="auto"
-             :scrollable="true"
-             :width="500"
-             :classes="['v--modal', 'vue-dialog']"
-             :pivot-y="0.3"
-             :adaptive="true"
-             :clickToClose="clickToClose"
-             :transition="transition">
+    <modal name="add-budget-scen"
+           height="auto"
+           :scrollable="true"
+           :width="500"
+           :classes="['v--modal', 'vue-dialog']"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
 
-        <div class="dialog-content">
-          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
-            Add scenario
-          </div>
-          <div class="dialog-c-title" v-else>
-            Edit scenario
-          </div>
-          <div class="dialog-c-text">
-            <b>Scenario name</b><br>
-            <input type="text"
-                   class="txbox"
-                   v-model="addEditModal.scenSummary.name"/><br>
-            <b>Parameter set</b><br>
-            <select v-model="parsetOptions[0]">
-              <option v-for='parset in parsetOptions'>
-                {{ parset }}
-              </option>
-            </select><br><br>
-            <b>Program set</b><br>
-            <select v-model="progsetOptions[0]">
-              <option v-for='progset in progsetOptions'>
-                {{ progset }}
-              </option>
-            </select><br><br>
-            <b>Budget year</b><br>
-            <input type="text"
-                   class="txbox"
-                   v-model="addEditModal.scenSummary.start_year"/><br>
-            <table class="table table-bordered table-hover table-striped" style="width: 100%">
-              <thead>
-              <tr>
-                <th>Program</th>
-                <th>Budget</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="item in addEditModal.scenSummary.alloc">
-                <td>
-                  {{ item[2] }}
-                </td>
-                <td>
-                  <input type="text"
-                         class="txbox"
-                         v-model="item[1]"
-                         style="text-align: right"
-                  />
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div style="text-align:justify">
-            <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
-              Save scenario
-            </button>
-            <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
-              Cancel
-            </button>
-          </div>
+      <div class="dialog-content">
+        <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+          Add scenario
         </div>
-      </modal>
+        <div class="dialog-c-title" v-else>
+          Edit scenario
+        </div>
+        <div class="dialog-c-text">
+          <b>Scenario name</b><br>
+          <input type="text"
+                 class="txbox"
+                 v-model="addEditModal.scenSummary.name"/><br>
+          <b>Parameter set</b><br>
+          <select v-model="parsetOptions[0]">
+            <option v-for='parset in parsetOptions'>
+              {{ parset }}
+            </option>
+          </select><br><br>
+          <b>Program set</b><br>
+          <select v-model="progsetOptions[0]">
+            <option v-for='progset in progsetOptions'>
+              {{ progset }}
+            </option>
+          </select><br><br>
+          <b>Budget year</b><br>
+          <input type="text"
+                 class="txbox"
+                 v-model="addEditModal.scenSummary.start_year"/><br>
+          <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <thead>
+            <tr>
+              <th>Program</th>
+              <th>Budget</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="item in addEditModal.scenSummary.alloc">
+              <td>
+                {{ item[2] }}
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="item[1]"
+                       style="text-align: right"
+                />
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="text-align:justify">
+          <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
+            Save scenario
+          </button>
+          <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </modal>
     <!-- END ADD-SCENARIO MODAL -->
 
   </div>
@@ -440,7 +440,7 @@ Last update: 2018-09-06
               status.fail(this, 'Could not get parset info', error)
               reject(error)
             })
-          })
+        })
           .catch(error => {
             status.fail(this, 'Could not get parset info', error)
             reject(error)
@@ -501,7 +501,7 @@ Last update: 2018-09-06
             console.log(this.defaultBudgetScen)
           })
           .catch(error => {
-            status.fail(this, 'Could not open add scenario modal: '  + error.message)
+            status.fail(this, 'Could not open add scenario modal', error)
           })
       },
 
@@ -599,9 +599,9 @@ Last update: 2018-09-06
           .then(response => {
             // Go to the server to get the results from the package set.
             rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
-              {saveresults: false, tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
+              {saveresults: false, tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
               .then(response => {
-                this.table = response.data.table // CASCADE-TB DIFFERENCE
+                this.table = response.data.table
                 this.makeGraphs(response.data.graphs, response.data.legends)
                 status.succeed(this, '') // Success message in graphs function
               })
@@ -621,21 +621,20 @@ Last update: 2018-09-06
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'tb', plotyear:this.endYear, pops:this.activePop}) // CASCADE-TB DIFFERENCE
-        .then(response => {
-          this.makeGraphs(response.data.graphs)
-          status.succeed(this, 'Graphs created')
-        })
-        .catch(error => {
-          this.serverresponse = 'There was an error', error // Pull out the error message.
-          this.servererror = error.message // Set the server error.
-          if (showNoCacheError) {
-            status.fail(this, 'Could not make graphs', error) 
-          }
-          else {
-            status.succeed(this, '')  // Silently stop progress bar and spinner.
-          }
-        })
+          {tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
+          .then(response => {
+            this.makeGraphs(response.data.graphs, response.data.legends)
+            this.table = response.data.table
+            status.succeed(this, 'Graphs created')
+          })
+          .catch(error => {
+            if (showNoCacheError) {
+              status.fail(this, 'Could not make graphs', error)
+            }
+            else {
+              status.succeed(this, '')  // Silently stop progress bar and spinner.
+            }
+          })
       },
     }
   }

@@ -71,31 +71,31 @@ Last update: 2018-09-06
             <help reflink="results-plots" label="Results"></help>
             <div>
 
-            <b>Year: &nbsp;</b>
-            <select v-model="endYear" @change="plotScenarios(true)">
-              <option v-for='year in simYears'>
-                {{ year }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;
-            <b>Population: &nbsp;</b>
-            <select v-model="activePop" @change="plotScenarios(true)">
-              <option v-for='pop in activePops'>
-                {{ pop }}
-              </option>
-            </select>
-            &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
-            <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
-            <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-            <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
-            &nbsp;&nbsp;&nbsp;
-            <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-            <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-            <!-- <button class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button> -->
+              <b>Year: &nbsp;</b>
+              <select v-model="endYear" @change="plotScenarios(true)">
+                <option v-for='year in simYears'>
+                  {{ year }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;
+              <b>Population: &nbsp;</b>
+              <select v-model="activePop" @change="plotScenarios(true)">
+                <option v-for='pop in activePops'>
+                  {{ pop }}
+                </option>
+              </select>
+              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
+              <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
+              <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
+              &nbsp;&nbsp;&nbsp;
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button v-if="$globaltool=='tb'" class="btn btn-icon" @click="toggleShowingPlotControls()"><i class="ti-settings"></i></button>
 
             </div>
           </div>
-        <!-- ### End: plot controls ### -->
+          <!-- ### End: plot controls ### -->
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -119,7 +119,7 @@ Last update: 2018-09-06
                       </div>
                     </div>
                   </div>
-          <!-- ### End: plots ### -->
+                  <!-- ### End: plots ### -->
 
                   <!-- ### Start: cascade table ### -->
                   <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
@@ -227,7 +227,12 @@ Last update: 2018-09-06
               {{ parset }}
             </option>
           </select><br><br>
-
+          <b>Program set</b><br>
+          <select v-model="progsetOptions[0]">
+            <option v-for='progset in progsetOptions'>
+              {{ progset }}
+            </option>
+          </select><br><br>
           <b>Budget year</b><br>
           <input type="text"
                  class="txbox"
@@ -301,6 +306,7 @@ Last update: 2018-09-06
         scenariosLoaded: false,
         table: null,
         activePop: "All",
+        endYear: 0,
         addEditModal: {
           scenSummary: {},
           origName: '',
@@ -434,7 +440,7 @@ Last update: 2018-09-06
               status.fail(this, 'Could not get parset info', error)
               reject(error)
             })
-          })
+        })
           .catch(error => {
             status.fail(this, 'Could not get parset info', error)
             reject(error)
@@ -593,9 +599,9 @@ Last update: 2018-09-06
           .then(response => {
             // Go to the server to get the results from the package set.
             rpcs.rpc('run_scenarios', [this.projectID, this.serverDatastoreId, this.plotOptions],
-              {saveresults: false, tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+              {saveresults: false, tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
               .then(response => {
-                this.table = response.data.table // CASCADE-TB DIFFERENCE
+                this.table = response.data.table
                 this.makeGraphs(response.data.graphs, response.data.legends)
                 status.succeed(this, '') // Success message in graphs function
               })
@@ -615,15 +621,13 @@ Last update: 2018-09-06
         this.$Progress.start(2000)  // restart just the progress bar, and make it slower
         // Make sure they're saved first
         rpcs.rpc('plot_results_cache_entry', [this.projectID, this.serverDatastoreId, this.plotOptions],
-          {tool:'cascade', plotyear:this.endYear, pops:this.activePop})
+          {tool:this.$globaltool, plotyear:this.endYear, pops:this.activePop})
           .then(response => {
             this.makeGraphs(response.data.graphs, response.data.legends)
-            this.table = response.data.table // CASCADE-TB DIFFERENCE
+            this.table = response.data.table
             status.succeed(this, 'Graphs created')
           })
           .catch(error => {
-            this.serverresponse = 'There was an error', error // Pull out the error message.
-            this.servererror = error.message // Set the server error.
             if (showNoCacheError) {
               status.fail(this, 'Could not make graphs', error)
             }
