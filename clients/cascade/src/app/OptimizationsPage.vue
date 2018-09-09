@@ -166,6 +166,7 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: dialogs ### -->
 
+
             <!-- ### Start: plot selectors ### -->
             <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
               <div class="plotopts-params">

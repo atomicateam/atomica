@@ -157,11 +157,11 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
-
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
             </div>
           </div>
           <!-- ### End: plot controls ### -->
+
 
           <!-- ### Start: results and plot selectors ### -->
           <div class="calib-card-body">
@@ -174,6 +174,27 @@ Last update: 2018-09-06
                     <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
+
+                <!-- ### Start: cascade table ### -->
+                <div v-if="$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
+                  <h4>Cascade stage losses</h4>
+                  <table class="table table-striped" style="text-align:right;">
+                    <thead>
+                    <tr>
+                      <th></th>
+                      <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="(label, index) in table.rowlabels">
+                      <td>{{label}}</td>
+                      <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- ### End: cascade table ### -->
+
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
                     <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
@@ -186,7 +207,8 @@ Last update: 2018-09-06
                     </div>
                   </div>
                 </div>
-              </div>
+
+              </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
@@ -207,25 +229,6 @@ Last update: 2018-09-06
             </div>
             <!-- ### End: dialogs ### -->
 
-            <!-- ### Start: cascade table ### -->
-            <div v-if="$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
-              <h4>Cascade stage losses</h4>
-              <table class="table table-striped" style="text-align:right;">
-                <thead>
-                <tr>
-                  <th></th>
-                  <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(label, index) in table.rowlabels">
-                  <td>{{label}}</td>
-                  <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-            <!-- ### End: cascade table ### -->
 
             <!-- ### Start: plot selectors ### -->
             <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
