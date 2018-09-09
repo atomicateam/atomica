@@ -897,7 +897,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         legend_patches.append(Patch(facecolor=color, label=label))
 
     # Set axes now, because we need block_offset and base_offset after the loop
-#    ax.autoscale()
+    ax.autoscale()
     _turn_off_border(ax)
     block_labels = sorted(block_labels, key=lambda x: x[0])
     if orientation == 'horizontal':
