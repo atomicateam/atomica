@@ -831,7 +831,7 @@ def add_demo_project(user_id, project_name='default'):
     """
     Add a demo project
     """
-    if project_name is 'default':
+    if project_name == 'default':
         new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
         proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
@@ -1781,7 +1781,7 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-#        results_cache.show()
+        results_cache.show()
         print('>> Loaded results cache with %s results' % len(results_cache.keys()))
 
         
