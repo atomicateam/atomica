@@ -460,7 +460,13 @@ Last update: 2018-09-06
         console.log('addDemoProject() called')
         this.$modal.hide('demo-project')
         status.start(this)
-        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
+        if (this.$globaltool === 'cascade') {
+          let demoOption = this.demoOption
+        }
+        if (this.$globaltool === 'tb') {
+          let demoOption = null
+        }
+        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption]) // Have the server create a new project.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, '') // Already have notification from project
@@ -492,9 +498,19 @@ Last update: 2018-09-06
       createNewProject() {
         console.log('createNewProject() called')
         this.$modal.hide('create-project')
-        status.start(this) 
+        status.start(this)
+        var frameworkID = ''
+        if (this.$globaltool === 'cascade') {
+          let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the framework that matches the UID passed in.
+          frameworkID = matchFramework.framework.id
+          console.log('Loading framework ' + this.currentFramework)
+          console.log(matchFramework)
+        }
+        if (this.$globaltool === 'tb') {
+          frameworkID = null
+        }
         rpcs.download('create_new_project',  // Have the server create a new project.
-          [this.$store.state.currentUser.UID, null, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end, 'tb'])
+          [this.$store.state.currentUser.UID, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
           .then(response => {
             this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
