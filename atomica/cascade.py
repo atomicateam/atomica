@@ -9,6 +9,7 @@ from .results import Result
 from .system import logger, AtomicaException
 
 default_figsize = (10,4)
+default_ax_position = [0.15,0.2,0.35,0.7]
 
 class InvalidCascade(AtomicaException):
     # Throw this error if a cascade was not valid. This error should result in the
@@ -294,6 +295,9 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
         plt.subplots_adjust(top=0.8,right=0.75,left=0.2, bottom=0.25)
     else:
         plt.subplots_adjust(top=0.95, right=0.75, left=0.2, bottom=0.25)
+    
+    # Reset axes
+    plt.tight_layout()
 
     # Add a table at the bottom of the axes
     row_labels = list(cascade_vals.keys())

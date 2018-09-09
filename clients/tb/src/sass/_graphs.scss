@@ -33,6 +33,11 @@
   max-height: 80vh;
   overflow-y: auto;
 }
+.calib-tables {
+  display:inline-block;
+  padding-top:0;
+  padding-bottom:30px;
+}
 .calib-graphs {
   border: 2px solid #ddd;
   flex-grow: 1;
