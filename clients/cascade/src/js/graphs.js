@@ -128,10 +128,10 @@ function makeGraphs(vm, data) {
 
 
 function reloadGraphs(vm, showNoCacheError, iscalibration) {
-  console.log('plotCalibration() called')
-  vm.validateYears()  // Make sure the start end years are in the right range.
+  console.log('reloadGraphs() called')
+  utils.validateYears(vm)  // Make sure the start end years are in the right range.
   status.start(this)
-  rpcs.rpc('plot_results_cache_entry', [vm.projectID, vm.serverDatastoreId, vm.plotOptions],
+  rpcs.rpc('plot_results_cache_entry', [utils.projectID(vm), vm.serverDatastoreId, vm.plotOptions],
     {tool:vm.$globaltool, 'cascade':null, plotyear:vm.endYear, pops:vm.activePop, calibration:iscalibration})
     .then(response => {
       vm.makeGraphs(response.data)

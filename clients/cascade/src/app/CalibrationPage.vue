@@ -129,6 +129,7 @@ Last update: 2018-09-06
       </div>
       <!-- ### End: parameters card ### -->
 
+
       <!-- ### Start: results card ### -->
       <div class="PageSection" v-if="hasGraphs">
         <div class="card">
@@ -150,12 +151,11 @@ Last update: 2018-09-06
                   {{ pop }}
                 </option>
               </select>
-              &nbsp;&nbsp;&nbsp;<!-- CASCADE-TB DIFFERENCE -->
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs()">Export plots</button>
+              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
 
@@ -249,20 +249,14 @@ Last update: 2018-09-06
                   </tbody>
                 </table>
               </div>
-            </div>
-            <!-- ### End: plot selectors ### -->
-
-          </div>
-          <!-- ### End: results and plot selectors ### -->
-
-        </div>
-        <!-- ### End: results card ### -->
-
-      </div>
+            </div> <!-- ### End: plot selectors ### -->
+          </div>  <!-- ### End: hasGraphs ### -->
+        </div> <!-- ### End: PageSection ### -->
+      </div> <!-- ### End: v-else project (results) ### -->
 
 
+      <!-- ### Start: add scenarios modal ### -->
       <modal name="rename-parset"
-
              height="auto"
              :classes="['v--modal', 'vue-dialog']"
              :width="width"
@@ -293,8 +287,7 @@ Last update: 2018-09-06
         </div>
 
       </modal>
-
-    </div>
+      <!-- ### End: rename parset modal ### -->
 
   </div>
 </template>
@@ -417,44 +410,6 @@ Last update: 2018-09-06
         })
       },
 
-      manualCalibration(project_id) {
-        console.log('manualCalibration() called')
-        this.validateYears()  // Make sure the start end years are in the right range.
-        status.start(this)
-        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
-          .then(response => {
-            this.makeGraphs(response.data)
-            this.table = response.data.table
-            status.succeed(this, 'Simulation run, graphs now rendering...')
-          })
-          .catch(error => {
-            console.log(error.message)
-            status.fail(this, 'Could not run manual calibration', error)
-          })
-      },
-
-      autoCalibrate(project_id) {
-        console.log('autoCalibrate() called')
-        this.validateYears()  // Make sure the start end years are in the right range.
-        status.start(this)
-        if (this.calibTime === '30 seconds') {
-          var maxtime = 30
-        } else {
-          var maxtime = 9999
-        }
-        rpcs.rpc('automatic_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
-          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
-        ) // Go to the server to get the results from the package set.
-          .then(response => {
-            this.makeGraphs(response.data.graphs)
-          })
-          .catch(error => {
-            console.log(error.message)
-            status.fail(this, 'Could not run automatic calibration', error)
-          })
-      },
-
       renameParsetModal() {
         console.log('renameParsetModal() called');
         this.origParsetName = this.activeParset // Store this before it gets overwritten
@@ -534,6 +489,44 @@ Last update: 2018-09-06
           })
           .catch(error => {
             status.fail(this, 'Could not upload parameter set', error)
+          })
+      },
+
+      manualCalibration(project_id) {
+        console.log('manualCalibration() called')
+        this.validateYears()  // Make sure the start end years are in the right range.
+        status.start(this)
+        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
+          .then(response => {
+            this.makeGraphs(response.data)
+            this.table = response.data.table
+            status.succeed(this, 'Simulation run, graphs now rendering...')
+          })
+          .catch(error => {
+            console.log(error.message)
+            status.fail(this, 'Could not run manual calibration', error)
+          })
+      },
+
+      autoCalibrate(project_id) {
+        console.log('autoCalibrate() called')
+        this.validateYears()  // Make sure the start end years are in the right range.
+        status.start(this)
+        if (this.calibTime === '30 seconds') {
+          var maxtime = 30
+        } else {
+          var maxtime = 9999
+        }
+        rpcs.rpc('automatic_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'max_time':maxtime, 'plot_options':this.plotOptions,
+          'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}
+        ) // Go to the server to get the results from the package set.
+          .then(response => {
+            this.makeGraphs(response.data.graphs)
+          })
+          .catch(error => {
+            console.log(error.message)
+            status.fail(this, 'Could not run automatic calibration', error)
           })
       },
     }

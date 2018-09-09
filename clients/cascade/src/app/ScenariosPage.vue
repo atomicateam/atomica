@@ -5,7 +5,7 @@ Last update: 2018-09-06
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
 
     <div v-if="projectID ==''">
       <div style="font-style:italic">
@@ -62,10 +62,10 @@ Last update: 2018-09-06
       </div>
       <!-- ### End: scenarios card ### -->
 
-      <!-- ### Start: results card ### -->
-      <div class="PageSection">
-        <div class="card" v-if="hasGraphs">
 
+      <!-- ### Start: results card ### -->
+      <div class="PageSection" v-if="hasGraphs">
+        <div class="card">
           <!-- ### Start: plot controls ### -->
           <div class="calib-title">
             <help reflink="results-plots" label="Results"></help>
@@ -89,8 +89,8 @@ Last update: 2018-09-06
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-              <button class="btn" :disabled="true" @click="exportResults(serverDatastoreId)">Export data</button>
-              <button v-if="$globaltool=='tb'" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button>
+              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
 
             </div>
           </div>
@@ -118,86 +118,78 @@ Last update: 2018-09-06
                       </div>
                     </div>
                   </div>
-                  <!-- ### End: plots ### -->
-
-                  <!-- ### Start: cascade table ### -->
-                  <div class="calib-tables" v-if="table" style="display:inline-block; padding-top:30px">
-                    <h4>Cascade stage losses</h4>
-                    <table class="table table-striped" style="text-align:right;">
-                      <thead>
-                      <tr>
-                        <th></th>
-                        <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
-                      </tr>
-                      </thead>
-                      <tbody>
-                      <tr v-for="(label, index) in table.rowlabels">
-                        <td>{{label}}</td>
-                        <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
-                      </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <!-- ### End: cascade table ### -->
-
                 </div>
               </div>
             </div>
-          </div>
-          <!-- ### End: plots card ### -->
+            <!-- ### End: plots ### -->
 
-          <!-- CASCADE-TB DIFFERENCE -->
-          <!-- ### Start: plot selectors ### -->
-          <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
-            <div class="plotopts-params">
-              <table class="table table-bordered table-hover table-striped" style="width: 100%">
+            <!-- ### Start: dialogs ### -->
+            <div v-for="index in placeholders">
+              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
+                <dialog-drag :id="'DD'+index"
+                             :key="index"
+                             @close="minimize(index)"
+                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+
+                  <span slot='title' style="color:#fff">Legend</span>
+                  <div :id="'legend'+index">
+                    <!-- Legend content goes here-->
+                  </div>
+                </dialog-drag>
+              </div>
+            </div>
+            <!-- ### End: dialogs ### -->
+
+            <!-- ### Start: cascade table ### -->
+            <div v-if="this.$globaltool=='cascade' && table" class="calib-tables" style="display:inline-block; padding-top:30px">
+              <h4>Cascade stage losses</h4>
+              <table class="table table-striped" style="text-align:right;">
                 <thead>
                 <tr>
-                  <th>Plot</th>
-                  <th>Active</th>
+                  <th></th>
+                  <th v-for="label in table.collabels.slice(0, -1)">{{label}}</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr v-for="item in plotOptions">
-                  <td>
-                    {{ item.plot_name }}
-                  </td>
-                  <td style="text-align: center">
-                    <input type="checkbox" v-model="item.active"/>
-                  </td>
+                <tr v-for="(label, index) in table.rowlabels">
+                  <td>{{label}}</td>
+                  <td v-for="text in table.text[index].slice(0, -1)">{{text}}</td>
                 </tr>
                 </tbody>
               </table>
             </div>
-          </div>
-          <!-- ### End: plots card ### -->
+            <!-- ### End: cascade table ### -->
 
-          <!-- ### Start: dialogs ### -->
-          <div v-for="index in placeholders">
-            <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-              <dialog-drag
-                :id="'DD'+index"
-                :key="index"
-                @close="minimize(index)"
-                :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+            <!-- ### Start: plot selectors ### -->
+            <div class="plotopts-main" :class="{'plotopts-main--full': !showPlotControls}" v-if="showPlotControls">
+              <div class="plotopts-params">
+                <table class="table table-bordered table-hover table-striped" style="width: 100%">
+                  <thead>
+                  <tr>
+                    <th>Plot</th>
+                    <th>Active</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="item in plotOptions">
+                    <td>
+                      {{ item.plot_name }}
+                    </td>
+                    <td style="text-align: center">
+                      <input type="checkbox" v-model="item.active"/>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div> <!-- ### End: plot selectors ### -->
+          </div>  <!-- ### End: hasGraphs ### -->
+        </div> <!-- ### End: PageSection ### -->
+      </div> <!-- ### End: v-else project (results) ### -->
 
-                <span slot='title' style="color:#fff">Legend</span>
-                <div :id="'legend'+index">
-                  <!-- Legend content goes here-->
-                </div>
-              </dialog-drag>
-            </div>
-          </div>
-          <!-- ### End: dialogs ### -->
-
-        </div>  <!-- ### End: hasGraphs ### -->
-      </div> <!-- ### End: pageSection ### -->
-      <!-- ### End: results section ### -->
-
-    </div> <!-- ### End: v-else project ### -->
 
 
-    <!-- START ADD-SCENARIO MODAL -->
+    <!-- ### Start: add scenarios modal ### -->
     <modal name="add-budget-scen"
            height="auto"
            :scrollable="true"
@@ -269,10 +261,9 @@ Last update: 2018-09-06
         </div>
       </div>
     </modal>
-    <!-- END ADD-SCENARIO MODAL -->
+    <!-- ### End: add scenarios modal ### -->
 
   </div>
-
 </template>
 
 
@@ -515,10 +506,6 @@ Last update: 2018-09-06
           .catch(error => {
             status.fail(this, 'Could not delete scenario', error)
           })
-      },
-
-      togglePlotControls() {
-        this.showPlotControls = !this.showPlotControls
       },
 
       runScens() {
