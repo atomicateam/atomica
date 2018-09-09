@@ -134,6 +134,9 @@ function reloadGraphs(vm, project_id, cache_id, showNoCacheError, iscalibration,
   rpcs.rpc('plot_results_cache_entry', [project_id, cache_id, vm.plotOptions],
     {tool:vm.$globaltool, 'cascade':null, plotyear:vm.endYear, pops:vm.activePop, calibration:iscalibration, plotbudget:plotbudget})
     .then(response => {
+      console.log("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
+      console.log(response.data)
+      console.log(response.data.table)
       vm.makeGraphs(response.data)
       vm.table = response.data.table
       status.succeed(vm, 'Data loaded, graphs now rendering...')

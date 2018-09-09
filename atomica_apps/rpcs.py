@@ -1248,18 +1248,13 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
         allfigs = cascadefigs
         alllegends = cascadelegends
     else: # For Optima TB
-        if calibration:
-            output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, stacked=False, calibration=True)
-            for key in ['graphs','legends']:
-                output[key] = cascadeoutput[key] + output[key]
-            allfigs = cascadefigs + allfigs
-            alllegends = cascadelegends + alllegends
-        else:
-            output, allfigs, alllegends = get_atomica_plots(proj, results, pops=pops, plot_options=plot_options, calibration=False)
-            for key in ['graphs','legends']:
-                output[key] = cascadeoutput[key] + output[key]
-            allfigs = cascadefigs + allfigs
-            alllegends = cascadelegends + alllegends
+        if calibration: output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, calibration=True, stacked=False)
+        else:           output, allfigs, alllegends = get_atomica_plots(proj, results=results, pops=pops, plot_options=plot_options, calibration=False)
+        output['table'] = cascadeoutput['table'] # Put this back in -- warning kludgy!
+        for key in ['graphs','legends']:
+            output[key] = cascadeoutput[key] + output[key]
+        allfigs = cascadefigs + allfigs
+        alllegends = cascadelegends + alllegends
     if dosave:
         savefigs(allfigs, online=online)  
     if outputfigs: return output, allfigs, alllegends
