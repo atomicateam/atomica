@@ -406,7 +406,7 @@ Last update: 2018-09-06
       clearGraphs()                     { return graphs.clearGraphs(this) },
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata) },
+      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata, '/optimizations') },
       reloadGraphs(cache_id, showErr)   { return graphs.reloadGraphs(this, this.projectID, cache_id, showErr, false, true) }, // Set to calibration=false, plotbudget=True
       maximize(legend_id)               { return graphs.maximize(this, legend_id) },
       minimize(legend_id)               { return graphs.minimize(this, legend_id) },
@@ -619,8 +619,8 @@ Last update: 2018-09-06
           if (index > -1) {
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
             this.optimSummaries[index] = newOptim
-            if (newOptim.name != this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (newOptim.status != 'not started') { // Clear the present task.
+            if (newOptim.name !== this.addEditDialogOldName) {  // If we've renamed an optimization
+              if (newOptim.status !== 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server. 
               }
 
@@ -756,13 +756,11 @@ Last update: 2018-09-06
               {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
               'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
             .then(response => {
-              if (this.$route.path === '/optimizations') {  // check to see if still on same page
                 this.getOptimTaskState(optimSummary)
                 this.makeGraphs(response.data.graphs)
                 this.table = response.data.table
                 this.displayResultName = optimSummary.name
                 status.succeed(this, 'Graphs created')                
-              }
             })
             .catch(error => {
               status.fail(this, 'Could not make graphs', error) // Indicate failure.
