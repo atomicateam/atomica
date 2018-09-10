@@ -752,6 +752,11 @@ def download_project(project_id):
     file, minus results, and pass the full path of this file back.
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    for ind in range(len(proj.results)):   # for all results...    
+        if sc.isstring(proj.results[ind]):   # if the result is a string, therefore cache_id
+            cache_id = proj.results[ind]  # get the cache_id
+            resultset = fetch_results_cache_entry(cache_id)  # get the result from cache
+            proj.results[ind] = resultset  # put the resultset in the project
     file_name = '%s.prj' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name) # Generate the full file name with path.
     sc.saveobj(full_file_name, proj) # Write the object to a Gzip string pickle file.
@@ -935,12 +940,11 @@ def create_project_from_prj_file(prj_filename, user_id):
     except Exception:
         return { 'error': 'BadFileFormatError' }
     proj.name = get_unique_name(proj.name, other_names=None) # Reset the project name to a new project name that is unique.
-    for ind in range(len(proj.results)):
-        if not sc.isstring(proj.results[ind]):
+    for ind in range(len(proj.results)):   # for all results...
+        if not sc.isstring(proj.results[ind]):   # if the result isn't a cache_id
             cache_id = str(sc.uuid()) + ':' + proj.results[ind].name
-#            print('>>> Result %d cache_id %s' % (ind, cache_id))
-            put_results_cache_entry(cache_id, proj.results[ind])
-            proj.results[ind] = cache_id        
+            put_results_cache_entry(cache_id, proj.results[ind])  # store in the cache
+            proj.results[ind] = cache_id   # set the result to be a cache_id     
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
