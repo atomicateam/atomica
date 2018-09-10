@@ -696,7 +696,7 @@ class ProgramSet(NamedItem):
 
         return default_budget
 
-    def get_num_covered(self, year=None, alloc=None):
+    def get_num_covered(self, year=None, alloc=None, dt=1.0):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
 
         num_covered = sc.odict() # Initialise outputs
@@ -711,11 +711,11 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending)
+            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, dt=dt)
 
         return num_covered
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best', dt=1.0):
         '''Returns proportion covered for a time/spending vector and denominator.
         Denominator is expected to be a dictionary.'''
         # INPUT
@@ -734,7 +734,7 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
+            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample, dt=dt)
             denom = denominator[prog.name]
             prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
 
@@ -843,8 +843,8 @@ class Program(NamedItem):
     def has_budget(self):
         return self.spend_data.has_data()
 
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False):
-        '''Returns number covered for a time/spending vector'''
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False, dt=1.0):
+        '''Returns number covered (in units of 'people', not 'people/year') for a time/spending vector'''
         # TODO - implement sampling - might just be replacing 'interpolate' with 'sample'?
 
         num_covered = 0.
@@ -853,6 +853,7 @@ class Program(NamedItem):
         if budget is None:
             budget = self.spend_data.interpolate(year)
         budget = sc.promotetoarray(budget)
+        budget *= dt # Convert spending from $/year to $ to get number covered per timestep
 
         if unit_cost is None:
             unit_cost = self.unit_cost.interpolate(year)
@@ -860,6 +861,7 @@ class Program(NamedItem):
 
         if capacity is None and self.capacity.has_data:
             capacity = self.capacity.interpolate(year)
+            capacity *= dt
 
         # Use a linear cost function if capacity has not been set
         if capacity is not None:
@@ -872,7 +874,7 @@ class Program(NamedItem):
         return num_covered
 
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best', dt=1.0):
         '''Returns proportion covered for a time/spending vector and denominator'''
 
         # Make sure that denominator has been supplied
@@ -882,12 +884,12 @@ class Program(NamedItem):
 
         # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
         # Example: year = [2015,2016], denominator = [30000,40000]
-        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
+        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample, dt=dt)
         prop_covered = minimum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
         return prop_covered
 
 
-    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best', dt=1.0):
         '''Returns proportion OR number covered for a time/spending vector.'''
 
         if as_proportion and denominator is None:
@@ -895,9 +897,9 @@ class Program(NamedItem):
             as_proportion = False
 
         if as_proportion:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample, dt=dt)
         else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample, dt=dt)
 
 
 #--------------------------------------------------------------------
