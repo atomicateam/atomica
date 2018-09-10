@@ -132,13 +132,13 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         logger.info("Creating a generic 3-stage disease cascade project...")
         
         if verbose: print('Loading framework')
-        framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
+        framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'_2.xlsx'
         if verbose: print('Loading databook')
         P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs:
             if verbose: print('Loading progbook')
-            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
+            P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+"_2.xlsx", blh_effects=False)
             if verbose: print('Creating scenarios')
             P.demo_scenarios() # Add example scenarios
             if verbose: print('Creating optimizations')
