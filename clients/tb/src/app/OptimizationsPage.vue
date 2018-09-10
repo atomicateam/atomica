@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-06
+Last update: 2018-09-10
 -->
 
 <template>
@@ -49,7 +49,7 @@ Last update: 2018-09-06
             </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="reloadGraphs(optimSummary.serverDatastoreId, true)">Plot results</button>
+              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="{displayResultName = optimSummary.name; displayResultDatastoreId = optimSummary.serverDatastoreId; reloadGraphs(optimSummary.serverDatastoreId, true)}">Plot results</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 10)">Test run</button>
               <button v-if="useCelery" class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
@@ -76,14 +76,14 @@ Last update: 2018-09-06
             <div>
 
               <b>Year: &nbsp;</b>
-              <select v-model="endYear" @change="reloadGraphs(optimSummary.serverDatastoreId, true)">
+              <select v-model="endYear" @change="reloadGraphs(displayResultDatastoreId, true)">
                 <option v-for='year in simYears'>
                   {{ year }}
                 </option>
               </select>
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
-              <select v-model="activePop" @change="reloadGraphs(optimSummary.serverDatastoreId, true)">
+              <select v-model="activePop" @change="reloadGraphs(displayResultDatastoreId, true)">
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
@@ -354,6 +354,7 @@ Last update: 2018-09-06
         modalOptim: {},
         objectiveOptions: [],
         displayResultName: '',
+        displayResultDatastoreId: '',
         addEditDialogMode: 'add',  // or 'edit'
         addEditDialogOldName: '',
       }
@@ -736,8 +737,8 @@ Last update: 2018-09-06
                 [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
                 {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
                 'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
-              .then(response => {
-                this.getOptimTaskState(optimSummary)
+              .then(response => {           
+                this.getOptimTaskState(optimSummary)               
                 status.succeed(this, 'Started optimization')
               })
               .catch(error => {
@@ -760,6 +761,7 @@ Last update: 2018-09-06
                 this.makeGraphs(response.data.graphs)
                 this.table = response.data.table
                 this.displayResultName = optimSummary.name
+                this.displayResultDatastoreId = optimSummary.serverDatastoreId
                 status.succeed(this, 'Graphs created')                
             })
             .catch(error => {
