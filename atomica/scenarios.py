@@ -132,8 +132,8 @@ class ParameterScenario(Scenario):
                 # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
 
-            new_parset.name = self.name + '_' + parset.name
-            return new_parset
+        new_parset.name = self.name + '_' + parset.name
+        return new_parset
 
     def run(self, project=None, parset=None, store_results=True):
         # Run the ParameterScenario
