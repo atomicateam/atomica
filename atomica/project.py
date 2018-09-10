@@ -236,7 +236,7 @@ class Project(object):
         if verbose: print('Done with make_progset().')
 
 
-    def make_scenario(self, name="default", which=None, instructions=None, json=None):
+    def make_scenario(self, name="default", which=None, instructions=None, json=None,parsetname=None):
         if json is not None:
             if which=='budget':
                 scenario = BudgetScenario(**json)
@@ -244,7 +244,7 @@ class Project(object):
                 raise Exception('Parameter scenarios from JSON not implemented')
         else:
             if which=='parameter':
-                scenario = ParameterScenario(name=name, scenario_values=instructions)
+                scenario = ParameterScenario(name=name, scenario_values=instructions,parsetname=parsetname)
             else:
                 raise Exception('Budget scenarios not from JSON not implemented')
 

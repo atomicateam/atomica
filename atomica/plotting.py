@@ -1056,7 +1056,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':   render_legend(ax, reverse=reverse_legend)
+                if legend_mode == 'together':   render_legend(ax, plot_type)
                 elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
 
     elif axis == 'pops':

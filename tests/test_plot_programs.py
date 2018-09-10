@@ -60,6 +60,7 @@ d.interpolate(2018)
 au.plot_bars(d,stack_outputs='all')
 
 # Select a subset of programs
+# TODO - these are the old TB programs, need to change them to the new ones
 outputs = ['PLHIV/DS-TB','PLHIV/Old MDR','PLHIV/Old MDR-BDQ','PLHIV/New MDR','PLHIV/Old XDR','PLHIV/New XDR']
 d = au.PlotData.programs([result1,result2],outputs=outputs)
 d.interpolate(2018)
