@@ -935,6 +935,12 @@ def create_project_from_prj_file(prj_filename, user_id):
     except Exception:
         return { 'error': 'BadFileFormatError' }
     proj.name = get_unique_name(proj.name, other_names=None) # Reset the project name to a new project name that is unique.
+    for ind in range(len(proj.results)):
+        if not sc.isstring(proj.results[ind]):
+            cache_id = str(sc.uuid()) + ':' + proj.results[ind].name
+#            print('>>> Result %d cache_id %s' % (ind, cache_id))
+            put_results_cache_entry(cache_id, proj.results[ind])
+            proj.results[ind] = cache_id        
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
