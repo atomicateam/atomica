@@ -494,7 +494,7 @@ class PlotData(object):
 
                         # We only support summation for combining program spending, not averaging
                         # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
-                        vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
+                        vals = sum(alloc[x] for x in labels)  # Add together all the outputs
                         output_name = output_name
                         data_label = None # No data present for aggregations
                     else:
