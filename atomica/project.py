@@ -547,7 +547,7 @@ class Project(object):
             json['prog_spending'][prog_name] = [0,None]
         optim = self.make_optimization(json=json)
         if dorun:
-            results = self.run_optimization(optimization=json['name'])
+            results = self.run_optimization(optimname=json['name'])
             return results
         else:
             return optim
