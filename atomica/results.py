@@ -287,6 +287,30 @@ class Result(NamedItem):
         plt.title(this_plot['name'])
         return h
 
+    def budget(self,year=None):
+        # Return budget at given year
+        # year - a time, or array of times. Returns budget at these times. If `None` then
+        #        it will use all simulation times
+        if self.model.progset is None:
+            return None
+        else:
+            if year is None:
+                year = self.t
+            return self.model.progset.get_alloc(self.model.program_instructions, tvec=year)
+
+    def coverage(self,year=None,quantity='coverage_fraction'):
+        # Other supported quantities - 'coverage_number' or 'coverage_denominator'
+        from .plotting import PlotData # return
+
+        if self.model.progset is None:
+            return None
+        else:
+            if year is None:
+                year = self.t
+        d = PlotData.programs(self,quantity=quantity)
+        d.interpolate(year)
+        return sc.odict([(s.data_label, s.vals) for s in d.series])
+
 def evaluate_plot_string(plot_string):
     # The plots in the framework are specified as strings - for example,
     #
