@@ -1,24 +1,26 @@
 <!--
 Manage projects page
 
-Last update: 2018-09-06
+Last update: 2018-09-09
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
+
+    <!-- ### Start: Projects controls ### -->
     <div class="card">
       <help reflink="create-projects" label="Create projects"></help>
 
       <div class="ControlsRow">
-        <button class="btn __blue" @click="addDemoProject">Add demo project</button>
-        &nbsp; &nbsp;
-        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>
-        &nbsp; &nbsp;
+        <button v-if="$globaltool=='cascade'" class="btn __blue" @click="addDemoProjectModal">Add demo project</button>&nbsp; &nbsp;
+        <button v-if="$globaltool=='tb'"      class="btn __blue" @click="addDemoProject">Add demo project</button>
+        <button class="btn __blue" @click="createNewProjectModal">Create new project</button>&nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
-        &nbsp; &nbsp;
       </div>
     </div>
+    <!-- ### End: Projects controls ### -->
 
+    <!-- ### Start: Projects table ### -->
     <div class="PageSection" v-if="projectSummaries.length > 0">
       <div class="card">
         <help reflink="manage-projects" label="Manage projects"></help>
@@ -60,8 +62,7 @@ Last update: 2018-09-06
                 <i class="fas fa-caret-up" style="visibility: hidden"></i>
               </span>
             </th>
-
-            <!--<th style="text-align:center">Populations</th>-->
+            <th v-if="$globaltool=='cascade'"style="text-align:left">Framework</th>
             <th style="text-align:left">Databook</th>
             <th style="text-align:left">Program book</th>
           </tr>
@@ -97,24 +98,18 @@ Last update: 2018-09-06
             <td style="text-align:left">
               {{ projectSummary.project.updatedTime ? projectSummary.project.updatedTime:
               'No modification' }}</td>
+            <td v-if="$globaltool=='cascade'" style="text-align:left">
+              <button class="btn btn-icon" @click="downloadFramework(projectSummary.project.id)" data-tooltip="Download"><i class="ti-download"></i></button>
+              {{ projectSummary.project.framework }}
+            </td>
             <td style="text-align:left">
-              <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="white-space: nowrap; text-align:left">
-              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)" data-tooltip="New">
-                <i class="ti-plus"></i>
-              </button>
-              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">
-                <i class="ti-upload"></i>
-              </button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)" data-tooltip="Download">
-                <i class="ti-download"></i>
-              </button>
+              <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)"   data-tooltip="New">     <i class="ti-plus"></i></button>
+              <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
+              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
@@ -127,7 +122,45 @@ Last update: 2018-09-06
         </div>
       </div>
     </div>
+    <!-- ### End: Projects table ### -->
 
+
+    <!-- ### Start: demo project modal (only visible for Cascade) ### -->
+    <modal name="demo-project"
+           height="auto"
+           :classes="['v--modal', 'vue-dialog']"
+           :width="width"
+           :pivot-y="0.3"
+           :adaptive="true"
+           :clickToClose="clickToClose"
+           :transition="transition">
+
+      <div class="dialog-content">
+        <div class="dialog-c-title">
+          Create demo project
+        </div>
+        <div class="dialog-c-text">
+          <select v-model="demoOption">
+            <option v-for='project in demoOptions'>
+              {{ project }}
+            </option>
+          </select><br><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="addDemoProject()" class='btn __green' style="display:inline-block">
+            Add selected
+          </button>
+
+          <button @click="$modal.hide('demo-project')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </modal>
+    <!-- ### End: demo project modal ### -->
+
+
+    <!-- ### Start: create project modal ### -->
     <modal name="create-project"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
@@ -137,40 +170,102 @@ Last update: 2018-09-06
            :clickToClose="clickToClose"
            :transition="transition">
 
-      <div class="dialog-content">
+      <!-- ### Start: Cascade demo project modal ### -->
+      <div v-if="$globaltool=='cascade'" class="dialog-content">
         <div class="dialog-c-title">
-          Create blank project
+          Create new project
         </div>
-        <div class="dialog-c-text">
-          Project name:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="proj_name"/><br>
-          Number of populations:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_pops"/><br>
-          First year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_start"/><br>
-          Final year for data entry:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="data_end"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
 
-          <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
+        <div v-if="frameworkSummaries.length>0">
+          <div class="dialog-c-text">
+            Project name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="proj_name"/><br>
+            Framework:<br>
+            <select v-model="currentFramework">
+              <option v-for='frameworkSummary in frameworkSummaries'>
+                {{ frameworkSummary.framework.name }}
+              </option>
+            </select><br><br>
+            Number of populations:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_pops"/><br>
+            First year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_start"/><br>
+            Final year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_end"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createNewProject()" class='btn __green' style="display:inline-block">
+              Create
+            </button>
+
+            <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
         </div>
+
+        <div v-else>
+          <div class="dialog-c-text">
+            Before creating a new project, please create or upload at least one framework.
+          </div>
+          <br>
+          <div style="text-align:justify">
+            <button @click="$modal.hide('create-project')" class='btn' style="display:inline-block">
+              Ok
+            </button>
+          </div>
+        </div>
+        <!-- ### End: Cascade demo project modal ### -->
+
+        <!-- ### Start: TB demo project modal ### -->
+        <div v-if="$globaltool=='tb'" class="dialog-content">
+          <div class="dialog-c-title">
+            Create new project
+          </div>
+          <div class="dialog-c-text">
+            Project name:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="proj_name"/><br>
+            Number of populations:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_pops"/><br>
+            First year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_start"/><br>
+            Final year for data entry:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="data_end"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createNewProject()" class='btn __green' style="display:inline-block">
+              Create
+            </button>
+
+            <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
+        </div>
+        <!-- ### End: TB demo project modal ### -->
+
       </div>
     </modal>
+    <!-- ### End: New project modal ### -->
 
+
+    <!-- ### Start: New progbook modal ### -->
     <modal name="create-progbook"
            height="auto"
            :classes="['v--modal', 'vue-dialog']"
@@ -201,7 +296,8 @@ Last update: 2018-09-06
         </div>
       </div>
     </modal>
-    
+    <!-- ### End: New progbook modal ### -->
+
   </div>
 
 </template>
@@ -209,9 +305,9 @@ Last update: 2018-09-06
 <script>
   import axios from 'axios'
   var filesaver = require('file-saver')
-  import utils from '@/services/utils'
-  import rpcs from '@/services/rpc-service'
-  import status from '@/services/status-service'
+  import utils from '@/js/utils'
+  import rpcs from '@/js/rpc-service'
+  import status from '@/js/status-service'
   import router from '@/router'
 
   export default {
@@ -231,6 +327,10 @@ Last update: 2018-09-06
         data_start: 2000, // For creating a new project: number of populations
         data_end:   2035, // For creating a new project: number of populations
         activeuid:  [], // WARNING, kludgy to get create progbook working
+        frameworkSummaries: [],
+        currentFramework: '',
+        demoOptions: [],
+        demoOption: '',
       }
     },
 
@@ -243,21 +343,25 @@ Last update: 2018-09-06
 
     created() {
       let projectId = null
-      if (this.$store.state.currentUser.displayname == undefined) { // If we have no user logged in, automatically redirect to the login page.
+      if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       } else {    // Otherwise...
-        if (this.$store.state.activeProject.project != undefined) { // Get the active project ID if there is an active project.
+        if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
           projectId = this.$store.state.activeProject.project.id
         }
+        this.getDemoOptions()
+        this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
         this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
       }
     },
 
     methods: {
 
+      updateSorting() { return utils.updateSorting(this) },
+
       projectLoaded(uid) {
         console.log('projectLoaded called')
-        if (this.$store.state.activeProject.project != undefined) {
+        if (this.$store.state.activeProject.project !== undefined) {
           if (this.$store.state.activeProject.project.id === uid) {
             console.log('Project ' + uid + ' is loaded')
             return true
@@ -269,17 +373,42 @@ Last update: 2018-09-06
         }
       },
 
-      beforeOpen (event) {
-        console.log(event)
-        this.TEMPtime = Date.now() // Set the opening time of the modal
+      getDemoOptions() {
+        console.log('getDemoOptions() called')
+        rpcs.rpc('get_demo_project_options') // Get the current user's framework summaries from the server.
+          .then(response => {
+            this.demoOptions = response.data // Set the frameworks to what we received.
+            this.demoOption = this.demoOptions[0]
+            console.log('Loaded demo options:')
+            console.log(this.demoOptions)
+            console.log(this.demoOption)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not load demo project options', error)
+          })
       },
 
-      beforeClose (event) {
-        console.log(event)
-        // If modal was open less then 5000 ms - prevent closing it
-        if (this.TEMPtime + this.TEMPduration < Date.now()) {
-          event.stop()
-        }
+      updateFrameworkSummaries() {
+        console.log('updateFrameworkSummaries() called')
+
+        // Get the current user's framework summaries from the server.
+        rpcs.rpc('load_current_user_framework_summaries')
+          .then(response => {
+            // Set the frameworks to what we received.
+            this.frameworkSummaries = response.data.frameworks
+
+            if (this.frameworkSummaries.length) {
+              console.log('Framework summaries found')
+              console.log(this.frameworkSummaries)
+              this.currentFramework = this.frameworkSummaries[0].framework.name
+              console.log('Current framework: '+this.currentFramework)
+            } else {
+              console.log('No framework summaries found')
+            }
+          })
+          .catch(error => {
+            status.fail(this, 'Could not load frameworks', error)
+          })
       },
 
       updateProjectSummaries(setActiveID) {
@@ -309,10 +438,10 @@ Last update: 2018-09-06
                 this.openProject(setActiveID)
               }
             }
-            status.succeed(this, '')  
+            status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not load projects: ' + error.message)
+            status.fail(this, 'Could not load projects', error)
           })
       },
 
@@ -320,20 +449,32 @@ Last update: 2018-09-06
         console.log('addDemoProject() called')
         this.$modal.hide('demo-project')
         status.start(this)
-        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID]) // Have the server create a new project.
+        var demoOption = ''
+        if (this.$globaltool === 'cascade') {
+          demoOption = this.demoOption
+        }
+        if (this.$globaltool === 'tb') {
+          demoOption = 'default'
+        }
+        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption]) // Have the server create a new project.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, '') // Already have notification from project
           })
           .catch(error => {
-            status.fail(this, 'Could not add demo project: ' + error.message)
+            status.fail(this, 'Could not add demo project', error)
           })
       },
 
-      // Open a model dialog for creating a new project
+      addDemoProjectModal() {
+        // Open a model dialog for creating a new project
+        console.log('addDemoProjectModal() called');
+        this.$modal.show('demo-project');
+      },
+
       createNewProjectModal() {
-        console.log('createNewProjectModal() called');
-        this.$modal.show('create-project');
+        console.log('createNewProjectModal() called')
+        this.$modal.show('create-project')
       },
 
       // Open a model dialog for creating a progbook
@@ -347,15 +488,25 @@ Last update: 2018-09-06
       createNewProject() {
         console.log('createNewProject() called')
         this.$modal.hide('create-project')
-        status.start(this) // Start indicating progress.
+        status.start(this)
+        var frameworkID = ''
+        if (this.$globaltool === 'cascade') {
+          let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.name === this.currentFramework) // Find the framework that matches the UID passed in.
+          frameworkID = matchFramework.framework.id
+          console.log('Loading framework ' + this.currentFramework)
+          console.log(matchFramework)
+        }
+        if (this.$globaltool === 'tb') {
+          frameworkID = null
+        }
         rpcs.download('create_new_project',  // Have the server create a new project.
-          [this.$store.state.currentUser.UID, null, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end, 'tb'])
+          [this.$store.state.currentUser.UID, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end])
           .then(response => {
             this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not add new project:' + error.message)    // Indicate failure.
+            status.fail(this, 'Could not add new project:' + error.message)
           })
       },
 
@@ -368,7 +519,7 @@ Last update: 2018-09-06
             status.succeed(this, 'New project uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload file: ' + error.message)
+            status.fail(this, 'Could not upload file', error)
           })
       },
 
@@ -396,17 +547,6 @@ Last update: 2018-09-06
         this.allSelected = false
       },
 
-      updateSorting(sortColumn) {
-        console.log('updateSorting() called')
-        if (this.sortColumn === sortColumn) { // If the active sorting column is clicked...
-          // Reverse the sort.
-          this.sortReverse = !this.sortReverse
-        } else { // Otherwise.
-          this.sortColumn = sortColumn // Select the new column for sorting.
-          this.sortReverse = false // Set the sorting for non-reverse.
-        }
-      },
-
       applyNameFilter(projects) {
         return projects.filter(theProject => theProject.project.name.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
       },
@@ -415,18 +555,13 @@ Last update: 2018-09-06
         return projects.slice(0).sort((proj1, proj2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if (this.sortColumn === 'name') {
-              return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
-            } else if (this.sortColumn === 'creationTime') {
-              return proj1.project.creationTime > proj2.project.creationTime ? sortDir: -sortDir
-            } else if (this.sortColumn === 'updatedTime') {
-              return proj1.project.updatedTime > proj2.project.updatedTime ? sortDir: -sortDir
+            if        (this.sortColumn === 'name')         { return (proj1.project.name.toLowerCase() > proj2.project.name.toLowerCase() ? sortDir: -sortDir)
+            } else if (this.sortColumn === 'creationTime') { return (proj1.project.creationTime       > proj2.project.creationTime       ? sortDir: -sortDir)
+            } else if (this.sortColumn === 'updatedTime')  { return (proj1.project.updatedTime        > proj2.project.updatedTime        ? sortDir: -sortDir)
             }
           }
         )
       },
-
-
 
       openProject(uid) {
         // Find the project that matches the UID passed in.
@@ -439,14 +574,14 @@ Last update: 2018-09-06
       copyProject(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('copyProject() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress.
+        status.start(this)
         rpcs.rpc('copy_project', [uid]) // Have the server copy the project, giving it a new name.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not copy project: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not copy project', error)
           })
       },
 
@@ -465,8 +600,8 @@ Last update: 2018-09-06
               status.succeed(this, '')
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not rename project: ' + error.message)
+
+              status.fail(this, 'Could not rename project', error)
             })
         }
 
@@ -482,27 +617,39 @@ Last update: 2018-09-06
       downloadProjectFile(uid) {
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
         console.log('downloadProjectFile() called for ' + matchProject.project.name)
-        status.start(this) // Start indicating progress.
+        status.start(this)
         rpcs.download('download_project', [uid]) // Make the server call to download the project to a .prj file.
           .then(response => { // Indicate success.
             status.succeed(this, '')
           })
-          .catch(error => { // Indicate failure.
-            status.fail(this, 'Could not download project: ' + error.message)
+          .catch(error => {
+            status.fail(this, 'Could not download project', error)
+          })
+      },
+
+      downloadFramework(uid) {
+        // Find the project that matches the UID passed in.
+        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
+        console.log('downloadFramework() called for ' + matchProject.project.name)
+        status.start(this, 'Downloading framework...')
+        rpcs.download('download_framework_from_project', [uid])
+          .then(response => {
+            status.succeed(this, '')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not download framework', error)
           })
       },
 
       downloadDatabook(uid) {
-        // Find the project that matches the UID passed in.
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-        console.log('downloadDatabook() called for ' + matchProject.project.name)
-        status.start(this, 'Downloading data book...') // Start indicating progress.
+        console.log('downloadDatabook() called')
+        status.start(this, 'Downloading data book...')
         rpcs.download('download_databook', [uid])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not download databook: ' + error.message)
+            status.fail(this, 'Could not download databook', error)
           })
       },
 
@@ -510,14 +657,14 @@ Last update: 2018-09-06
         // Find the project that matches the UID passed in.
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('downloadProgbook() called for ' + matchProject.project.name)
-        status.start(this, 'Downloading program book...') // Start indicating progress.
+        status.start(this, 'Downloading program book...')
         rpcs.download('download_progbook', [uid])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not download program book: ' + error.message)
+
+            status.fail(this, 'Could not download program book', error)
           })
       },
 
@@ -527,28 +674,27 @@ Last update: 2018-09-06
         let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
         console.log('createProgbook() called for ' + matchProject.project.name)
         this.$modal.hide('create-progbook')
-        status.start(this, 'Creating program book...') // Start indicating progress.
+        status.start(this, 'Creating program book...')
         rpcs.download('create_progbook', [uid, this.num_progs])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
-            // Indicate failure.
-            status.fail(this, 'Could not create program book: ' + error.message)
+
+            status.fail(this, 'Could not create program book', error)
           })
       },
 
       uploadDatabook(uid) {
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid) // Find the project that matches the UID passed in.
-        console.log('uploadDatabook() called for ' + matchProject.project.name)
-        rpcs.upload('upload_databook', [uid], {})
+        console.log('uploadDatabook() called')
+        rpcs.upload('upload_databook', [uid], {}, '.xlsx')
           .then(response => {
             status.start(this, 'Uploading databook...')
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
-            status.succeed(this, 'Data uploaded to project "'+matchProject.project.name+'"') // Indicate success.
+            status.succeed(this, 'Data uploaded')
           })
           .catch(error => {
-            status.fail(this, 'Could not upload data: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not upload databook', error)
           })
       },
 
@@ -558,12 +704,12 @@ Last update: 2018-09-06
         console.log('uploadProgbook() called for ' + matchProject.project.name)
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
-            status.start(this) // Start indicating progress. (This is here because we don't want the
+            status.start(this)
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
           })
           .catch(error => {
-            status.fail(this, 'Could not upload progbook: ' + error.message) // Indicate failure.
+            status.fail(this, 'Could not upload program book', error)
           })
       },
 
@@ -603,7 +749,7 @@ Last update: 2018-09-06
               status.succeed(this, '')
             })
             .catch(error => {
-              status.fail(this, 'Could not delete project/s: ' + error.message)
+              status.fail(this, 'Could not delete project/s', error)
             })
         }
       },
@@ -616,12 +762,10 @@ Last update: 2018-09-06
           status.start(this)
           rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
             .then(response => {
-              // Indicate success.
               status.succeed(this, '')
             })
             .catch(error => {
-              // Indicate failure.
-              status.fail(this, 'Could not download project/s')
+              status.fail(this, 'Could not download project/s', error)
             })
         }
       }

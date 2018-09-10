@@ -1,7 +1,7 @@
 """
-apptasks.py -- The Celery tasks module for this webapp
+apptasks_cascade.py -- The Celery tasks module for this webapp
     
-Last update: 2018aug31
+Last update: 2018sep07
 """
 
 
@@ -12,18 +12,12 @@ from . import config_cascade as config
 import matplotlib.pyplot as ppl
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
+
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
 async_task = sw.make_async_tag(task_func_dict) # Task function registration decorator created using call to make_async_tag().
 celery_instance = sw.make_celery_instance(config=config) # Create the Celery instance for this module.
 
-# This is needed in Windows using celery Version 3.1.25 in order for the
-# add_task_funcs() function below to successfully add the asynchronous task 
-# functions defined in this module to tasks.py.  Why these lines enable this 
-# I do not understand.
-#@celery_instance.task
-#def dummy_result():
-#    return 'here be dummy result'
 
 @async_task
 def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
@@ -36,18 +30,14 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     else: # Otherwise try using it as a project
         proj = project_id
         
-    # Actually run the optimization and get its results (list of baseline and 
-    # optimized Result objects).
+    # Actually run the optimization and get its results (list of baseline and optimized Result objects).
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     
     # Put the results into the ResultsCache.
     rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
 
     # Plot the results.    
-    output = rpcs.process_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
-    if online:
-        print('Saving project...')
-        rpcs.save_project(proj)    
+    output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 
 

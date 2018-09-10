@@ -1,6 +1,6 @@
 // index.js -- vue-router path configuration code
 //
-// Last update: 2018-08-30
+// Last update: 2018sep09
 
 // Import main things
 import Vue from 'vue'
@@ -18,9 +18,9 @@ import MainAdminPage from '@/app/MainAdminPage'
 import RegisterPage from '@/app/RegisterPage'
 import UserChangeInfoPage from '@/app/UserChangeInfoPage'
 import ChangePasswordPage from '@/app/ChangePasswordPage'
-import Help from '@/app/Help'
-import Contact from '@/app/Contact'
-import About from '@/app/About'
+import HelpPage from '@/app/HelpPage'
+import ContactPage from '@/app/ContactPage'
+import AboutPage from '@/app/AboutPage'
 
 
 Vue.use(Router);
@@ -49,7 +49,7 @@ export default new Router({
         },
         {
           path: 'calibration',
-          name: 'Calibration',
+          name: 'Calibration', // CASCADE-TB DIFFERENCE
           component: CalibrationPage
         },
         {
@@ -80,17 +80,17 @@ export default new Router({
         {
           path: 'help',
           name: 'Help',
-          component: Help
+          component: HelpPage
         },
         {
           path: 'contact',
           name: 'Contact',
-          component: Contact
+          component: ContactPage
         },
         {
           path: 'about',
           name: 'About',
-          component: About
+          component: AboutPage
         },
       ]
     },

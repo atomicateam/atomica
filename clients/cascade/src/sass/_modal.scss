@@ -1,0 +1,182 @@
+// Modal
+// This sass was generated prior to the implementation of the Paper Dashboard
+// =====
+
+.modal {
+  @include position(fixed, 0);
+  -webkit-overflow-scrolling: touch;
+  display: none;
+  outline: 0;
+  overflow-y: scroll;
+  z-index: 1050;
+
+  &-dialog {
+    margin: 10px;
+    position: relative;
+    width: auto;
+
+    .modal.fade & {
+      transform: translate(0, -25%);
+      transition: transform 0.3s ease-out;
+    }
+
+    .modal.in & {
+      transform: translate(0, 0);
+    }
+  }
+
+  &-content {
+    background-color: #FFF;
+    border-radius: 2px;
+    box-shadow: 0 22px 70px 4px rgba(#000, 0.56);
+    outline: 0;
+    padding: 16px;
+    position: relative;
+  }
+
+  &-wrap {
+    background-color: #e2f9ff;
+    padding: 40px;
+  }
+}
+
+.modal-backdrop {
+  @include position(fixed, 0);
+  background-color: black;
+  z-index: 1040;
+
+  &.fade {
+    opacity: 0;
+  }
+
+  &.in {
+    opacity: 0.3;
+  }
+}
+
+.modal-open {
+  overflow-y: hidden;
+}
+
+.modal-header {
+  text-align: center;
+  font-weight: 700;
+  margin: 0 0 30px;
+  text-transform: uppercase;
+  font-size: 16px;
+}
+
+.modal-body {}
+
+.modal-footer {}
+
+.modal-close {
+  @include position(absolute, 10px 10px none none);
+  @include size(24px);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 24px;
+  text-align: center;
+
+  &:hover {
+    color: #C00;
+  }
+}
+
+.modal-dialog {
+  &.modal-lg {
+    /*width: 900px;*/
+  }
+}
+
+@media (min-width: 768px) {
+
+  .modal-dialog {
+    width: 700px;
+    margin: 30px auto;
+
+    &.__s {
+      width: 300px;
+    }
+  }
+}
+
+@media (min-width: 992px) {
+
+  .modal-dialog.__l {
+    width: 900px;
+  }
+}
+
+
+
+
+
+
+
+.dialog-drag{-webkit-animation-duration:.2s;
+  -webkit-animation-name:dialog-anim;
+  -webkit-animation-timing-function:ease-in;
+  -webkit-box-shadow:1px 1px 1px rgba(0,0,0,.5);
+  animation-duration:.2s;
+  animation-name:dialog-anim;
+  animation-timing-function:ease-in;
+  background-color:#fff;
+  border:2px solid $main-color;
+  box-shadow:1px 1px 1px rgba(0,0,0,.5);
+  height:auto;
+  position:absolute;
+  width:auto;
+  z-index:101}
+
+.dialog-drag .dialog-header{background-color:$main-color;
+  color:#fff;
+  font-size:.9em;
+  padding:.25em 3em .25em 1em;
+  position:relative;
+  text-align:left;
+  width:auto}
+
+.dialog-drag .dialog-header .buttons{margin:.25em .25em 0 0;
+  position:absolute;
+  right:0;
+  top:0;
+  z-index:105}
+
+.dialog-drag .dialog-header button.close,.dialog-drag .dialog-header button.pin{-webkit-box-shadow:none;
+  background:transparent;
+  border:none;
+  box-shadow:none;
+  color:#fff}
+.dialog-drag .dialog-header button.close:hover,.dialog-drag .dialog-header button.pin:hover{color:#fff}
+.dialog-drag .dialog-header button.close:after{content:"×"}
+.dialog-drag .dialog-header button.pin:after{content:""}
+.dialog-drag .dialog-body{padding:1em}
+
+.dialog-drag.fixed{-moz-user-select:auto;
+  -ms-user-select:auto;
+  -webkit-user-select:auto;
+  border-color:#e3a826;
+  user-select:auto}
+.dialog-drag.fixed button.pin{font-weight:700}
+.dialog-drag.fixed button.pin:after{content:""}
+
+@-webkit-keyframes dialog-anim{0%{-webkit-transform:scaleX(.1);
+  opacity:0;
+  transform:scaleX(.1)}
+  50%{-webkit-transform:rotate(1deg);
+    transform:rotate(1deg)}
+  to{opacity:1}
+}
+
+@keyframes dialog-anim{0%{-webkit-transform:scaleX(.1);
+  opacity:0;
+  transform:scaleX(.1)}
+  50%{-webkit-transform:rotate(1deg);
+    transform:rotate(1deg)}
+  to{opacity:1}
+}
+
+.dialog-drag{min-width:10em;
+  background-color:#fff;
+  box-shadow:2px 2px 1px rgba(0,0,0,0.5)}

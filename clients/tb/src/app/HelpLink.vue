@@ -30,12 +30,52 @@ Last update: 2018-08-23
     },
 
     data() {
-      return {
-        baseURL: 'https://docs.google.com/document/d/1x4Kb3hyB8NwVziE95UhT6bXpO1uRDFxJlN8QxvrLgvg/edit#heading=', 
-        linkMap: {
-          'create-projects': 'h.wohgolfxe9ko', 
-          'manage-projects': 'h.fcnvzbrouon2'
+
+      var baseURL = null
+      var linkMap = null
+
+      if (this.$globaltool === 'cascade') {
+        baseURL = 'https://docs.google.com/document/d/1x4Kb3hyB8NwVziE95UhT6bXpO1uRDFxJlN8QxvrLgvg/edit#heading='
+        linkMap = {
+          'create-frameworks': 'h.8xzemda17sn7',
+          'manage-frameworks': 'h.kjfpissnw4v8',
+          'create-projects': 'h.wohgolfxe9ko',
+          'manage-projects': 'h.fcnvzbrouon2',
+          'bl-overview': 'h.e5er3h94vkjk',
+          'parameter-sets': 'h.ofwmxbimr7i',
+          'automatic-calibration': 'h.81g1j4y0hcp1',
+          'manual-calibration': 'h.da77fbanyz1n',
+          'reconciliation': 'h.ojtskhsm6lx9',
+          'bl-results': 'h.f2xv432x5yv',
+          'define-scenarios': 'h.6u9a8cixezwv',
+          'sc-results': 'h.syuxr0k2n3yy',
+          'define-optimizations': 'h.9g4agtbijsjq',
+          'op-results': 'h.n581zreqeowi'
         }
+      }
+      if (this.$globaltool === 'tb') {
+        baseURL = 'https://docs.google.com/document/d/1kV2zt1nJl4GuzkSLdbRzww4gQ5CvhWffkBUXN3RV5aI/edit#heading='
+        linkMap = {
+          'create-projects': 'h.1t3h5sf',
+          'manage-projects': 'h.fcnvzbrouon2',
+          'databook-entry': 'h.2s8eyo1',
+          'progbook-entry': 'h.jae00uzvpx4',
+          'calibration': 'h.206ipza',
+          'parameter-sets': 'h.2zbgiuw',
+          'automatic-calibration': 'h.1egqt2p',
+          'manual-calibration': 'h.3ygebqi',
+          'reconciliation': 'h.3lhkj17zug33',
+          'bl-results': 'h.2dlolyb',
+          'define-scenarios': 'h.1rvwp1q',
+          'sc-results': 'h.syuxr0k2n3yy',
+          'define-optimizations': 'h.1664s55',
+          'op-results': 'h.n581zreqeowi'
+        }
+      }
+
+      return {
+        baseURL: baseURL,
+        linkMap: linkMap,
       }
     },
 
