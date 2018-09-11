@@ -19,12 +19,13 @@ torun = [
 #'get_cascade_json',
 #'make_plots',
 #'run_scenarios',
-'run_cascade_optimization',
+# 'run_cascade_optimization',
 #'run_tb_optimization',
+'minimize_money',
 ]
 
 # Set parameters
-tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
+tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 user_id  = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
 proj_id  = sc.uuid(as_string=True) # These can all be the same
@@ -150,7 +151,10 @@ if 'run_tb_optimization' in torun and tool=='tb':
     sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
-    
+
+if 'minimize_money' in torun and tool=='tb':
+    browser = False
+    results = proj.demo_optimization(dorun=True,tool=tool,optim_type='money')
 
 sc.toc(T)
 print('Done.')
