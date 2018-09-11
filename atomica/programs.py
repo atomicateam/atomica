@@ -198,6 +198,12 @@ class ProgramSet(NamedItem):
             if is_impact == 'y':
                 self.pars[name] = label
 
+        self.num_pars = sc.odict()
+        for name, label, is_impact, y_format in zip(framework.pars.index, framework.pars['display name'], framework.pars['targetable'], framework.pars['format']):
+            if is_impact == 'y' and y_format == 'number':
+                self.num_pars[name] = label
+
+
     @staticmethod
     def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
@@ -466,7 +472,8 @@ class ProgramSet(NamedItem):
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
-                    self.covouts[(par_name,pop_name)] = Covout(par=par_name,pop=pop_name,cov_interaction= cov_interaction, imp_interaction = imp_interaction, uncertainty=uncertainty,baseline=baseline,progs=progs)
+                    is_num_par = True if par_name in self.num_pars else False
+                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs, is_num_par=is_num_par)
 
     def _write_effects(self):
         # TODO - Use the framework to exclude irrelevant programs and populations
@@ -747,7 +754,7 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
-    def get_outcomes(self, coverage):
+    def get_outcomes(self, num_covered=None, prop_covered=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
         # INPUTS
@@ -755,9 +762,10 @@ class ProgramSet(NamedItem):
         # OUTPUTS
         # - outcomes : a dict {(par,pop):vals}
 
-        for covkey in coverage.keys(): # Ensure coverage level values are arrays
-            coverage[covkey] = sc.promotetoarray(coverage[covkey])
-            for item in coverage[covkey]:
+        for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
+            prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
+            num_covered[covkey] = sc.promotetoarray(num_covered[covkey])
+            for item in prop_covered[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
@@ -765,7 +773,7 @@ class ProgramSet(NamedItem):
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(coverage)
+            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=num_covered, prop_covered=prop_covered)
         return outcomes
 
 #--------------------------------------------------------------------
@@ -915,7 +923,7 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction='additive', imp_interaction='best', uncertainty=0.0,baseline=0.0):
+    def __init__(self, par, pop, progs, cov_interaction='additive', imp_interaction='best', uncertainty=0.0, baseline=0.0, is_num_par=False):
         assert cov_interaction in ['additive','random','nested']
         assert imp_interaction in ['best','synergistic']
 
@@ -925,6 +933,7 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
+        self.is_num_par = is_num_par
         self.update_progs(progs)
 
 
@@ -966,21 +975,28 @@ class Covout(object):
         output += '\n'
         return output
 
-    def get_outcome(self,coverage):
-        # coverage is a dict with {prog_name:coverage} at least containing all of the
+    def get_outcome(self, num_covered=None, prop_covered=None):
+        # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination
 
         # Put coverages and deltas into array form
         cov = []
+        num_cov = []
         for prog in self.progs.keys():
-            cov.append(coverage[prog][0])
+            cov.append(prop_covered[prog][0])
+            num_cov.append(num_covered[prog][0])
         cov = np.array(cov)
+        num_cov = np.array(num_cov)
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
+        # If there's only one program, then just use the outcome directly
         if self.n_progs == 1:
-            # If there's only one program, then just use the outcome directly
             return outcome + cov[0]*self.deltas[0]
+
+        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
+        if self.is_num_par:   
+            return outcome + sum(num_cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
