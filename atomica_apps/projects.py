@@ -242,7 +242,8 @@ def init_projects(app):
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ProjectCollection.    
 #        proj_collection.show()
-        print('>> Loaded project collection with %s projects' % len(proj_collection.keys()))
+        location = 'internal' if proj_collection.objs_within_coll else 'external'
+        print('>> Loaded %s project collection with %s projects' % (location, len(proj_collection.keys())))
         
 def apptasks_load_projects(config):
     global proj_collection  # need this to allow modification within the module 

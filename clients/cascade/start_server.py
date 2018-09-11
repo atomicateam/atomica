@@ -3,6 +3,11 @@
 
 import sys
 
+print('')
+print('#########################################')
+print('Starting Cascade Analysis Tools server...')
+print('#########################################')
+
 # Process arguments
 kwargs = {}
 for i,arg in enumerate(sys.argv[1:]):
