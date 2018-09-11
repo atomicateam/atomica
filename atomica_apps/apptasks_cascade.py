@@ -4,7 +4,7 @@ apptasks_cascade.py -- The Celery tasks module for this webapp
 Last update: 2018sep07
 """
 
-
+import sys
 import scirisweb as sw
 from . import projects as prj
 from . import rpcs
@@ -12,6 +12,33 @@ from . import config_cascade as config
 import matplotlib.pyplot as ppl
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
+
+print('')
+print('#########################################')
+print('Starting Cascade Analysis Tools Celery...')
+print('#########################################')
+
+# Process arguments
+for i,arg in enumerate(sys.argv[1:]):
+    try:
+        if arg.find('=')>0:
+            k = arg.split("=")[0]
+            v = arg.split("=")[1]
+            K = k.upper()
+            if hasattr(config, K):
+                setattr(config, K, v)
+                print('Including kwarg: "%s" = %s' % (K,v))
+                del sys.argv[i]
+            else:
+                print('Skipping attribute "%s" = %s, not found' % (K,v))
+    except Exception as E:
+        errormsg = 'Failed to parse argument key="%s", value="%s": %s' % (K, v, str(E))
+        raise Exception(errormsg)
+
+sys.argv = []
+
+print('hiii')
+print(sys.argv)
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
