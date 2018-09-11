@@ -210,4 +210,5 @@ def init_frameworks(app):
         # Show what's in the FrameworkCollection.    
 #        frame_collection.show()
         location = 'internal' if frame_collection.objs_within_coll else 'external'
-        print('>> Loaded %s framework collection with %s frameworks' % (location, len(frame_collection.keys())))
+        keys = frame_collection.keys()
+        print('>> Loaded %s framework collection with %s frameworks: %s' % (location, len(keys), keys))
