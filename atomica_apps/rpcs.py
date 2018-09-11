@@ -755,7 +755,10 @@ def download_project(project_id):
     for ind in range(len(proj.results)):   # for all results...    
         if sc.isstring(proj.results[ind]):   # if the result is a string, therefore cache_id
             cache_id = proj.results[ind]  # get the cache_id
-            resultset = fetch_results_cache_entry(cache_id)  # get the result from cache
+            try:
+                resultset = fetch_results_cache_entry(cache_id)  # get the result from cache
+            except Exception as E:
+                resultset = 'ERROR: Unable to retrieve results set "%s" from results cache: %s' % (cache_id, str(E))
             proj.results[ind] = resultset  # put the resultset in the project
     file_name = '%s.prj' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name) # Generate the full file name with path.
