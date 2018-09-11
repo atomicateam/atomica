@@ -365,8 +365,8 @@ class ProjectData(sc.prettyobj):
         # Add a population with the given name and label (full name)
         assert code_name not in self.pops, 'Population with name "%s" already exists' % (code_name)
 
-        if code_name.strip().lower() == 'all':
-            raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')
+        if code_name.strip().lower() in FS.RESERVED_KEYWORDS:
+            raise AtomicaException('Population name "%s" is a reserved keyword' % (code_name.strip().lower()))
 
         self.pops[code_name] = {'label':full_name}
         for interaction in self.transfers+self.interpops:
@@ -379,8 +379,9 @@ class ProjectData(sc.prettyobj):
         # Rename an existing pop
         assert existing_code_name in self.pops, 'A population with code name "%s" is not present' % (existing_code_name)
         assert new_code_name not in self.pops, 'Population with name "%s" already exists' % (new_code_name)
-        if new_code_name.strip().lower() == 'all':
-            raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')
+
+        if new_code_name.strip().lower() in FS.RESERVED_KEYWORDS:
+            raise AtomicaException('Population name "%s" is a reserved keyword' % (new_code_name.strip().lower()))
 
         # First change the name of the key
         self.pops.rename(existing_code_name,new_code_name)
@@ -471,8 +472,8 @@ class ProjectData(sc.prettyobj):
         assert tables[0][0][1].value.strip().lower() == 'full name'
 
         for row in tables[0][1:]:
-            if row[0].value.strip().lower() == 'all':
-                raise AtomicaException('A population was named "all", which is a reserved keyword and cannot be used as a population name')
+            if row[0].value.strip().lower() in FS.RESERVED_KEYWORDS:
+                raise AtomicaException('Population name "%s" is a reserved keyword' % (row[0].value.strip().lower()))
             self.pops[row[0].value.strip()] = {'label':row[1].value.strip()}
 
     def _write_pops(self):

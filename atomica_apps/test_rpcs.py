@@ -21,6 +21,7 @@ torun = [
 #'run_scenarios',
 'run_cascade_optimization',
 #'run_tb_optimization',
+# 'export_results',
 ]
 
 # Set parameters
@@ -76,10 +77,10 @@ if 'get_cascade_plot' in torun and tool=='cascade':
     browser = False
     results = proj.run_optimization(maxtime=3)
     args = {
-        'results':results, 
-        'pops':   'All', 
-        'year':   2030, 
-        'cascade': None, 
+        'results':results,
+        'pops':   'All',
+        'year':   2030,
+        'cascade': None,
         'plot_budget': True
         }
     output, figs, legends = rpcs.get_cascade_plot(proj, **args)
@@ -104,23 +105,28 @@ if 'get_cascade_json' in torun and tool=='cascade':
 
 if 'make_plots' in torun:
     heading('Running make_plots', 'big')
-    
+
     # Settings
     browser     = True
     calibration = True
     show_BE     = False
-    
+
     # Run
     results = proj.run_sim()
     if show_BE: output = proj.plot(results) # WARNING, doesn't work
     output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
-    
+
     # Output
     print('Output:')
     sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
 
+if 'export_results' in torun:
+    # This test validates exporting Excel files from Result objects
+    proj = demoproj('tb')
+    results = proj.demo_scenarios(dorun=True)
+    au.export_results(results,'test_rpcs_export_results.zip')
 
 if 'run_scenarios' in torun:
     browser = True
@@ -139,8 +145,8 @@ if 'run_cascade_optimization' in torun and tool=='cascade':
     sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
-    
-    
+
+
 if 'run_tb_optimization' in torun and tool=='tb':
     heading('Running run_tb_optimization', 'big')
     browser = True
@@ -150,7 +156,7 @@ if 'run_tb_optimization' in torun and tool=='tb':
     sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
-    
+
 
 sc.toc(T)
 print('Done.')
