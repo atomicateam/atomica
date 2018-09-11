@@ -455,10 +455,15 @@ class PlotData(object):
             if quantity == 'spending':
                 units = '$/year'
             elif quantity == 'coverage_number':
-                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc) # program coverage based on unit cost and spending
+                # Number covered is plotted per year, so use dt=1.0 here
+                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc, dt=1.0) # program coverage based on unit cost and spending
                 units = 'Number of people/year'
             elif quantity in ['coverage_fraction','coverage_denominator']:
-                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc)  # program coverage based on unit cost and spending
+                # The fractional coverage is defined on a per-timestep basis. The units
+                # for the numerator need to match the denominator, which is compartment sizes
+                # in units of number of people. So use the timestep size when getting the
+                # number covered here
+                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc, dt=result.dt)  # program coverage based on unit cost and spending
                 # Get the program coverage denominator
                 prop_covered = dict()
                 num_eligible = dict() # This is the coverage denominator, number of people covered by the program
@@ -470,13 +475,14 @@ class PlotData(object):
                             else:
                                 num_eligible[prog.name] += result.get_variable(pop_name,comp_name)[0].vals
 
+                    # Use np.divide in this way so that 0/0 results in 0 rather than NaN
                     prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
                     prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(result.t.shape))
 
                 if quantity == 'coverage_denominator':
                     units = 'Number of people'
                 elif quantity == 'coverage_fraction':
-                    units = 'Fraction covered/year'
+                    units = 'Fraction covered'
             else:
                 raise AtomicaException('Unknown quantity')
 
@@ -488,7 +494,7 @@ class PlotData(object):
 
                         # We only support summation for combining program spending, not averaging
                         # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
-                        vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
+                        vals = sum(alloc[x] for x in labels)  # Add together all the outputs
                         output_name = output_name
                         data_label = None # No data present for aggregations
                     else:
