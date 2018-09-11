@@ -44,6 +44,7 @@ import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
 
+
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
@@ -447,7 +448,14 @@ class Project(object):
         progset = self.progset(optim.progsetname)
         original_end = self.settings.sim_end
         self.settings.sim_end = optim_ins.json['end_year']
-        optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+        try:
+            optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+        except sc.InvalidInitialConditions as e:
+            if optim_ins.json['optim_type'] == 'money':
+                raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
+            else:
+                raise # Just raise it as-is
+
         optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized", store_results=store_results)
         unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline", store_results=store_results)
         self.settings.sim_end = original_end
