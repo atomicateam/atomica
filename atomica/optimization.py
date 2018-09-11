@@ -17,6 +17,12 @@ from .results import Result
 from .cascade import get_cascade_vals
 from .programs import ProgramInstructions
 
+class InvalidInitialConditions(AtomicaException):
+    # This error gets thrown if the initial conditions yield an objective value
+    # that is not finite
+    pass
+
+
 class Adjustable(object):
 
     def __init__(self,name,limit_type='abs',lower_bound=-np.inf,upper_bound=np.inf,initial_value=None):
@@ -657,6 +663,10 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
         'xmin': xmin,
         'xmax': xmax,
     }
+
+    initial_objective = _asd_objective(x0, **args)
+    if not np.isfinite(initial_objective):
+        raise InvalidInitialConditions()
 
     x_opt = sc.asd(_asd_objective,x0,args,**optim_args)[0]
     optimization.update_instructions(x_opt,model.program_instructions)

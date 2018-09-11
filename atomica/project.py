@@ -33,7 +33,7 @@ from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import ParameterScenario
-from .optimization import optimize, OptimInstructions
+from .optimization import optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
 from .scenarios import BudgetScenario
 from .cascade import get_cascade_outputs
@@ -450,7 +450,7 @@ class Project(object):
         self.settings.sim_end = optim_ins.json['end_year']
         try:
             optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
-        except sc.InvalidInitialConditions as e:
+        except InvalidInitialConditions:
             if optim_ins.json['optim_type'] == 'money':
                 raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
@@ -572,7 +572,7 @@ class Project(object):
                 # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
                 # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
                 # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
-                json['objective_weights'] = {'ddis': 0, 'acj': 0, 'ds_inf': 0, 'mdr_inf': 0,'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_weights'] = {'ddis': 25, 'acj': 25, 'ds_inf': 25, 'mdr_inf': 25,'xdr_inf': 25}  # These are TB-specific: maximize people alive, minimize people dead due to TB
             else:
                 raise AtomicaException('Unknown optim_type')
 
