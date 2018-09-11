@@ -149,6 +149,8 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         'pars_to_adjust': pars_to_adjust,
         'output_quantities': output_quantities,
     }
+    
+#    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
 
     x0 = []
     xmin = []

@@ -11,11 +11,11 @@ from atomica.optimization import optimize
 
 #test = "sir"
 #test = "tb"
-# test = "hypertension"
-# test = "udt"
+#test = "hypertension"
+test = "udt"
 #test = "usdt"
 #test = "hiv"
-test = "diabetes"
+#test = "diabetes"
 #test = "service"
 
 torun = [
@@ -34,7 +34,7 @@ torun = [
 #"makeplots",
 #"export",
 # "manualcalibrate",
-# "autocalibrate",
+"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -272,7 +272,7 @@ if "runsim_programs" in torun:
         scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="Scale up outreach")
         scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="Scale up adherence")
 
-        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'main',year=[2017])
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'Cascade',year=[2017])
 
     elif test == 'usdt':
         scenalloc = {'Screening at pharmacies':  2400000 }
