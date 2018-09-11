@@ -35,11 +35,6 @@ for i,arg in enumerate(sys.argv[1:]):
         errormsg = 'Failed to parse argument key="%s", value="%s": %s' % (K, v, str(E))
         raise Exception(errormsg)
 
-sys.argv = []
-
-print('hiii')
-print(sys.argv)
-
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
 async_task = sw.make_async_tag(task_func_dict) # Task function registration decorator created using call to make_async_tag().
