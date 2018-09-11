@@ -1,10 +1,20 @@
 #!/usr/bin/env python
 
-# print('Attempting to start the celery bash script (from python)')
-# import subprocess
-# subprocess.Popen(['source', 'start_celery.sh'], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-# subprocess.Popen(['celery', 'worker -A atomica_apps.apptasks_cascade -l info $@'], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+import sys
+
+# Process arguments
+kwargs = {}
+for i,arg in enumerate(sys.argv[1:]):
+    try:
+        k = arg.split("=")[0]
+        v = arg.split("=")[1]
+        kwargs[k] = v
+        print('Including kwarg: "%s" = %s' % (k,v))
+    except Exception as E:
+        errormsg = 'Failed to parse argument key="%s", value="%s": %s' % (k, v, str(E))
+        raise Exception(errormsg)
 
 # Run the server
 import atomica_apps
-atomica_apps.main.run(which='cascade')
+atomica_apps.main.run(which='cascade', **kwargs)

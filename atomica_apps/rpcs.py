@@ -1794,7 +1794,7 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-        results_cache.show()
+#        results_cache.show()
         print('>> Loaded results cache with %s results' % len(results_cache.keys()))
 
         
