@@ -12,7 +12,8 @@ from atomica.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-test = "dt"
+test = "hypertension_dyn"
+#test = "dt"
 #test = "udt"
 #test = "usdt"
 #test = "hiv"
@@ -27,15 +28,15 @@ torun = [
 "loaddatabook",
 "makeparset",
 "runsim",
-#"plotcascade",
-#"makeblankprogbook",
+"plotcascade",
+"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
 #"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
-"autocalibrate",
+#"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -82,7 +83,7 @@ if "makedatabook" in torun:
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test in ["udt","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
-    elif test == "hypertension": args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["hypertension","hypertension_dyn"]: args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -115,7 +116,7 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='Cascade', pops='all', year=2017, data=P.data)
+    au.plot_cascade(P.results[-1], cascade='Hypertension care cascade', pops='all', year=[2016,2017], data=P.data)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
