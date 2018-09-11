@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-09-06
+Last update: 2018-09-09
 -->
 
 <template>
@@ -454,7 +454,7 @@ Last update: 2018-09-06
           demoOption = this.demoOption
         }
         if (this.$globaltool === 'tb') {
-          demoOption = null
+          demoOption = 'default'
         }
         rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption]) // Have the server create a new project.
           .then(response => {
