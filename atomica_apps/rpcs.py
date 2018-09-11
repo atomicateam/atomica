@@ -1794,8 +1794,9 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-        results_cache.show()
-        print('>> Loaded results cache with %s results' % len(results_cache.keys()))
+#        results_cache.show()
+        location = 'internal' if results_cache.objs_within_coll else 'external'
+        print('>> Loaded %s results cache with %s results' % (location, len(results_cache.keys())))
 
         
 def apptasks_load_results_cache():
