@@ -7,7 +7,7 @@ services:
         WHICH: tb
         PORT: '80'
         REDIS_URL: 'redis://localhost:6379/7'
-    command: python start_server.py
+    command: /etc/init.d/redis-server start && python start_server.py
     environment:
       - REDIS_URL=redis://localhost:6379/7
     ports:
