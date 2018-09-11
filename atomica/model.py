@@ -1197,7 +1197,8 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            prop_covered = dict.fromkeys(self._program_cache['comps'], 0.0)
+            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['coverage'].iteritems()])
+            prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
                 n = 0.0
                 for comp in comp_list:
@@ -1208,7 +1209,7 @@ class Model(object):
                     prop_covered[k] = 1.
 
             # Compute the updated program values
-            prog_vals = self.progset.get_outcomes(prop_covered)
+            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.

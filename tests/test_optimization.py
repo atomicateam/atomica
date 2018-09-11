@@ -430,6 +430,10 @@ if 'cascade_multi_stage' in torun:
         #            print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2017))) # TODO - add time to alloc
 
         au.plot_multi_cascade([unoptimized_result, optimized_result], 'Diabetes care cascade', pops='all', year=2017)
+        d = au.PlotData([unoptimized_result, optimized_result])
+        d.interpolate(2018)
+        au.plot_bars(d,stack_outputs='all')
+
 
 if 'cascade-conversions' in torun:
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2

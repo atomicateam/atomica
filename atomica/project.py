@@ -71,7 +71,7 @@ class ProjectSettings(object):
 
 
 class Project(object):
-    def __init__(self, name="default", framework=None, databook_path=None, do_run=True, **kwargs):
+    def __init__(self, name="default", framework=None, frw_name=None, databook_path=None, do_run=True, **kwargs):
         """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
         # - framework : a Framework to use. This could be
@@ -85,7 +85,7 @@ class Project(object):
         self.name = name
 
         if sc.isstring(framework) or isinstance(framework,AtomicaSpreadsheet):
-            self.framework = ProjectFramework(inputs=framework)
+            self.framework = ProjectFramework(inputs=framework, name=frw_name)
         elif isinstance(framework,ProjectFramework):
             self.framework = framework
         else:
@@ -547,7 +547,7 @@ class Project(object):
             json['prog_spending'][prog_name] = [0,None]
         optim = self.make_optimization(json=json)
         if dorun:
-            results = self.run_optimization(optimization=json['name'])
+            results = self.run_optimization(optimname=json['name'])
             return results
         else:
             return optim

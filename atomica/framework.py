@@ -14,6 +14,7 @@ from .version import version
 import numpy as np
 from .cascade import validate_cascade
 from .parser_function import parse_function
+from os import sep
 
 class InvalidFramework(AtomicaException):
     pass
@@ -38,6 +39,8 @@ class ProjectFramework(object):
         # Load Framework from disk
         if sc.isstring(inputs):
             self.spreadsheet = AtomicaSpreadsheet(inputs)
+            if name is None:
+                name = inputs.split(sep)[-1].split('.')[0]
         elif isinstance(inputs,AtomicaSpreadsheet):
             self.spreadsheet = inputs
         else:

@@ -4,22 +4,28 @@ Version:
 
 
 #%%
+import numpy as np
 import sciris as sc
 import atomica.ui as au
-to_run = ['quick','full'][1] 
+
+to_run = ['quick','full'][0] 
 run_scens = True
 run_optim = True
 maxtime   = 10
 txtcolor  = 'blue'
 
 T = sc.tic()
-
-import numpy as np
 np.seterr(all='raise') # We don't expect numerical warnings in any of the demos
 
 #%%
 if to_run == 'quick':
     P = au.demo(which='tb')
+    if run_scens:
+            if len(P.scens): P.run_scenarios()
+            else:             sc.colorize('green', 'No scenarios found')
+    if run_optim:
+        if len(P.optims): P.run_optimization(maxtime=maxtime)
+        else:             sc.colorize('green', 'No optimizations found')
 
 
 #%%

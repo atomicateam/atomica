@@ -687,10 +687,10 @@ Last update: 2018-09-10
         this.getOptimTaskState(newOptim)
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
-            status.succeed(this, 'Opimization copied')
+            status.succeed(this, 'Optimization copied')
           })
           .catch(error => {
-            status.fail(this, 'Could not copy optimization')
+            status.fail(this, 'Could not copy optimization', error)
           })
       },
 
