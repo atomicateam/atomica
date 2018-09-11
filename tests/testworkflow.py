@@ -12,25 +12,26 @@ from atomica.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-test = "udt"
+test = "dt"
+#test = "udt"
 #test = "usdt"
 #test = "hiv"
 #test = "diabetes"
 #test = "service"
 
 torun = [
-#"loadframework",
-#"saveframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
+"loadframework",
+"saveframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
 #"plotcascade",
 #"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-"runsim_programs",
+#"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -79,7 +80,7 @@ if "makedatabook" in torun:
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["udt","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hypertension": args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
@@ -114,7 +115,7 @@ if "runsim" in torun:
 #    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='Diabetes care cascade', pops='all', year=2016, data=P.data)
+    au.plot_cascade(P.results[-1], cascade='Cascade', pops='all', year=2017, data=P.data)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
 #    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
@@ -399,6 +400,7 @@ if "autocalibrate" in torun:
     else:
         P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
+    au.plot_cascade(P.results[-1], cascade='Cascade', pops='all', year=2017, data=P.data)
     if test == "sir":
         outputs = ["ch_prev"]
     if test == "tb":
