@@ -89,42 +89,38 @@ Last update: 2018-09-06
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th @click="updateSorting('parameter')" class="sortable">
+              <th>
                 Parameter
-                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
               </th>
-              <th @click="updateSorting('population')" class="sortable">
-                Population
-                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              <th>
+                Overall scale factor
               </th>
-              <th @click="updateSorting('value')" class="sortable">
-                Value
-                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              <th v-for="popLabel in poplabels">
+                {{ popLabel }}
               </th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in parList">
+            <tr v-for="par in parlist">
               <td>
                 {{par.parlabel}}
               </td>
               <td>
-                {{par.poplabel}}
-              </td>
-              <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.dispvalue"/>
+                       v-model="par.meta_y_factor"/>
+              </td>
+              <td v-for="poppar in par.pop_y_factors">
+                <input type="text"
+                       class="txbox"
+                       v-model="poppar.dispvalue"/>
               </td>
             </tr>
             </tbody>
           </table>
+          <button class="btn __green" @click="saveParTable(projectID)">
+            Save
+          </button>&nbsp;
         </div>
       </div>
       <!-- ### End: parameters card ### -->
@@ -409,11 +405,30 @@ Last update: 2018-09-06
           // TODO: Get spinners working right for this leg of initialization.
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
             .then(response => {
-              this.parList = response.data // Get the parameter values
+              this.parlist = response.data.parlist // Get the parameter values
+              this.poplabels = response.data.poplabels
+              console.log(response)
+              console.log(this.poplabels)
+              console.log(this.parlist)
               resolve(response)
             })
             .catch(error => {
               status.fail(this, 'Could not load parameters', error)
+              reject(error)
+            })
+        })
+      },
+
+      saveParTable() {
+        return new Promise((resolve, reject) => {
+          console.log('saveParTable() called')
+          rpcs.rpc('set_y_factors', [this.$store.state.activeProject.project.id, this.activeParset, this.parlist])
+            .then(response => {
+              status.succeed(this, 'Parameters updated')
+              resolve(response)
+            })
+            .catch(error => {
+              status.fail(this, 'Could not save parameters', error)
               reject(error)
             })
         })
