@@ -952,6 +952,11 @@ def create_project_from_prj_file(prj_filename, user_id):
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
+##################################################################################
+#%% Calibration RPCs
+##################################################################################
+
+
 @RPC()
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
@@ -966,9 +971,10 @@ def get_y_factors(project_id, parsetname=-1):
             # TODO - do something with this_par.meta_y_factor here
             this_spec = proj.framework.get_variable(parname)[0]
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
-                for popname,y_factor in this_par.y_factor.items():
-                    count += 1
-                    parlabel = this_spec['display name']
+                count += 1
+                parlabel = this_spec['display name']
+                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
+                for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     try:    
@@ -976,15 +982,42 @@ def get_y_factors(project_id, parsetname=-1):
                         if not np.isfinite(interp_val):
                             interp_val = 1
                         if sc.approx(interp_val, 0):
-                            interp_val = 1
+                            interp_val = 0.0
                     except: 
                         interp_val = 1
                     dispvalue = interp_val*y_factor
-                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
-                    y_factors.append(thisdict)
-                    print(thisdict)
+                    thisdict = {'popcount':p, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'poplabel':poplabel}
+                    y_factors[-1]['pop_y_factors'].append(thisdict)
+    sc.pp(y_factors)
     print('Returning %s y-factors' % len(y_factors))
-    return y_factors
+    return {'parlist':y_factors, 'poplabels':parset.pop_labels}
+
+
+@RPC()
+def set_y_factors(project_id, parsetname=-1, parlist=None):
+    print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for newpar in parlist:
+        this_par = parset.get_par(newpar['parname'])
+        this_par.meta_y_factor = float(newpar['meta_y_factor'])
+        for newpoppar in newpar['pop_y_factors']:
+            try:    
+                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                if not np.isfinite(interp_val):
+                    interp_val = 1
+                if sc.approx(interp_val, 0):
+                    interp_val = 0
+            except: 
+                interp_val = 1
+            y_factor = float(newpoppar['dispvalue'])/(1e-6+interp_val)
+            this_par.y_factor[newpoppar['popname']] = y_factor
+    sc.pp(parlist)
+    print('Setting %s y-factors' % len(parlist))
+    print('Saving project...')
+    save_project(proj)
+    return None
 
 
 ##################################################################################
