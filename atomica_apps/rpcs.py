@@ -1203,11 +1203,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
-            if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            else:
-                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
-
+            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -1250,7 +1246,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
         # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = 'all'  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
-        pops = 'aggregate' # make sure it's lowercase
+        pops = 'total' # make sure it's lowercase
     else:
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
@@ -1340,7 +1336,7 @@ def get_program_plots(results,year,budget=True,coverage=True):
         for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
             fig.axes[0].set_title(output_label)
             series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
-            fig.axes[0].set_ylabel(series.units)
+            fig.axes[0].set_ylabel(series.units.title())
         figs += coverage_figs
         print('Coverage plots succeeded')
 
