@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-09-09
+Last update: 2018-09-12
 -->
 
 <template>
@@ -225,42 +225,43 @@ Last update: 2018-09-09
         </div>
         <!-- ### End: Cascade demo project modal ### -->
 
-        <!-- ### Start: TB demo project modal ### -->
-        <div v-if="$globaltool=='tb'" class="dialog-content">
-          <div class="dialog-c-title">
-            Create new project
-          </div>
-          <div class="dialog-c-text">
-            Project name:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="proj_name"/><br>
-            Number of populations:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="num_pops"/><br>
-            First year for data entry:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="data_start"/><br>
-            Final year for data entry:<br>
-            <input type="text"
-                   class="txbox"
-                   v-model="data_end"/><br>
-          </div>
-          <div style="text-align:justify">
-            <button @click="createNewProject()" class='btn __green' style="display:inline-block">
-              Create
-            </button>
-
-            <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
-              Cancel
-            </button>
-          </div>
+      </div>        
+        
+      <!-- ### Start: TB demo project modal ### -->
+      <div v-if="$globaltool=='tb'" class="dialog-content">
+        <div class="dialog-c-title">
+          Create new project
         </div>
-        <!-- ### End: TB demo project modal ### -->
+        <div class="dialog-c-text">
+          Project name:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="proj_name"/><br>
+          Number of populations:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="num_pops"/><br>
+          First year for data entry:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="data_start"/><br>
+          Final year for data entry:<br>
+          <input type="text"
+                 class="txbox"
+                 v-model="data_end"/><br>
+        </div>
+        <div style="text-align:justify">
+          <button @click="createNewProject()" class='btn __green' style="display:inline-block">
+            Create
+          </button>
 
+          <button @click="$modal.hide('create-project')" class='btn __red' style="display:inline-block">
+            Cancel
+          </button>
+        </div>
       </div>
+      <!-- ### End: TB demo project modal ### -->
+
     </modal>
     <!-- ### End: New project modal ### -->
 

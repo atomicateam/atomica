@@ -865,7 +865,7 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
-        frame = au.demo(kind='framework', which=tool, sim_dt=sim_dt)
+        frame = au.demo(kind='framework', which=tool)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
