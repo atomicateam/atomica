@@ -1219,11 +1219,11 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
 
             if calibration:
-               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='none')
-               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='none') # Only plot data if not stacked
+               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+               else:       figs,legends = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
             else:
-               if stacked: figs = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='none')
-               else:       figs = au.plot_series(plotdata, axis='results', data=data, legend_mode='none')
+               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
+               else:       figs,legends = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
             for fig,legend in figs:
                 allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
 #                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
