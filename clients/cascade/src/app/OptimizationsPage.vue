@@ -107,7 +107,7 @@ Last update: 2018-09-10
             <div class="calib-card-body">
               <div class="calib-graphs">
 
-                <div v-show="$globaltool=='tb'" class="other-graphs">
+                <div class="other-graphs">
                   <div v-for="index in placeholders">
                     <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
                       <div :id="'fig'+index" class="calib-graph">
