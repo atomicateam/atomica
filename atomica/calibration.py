@@ -155,7 +155,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     xmax = []
     for i, x in enumerate(pars_to_adjust):
         par_name, pop_name, scale_min, scale_max = x
-        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
+        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs'] or par_name in parset.par_ids['comps']:
             par = parset.get_par(par_name)
             if pop_name == 'all':
                 x0.append(par.meta_y_factor)
