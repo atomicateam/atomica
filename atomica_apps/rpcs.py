@@ -1246,7 +1246,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
         # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = 'all'  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
-        pops = 'aggregate' # make sure it's lowercase
+        pops = 'total' # make sure it's lowercase
     else:
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
