@@ -528,6 +528,7 @@ Last update: 2018-09-06
           .then(response => {
             this.table = response.data.table
             this.makeGraphs(response.data.graphs)
+            status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
             console.log(error.message)
