@@ -83,7 +83,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         logger.info("Creating an SIR epidemic project...")
 
         framework_file = atomica_path(['tests', 'frameworks']) + 'framework_sir.xlsx'
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='SIR', databook_path=atomica_path(['tests', 'databooks']) + "databook_sir.xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs: P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_sir.xlsx", blh_effects=False)
 
@@ -92,7 +92,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_tb.xlsx'
         if verbose: print('Loading databook')
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='TB', databook_path=atomica_path(['tests','databooks'])+"databook_tb.xlsx", do_run=do_run, **kwargs)
         if addprogs:
             if verbose: print('Loading progbook')
             P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx", blh_effects=False)
@@ -106,7 +106,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         logger.info("Creating a disease-agnostic 5-stage service delivery cascade project...")
         
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='Service', databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs:
             if verbose: print('Progbook not implemented')
@@ -117,7 +117,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=False, **kwargs)
+        P = Project(framework=framework_file, frw_name='Diabetes', databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=False, **kwargs)
         P.settings.sim_dt = 1.0
         if do_run: P.run_sim()
         if addprogs:
@@ -136,7 +136,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='UDT', databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs:
             if verbose: print('Loading progbook')
@@ -153,7 +153,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='USDT', databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs:
             if verbose: print('Loading progbook')
@@ -187,7 +187,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='Hypertension', databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs:
             if verbose: print('Loading progbook')
@@ -204,7 +204,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         if verbose: print('Loading framework')
         framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
         if verbose: print('Loading databook')
-        P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
+        P = Project(framework=framework_file, frw_name='HIV', databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=do_run, **kwargs)
         P.settings.sim_dt = 1.0
         if addprogs:
             if verbose: print('Loading progbook')

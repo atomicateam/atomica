@@ -752,6 +752,14 @@ def download_project(project_id):
     file, minus results, and pass the full path of this file back.
     """
     proj = load_project(project_id, raise_exception=True) # Load the project with the matching UID.
+    for ind in range(len(proj.results)):   # for all results...    
+        if sc.isstring(proj.results[ind]):   # if the result is a string, therefore cache_id
+            cache_id = proj.results[ind]  # get the cache_id
+            try:
+                resultset = fetch_results_cache_entry(cache_id)  # get the result from cache
+            except Exception as E:
+                resultset = 'ERROR: Unable to retrieve results set "%s" from results cache: %s' % (cache_id, str(E))
+            proj.results[ind] = resultset  # put the resultset in the project
     file_name = '%s.prj' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name) # Generate the full file name with path.
     sc.saveobj(full_file_name, proj) # Write the object to a Gzip string pickle file.
@@ -857,7 +865,7 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
-        frame = au.demo(kind='framework', which=tool, sim_dt=sim_dt)
+        frame = au.demo(kind='framework', which=tool)
     args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
@@ -935,8 +943,18 @@ def create_project_from_prj_file(prj_filename, user_id):
     except Exception:
         return { 'error': 'BadFileFormatError' }
     proj.name = get_unique_name(proj.name, other_names=None) # Reset the project name to a new project name that is unique.
+    for ind in range(len(proj.results)):   # for all results...
+        if not sc.isstring(proj.results[ind]):   # if the result isn't a cache_id
+            cache_id = str(sc.uuid()) + ':' + proj.results[ind].name
+            put_results_cache_entry(cache_id, proj.results[ind])  # store in the cache
+            proj.results[ind] = cache_id   # set the result to be a cache_id     
     save_project_as_new(proj, user_id) # Save the new project in the DataStore.
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
+
+
+##################################################################################
+#%% Calibration RPCs
+##################################################################################
 
 
 @RPC()
@@ -953,9 +971,10 @@ def get_y_factors(project_id, parsetname=-1):
             # TODO - do something with this_par.meta_y_factor here
             this_spec = proj.framework.get_variable(parname)[0]
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
-                for popname,y_factor in this_par.y_factor.items():
-                    count += 1
-                    parlabel = this_spec['display name']
+                count += 1
+                parlabel = this_spec['display name']
+                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
+                for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     try:    
@@ -963,15 +982,42 @@ def get_y_factors(project_id, parsetname=-1):
                         if not np.isfinite(interp_val):
                             interp_val = 1
                         if sc.approx(interp_val, 0):
-                            interp_val = 1
+                            interp_val = 0.0
                     except: 
                         interp_val = 1
                     dispvalue = interp_val*y_factor
-                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
-                    y_factors.append(thisdict)
-                    print(thisdict)
+                    thisdict = {'popcount':p, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'poplabel':poplabel}
+                    y_factors[-1]['pop_y_factors'].append(thisdict)
+    sc.pp(y_factors)
     print('Returning %s y-factors' % len(y_factors))
-    return y_factors
+    return {'parlist':y_factors, 'poplabels':parset.pop_labels}
+
+
+@RPC()
+def set_y_factors(project_id, parsetname=-1, parlist=None):
+    print('Setting y factors for parset %s...' % parsetname)
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for newpar in parlist:
+        this_par = parset.get_par(newpar['parname'])
+        this_par.meta_y_factor = float(newpar['meta_y_factor'])
+        for newpoppar in newpar['pop_y_factors']:
+            try:    
+                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                if not np.isfinite(interp_val):
+                    interp_val = 1
+                if sc.approx(interp_val, 0):
+                    interp_val = 0
+            except: 
+                interp_val = 1
+            y_factor = float(newpoppar['dispvalue'])/(1e-6+interp_val)
+            this_par.y_factor[newpoppar['popname']] = y_factor
+    sc.pp(parlist)
+    print('Setting %s y-factors' % len(parlist))
+    print('Saving project...')
+    save_project(proj)
+    return None
 
 
 ##################################################################################
@@ -1190,11 +1236,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
-            if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            else:
-                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
-
+            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -1237,7 +1279,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
         # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = 'all'  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
-        pops = 'aggregate' # make sure it's lowercase
+        pops = 'total' # make sure it's lowercase
     else:
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
@@ -1268,10 +1310,19 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         if figsize is None: figsize = (5,3)
         fig.set_size_inches(figsize)
         ax = fig.get_axes()[0]
-        ax.set_position([0.25,0.15,0.70,0.75])
+        ax.set_position([0.25,0.18,0.70,0.72])
         ax.set_facecolor('none')
         ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-        ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+        y_max = ax.get_ylim()[1]
+        labelpad = 7
+        if y_max < 1e-3: labelpad = 15
+        if y_max > 1e3:  labelpad = 15
+        if y_max > 1e6:  labelpad = 20
+        if y_max > 1e9:  labelpad = 25
+        ylabel = plotdata.series[0].units
+        if ylabel == 'probability': ylabel = 'Probability'
+        if ylabel == '':            ylabel = 'Proportion'
+        ax.set_ylabel(ylabel, labelpad=labelpad) # All outputs should have the same units (one output for each pop/result)
         if xlims is not None: ax.set_xlim(xlims)
         try:
             legend = fig.findobj(Legend)[0]
@@ -1318,7 +1369,7 @@ def get_program_plots(results,year,budget=True,coverage=True):
         for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
             fig.axes[0].set_title(output_label)
             series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
-            fig.axes[0].set_ylabel(series.units)
+            fig.axes[0].set_ylabel(series.units.title())
         figs += coverage_figs
         print('Coverage plots succeeded')
 
@@ -1781,8 +1832,9 @@ def init_results_cache(app):
     
     if app.config['LOGGING_MODE'] == 'FULL':
         # Show what's in the ResultsCache.    
-        results_cache.show()
-        print('>> Loaded results cache with %s results' % len(results_cache.keys()))
+#        results_cache.show()
+        location = 'internal' if results_cache.objs_within_coll else 'external'
+        print('>> Loaded %s results cache with %s results' % (location, len(results_cache.keys())))
 
         
 def apptasks_load_results_cache():

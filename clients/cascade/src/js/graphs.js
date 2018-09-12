@@ -11,15 +11,15 @@ function getPlotOptions(vm, project_id) {
     console.log('getPlotOptions() called')
     status.start(vm) // Start indicating progress.
     rpcs.rpc('get_supported_plots', [project_id, true])
-    .then(response => {
-      vm.plotOptions = response.data // Get the parameter values
-      status.succeed(vm, '')
-      resolve(response)
-    })
-    .catch(error => {
-      status.fail(vm, 'Could not get plot options: ' + error.message)
-      reject(error)
-    })          
+      .then(response => {
+        vm.plotOptions = response.data // Get the parameter values
+        status.succeed(vm, '')
+        resolve(response)
+      })
+      .catch(error => {
+        status.fail(vm, 'Could not get plot options: ' + error.message)
+        reject(error)
+      })
   })
 }
 
@@ -59,17 +59,17 @@ function makeGraphs(vm, data, routepath) {
   else { // Proceed...
     let waitingtime = 0.5
     var graphdata = data.graphs
-    var legenddata = data.legends
+    // var legenddata = data.legends
     status.start(vm) // Start indicating progress.
     vm.hasGraphs = true
     utils.sleep(waitingtime * 1000)
       .then(response => {
         let n_plots = graphdata.length
-        let n_legends = legenddata.length
+        // let n_legends = legenddata.length
         console.log('Rendering ' + n_plots + ' graphs')
-        if (n_plots !== n_legends) {
-          console.log('WARNING: different numbers of plots and legends: ' + n_plots + ' vs. ' + n_legends)
-        }
+        // if (n_plots !== n_legends) {
+        //   console.log('WARNING: different numbers of plots and legends: ' + n_plots + ' vs. ' + n_legends)
+        // }
         for (var index = 0; index <= n_plots; index++) {
           console.log('Rendering plot ' + index)
           var figlabel    = 'fig' + index
@@ -92,38 +92,41 @@ function makeGraphs(vm, data, routepath) {
               console.log('WARNING: figcontainerdiv not found: ' + figcontainerlabel)
             }
 
-            var legendlabel = 'legend' + index
-            var legenddiv  = document.getElementById(legendlabel);
-            if (legenddiv) {
-              while (legenddiv.firstChild) {
-                legenddiv.removeChild(legenddiv.firstChild);
-              }
-            } else {
-              console.log('WARNING: legenddiv not found: ' + legendlabel)
-            }
+            // var legendlabel = 'legend' + index
+            // var legenddiv  = document.getElementById(legendlabel);
+            // if (legenddiv) {
+            //   while (legenddiv.firstChild) {
+            //     legenddiv.removeChild(legenddiv.firstChild);
+            //   }
+            // } else {
+            //   console.log('WARNING: legenddiv not found: ' + legendlabel)
+            // }
           }
 
           // Draw figures
-          mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
-            fig.setXTicks(6, function (d) {
-              return d3.format('.0f')(d);
-            });
-            fig.setYTicks(null, function (d) {
-              return d3.format('.2s')(d);
-            });
-          });
-
-          // Draw legends
-          if (index>=1 && index<n_plots) {
-            mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
+          try {
+            mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
               fig.setXTicks(6, function (d) {
                 return d3.format('.0f')(d);
               });
-              fig.setYTicks(null, function (d) {
-                return d3.format('.2s')(d);
-              });
+              // fig.setYTicks(null, function (d) { // Looks too weird with 500m for 0.5
+              //   return d3.format('.2s')(d);
+              // });
             });
+          } catch (error) {
+            console.log('Could not plot graph: ' + error.message)
           }
+
+          // Draw legends
+          // if (index>=1 && index<n_plots) {
+          //   try {
+          //     mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
+          //     });
+          //   } catch (error) {
+          //     console.log(error)
+          //   }
+          //
+          // }
           vm.showGraphDivs[index] = true;
         }
         status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
@@ -225,8 +228,8 @@ function newDialog(vm, id, name, content) {
 function findDialog(vm, id, dialogs) {
   console.log('looking')
   let index = dialogs.findIndex((val) => {
-      return String(val.id) === String(id) // Force type conversion
-    })
+    return String(val.id) === String(id) // Force type conversion
+  })
   return (index > -1) ? index : null
 }
 

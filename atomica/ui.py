@@ -28,4 +28,6 @@ if _debug: print('Importing optimization...')
 from .optimization import *
 if _debug: print('Importing cascade...')
 from .cascade import *
+if _debug: print('Importing results...')
+from .results import *
 if _debug: print('Done importing Atomica.')

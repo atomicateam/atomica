@@ -6,21 +6,17 @@ services:
       args:
         WHICH: cascade
         PORT: '80'
-        # REDIS_URL: 'redis://10.0.0.3:6379/8'
+        REDIS_URL: 'redis://10.0.0.3:6379/8'
         # REDIS_URL: 'redis://vladh.net:63790/8'
-        REDIS_URL: 'redis://redis:6379/8'
     command: python start_server.py
     environment:
-      # - REDIS_URL=redis://10.0.0.3:6379/8
-      - REDIS_URL=redis://redis:6379/8
+      - REDIS_URL=redis://10.0.0.3:6379/8
+      # - REDIS_URL=redis://redis:6379/8
     ports:
      - '8080:8080'
      - '8094:8094'
-     - '80:80'
     volumes:
      - .:/code
-    depends_on:
-     - redis
 
   celery:
     build:
@@ -28,16 +24,9 @@ services:
       args:
         WHICH: cascade
         PORT: '80'
-        # REDIS_URL: 'redis://10.0.0.3:6379/8'
+        REDIS_URL: 'redis://10.0.0.3:6379/8'
         # REDIS_URL: 'redis://vladh.net:63790/8'
-        REDIS_URL: 'redis://redis:6379/8'
     command: celery worker -A atomica_apps.apptasks_cascade -l info
     environment:
-      # - REDIS_URL=redis://10.0.0.3:6379/8
-      - REDIS_URL=redis://redis:6379/8
-
-  redis:
-    image: redis
-    container_name: redis
-    ports:
-      - "6379:6379"
+      - REDIS_URL=redis://10.0.0.3:6379/8
+      # - REDIS_URL=redis://redis:6379/8

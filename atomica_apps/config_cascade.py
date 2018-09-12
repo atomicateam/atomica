@@ -63,3 +63,6 @@ BROKER_URL = REDIS_URL
 # Note that the /N number at the end should match the 
 # database number you want to use.  (N=0 is the default Redis database.)
 CELERY_RESULT_BACKEND = REDIS_URL
+
+# Slack logging configuration
+SLACK = {'to':'webapp-logs', 'from':'cascade-bot', 'token':'~/.slackurl'}

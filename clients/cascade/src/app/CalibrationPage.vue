@@ -89,42 +89,38 @@ Last update: 2018-09-06
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th @click="updateSorting('parameter')" class="sortable">
+              <th>
                 Parameter
-                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
               </th>
-              <th @click="updateSorting('population')" class="sortable">
-                Population
-                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              <th>
+                Overall scale factor
               </th>
-              <th @click="updateSorting('value')" class="sortable">
-                Value
-                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              <th v-for="popLabel in poplabels">
+                {{ popLabel }}
               </th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in parList">
+            <tr v-for="par in parlist">
               <td>
                 {{par.parlabel}}
               </td>
               <td>
-                {{par.poplabel}}
-              </td>
-              <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.dispvalue"/>
+                       v-model="par.meta_y_factor"/>
+              </td>
+              <td v-for="poppar in par.pop_y_factors">
+                <input type="text"
+                       class="txbox"
+                       v-model="poppar.dispvalue"/>
               </td>
             </tr>
             </tbody>
           </table>
+          <button class="btn __green" @click="saveParTable(projectID)">
+            Save
+          </button>&nbsp;
         </div>
       </div>
       <!-- ### End: parameters card ### -->
@@ -169,11 +165,27 @@ Last update: 2018-09-06
             <!-- ### Start: plots ### -->
             <div class="calib-card-body">
               <div class="calib-graphs">
+
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <!--<div style="display:inline-block">-->
+                      <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
+                      <!--</div>-->
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ### Start: Cascade plot ### -->
                 <div class="featured-graphs">
                   <div :id="'fig0'">
                     <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
+                <!-- ### End: Cascade plot ### -->
 
                 <!-- ### Start: cascade table ### -->
                 <div v-if="$globaltool=='cascade' && table" class="calib-tables">
@@ -195,38 +207,25 @@ Last update: 2018-09-06
                 </div>
                 <!-- ### End: cascade table ### -->
 
-                <div class="other-graphs">
-                  <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
-                      <div :id="'fig'+index" class="calib-graph">
-                        <!--mpld3 content goes here-->
-                      </div>
-                      <div style="display:inline-block">
-                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
               </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div v-for="index in placeholders">
-              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-                <dialog-drag :id="'DD'+index"
-                             :key="index"
-                             @close="minimize(index)"
-                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+            <!--<div v-for="index in placeholders">-->
+            <!--<div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">-->
+            <!--<dialog-drag :id="'DD'+index"-->
+            <!--:key="index"-->
+            <!--@close="minimize(index)"-->
+            <!--:options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">-->
 
-                  <span slot='title' style="color:#fff">Legend</span>
-                  <div :id="'legend'+index">
-                    <!-- Legend content goes here-->
-                  </div>
-                </dialog-drag>
-              </div>
-            </div>
+            <!--<span slot='title' style="color:#fff">Legend</span>-->
+            <!--<div :id="'legend'+index">-->
+            <!--&lt;!&ndash; Legend content goes here&ndash;&gt;-->
+            <!--</div>-->
+            <!--</dialog-drag>-->
+            <!--</div>-->
+            <!--</div>-->
             <!-- ### End: dialogs ### -->
 
 
@@ -406,11 +405,30 @@ Last update: 2018-09-06
           // TODO: Get spinners working right for this leg of initialization.
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
             .then(response => {
-              this.parList = response.data // Get the parameter values
+              this.parlist = response.data.parlist // Get the parameter values
+              this.poplabels = response.data.poplabels
+              console.log(response)
+              console.log(this.poplabels)
+              console.log(this.parlist)
               resolve(response)
             })
             .catch(error => {
               status.fail(this, 'Could not load parameters', error)
+              reject(error)
+            })
+        })
+      },
+
+      saveParTable() {
+        return new Promise((resolve, reject) => {
+          console.log('saveParTable() called')
+          rpcs.rpc('set_y_factors', [this.$store.state.activeProject.project.id, this.activeParset, this.parlist])
+            .then(response => {
+              status.succeed(this, 'Parameters updated')
+              resolve(response)
+            })
+            .catch(error => {
+              status.fail(this, 'Could not save parameters', error)
               reject(error)
             })
         })
@@ -525,6 +543,7 @@ Last update: 2018-09-06
           .then(response => {
             this.table = response.data.table
             this.makeGraphs(response.data.graphs)
+            status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
             console.log(error.message)

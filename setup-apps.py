@@ -32,7 +32,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'atomica',
+        'atomica', # Core library
         'sciris'
     ],
 )

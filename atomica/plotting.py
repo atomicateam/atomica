@@ -79,7 +79,7 @@ class PlotData(object):
     # different views of the same data.
 
     # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
-    def __init__(self, results, outputs=None, pops=None, output_aggregation='sum', pop_aggregation='sum', project=None,time_aggregation='sum', t_bins=None):
+    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None,time_aggregation='sum', t_bins=None):
         # Construct a PlotData instance from model outputs
         #
         # final_outputs[result][pop][output] = vals
@@ -138,10 +138,10 @@ class PlotData(object):
         if len(set(result_names)) != len(result_names):
             raise AtomicaException('Results must have different names (in their result.name property)')
 
-        if pops in [None, 'All', 'all', 'overlaid']:
+        if pops in [None, 'all']:
             pops = [pop.name for pop in results[0].model.pops]
-        elif pops in ['overall', 'total','aggregate']:
-            pops = [{'Total': [pop.name for pop in results[0].model.pops]}] # CK: should fix name
+        elif pops == 'total':
+            pops = [{'Total': [pop.name for pop in results[0].model.pops]}]
         pops = sc.promotetolist(pops)
 
         if outputs is None:
@@ -153,10 +153,8 @@ class PlotData(object):
         pops = expand_dict(pops)
         outputs = expand_dict(outputs)
 
-        assert isinstance(results, list), 'Results should be specified as a Result, list, or odict' # CK: WARNING: code doesn't match text
-
-        assert output_aggregation in ['sum', 'average', 'weighted']
-        assert pop_aggregation in ['sum', 'average', 'weighted']
+        assert output_aggregation in [None, 'sum', 'average', 'weighted']
+        assert pop_aggregation in [None, 'sum', 'average', 'weighted']
         assert time_aggregation in ['sum', 'average']
 
         # First, get all of the pops and outputs requested by flattening the lists
@@ -276,11 +274,19 @@ class PlotData(object):
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
+
+                        # Set default aggregation method depending on the units of the quantity
+                        if output_aggregation is None:
+                            if units[0] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                                output_aggregation = 'average'
+                            else:
+                                output_aggregation = 'sum'
+
                         if len(units) > 1:
                             logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly not desired.".format(output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
-                            if units[0] in ['', 'fraction', 'proportion', 'probability'] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
+                            if units[0] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
                                 logger.warning("Output '{0}' is not in number units, so output aggregation probably should not be 'sum'.".format(output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
 
@@ -303,8 +309,16 @@ class PlotData(object):
                     if isinstance(pop, dict):
                         pop_name = list(pop.keys())[0]
                         pop_labels = pop[pop_name]
+
+                        # Set population aggregation method depending on
+                        if pop_aggregation is None:
+                            if aggregated_units[output_name] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                                pop_aggregation = 'average'
+                            else:
+                                pop_aggregation = 'sum'
+
                         if pop_aggregation == 'sum':
-                            if aggregated_units[output_name] in ['', 'fraction', 'proportion', 'probability'] and len(pop_labels) > 1:
+                            if aggregated_units[output_name] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and len(pop_labels) > 1:
                                 logger.warning("Output '{0}' is not in number units, so population aggregation probably should not be 'sum'".format(output_name))
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
@@ -922,9 +936,9 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     units = list(set([x.units for x in plotdata.series]))
     if len(units) == 1:
         if orientation == 'horizontal':
-            ax.set_xlabel(units[0])
+            ax.set_xlabel(units[0].title())
         else:
-            ax.set_ylabel(units[0])
+            ax.set_ylabel(units[0].title())
     else:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
@@ -1034,7 +1048,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 units = list(set([plotdata[result, pop, output].units for result in plotdata.results]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
+                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0].title()))
                 else:
                     ax.set_ylabel('%s' % (plotdata.outputs[output]))
 
@@ -1056,7 +1070,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':   render_legend(ax, reverse=reverse_legend)
+                if legend_mode == 'together':   render_legend(ax, plot_type=plot_type)
                 elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
 
     elif axis == 'pops':
@@ -1070,7 +1084,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 units = list(set([plotdata[result, pop, output].units for pop in plotdata.pops]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
+                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0].title()))
                 else:
                     ax.set_ylabel('%s' % (plotdata.outputs[output]))
 
@@ -1104,7 +1118,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 units = list(set([plotdata[result, pop, output].units for output in plotdata.outputs]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel(units[0])
+                    ax.set_ylabel(units[0].title())
 
                 if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
                     ax.set_title('%s-%s' % (plotdata.results[result], plotdata.pops[pop]))
