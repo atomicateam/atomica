@@ -12,31 +12,31 @@ from atomica.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-test = "hypertension_dyn"
+#test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
 #test = "hiv"
-#test = "diabetes"
+test = "diabetes"
 #test = "service"
 
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-"plotcascade",
-"makeblankprogbook",
+#"loadframework",
+#"saveframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#"plotcascade",
+#"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
-#"autocalibrate",
+"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -105,7 +105,7 @@ if "runsim" in torun:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
     elif test=='diabetes':
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv','usdt','hypertension']:
+    elif test in ['udt','hiv','usdt','hypertension','hypertension_dyn']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     elif test in ['sir']:
         P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
@@ -135,6 +135,8 @@ if 'plotcascade' in torun:
 if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
     P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
+    P.run_sim(parset="default", result_name="default")    
+
     filename = "temp/progbook_"+test+"_blank.xlsx"
     if test == "tb":
         P.make_progbook(filename, progs=6)
