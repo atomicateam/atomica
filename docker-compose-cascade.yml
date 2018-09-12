@@ -6,10 +6,10 @@ services:
       args:
         WHICH: cascade
         PORT: '80'
-        REDIS_URL: 'redis://redis:6379/8'
+        REDIS_URL: 'redis://localhost:6379/8'
     command: /etc/init.d/redis-server start && supervisord
     environment:
-      - REDIS_URL=redis://redis:6379/8
+      - REDIS_URL=redis://localhost:6379/8
     ports:
      - '8080:8080'
      - '8094:8094'
