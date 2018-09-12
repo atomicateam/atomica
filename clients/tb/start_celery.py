@@ -1,6 +1,6 @@
 import sys
 import sciris as sc
-import atomica_apps.apptasks_cascade as at
+import atomica_apps.apptasks_tb as at
 
 sys.argv = [__file__, '-l', 'info']
 
